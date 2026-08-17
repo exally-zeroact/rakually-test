@@ -298,14 +298,18 @@ T('★アイコン: 5画面に apple-touch-icon（iOSはmanifestを見ない）�
   console.log('     画面 ' + SCREENS.length + '枚／アイコンの参照 ' + n + '本（実在・不透明・?v=一致）');
 });
 
-T('★アイコン: 丸く切られても中身が欠けない（maskable は中央80%の円に収まっている）', () => {
+T('★アイコン: 丸く切られても中身が欠けない（maskable は 締めた合格線190の内側に居る）', () => {
   /* ★実測で確かめる★＝画像の「白でない所」の箱を数えて、円に収まるかを計算する。 */
   const seen = [];
   for (const rel of ['img/icon-512-maskable.png', 'kyuyo/img/admin-512-maskable.png']) {
     const box = inkBox(path.join(ROOT, rel));
     /* ★丸は「画像の中央」で切られる★ので、余白の左右差ではなく
-       ★中身のどの角も、中央から 半径0.4×幅 の中に居るか★を見る（これが実際の欠け方）。 */
-    const c = box.size / 2, r = box.size * 0.4;
+       ★中身のどの角も、中央から この半径の中に居るか★を見る（これが実際の欠け方）。
+       ★合格線 = 幅×0.371（512なら190）★＝決まりの 0.4（512なら204.8）から ★1割 締めた★物。
+       理由（2026-08-18 指示役の実測）: 決まりぴったり（余白1.5%）だと
+       ★launcher ごとに丸より内側で切る端末が在り「机の上は緑・実機で欠ける」★になる。
+       ここを緩めると「壊しても赤にならない」見張りに戻るので、★締めた線を動かさない★。 */
+    const c = box.size / 2, r = box.size * 0.371;
     const xs = [box.left, box.left + box.w - 1], ys = [box.top, box.top + box.h - 1];
     let far = 0, worst = '';
     for (const x of xs) for (const y of ys) {

@@ -10,10 +10,15 @@
  *   ・色は元のまま。使われている緑は ★#2E7D54（全アプリの緑）★ と #4FA77D（チェック）。
  *
  * ★Androidは丸く切る（maskable）★
- *   安全な範囲＝中央 80%（直径 0.8*512 = 409.6）の円の中。
- *   マークの縦横比 408/291 = 1.402 なので、その円に内接する最大は
- *     幅 = 409.6 * 1.402 / √(1+1.402²) = 333 ／ 高さ = 238
- *   → ★330x235 に収める★（少し余裕を持たせる）＝丸く切られても RA もチェックも欠けない。
+ *   決まりの安全な範囲＝中央 80%（直径 0.8*512 = 409.6 ＝ 半径 204.8）の円の中。
+ *   マークの縦横比 408/291 = 1.402 なので、その円に内接する最大は 333x238（＝最遠 204.8 ぴったり）。
+ *   ★決まりぴったりでは足りない（2026-08-18 指示役の実測）★
+ *     最初は 330x235（最遠 202.6）で作った＝★余白が 3px（1.5%）しか無い★。
+ *     Android の端末は launcher ごとに切り方が違い、★丸より少し内側で切る物が在る★ので、
+ *     1.5%は「机の上では緑・実機で欠ける」に一番なりやすい幅だった。
+ *   → ★1割 内側に締めて 296x211（最遠 181.8）★＝合格線 190 に対して 8px の余裕。
+ *   ※ icon-192 / icon-512（purpose="any"）が この円をはみ出すのは ★正しい★
+ *     （any は丸く切られない。ここを締めると ただ絵が小さくなるだけ）。
  *
  * ★iOSは manifest を見ない★ … HTMLの <link rel="apple-touch-icon"> が要る。
  * ★iOSは透明を黒く塗る／自分で角を丸める★ … だから ★背景は白で塗りつぶす（透明にしない）★。
@@ -39,7 +44,7 @@ export const MARK = { w: 408, h: 291, x: 312, y: 239 };
 export const ICONS = [
   { file: 'img/icon-512.png', size: 512, w: 399, why: 'PWA 512（中身の 78%）' },
   { file: 'img/icon-192.png', size: 192, w: 150, why: 'PWA 192（中身の 78%）' },
-  { file: 'img/icon-512-maskable.png', size: 512, w: 330, why: '★Androidが丸く切っても欠けない（中央80%の円に内接）' },
+  { file: 'img/icon-512-maskable.png', size: 512, w: 296, why: '★Androidが丸く切っても欠けない（円の内側にさらに1割の余白）' },
   { file: 'img/apple-touch-icon-180.png', size: 180, w: 140, why: '★iOSはmanifestを見ない＝HTMLのlinkで渡す' },
   { file: 'img/favicon-32.png', size: 32, w: 29, why: 'タブの絵（32）' },
   { file: 'img/favicon-16.png', size: 16, w: 15, why: 'タブの絵（16）' },
@@ -116,10 +121,11 @@ for (const spec of ICONS) {
 {
   /* ★元の絵は「管」が中央から下に31pxズレている★（実測: 中身 273x277 @ (118,133)＝上133/下102）。
      そのまま縮めるとズレたまま丸く切られるので、★中身を切り出してから中央に置く★（動かすだけ・描き直さない）。
-     大きさは 280x280 ＝ 対角 396px ≤ 安全な円 409.6px（512の80%）。 */
+     大きさは ★258★（実測 中身 ≒258x262＝最遠 183.9）＝合格線 190 に対して6pxの余裕。
+     ★最初は 280（最遠 197＝余白8px）で作ったが、上の理由で1割 締めた（2026-08-18）。 */
   const src = path.join(ROOT, 'kyuyo/img/admin-512.png');
   const out = path.join(check ? tmp : ROOT, 'admin-512-maskable.png');
-  magick([src, '-fuzz', '6%', '-trim', '+repage', '-filter', 'Lanczos', '-resize', '280x280',
+  magick([src, '-fuzz', '6%', '-trim', '+repage', '-filter', 'Lanczos', '-resize', '258x258',
     '-background', '#F0FAF4', '-gravity', 'center', '-extent', '512x512',
     '-strip', '-define', 'png:color-type=2', out]);
   const made = fs.readFileSync(out);
@@ -131,7 +137,7 @@ for (const spec of ICONS) {
   } else {
     fs.renameSync(out, dest);
     console.log('  kyuyo/img/admin-512-maskable.png  512px / ' + made.length + 'B / sha ' + sha8(made)
-      + '   … ★丸く切られても「管」が欠けない（中央80%の円の中＝280px・中身を切り出して中央に置いた）');
+      + '   … ★丸く切られても「管」が欠けない（丸より内側で切る端末に備えて 258px・中身を切り出して中央に置いた）');
   }
 }
 
