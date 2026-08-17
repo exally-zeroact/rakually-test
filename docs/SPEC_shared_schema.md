@@ -37,7 +37,7 @@ v1（経営セッション発）を、**実Supabase（倉庫 Exally = `tnfwipbgf
 ### 2-1. ★キー空間の分離（実測に基づく強制ルール）
 Kyually は従業員1人を `data` に**丸ごと**書くが、`mergeEmp`＝`Object.assign(defEmp(), x)`（`app.js:35`）が**知らないキーを保持**し、`stripTransient`（`app.js:3035`）も `_` 始まり以外を全部コピーするため、**Exallyが足したキーは Kyually を通しても消えない**（実測確認済み）。その上で：
 
-- **Exally が pay_employees.data に書いてよいキーは `employmentType` / `business` のみ**（allowlist）。それ以外への書き込みは**データ層が例外で拒否する**（実装＝`js/suite-data.js` の `EXALLY_EMP_KEYS`、テストで担保）。
+- **Exally が pay_employees.data に書いてよいキーは `employmentType` / `business` のみ**（allowlist）。それ以外への書き込みは**データ層が例外で拒否する**（実装＝`js/suite-data.js` の `RAKUALLY_EMP_KEYS`、テストで担保）。
 - **`_` 始まりのキーは禁止**（Kyuallyの `stripTransient` が保存時に落とす＝静かに消える）。
 - Exally 側の更新は**必ず read-modify-write**（行の `data` を読んで allowlist キーだけ差し替えて書く）。丸ごと置換は禁止。
 

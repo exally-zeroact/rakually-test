@@ -28,8 +28,8 @@ const EXCEPTIONS = {
   'auth.js': '名前が同じだけの【別物】。js/auth.js はハブのログイン＋利用権ゲート、'
     + 'kyuyo/js/auth.js は給与のログイン(window.Store.auth 経由)、'
     + 'seikyu/js/auth.js は請求書のログイン(SeikyuApp.attach 経由・利用権の関所はまだ無い)。互いの写しではない。'
-    + '★共通の部分（ログイン画面そのもの）は js/exally-login.js に1本で置いてある＝写しではない。'
-    + 'ログイン画面そのものは共通部品 js/exally-login.js で1本化してあり、両方それを読んでいる。',
+    + '★共通の部分（ログイン画面そのもの）は js/rakually-login.js に1本で置いてある＝写しではない。'
+    + 'ログイン画面そのものは共通部品 js/rakually-login.js で1本化してあり、両方それを読んでいる。',
 };
 
 /* ★法定データ（金額に直結する物）は【必ず1箇所】。ここに載っている名前が2箇所にあったら、

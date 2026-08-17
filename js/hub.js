@@ -20,7 +20,6 @@
     partners: [],
     editEmpId: null,
     editPtId: null,
-    aggKind: 'thisMonth',
     today: null                        // 'YYYY-MM-DD'(起動時に決める＝純関数には毎回渡す)
   };
 
@@ -61,7 +60,6 @@
   function show(id) {
     $$('.scr').forEach(function (s) { s.classList.toggle('active', s.id === id); });
     $$('.bn-i').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-go') === id); });
-    if (id === 'scr-agg') { renderAgg(); renderCross(); }
     try { window.scrollTo(0, 0); } catch (e) {}
   }
   function showTab(tab) {
@@ -239,126 +237,10 @@
     }).catch(function (e) { msg('pt-edit-msg', jpFail(e && e.message), true); });
   }
 
-  /* ═══ 集計 ═══ */
-  function currentRange() {
-    var kind = state.aggKind;
-    if (kind === 'custom') {
-      return { from: $('agg-from').value, to: $('agg-to').value };
-    }
-    return global.Aggregate.periodOf(kind, state.today || todayYmd());
-  }
-  function renderAggRange(r) {
-    $('agg-range').textContent = (r.from && r.to) ? (r.from + ' 〜 ' + r.to) : '期間を選んでください';
-  }
-  function renderAgg() {
-    var body = $('agg-body'); if (!body) return;
-    var r;
-    try { r = currentRange(); } catch (e) { renderAggRange({}); body.innerHTML = ''; msg('agg-msg', '期間が正しくありません', true); return; }
-    renderAggRange(r);
-    if (!r.from || !r.to) { body.innerHTML = ''; msg('agg-msg', '開始日と終了日を入れてください', true); return; }
-    if (r.from > r.to) { body.innerHTML = ''; msg('agg-msg', '終了日が開始日より前になっています', true); return; }
-    if (!SD) { body.innerHTML = ''; msg('agg-msg', 'ログインしてください', true); return; }
-
-    msg('agg-msg', '読み込み中...');
-    SD.ledger.list({ from: r.from, to: r.to }).then(function (rows) {
-      msg('agg-msg', '');
-      paintAgg(global.Aggregate.byBusiness({ ledgerRows: rows, employees: state.employees }));
-    }).catch(function (e) {
-      body.innerHTML = '';
-      // 件数上限で切れた時は「合計を出さずに」期間を短くと出す(嘘の合計を出さない)
-      msg('agg-msg', (e && e.message) || '読み込めませんでした', true);
-    });
-  }
-  function paintAgg(a) {
-    var body = $('agg-body');
-    if (a.empty) {
-      body.innerHTML = '<div class="empty"><div class="empty-ic">📒</div>'
-        + '<div class="empty-t">この期間の記録はまだありません</div>'
-        + '<div class="empty-s">日次台帳は準備中です。<br>使えるようになったら、ここに事業ごとの合計が出ます。</div></div>';
-      return;
-    }
-    var unit = a.basis === 'amount' ? '金額' : '売上';
-    var html = '<div class="agg-head"><span>事業</span><span class="agg-n">件数</span><span class="agg-n">' + unit + '</span></div>';
-    a.rows.forEach(function (b) {
-      var v = a.basis ? b[a.basis] : 0;
-      html += '<div class="agg-row">'
-        + '<span class="agg-b">' + esc(b.business) + (a.basis ? ' <span class="agg-pct">' + b.pct + '%</span>' : '') + '</span>'
-        + '<span class="agg-n">' + b.count + '</span>'
-        + '<span class="agg-m">' + (a.basis ? yen(v) : '—') + '</span>'
-        + (a.basis ? '<span class="agg-bar"><i style="width:' + (b.bar * 100).toFixed(1) + '%"></i></span>' : '')
-        + '</div>';
-    });
-    var tv = a.basis ? a.total[a.basis] : 0;
-    html += '<div class="agg-total"><span>合計</span><span class="agg-n">' + a.total.count + '</span>'
-      + '<span class="agg-m">' + (a.basis ? yen(tv) : '—') + '</span></div>';
-    if (!a.basis) html += '<p class="note" style="margin-top:12px">金額の記録がないため、件数だけ出しています。</p>';
-    body.innerHTML = html;
-  }
-
-  /* ═══ E5 横断集計(事業のまとめ・月をまたいで見る) ═══ */
-  //  E1の集計は「1つの期間の事業別」。ここは「月をまたいだ推移」と「動いていない事業」を見せる。
-  //  ★支給額(円)は出さない(E2と同じ。決め方はKyuallyのpay-rule.jsが唯一の源)
-  function crossSpan() {
-    var n = parseInt(($('x-span') && $('x-span').value) || '3', 10);
-    var t = state.today || todayYmd();
-    var y = +t.slice(0, 4), m = +t.slice(5, 7);
-    var to = global.Aggregate.periodOf('thisMonth', t).to;      // 今月末
-    var sm = m - (n - 1), sy = y;
-    while (sm <= 0) { sm += 12; sy -= 1; }
-    return { from: sy + '-' + ('0' + sm).slice(-2) + '-01', to: to };
-  }
-  function renderCross() {
-    var body = $('x-body'); if (!body) return;
-    if (!SD) { body.innerHTML = ''; msg('x-msg', 'ログインしてください', true); return; }
-    var sp = crossSpan();
-    $('x-range').textContent = sp.from + ' 〜 ' + sp.to;
-    msg('x-msg', '読み込み中...');
-    SD.ledger.list({ from: sp.from, to: sp.to }).then(function (rows) {
-      msg('x-msg', '');
-      paintCross(global.CrossAgg.crossByBusiness({
-        businesses: state.businesses, employees: state.employees,
-        ledgerRows: rows, from: sp.from, to: sp.to
-      }));
-    }).catch(function (e) {
-      body.innerHTML = '';
-      msg('x-msg', (e && e.message) || '読み込めませんでした', true);   // 件数上限で切れた時も合計を出さない
-    });
-  }
-  function paintCross(x) {
-    var body = $('x-body');
-    if (!x.rows.length) {
-      body.innerHTML = '<div class="empty"><div class="empty-ic">🗂</div>'
-        + '<div class="empty-t">まだ事業がありません</div>'
-        + '<div class="empty-s">「共有データ ▸ 会社」で事業を足すと、ここに事業ごとのまとめが出ます。</div></div>';
-      return;
-    }
-    var moLabel = x.months.map(function (m) { return m.slice(5) + '月'; });
-    var maxMo = 0;
-    x.rows.forEach(function (b) { x.months.forEach(function (m) { if (b.byMonth[m] > maxMo) maxMo = b.byMonth[m]; }); });
-
-    var html = x.rows.map(function (b) {
-      var v = x.basis === 'amount' ? b.amount : b.sales;
-      var zero = b.rows === 0;
-      return '<div class="x-row' + (zero ? ' x-zero' : '') + '">'
-        + '<div class="x-h"><span class="x-b">' + esc(b.business) + '</span>'
-        + (x.basis && !zero ? '<span class="x-pct">' + b.pct + '%</span>' : '')
-        + (zero ? '<span class="x-zero-tag">記録なし</span>' : '')
-        + '<span class="x-m">' + (x.basis ? yen(v) : b.rows + '件') + '</span></div>'
-        + (x.basis ? '<div class="x-bar"><i style="width:' + (b.bar * 100).toFixed(1) + '%"></i></div>' : '')
-        + '<div class="x-months">' + x.months.map(function (m, i) {
-            var h = maxMo > 0 ? Math.round((b.byMonth[m] / maxMo) * 28) : 0;
-            return '<span class="x-mo" title="' + m + ' ' + yen(b.byMonth[m]) + '">'
-              + '<i style="height:' + h + 'px"></i><span>' + esc(moLabel[i]) + '</span></span>';
-          }).join('') + '</div>'
-        + '</div>';
-    }).join('');
-
-    html += '<div class="x-total"><span>合計</span><span class="x-m">'
-      + (x.basis ? yen(x.basis === 'amount' ? x.total.amount : x.total.sales) : x.total.rows + '件') + '</span></div>';
-    if (!x.basis) html += '<p class="note" style="margin-top:10px">金額の記録がないため、件数だけ出しています。</p>';
-    if (x.empty) html += '<p class="note" style="margin-top:10px">この期間の記録はまだありません（事業は登録済みのものを並べています）。</p>';
-    body.innerHTML = html;
-  }
+  /* ★2026-08-18 集計(E5)と日次台帳(E2)は この入口から外した★（司さん「ささっと Exally から切り離せ」）
+     ・どちらも Exally の物。Rakually の入口が出す物は ★給与／請求書／共有データ★ の3つ。
+     ・外したのは renderAgg / paintAgg / renderCross / paintCross と その繋ぎ（121行）。
+     ・戻す条件＝Rakually に台帳/集計を置くと決めた日（git に残っている）。 */
 
   /* ═══ 読み込み ═══ */
   function loadPartners() {
@@ -415,34 +297,20 @@
     $('pt-cancel').addEventListener('click', closePt);
     $('pt-del').addEventListener('click', delPt);
 
-    $('agg-kind').addEventListener('change', function () {
-      state.aggKind = $('agg-kind').value;
-      $('agg-custom').classList.toggle('on', state.aggKind === 'custom');
-      if (state.aggKind !== 'custom') renderAgg();
-    });
-    $('agg-reload').addEventListener('click', renderAgg);
-    $('x-reload').addEventListener('click', renderCross);
-    $('x-span').addEventListener('change', renderCross);
   }
 
   /* ═══ 起動 ═══ */
   function init() {
     // ★state.today は入れない＝毎回その時の日付を使う(アプリを開きっぱなしで日が変わっても「今月」がズレない)。
     //   テストだけ state.today に固定値を入れて時刻依存を外す。
-    // 期間指定の初期値=今月(空欄のまま押されないように)
-    var p = global.Aggregate.periodOf('thisMonth', todayYmd());
-    if ($('agg-from')) { $('agg-from').value = p.from; $('agg-to').value = p.to; }
     bind();
     renderEmps(); renderPts(); renderBizChips();
   }
 
-  // auth.js がログイン成功後に呼ぶ。従業員を読んでから台帳(E2)を起こす（台帳は人の一覧を使うため順番が要る）
+  // auth.js がログイン成功後に呼ぶ（会社・人・取引先を読む）
   function attach(client) {
     SD = global.SuiteData ? global.SuiteData.create({ client: client }) : null;
-    return loadAll()
-      .then(function () { return (global.Ledger && global.Ledger.attach) ? global.Ledger.attach(SD) : null; })
-      .catch(function () { /* 台帳が起きなくてもハブ自体は使える */ })
-      .then(function () { return SD; });
+    return loadAll().then(function () { return SD; });
   }
 
   /* ═══ モーダル（その人の記録の一覧など） ═══ */
@@ -456,15 +324,14 @@
 
   var Hub = {
     init: init, attach: attach, show: show, showTab: showTab,
-    loadAll: loadAll, renderAgg: renderAgg, paintAgg: paintAgg,
-    renderCross: renderCross, paintCross: paintCross, crossSpan: crossSpan,
+    loadAll: loadAll,
     state: state,
     _setSuiteData: function (sd) { SD = sd; },     // テスト用の差し込み口
     _toast: toast, _jpFail: jpFail,
     _modal: modal, _modalClose: modalClose
   };
   global.Hub = Hub;
-  global.__EXALLY_TEST = Hub;                       // ★UIテスト(jsdom/実機)から中を見る
+  global.__RAKUALLY_TEST = Hub;                       // ★UIテスト(jsdom/実機)から中を見る
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

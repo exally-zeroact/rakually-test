@@ -111,7 +111,7 @@
   var API = { shouldShow: shouldShow, mount: mount, TEST: TEST, CSS: CSS };
   if (typeof module === 'object' && module.exports) module.exports = API;
   else {
-    global.ExallyEnvBadge = API;
+    global.RakuallyEnvBadge = API;
     if (global.document) {
       if (global.document.readyState === 'loading') {
         global.document.addEventListener('DOMContentLoaded', mount);

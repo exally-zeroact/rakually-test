@@ -32,7 +32,7 @@ const eq = (a, b, m) => { if (a !== b) throw new Error((m ? m + ': ' : '') + 'ex
    ここに書いた物が ★1本でも消えたら赤★／★書いていない物が増えても赤★。
    ＝「いつのまにか別の物に頼っていた」を運ぶ日に初めて気づく、を無くす。 */
 const OUTSIDE = [
-  'css/exally-ui.css',                 // 画面の見た目（帯・カード・ボタン）
+  'css/rakually-ui.css',                 // 画面の見た目（帯・カード・ボタン）
   'index.html',                        // ★Rakually の入口（共有データ＞会社）＝「会社の情報を直す」の飛び先
   /* ★2026-08-18 アイコンを差し替えた★ … img/icon-192.png（Exallyの文字だけの仮アイコン）を
      ★Rakually のロゴ★の一組に替えた。iOSは manifest を見ないので apple-touch-icon が要る。 */
@@ -40,7 +40,7 @@ const OUTSIDE = [
   'img/favicon-32.png',                // タブの絵（32）
   'img/favicon-16.png',                // タブの絵（16）
   'js/env-badge.js',                   // ★テスト環境の帯★（本番と取り違えない）
-  'js/exally-login.js',                // ★ログイン画面の共通部品（唯一の正）★
+  'js/rakually-login.js',                // ★ログイン画面の共通部品（唯一の正）★
   'js/file-out.js',                    // ★落とす口＝FileOut.deliver（全出力の窓口）★
   'js/suite-data.js',                  // 共有マスタ（会社・取引先）の読み書き
   'js/supa-config.js',                 // 倉庫の向き先（★配信ごとに違う＝写さない物★）

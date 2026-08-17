@@ -493,4 +493,7 @@ a:focus-visible,button:focus-visible,select:focus-visible,textarea:focus-visible
    幅は列いっぱいまで伸ばす＝隣に食い込まない。 */
 .ym-pick select{width:100%;min-width:0;padding-right:24px;}
 .appbar-month .ym-pick{display:inline-block;}
-.appbar-month .ym-pick select{width:auto;padding:6px 22px 6px 8px;font-size:13px;}
+/* ★16px★ … これ未満だと iOS が「タップした欄」を勝手に拡大する（全アプリのHARDルール）。
+   2026-08-18 実測: 13px のままで 箱は 257→359（幅103）。ロゴを「Kyually」から「給与」に替えて
+   81px→約40px になり ★16px にしても appbar に収まる★ようになったので直した。 */
+.appbar-month .ym-pick select{width:auto;padding:6px 22px 6px 8px;font-size:16px;}

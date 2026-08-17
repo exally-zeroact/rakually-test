@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/hub.css?v=da6fafc0">
+<link rel="stylesheet" href="css/hub.css?v=8bb3fd24">
 
 </head>
 <body>
@@ -43,18 +43,6 @@
         <span class="tile-d">作って出す・番号は自動</span>
         <span class="tile-go">開く →</span>
       </a>
-      <button class="tile" id="tile-ledger" type="button" data-go="scr-ledger">
-        <span class="tile-ic">📒</span>
-        <span class="tile-t">日次台帳</span>
-        <span class="tile-d">毎日の売上・時間を貯める</span>
-        <span class="tile-go">開く →</span>
-      </button>
-      <button class="tile" type="button" data-go="scr-agg">
-        <span class="tile-ic">📊</span>
-        <span class="tile-t">集計</span>
-        <span class="tile-d">事業ごとに見る</span>
-        <span class="tile-go">開く →</span>
-      </button>
       <button class="tile" type="button" data-go="scr-data">
         <span class="tile-ic">🗂</span>
         <span class="tile-t">共有データ</span>
@@ -66,6 +54,11 @@
     </div>
   </section>
 
+  <!-- ★2026-08-18 日次台帳(E2)と集計(E5)を この入口から外した★（司さん「ささっと Exally から切り離せ」）
+       ・どちらも Exally の物（E2/E5）。Rakually の入口に出す物は ★給与／請求書／共有データ★ の3つ。
+       ・外したのは 画面(section)・タイル・下の帯・読み込み(lib/aggregate.js, lib/ledger-source.js,
+         lib/cross-agg.js, js/ledger.js)。★中身は git に残っている★（消滅ではない）。
+       ・戻す条件＝Rakually に台帳/集計を置くと決めた日。部品・テスト・CIの登録をまとめて戻す。 -->
   <!-- ═══ 共有データ ═══ -->
   <section id="scr-data" class="scr">
     <h2 class="scr-t">共有データ</h2>
@@ -152,128 +145,10 @@
     </div>
   </section>
 
-  <!-- ═══ 日次台帳(E2) ═══ -->
-  <section id="scr-ledger" class="scr">
-    <h2 class="scr-t">日次台帳</h2>
-    <p class="scr-s">毎日ちょこちょこ入れておけば、締めの日に自動でまとまります。</p>
-
-    <div class="agg-ctl">
-      <select id="lg-ym"></select>
-      <button class="b2" type="button" id="lg-reload">更新</button>
-    </div>
-    <p class="lg-shime" id="lg-shime"></p>
-
-    <div class="ptabs" id="lg-ptabs"></div>
-    <div id="lg-body"></div>
-    <div class="msg" id="lg-msg"></div>
-  </section>
-
-  <!-- 1件の入力(逆Excル: 白紙の表を埋めさせない) -->
-  <section id="scr-lg-entry" class="scr">
-    <h2 class="scr-t" id="lge-title">入れる</h2>
-    <p class="scr-s" id="lge-sub"></p>
-
-    <div class="card" data-kiku="ledger-entry">
-      <div class="fld">
-        <label>いつ</label>
-        <div class="chips" id="lge-day-chips"></div>
-        <input id="lge-ymd" type="date">
-      </div>
-
-      <div class="fld" id="lge-biz-wrap">
-        <label>事業</label>
-        <div class="chips" id="lge-biz-chips"></div>
-      </div>
-
-      <div class="fld" id="lge-f-uriage">
-        <label for="lge-uriage">売上</label>
-        <input id="lge-uriage" type="text" inputmode="numeric" placeholder="例：4200">
-      </div>
-
-      <div class="fld" id="lge-f-minutes">
-        <label for="lge-hm">時間</label>
-        <input id="lge-hm" type="text" inputmode="numeric" placeholder="例：1:30">
-        <div class="chips" style="margin-top:8px">
-          <button class="chip chip-btn" type="button" data-hm="30">+30分</button>
-          <button class="chip chip-btn" type="button" data-hm="60">+1時間</button>
-          <button class="chip chip-btn" type="button" data-hm="480">+8時間</button>
-          <button class="chip chip-btn" type="button" data-hm="0">消す</button>
-        </div>
-      </div>
-
-      <div class="fld" id="lge-f-count">
-        <label for="lge-count">件数</label>
-        <div class="chip-add">
-          <button class="b2" type="button" id="lge-cnt-minus">－</button>
-          <input id="lge-count" type="text" inputmode="numeric" placeholder="例：1" style="text-align:center">
-          <button class="b2" type="button" id="lge-cnt-plus">＋</button>
-        </div>
-      </div>
-
-      <div class="fld" id="lge-f-amount">
-        <label for="lge-amount">金額</label>
-        <input id="lge-amount" type="text" inputmode="numeric" placeholder="例：5000">
-        <label class="chk"><input id="lge-hikazei" type="checkbox"> 非課税（立替の精算など）</label>
-      </div>
-
-      <div class="fld">
-        <label for="lge-memo">メモ</label>
-        <input id="lge-memo" type="text" placeholder="任意">
-      </div>
-
-      <div class="acts">
-        <button class="b-del" type="button" id="lge-del">削除</button>
-        <button class="b2" type="button" id="lge-cancel">やめる</button>
-        <button class="b1" type="button" id="lge-save">入れる</button>
-      </div>
-      <div class="msg" id="lge-msg"></div>
-    </div>
-  </section>
-
-  <!-- ═══ 集計 ═══ -->
-  <section id="scr-agg" class="scr">
-    <h2 class="scr-t">集計</h2>
-    <p class="scr-s">日次台帳に貯めた記録を、事業ごとにまとめます。</p>
-
-    <div class="agg-ctl" data-kiku="agg-period">
-      <select id="agg-kind">
-        <option value="thisMonth">今月</option>
-        <option value="lastMonth">先月</option>
-        <option value="custom">期間を指定</option>
-      </select>
-      <button class="b2" type="button" id="agg-reload">更新</button>
-    </div>
-    <div class="agg-custom" id="agg-custom">
-      <input id="agg-from" type="date">
-      <input id="agg-to" type="date">
-    </div>
-    <div class="agg-range" id="agg-range"></div>
-    <div id="agg-body"></div>
-    <div class="msg" id="agg-msg"></div>
-
-    <!-- ═══ E5 横断集計(事業別のまとめ・月をまたいで見る) ═══ -->
-    <div class="x-sec">
-      <h3 class="x-t">事業のまとめ</h3>
-      <p class="note">月をまたいで「どの事業でいくら」を見ます。動いていない事業も出します。</p>
-      <div class="agg-ctl" data-kiku="cross-period">
-        <select id="x-span">
-          <option value="3">直近3か月</option>
-          <option value="6">直近6か月</option>
-          <option value="12">直近12か月</option>
-        </select>
-        <button class="b2" type="button" id="x-reload">更新</button>
-      </div>
-      <div class="agg-range" id="x-range"></div>
-      <div id="x-body"></div>
-      <div class="msg" id="x-msg"></div>
-    </div>
-  </section>
 
   <nav class="bn">
     <button class="bn-i active" type="button" data-go="scr-hub"><span class="bn-ic">🏠</span>ホーム</button>
-    <button class="bn-i" type="button" data-go="scr-ledger"><span class="bn-ic">📒</span>台帳</button>
     <button class="bn-i" type="button" data-go="scr-data"><span class="bn-ic">🗂</span>データ</button>
-    <button class="bn-i" type="button" data-go="scr-agg"><span class="bn-ic">📊</span>集計</button>
   </nav>
 
 </div>
@@ -288,19 +163,14 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supa-config.js?v=da6fafc0"></script>
-<script src="lib/access.js?v=da6fafc0"></script>
-<script src="lib/aggregate.js?v=da6fafc0"></script>
-<script src="lib/periods.js?v=da6fafc0"></script>
-<script src="lib/ledger-source.js?v=da6fafc0"></script>
-<script src="lib/cross-agg.js?v=da6fafc0"></script>
-<script src="js/suite-data.js?v=da6fafc0"></script>
-<script src="js/hub.js?v=da6fafc0"></script>
-<script src="js/ledger.js?v=da6fafc0"></script>
-<script src="js/exally-login.js?v=da6fafc0"></script>
-<script src="js/auth.js?v=da6fafc0"></script>
+<script src="js/supa-config.js?v=8bb3fd24"></script>
+<script src="lib/access.js?v=8bb3fd24"></script>
+<script src="js/suite-data.js?v=8bb3fd24"></script>
+<script src="js/hub.js?v=8bb3fd24"></script>
+<script src="js/rakually-login.js?v=8bb3fd24"></script>
+<script src="js/auth.js?v=8bb3fd24"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="js/env-badge.js?v=da6fafc0"></script>
+<script src="js/env-badge.js?v=8bb3fd24"></script>
 </body>
 </html>

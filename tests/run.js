@@ -20,9 +20,9 @@ const path = require('path');
 const FILES = [
   'stamp.test.mjs',         // キャッシュバスター(?v=)の道具そのもの
   'suite-data.test.js',     // E0 共有データ層の契約
-  'aggregate.test.js',      // E1 事業別集計(純関数)
-  'ledger-source.test.js',  // E2 台帳→期間の実績値(ctx)
-  'cross-agg.test.js',      // E5 横断集計(事業別のまとめ)
+  /* ★2026-08-18 集計(E1/E5)と台帳(E2)の3本を外した★＝Exally の物なので入口から外した
+     （aggregate.test.js / ledger-source.test.js / cross-agg.test.js・見る lib ごと外した）。
+     ★戻す条件★＝Rakually に台帳/集計を置く日。lib とテストとCIの登録をまとめて戻す。 */
   'hub-ui.mjs',             // 入口(index.html) UI 全ボタン(jsdom)
   'no-dead-ui.test.mjs',     // ★出来ていない物のボタン/画面を止める窓/中の言葉(STEP6・実装予定)を客に見せない
   ['no-dead-ui.test.mjs', '--self-test'],

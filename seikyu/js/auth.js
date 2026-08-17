@@ -1,7 +1,7 @@
 /* auth.js — 請求書のログイン（メール+パスワード / Supabase auth）
  * ==============================================================================
  * ★Exally・給与(Kyually)と同じ倉庫・同じアカウント★＝1回のログインで全部使える。
- * ログイン画面そのものは全アプリ共通の部品（js/exally-login.js）が一次情報。ここには書き写さない。
+ * ログイン画面そのものは全アプリ共通の部品（js/rakually-login.js）が一次情報。ここには書き写さない。
  *
  * ★中身(#app)は hidden のまま出発する★
  *   接続設定が読めない端末・JSが落ちた端末でも、データが露出したままにならない。
@@ -19,10 +19,10 @@
   var LOGIN = null;
   function mountLogin(sbForLogin) {
     if (LOGIN) return LOGIN;
-    LOGIN = global.ExallyLogin.mount({
+    LOGIN = global.RakuallyLogin.mount({
       app: '請求書',
       sb: sbForLogin,
-      note: 'ホーム・給料明細も、同じメールとパスワードで入れます。',
+      note: 'ホーム・給与も、同じメールとパスワードで入れます。',
       onLogin: function (user) { afterLogin((user && user.email) || ''); },
     });
     return LOGIN;
@@ -59,7 +59,7 @@
       header();
     }).catch(function (e) {
       // ★読めなかったのに画面だけ出さない。何が起きたかを言う。
-      fail((global.ExallyLogin ? global.ExallyLogin.friendly(e) : (e && e.message)) || '読み込めませんでした');
+      fail((global.RakuallyLogin ? global.RakuallyLogin.friendly(e) : (e && e.message)) || '読み込めませんでした');
     });
   }
 

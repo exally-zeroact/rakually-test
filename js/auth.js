@@ -7,15 +7,15 @@
   'use strict';
   var hasSupa = !!(global.SUPA && global.SUPA.url && global.SUPA.key && global.supabase);
 
-  // ログイン画面は全アプリ共通の部品(js/exally-login.js)。見た目も文言もそこが一次情報。
+  // ログイン画面は全アプリ共通の部品(js/rakually-login.js)。見た目も文言もそこが一次情報。
   var LOGIN = null;
   var ov = null;
   function mountLogin(sbForLogin) {
     if (LOGIN) return LOGIN;
-    LOGIN = global.ExallyLogin.mount({
+    LOGIN = global.RakuallyLogin.mount({
       app: 'ホーム',
       sb: sbForLogin,
-      note: '売上管理・代行請求・給料明細も、同じメールとパスワードで入れます。',
+      note: '給与・請求書も、同じメールとパスワードで入れます。',
       onLogin: function (user) { afterLogin((user && user.email) || ''); }
     });
     ov = LOGIN.el;
@@ -28,7 +28,7 @@
   function hide() { if (LOGIN) LOGIN.hide(); var a = $('app'); if (a) a.hidden = false; }
   function msg(t, err) { if (err && LOGIN) LOGIN.error(t || ''); }
   function jpErr(s) {
-    if (global.ExallyLogin) return global.ExallyLogin.friendly({ message: s });
+    if (global.RakuallyLogin) return global.RakuallyLogin.friendly({ message: s });
     s = String(s || '');
     if (/Invalid login/i.test(s)) return 'メールかパスワードが違います';
     if (/already registered|User already/i.test(s)) return 'このメールは登録済みです。ログインしてください';

@@ -140,8 +140,8 @@ require している**＝③自社Excelの土台）と、その唯一の試験 `
 
 ## まだ Exally の名前が残っている所（★客は読まない★ので据え置き）
 
-- ファイル名 `css/exally-ui.css` / `js/exally-login.js`
-- 中の名前 `ExallyLogin` / `ExallyEnvBadge` / `EXALLY_EMP_KEYS`
+- ファイル名 `css/rakually-ui.css` / `js/rakually-login.js`
+- 中の名前 `RakuallyLogin` / `RakuallyEnvBadge` / `RAKUALLY_EMP_KEYS`
 
 **替えるのは10月のURL切替と同じ塊。** 客が読む字（タブの題・見出し・紙・ログイン画面・
 ホーム画面の名前）に他アプリの名前が出ていないかは `tests/own-name.test.mjs` が毎回数える。
@@ -224,10 +224,10 @@ rakually-test/
 - `C:\Users\zeroa\zeroact-memory\team\ask-dont-fill.md`（★聞いてあげる。埋めさせない★の正本）
 
 ## CIから外しているテスト（1本だけ・機械で見張っている）
-- `kyuyo/tests/exally-login.test.mjs` … item C（メール確認ON前提のsignup分岐）は payslip-app の
-  **テスト線のみ**の機能。本番の `js/exally-login.js` には意図的に未展開で、統合時に本番のログイン
+- `kyuyo/tests/rakually-login.test.mjs` … item C（メール確認ON前提のsignup分岐）は payslip-app の
+  **テスト線のみ**の機能。本番の `js/rakually-login.js` には意図的に未展開で、統合時に本番のログイン
   挙動を変えないため共通部品は本番版を据え置いた。よって対象機能がこのツリーに無い。
   **戻す条件＝item C を本番へ展開する時（＝SMTPを設定してメール確認をONにする時）。**
-  その時に `js/exally-login.js` を item C 版へ差し替え、このテストをCIへ戻す。
+  その時に `js/rakually-login.js` を item C 版へ差し替え、このテストをCIへ戻す。
 - 除外を増やすと `tests/ci-coverage.test.mjs` が赤になる（理由と戻す条件が無い除外も赤）。
   CIから黙って外れたテストが生まれない仕組み。

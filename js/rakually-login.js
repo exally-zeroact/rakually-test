@@ -1,11 +1,11 @@
-/* exally-login.js — Exally 共通のログイン画面
+/* rakually-login.js — Exally 共通のログイン画面
  * ==================================================================
  * 全アプリ（売上管理・代行請求・給料明細…）で同じ見た目・同じ言い方にするための部品。
  * 画面の作りも文言もここが一次情報＝各アプリに書き写さない。
  *
  * 使い方:
- *   <script src="exally-login.js"></script>
- *   var LOGIN = ExallyLogin.mount({
+ *   <script src="rakually-login.js"></script>
+ *   var LOGIN = RakuallyLogin.mount({
  *     app: "売上管理",          // カードに出すアプリ名
  *     sb: SB,                   // supabase クライアント
  *     onLogin: function (user) {…}, // ログインできたら呼ばれる
@@ -195,5 +195,5 @@
     return { show: show, hide: hide, error: err, el: ov };
   }
 
-  root.ExallyLogin = { mount: mount, friendly: friendly };
+  root.RakuallyLogin = { mount: mount, friendly: friendly };
 })(typeof window !== "undefined" ? window : this);

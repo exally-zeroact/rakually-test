@@ -16,7 +16,7 @@
  *   ・お振込先・備考も ★囲まない★。囲みが増えるほど、どこを読めばよいか分からなくなる。
  *   ・明細は ★縦の罫を引かず、横の細い罫だけ★。列を会社が足せるので、
  *     縦罫があると列を増やすたびに紙が檻のようになる。
- *   ・色は Exally／Kyually と同じ緑（css/exally-ui.css と同じ13色から）。
+ *   ・色は Exally／Kyually と同じ緑（css/rakually-ui.css と同じ13色から）。
  *     ※代行請求（ダイコメの製品）は今 事務所の青(#007AFF)ですが、それは別の家の色です。
  *
  * ★税率の数字を1つも書かない★（区分は seikyu-tax.js が出した物を並べるだけ）
@@ -967,7 +967,7 @@
     return [
       '*{box-sizing:border-box;}',
       'html,body{margin:0;padding:0;background:#FFFFFF;color:' + INK + ';',
-      "font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;",
+      "font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;",
       '-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
       /* ★1ページ＝A4の紙そのもの★（中身が少なくても紙の大きさは変わらない）
          ＝2枚目が「1枚目の途中」から始まらない。見本＝代行請求 invoice-pdf.js（addPage([A4]）。 */

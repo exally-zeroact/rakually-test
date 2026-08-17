@@ -1,16 +1,16 @@
 // ★このツリーでは実行対象外★
 //   item C(メール確認ON前提のsignup分岐)は payslip-app の【テスト線のみ】に入っている機能で、
-//   本番の js/exally-login.js には意図的に未展開。統合時に本番のログイン挙動を変えないため、
+//   本番の js/rakually-login.js には意図的に未展開。統合時に本番のログイン挙動を変えないため、
 //   ルートの部品は本番版のまま据え置いた。よってこのテストは対象機能が無く成立しない。
 //   ★item C を本番へ展開する判断が出たら、この注記を外してCIに戻すこと（テストは消していない）。
-// exally-login.test.mjs — ★item C: メール確認ON前提のsignup分岐★
-//  共通ログイン部品(js/exally-login.js)の signup を検証:
+// rakually-login.test.mjs — ★item C: メール確認ON前提のsignup分岐★
+//  共通ログイン部品(js/rakually-login.js)の signup を検証:
 //   - session有り(確認OFF)=即ログイン(onLogin呼ぶ)=既存動作を壊さない
 //   - session無し(確認ON)=「確認メール送信」待機画面(onLogin呼ばない・auto-loginしない)
 //   - 待機画面から「戻る」で通常ログインへ復帰
 //   - signupエラーは待機画面を出さずエラー表示
 //   - 通常loginは従来どおり
-//  依存: jsdom。使い方: node tests/exally-login.test.mjs (jsdom未導入ならSKIP)
+//  依存: jsdom。使い方: node tests/rakually-login.test.mjs (jsdom未導入ならSKIP)
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -26,9 +26,9 @@ function loadLogin() {
   const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously', url: 'http://localhost/', pretendToBeVisual: true });
   const win = dom.window;
   const el = win.document.createElement('script');
-  el.textContent = fs.readFileSync(path.join(ROOT, '..', 'js/exally-login.js'), 'utf8');
+  el.textContent = fs.readFileSync(path.join(ROOT, '..', 'js/rakually-login.js'), 'utf8');
   win.document.body.appendChild(el);
-  ok(win.ExallyLogin && win.ExallyLogin.mount, 'ExallyLogin.mount 露出');
+  ok(win.RakuallyLogin && win.RakuallyLogin.mount, 'RakuallyLogin.mount 露出');
   return win;
 }
 
@@ -56,7 +56,7 @@ runs.push(T('確認OFF: signupでsession有り→即ログイン(onLogin呼ぶ�
   const win = loadLogin();
   const sb = makeSb({ signUp: { data: { user: { email: 'a@b.com' }, session: { access_token: 't' } } } });
   let loggedIn = null;
-  const L = win.ExallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
+  const L = win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
   L.show(); fill(win, 'a@b.com', 'secret1');
   await clickAsync(win, 'btnSignup');
   ok(loggedIn && loggedIn.email === 'a@b.com', 'onLoginが呼ばれた(即ログイン)');
@@ -69,7 +69,7 @@ runs.push(T('★確認ON: signupでsession無し→確認メール待機画面(o
   const win = loadLogin();
   const sb = makeSb({ signUp: { data: { user: { email: 'new@b.com' }, session: null } } });
   let loggedIn = null;
-  const L = win.ExallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
+  const L = win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
   L.show(); fill(win, 'new@b.com', 'secret1');
   await clickAsync(win, 'btnSignup');
   ok(!loggedIn, '★onLoginは呼ばれない(まだログインさせない)');
@@ -84,7 +84,7 @@ runs.push(T('★確認ON: signupでsession無し→確認メール待機画面(o
 runs.push(T('待機画面→戻るで通常ログインへ復帰(btnLogin/btnSignupが再び出る)', async function () {
   const win = loadLogin();
   const sb = makeSb({ signUp: { data: { user: { email: 'new@b.com' }, session: null } } });
-  const L = win.ExallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} });
+  const L = win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} });
   L.show(); fill(win, 'new@b.com', 'secret1');
   await clickAsync(win, 'btnSignup');
   ok(win.document.getElementById('loginConfirmSent'), '待機画面が出ている');
@@ -99,7 +99,7 @@ runs.push(T('signupエラー: 待機画面を出さずfriendlyエラー(既存�
   const win = loadLogin();
   const sb = makeSb({ signUp: { error: { message: 'User already registered' } } });
   let loggedIn = null;
-  const L = win.ExallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
+  const L = win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
   L.show(); fill(win, 'dup@b.com', 'secret1');
   await clickAsync(win, 'btnSignup');
   ok(!loggedIn, 'ログインしない');
@@ -112,7 +112,7 @@ runs.push(T('回帰: 通常loginはonLoginを呼ぶ(従来どおり)', async fun
   const win = loadLogin();
   const sb = makeSb({ signIn: { data: { user: { email: 'a@b.com' } } } });
   let loggedIn = null;
-  const L = win.ExallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
+  const L = win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
   L.show(); fill(win, 'a@b.com', 'secret1');
   await clickAsync(win, 'btnLogin');
   ok(loggedIn && loggedIn.email === 'a@b.com', 'onLogin呼ばれた');

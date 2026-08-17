@@ -22,12 +22,12 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // ★CIから外しているテスト（ここに載っていない除外は赤になる）
 const EXCLUDED = {
-  'kyuyo/tests/exally-login.test.mjs': {
+  'kyuyo/tests/rakually-login.test.mjs': {
     reason: 'item C（メール確認ON前提のsignup分岐）は payslip-app のテスト線のみの機能。'
-      + '本番の js/exally-login.js には意図的に未展開で、統合時に本番のログイン挙動を変えないため'
+      + '本番の js/rakually-login.js には意図的に未展開で、統合時に本番のログイン挙動を変えないため'
       + '共通部品は本番版を据え置いた。よって対象機能がこのツリーに存在しない。',
     restoreWhen: 'item C を本番へ展開する時＝SMTP（確認メール送信）を設定してメール確認をONにする時。'
-      + 'その時に js/exally-login.js を item C 版へ差し替え、このテストをCIへ戻す。',
+      + 'その時に js/rakually-login.js を item C 版へ差し替え、このテストをCIへ戻す。',
     owner: '司さん（SMTP設定）＋ 実装セッション',
   },
 };

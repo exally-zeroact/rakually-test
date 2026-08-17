@@ -6,7 +6,7 @@
 
 /* app.css — 請求書だけの差分
  * ==============================================================================
- * ★見た目の本体は css/exally-ui.css（スイート共通の皮）★
+ * ★見た目の本体は css/rakually-ui.css（スイート共通の皮）★
  *   色・角丸・ボタン・カード・入力欄・タブはそちらが唯一の正。ここには書かない。
  *   ここに置くのは ★請求書にしか無い物★ だけ（明細の表・合計欄・紙の下見・列の編集）。
  *
@@ -253,7 +253,7 @@
 .card .tot,
 .more-s { padding-right: 10px; }
 /* ★畳んだ箱（details.card.more）の中は 皮が padding を上書きする★
-   （css/exally-ui.css の `.card.more > *:not(summary){padding:0 0 12px}` が
+   （css/rakually-ui.css の `.card.more > *:not(summary){padding:0 0 12px}` が
      こちらより強い＝実測 2026-08-16：ここの字だけ 箱の枠まで 1.6px しか無かった）。
    ★同じ値を ここにまとめて書く★＝直す所を1か所に保つ。 */
 .card.more > *:not(summary) { padding-right: 10px; }

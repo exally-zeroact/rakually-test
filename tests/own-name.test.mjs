@@ -12,7 +12,7 @@
  *   ③ manifest の name / short_name / description（ホーム画面に出る字）
  *
  * ★数えない物（客は読まない）★
- *   ファイル名（css/exally-ui.css・js/exally-login.js）／中の名前（ExallyLogin・ExallyEnvBadge）／
+ *   ファイル名（css/rakually-ui.css・js/rakually-login.js）／中の名前（RakuallyLogin・RakuallyEnvBadge）／
  *   コード中のコメント（前科の記録は残す）。名前を替えるのは ★10月のURL切替と同じ塊★。
  *
  * 深い所（取引先を外へ出さない・自社の中身を見せる 等）は
@@ -21,6 +21,7 @@
  * 使い方: node tests/own-name.test.mjs
  *         node tests/own-name.test.mjs --self-test
  */
+import { execSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
@@ -31,19 +32,18 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /* ★他のアプリの名前★＝客が読んではいけない字。
    Rakually の中の物（給与・請求書・台帳・集計）は お互いの名前を出してよい（同じ1つのアプリ）。 */
-export const OTHER_APPS = ['Exally', 'エクサリー', 'exally', 'Castally', 'キャスタリー', 'ダイコメ', 'アマかせ', 'Timeally'];
+export const OTHER_APPS = ['Exally', 'エクサリー', 'exally', 'Castally', 'キャスタリー', 'ダイコメ', 'アマかせ', 'Timeally',
+  /* ★2026-08-18 Kyually を「据え置き」から禁止語に格上げ★（司さん「ささっと Exally から切り離せ」）
+     ＝給与の旧製品名。10月まで待たずに Rakually へ統一した。戻したら赤にする。 */
+  'Kyually', 'キュアリー'];
 
 /* ★据え置き（理由と期限つき）★
    「Kyually」＝給与の旧製品名。★2026-08-12 に Rakually へ統一すると決まったが、改名は10月★
    （URL切替と同じ塊で替える）。今 字だけ替えると、司さんが知っている画面と食い違う。
    ＝★見た目の変更なので、勝手に替えず「まだ残っている」と数えて出す★。 */
 export const PENDING = {
-  Kyually: {
-    where: 'kyuyo/index.html の題とロゴ',
-    reason: '給与の旧製品名。2026-08-12 に Rakually へ統一と決定済みだが、★改名は10月（URL切替と同じ塊）★。'
-      + '見た目の変更は 司さんの見た目OKが要る＝勝手に替えない。',
-    until: '2026-10-31',
-  },
+  /* ★今は0件★（2026-08-18 に Kyually を消したので空になった）。
+     ここに足してよいのは ★理由と期限（until）を書ける物だけ★。空のまま＝据え置きゼロ。 */
 };
 
 const SCREENS = ['index.html', 'kyuyo/index.html', 'kyuyo/admin.html', 'kyuyo/meisai.html', 'seikyu/index.html'];
@@ -199,8 +199,8 @@ if (process.argv.includes('--self-test')) {
     const m = clone(); m['index.html'] = m['index.html'].replace('<body>', '<body>\n<!-- Exally の物なので置かない -->');
     ok(findOtherNames(m).length === 0, 'コメントまで数えている＝誤検知');
   });
-  T('⑥ ★<script> の中も赤にしない★（中の名前 ExallyLogin は客が読まない）', () => {
-    const m = clone(); m['index.html'] = m['index.html'].replace('</body>', '<script>var x = window.ExallyLogin;</script></body>');
+  T('⑥ ★<script> の中も赤にしない★（中の名前 RakuallyLogin は客が読まない）', () => {
+    const m = clone(); m['index.html'] = m['index.html'].replace('</body>', '<script>var x = window.RakuallyLogin;</script></body>');
     ok(findOtherNames(m).length === 0, '中のJSまで数えている＝誤検知');
   });
   T('⑦ ★?v= の突き合わせが効いている★（中身を1バイト変えたら別のSHAになる）', () => {
@@ -229,6 +229,30 @@ T('★数える物が揃っている（1枚でも読めなければ空振り）'
   const total = Object.values(vfs).reduce((a, s) => a + s.length, 0);
   ok(total > 40000, '読めた字が少なすぎる（' + total + 'バイト）＝読めていない');
   console.log('     画面 ' + SCREENS.length + '枚 ／ manifest ' + MANIFESTS.length + '本 ／ 合計 ' + total + 'バイト');
+});
+
+/* ★ファイル名にも 他アプリの名前を残さない★（司さん 2026-08-18「ささっと Exally から切り離せ」）
+   前は「客は読まないから据え置き」にしていた（css/exally-ui.css・js/exally-login.js）。
+   ★その据え置きを全部 取り消した★＝配る物の名前も Rakually にする。
+   ★中の名前（window.○○）も一緒に替えた★＝RakuallyLogin / RakuallyEnvBadge / RAKUALLY_EMP_KEYS。
+   ★替えない物★＝端末に保存済みの物の鍵（kyuyo/js/store.js の 'kyually-session-backup'）。
+     替えると ★前に保存した控えが読めなくなる★（本番で22人が使っている）。名前ではなく鍵なので残す。 */
+const NAME_NG = /(exally|kyually)/i;
+const KEEP_INSIDE = {
+  'kyuyo/js/store.js': "端末に保存済みの控えの鍵 'kyually-session-backup'（替えると前の控えが読めなくなる）",
+};
+T('★配信するファイルの名前に exally / kyually が0本（据え置きは全部 取り消した）', () => {
+  const files = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
+    .filter((f) => /\.(html|js|mjs|css|json|png)$/.test(f) && !f.startsWith('docs/'));
+  ok(files.length > 100, '数えたファイルが ' + files.length + '本＝拾えていない');
+  const bad = files.filter((f) => NAME_NG.test(f.split('/').pop()));
+  if (bad.length) throw new Error('★' + bad.length + '本★ 名前に他アプリの名前が残っている\n     ' + bad.join('\n     '));
+  const shown = Object.entries(KEEP_INSIDE)
+    .filter(([f]) => fs.existsSync(path.join(ROOT, f)))
+    .map(([f, why]) => f + ' … ' + why);
+  ok(shown.length > 0, '★中身に残す物の一覧が空＝この検査は空振り★');
+  console.log('     数えたファイル ' + files.length + '本 → 名前に残る他アプリ名 ★0本★'
+    + '\n     ★中身にだけ残す物（理由つき）★ ' + shown.join(' / '));
 });
 
 T('★他のアプリの名前が、客が読む字に0件（タブの題・画面の字・ホーム画面の名前）', () => {
@@ -337,7 +361,7 @@ T('★据え置きの名前は「0件」に見せない（何がいつまで残�
     console.log('     据え置き「' + n + '」' + where.join(' , ') + '（' + e.until + 'までに替える／' + e.where + '）');
     shown++;
   }
-  ok(shown > 0, '据え置きの表が空＝この検査は空振り');
+  if (!shown) console.log('     据え置き ★0件★（Kyually は 2026-08-18 に Rakually へ統一済み）');
 });
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
