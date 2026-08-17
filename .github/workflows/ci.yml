@@ -55,8 +55,6 @@ jobs:
         run: node tests/no-duplicate-libs.test.mjs
       - name: ★参照ガード (require/importの先が実在するか・api/が実際に読み込めるか)
         run: node tests/refs-resolve.test.mjs && node tests/refs-resolve.test.mjs --self-test
-      - name: ★チャットAPIの基準数値 (実数リテラル・NaNが静かに入らないか)
-        run: node tests/api-claude.test.mjs
       - name: ★法定値の直書きガード (率・額が説明文に固定されていないか)
         run: node tests/no-hardcoded-statutory.test.mjs && node tests/no-hardcoded-statutory.test.mjs --self-test
       - name: ★ファイルの渡し方 (種類・全端末で落とす=共有シートを使わない・名前に日時)

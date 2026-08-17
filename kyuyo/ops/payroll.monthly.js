@@ -118,7 +118,7 @@
               aliases: { '一般': 'ippan', '一般の事業': 'ippan', '建設': 'kensetsu', '建設の事業': 'kensetsu',
                 '農林水産': 'norin', '農林水産・清酒製造': 'norin', '清酒製造': 'norin' } } } },
     { key: 'employees', type: 'array', required: true, minLength: 1, source: 'pay_employees', label: '従業員', of: EMPLOYEE_SHAPE },
-    { key: 'ledger', type: 'array', source: 'pay_ledger(Exally台帳)', label: '台帳行' },
+    { key: 'ledger', type: 'array', source: 'pay_ledger(日次台帳の棚)', label: '台帳行' },
     { key: 'otHistory', type: 'map', source: '過去11ヶ月の確定明細', label: '36協定の履歴' },
     { key: 'options', type: 'object', label: 'オプション' },
   ];

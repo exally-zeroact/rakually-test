@@ -131,7 +131,7 @@
     if (!state.employees.length) {
       host.innerHTML = '<div class="empty"><div class="empty-ic">🙂</div>'
         + '<div class="empty-t">まだ人が登録されていません</div>'
-        + '<div class="empty-s">給料明細アプリ（Kyually）で従業員を登録すると、ここに出ます。</div></div>';
+        + '<div class="empty-s">給与で従業員を登録すると、ここに出ます。</div></div>';
       return;
     }
     host.innerHTML = state.employees.map(function (e) {

@@ -203,6 +203,16 @@ if (process.argv.includes('--self-test')) {
     const m = clone(); m['index.html'] = m['index.html'].replace('</body>', '<script>var x = window.RakuallyLogin;</script></body>');
     ok(findOtherNames(m).length === 0, '中のJSまで数えている＝誤検知');
   });
+  T('⑥-b ★JSが画面に出す字を戻すと赤★（2026-08-18 これを素通りさせた）', () => {
+    const src = "host.innerHTML = '<div>給料明細アプリ（Kyually）で登録すると出ます。</div>';";
+    const hit = jsStrings(src).some((t) => OTHER_APPS.some((n) => t.includes(n)));
+    ok(hit, 'JSの文字列の中の他アプリ名を拾えていない＝この検査は空振り');
+  });
+  T('⑥-c ★コメントと識別子は赤にしない★（誤検知を作らない）', () => {
+    ok(!jsStrings('/* Kyually の前科の記録 */ var x = 1;').some((t) => t.includes('Kyually')), 'コメントまで数えている');
+    ok(!jsStrings('return { fromKyually: true };').some((t) => t.includes('Kyually')), 'キー名まで数えている');
+    ok(!jsStrings('global.RakuallyLogin = L;').some((t) => t.includes('Exally')), '識別子まで数えている');
+  });
   T('⑦ ★?v= の突き合わせが効いている★（中身を1バイト変えたら別のSHAになる）', () => {
     const b = fs.readFileSync(path.join(ROOT, 'img/icon-192.png'));
     const b2 = Buffer.from(b); b2[b2.length - 1] ^= 0xff;
@@ -236,10 +246,13 @@ T('★数える物が揃っている（1枚でも読めなければ空振り）'
    ★その据え置きを全部 取り消した★＝配る物の名前も Rakually にする。
    ★中の名前（window.○○）も一緒に替えた★＝RakuallyLogin / RakuallyEnvBadge / RAKUALLY_EMP_KEYS。
    ★替えない物★＝端末に保存済みの物の鍵（kyuyo/js/store.js の 'kyually-session-backup'）。
-     替えると ★前に保存した控えが読めなくなる★（本番で22人が使っている）。名前ではなく鍵なので残す。 */
+     替えると ★前に保存した控えが読めなくなる★＝名前ではなく ★端末に保存されている物の鍵★ なので残す。
+     （2026-08-18 訂正: ここに「本番で22人が使っている」と書いていたが ★私の誤り★。
+      22人は本番の倉庫を使う全アプリの合計で、給与を使っているのは1人。
+      ★人数は残す理由ではない★＝1人でも0人でも「保存済みの鍵は替えない」。） */
 const NAME_NG = /(exally|kyually)/i;
 const KEEP_INSIDE = {
-  'kyuyo/js/store.js': "端末に保存済みの控えの鍵 'kyually-session-backup'（替えると前の控えが読めなくなる）",
+  'kyuyo/js/store.js': "端末に保存済みの控えの鍵 'kyually-session-backup'（★鍵なので替えない★＝替えると前の控えが読めなくなる。人数は理由ではない）",
 };
 T('★配信するファイルの名前に exally / kyually が0本（据え置きは全部 取り消した）', () => {
   const files = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
@@ -253,6 +266,67 @@ T('★配信するファイルの名前に exally / kyually が0本（据え置�
   ok(shown.length > 0, '★中身に残す物の一覧が空＝この検査は空振り★');
   console.log('     数えたファイル ' + files.length + '本 → 名前に残る他アプリ名 ★0本★'
     + '\n     ★中身にだけ残す物（理由つき）★ ' + shown.join(' / '));
+});
+
+/* ★JSが作る字も数える★（2026-08-18 指示役が見つけた穴・同じ形は3回目）
+   HTMLとファイル名だけ数えていたので、★js/hub.js が画面に出していた「Kyually」を素通りした★
+   （人が0人の時に必ず出る字だった）。＝★見た目(class)で探すな。中身で探せ★ と同じ形。
+   ここでは「配信する .js の中の ★文字列リテラル★」を見る:
+     ・コメントは数えない（前科の記録は消させない）
+     ・識別子・キー名は数えない（RakuallyLogin / fromKyually: は客が読まない）
+     ・★端末に保存済みの物の鍵★（'kyually-session-backup'）は 理由つきで外す＝下の KEEP_INSIDE */
+export function jsStrings(src) {
+  /* コメントを落としてから 文字列だけ取り出す（順番が逆だとコメント内の '…' を拾う） */
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+  const out = [];
+  const re = /'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g;
+  let m;
+  while ((m = re.exec(code))) out.push(m[1] || m[2] || m[3] || '');
+  return out;
+}
+/* ★中身にだけ残してよい文字列★＝「客が読む字」ではなく ★物の名前（鍵・棚）★ だけ。
+   ★ファイルごと除外しない★（ファイル単位で外すと、その中の新しい違反まで一緒に見逃す）。
+   ここに書いた ★その文字列そのもの★ だけを外す。 */
+const KEEP_INSIDE_STR = {
+  'kyuyo/js/store.js': {
+    why: '端末に保存済みの控えの鍵（★替えると前の控えが読めなくなる★・人数は理由ではない）',
+    allow: ['kyually-session-backup', 'exally_entitlements'],
+  },
+  'js/suite-data.js': {
+    why: '★倉庫の棚の名前★（替えると本番の棚と合わなくなる＝アプリが読めなくなる）',
+    allow: ['exally_entitlements'],
+  },
+  'kyuyo/js/admin.js': {
+    why: '★倉庫の棚の名前★と、★他アプリの利用権を管理する画面★なので他アプリ名を出すのが正しい',
+    allow: ['exally_admins', 'exally_entitlements', 'ダイコメ'],
+  },
+};
+T('★JSが作る字にも 他のアプリの名前が0件（HTMLに書いていない字＝画面に出る所）', () => {
+  const files = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
+    .filter((f) => /\.js$/.test(f) && !f.startsWith('tests/') && !f.startsWith('scripts/')
+      && !f.includes('/tests/') && !f.includes('/scripts/') && !/\.min\.js$/.test(f) && !f.startsWith('docs/'));
+  ok(files.length > 20, '数えたJSが ' + files.length + '本＝拾えていない');
+  const hits = [];
+  let strs = 0, kept = 0;
+  for (const f of files) {
+    const list = jsStrings(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+    strs += list.length;
+    const keep = KEEP_INSIDE_STR[f];
+    for (const t of list) {
+      for (const n of OTHER_APPS) {
+        if (!t.includes(n)) continue;
+        /* ★その文字列そのものが 台帳に載っている物か★（ファイルごと見逃さない） */
+        if (keep && keep.allow.some((a) => t === a || t.indexOf(a) === 0)) { kept++; continue; }
+        hits.push(f + ' の文字列「' + t.slice(0, 40) + '」に " ' + n + ' "');
+      }
+    }
+  }
+  if (hits.length) throw new Error('★' + hits.length + '件★ JSが画面に出す字に他アプリの名前\n     ' + hits.join('\n     '));
+  /* ★台帳に書いた物が1つも当たらなくなったら、それは台帳が腐っている★ */
+  ok(kept > 0, '中身に残す物の台帳が1つも当たらない＝もう無いなら台帳から外すこと');
+  console.log('     JS ' + files.length + '本 / 文字列 ' + strs + '個 → 他アプリの名前 ★0件★'
+    + '（物の名前として残す ' + kept + '件: '
+    + Object.entries(KEEP_INSIDE_STR).map(([f, v]) => f + '=' + v.allow.join('/')).join(' , ') + '）');
 });
 
 T('★他のアプリの名前が、客が読む字に0件（タブの題・画面の字・ホーム画面の名前）', () => {

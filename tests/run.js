@@ -41,7 +41,13 @@ const FILES = [
   ['pages-hosting.test.mjs', '--self-test'],  // ★わざと壊して赤になるかの自己確認(7通り)
   'refs-resolve.test.mjs',      // ★読んでいるファイルが実在するか(require/importも参照として数える)
   ['refs-resolve.test.mjs', '--self-test'], // ★わざと壊して赤になるかの自己確認
-  'api-claude.test.mjs',        // ★チャットが客に言う基準数値(実数リテラル・NaN混入検知)
+  /* ★2026-08-18 api/claude.js（Exallyのチャットのサーバ側）ごと外した★
+     ・どの画面からも呼ばれていない（chat.html は持って来ていない）
+     ・中の文が「あなたはExally（エクサリー）という…」＝★Exally の物★
+     ・★聞いて選ばすは AIを使わない（ルールベース）★ので この先も要らない
+     ・一緒に外した物: tests/api-claude.test.mjs／vercel.json の /api/claude の書き換え／
+       package.json の @anthropic-ai/sdk
+     ★戻す条件★＝Rakually でサーバ側のAIを使うと決めた日 */
   'no-hardcoded-statutory.test.mjs',      // ★法定の率・額を配信物の文に直書きさせない(説明文だけ年度で取り残される事故)
   ['no-hardcoded-statutory.test.mjs', '--self-test'], // ★わざと壊して赤になるか＋誤検知が出ないか
   'no-hardcoded-supa.test.mjs',           // ★倉庫の向き先を js/supa-config.js 以外に書かせない(テストrepoが本番倉庫を触る事故)

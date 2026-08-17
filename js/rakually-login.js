@@ -19,7 +19,7 @@
 (function (root) {
   "use strict";
 
-  var CSS_ID = "exally-login-css";
+  var CSS_ID = "rakually-login-css";
   var CSS = [
     ".login-ov{position:fixed;inset:0;background:#eef7f1;z-index:400;display:none;",
     "align-items:center;justify-content:center;overflow:auto;",

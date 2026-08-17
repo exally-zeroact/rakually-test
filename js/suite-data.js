@@ -49,7 +49,7 @@
     if (!keys.length) throw new Error('patch が空です');
     keys.forEach(function (k) {
       if (k.charAt(0) === '_') throw new Error('"_"始まりのキーは使えません(保存時に消えます): ' + k);
-      if (RAKUALLY_EMP_KEYS.indexOf(k) < 0) throw new Error('Exallyが従業員に書けないキーです: ' + k + '（書けるのは ' + RAKUALLY_EMP_KEYS.join(' / ') + ' だけ）');
+      if (RAKUALLY_EMP_KEYS.indexOf(k) < 0) throw new Error('共有データが従業員に書けないキーです: ' + k + '（書けるのは ' + RAKUALLY_EMP_KEYS.join(' / ') + ' だけ）');
     });
     if ('employmentType' in patch && EMPLOYMENT_TYPES.indexOf(patch.employmentType) < 0) {
       throw new Error('employmentType は ' + EMPLOYMENT_TYPES.join(' / ') + ' のどちらかです: ' + patch.employmentType);
