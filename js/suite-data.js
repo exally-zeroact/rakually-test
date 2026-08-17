@@ -1,5 +1,5 @@
 /* suite-data.js — Exallyスイート 共有データ層(E0)
- * 契約の一次情報 = docs/SPEC_shared_schema.md v2 / DDL = supabase/schema-exally.sql
+ * 契約の一次情報 = docs/SPEC_shared_schema.md v2 / DDL = supabase/schema-shared.sql
  *
  * 役割: 1アカウント(account_id)の共有マスタを、全モジュールから同じ形で読み書きする1枚の層。
  *   pay_employees ... 従業員マスタ(Kyuallyと共有。★Exallyは allowlist のキーしか書かない★)

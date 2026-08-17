@@ -3,7 +3,7 @@
 Kyuallyセッションと Exallyセッションの **"契約"**（同じデータ形で動き、別々のスキーマを作って衝突するのを防ぐ）。
 v1（経営セッション発）を、**実Supabase（倉庫 Exally = `tnfwipbgfgjaymlszeid`）と実コードの実測**で改訂した版。改訂点は §10 に一覧。
 
-参照：`reference_payslip_supabase_setup`（倉庫Exally共有／棚アプリ毎独立）。実DDLの一次情報＝`payslip-app/supabase/schema.sql`＋本書の `exally/supabase/schema-exally.sql`。
+参照：`reference_payslip_supabase_setup`（倉庫Exally共有／棚アプリ毎独立）。実DDLの一次情報＝`payslip-app/supabase/schema.sql`＋本書の `supabase/schema-shared.sql`。
 
 ---
 
@@ -196,6 +196,6 @@ E0 の実機確認は (b) の解消後に行う。
 ---
 
 ## 11. 司さん手番
-- **DDL の適用**：`exally/supabase/schema-exally.sql` を Supabase ダッシュボードの SQL Editor に貼って1回実行（冪等・再実行OK）。または DB パスワードを渡してもらえれば実装セッションが流す。
+- **DDL の適用**：`supabase/schema-shared.sql` を Supabase ダッシュボードの SQL Editor に貼って1回実行（冪等・再実行OK）。または DB パスワードを渡してもらえれば実装セッションが流す。
   ※ DDL適用は**新規テーブル3つの作成のみ**。既存テーブル・既存データには一切触らない。
 - **実機確認用のテストログイン**（メール＋パスワード）：E0の往復テストに必要。新規登録してよいか、既存のどれを使うかは司さんの指示待ち（**指示なくクラウドにアカウント/データを作らない**）。

@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/exally-ui.css?v=c86548ee">
-<link rel="stylesheet" href="css/app.css?v=c86548ee">
+<link rel="stylesheet" href="../css/exally-ui.css?v=da6fafc0">
+<link rel="stylesheet" href="css/app.css?v=da6fafc0">
 </head>
 <body>
 
@@ -470,33 +470,33 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=c86548ee"></script>
-<script src="../lib/xlsx.full.min.js?v=c86548ee"></script>
-<script src="../js/file-out.js?v=c86548ee"></script>
-<script src="../js/suite-data.js?v=c86548ee"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=c86548ee"></script>
+<script src="../js/supa-config.js?v=da6fafc0"></script>
+<script src="../lib/xlsx.full.min.js?v=da6fafc0"></script>
+<script src="../js/file-out.js?v=da6fafc0"></script>
+<script src="../js/suite-data.js?v=da6fafc0"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=da6fafc0"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=c86548ee"></script>
-<script src="lib/seikyu-tax.js?v=c86548ee"></script>
-<script src="lib/seikyu-gensen.js?v=c86548ee"></script>
-<script src="lib/seikyu-carry.js?v=c86548ee"></script>
-<script src="lib/seikyu-cols.js?v=c86548ee"></script>
-<script src="lib/seikyu-templates.js?v=c86548ee"></script>
-<script src="lib/seikyu-doc.js?v=c86548ee"></script>
-<script src="lib/seikyu-name.js?v=c86548ee"></script>
-<script src="lib/seikyu-paper.js?v=c86548ee"></script>
-<script src="lib/seikyu-aoa.js?v=c86548ee"></script>
-<script src="js/seikyu-store.js?v=c86548ee"></script>
-<script src="js/seikyu-out.js?v=c86548ee"></script>
-<script src="js/seikyu-app.js?v=c86548ee"></script>
-<script src="../js/exally-login.js?v=c86548ee"></script>
-<script src="js/auth.js?v=c86548ee"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=da6fafc0"></script>
+<script src="lib/seikyu-tax.js?v=da6fafc0"></script>
+<script src="lib/seikyu-gensen.js?v=da6fafc0"></script>
+<script src="lib/seikyu-carry.js?v=da6fafc0"></script>
+<script src="lib/seikyu-cols.js?v=da6fafc0"></script>
+<script src="lib/seikyu-templates.js?v=da6fafc0"></script>
+<script src="lib/seikyu-doc.js?v=da6fafc0"></script>
+<script src="lib/seikyu-name.js?v=da6fafc0"></script>
+<script src="lib/seikyu-paper.js?v=da6fafc0"></script>
+<script src="lib/seikyu-aoa.js?v=da6fafc0"></script>
+<script src="js/seikyu-store.js?v=da6fafc0"></script>
+<script src="js/seikyu-out.js?v=da6fafc0"></script>
+<script src="js/seikyu-app.js?v=da6fafc0"></script>
+<script src="../js/exally-login.js?v=da6fafc0"></script>
+<script src="js/auth.js?v=da6fafc0"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=c86548ee"></script>
+<script src="../js/env-badge.js?v=da6fafc0"></script>
 </body>
 </html>

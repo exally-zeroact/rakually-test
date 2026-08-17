@@ -446,7 +446,7 @@ test('★台帳の読みが件数上限で黙って切れない仕掛けが残�
 /* ═══ DDL の安全性(既存を壊さない) ═══ */
 
 test('DDL: 新規3テーブルの作成のみ・既存への ALTER/DROP TABLE が無い', () => {
-  const sql = fs.readFileSync(path.join(ROOT, 'supabase', 'schema-exally.sql'), 'utf8');
+  const sql = fs.readFileSync(path.join(ROOT, 'supabase', 'schema-shared.sql'), 'utf8');
   const body = sql.split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
   const creates = (body.match(/create table if not exists (\w+)/g) || []).map(s => s.split(' ').pop());
   assert.deepStrictEqual(creates.sort(), ['pay_ledger', 'pay_org', 'pay_partners']);
@@ -469,7 +469,7 @@ test('DDL: 新規3テーブルの作成のみ・既存への ALTER/DROP TABLE �
 });
 
 test('DDL: pay_ledger の列名は ymd(dateは型名と衝突するので使わない)', () => {
-  const sql = fs.readFileSync(path.join(ROOT, 'supabase', 'schema-exally.sql'), 'utf8');
+  const sql = fs.readFileSync(path.join(ROOT, 'supabase', 'schema-shared.sql'), 'utf8');
   const block = sql.slice(sql.indexOf('create table if not exists pay_ledger'));
   const cols = block.slice(0, block.indexOf(');'));
   assert.ok(/\bymd\s+date\s+not null/.test(cols), 'ymd 列が無い');
