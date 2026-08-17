@@ -1,0 +1,284 @@
+/* ★hidden と書いた物は 必ず消す★（全アプリの決まり・前科あり）
+   class の display が hidden 属性を打ち消して ★中身が空の枠だけ★ が出る。
+   ここでは #app（ログインが済むまで中身を見せない）が hidden を使っている＝
+   ★1行 入れておかないと、皮の側に display が足された日に 中身が露出する★。 */
+[hidden] { display: none !important; }
+
+/* app.css — 請求書だけの差分
+ * ==============================================================================
+ * ★見た目の本体は css/exally-ui.css（スイート共通の皮）★
+ *   色・角丸・ボタン・カード・入力欄・タブはそちらが唯一の正。ここには書かない。
+ *   ここに置くのは ★請求書にしか無い物★ だけ（明細の表・合計欄・紙の下見・列の編集）。
+ *
+ * ★色は直hex／使ってよいのは共通の皮に書いた13色だけ★
+ */
+
+/* 画面の出し入れ */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── 明細の表 ───────────────────────────────────────────
+   ★スマホ幅では表が入り切らない。縮めて潰すのではなく「横に動かす」★
+     （2026-08-10 実機幅375pxで、数量・単価・金額の欄が幅ゼロまで潰れていた）
+   min-width を入れないと table が入れ物に合わせて縮み、overflow-x が効かない。
+   ★列は会社が足せるので、幅は「1列ぶん×本数」で JS が決める★ */
+.lines-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.lines { border-collapse: collapse; margin-top: 6px; }
+.lines th {
+  font-size: 11px; color: #5C7E6C; font-weight: 400; text-align: left;
+  padding: 0 4px 4px; white-space: nowrap;
+}
+.lines td { padding: 2px 4px 6px; vertical-align: top; }
+.lines .finput { padding: 9px 8px; }
+.l-name { width: 200px; min-width: 200px; }
+.l-sm { width: 84px; min-width: 84px; }
+.l-md { width: 120px; min-width: 120px; }
+.l-x { width: 40px; min-width: 40px; text-align: center; }
+.l-del {
+  background: #FFFFFF; border: 1.5px solid #F0D5D0; color: #C0392B; border-radius: 8px;
+  width: 32px; height: 36px; cursor: pointer; font-size: 14px; font-family: inherit;
+}
+.l-del:disabled { opacity: .5; cursor: default; }
+/* ★行の並べ替え（▲▼）★ 消して打ち直させないための物。
+   端の行では その向きを出さないので、幅は1つぶんでも足りる形にする。 */
+.l-ord { width: 34px; min-width: 34px; white-space: nowrap; }
+.l-mv {
+  display: block; width: 30px; height: 26px; margin: 0 auto 2px;
+  background: #FFFFFF; border: 1px solid #D4EAE0; border-radius: 7px;
+  color: #3D6B53; cursor: pointer; font-size: 11px; font-family: inherit; line-height: 1;
+}
+.l-mv:disabled { opacity: .5; cursor: default; }
+.scroll-note {
+  display: block; width: 100%; min-width: 180px; font-size: 11.5px; color: #7AA08C;
+  line-height: 1.8; margin: 4px 0 0;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+
+/* ── 合計 ─────────────────────────────────────────────── */
+.tot { margin-top: 12px; border-top: 1px solid #D4EAE0; padding-top: 10px; }
+.tot-r { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 3px 0; }
+.tot-l { color: #5C7E6C; white-space: nowrap; }
+.tot-v { font-family: 'DM Mono', ui-monospace, monospace; white-space: nowrap; }
+.tot-g {
+  font-size: 17px; font-weight: 700; color: #2E7D54;
+  border-top: 1px solid #D4EAE0; margin-top: 6px; padding-top: 8px;
+}
+
+/* ── 一覧の1行の中身 ─────────────────────────────────── */
+.iv-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.iv-no { font-family: 'DM Mono', ui-monospace, monospace; font-size: 12px; color: #7AA08C; white-space: nowrap; }
+.iv-name { font-size: 14px; font-weight: 700; color: #2E7D54; min-width: 0; overflow-wrap: break-word; }
+.iv-sub {
+  display: block; width: 100%; font-size: 11.5px; color: #7AA08C;
+  line-height: 1.8; margin-top: 2px;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+.iv-amt { font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; font-weight: 700; color: #2E7D54; }
+
+/* ── 入金の1行（★1回＝1行。上書きしない＝分割払いの履歴が残る★）─────
+   ★flex の子に文を直接置くと、狭い端末で1文字ずつ縦に割れる（前科あり）★
+     ＝日付・金額の並びと、備考の文を別の箱に分け、文の側に最低幅を持たせる。
+   消すボタンは明細と同じ .l-del を使い回す（新しい部品を作らない）。 */
+.pay-row {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px;
+  border: 1px solid #D4EAE0; border-radius: 12px;
+  padding: 8px 10px; margin-bottom: 8px; background: #FFFFFF;
+}
+.pay-main { flex: 1 1 180px; min-width: 180px; }
+.pay-l1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.pay-d { font-family: 'DM Mono', ui-monospace, monospace; font-size: 12px; color: #5C7E6C; white-space: nowrap; }
+.pay-v { font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; font-weight: 700; color: #2E7D54; white-space: nowrap; }
+.pay-w { font-size: 10.5px; color: #7AA08C; white-space: nowrap; }
+.pay-memo {
+  display: block; width: 100%; min-width: 150px; font-size: 11.5px; color: #7AA08C;
+  line-height: 1.8; margin-top: 2px;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+/* 「残り全部」「半分」＝金額を打たずに入れる近道（当たりは指の幅を確保する） */
+.pay-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* ★指で押す物なので、mini の既定（高さ約23px）より当たりを大きくする（実測40px）★ */
+.pay-quick .mini { padding: 11px 12px; font-size: 11.5px; }
+
+/* ── 列の編集（★ボタンだけの行なので折り返して潰さない★）───── */
+.col-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  border: 1px solid #D4EAE0; border-radius: 12px;
+  padding: 8px 10px; margin-bottom: 8px; background: #FFFFFF;
+}
+/* ★列の名前は flex の子だが、幅を先に確保して縦帯にしない★ */
+.col-name {
+  flex: 1 1 120px; min-width: 120px; font-size: 13px; font-weight: 700; color: #2E7D54;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+.col-w {
+  font-family: 'DM Mono', ui-monospace, monospace; font-size: 12px; color: #5C7E6C;
+  min-width: 34px; text-align: right; white-space: nowrap;
+}
+.col-role { font-size: 10.5px; color: #7AA08C; white-space: nowrap; }
+.col-gap { flex: 0 0 6px; }
+
+/* ── 紙の下見 ─────────────────────────────────────────
+   ★紙はA4の幅（約190mm）で組んである。スマホの幅にそのまま入れると右が切れて
+     「金額が見えない下見」になる（2026-08-10 実機幅375pxで実際に切れていた）。
+     だから ★紙は縮めず、まるごと縮小して全体を見せる★（transform: scale）。
+     入れ物の高さは JS が縮小後の高さに合わせる（下に大きな余白を作らない）。
+   ★既定は block。隠すのは HTML 側の style="display:none" で行う
+     （CSSで none にすると、JSが style.display='' に戻した時に「消えたまま」になる）。 */
+.pv-wrap {
+  display: block; overflow: hidden; border: 1px solid #D4EAE0; border-radius: 14px;
+  background: #FFFFFF; margin-top: 10px;
+}
+.pv { display: block; border: 0; background: #FFFFFF; transform-origin: top left; }
+
+/* 保存する名前の小窓の添え書き */
+.ov-ext { font-size: 12px; color: #7AA08C; margin-top: 4px; }
+
+/* 角印の下見 */
+.seal-row { margin: 4px 0 10px; }
+.seal-pv {
+  display: block; width: 72px; height: 72px; object-fit: contain;
+  border: 1px solid #D4EAE0; border-radius: 10px; background: #FFFFFF; padding: 4px;
+}
+
+/* ── 番号（ふだんは読むだけ・「変える」で直せる）──────────── */
+.no-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 40px; }
+.no-v {
+  flex: 1 1 120px; min-width: 120px;
+  font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px; color: #2E7D54;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+
+/* ── 当てた印（前回から入れた値だと分かるようにする）──────── */
+.guess-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  background: #F0FAF4; border: 1px solid #C8ECD8; color: #5C7E6C;
+  font-size: 10.5px; font-weight: 400; white-space: nowrap;
+}
+/* 前回の中身の読み合わせ（★flexの子に文を直接置かない＝表で組む★） */
+.guess-t { width: 100%; border-collapse: collapse; font-size: 13px; }
+.guess-t th {
+  width: 34%; min-width: 90px; text-align: left; font-weight: 400; color: #5C7E6C;
+  padding: 5px 8px 5px 0; vertical-align: top; white-space: nowrap;
+}
+.guess-t td {
+  padding: 5px 0; color: #2E7D54; font-weight: 700; vertical-align: top;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+
+/* ── 差し引く（控除）＝明細の外・税込から引く ─────────────────
+   ★flex の子に文を直接置かない★（1文字ずつ縦に割れる事故を作らない）＝
+   名前と金額は入力欄なので折り返しの心配は無いが、行そのものは折り返す。 */
+.ded-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ded-n { flex: 1 1 150px; min-width: 150px; }
+.ded-a { flex: 0 1 110px; min-width: 110px; text-align: right; }
+
+/* 明細の「消費税」は ★出る物（読むだけ）★＝打てる欄と見た目で分ける */
+.l-ro {
+  font-family: 'DM Mono', ui-monospace, monospace; font-size: 13px; color: #5C7E6C;
+  text-align: right; padding-top: 13px; white-space: nowrap;
+}
+/* 紙には出さないが 入力には要る列（税率）の印 */
+.l-only {
+  display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 999px;
+  background: #F0FAF4; border: 1px solid #C8ECD8; color: #7AA08C; font-size: 9.5px; font-weight: 400;
+}
+
+/* 注意書きは1件1行（何件 出ても読める） */
+.msg-l { display: block; }
+.msg-l + .msg-l { margin-top: 4px; }
+
+/* ── 狭い幅では 明細の1行を「2段の札」にする ─────────────────────
+   ★実測（2026-08-15・幅375）★ 表のままだと「品名・内容」と「数量」までしか見えず、
+   ★一番 見たい金額が 横に動かさないと読めなかった★。
+   だから狭い時は 表をやめて ★上＝品名／下＝数量×単価＝金額★ の札にする。
+   ★広い画面では今までどおり表のまま横に動かせる★（下の @media の外は触っていない）。
+   見出し(thead)が消えるので、欄の名前は ::before で1つずつ添える。 */
+@media (max-width: 480px) {
+  .lines-scroll { overflow-x: visible; }
+  .lines, .lines tbody, .lines tr, .lines td { display: block; width: auto; min-width: 0; }
+  .lines thead { display: none; }
+  .lines tr {
+    position: relative;
+    border: 1px solid #D4EAE0; border-radius: 12px; background: #FFFFFF;
+    padding: 8px 10px 8px; margin-bottom: 8px;
+  }
+  .lines td { padding: 0 0 6px; }
+  /* 欄の名前（表の見出しの代わり）。★文なので block＋折り返し可★ */
+  .lines td::before {
+    content: attr(data-label);
+    display: block; font-size: 10.5px; color: #7AA08C; margin-bottom: 2px;
+    white-space: normal; word-break: normal; overflow-wrap: break-word;
+  }
+  /* # は札の右上に小さく（1行ぶんの場所を取らせない） */
+  .lines td.l-c-index {
+    position: absolute; top: 8px; right: 74px; padding: 0;
+    font-size: 10.5px; color: #7AA08C;
+  }
+  .lines td.l-c-index::before { display: none; }
+  /* 上の段＝品名（幅いっぱい） */
+  .lines td.l-c-name { padding-right: 78px; }
+  /* 下の段＝数量 × 単価 ＝ 金額 を横に3つ（★折り返す★） */
+  .lines td.l-c-qty, .lines td.l-c-unit, .lines td.l-c-price,
+  .lines td.l-c-amount, .lines td.l-c-rate, .lines td.l-c-tax {
+    display: inline-block; vertical-align: top; width: 48%; padding-right: 6px;
+  }
+  .lines td.l-c-amount, .lines td.l-c-tax { text-align: right; }
+  /* ★欄の名前は どの欄も「上・左」にそろえる★
+     （消費税だけ右に寄っていて、値が左に浮いて見えた＝2026-08-15 指示役の指摘） */
+  .lines td.l-c-amount::before, .lines td.l-c-tax::before { text-align: left; }
+  .lines td.l-c-amount .finput { text-align: right; font-weight: 700; }
+  .lines td.l-ro { padding-top: 0; }
+  /* 並べ替えと消すは 札の右上に寄せる */
+  .lines td.l-ord, .lines td.l-x:last-child {
+    position: absolute; top: 6px; padding: 0; width: auto; text-align: right;
+  }
+  .lines td.l-ord { right: 40px; }
+  .lines td.l-x:last-child { right: 6px; }
+  .lines td.l-ord::before, .lines td.l-x::before { display: none; }
+  .l-mv { width: 28px; height: 22px; margin-bottom: 1px; }
+}
+
+/* 数量×単価から出た金額は、打った字と見分けが付くように薄く出す（打てば その字が勝つ） */
+.l-calc::placeholder { color: #7AA08C; opacity: 1; }
+
+/* ★字の右にも必ず余白★（司さん 2026-08-16「右が見切れている／余白が無い」）
+   日本語は行いっぱいまで折り返すので、箱の内側ぴったりで終わると
+   ★右端に貼り付いて見える★（実測 2026-08-16：残り 1〜2px の文が複数あった）。
+   ★ここ1か所で全画面ぶん決める★＝画面ごとに padding を書き足さない。
+   ※色ではなく余白なので #hex の決まりとは別。CSS変数は使わない（exally系の決まり）。 */
+.card .hint,
+.card .why,
+.card .flabel,
+.card .card-h,
+.card .tot,
+.more-s { padding-right: 10px; }
+/* ★畳んだ箱（details.card.more）の中は 皮が padding を上書きする★
+   （css/exally-ui.css の `.card.more > *:not(summary){padding:0 0 12px}` が
+     こちらより強い＝実測 2026-08-16：ここの字だけ 箱の枠まで 1.6px しか無かった）。
+   ★同じ値を ここにまとめて書く★＝直す所を1か所に保つ。 */
+.card.more > *:not(summary) { padding-right: 10px; }
+/* 箱の外に出ている説明（カードの外の hint）も同じだけ内側へ */
+.main > .hint, .main > .why { padding-right: 10px; }
+
+/* 畳んだ設定の中の小見出し（カードの見出しと同じ位置・少し小さく） */
+.sub-h { font-size: 13px; font-weight: 700; color: #2E7D54; margin: 14px 0 6px; padding-right: 10px; }
+.sub-h:first-of-type { margin-top: 8px; }
+
+/* ★その場で相手を作る口★（司さん 2026-08-17「Rakually は別アプリ」）
+   ＝取引先が0社の時だけ 出す。1行に「会社名」と「作る」を並べる。
+   ★flex の箱に長い字を入れると 1文字ずつ縦に割れる★前科があるので、
+     入力側は min-width:0 で縮ませ、ボタン側は縮ませない（実測して決める）。 */
+.pt-new { display: flex; gap: 8px; align-items: center; margin-top: 8px; padding-right: 10px; }
+.pt-new .finput { flex: 1 1 auto; min-width: 0; }
+.pt-new .btn-primary { flex: 0 0 auto; white-space: nowrap; }
+
+/* ★自社の情報（読むだけ）★ 何が紙に刷られるかを その場で見せる。
+   ★本文は薄い黒★（色は押せる物と選ばれている物だけ）。 */
+.ov-row { display: flex; gap: 10px; align-items: baseline; padding: 4px 10px 4px 0; }
+.ov-k { flex: 0 0 auto; min-width: 9.5em; color: #5C7E6C; font-size: 13px; }
+/* ★色は足さない★＝本文の色は皮から受け継ぐ（勝手に色を足すと3アプリでバラける）。
+   ★break-all は使わない★＝日本語が1文字ずつ縦に割れる（前科）。
+   長い登録番号（T＋13桁）だけは どこでも切れないと はみ出すので anywhere にする
+   ＝★入りきらない時だけ★ 切る（ふつうの日本語は今までどおり文節で折り返す）。 */
+.ov-v { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.ov-none { color: #7AA08C; }

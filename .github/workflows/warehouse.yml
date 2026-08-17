@@ -1,0 +1,45 @@
+name: 倉庫の向き先 6か所（週1・手動）
+
+# ★なぜ別ワークフローか（hosts.yml / source-urls.yml と同じ理由）★
+#   外の都合（GitHub/Vercel/Supabaseの混雑）で赤くなると、うちのコードは壊れていないのに
+#   push が止まる。そして自分のせいでない赤が出ると、人は赤を無視するようになる。
+#   だから通常のCIには入れず、週1＋手動で回す。落ちても push は止まらない。
+#
+# ★何を見るか★
+#   ① アプリのコード ② Vercelの環境変数 ③ GitHub Actions の金庫
+#   ④ 認証の戻り先 ⑤ Edge Function ⑥ 見張りの道具そのもの
+#   2026-08-07 の事故（アマかせのバッチが旧倉庫に書き続けていた）は ③を誰も見ていなかったから起きた。
+#
+# ★全部 読むだけ★。他のアプリのリポジトリにも倉庫にも 1文字も書かない（GETだけ）。
+#
+# ★鍵は無くても動く。無い所は 🟡未測定 として出る（0件・異常なしにしない）★
+#   GH_SECRETS_TOKEN … ③の鍵の登録日を読む（repo管理権限のPAT）
+#   VERCEL_TOKEN / VERCEL_TEAM_ID … ②の環境変数の名前と更新日
+#   SUPABASE_ACCESS_TOKEN … ⑤の一覧と版（無い時は関数URLを叩く簡易判定になる）
+#   ※ 未設定でも失敗しない。★「鍵が無いから測れなかった」は緑ではなく🟡として表に出る★
+
+on:
+  schedule:
+    - cron: '30 0 * * 1'      # 毎週月曜 00:30 UTC = 日本時間 月曜9時半（入口の見張りの30分後）
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: ★判定そのものが空振りしていないか（外へ出ない・必ず先に走らせる）
+        run: node scripts/check-warehouse-pointers.mjs --self-test
+
+      - name: 倉庫の向き先を6か所×全アプリで数える（読むだけ）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_SECRETS_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/check-warehouse-pointers.mjs

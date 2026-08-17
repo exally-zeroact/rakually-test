@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#52B788">
+<title>Rakually（ラクアリー）</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="img/icon-192.png">
+<link rel="icon" type="image/png" href="img/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/hub.css?v=c86548ee">
+
+</head>
+<body>
+
+<!-- ★ログインが済むまで中身を1バイトも見せない(auth.js が外す)。
+     JSが動かない/接続設定が読めない環境でも、中身が露出したままにならない。 -->
+<div class="app" id="app" hidden>
+
+  <header class="hd">
+    <div class="hd-logo">Rakually</div>
+    <div class="hd-user" id="hd-user"></div>
+  </header>
+
+  <!-- ═══ ホーム(ハブ) ═══ -->
+  <section id="scr-hub" class="scr active">
+    <p class="greet">こんにちは。今日やることは？</p>
+    <div class="tiles">
+      <a class="tile" id="tile-payslip" href="kyuyo/">
+        <span class="tile-ic">💰</span>
+        <span class="tile-t">給与</span>
+        <span class="tile-d">明細の作成・配布</span>
+        <span class="tile-go">開く →</span>
+      </a>
+      <a class="tile" id="tile-seikyu" href="seikyu/">
+        <span class="tile-ic">🧾</span>
+        <span class="tile-t">請求書</span>
+        <span class="tile-d">作って出す・番号は自動</span>
+        <span class="tile-go">開く →</span>
+      </a>
+      <button class="tile" id="tile-ledger" type="button" data-go="scr-ledger">
+        <span class="tile-ic">📒</span>
+        <span class="tile-t">日次台帳</span>
+        <span class="tile-d">毎日の売上・時間を貯める</span>
+        <span class="tile-go">開く →</span>
+      </button>
+      <button class="tile" type="button" data-go="scr-agg">
+        <span class="tile-ic">📊</span>
+        <span class="tile-t">集計</span>
+        <span class="tile-d">事業ごとに見る</span>
+        <span class="tile-go">開く →</span>
+      </button>
+      <button class="tile" type="button" data-go="scr-data">
+        <span class="tile-ic">🗂</span>
+        <span class="tile-t">共有データ</span>
+        <span class="tile-d">会社・人・取引先</span>
+        <span class="tile-go">開く →</span>
+      </button>
+      <!-- ★表(ブック)＝Excelの式エンジンは Exally の物なので Rakually には置かない（2026-08-17）。
+           出来ていない物・ここに無い物のボタンは出さない。 -->
+    </div>
+  </section>
+
+  <!-- ═══ 共有データ ═══ -->
+  <section id="scr-data" class="scr">
+    <h2 class="scr-t">共有データ</h2>
+    <p class="scr-s">ここで入れた内容は、給料明細や台帳など全部で使えます。</p>
+
+    <div class="tabs">
+      <button class="tab active" type="button" data-tab="org">会社</button>
+      <button class="tab" type="button" data-tab="emp">人</button>
+      <button class="tab" type="button" data-tab="pt">取引先</button>
+    </div>
+
+    <!-- 会社 -->
+    <div id="pane-org" class="pane active">
+      <div class="card">
+        <p class="note">請求書や明細に出る、自分の会社の情報です。空欄のままでも先に進めます。</p>
+        <div class="fld"><label for="org-yago">屋号・会社名</label><input id="org-yago" type="text" placeholder="例：株式会社ゼロアクト"></div>
+        <div class="fld"><label for="org-addr">住所</label><input id="org-addr" type="text" placeholder="例：愛媛県今治市○○町1-2-3"></div>
+        <div class="fld"><label for="org-tel">電話番号</label><input id="org-tel" type="tel" placeholder="例：0898-00-0000"></div>
+        <div class="fld"><label for="org-invoice">インボイス登録番号</label><input id="org-invoice" type="text" placeholder="例：T1234567890123"></div>
+        <div class="acts">
+          <button class="b1" type="button" id="org-save">保存</button>
+        </div>
+        <div class="msg" id="org-msg"></div>
+      </div>
+
+      <div class="card" data-kiku="org-business">
+        <h3 class="card-t">事業</h3>
+        <p class="note">集計はこの事業ごとに出ます。例：代行／空調／EC</p>
+        <div class="chips" id="org-biz-chips"></div>
+        <div class="chip-add">
+          <input id="org-biz-new" type="text" placeholder="例：代行">
+          <button class="b2" type="button" id="org-biz-add">追加</button>
+        </div>
+        <div class="msg" id="org-biz-msg"></div>
+      </div>
+    </div>
+
+    <!-- 人 -->
+    <div id="pane-emp" class="pane">
+      <div class="card">
+        <p class="note">人の登録そのものは給料明細アプリでします。ここでは「雇用形態」と「事業」だけ決められます。</p>
+        <div class="rows" id="emp-rows"></div>
+        <div class="msg" id="emp-msg"></div>
+      </div>
+      <div class="card" id="emp-edit" style="display:none" data-kiku="emp-edit">
+        <h3 class="card-t" id="emp-edit-name">　</h3>
+        <div class="fld">
+          <label for="emp-type">雇用形態</label>
+          <select id="emp-type"><option>従業員</option><option>業務委託</option></select>
+        </div>
+        <div class="fld">
+          <label for="emp-biz">事業</label>
+          <select id="emp-biz"></select>
+        </div>
+        <div class="acts">
+          <button class="b2" type="button" id="emp-cancel">やめる</button>
+          <button class="b1" type="button" id="emp-save">保存</button>
+        </div>
+        <div class="msg" id="emp-edit-msg"></div>
+      </div>
+    </div>
+
+    <!-- 取引先 -->
+    <div id="pane-pt" class="pane">
+      <div class="card">
+        <p class="note">請求書や見積書で使う相手先です。</p>
+        <div class="rows" id="pt-rows"></div>
+        <div class="acts"><button class="b2" type="button" id="pt-add">＋ 取引先を追加</button></div>
+        <div class="msg" id="pt-msg"></div>
+      </div>
+      <div class="card" id="pt-edit" style="display:none" data-kiku="pt-edit">
+        <h3 class="card-t" id="pt-edit-t">取引先</h3>
+        <div class="fld"><label for="pt-name">名称</label><input id="pt-name" type="text" placeholder="例：○○建設株式会社"></div>
+        <div class="fld"><label for="pt-keisho">敬称</label><select id="pt-keisho"><option>御中</option><option>様</option><option>（なし）</option></select></div>
+        <div class="fld"><label for="pt-addr">住所</label><input id="pt-addr" type="text" placeholder="例：愛媛県松山市○○1-1"></div>
+        <div class="fld"><label for="pt-invoice">インボイス登録番号</label><input id="pt-invoice" type="text" placeholder="例：T9876543210987"></div>
+        <div class="acts">
+          <button class="b-del" type="button" id="pt-del">削除</button>
+          <button class="b2" type="button" id="pt-cancel">やめる</button>
+          <button class="b1" type="button" id="pt-save">保存</button>
+        </div>
+        <div class="msg" id="pt-edit-msg"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 日次台帳(E2) ═══ -->
+  <section id="scr-ledger" class="scr">
+    <h2 class="scr-t">日次台帳</h2>
+    <p class="scr-s">毎日ちょこちょこ入れておけば、締めの日に自動でまとまります。</p>
+
+    <div class="agg-ctl">
+      <select id="lg-ym"></select>
+      <button class="b2" type="button" id="lg-reload">更新</button>
+    </div>
+    <p class="lg-shime" id="lg-shime"></p>
+
+    <div class="ptabs" id="lg-ptabs"></div>
+    <div id="lg-body"></div>
+    <div class="msg" id="lg-msg"></div>
+  </section>
+
+  <!-- 1件の入力(逆Excル: 白紙の表を埋めさせない) -->
+  <section id="scr-lg-entry" class="scr">
+    <h2 class="scr-t" id="lge-title">入れる</h2>
+    <p class="scr-s" id="lge-sub"></p>
+
+    <div class="card" data-kiku="ledger-entry">
+      <div class="fld">
+        <label>いつ</label>
+        <div class="chips" id="lge-day-chips"></div>
+        <input id="lge-ymd" type="date">
+      </div>
+
+      <div class="fld" id="lge-biz-wrap">
+        <label>事業</label>
+        <div class="chips" id="lge-biz-chips"></div>
+      </div>
+
+      <div class="fld" id="lge-f-uriage">
+        <label for="lge-uriage">売上</label>
+        <input id="lge-uriage" type="text" inputmode="numeric" placeholder="例：4200">
+      </div>
+
+      <div class="fld" id="lge-f-minutes">
+        <label for="lge-hm">時間</label>
+        <input id="lge-hm" type="text" inputmode="numeric" placeholder="例：1:30">
+        <div class="chips" style="margin-top:8px">
+          <button class="chip chip-btn" type="button" data-hm="30">+30分</button>
+          <button class="chip chip-btn" type="button" data-hm="60">+1時間</button>
+          <button class="chip chip-btn" type="button" data-hm="480">+8時間</button>
+          <button class="chip chip-btn" type="button" data-hm="0">消す</button>
+        </div>
+      </div>
+
+      <div class="fld" id="lge-f-count">
+        <label for="lge-count">件数</label>
+        <div class="chip-add">
+          <button class="b2" type="button" id="lge-cnt-minus">－</button>
+          <input id="lge-count" type="text" inputmode="numeric" placeholder="例：1" style="text-align:center">
+          <button class="b2" type="button" id="lge-cnt-plus">＋</button>
+        </div>
+      </div>
+
+      <div class="fld" id="lge-f-amount">
+        <label for="lge-amount">金額</label>
+        <input id="lge-amount" type="text" inputmode="numeric" placeholder="例：5000">
+        <label class="chk"><input id="lge-hikazei" type="checkbox"> 非課税（立替の精算など）</label>
+      </div>
+
+      <div class="fld">
+        <label for="lge-memo">メモ</label>
+        <input id="lge-memo" type="text" placeholder="任意">
+      </div>
+
+      <div class="acts">
+        <button class="b-del" type="button" id="lge-del">削除</button>
+        <button class="b2" type="button" id="lge-cancel">やめる</button>
+        <button class="b1" type="button" id="lge-save">入れる</button>
+      </div>
+      <div class="msg" id="lge-msg"></div>
+    </div>
+  </section>
+
+  <!-- ═══ 集計 ═══ -->
+  <section id="scr-agg" class="scr">
+    <h2 class="scr-t">集計</h2>
+    <p class="scr-s">日次台帳に貯めた記録を、事業ごとにまとめます。</p>
+
+    <div class="agg-ctl" data-kiku="agg-period">
+      <select id="agg-kind">
+        <option value="thisMonth">今月</option>
+        <option value="lastMonth">先月</option>
+        <option value="custom">期間を指定</option>
+      </select>
+      <button class="b2" type="button" id="agg-reload">更新</button>
+    </div>
+    <div class="agg-custom" id="agg-custom">
+      <input id="agg-from" type="date">
+      <input id="agg-to" type="date">
+    </div>
+    <div class="agg-range" id="agg-range"></div>
+    <div id="agg-body"></div>
+    <div class="msg" id="agg-msg"></div>
+
+    <!-- ═══ E5 横断集計(事業別のまとめ・月をまたいで見る) ═══ -->
+    <div class="x-sec">
+      <h3 class="x-t">事業のまとめ</h3>
+      <p class="note">月をまたいで「どの事業でいくら」を見ます。動いていない事業も出します。</p>
+      <div class="agg-ctl" data-kiku="cross-period">
+        <select id="x-span">
+          <option value="3">直近3か月</option>
+          <option value="6">直近6か月</option>
+          <option value="12">直近12か月</option>
+        </select>
+        <button class="b2" type="button" id="x-reload">更新</button>
+      </div>
+      <div class="agg-range" id="x-range"></div>
+      <div id="x-body"></div>
+      <div class="msg" id="x-msg"></div>
+    </div>
+  </section>
+
+  <nav class="bn">
+    <button class="bn-i active" type="button" data-go="scr-hub"><span class="bn-ic">🏠</span>ホーム</button>
+    <button class="bn-i" type="button" data-go="scr-ledger"><span class="bn-ic">📒</span>台帳</button>
+    <button class="bn-i" type="button" data-go="scr-data"><span class="bn-ic">🗂</span>データ</button>
+    <button class="bn-i" type="button" data-go="scr-agg"><span class="bn-ic">📊</span>集計</button>
+  </nav>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="mo" id="mo">
+  <div class="mo-card">
+    <div class="mo-h"><span class="mo-t" id="mo-t"></span><button class="mo-x" type="button" id="mo-x" aria-label="閉じる">×</button></div>
+    <div class="mo-b" id="mo-b"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supa-config.js?v=c86548ee"></script>
+<script src="lib/access.js?v=c86548ee"></script>
+<script src="lib/aggregate.js?v=c86548ee"></script>
+<script src="lib/periods.js?v=c86548ee"></script>
+<script src="lib/ledger-source.js?v=c86548ee"></script>
+<script src="lib/cross-agg.js?v=c86548ee"></script>
+<script src="js/suite-data.js?v=c86548ee"></script>
+<script src="js/hub.js?v=c86548ee"></script>
+<script src="js/ledger.js?v=c86548ee"></script>
+<script src="js/exally-login.js?v=c86548ee"></script>
+<script src="js/auth.js?v=c86548ee"></script>
+<!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
+     ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
+<script src="js/env-badge.js?v=c86548ee"></script>
+</body>
+</html>

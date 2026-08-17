@@ -1,0 +1,233 @@
+/* exally-ui.css — ★Exally スイート共通の皮（見た目の唯一の正）★
+ * ==============================================================================
+ * なぜ要るのか（2026-08-10 実測）:
+ *   js は既に共有していた（auth / exally-login / file-out / suite-data / supa-config）のに、
+ *   ★css の共有は0枚★ だった。だからアプリを足すたびに見た目がバラけていた。
+ *     薄い文字   給与 #5C7E6C ／ ハブ #7AA08C ／ 請求書 #7A9A87  ＝3アプリ3色
+ *     薄い緑の地 給与 #F0FAF4 ／ ハブ #E4F1EA ／ 請求書 #EEF7F1
+ *     ブランドのミント #52B788  給与23回 ／ ハブ5回 ／ 請求書 ★0回★
+ *   ＝請求書だけ「うちのミントを1回も使っていない別の緑の画面」になっていた。
+ *
+ * ★色は直hex。CSS変数は使わない★（exally系の現行ルール。:root 変数は飲み屋だけの話）
+ *
+ * ★この皮の値は、給与(kyuyo/css/app.css)とハブ(css/hub.css)が今 使っている値★
+ *   ＝ここに寄せても、給与とハブの見た目は1px も変わらない。
+ *   食い違っていた所は、いちばん多く使われている方（給与）に合わせた:
+ *     薄い文字 #5C7E6C（給与37回）／ もっと薄い #7AA08C（ハブ17回）
+ *     地の緑   #F0FAF4（給与25回・ハブのbodyも同じ）
+ *   ★今 読み込むのは請求書(seikyu/)だけ。給与とハブは後日、
+ *     「見た目が1px も変わらない」ことをスクショで見せてから差し替える。★
+ *
+ * ── 色（この13色だけ使う）────────────────────────────────
+ *   #2E7D54  主色（本文・見出し）
+ *   #3D9E72  押すボタンの地（差し色）
+ *   #52B788  ブランドのミント（ロゴ・オンの印）
+ *   #3D6B53  濃い緑（小見出し・ラベル）
+ *   #5C7E6C  薄い文字
+ *   #7AA08C  もっと薄い文字
+ *   #D4EAE0  線
+ *   #C8ECD8  少し濃い線
+ *   #F0FAF4  画面の地・薄い緑の帯
+ *   #E8F6EE  少し濃い緑の帯
+ *   #FFFFFF  白
+ *   #C0392B  赤（危ない・消す）      ＋ 線 #F0D5D0 ／ 地 #FDF0EE
+ *   #92500A  橙（気をつけて）        ＋ 線 #F0DDBC ／ 地 #FDF3E3
+ *
+ * ── 角丸 ──────────────────────────────────────────────
+ *   カード16px ／ ボタン12px ／ 入力欄10px ／ 丸ボタン999px
+ *
+ * ★文が入る箱は block ＋ 最低幅 ＋ 折り返し可★
+ *   flex/grid の子に長い日本語を直接入れると、幅が足りない時に1文字ずつ縦に割れる（前科3回）。
+ */
+
+/* ── 土台 ───────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: #F0FAF4; color: #2E7D54;
+  font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont,
+               'Hiragino Kaku Gothic ProN', sans-serif;
+  font-size: 14px; line-height: 1.7;
+  -webkit-text-size-adjust: 100%;
+}
+input, select, button, textarea { font-family: inherit; }
+
+/* ── 上の帯 ─────────────────────────────────────────── */
+.appbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
+  background: #FFFFFF; border-bottom: 1px solid #D4EAE0;
+  box-shadow: 0 1px 4px rgba(30,60,40,.06);
+}
+/* ★上の帯の中身は「縮まない」物として置く★
+   flex の子は既定で縮むので、日本語のアプリ名（例：請求書）が
+   1文字ずつ縦に割れる（2026-08-10 実機幅390pxで実際に3行に割れた・これで3度目の形）。
+   縮んでよいのは ★メールアドレスだけ★（…で切る）。 */
+.logo {
+  flex: 0 0 auto; white-space: nowrap;
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 20px; font-weight: 500; letter-spacing: -0.5px; color: #52B788;
+}
+.back { flex: 0 0 auto; color: #2E7D54; font-size: 12px; text-decoration: none; white-space: nowrap; }
+.grow { flex: 1 1 auto; min-width: 0; }
+/* ★ログイン中の人は「設定」の中に出す（頭には出さない＝給与と同じ）★
+   頭に置くと、狭い端末でメールが見出しを押し出す。 */
+.who { color: #2B3A31; font-weight: 500; overflow-wrap: break-word; }
+.note { margin: 0 0 10px; font-size: 13px; color: #4A5D52; }
+
+/* ── 器 ─────────────────────────────────────────────── */
+.main { padding: 12px 12px 84px; max-width: 900px; margin: 0 auto; }
+.card {
+  background: #FFFFFF; border: 1px solid #D4EAE0; border-radius: 16px;
+  padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(30,80,46,.06);
+}
+.card-h {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: #2E7D54; margin-bottom: 10px;
+}
+
+/* ── 文（★block・最低幅・折り返し可。ここを守らないと縦帯になる★）── */
+.hint, .warn, .bad, .ok, .why {
+  display: block; width: 100%; min-width: 180px;
+  line-height: 1.8; margin: 6px 0;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+.hint { font-size: 12px; color: #5C7E6C; }
+.why  { font-size: 11.5px; color: #7AA08C; margin-top: 6px; }
+.warn { font-size: 12px; color: #92500A; background: #FDF3E3; border: 1px solid #F0DDBC; border-radius: 10px; padding: 8px 10px; }
+.bad  { font-size: 12px; color: #C0392B; background: #FDF0EE; border: 1px solid #F0D5D0; border-radius: 10px; padding: 8px 10px; }
+.ok   { font-size: 12px; color: #2E7D54; background: #F0FAF4; border: 1px solid #C8ECD8; border-radius: 10px; padding: 8px 10px; }
+
+/* ── 入力 ───────────────────────────────────────────── */
+.frow { margin-bottom: 10px; min-width: 0; }
+.flabel { font-size: 12px; color: #3D6B53; font-weight: 700; margin-bottom: 4px; }
+
+/* ★入/切の1行★
+   flex だが、★文の側に最低幅を持たせて縮ませない★。
+   これを忘れると、狭い端末で説明文が1文字ずつ縦に割れる（前科3回）。 */
+.check { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.check > input[type="checkbox"] { flex: 0 0 auto; width: 20px; height: 20px; margin: 2px 0 0; accent-color: #2E7D54; }
+.check > span {
+  flex: 1 1 auto; min-width: 140px;
+  font-size: 13px; color: #2B3A31; line-height: 1.7;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+.frow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.frow2 > * { min-width: 0; }
+@media (max-width: 480px) { .frow2 { grid-template-columns: 1fr; } }
+
+/* ★16px。これより小さいと iPhone が勝手に拡大して画面がズレる★ */
+.finput {
+  width: 100%; min-width: 0; font-size: 16px; padding: 10px 12px;
+  border: 1.5px solid #D4EAE0; border-radius: 10px;
+  background: #FFFFFF; color: #2E7D54;
+  outline: none; -webkit-appearance: none; appearance: none;
+}
+.finput:focus { border-color: #52B788; }
+select.finput { padding-right: 30px; background-image: none; }
+textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
+.num { text-align: right; font-family: 'DM Mono', ui-monospace, monospace; }
+
+/* ── ボタン（★行は必ず折り返す＝横にはみ出させない★）──────── */
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.btn-row > * { flex: 0 1 auto; }
+.btn-primary, .btn-ghost, .bdel, .btn-add {
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  padding: 12px 16px; border-radius: 12px; border: 1px solid transparent;
+  cursor: pointer; white-space: nowrap;
+}
+.btn-primary { background: #3D9E72; color: #FFFFFF; border: none; box-shadow: 0 3px 12px rgba(61,158,114,.32); }
+.btn-primary:hover { background: #357F5F; }
+.btn-ghost { background: #FFFFFF; color: #2E7D54; border: 1.5px solid #C8ECD8; }
+.btn-ghost:hover { background: #F0FAF4; }
+.bdel { background: #FFFFFF; color: #C0392B; border: 1.5px solid #F0D5D0; }
+.btn-add { background: #FFFFFF; color: #2E7D54; border: 1px dashed #52B788; width: 100%; margin-top: 8px; }
+.btn-primary:disabled, .btn-ghost:disabled, .bdel:disabled, .btn-add:disabled { opacity: .5; cursor: default; }
+
+/* 丸い切り替え（チップ／セグメント） */
+.seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.seg-b {
+  font-family: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 8px 14px; border-radius: 999px;
+  border: 1px solid #C8ECD8; background: #FFFFFF; color: #2E7D54;
+  cursor: pointer; white-space: nowrap;
+}
+.seg-b.on { background: #52B788; border-color: #52B788; color: #FFFFFF; }
+.seg-b:disabled { opacity: .5; cursor: default; }
+.mini {
+  font-family: inherit; font-size: 11px; font-weight: 700;
+  padding: 4px 9px; border-radius: 8px;
+  border: 1px solid #C8ECD8; background: #FFFFFF; color: #3D6B53; cursor: pointer;
+}
+/* ★選ばれている物は必ず見て分かるようにする（押したのに何も変わらない、に見せない） */
+.mini.on { background: #2E7D54; border-color: #2E7D54; color: #FFFFFF; }
+.mini:disabled { opacity: .5; cursor: default; }
+
+/* ── 一覧の行 ───────────────────────────────────────── */
+.row {
+  display: block; width: 100%; text-align: left; font-family: inherit;
+  background: #FFFFFF; border: 1px solid #D4EAE0; border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(30,80,46,.05);
+}
+.row:hover { background: #F0FAF4; }
+.tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.tag-on { background: #F0FAF4; color: #2E7D54; }
+.tag-off { background: #E8F6EE; color: #5C7E6C; }
+.tag-mute { background: #F0FAF4; color: #7AA08C; }
+.empty { text-align: center; color: #7AA08C; padding: 26px 12px; }
+
+/* ── 下のナビ ───────────────────────────────────────── */
+.botnav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex;
+  background: #FFFFFF; border-top: 1px solid #D4EAE0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bn { flex: 1 1 0; background: none; border: none; padding: 8px 2px 9px; cursor: pointer; color: #7AA08C; font-family: inherit; }
+.bn.on { color: #2E7D54; }
+.bn-i { display: block; font-size: 17px; line-height: 1.2; }
+.bn-l { display: block; font-size: 10.5px; font-weight: 700; }
+
+/* ── かぶせる小窓 ───────────────────────────────────── */
+.ov {
+  position: fixed; inset: 0; background: rgba(30,60,40,.42); z-index: 60;
+  display: none; align-items: center; justify-content: center; padding: 18px;
+}
+.ov.open { display: flex; }
+.ov-card { width: 100%; max-width: 420px; background: #FFFFFF; border-radius: 16px; padding: 16px; }
+.ov-t { font-size: 14px; font-weight: 700; color: #2E7D54; margin-bottom: 6px; }
+
+/* ── 目に見えるフォーカス（キーボード/スイッチ操作で現在地が分かる）── */
+a:focus-visible, button:focus-visible, select:focus-visible,
+input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid #2E7D54; outline-offset: 2px; border-radius: 6px;
+}
+
+/* ── 主ボタン（画面にひとつだけ大きく）────────────────────────
+   ★出す口をたくさん並べない★。押す物が7個 横に並ぶと、どれが本命か分からなくなる。
+   本命だけ大きく、ほかは「畳む」に入れる。 */
+.btn-big {
+  font-size: 16px; padding: 15px 28px; flex: 1 1 auto; min-width: 200px;
+  /* ★理由をボタンの中に入れるので、ここだけ折り返せるようにする★
+     ほかのボタンは nowrap（短い言葉しか入らない）。
+     ここを nowrap のままにすると、理由を足した瞬間に ★横へはみ出す★
+     （指示役が実際に73pxはみ出させた型）。 */
+  white-space: normal; word-break: normal; overflow-wrap: break-word; line-height: 1.5;
+}
+
+/* ── 畳む（開くまで画面に出さない）──────────────────────────
+   ★説明で画面を埋めない★。細かい設定・ほかの出し方はここに入れる。 */
+.more { padding: 0; }
+.more > summary {
+  list-style: none; cursor: pointer; padding: 12px 14px;
+  font-size: 13px; font-weight: 700; color: #3D6B53;
+  display: block; white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary::before { content: "▸ "; color: #7AA08C; }
+.more[open] > summary::before { content: "▾ "; }
+.more[open] > summary { border-bottom: 1px solid #D4EAE0; margin-bottom: 10px; }
+.more > *:not(summary) { padding: 0 14px 12px; }
+.card.more > *:not(summary) { padding: 0 0 12px; }
+.card.more > summary { padding: 2px 0 12px; }

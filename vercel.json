@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/.netlify/functions/claude",
+      "destination": "/api/claude"
+    },
+    {
+      "source": "/api/claude",
+      "destination": "/api/claude"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "rakually",
+  "version": "1.0.0",
+  "description": "Rakually（ラクアリー）— 給与(kyuyo/) と 請求書(seikyu/) と 共有データ(会社・人・取引先)。アプリ本体は依存ゼロの静的HTML/JS。",
+  "scripts": {
+    "test": "node tests/run.js",
+    "stamp": "node scripts/stamp-build.mjs",
+    "stamp:check": "node scripts/stamp-build.mjs --check",
+    "test:stamp": "node tests/stamp.test.mjs",
+    "test:payroll": "node kyuyo/tests/run.js",
+    "test:all": "node scripts/stamp-build.mjs --check && node tests/run.js && node tests/ci-coverage.test.mjs && node kyuyo/tests/run.js && node kyuyo/tests/integration.mjs && node kyuyo/tests/payroll-patterns.mjs && node kyuyo/tests/ui-smoke.mjs && node kyuyo/tests/cloud-sync.mjs && node kyuyo/tests/pagination.test.mjs && node kyuyo/tests/meisai-store.mjs && node kyuyo/tests/qr.test.mjs && node kyuyo/tests/nencho-web-declaration.test.js && node kyuyo/tests/nencho-compute.test.mjs && node kyuyo/tests/golden-immutable.test.mjs && node kyuyo/scripts/verify-headless.mjs && node kyuyo/tests/ops-golden-parity.test.mjs && node kyuyo/tests/ops-payroll-monthly.test.mjs && node kyuyo/tests/law-switchpoints.test.mjs && node kyuyo/tests/periods-golden.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.27.3"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.110.8",
+    "jsdom": "^29.1.1",
+    "jsqr": "^1.4.0"
+  }
+}

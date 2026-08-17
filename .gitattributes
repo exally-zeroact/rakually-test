@@ -1,0 +1,25 @@
+# ★配る物（.js / .mjs / .css / .html）は どの環境でも LF に固定する★
+#
+# なぜ（2026-08-09 実測）:
+#   git が「js/file-out.js は次に触ると LF が CRLF に置き換わる」と警告していた。
+#   ＝手元のファイルだけ CRLF になり、★中身のSHAから作る ?v= の刻印がズレる★。
+#   刻印は scripts/stamp-build.mjs が8箇所で検査しているので、
+#   ★手元だけ赤・CIは緑（またはその逆）★という一番たちの悪い形になる（アマかせが実際に踏んだ）。
+#   倉庫の中身は既に全部 LF（119本とも i/lf）なので、ここで固定しても中身は1バイトも変わらない。
+#   変わるのは「手元に取り出す時の形」だけ。
+* text=auto eol=lf
+*.js   text eol=lf
+*.mjs  text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+
+# 同梱ライブラリは改行変換しない(バイト単位で固定=RECIPEのsha256と一致させる)
+# ★上の行より後に書く＝こちらが勝つ★
+xlsx.full.min.js -text
+hyperformula.full.min.js -text
+*.png binary
+*.xlsx binary
+*.xlsb binary
+*.ttf binary

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rakually 管理 — ユーザー</title>
+<!-- PWA(ホーム画面/デスクトップに単独アプリとしてインストール) -->
+<link rel="manifest" href="admin-manifest.json">
+<meta name="theme-color" content="#2E7D54">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Rakually管理">
+<link rel="apple-touch-icon" href="img/admin-192.png">
+<link rel="icon" type="image/png" href="img/admin-192.png">
+<style>
+  :root{ --ink:#2E7D54; --accent:#2E7D54; --muted:#5C7E6C; --line:#d4eae0; --bg:#F0FAF4; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN',sans-serif;background:var(--bg);color:var(--ink);}
+  .bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;}
+  .bar b{font-size:16px;font-weight:800;}
+  .bar small{font-size:10px;letter-spacing:.18em;color:#7aa08c;}
+  .bar .sp{margin-left:auto;}
+  .bar .who{font-size:12px;color:var(--muted);}
+  .bar .out{font-size:12px;color:#C0392B;text-decoration:underline;cursor:pointer;background:none;border:none;}
+  .wrap{max-width:860px;margin:0 auto;padding:16px;}
+  input,button{font-family:inherit;font-size:16px;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 6px 24px rgba(30,60,40,.06);}
+  /* ログイン */
+  #login{max-width:360px;margin:12vh auto 0;}
+  #login h1{font-size:20px;text-align:center;margin:0 0 4px;}
+  #login p{font-size:12px;color:var(--muted);text-align:center;margin:6px 0 16px;}
+  #login input{width:100%;padding:12px;margin-bottom:10px;border:1.5px solid var(--line);border-radius:10px;color:var(--ink);-webkit-appearance:none;}
+  #login input:focus{outline:none;border-color:#52B788;}
+  .btn{width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;}
+  .msg{font-size:12px;min-height:16px;text-align:center;margin:2px 0 8px;color:#C0392B;}
+  /* 一覧 */
+  .tools{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+  #q{flex:1;min-width:160px;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;-webkit-appearance:none;}
+  .refresh{padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--accent);font-weight:700;font-size:14px;cursor:pointer;}
+  .stat{font-size:12px;color:var(--muted);margin:0 2px 10px;}
+  .u{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff;}
+  .u .em{font-weight:700;font-size:14px;word-break:break-all;}
+  .u .meta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .app-head{font-size:11px;font-weight:700;color:var(--accent);margin-top:12px;}
+  .app{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
+  .app .name{font-size:12px;font-weight:700;min-width:76px;color:var(--accent);}
+  .seg{display:flex;gap:4px;flex-wrap:wrap;}
+  .seg button{padding:7px 12px;border:1.5px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;}
+  .seg button.on{color:#fff;}
+  .seg button.on.trial,.seg button.on.paid,.seg button.on.free{background:var(--accent);border-color:var(--accent);}
+  .seg button.on.disabled{background:#C0392B;border-color:#C0392B;}
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px;}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#2E7D54;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20;}
+  .toast.show{opacity:1;}
+  .hide{display:none;}
+  /* タブ */
+  .tabs{display:flex;gap:6px;margin-bottom:14px;}
+  .tab{padding:9px 16px;border:1.5px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  /* 法定データ */
+  .note{font-size:12px;color:var(--muted);line-height:1.7;margin:0 2px 12px;}
+  .st{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px;background:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .st.stale{border-color:#E5A100;background:#FFFBF0;}
+  .st .nm{font-weight:700;font-size:14px;flex:1;min-width:150px;}
+  .st .yr{font-size:12px;color:var(--muted);}
+  .st .badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;}
+  .st .badge.ok{background:#E6F5EC;color:#1E7B45;}
+  .st .badge.warn{background:#FBE5C0;color:#8A5A00;}
+  .st .apply{padding:8px 16px;border:none;border-radius:999px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
+  .st .apply:disabled{opacity:.5;cursor:default;}
+  .st a.src{font-size:11px;color:#3B7A5A;}
+  .bulk{display:flex;justify-content:flex-end;margin:14px 2px 0;}
+  .bulk button{padding:11px 20px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:800;font-size:14px;cursor:pointer;}
+  .bulk button:disabled{opacity:.5;cursor:default;}
+</style>
+</head>
+<body>
+  <div class="bar hide" id="topbar"><b>Rakually 管理</b><small>USERS</small><span class="sp"></span><span class="who" id="who"></span><button class="out" id="logout">ログアウト</button></div>
+
+  <!-- ログイン -->
+  <div id="login" class="card">
+    <h1>Rakually 管理</h1>
+    <p>管理者アカウントでログイン</p>
+    <input id="email" type="email" placeholder="メールアドレス" autocomplete="username">
+    <input id="pw" type="password" placeholder="パスワード" autocomplete="current-password">
+    <div class="msg" id="msg"></div>
+    <button class="btn" id="signin">ログイン</button>
+  </div>
+
+  <!-- 権限なし -->
+  <div id="denied" class="wrap hide"><div class="card empty">このアカウントには管理者権限がありません。<br>管理者に登録されたアカウントでログインしてください。</div></div>
+
+  <!-- 一覧 -->
+  <div id="panel" class="wrap hide">
+    <div class="tabs">
+      <button class="tab on" id="tab-users">ユーザー</button>
+      <button class="tab" id="tab-statutory">法定データ</button>
+    </div>
+
+    <!-- ユーザー -->
+    <div id="sec-users">
+      <div class="tools">
+        <input id="q" placeholder="メールで絞り込み">
+        <button class="refresh" id="refresh">更新</button>
+      </div>
+      <div class="stat" id="stat"></div>
+      <div id="list"></div>
+    </div>
+
+    <!-- 法定データ(全国共通・中央配信) -->
+    <div id="sec-statutory" class="hide">
+      <p class="note">このアプリが使う法定数値（最低賃金・社会保険・所得税など）の<b>中央</b>と、最新の内蔵値との差分です。<br>差分があれば <b>[反映]</b> で中央を更新＝全国ユーザーへ自動配信されます。値は検証済みの内蔵 libから流し込む（捏造なし）。</p>
+      <div class="tools">
+        <div class="stat" id="statutory-stat" style="flex:1;min-width:160px;"></div>
+        <button class="refresh" id="statutory-refresh">更新</button>
+      </div>
+      <div id="statutory-list"></div>
+      <div class="bulk" id="statutory-bulk"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supa-config.js?v=c86548ee"></script>
+  <!-- 法定データlib(admin法定データ画面が中央へ投入する「あるべき値」の生成に使用) -->
+  <script src="lib/shakaihoken-hyo.js?v=c86548ee"></script>
+  <script src="lib/koyo-hoken.js?v=c86548ee"></script>
+  <script src="lib/shotokuzei-densan.js?v=c86548ee"></script>
+  <script src="lib/shotokuzei-hei.js?v=c86548ee"></script>
+  <script src="lib/shotokuzei-nichi.js?v=c86548ee"></script>
+  <script src="lib/shoyo-zei.js?v=c86548ee"></script>
+  <script src="lib/warimashi.js?v=c86548ee"></script>
+  <script src="lib/saitei-chingin.js?v=c86548ee"></script>
+  <script src="lib/nenmatsu.js?v=c86548ee"></script>
+  <script src="lib/shouhizei-ritsu.js?v=c86548ee"></script>
+  <script src="lib/statutory-rows.js?v=c86548ee"></script>
+  <script src="js/admin.js?v=c86548ee"></script>
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}</script>
+<!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
+     ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
+<script src="../js/env-badge.js?v=c86548ee"></script>
+</body>
+</html>

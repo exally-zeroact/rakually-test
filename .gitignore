@@ -1,0 +1,4 @@
+.vercel
+node_modules
+tests/xlsx-harness/tmp/
+tests/xlsx-harness/golden/pending-*.json

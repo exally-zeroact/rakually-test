@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>請求書 — Rakually</title>
+<meta name="theme-color" content="#2E7D54">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="../img/icon-192.png">
+<link rel="icon" type="image/png" href="../img/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
+<link rel="stylesheet" href="../css/exally-ui.css?v=c86548ee">
+<link rel="stylesheet" href="css/app.css?v=c86548ee">
+</head>
+<body>
+
+<!-- ★ログインが済むまで中身を1バイトも見せない（js/auth.js と同じ流儀）。
+     JSが動かない・接続設定が読めない端末でも、中身が露出したままにならない。 -->
+<div id="app" hidden>
+
+<header class="appbar">
+  <a class="back" href="../index.html">← Rakually</a>
+  <div class="logo">請求書</div>
+  <div class="grow"></div>
+</header>
+
+<main class="main">
+
+  <!-- ═══ ① 一覧 ═══ -->
+  <section class="screen" id="scr-list">
+    <div class="card">
+      <div class="card-h" id="list-h">請求書</div>
+      <!-- ★種類の切替（請求書／見積書）★
+           見積は 紙も棚も変換も前から在ったのに、★どの画面からも作れなかった★。入口はここ。 -->
+      <div class="seg" id="kind-seg">
+        <button class="seg-b on" type="button" data-kind="invoice">請求書</button>
+        <button class="seg-b" type="button" data-kind="quote">見積書</button>
+      </div>
+      <div class="seg" id="fil-seg">
+        <button class="seg-b on" type="button" data-fil="live">出した物</button>
+        <button class="seg-b" type="button" data-fil="all">すべて</button>
+        <button class="seg-b" type="button" data-fil="draft">下書き</button>
+        <button class="seg-b" type="button" data-fil="issued">発行済</button>
+        <button class="seg-b" type="button" data-fil="void">取り消し</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" type="button" id="b-new">＋ 新しい請求書</button>
+        <button class="btn-ghost" type="button" id="b-reload">読み直す</button>
+      </div>
+      <p class="hint" id="list-hint">発行した請求書は、あとから中身を直せません（取り消して作り直します）。番号は同じ物を二度使いません。</p>
+      <div class="bad" id="list-err" style="display:none"></div>
+    </div>
+    <div id="list-body"></div>
+  </section>
+
+  <!-- ═══ ② 入力（★打つ前に選ばせない★） ═══
+       ・税の入れ方／円未満の丸め方／紙の様式は「設定」で1回 決める（ここでは聞かない）
+       ・取引先を選んだら ★前回から当てて「✓を押すだけ」★
+       ・出すボタンは ★「発行する」1つだけ★。ほかは畳む。押せない物は出さない -->
+  <section class="screen active" id="scr-edit">
+    <div class="card">
+      <div class="card-h" id="edit-h">新しい請求書</div>
+      <div class="warn" id="edit-locked" style="display:none">この請求書は発行済みです。中身は直せません。直すときは取り消してから作り直してください。</div>
+      <!-- ★どこから来た紙かを出す（見積 → 請求 のつながりを画面に見せる）★ -->
+      <p class="hint" id="from-quote" style="display:none"></p>
+
+      <!-- ★取引先は ここで作れる★（司さん 2026-08-17）
+           前は「別のアプリの画面で追加してください」と ★外へ出して★ いた。
+           初めて使う人は 1通も出さないうちに 必ず外へ出される＝一番の壁だった。
+           ★聞いてあげる。埋めさせない★＝会社名を1つ答えたら その場で相手が出来て、選ばれる。
+           残り（敬称・住所・登録番号…）は ★使う時に聞く★（ここでは聞かない）。 -->
+      <div class="frow">
+        <div class="flabel">だれに</div>
+        <select class="finput" id="e-partner"></select>
+        <p class="hint" id="e-partner-hint" style="display:none"></p>
+        <div class="pt-new" id="pt-new" style="display:none">
+          <input class="finput" id="pt-new-name" type="text" placeholder="会社名を入れてください">
+          <button class="btn-primary" type="button" id="b-pt-new">この相手を作る</button>
+        </div>
+        <p class="hint" id="pt-new-msg" style="display:none"></p>
+      </div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">請求日</div>
+          <input class="finput" id="e-issue" type="date">
+        </div>
+        <div class="frow">
+          <div class="flabel">番号</div>
+          <div class="no-row">
+            <span class="no-v" id="e-no-view">（自動）</span>
+            <button class="mini" type="button" id="b-no-edit">変える</button>
+          </div>
+          <input class="finput" id="e-no" type="text" style="margin-top:6px;display:none">
+        </div>
+      </div>
+    </div>
+
+    <!-- ★前回から当てて確かめる（空欄を並べて埋めさせない）★ -->
+    <div class="card" id="guess-card" style="display:none">
+      <div class="card-h" id="guess-h">前回と同じで作りますか？</div>
+      <div id="guess-list"></div>
+      <div class="btn-row">
+        <button class="btn-primary" type="button" id="b-guess-ok">✓ はい、これで</button>
+        <button class="btn-ghost" type="button" id="b-guess-edit">ちがう内容にする</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">なにを</div>
+      <div class="lines-scroll">
+        <table class="lines">
+          <thead><tr id="lines-head"></tr></thead>
+          <tbody id="lines-body"></tbody>
+        </table>
+      </div>
+      <button class="btn-add" type="button" id="b-addline">＋ 行を足す</button>
+      <p class="hint" id="taxmode-note"></p>
+      <!-- ★2枚目に入る前に言う★ 出してから気づく物にしない。行数は「設定→紙の行数」で変えられる -->
+      <p class="hint" id="pages-note"></p>
+    </div>
+
+    <!-- ═══ 控除 ═══ ★言葉は給料明細にそろえる（支給／控除）★（司さん 2026-08-15）
+         人に見せる字は「控除」1本。会社が言い換えられるのは今までどおり。
+         ★引き算は2種類ある。混ぜると消費税がズレる★（実物の式で確かめた）
+           ・値引き … ★明細の中★のマイナス行。課税の対象が減る＝★税額も一緒に減る★
+           ・控除   … ★ここ★。★税込の合計から引く＝税額は動かない★
+             実物: 八木工業「控除明細／弁当代 矢原 11,340」小計292,600 − 11,340 ＝ 281,260
+         ★名前は会社が決める★（「弁当代」「立替」は現場の言い方＝器に焼き込まない） -->
+    <div class="card" id="ded-card">
+      <div class="card-h">控除</div>
+      <div id="ded-list"></div>
+      <button class="btn-add" type="button" id="b-ded-add">＋ 控除の行を足す</button>
+      <p class="hint" id="ded-why"></p>
+      <div class="bad" id="ded-err" style="display:none"></div>
+    </div>
+
+    <!-- ═══ ③ 締め ═══
+         給料明細と同じ並び（支給／控除／差引支給額）にそろえる。
+         ①明細 → ②控除 → ③締め の順は、スマホ（1カラム）でも紙（2カラム）でも同じ。
+         ＝探す場所が変わらない。 -->
+    <div class="card" id="sum-card">
+      <div class="card-h">締め</div>
+      <div class="tot" id="tot-box"></div>
+      <div class="bad" id="edit-err" style="display:none"></div>
+      <div class="warn" id="edit-warn" style="display:none"></div>
+    </div>
+
+    <!-- ═══ 入金（★1回＝1行。上書きしない★） ═══
+         ・出るのは ★発行した1通だけ★（下書きにはまだ「請求」が無い）
+         ・代行請求は1請求1行で上書き＝分けて払われた履歴が消えていた。ここは足すだけ。
+         ・★取れなかったを0にしない★＝読めない時は金額を出さず「未確認」と言う。
+         ・記録しても ★すでに出した紙は変わらない★（紙の繰越は発行時に写しへ固まっている）。 -->
+    <div class="card" id="pay-card" style="display:none">
+      <div class="card-h">入金</div>
+      <div class="tot" id="pay-sum"></div>
+      <div id="pay-list"></div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">入金日</div>
+          <input class="finput" id="pay-ymd" type="date">
+        </div>
+        <div class="frow">
+          <div class="flabel">金額（円）</div>
+          <input class="finput num" id="pay-amt" type="text" inputmode="numeric" placeholder="例：40000">
+          <div class="pay-quick" id="pay-quick"></div>
+        </div>
+      </div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">方法</div>
+          <select class="finput" id="pay-method"></select>
+        </div>
+        <div class="frow">
+          <div class="flabel">備考</div>
+          <input class="finput" id="pay-memo" type="text" placeholder="例：振込手数料 差引後">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary btn-big" type="button" id="b-pay-add">入金を記録</button>
+      </div>
+      <p class="why" id="pay-why"></p>
+      <div class="ok" id="pay-ok" style="display:none"></div>
+      <div class="bad" id="pay-err" style="display:none"></div>
+    </div>
+
+    <!-- ★細かい所は畳む（開くまで画面に出さない）★ -->
+    <details class="card more" id="more-box">
+      <summary class="more-s">細かく決める（件名・支払期限・備考）</summary>
+      <div class="frow">
+        <div class="flabel">件名<span class="guess-tag" id="tag-subject" style="display:none">前回から</span></div>
+        <input class="finput" id="e-subject" type="text" placeholder="例：9月分 運転代行ご利用料金">
+      </div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">支払期限<span class="guess-tag" id="tag-term" style="display:none">前回から</span></div>
+          <select class="finput" id="e-term"></select>
+          <input class="finput num" id="e-termn" type="text" inputmode="numeric" placeholder="日数" style="margin-top:6px;display:none">
+          <input class="finput" id="e-due" type="date" style="margin-top:6px">
+        </div>
+        <div class="frow">
+          <div class="flabel">備考</div>
+          <textarea class="finput" id="e-memo" placeholder="例：振込手数料は貴社にてご負担ください"></textarea>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="flabel">「◯年◯月分」の行（紙の頭に出ます）</div>
+        <input class="finput" id="e-lead" type="text" placeholder="（請求日の前月から自動）">
+        <p class="hint" id="e-lead-hint"></p>
+      </div>
+      <!-- ★税の入れ方は「設定」で1回 決める物★。ただし ★取引先ごとに違う★ のが実物なので、
+           この1通だけ変える道を ★畳みの中に★ 置く（入力の主線に設問を増やさない）。 -->
+      <div class="frow">
+        <div class="flabel">この1通の金額の入れ方</div>
+        <select class="finput" id="e-taxmode">
+          <option value="exclusive">税抜で入れる（消費税を足す）</option>
+          <option value="inclusive">税込で入れる（中から消費税を出す）</option>
+        </select>
+        <p class="hint" id="e-taxmode-hint"></p>
+      </div>
+      <div class="frow">
+        <label class="check"><input type="checkbox" id="e-gensen"><span>源泉徴収する<span class="guess-tag" id="tag-gensen" style="display:none">前回から</span></span></label>
+        <p class="hint" id="e-gensen-hint"></p>
+      </div>
+      <p class="hint">税の入れ方・円未満の丸め方・紙の様式は「設定」で1回 決めたら、以後は聞きません。</p>
+    </details>
+
+    <div class="card">
+      <div class="btn-row">
+        <button class="btn-primary btn-big" type="button" id="b-issue">発行する</button>
+        <!-- ★出した見積の「次の一手」＝請求書にする★
+             発行済みの見積では 発行するが消えるので、ここが主役の操作になる。
+             ★隠さない・塞がっている時は灰色＋理由をボタンの中★ -->
+        <button class="btn-primary btn-big" type="button" id="b-toinv" style="display:none">この見積から請求書を作る</button>
+      </div>
+      <p class="why" id="act-why"></p>
+      <details class="more" id="out-box">
+        <summary class="more-s" id="out-sum">ほかの出し方（下書き・下見・印刷・Excel）</summary>
+        <div class="btn-row">
+          <button class="btn-ghost" type="button" id="b-save">下書きを保存</button>
+          <button class="btn-ghost" type="button" id="b-preview">中身を見る</button>
+          <button class="btn-ghost" type="button" id="b-print">印刷 / PDF保存</button>
+          <button class="btn-ghost" type="button" id="b-xlsx">Excel</button>
+        </div>
+        <!-- ★紙はA4 1枚に収まるよう「実際に測って」組んである★
+             印刷の画面で「用紙に合わせる／縮小」を選ぶと その寸法が崩れる。 -->
+        <p class="hint" id="print-scale-note">印刷するときは、拡大・縮小を「実際のサイズ（100%）」にしてください。A4 1枚に収まるよう寸法を測って作っています。</p>
+        <div class="btn-row" id="danger-row"></div>
+      </details>
+      <div class="ok" id="edit-ok" style="display:none"></div>
+      <div class="pv-wrap" id="pv-wrap" style="display:none"><iframe class="pv" id="pv" title="請求書の下見"></iframe></div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ 設定 ═══ -->
+  <section class="screen" id="scr-set">
+    <div class="card">
+      <div class="card-h">紙の様式</div>
+      <p class="hint">紙の見た目だけが変わります（金額は1円も変わりません）。</p>
+      <div class="seg" id="s-tpl"></div>
+      <!-- ★同じ事を2回 言わない★ 「見た目だけ・金額は変わらない」は
+           下の s-tpl-note が選んだ様式の説明と一緒に出している（2026-08-15 スクショで重複を発見）。 -->
+      <p class="hint" id="s-tpl-note"></p>
+    </div>
+
+    <!-- ★既定で正しく動く物は 出しっぱなしにしない★（司さん 2026-08-16 ⑥）
+         ・紙の行数 … 既定は ★A4 1枚に収まる数を実測して★ 入れてある＝ふだん触らない
+                      （2枚になった時だけ 入力の画面から「枠を増やす」で ここへ飛べる）
+         ・明細の列 … ★列を足したい会社だけ★ が触る
+         ★畳むだけで 消さない★（押せば出る）。★開いた時に見える設定を減らす★のが狙い。 -->
+    <details class="card more" id="set-more">
+      <summary class="more-s">詳しい設定（紙の行数・明細の列）</summary>
+
+      <div class="sub-h">紙の行数</div>
+      <p class="hint">明細が少ない月でも、枠の分だけ空の行を残して刷ります。毎月おなじ場所に おなじ物が来るので、探し直しになりません。</p>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">明細の枠（行）</div>
+          <input class="finput" id="s-rows" type="number" min="0" max="60" step="1" inputmode="numeric" placeholder="既定">
+        </div>
+        <div class="frow">
+          <div class="flabel">控除の枠（行）</div>
+          <input class="finput" id="s-dedrows" type="number" min="0" max="30" step="1" inputmode="numeric" placeholder="既定">
+        </div>
+      </div>
+      <p class="hint" id="s-rows-note"></p>
+
+      <div class="sub-h">明細の列</div>
+      <p class="hint">請求書に並べる列は、会社ごとに自由に決められます。足す・消す・並べ替える・幅を変える・揃えを変える。知らない名前の列（例：行き先・距離・担当者）も足せます。</p>
+      <div id="col-list"></div>
+      <div class="btn-row">
+        <input class="finput" id="col-new" type="text" placeholder="例：行き先" style="flex:1 1 150px">
+        <button class="btn-ghost" type="button" id="b-col-add">＋ 列を足す</button>
+        <button class="btn-ghost" type="button" id="b-col-reset">様式の既定に戻す</button>
+      </div>
+      <p class="why" id="col-why"></p>
+      <div class="ok" id="col-ok" style="display:none"></div>
+      <div class="bad" id="col-err" style="display:none"></div>
+    </details>
+
+    <div class="card">
+      <div class="card-h">請求書の決まり</div>
+      <div class="frow">
+        <div class="flabel">番号の形</div>
+        <select class="finput" id="s-format"></select>
+        <p class="hint" id="s-format-hint"></p>
+      </div>
+      <div class="frow">
+        <label class="flabel" style="display:block">
+          <input type="checkbox" id="s-reset"> 年（または年月）が変わったら 1 に戻す
+        </label>
+        <p class="hint">戻さない場合は、年をまたいでも通し番号が続きます。どちらでも「同じ番号を二度使わない」ことは倉庫が守ります。</p>
+      </div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">税の入れ方（既定）</div>
+          <select class="finput" id="s-taxmode">
+            <option value="exclusive">外税</option>
+            <option value="inclusive">内税</option>
+          </select>
+        </div>
+        <div class="frow">
+          <div class="flabel">円未満の丸め方（既定）</div>
+          <select class="finput" id="s-round"></select>
+        </div>
+      </div>
+      <p class="hint">消費税は、税率ごとに合計してから1回だけ丸めます（国税庁の定め）。丸め方だけが会社ごとの決めごとです。</p>
+      <div class="frow">
+        <label class="check"><input type="checkbox" id="s-carry"><span>紙に「繰越」を出す（前回請求額・入金額・繰越額）</span></label>
+        <p class="hint" id="s-carry-hint">毎月まとめて払われる相手に使います。入金が読めない時は、0と書かず「未確認」と出します。</p>
+      </div>
+      <div class="frow">
+        <div class="flabel">お振込先（紙に出ます）</div>
+        <textarea class="finput" id="s-bank" placeholder="例：伊予銀行 今治支店 普通 1234567 カ）ゼロアクト"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" type="button" id="b-set-save">保存</button>
+      </div>
+      <div class="ok" id="set-ok" style="display:none"></div>
+      <div class="bad" id="set-err" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">取引先の「請求書で使う」項目</div>
+      <p class="hint">会社名・住所・登録番号は、給与や請求書で同じ物を使うので 1か所にまとめて持っています。ここでは、そこに無い「請求書だけで使う項目」を足します。</p>
+      <div class="frow">
+        <div class="flabel">取引先を選ぶ</div>
+        <select class="finput" id="s-partner"></select>
+      </div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">取引先コード</div>
+          <input class="finput" id="s-pcode" type="text" placeholder="例：A001">
+        </div>
+        <div class="frow">
+          <div class="flabel">敬称</div>
+          <select class="finput" id="s-phonor">
+            <option>御中</option><option>様</option><option>（なし）</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">担当者</div>
+          <input class="finput" id="s-pperson" type="text" placeholder="例：山田">
+        </div>
+        <div class="frow">
+          <div class="flabel">郵便番号</div>
+          <input class="finput" id="s-pzip" type="text" inputmode="numeric" placeholder="例：794-0000">
+        </div>
+      </div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">電話番号</div>
+          <input class="finput" id="s-ptel" type="tel" placeholder="例：0898-00-0000">
+        </div>
+        <div class="frow">
+          <div class="flabel">いつまでにもらう約束</div>
+          <select class="finput" id="s-pterm"></select>
+          <input class="finput num" id="s-ptermn" type="text" inputmode="numeric" placeholder="日数" style="margin-top:6px;display:none">
+        </div>
+      </div>
+      <div class="frow">
+        <label class="check"><input type="checkbox" id="s-pgensen"><span>この取引先は源泉徴収の対象（新しく作る1通に最初から入る）</span></label>
+        <p class="hint">対象かどうかは相手（払う側）が決めます。1通ごとに変える時は、入力の「細かく決める」から。</p>
+      </div>
+      <!-- ★取引先を足すのは 入力の画面（だれに）で出来る★＝ここから外のアプリへ出さない -->
+      <div class="btn-row">
+        <button class="btn-primary" type="button" id="b-pt-save">この取引先を保存</button>
+      </div>
+      <div class="ok" id="pt-ok" style="display:none"></div>
+      <div class="bad" id="pt-err" style="display:none"></div>
+    </div>
+
+    <!-- ★今 紙に刷られる自社の情報を そのまま見せる★（司さん 2026-08-17）
+         前は「別のアプリの画面が本体です」と ★置き場所の説明だけ★ を出していて、
+         ★自分の会社の何が刷られるのか この画面では分からなかった★。
+         ★直すのは1か所★（給与と同じ物を使うので ここでは直さない）＝二重に持たない。 -->
+    <div class="card">
+      <div class="card-h">自社の情報（紙に刷られる物）</div>
+      <div id="org-view"></div>
+      <p class="hint">給与の明細と同じ会社の情報を使っています。直すと どちらの紙にも効きます。</p>
+      <div class="btn-row">
+        <!-- ★飛び先は Rakually の入口の「共有データ＞会社」。会社マスタは1か所だけ（二つ目の編集を作らない）★ -->
+        <a class="btn-ghost" style="text-decoration:none;display:inline-block" href="../index.html">会社の情報を直す</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">角印（会社の印）</div>
+      <p class="hint">紙の自社名の下に、薄く重ねて刷ります。PNG か JPEG の画像を選んでください（背景が透けている PNG がいちばんきれいです）。</p>
+      <div class="seal-row">
+        <img class="seal-pv" id="seal-pv" alt="角印の下見" style="display:none">
+        <span class="hint" id="seal-none">まだ入れていません（印を押さずに刷ります）。</span>
+      </div>
+      <div class="frow2">
+        <div class="frow">
+          <div class="flabel">大きさ（mm）</div>
+          <input class="finput num" id="seal-mm" type="text" inputmode="numeric" placeholder="21">
+        </div>
+        <div class="frow">
+          <div class="flabel">画像を選ぶ</div>
+          <input class="finput" id="seal-file" type="file" accept="image/png,image/jpeg">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" type="button" id="b-seal-save">保存</button>
+        <button class="bdel" type="button" id="b-seal-clear">印を消す</button>
+      </div>
+      <p class="why" id="seal-why"></p>
+      <div class="ok" id="seal-ok" style="display:none"></div>
+      <div class="bad" id="seal-err" style="display:none"></div>
+    </div>
+
+    <!-- ★ログイン中の人とログアウトは「設定」の中★（給与と同じ置き場所。
+         頭に出すと、狭い端末で 屋号やメールが見出しを押し出す） -->
+    <div class="card">
+      <div class="card-h">ログイン</div>
+      <p class="note">ログイン中: <span class="who" id="who"></span></p>
+      <div class="btn-row">
+        <button class="btn-ghost" type="button" id="b-logout">ログアウト</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="botnav">
+  <button class="bn" type="button" data-scr="scr-set"><span class="bn-i">⚙</span><span class="bn-l">設定</span></button>
+  <button class="bn on" type="button" data-scr="scr-edit"><span class="bn-i">✎</span><span class="bn-l">入力</span></button>
+  <button class="bn" type="button" data-scr="scr-list"><span class="bn-i">▤</span><span class="bn-l">一覧</span></button>
+</nav>
+
+<!-- ★落とす前に「中身から作った名前」を出して直させる（司さんの決まり）★ -->
+<div class="ov" id="fn-ov">
+  <div class="ov-card">
+    <div class="ov-t">この名前で保存します</div>
+    <p class="hint">中身（日付・相手・種類・金額）から作りました。直してから保存できます。</p>
+    <input class="finput" id="fn-input" type="text">
+    <div class="ov-ext" id="fn-ext"></div>
+    <div class="btn-row">
+      <button class="btn-primary" type="button" id="fn-ok">この名前で保存</button>
+      <button class="btn-ghost" type="button" id="fn-cancel">やめる</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supa-config.js?v=c86548ee"></script>
+<script src="../lib/xlsx.full.min.js?v=c86548ee"></script>
+<script src="../js/file-out.js?v=c86548ee"></script>
+<script src="../js/suite-data.js?v=c86548ee"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=c86548ee"></script>
+<!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
+     （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
+<script src="../kyuyo/lib/shiharai-chosho.js?v=c86548ee"></script>
+<script src="lib/seikyu-tax.js?v=c86548ee"></script>
+<script src="lib/seikyu-gensen.js?v=c86548ee"></script>
+<script src="lib/seikyu-carry.js?v=c86548ee"></script>
+<script src="lib/seikyu-cols.js?v=c86548ee"></script>
+<script src="lib/seikyu-templates.js?v=c86548ee"></script>
+<script src="lib/seikyu-doc.js?v=c86548ee"></script>
+<script src="lib/seikyu-name.js?v=c86548ee"></script>
+<script src="lib/seikyu-paper.js?v=c86548ee"></script>
+<script src="lib/seikyu-aoa.js?v=c86548ee"></script>
+<script src="js/seikyu-store.js?v=c86548ee"></script>
+<script src="js/seikyu-out.js?v=c86548ee"></script>
+<script src="js/seikyu-app.js?v=c86548ee"></script>
+<script src="../js/exally-login.js?v=c86548ee"></script>
+<script src="js/auth.js?v=c86548ee"></script>
+<!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
+     開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
+<script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
+<!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
+     ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
+<script src="../js/env-badge.js?v=c86548ee"></script>
+</body>
+</html>

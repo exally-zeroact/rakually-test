@@ -1,0 +1,496 @@
+/* 給与明細アプリ — Exally統一ミントUI（CSS変数は使わず直hex / CLAUDE.md準拠） */
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'Noto Sans JP',sans-serif;color:#2E7D54;background:#F0FAF4;-webkit-text-size-adjust:100%;}
+input,select,button{font-family:inherit;}
+
+/* ---- appbar ---- */
+.appbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;height:52px;padding:0 16px;background:#fff;border-bottom:1px solid #e3ede8;box-shadow:0 1px 4px rgba(30,60,40,.06);}
+.logo{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;letter-spacing:-0.5px;color:#52B788;}
+.appbar-sub{font-size:10px;letter-spacing:.18em;color:#5C7E6C;}
+.appbar-month{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.appbar-month label{font-size:10px;color:#5C7E6C;}
+.appbar-tab{margin-left:auto;font-size:15px;font-weight:700;color:#3D6B53;letter-spacing:.04em;}
+.scr-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+.scr-head .scr-title{margin-bottom:8px;}
+.scr-month-wrap{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.scr-month-wrap label{font-size:10px;color:#5C7E6C;}
+
+/* ---- main / screens ---- */
+.main{max-width:880px;margin:0 auto;padding:16px 16px 84px;}
+.screen{display:none;}
+.screen.active{display:block;padding-top:14px;}
+.scr-period{font-size:13px;color:#3D6B53;font-weight:500;}
+.scr-title{font-size:17px;font-weight:700;color:#2E7D54;margin:4px 0 12px;}
+.scr-sub{font-size:12px;color:#5C7E6C;font-weight:400;margin-left:8px;}
+
+/* ---- card ---- */
+.card{background:#fff;border:1px solid #d4eae0;border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(30,80,46,.06);}
+.card-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2E7D54;margin-bottom:10px;}
+
+/* ---- forms ---- */
+.frow{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;min-width:0;}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.frow2>*{min-width:0;}
+.frow2 label,.frow label,.flabel{font-size:11px;font-weight:700;color:#3D6B53;}
+.flabel .hint2{font-weight:400;color:#5C7E6C;font-size:10px;margin-left:4px;}
+.finput{width:100%;min-width:0;padding:10px 12px;border:1.5px solid #d4eae0;border-radius:10px;font-size:14px;color:#2E7D54;background:#fff;-webkit-appearance:none;appearance:none;}
+.finput.num{font-family:'DM Mono',monospace;text-align:right;}
+select.finput{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"><path d="M1 1l5 5 5-5" stroke="%237aa08c" stroke-width="2" fill="none"/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
+/* 従業員マスタ accordion + グループ + チップ */
+.grp-hd{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#5C7E6C;margin:8px 2px 6px;}
+.grp-hd::after{content:"";flex:1;height:1px;background:#C8ECD8;}
+.mco{border:1px solid #d4eae0;border-radius:12px;margin-bottom:10px;overflow:hidden;background:#fff;}
+.mco-hd{display:flex;align-items:center;gap:8px;padding:12px;background:#fff;cursor:pointer;}
+.mco-nm{font-size:14px;font-weight:700;color:#2E7D54;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mco-sub{font-size:11px;color:#3D9E72;font-family:'DM Mono',monospace;white-space:nowrap;}
+.mco-ord{display:inline-flex;flex-direction:column;gap:1px;margin-left:2px;}
+.mco-ord .ord-b{width:22px;height:15px;line-height:1;padding:0;border:1px solid #D4EAE0;background:#fff;color:#3D9E72;border-radius:5px;font-size:9px;cursor:pointer;}
+.mco-ord .ord-b:active{background:#F0FAF4;}
+.mco-cv{color:#6E907E;transition:transform .2s;}
+.mco.open .mco-cv{transform:rotate(180deg);}
+.mco-body{display:none;padding:12px;border-top:1px solid #d4eae0;}
+.mco.open .mco-body{display:block;}
+.emp-dtgl{display:flex;align-items:center;font-size:12px;font-weight:700;color:#2E7D54;cursor:pointer;padding:10px 2px 8px;margin-top:8px;border-top:1px dashed #d4eae0;}
+.emp-dtgl .mco-cv{color:#6E907E;transition:transform .2s;}
+.emp-detail{padding-top:4px;}
+.emp-sub{border:1px solid #E3F0E8;border-radius:10px;margin-bottom:8px;overflow:hidden;}
+.emp-sub-h{display:flex;align-items:center;padding:11px 12px;font-size:12.5px;font-weight:700;color:#3D6B53;background:#F7FCF9;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.emp-sub-h .mco-cv{color:#6E907E;transition:transform .2s;}
+.emp-sub-b{padding:10px 12px 4px;}
+/* 従業員マスタ 絞り込み(在籍中/休暇中/退職者/全員) */
+.emp-filter{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap;}
+.emp-filter .ef-b{flex:1;min-width:64px;text-align:center;border:1.5px solid #d4eae0;border-radius:9px;padding:7px 4px;font-size:12px;font-weight:700;color:#5C7E6C;background:#fff;cursor:pointer;}
+.emp-filter .ef-b.on{border-color:#52B788;background:#F0FAF4;color:#2E7D54;}
+.emp-filter .ef-b .ef-n{display:inline-block;margin-left:4px;font-size:11px;color:#6E907E;font-family:'DM Mono',monospace;}
+.emp-filter .ef-b.on .ef-n{color:#3D9E72;}
+.sec-lb{font-size:11px;font-weight:700;color:#2E7D54;margin:14px 0 6px;padding-top:10px;border-top:1px dashed #d4eae0;}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.chip.on{border-color:#52B788;background:#F0FAF4;color:#2E7D54;font-weight:700;}
+.addcustom{display:flex;gap:6px;margin-top:4px;}
+.addcustom .finput{flex:1;}
+.m-del{margin-left:auto;width:26px;height:26px;border:1px solid #e3ede8;border-radius:8px;background:#fff;color:#C0392B;cursor:pointer;flex-shrink:0;}
+.btn-add{width:100%;padding:11px;background:#3D9E72;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 3px 12px rgba(61,158,114,.32);margin-top:4px;}
+/* 社会保険セクション */
+.sh-seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:2px 0 8px;}
+.sh-seg b{text-align:center;border:1.5px solid #d4eae0;border-radius:9px;padding:8px 4px;font-size:11px;font-weight:700;color:#5C7E6C;cursor:pointer;background:#fff;}
+.sh-seg b.on{border-color:#52B788;background:#F0FAF4;color:#2E7D54;}
+.sh-seg b .j{display:block;font-size:9px;color:#6E907E;font-weight:400;margin-top:1px;}
+.sh-auto-lead{background:#F0FAF4;border:1.5px solid #C8ECD8;border-radius:9px;padding:9px 11px;font-size:12px;color:#2E7D54;margin:2px 0 6px;}.sh-auto-lead b{color:#2E7D54;}
+.sh-dtgl{display:inline-flex;align-items:center;font-size:11.5px;color:#5C7E6C;cursor:pointer;padding:2px 2px 8px;}
+.sh-tip{font-size:10.5px;color:#5C7E6C;line-height:1.5;margin:0 0 8px;}.sh-tip b{color:#3D6B53;}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:4px 0 6px;}.f3>*{min-width:0;}
+.mcol{display:flex;flex-direction:column;gap:4px;}.mcol .mlb{font-size:11px;font-weight:700;color:#3D6B53;}
+.mcol .finput{padding:8px 8px;}
+.drow{display:flex;align-items:center;gap:3px;font-size:9.5px;color:#5C7E6C;}.drow span{flex-shrink:0;}
+.dinp{width:100%;min-width:0;padding:5px 4px;border:1.5px solid #d4eae0;border-radius:7px;font-size:13px;font-family:'DM Mono',monospace;text-align:center;color:#2E7D54;-webkit-appearance:none;}
+.mcol.ex .finput,.mcol.ex .dinp{background:#f7fcf9;color:#9cbbab;border-color:#d4eae0;}
+.exinfo{background:#EEF7F1;border:1px solid #cfe6da;border-radius:8px;padding:7px 9px;font-size:10.5px;color:#3D6B53;margin:2px 0 8px;line-height:1.5;}.exinfo b{color:#2E7D54;}
+.sh-hero{background:#F0FAF4;border:1.5px solid #C8ECD8;border-left:5px solid #3D9E72;border-radius:12px;padding:12px 13px;margin:8px 0;}
+.sh-hero .lb{font-size:11px;color:#3D6B53;font-weight:700;}
+.sh-hero .big{font-size:28px;font-weight:700;font-family:'DM Mono',monospace;color:#2E7D54;line-height:1.1;margin:3px 0 6px;}
+.sh-hero .bd{font-size:11px;color:#3D6B53;line-height:1.6;}.sh-hero .bd b{color:#2E7D54;font-family:'DM Mono',monospace;}
+.sh-sub{font-size:10.5px;color:#4A6B5A;line-height:1.6;}.sh-sub b{color:#2E7D54;font-family:'DM Mono',monospace;}
+.zk-inp{margin:8px 0 4px;}
+.zk-box{margin:6px 0 2px;}
+.zk-hit{background:#F0FAF4;border:1.5px solid #C8ECD8;border-left:5px solid #3D9E72;border-radius:10px;padding:10px 12px;}
+.zk-miss{background:#F6F8F7;border:1px solid #dbe6e0;border-left:5px solid #B7C6BE;border-radius:10px;padding:10px 12px;}
+.zk-t{font-size:12px;font-weight:700;color:#2E7D54;}.zk-miss .zk-t{color:#4A6B5A;}
+.zk-d{font-size:11px;color:#3D6B53;line-height:1.7;margin-top:4px;}.zk-d b{color:#2E7D54;font-family:'DM Mono',monospace;}
+.zk-ins{font-size:11px;color:#3D6B53;line-height:1.7;margin-top:3px;}.zk-ins b{font-family:'DM Mono',monospace;}
+.zk-rs{margin:5px 0 2px;padding-left:18px;font-size:10.5px;color:#6B5A3D;line-height:1.6;}
+.zk-note{font-size:10px;color:#527A66;line-height:1.5;margin-top:5px;}.zk-note b{color:#3D6B53;font-family:'DM Mono',monospace;}
+.sh-warn{background:#fff8e1;border:1px solid #F4D8A8;border-radius:8px;padding:7px 9px;font-size:10.5px;color:#92500A;line-height:1.55;margin-bottom:9px;}.sh-warn b{color:#7A3F00;}
+/* 割増（時間/分） */
+.dur{display:flex;align-items:center;gap:4px;}
+.dur i{font-style:normal;font-size:10px;color:#5C7E6C;}
+.dur-in{width:48px!important;padding:8px 4px!important;text-align:center;font-family:'DM Mono',monospace;}
+.wi-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.wi-l{flex:1;min-width:0;font-size:12px;color:#2E7D54;font-weight:500;}
+.wi-l small{display:block;font-size:10px;color:#5C7E6C;font-weight:400;}
+.wi-f{width:46px;padding:7px 4px;border:1.5px solid #d4eae0;border-radius:8px;font-size:15px;font-family:'DM Mono',monospace;text-align:center;color:#2E7D54;-webkit-appearance:none;}
+.wi-res{font-size:12px;color:#2E7D54;font-weight:700;margin-top:6px;}
+.wi-res b{font-family:'DM Mono',monospace;}
+.wi-res .wi-sub{display:block;font-size:10px;color:#5C7E6C;font-weight:400;margin-top:1px;}
+.wi-res.wi-zero{color:#5C7E6C;font-weight:400;font-size:11px;}
+/* 会社の決まり */
+.rule-item{position:relative;border:1px solid #EEF6F1;border-radius:10px;padding:10px 11px;margin-bottom:9px;}
+.rule-item .ri-x{position:absolute;top:8px;right:9px;font-size:11px;color:#C0392B;cursor:pointer;}
+.ri-note{font-size:10px;color:#5C7E6C;line-height:1.5;margin-top:5px;}
+.wdays{display:flex;gap:5px;flex-wrap:wrap;margin:5px 0;}
+.wday{width:34px;height:34px;border:1.5px solid #d4eae0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#5C7E6C;cursor:pointer;}
+.wday.on{border-color:#52B788;background:#3D9E72;color:#fff;}
+.cr-f{padding:9px 10px;border:1.5px solid #d4eae0;border-radius:9px;font-family:'DM Mono',monospace;font-size:14px;color:#2E7D54;background:#fff;-webkit-appearance:none;text-align:right;width:130px;}
+.cr-f.cr-dur{width:58px;text-align:center;}
+.cr-f.cr-wide{width:130px;}
+.cr-f.cr-rate{width:64px;text-align:right;}
+.rate-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 2px;}
+.rate-grid>div{min-width:0;}
+.rate-grid .mini-l{font-size:10px;color:#3D6B53;font-weight:700;margin-bottom:3px;}
+.cr-sel{width:100%;padding:9px 10px;border:1.5px solid #d4eae0;border-radius:9px;font-size:14px;color:#2E7D54;background:#fff;-webkit-appearance:none;}
+/* 色パレット(普段は畳む・タップで開く) */
+.d-lb{display:block;font-size:12px;font-weight:700;color:#3D6B53;margin:8px 0 6px;}
+/* 明細レイアウト ギャラリー(代行請求と統一) */
+.tpl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:4px;}
+.tpl-card.land{grid-column:1/-1;}
+.tpl-card.land .tpl-thumb{aspect-ratio:1.6/1;}
+.tpl-card{position:relative;border:1.5px solid #C8ECD8;border-radius:14px;overflow:hidden;background:#fff;padding:0;text-align:left;cursor:pointer;font:inherit;transition:border-color .12s,box-shadow .12s;}
+.tpl-card.on{border-color:#52B788;box-shadow:0 0 0 1.5px #52B788 inset;}
+.tpl-thumb{width:100%;aspect-ratio:1/1.414;background:#fff;display:block;border-bottom:1px solid #E3F2EA;object-fit:contain;object-position:top;}
+.tpl-meta{padding:9px 11px 11px;}
+.tpl-name{font-weight:700;font-size:13px;color:#2E7D54;}
+.tpl-desc{font-size:11px;color:#527A66;margin-top:2px;line-height:1.35;}
+.tpl-badge{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:#3D9E72;color:#fff;display:none;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 4px rgba(61,158,114,.45);}
+.tpl-card.on .tpl-badge{display:flex;}
+.cp-bar{display:flex;flex-wrap:wrap;gap:6px;}
+.cp-toggle{display:inline-flex;align-items:center;gap:6px;border:1.5px solid #d4eae0;border-radius:10px;background:#fff;padding:7px 10px;font-size:11.5px;font-weight:700;color:#3D6B53;cursor:pointer;}
+.cp-toggle.open{border-color:#52B788;background:#F0FAF4;}
+.cp-reset{color:#9A7B5A;border-color:#E6DCC9;background:#FBF7F0;}
+.cp-toggle .cp-cv{color:#6E907E;font-size:10px;transition:transform .15s;}
+.cp-toggle.open .cp-cv{transform:rotate(180deg);}
+.cp-cur{display:inline-block;width:16px;height:16px;border-radius:4px;border:1px solid rgba(0,0,0,.12);}
+.cp-sw{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;padding:8px;background:#f7fcf9;border:1px solid #e3ede8;border-radius:10px;}
+.cw{width:24px;height:24px;border-radius:5px;border:1px solid rgba(0,0,0,.12);cursor:pointer;}
+.cw.on{outline:2px solid #52B788;outline-offset:1px;}
+/* 配色プリセット */
+.cp-lb{font-size:11px;font-weight:700;color:#5C7E6C;margin:0 0 6px;}
+.cp-preset{display:flex;flex-wrap:wrap;gap:6px;}
+.cp-ps{display:inline-flex;align-items:center;gap:7px;border:1.5px solid #d4eae0;border-radius:10px;background:#fff;padding:6px 10px 6px 7px;font-size:11.5px;font-weight:700;color:#3D6B53;cursor:pointer;}
+.cp-ps.on{border-color:#52B788;background:#F0FAF4;}
+.cp-ps-sw{display:inline-flex;border-radius:4px;overflow:hidden;border:1px solid rgba(0,0,0,.12);}
+.cp-ps-sw span{width:12px;height:18px;display:block;}
+.chip-dim{background:#eef2f0;color:#9fb3aa;border:1px dashed #d8e0db;cursor:default;}
+.mco-retired{opacity:.62;}
+.ret-badge{display:inline-block;font-size:10px;font-weight:700;color:#7A6A2E;background:#FBF3D6;border:1px solid #E6DCB0;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
+.ws-badge{display:inline-block;font-size:10px;font-weight:700;color:#2E7D54;background:#e2f4ea;border:1px solid #BEE3CC;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
+/* 設定の4タブは1行に収める(均等割・折返さない) */
+#set-seg{display:flex;width:100%;}
+#set-seg .seg-b{flex:1;padding:8px 1px;font-size:11px;white-space:nowrap;text-align:center;}
+.lv-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #e9f5ee;}
+.lv-nm{font-size:14px;font-weight:600;color:#2E7D54;flex:1;min-width:0;}
+.lv-sel{flex:0 0 150px;}
+.lv-detail{padding:4px 2px 12px;border-bottom:1px solid #e9f5ee;}
+.hd-chip{display:inline-block;font-size:11px;font-weight:700;color:#3D6B53;background:#e9f5ee;border:1px solid #cfe6da;border-radius:7px;padding:2px 9px;margin-left:6px;cursor:pointer;vertical-align:middle;}
+.hd-chip.on{background:#52B788;color:#fff;border-color:#52B788;}
+.wk-f{width:46px;padding:7px 4px;border:1.5px solid #d4eae0;border-radius:8px;font-size:15px;font-family:'DM Mono',monospace;text-align:center;color:#2E7D54;-webkit-appearance:none;}
+.cr-fixed{font-size:11px;color:#8A8A7C;background:#f3f5f4;border:1px solid #e0e6e2;border-radius:8px;padding:8px 10px;margin-top:4px;}.cr-fixed b{font-family:'DM Mono',monospace;color:#6A6A5C;}
+.cr-ok{font-size:10.5px;color:#2E7D54;font-weight:700;margin-top:6px;}
+.cr-warn{font-size:10.5px;color:#92500A;background:#fff8e1;border:1px solid #F4D8A8;border-radius:7px;padding:7px 9px;margin-top:6px;line-height:1.55;}
+.wi-seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
+.wi-seg b{text-align:center;border:1.5px solid #d4eae0;border-radius:9px;padding:7px 4px;font-size:12px;font-weight:700;color:#5C7E6C;background:#fff;cursor:pointer;}
+.wi-seg b.on{border-color:#52B788;background:#F0FAF4;color:#2E7D54;}
+.imode-seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 10px;}
+.imode-seg .imode,.imode-seg .pmode,.imode-seg .dls{text-align:center;border:1.5px solid #d4eae0;border-radius:9px;padding:8px 4px;font-size:13px;font-weight:700;color:#5C7E6C;background:#fff;cursor:pointer;}
+.imode-seg .imode.on,.imode-seg .pmode.on,.imode-seg .dls.on{border-color:#52B788;background:#F0FAF4;color:#2E7D54;}
+.imode-seg .ivw{text-align:center;border:1.5px solid #d4eae0;border-radius:9px;padding:8px 4px;font-size:13px;font-weight:700;color:#5C7E6C;background:#fff;cursor:pointer;}
+.imode-seg .ivw.on{border-color:#52B788;background:#F0FAF4;color:#2E7D54;}
+/* 入力=表でまとめて(全従業員1画面・横スクロール・数値右揃え・1列目固定) */
+.in-table-wrap{overflow-x:auto;border:1px solid #d4eae0;border-radius:12px;margin-bottom:10px;-webkit-overflow-scrolling:touch;}
+.in-table{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%;white-space:nowrap;}
+.in-table th{background:#F0FAF4;color:#2E7D54;font-weight:700;font-size:11px;padding:8px 8px;border-bottom:1px solid #C8ECD8;text-align:right;position:sticky;top:0;}
+.in-table th small{display:block;font-size:9px;color:#5C7E6C;font-weight:400;}
+.in-table th.tnm{text-align:left;}
+.in-table td{padding:5px 8px;border-bottom:1px solid #eef4f0;vertical-align:middle;}
+.in-table tr:last-child td{border-bottom:none;}
+.in-table .tnm{text-align:left;font-weight:700;color:#23261f;position:sticky;left:0;background:#fff;z-index:1;box-shadow:1px 0 0 #eef4f0;}
+.in-table th.tnm{position:sticky;left:0;z-index:2;background:#F0FAF4;}
+.in-table .tnum{text-align:right;}
+.in-table .tcell{width:52px;text-align:right;padding:5px 6px;font-variant-numeric:tabular-nums;}
+.in-table .thm{display:inline-flex;align-items:center;gap:2px;color:#6E907E;}
+.in-table .thm .tcell{width:38px;}
+.in-table .tnet{text-align:right;}
+.in-table .tnet-v{font-weight:700;color:#23261f;font-variant-numeric:tabular-nums;}
+.in-table .tdim{color:#7E9E8C;text-align:right;}
+.in-table .thint{color:#6E907E;font-size:10px;}
+.in-table .tmw{color:#92500A;cursor:help;}
+.in-table .tlw{color:#92500A;cursor:help;}
+.in-table .tconf{text-align:center;}
+.in-table .tstack{display:inline-flex;flex-direction:column;gap:3px;align-items:flex-end;}
+.cap-badge{display:inline-block;font-size:10px;font-weight:700;color:#92500A;background:#fff8e1;border:1px solid #F4D8A8;border-radius:6px;padding:2px 7px;margin-right:5px;}
+.wi-df{width:46px;padding:7px 4px;border:1.5px solid #d4eae0;border-radius:8px;font-size:15px;font-family:'DM Mono',monospace;text-align:center;color:#2E7D54;-webkit-appearance:none;}
+.wi-note2{font-size:10px;color:#5C7E6C;line-height:1.5;margin:4px 0 2px;}
+.wi-bkw{margin-top:6px;}
+.wi-bk{font-size:10.5px;color:#4A6B5A;line-height:1.7;}
+.wi-bk b{color:#2E7D54;font-family:'DM Mono',monospace;}
+.wb-box{margin-top:10px;background:#f7fcf9;border:1px solid #e3ede8;border-radius:10px;padding:9px 10px;}
+.wb-h{font-size:11px;font-weight:700;color:#2E7D54;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.wb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:5px;}
+.wb-chip{font-size:11.5px;padding:4px 9px;border:1px solid #d4eae0;border-radius:13px;background:#fff;color:#6E907E;cursor:pointer;}
+.wb-chip.on{border-color:#52B788;background:#52B788;color:#fff;font-weight:700;}
+.wb-note{font-size:10px;color:#5C7E6C;line-height:1.5;}
+/* 💡 ヘルプ */
+.help-i{cursor:pointer;margin-left:4px;font-size:13px;line-height:1;user-select:none;}
+.help-ov{display:none;position:fixed;inset:0;z-index:60;background:rgba(20,40,28,.42);align-items:center;justify-content:center;padding:20px;}
+.help-ov.on{display:flex;}
+.help-card{background:#fff;border-radius:16px;max-width:340px;width:100%;padding:18px 18px 14px;box-shadow:0 12px 40px rgba(20,40,28,.3);}
+.help-t{font-size:15px;font-weight:700;color:#2E7D54;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.help-b{font-size:13px;line-height:1.7;color:#4A6B5A;white-space:pre-wrap;}
+.help-b b{color:#2E7D54;font-weight:700;}
+.help-x{margin-top:14px;width:100%;padding:11px;background:#3D9E72;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;}
+.finput:focus{outline:none;border-color:#52B788;}
+/* アプリ内モーダル(alert/confirm/prompt置換・動的生成) */
+.ui-modal-ov{position:fixed;inset:0;z-index:120;background:rgba(20,40,28,.46);display:flex;align-items:center;justify-content:center;padding:20px;animation:uiModalIn .16s ease;}
+@keyframes uiModalIn{from{opacity:0;}to{opacity:1;}}
+.ui-modal-card{background:#fff;border-radius:16px;max-width:360px;width:100%;padding:18px 18px 14px;box-shadow:0 14px 44px rgba(20,40,28,.34);}
+.ui-modal-t{font-size:15px;font-weight:700;color:#2E7D54;margin-bottom:8px;}
+.ui-modal-b{font-size:13px;line-height:1.7;color:#4A6B5A;white-space:pre-line;}
+.ui-modal-in{margin-top:12px;width:100%;}
+.ui-modal-btns{display:flex;gap:8px;margin-top:16px;}
+.ui-modal-btn{flex:1;padding:11px;background:#EAF4EE;color:#3D6B53;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;}
+.ui-modal-btn.primary{background:#3D9E72;color:#fff;}
+.ui-modal-btn:active{filter:brightness(.95);}
+.finput-sm{padding:5px 8px;font-size:13px;width:auto;min-height:36px;box-sizing:border-box;}
+/* スマホ全画面サイズ対応: タップ領域/native部品の正規化(iPhone WebKit/Android共通) */
+main input[type="checkbox"]{width:20px;height:20px;min-width:20px;accent-color:#3D9E72;cursor:pointer;vertical-align:middle;}
+/* native日付/月は iOS Safari で高さが潰れやすい→最低高さを固定して不揃いを防ぐ(finput-smの縮小版は除く) */
+input[type="date"].finput:not(.finput-sm),input[type="month"].finput:not(.finput-sm){min-height:44px;box-sizing:border-box;}
+/* 並べ替え矢印のタップ領域拡大(旧22x15=小) */
+.mco-ord .ord-b{width:30px;height:26px;font-size:11px;}
+/* 賞与の追加支給/控除の項目行 */
+.bx-row{display:flex;gap:6px;align-items:center;margin:5px 0;}
+.bx-lbl{flex:1;min-width:0;font-size:12px;padding:7px 8px;}
+.bx-val{width:96px;font-size:12px;padding:7px 8px;text-align:right;font-family:'DM Mono',monospace;}
+.bx-hik{font-size:10px;color:#3D9E72;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;}
+.bx-del{padding:4px 10px;color:#C0392B;border-color:#f0d4cf;font-weight:700;}
+/* カスタム給の決め方エディタ */
+.pr-box{border:1px dashed #cfe6da;border-radius:10px;padding:8px 10px 10px;margin:2px 0 10px;background:#fafdfb;}
+.pr-box .frow{margin-bottom:7px;}
+.pr-type{font-size:12px;padding:7px 8px;}
+/* 給与パターンの管理ストリップ */
+.pat-strip{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 2px 8px;}
+.pat-strip-l{font-size:11px;color:#5C7E6C;font-weight:700;}
+.pat-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:#EAF4EE;color:#2E7D54;border-radius:14px;padding:4px 6px 4px 11px;font-weight:700;}
+.pat-chip .pat-del{color:#8FB3A1;cursor:pointer;font-weight:700;width:18px;height:18px;line-height:18px;text-align:center;border-radius:50%;}
+.pat-chip .pat-del:active{background:#d7ebe0;}
+/* 日払い/週払いの日別入力 */
+.dl-head{display:grid;grid-template-columns:1fr 64px 90px 34px;gap:6px;font-size:10px;color:#527A66;padding:2px 2px 4px;}
+.dl-row{display:grid;grid-template-columns:1fr 64px 90px 34px;gap:6px;align-items:center;margin-bottom:6px;}
+.dl-f{padding:7px 6px;font-size:12px;}
+.dl-del{padding:4px 8px;color:#C0392B;border-color:#f0d4cf;font-weight:700;}
+.dl-tot{font-size:12px;color:#3D6B53;font-weight:700;margin:4px 2px 8px;padding:6px 8px;background:#EAF4EE;border-radius:8px;}
+.hint{font-size:11px;color:#5C7E6C;line-height:1.6;margin-top:6px;}
+
+/* ---- buttons / chips ---- */
+.btn-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}/* ★収まらない時は折り返す（横に隠れて押せない物を作らない・2026-08-10 実測して追加）★ */
+/* ★スマホで詰める: ラベルと枠の間・列の間を狭くする（「重なって見える」の元） */
+@media (max-width:400px){
+  .frow2{gap:8px;}
+  .frow label,.frow .flabel{margin-bottom:2px;}
+  .frow{margin-bottom:8px;}
+}
+/* ★操作ボタン（印刷/Excel/Web明細）。2026-08-04:
+   iPhone(375px)で「印刷 / PDF保存」「Web明細で公開」が2行に折り返し、ボタンが縦に伸びていた。
+   文字と余白を詰めて★3つとも1行★に収め、高さも揃える。横幅の比率は今までどおり（中身の長さで決まる）。
+   ★文言は変えていない（意味が変わる危険を避けた）。守り: tests/button-wrap.test.mjs */
+.btn-row button{padding:9px 10px;font-size:13px;line-height:1.25;white-space:nowrap;}
+/* ★押せないボタンは「押せない見た目」にする。
+   色が濃いまま押せないと「壊れている」と思われる（理由を横に出しても、まず見た目で判断される）。
+   ★文字色は薄くしすぎない。#8FA89A はコントラストがAAに届かず、既存のA11y検査が赤にした
+     （押せない事は「背景を薄く」で伝え、文字は読める濃さを保つ）。 */
+button:disabled,.btn-row button:disabled{background:#EAF3ED;color:#527A66;border-color:#DCE9E1;cursor:not-allowed;box-shadow:none;}
+@media (max-width:380px){ .btn-row button{padding:9px 7px;font-size:12px;} }
+.btn-primary{background:#3D9E72;color:#fff;border:none;padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 3px 12px rgba(61,158,114,.32);}
+.btn-primary:hover{background:#357F5F;}
+.btn-ghost{background:#fff;color:#2E7D54;border:1.5px solid #C8ECD8;padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;}
+.btn-ghost:hover{background:#F0FAF4;}
+.chip{font-size:12px;padding:5px 10px;border:1px solid #C8ECD8;border-radius:14px;background:#fff;color:#2E7D54;cursor:pointer;}
+.chip.on{background:#52B788;border-color:#52B788;color:#fff;font-weight:700;}
+/* 既定でON(自動)の法定控除チップは控えめに=主張しすぎ防止(P1-21a)。OFFにする操作性は保つ */
+.chip.on.chip-auto{background:#EAF6F0;border-color:#C3E5D4;color:#3D7A5A;font-weight:600;}
+.mini{font-size:11px;padding:3px 8px;border:1px solid #e3ede8;border-radius:8px;background:#fff;cursor:pointer;color:#4A6B5A;}
+.mini.del{color:#C62828;}
+
+/* ---- segmented (一覧/集計) ---- */
+.seg{display:inline-flex;background:#E6F4EC;border-radius:12px;padding:3px;margin-bottom:12px;}
+.seg-b{border:none;background:transparent;padding:7px 18px;border-radius:9px;font-size:13px;font-weight:700;color:#4A6B5A;cursor:pointer;}
+.seg-b.on{background:#fff;color:#2E7D54;box-shadow:0 1px 3px rgba(30,80,46,.12);}
+
+/* ---- accordion list (入力/一覧) ---- */
+.acc{background:#fff;border:1px solid #d4eae0;border-radius:14px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 4px rgba(30,80,46,.05);}
+.acc-h{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;}
+.acc-h:hover{background:#F0FAF4;}
+.acc-nm{font-size:15px;font-weight:500;color:#2E7D54;}
+.acc-net{margin-left:auto;font-family:'DM Mono',monospace;font-size:15px;color:#2E7D54;}
+.diffb{font-size:10px;font-weight:700;margin-left:6px;padding:1px 5px;border-radius:6px;white-space:nowrap;font-family:'DM Mono',monospace;}
+.diffb.up{color:#2E7D54;background:#E2F4EA;}
+.diffb.dn{color:#C0392B;background:#FDF1F0;}
+.diffb.sm{color:#527A66;background:#F0FAF4;}
+.acc-cv{font-size:14px;color:#5C7E6C;transition:transform .2s;}
+.acc.open .acc-cv{transform:rotate(180deg);}
+.acc-body{display:none;padding:0 14px 14px;border-top:1px solid #EEF6F1;}
+.acc.open .acc-body{display:block;}
+/* コンパクト一括入力(毎月の勤怠を展開不要で全員ぶん) */
+.ic-top{display:flex;align-items:center;gap:10px;padding:12px 14px;}
+.icard .acc-nm{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.icard .acc-net{margin-left:auto;}
+.ic-detail{flex:0 0 auto;border:1.5px solid #d4eae0;border-radius:8px;background:#fff;color:#3D6B53;font-size:12px;font-weight:700;padding:7px 11px;cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.ic-detail:hover{background:#F0FAF4;}
+.ic-kin{display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 12px;}
+.ic-f{display:flex;flex-direction:column;gap:3px;flex:1 1 64px;min-width:58px;}
+.ic-f>span{font-size:10px;color:#527A66;font-weight:700;padding-left:1px;}
+.ic-f .ic-in{width:100%;padding:9px 8px;border:1.5px solid #d4eae0;border-radius:8px;font-size:15px;font-family:'DM Mono',monospace;text-align:right;color:#2E7D54;-webkit-appearance:none;box-sizing:border-box;}
+.ic-f .ic-in:focus{outline:none;border-color:#52B788;}
+.ic-f2{flex:1.4 1 128px;}
+.ic-hm{display:flex;align-items:center;gap:4px;}
+.ic-hm .ic-in{flex:1;width:auto;min-width:0;text-align:center;padding:9px 4px;}
+.ic-hm i{color:#5C7E6C;font-style:normal;font-family:'DM Mono',monospace;}
+
+/* rows in editor */
+.grp{margin-top:12px;}
+.grp-h{display:flex;align-items:center;font-size:11px;font-weight:700;color:#2E7D54;letter-spacing:.08em;margin-bottom:5px;}
+.grp-h .add{margin-left:auto;}
+.rows{display:flex;flex-direction:column;gap:5px;}
+.row{display:flex;gap:6px;align-items:center;}
+.row .lbl{flex:1.3;}
+.row .val{flex:1;text-align:right;font-family:'DM Mono',monospace;}
+.row input{padding:7px 9px;border:1px solid #d4eae0;border-radius:8px;font-size:13px;min-width:0;}
+.row .hz{display:flex;align-items:center;gap:3px;font-size:10px;color:#5C7E6C;white-space:nowrap;}
+.row .b-del{width:26px;height:30px;border:1px solid #e3ede8;border-radius:8px;background:#fff;color:#C62828;cursor:pointer;}
+
+/* auto-calc summary (法定控除) */
+.calc-box{margin-top:12px;background:#F0FAF4;border:1px solid #C8ECD8;border-radius:10px;padding:10px 12px;}
+.calc-box .ch{font-size:11px;font-weight:700;color:#2E7D54;margin-bottom:6px;}
+.calc-line{display:flex;justify-content:space-between;font-size:12px;color:#4A6B5A;padding:2px 0;}
+.calc-line .v{font-family:'DM Mono',monospace;color:#2E7D54;}
+.calc-line.tot{border-top:1px solid #C8ECD8;margin-top:5px;padding-top:6px;font-weight:700;color:#2E7D54;}
+.calc-line.net .v{color:#2E7D54;font-size:14px;}
+
+/* detail (一覧 展開) */
+.det{font-size:12px;color:#4A6B5A;}
+.det-2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+.det .dl{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted #e3ede8;}
+.det .dl .v{font-family:'DM Mono',monospace;color:#2E7D54;}
+
+/* summary table */
+.sumtab{width:100%;border-collapse:collapse;font-size:12px;}
+.sumtab th,.sumtab td{padding:7px 8px;border-bottom:1px solid #e3ede8;text-align:right;}
+.sumtab th:first-child,.sumtab td:first-child{text-align:left;}
+.sumtab thead th{color:#2E7D54;font-weight:700;border-bottom:1.5px solid #C8ECD8;}
+.sumtab td.num{font-family:'DM Mono',monospace;color:#2E7D54;}
+.sumtab tr.total td{font-weight:700;background:#F0FAF4;}
+.pay-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 2px;border-bottom:1px solid #eef4f0;font-size:13px;}
+.pay-row .num{font-family:'DM Mono',monospace;color:#2E7D54;font-weight:700;white-space:nowrap;}
+.pay-sub{font-size:10.5px;color:#6E907E;font-weight:400;margin-left:6px;}
+/* 帳票: 部署別・賃金台帳 */
+.sumtab tr.dept-h td{background:#EEF7F1;color:#2E7D54;font-weight:700;font-size:11px;}
+.dc-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.dc-tab{border-collapse:collapse;font-size:11px;white-space:nowrap;}
+.dc-tab th,.dc-tab td{border:1px solid #e3ede8;padding:4px 7px;text-align:right;}
+.dc-tab thead th{background:#F0FAF4;color:#2E7D54;font-weight:700;position:sticky;top:0;}
+.dc-tab td.dc-lb,.dc-tab th:first-child{text-align:left;position:sticky;left:0;background:#fff;color:#3D6B53;font-weight:700;}
+.dc-tab thead th:first-child{background:#F0FAF4;z-index:1;}
+.dc-tab td.num{font-family:'DM Mono',monospace;color:#2E7D54;}
+.dc-tab td.tot{font-weight:700;background:#F7FCF9;}
+.dc-tab tr.dc-net td{background:#F0FAF4;font-weight:700;}
+
+/* theme swatches */
+.theme-row{display:flex;gap:8px;flex-wrap:wrap;}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #d4eae0;cursor:pointer;}
+.sw.on{box-shadow:0 0 0 2px #52B788;}
+
+/* preview */
+.preview-wrap{margin-top:14px;overflow:auto;background:#cfcabd;border-radius:12px;padding:16px;display:flex;justify-content:center;}
+/* プレビューは見るだけ=タッチをページに通してスクロールを妨げない(iframeが指を捕まえるスクロール不能バグ対策) */
+#frame{border:none;background:#fff;box-shadow:0 8px 32px rgba(30,60,40,.16);pointer-events:none;}
+
+/* ---- bottom nav ---- */
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:#fff;border-top:1px solid #e3ede8;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 10px rgba(30,60,40,.06);}
+.bn{flex:1;border:none;background:transparent;padding:8px 2px 9px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:#5C7E6C;}
+.bn-i{font-size:18px;line-height:1;}
+.bn-l{font-size:10px;font-weight:700;}
+.bn.on{color:#3D9E72;}
+
+@media(min-width:880px){ .main{padding-bottom:84px;} }
+
+/* 年末調整(view-nen) 申告入力フォーム */
+.nen-detail .nsec{font-size:12px;font-weight:700;color:#2E7D54;margin:10px 0 4px;border-bottom:1px solid #eef3f0;padding-bottom:2px;}
+.nen-detail .nrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:5px 0;}
+.nen-detail .nlbl{font-size:11.5px;color:#3D6B53;min-width:96px;}
+.nen-detail .nlbl .hint2{display:block;font-size:9.5px;color:#527A66;font-weight:400;}
+/* 年調 平易ウィザード(生活語の質問→入力)。従業員Web申告でも同じ見た目を使う。 */
+.nw-group{margin:8px 0 4px;}
+.nw-gt{font-size:12px;font-weight:700;color:#2E7D54;margin:8px 0 4px;border-bottom:1px solid #eef3f0;padding-bottom:2px;}
+.nw-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:1px dashed #f0f5f2;}
+.nw-q{font-size:12px;color:#23261f;line-height:1.5;flex:1;min-width:0;}
+.nw-help{display:block;font-size:10px;color:#527A66;line-height:1.5;margin-top:2px;}
+.nw-in{flex:0 0 auto;display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.nw-unit{font-size:11px;color:#5C7E6C;}
+.nw-chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#3D6B53;font-weight:700;cursor:pointer;}
+.nw-chk input{width:20px;height:20px;}
+.nw-yn{display:inline-flex;border:1.5px solid #d4eae0;border-radius:9px;overflow:hidden;}
+.nw-yn .ynb{padding:6px 14px;font-size:12px;font-weight:700;color:#5C7E6C;background:#fff;cursor:pointer;user-select:none;min-width:44px;text-align:center;}
+.nw-yn .ynb+.ynb{border-left:1.5px solid #d4eae0;}
+.nw-yn .ynb.on{background:#3D9E72;color:#fff;}
+
+/* ───────── モバイル基礎 UX監査(2026-07-13) : iOSズーム防止 / 可視フォーカス / 44pxタップ ───────── */
+/* ① iOS Safariは16px未満のinputフォーカスで画面を自動ズーム→戻らない。全テキスト入力を16pxに(スマホ主眼の最重要) */
+.finput,.ic-in,.dinp,.bx-val,.dl-f,.wi-f,.wk-f,.cm-f,.parse-in,.wi-df,.dl-hm,.dl-amt,.sh-pay,.cr-f,.ac-inp,select.finput,.in-table .tcell{font-size:16px;}
+.in-table .tcell{width:60px;}.in-table .thm .tcell{width:46px;}
+/* ② 可視フォーカス(WCAG2.4.7)。outline:noneだけの状態を是正=キーボード/スイッチ操作で現在地が見える */
+a:focus-visible,button:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible,
+.chip:focus-visible,.bn:focus-visible,.imode:focus-visible,.pmode:focus-visible,.dls:focus-visible,.ivw:focus-visible,
+.ef-b:focus-visible,.sh-seg b:focus-visible,.wi-mode:focus-visible,.seg-b:focus-visible,.tpl-card:focus-visible,
+.mco-hd:focus-visible,.emp-dtgl:focus-visible,.emp-sub-h:focus-visible,.help-i:focus-visible{outline:2px solid #2E7D54;outline-offset:2px;border-radius:6px;}
+.finput:focus-visible,.dinp:focus-visible,.ic-in:focus-visible,.wi-f:focus-visible,.tcell:focus-visible{outline:2px solid #2E7D54;outline-offset:1px;border-color:#52B788;}
+/* ③ タップ40px(iOS44目安)=破壊/小操作の実サイズを拡大。誤削除防止に直結(隣接クリック干渉を避け直接サイズ指定) */
+.m-del,.b-del,.dl-del,.bx-del{min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center;}
+.mini{min-width:32px;min-height:32px;display:inline-flex;align-items:center;justify-content:center;}
+.mco-ord .ord-b{width:30px;height:26px;font-size:11px;}
+/* ④ 動きの低減(前庭障害配慮) */
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+
+/* ── はじめかたガイド(ライブToDo・UX🟠) ── */
+.ob-card{border:1px solid #C8ECD8;background:linear-gradient(180deg,#F4FBF7,#fff);}
+.ob-hd{display:flex;justify-content:space-between;align-items:center;}.ob-hd b{color:#2E7D54;font-size:14px;}
+.ob-x{border:none;background:none;color:#5C7E6C;font-size:20px;cursor:pointer;line-height:1;min-width:40px;min-height:40px;}
+.ob-lead{font-size:11.5px;color:#5C7E6C;margin:2px 0 8px;}
+.ob-step{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1.5px solid #d4eae0;background:#fff;border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;}
+.ob-step:active{background:#F0FAF4;}
+.ob-step.done{border-color:#C8ECD8;background:#F7FCF9;opacity:.85;cursor:default;}
+.ob-ck{flex-shrink:0;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;background:#EAF5EF;color:#3D9E72;}
+.ob-step.done .ob-ck{background:#3D9E72;color:#fff;}
+.ob-tx{flex:1;min-width:0;display:flex;flex-direction:column;}.ob-tx b{font-size:13px;color:#2E7D54;}.ob-tx small{font-size:11px;color:#5C7E6C;}
+.ob-arrow{flex-shrink:0;color:#3D9E72;font-size:20px;font-weight:700;}
+.ob-done-lb{flex-shrink:0;font-size:10.5px;font-weight:700;color:#3D9E72;}
+
+/* ── 空状態CTA(次の一手・UX🟠#8) ── */
+.empty-cta{text-align:center;padding:32px 20px;background:#fff;border:1px solid #d4eae0;border-radius:16px;margin:10px 0;}
+.empty-cta .ec-emoji{font-size:40px;line-height:1;margin-bottom:10px;}
+.empty-cta .ec-t{font-size:15px;font-weight:700;color:#2E7D54;margin-bottom:6px;}
+.empty-cta .ec-s{font-size:12px;color:#5C7E6C;line-height:1.6;margin:0 auto 14px;max-width:320px;}
+.empty-cta .ec-btn{display:inline-flex;width:auto;padding:11px 20px;}
+
+/* ── 月の状態バッジ(下書き/確定済・UX🟠#7) ── */
+.mstate{font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap;}
+.mstate-draft{background:#F1F5F3;color:#5C7E6C;border:1px solid #DCE8E1;}
+.mstate-fixed{background:#EAF5EF;color:#2E7D54;border:1px solid #A8DCC0;}
+
+/* ── 会社の決まり 折りたたみ(既定閉じ・UX🟠#6) ── */
+.rule-item{border:1px solid #E3F0E8;border-radius:10px;margin-bottom:7px;overflow:hidden;background:#fff;}
+.ri-hd{display:flex;align-items:center;gap:6px;padding:11px 12px;cursor:pointer;font-size:12.5px;font-weight:700;color:#3D6B53;background:#F7FCF9;-webkit-tap-highlight-color:transparent;}
+.ri-hd .ri-ttl{flex:1;min-width:0;}
+.ri-cv{color:#6E907E;transition:transform .2s;flex-shrink:0;}
+.rule-item.open .ri-cv{transform:rotate(180deg);}
+.ri-body{padding:10px 12px 12px;border-top:1px solid #eef4f0;}
+.rule-item .ri-x{position:static;color:#C0392B;font-size:11px;font-weight:700;cursor:pointer;}
+
+/* ── 従業員 氏名検索(UX#9) ── */
+.emp-search-wrap{display:flex;align-items:center;gap:8px;margin:0 0 10px;}
+.emp-search-wrap #emp-search{flex:1;}
+.emp-search-count{font-size:11px;font-weight:700;color:#3D9E72;white-space:nowrap;}
+
+/* ── 警告のジャンプ導線(UX#10) ── */
+.mw-fix{color:#92500A;text-decoration:underline;cursor:pointer;font-weight:700;white-space:nowrap;}
+
+/* Exally のハブへ戻る導線。給与から出口が無く「戻れない」状態だったので追加。 */
+.back-exally{flex:0 0 auto;font-size:11.5px;font-weight:700;color:#3D6B53;text-decoration:none;padding:5px 9px;border:1px solid #dceae2;border-radius:999px;background:#f6fbf8;white-space:nowrap;}
+.back-exally:hover{background:#eaf6ef;}
+
+/* ★対象月の選択（年・月の2つ）。iOS Safari に <input type="month"> が無いための置き換え。
+   見た目は今までの1つの入力に寄せる（横に2つ・同じ高さ・詰めて置く）。 */
+.ym-pick{display:block;}
+/* ★対象月は「2026年8月」の1つの選択肢。2つ(年・月)に分けたら375px幅で隣の枠と重なったため。
+   幅は列いっぱいまで伸ばす＝隣に食い込まない。 */
+.ym-pick select{width:100%;min-width:0;padding-right:24px;}
+.appbar-month .ym-pick{display:inline-block;}
+.appbar-month .ym-pick select{width:auto;padding:6px 22px 6px 8px;font-size:13px;}
