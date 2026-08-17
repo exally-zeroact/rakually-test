@@ -10,7 +10,12 @@
 <meta name="theme-color" content="#3D9E72">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="給与明細">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%233D9E72'/%3E%3Ctext x='90' y='122' font-size='96' font-family='sans-serif' fill='white' text-anchor='middle'%3E給%3C/text%3E%3C/svg%3E">
+<!-- ★従業員が入れる画面。ホーム画面の絵は「給」で見分ける（会社側のアプリと並ぶ）。
+     ★iOSは apple-touch-icon に SVG を使えない★ので PNG に焼いた物を渡す（今までは絵が出なかった）。
+     絵は元から在ったSVGをそのまま焼いた物＝描き直していない（scripts/make-icons.mjs）。 -->
+<link rel="apple-touch-icon" href="img/meisai-180.png?v=2b5a7f40">
+<link rel="icon" type="image/png" sizes="32x32" href="../img/favicon-32.png?v=56581ebc">
+<link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png?v=e0197076">
 <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22給与明細%22%2C%22short_name%22%3A%22給与明細%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F0FAF4%22%2C%22theme_color%22%3A%22%233D9E72%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%253D%2527http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2527%2520width%253D%2527192%2527%2520height%253D%2527192%2527%253E%253Crect%2520width%253D%2527192%2527%2520height%253D%2527192%2527%2520rx%253D%252742%2527%2520fill%253D%2527%25233D9E72%2527%252F%253E%253Ctext%2520x%253D%252796%2527%2520y%253D%2527130%2527%2520font-size%253D%2527104%2527%2520font-family%253D%2527sans-serif%2527%2520fill%253D%2527white%2527%2520text-anchor%253D%2527middle%2527%253E給%253C%252Ftext%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}

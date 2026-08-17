@@ -183,7 +183,8 @@ if (process.argv.includes('--self-test')) {
     ['② 給与の「← Rakually」を href="/" に戻す', (m) => { m['kyuyo/index.html'] = m['kyuyo/index.html'].replace('href="../index.html"', 'href="/"'); }, 'absAttr'],
     ['③ manifest の scope を "/" に戻す', (m) => { m['manifest.json'] = m['manifest.json'].replace('"scope": "./"', '"scope": "/"'); }, 'manifest'],
     // ★名前が manifest.json でない物(admin-manifest.json)も拾えるか＝2026-08-01に実際に取りこぼした穴
-    ['③b admin-manifest.json の icons を "/kyuyo/…" に戻す', (m) => { m['kyuyo/admin-manifest.json'] = m['kyuyo/admin-manifest.json'].replace('"src": "img/admin-192.png"', '"src": "/kyuyo/img/admin-192.png"'); }, 'manifest'],
+    // ★中身で探す（?v=<SHA> が付くので、名前の全文一致で探すと 壊せずに素通りする）★
+    ['③b admin-manifest.json の icons を "/kyuyo/…" に戻す', (m) => { m['kyuyo/admin-manifest.json'] = m['kyuyo/admin-manifest.json'].replace('"img/admin-192.png', '"/kyuyo/img/admin-192.png'); }, 'manifest'],
     ['④ serviceWorker.register(\'/sw.js\') に戻す', (m) => { m['kyuyo/admin.html'] = m['kyuyo/admin.html'].replace("register('../sw.js')", "register('/sw.js')"); }, 'absCall'],
     ['⑤ 配信JSに本番SupabaseのURLを混ぜる', (m) => { m['js/hub.js'] += "\nvar X='https://tnfwipbgfgjaymlszeid.supabase.co';\n"; }, 'prodSupa'],
     // ⑥（入口の写しが古くなる）は 2026-08-17 に消した＝入口が index.html の1枚だけになったため

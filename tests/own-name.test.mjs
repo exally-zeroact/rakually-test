@@ -21,7 +21,9 @@
  * 使い方: node tests/own-name.test.mjs
  *         node tests/own-name.test.mjs --self-test
  */
+import crypto from 'node:crypto';
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -46,6 +48,65 @@ export const PENDING = {
 
 const SCREENS = ['index.html', 'kyuyo/index.html', 'kyuyo/admin.html', 'kyuyo/meisai.html', 'seikyu/index.html'];
 const MANIFESTS = ['manifest.json', 'kyuyo/manifest.json', 'kyuyo/admin-manifest.json'];
+
+export const sha8 = (buf) => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
+
+/** PNGの頭(IHDR)だけ読む＝幅・高さ・透明を持つか */
+export function pngSize(buf) {
+  if (buf.readUInt32BE(0) !== 0x89504e47) throw new Error('PNGではない');
+  const w = buf.readUInt32BE(16), h = buf.readUInt32BE(20);
+  const colorType = buf[25];                     // 0=灰 2=RGB 3=索引 4=灰+α 6=RGBA
+  return { w, h, colorType, alpha: colorType === 4 || colorType === 6 };
+}
+
+/** ★画像の「背景でない所」の箱を実測する★（丸く切られて欠けないかを数で言うため）
+ *  PNGを自分で開く（IHDR→IDATをinflate→行ごとのフィルタを戻す）。色は角のドットを背景とみなす。 */
+export function inkBox(absPath) {
+  const buf = fs.readFileSync(absPath);
+  const { w, h, colorType } = pngSize(buf);
+  if (colorType !== 2) throw new Error(absPath + ': 想定は RGB(色種2) だが ' + colorType);
+  const idat = [];
+  let off = 8;
+  while (off < buf.length) {
+    const len = buf.readUInt32BE(off);
+    const type = buf.toString('ascii', off + 4, off + 8);
+    if (type === 'IDAT') idat.push(buf.subarray(off + 8, off + 8 + len));
+    off += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const bpp = 3, stride = w * bpp;
+  const px = Buffer.alloc(h * stride);
+  let p = 0;
+  for (let y = 0; y < h; y++) {
+    const f = raw[p++];
+    const line = raw.subarray(p, p + stride); p += stride;
+    const cur = px.subarray(y * stride, (y + 1) * stride);
+    const prev = y ? px.subarray((y - 1) * stride, y * stride) : null;
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? cur[x - bpp] : 0;
+      const b = prev ? prev[x] : 0;
+      const c = (prev && x >= bpp) ? prev[x - bpp] : 0;
+      let v = line[x];
+      if (f === 1) v += a;
+      else if (f === 2) v += b;
+      else if (f === 3) v += (a + b) >> 1;
+      else if (f === 4) { const pa = Math.abs(b - c), pb = Math.abs(a - c), pc = Math.abs(a + b - 2 * c); v += (pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c); }
+      cur[x] = v & 0xff;
+    }
+  }
+  const bg = [px[0], px[1], px[2]];
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * stride + x * bpp;
+      /* 背景から十分に離れたドットだけ「中身」と数える（滑らかな縁を拾いすぎない） */
+      const d = Math.abs(px[i] - bg[0]) + Math.abs(px[i + 1] - bg[1]) + Math.abs(px[i + 2] - bg[2]);
+      if (d > 30) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+  }
+  if (x1 < 0) throw new Error(absPath + ': 中身が1ドットも無い（真っ白）');
+  return { size: w, w: x1 - x0 + 1, h: y1 - y0 + 1, left: x0, right: w - 1 - x1, top: y0, bottom: h - 1 - y1 };
+}
 
 /** 客が読む字だけを残す（script / style / コメント / タグを落とす） */
 export function visibleTextOf(html) {
@@ -142,6 +203,18 @@ if (process.argv.includes('--self-test')) {
     const m = clone(); m['index.html'] = m['index.html'].replace('</body>', '<script>var x = window.ExallyLogin;</script></body>');
     ok(findOtherNames(m).length === 0, '中のJSまで数えている＝誤検知');
   });
+  T('⑦ ★?v= の突き合わせが効いている★（中身を1バイト変えたら別のSHAになる）', () => {
+    const b = fs.readFileSync(path.join(ROOT, 'img/icon-192.png'));
+    const b2 = Buffer.from(b); b2[b2.length - 1] ^= 0xff;
+    ok(sha8(b) !== sha8(b2), '中身を変えても同じSHA＝?v= の見張りは空振り');
+  });
+  T('⑧ ★中身の箱を本当に測れている★（キャンバス全体を「中身」と言っていない）', () => {
+    const box = inkBox(path.join(ROOT, 'img/icon-512-maskable.png'));
+    ok(box.size === 512, '幅を読めていない: ' + box.size);
+    ok(box.w > 200 && box.w < 400, '中身の幅が ' + box.w + '＝測れていない（実測 330）');
+    ok(box.w < box.size - 20 && box.h < box.size - 20, 'キャンバス全体を「中身」と言っている＝空振り');
+    console.log('     実測: 中身 ' + box.w + 'x' + box.h + ' / 全 ' + box.size);
+  });
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 }
@@ -165,6 +238,87 @@ T('★他のアプリの名前が、客が読む字に0件（タブの題・画�
       + hits.map((h) => h.file + ' の ' + h.where + ' に「' + h.name + '」').join('\n     '));
   }
   console.log('     見た名前 ' + OTHER_APPS.length + '個（' + OTHER_APPS.join(' / ') + '）→ 0件');
+});
+
+/* ═══ ★ホーム画面／タブのアイコン★（指示役 2026-08-18 ■2）═══════════════
+   ★DOMに在る≠出る★ … ここで見るのは「機械で数えられる所」まで:
+     ① 3つの manifest に icons が在り、参照先が★実在する★
+     ② ★?v= が その画像の中身のSHAと一致★（古い絵が端末に居座らない）
+     ③ ★maskable が在る★（Androidは丸く切る）／normal と maskable を混ぜない
+     ④ 5画面ぜんぶに apple-touch-icon（iOSは manifest を見ない）と タブの絵
+     ⑤ ★透明を持たない★（iOSは透明を黒く塗る）／寸法が名前どおり
+   ★実機で本当に出たか★は 私が iPhone と Android で「ホーム画面に追加」して撮る（機械では出せない）。 */
+T('★アイコン: 3つの manifest に icons が在り、参照先が実在して ?v= が中身のSHAと一致', () => {
+  let total = 0;
+  for (const f of MANIFESTS) {
+    const j = JSON.parse(vfs[f]);
+    ok(Array.isArray(j.icons) && j.icons.length >= 3, f + ': icons が ' + (j.icons || []).length + '個（192/512/maskable の3つが要る）');
+    const dir = path.dirname(path.join(ROOT, f));
+    for (const ic of j.icons) {
+      const [p, q] = String(ic.src).split('?');
+      const abs = path.resolve(dir, p);
+      ok(fs.existsSync(abs), f + ': 参照先が無い ' + ic.src);
+      const v = sha8(fs.readFileSync(abs));
+      ok(q === 'v=' + v, f + ': ' + p + ' の ?v= が中身と違う（' + (q || '無し') + ' ≠ v=' + v + '）'
+        + ' → node scripts/icon-stamp.mjs');
+      const [w] = String(ic.sizes).split('x').map(Number);
+      const px = pngSize(fs.readFileSync(abs));
+      ok(px.w === w && px.h === w, f + ': ' + p + ' は ' + px.w + 'x' + px.h + ' なのに sizes=' + ic.sizes);
+      ok(!px.alpha, f + ': ' + p + ' が透明を持っている（iOSが黒く塗る）');
+      total++;
+    }
+    const purposes = j.icons.map((i) => i.purpose);
+    ok(purposes.includes('maskable'), f + ': ★maskable が無い（Androidが丸く切って文字が欠ける）');
+    ok(purposes.filter((p) => p === 'any').length >= 2, f + ': 通常(any)が2つ無い（192と512）');
+    ok(!purposes.some((p) => p === 'any maskable'), f + ': ★"any maskable" と兼用にしない'
+      + '（余白の無い絵を丸く切られて欠ける）');
+  }
+  console.log('     manifest ' + MANIFESTS.length + '本／アイコンの参照 ' + total + '本（実在・寸法・不透明・?v=一致）');
+});
+
+T('★アイコン: 5画面に apple-touch-icon（iOSはmanifestを見ない）とタブの絵が在り ?v= も合っている', () => {
+  let n = 0;
+  for (const f of SCREENS) {
+    const dir = path.dirname(path.join(ROOT, f));
+    const apple = [...vfs[f].matchAll(/<link[^>]+rel="apple-touch-icon"[^>]+href="([^"]+)"/g)].map((m) => m[1]);
+    ok(apple.length === 1, f + ': apple-touch-icon が ' + apple.length + '個（1個だけ置く）');
+    ok(!/^data:/.test(apple[0]), f + ': ★apple-touch-icon が data:（iOSはSVGを読まない＝絵が出ない）');
+    const icons = [...vfs[f].matchAll(/<link[^>]+rel="icon"[^>]+href="([^"]+)"/g)].map((m) => m[1]);
+    ok(icons.length >= 1, f + ': タブの絵(rel=icon)が無い');
+    for (const ref of [apple[0], ...icons]) {
+      const [p, q] = ref.split('?');
+      const abs = path.resolve(dir, p);
+      ok(fs.existsSync(abs), f + ': 参照先が無い ' + ref);
+      const v = sha8(fs.readFileSync(abs));
+      ok(q === 'v=' + v, f + ': ' + p + ' の ?v= が中身と違う → node scripts/icon-stamp.mjs');
+      ok(!pngSize(fs.readFileSync(abs)).alpha, f + ': ' + p + ' が透明を持っている（iOSが黒く塗る）');
+      n++;
+    }
+  }
+  console.log('     画面 ' + SCREENS.length + '枚／アイコンの参照 ' + n + '本（実在・不透明・?v=一致）');
+});
+
+T('★アイコン: 丸く切られても中身が欠けない（maskable は中央80%の円に収まっている）', () => {
+  /* ★実測で確かめる★＝画像の「白でない所」の箱を数えて、円に収まるかを計算する。 */
+  const seen = [];
+  for (const rel of ['img/icon-512-maskable.png', 'kyuyo/img/admin-512-maskable.png']) {
+    const box = inkBox(path.join(ROOT, rel));
+    /* ★丸は「画像の中央」で切られる★ので、余白の左右差ではなく
+       ★中身のどの角も、中央から 半径0.4×幅 の中に居るか★を見る（これが実際の欠け方）。 */
+    const c = box.size / 2, r = box.size * 0.4;
+    const xs = [box.left, box.left + box.w - 1], ys = [box.top, box.top + box.h - 1];
+    let far = 0, worst = '';
+    for (const x of xs) for (const y of ys) {
+      const d = Math.hypot(x + 0.5 - c, y + 0.5 - c);
+      if (d > far) { far = d; worst = '(' + x + ',' + y + ')'; }
+    }
+    ok(far <= r, rel + ': 中身の角 ' + worst + ' が中央から ' + Math.round(far)
+      + 'px（安全な半径 ' + Math.round(r) + 'px）＝丸く切られると欠ける');
+    seen.push(rel + ' 中身 ' + box.w + 'x' + box.h + ' @ (' + box.left + ',' + box.top + ')'
+      + '（いちばん遠い角 ' + Math.round(far) + ' ≤ 半径 ' + Math.round(r) + '）');
+  }
+  ok(seen.length === 2, '数えた maskable が ' + seen.length + '本＝空振り');
+  console.log('     ' + seen.join(' ／ '));
 });
 
 T('★据え置きの名前は「0件」に見せない（何がいつまで残るかを毎回 出す）', () => {

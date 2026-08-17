@@ -90,10 +90,16 @@ jobs:
       - name: ★HTMLの中のJS (わざと壊して赤になるかの自己確認・実物も1本 壊す)
         run: node tests/html-script-syntax.test.mjs --self-test
       # ★この器は Rakually の物★（司さん 2026-08-17）。請求書だけの見張りを全画面へ広げた物。
-      - name: ★これは Rakually の器か (客が読む字・タブの題・ホーム画面の名前を全5画面で数える)
+      - name: ★これは Rakually の器か (客が読む字・タブの題・ホーム画面の名前・★アイコン★を全5画面＋manifest3本で数える)
         run: node tests/own-name.test.mjs
-      - name: ★これは Rakually の器か (わざと他アプリの名前を戻して赤になるかの自己確認・6通り)
+      - name: ★これは Rakually の器か (わざと他アプリの名前を戻して赤になるか＋アイコンの見張りが空振りしていないか・8通り)
         run: node tests/own-name.test.mjs --self-test
+      # ★アイコンの ?v= は stamp-build（js/lib/css だけ）の対象外＝別の道具で貼る。
+      #   貼り忘れると「差し替えたのに端末は古い絵のまま」になる（ホーム画面は特に長く残る）。
+      #   ※ 絵を作り直す scripts/make-icons.mjs は ImageMagick が要るのでCIでは走らせない
+      #     （その代わり own-name.test.mjs が 寸法・不透明・丸く切っても欠けないか を毎回 実測する）。
+      - name: ★アイコンの ?v= が中身のSHAと合っているか (5画面＋manifest3本・24本)
+        run: node scripts/icon-stamp.mjs --check
       - name: CI coverage guard (CIから黙って外れているテストが無いか=除外は理由と戻す条件つきのみ)
         run: node tests/ci-coverage.test.mjs
 
@@ -154,9 +160,9 @@ jobs:
       - name: ★画面の「★」(わざと1つ戻して赤になるかの自己確認)
         run: node seikyu/tests/seikyu-no-star.mjs --self-test
       # ★呼ぶ側だけ写して本番を白画面にした前科★（sha一致・CI緑でも捕まらない）。
-      #   請求書は seikyu/ の外を11本 呼んでいる（うち kyuyo/lib が2本＝法定の率）。
+      #   請求書は seikyu/ の外を13本 呼んでいる（うち kyuyo/lib が2本＝法定の率）。
       #   ★1本でも消えたら赤★／★台帳に無い物を呼び始めても赤★＝運ぶ日に同じ数で突き合わせる。
-      - name: ★請求書 呼ばれる側 (外を呼ぶ11本が在るか・率の写しを作っていないか・未配線は台帳つきか)
+      - name: ★請求書 呼ばれる側 (外を呼ぶ13本が在るか・率の写しを作っていないか・未配線は台帳つきか)
         run: node seikyu/tests/dep-guard.test.mjs
       - name: ★請求書 呼ばれる側 (わざと1本 隠して赤になるかの自己確認)
         run: node seikyu/tests/dep-guard.test.mjs --self-test
