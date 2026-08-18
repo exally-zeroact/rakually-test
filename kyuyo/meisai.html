@@ -27,7 +27,7 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .card{background:#fff;border:1px solid #d4eae0;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(30,80,46,.06);}
 .card h2{font-size:15px;color:#333333;margin-bottom:10px;}
 .lead{font-size:12.5px;color:#333333;line-height:1.7;}
-.finput{width:100%;padding:12px;border:1.5px solid #d4eae0;border-radius:10px;font-size:16px;color:#2E7D54;background:#fff;-webkit-appearance:none;}
+.finput{width:100%;padding:12px;border:1.5px solid #d4eae0;border-radius:10px;font-size:16px;color:#333333;background:#fff;-webkit-appearance:none;}
 .finput.num{font-family:'DM Mono',monospace;letter-spacing:.14em;text-align:center;}
 .lbl{font-size:11px;font-weight:700;color:#333333;margin:2px 0 5px;display:block;}
 .btn{width:100%;padding:13px;background:#3D9E72;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 3px 12px rgba(61,158,114,.3);margin-top:12px;}
@@ -35,9 +35,9 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .err{color:#C0392B;font-size:12px;margin-top:8px;min-height:16px;}
 .consent-box{background:#F0FAF4;border:1.5px solid #C8ECD8;border-radius:10px;padding:12px;font-size:12px;color:#333333;line-height:1.75;margin:10px 0;}
 .dlist .drow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border:1px solid #d4eae0;border-radius:12px;background:#fff;margin-bottom:8px;cursor:pointer;}
-.dlist .drow .dl{font-size:13px;font-weight:700;color:#2E7D54;}
-.dlist .drow .ds{font-size:11px;color:#7aa08c;}
-.dlist .drow .dv{font-family:'DM Mono',monospace;font-weight:700;color:#2E7D54;white-space:nowrap;}
+.dlist .drow .dl{font-size:13px;font-weight:700;color:#333333;}
+.dlist .drow .ds{font-size:11px;color:#333333;}
+.dlist .drow .dv{font-family:'DM Mono',monospace;font-weight:700;color:#333333;white-space:nowrap;}
 .badge-new{display:inline-block;font-size:9px;background:#52B788;color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
 .preview-wrap{overflow:hidden;background:#cfcabd;border-radius:12px;padding:12px;position:relative;}
 #frame{border:none;background:#fff;box-shadow:0 8px 32px rgba(30,60,40,.16);transform-origin:top left;display:block;pointer-events:none;}
@@ -55,10 +55,10 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .hint{font-size:11px;color:#333333;margin-top:8px;line-height:1.6;}
 /* 年末調整の申告ウィザード(app.cssのnw-*と同じ見た目) */
 .nw-group{margin:6px 0 12px;}
-.nw-gt{font-size:12px;font-weight:700;color:#2E7D54;margin:10px 0 4px;}
+.nw-gt{font-size:12px;font-weight:700;color:#333333;margin:10px 0 4px;}
 .nw-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px dashed #eaf3ee;}
-.nw-q{font-size:13px;color:#274b38;line-height:1.5;flex:1;}
-.nw-help{font-size:10.5px;color:#8aa89a;margin-top:2px;line-height:1.5;}
+.nw-q{font-size:13px;color:#333333;line-height:1.5;flex:1;}
+.nw-help{font-size:10.5px;color:#333333;margin-top:2px;line-height:1.5;}
 .nw-in{flex:0 0 auto;display:flex;align-items:center;gap:4px;}
 .nw-in .finput{width:auto;min-width:96px;padding:8px 10px;font-size:14px;}
 .nw-unit{font-size:11px;color:#7aa08c;}
@@ -66,7 +66,7 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .nw-yn .ynb{padding:7px 15px;font-size:13px;font-weight:700;color:#5C7E6C;background:#fff;cursor:pointer;min-width:46px;text-align:center;user-select:none;}
 .nw-yn .ynb+.ynb{border-left:1.5px solid #d4eae0;}
 .nw-yn .ynb.on{background:#3D9E72;color:#fff;}
-.nen-done{background:#EAF7F0;border:1.5px solid #C8ECD8;border-radius:10px;padding:10px 12px;font-size:12px;color:#2E7D54;margin-bottom:10px;line-height:1.6;}
+.nen-done{background:#EAF7F0;border:1.5px solid #C8ECD8;border-radius:10px;padding:10px 12px;font-size:12px;color:#333333;margin-bottom:10px;line-height:1.6;}
 </style>
 </head>
 <body>
@@ -165,18 +165,18 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 </div>
 
 <!-- ★既存Service Worker/キャッシュを削除して常に最新に(古い版が居座る問題の根絶) --><script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
-<script src="js/render.js?v=5b3d1c0b"></script>
-<script src="lib/nencho-declaration.js?v=5b3d1c0b"></script>
+<script src="js/render.js?v=2ea16f28"></script>
+<script src="lib/nencho-declaration.js?v=2ea16f28"></script>
 <!-- PDF保存=jsPDFで自前生成(A4ぴったり1ページ・ブラウザのフッター無し)。iOSのwebページ印刷は必ずURL/日付フッターが付き余白で2ページ化するため不使用。 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <!-- 本番はSupabase(RPC)。window.SUPA/supabase未読込ならstore.jsはlocalStorage層にフォールバック。 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=5b3d1c0b"></script>
-<script src="js/store.js?v=5b3d1c0b"></script>
-<script src="js/meisai.js?v=5b3d1c0b"></script>
+<script src="../js/supa-config.js?v=2ea16f28"></script>
+<script src="js/store.js?v=2ea16f28"></script>
+<script src="js/meisai.js?v=2ea16f28"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=5b3d1c0b"></script>
+<script src="../js/env-badge.js?v=2ea16f28"></script>
 </body>
 </html>
