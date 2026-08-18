@@ -75,10 +75,14 @@ for (const sel of presses) {
   await new Promise((r) => setTimeout(r, 200));
 }
 
-/* ★畳んである物を開く★（details / 折りたたみのチップ） */
+/* ★畳んである物を開く★（details / 折りたたみのチップ）
+   ★--closed を付けると 畳んだまま数える★＝「開いた時に すぐ目に入る欄」を測るため。
+   （聞く形にすると「欄が減った」のではなく ★一度に見せる数が減る★。
+     同じ道具で 両方 数えて、どちらの数字かを必ず書く） */
+const keepClosed = process.argv.includes('--closed');
 let opened = 0;
-for (const d of doc.querySelectorAll('details')) { if (!d.open) { d.open = true; opened++; } }
-for (const c of doc.querySelectorAll('[data-rule], [data-rule-toggle], .chip')) {
+if (!keepClosed) for (const d of doc.querySelectorAll('details')) { if (!d.open) { d.open = true; opened++; } }
+for (const c of (keepClosed ? [] : doc.querySelectorAll('[data-rule], [data-rule-toggle], .chip'))) {
   try { c.dispatchEvent(new win.MouseEvent('click', { bubbles: true })); opened++; } catch { /* 押せない物は飛ばす */ }
 }
 await new Promise((r) => setTimeout(r, 200));
@@ -91,6 +95,13 @@ if (!scope) { console.error('その箱が無い: ' + selArg); process.exit(2); }
 const fields = Array.from(scope.querySelectorAll('input,select,textarea,[contenteditable="true"]')).filter((e) => {
   if (e.tagName === 'INPUT' && NOT_FIELD.has((e.type || 'text').toLowerCase())) return false;
   if (e.readOnly || e.disabled) return false;
+  /* ★畳んだまま数える時は 畳みの中を数えない★（style で消してある物も外す） */
+  if (keepClosed) {
+    for (let n = e; n && n !== doc.body; n = n.parentElement) {
+      if (n.tagName === 'DETAILS' && !n.open) return false;
+      if (n.style && n.style.display === 'none') return false;
+    }
+  }
   return true;
 });
 const label = (e) => {
@@ -104,7 +115,7 @@ const list = fields.map((e) => ({
 }));
 
 const out = {
-  entry, scope: selArg || 'body', loadedJs: loaded, opened, pressed,
+  entry, scope: selArg || 'body', loadedJs: loaded, opened, pressed, closed: keepClosed,
   fields: list.length,
   visible: list.filter((x) => x.visible).length,
   hidden: list.filter((x) => !x.visible).length,

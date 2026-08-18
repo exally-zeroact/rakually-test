@@ -14,8 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakually-ui.css?v=7dcd0b0f">
-<link rel="stylesheet" href="css/app.css?v=7dcd0b0f">
+<link rel="stylesheet" href="../css/rakually-ui.css?v=0a95a2fd">
+<link rel="stylesheet" href="css/app.css?v=0a95a2fd">
 </head>
 <body>
 
@@ -108,6 +108,14 @@
         <button class="btn-primary" type="button" id="b-guess-ok">✓ はい、これで</button>
         <button class="btn-ghost" type="button" id="b-guess-edit">ちがう内容にする</button>
       </div>
+    </div>
+
+    <!-- ★この相手のことを ここで1問ずつ聞く★（司さん 2026-08-17「ささっと」）
+         ＝★設定の画面へ行かせない★。まだ答えていない事が在る時だけ出る。
+           答え終われば 自分で消える（答えた人の画面に空欄を残さない）。 -->
+    <div class="card" id="pt-ask-card" style="display:none">
+      <div class="card-h" id="pt-ask-card-h">この相手のこと、教えてください</div>
+      <div id="pt-ask-edit"></div>
     </div>
 
     <div class="card">
@@ -345,53 +353,65 @@
     </div>
 
     <div class="card">
-      <div class="card-h">取引先の「請求書で使う」項目</div>
-      <p class="hint">会社名・住所・登録番号は、給与や請求書で同じ物を使うので 1か所にまとめて持っています。ここでは、そこに無い「請求書だけで使う項目」を足します。</p>
+      <div class="card-h">取引先</div>
+      <!-- ★空欄を並べない★（司さん 2026-08-16「聞いてあげる。埋めさせない。」）
+           前は ★8つの空欄を一度に見せて★ いた。ここを ★1問ずつ★に変えた。
+           ・当てられる物は当てて ★根拠を見せる★（押すと出る）
+           ・前に出た値は ★よく出る順★で候補にする
+           ・★1問 答えるたびに保存★する（まとめて保存を待たせない）
+           ・★別ウィザードは作らない★＝この画面 そのものが対話
+           ・ぜんぶ直したい人のために「ぜんぶ見る」を下に置く（★消していない★）
+           ★郵便番号と電話番号の欄は外した★＝紙にも Excel にも 0箇所（2026-08-18 実測）。
+             ★倉庫の値は消していない★（すでに入れた人の物はそのまま残る）。 -->
       <div class="frow">
-        <div class="flabel">取引先を選ぶ</div>
+        <div class="flabel">だれの事を決めますか</div>
         <select class="finput" id="s-partner"></select>
       </div>
-      <div class="frow2">
-        <div class="frow">
-          <div class="flabel">取引先コード</div>
-          <input class="finput" id="s-pcode" type="text" placeholder="例：A001">
+      <div id="pt-ask-set"></div>
+      <details class="pt-all" id="pt-all">
+        <summary>ぜんぶ見る（聞かれていない物も ここで直せます）</summary>
+        <div class="frow2">
+          <div class="frow">
+            <div class="flabel">敬称</div>
+            <select class="finput" id="s-phonor">
+              <option>御中</option><option>様</option><option>（なし）</option>
+            </select>
+          </div>
+          <div class="frow">
+            <div class="flabel">担当者</div>
+            <input class="finput" id="s-pperson" type="text" placeholder="例：山田">
+          </div>
         </div>
         <div class="frow">
-          <div class="flabel">敬称</div>
-          <select class="finput" id="s-phonor">
-            <option>御中</option><option>様</option><option>（なし）</option>
-          </select>
+          <div class="flabel">住所</div>
+          <input class="finput" id="s-paddr" type="text" placeholder="例：愛媛県今治市○○1-1">
+          <p class="hint">ふだんの紙（PDF）のあて名の下には出しません。自社の Excel の様式を使う時だけ出ます。</p>
         </div>
-      </div>
-      <div class="frow2">
-        <div class="frow">
-          <div class="flabel">担当者</div>
-          <input class="finput" id="s-pperson" type="text" placeholder="例：山田">
-        </div>
-        <div class="frow">
-          <div class="flabel">郵便番号</div>
-          <input class="finput" id="s-pzip" type="text" inputmode="numeric" placeholder="例：794-0000">
-        </div>
-      </div>
-      <div class="frow2">
-        <div class="frow">
-          <div class="flabel">電話番号</div>
-          <input class="finput" id="s-ptel" type="tel" placeholder="例：0898-00-0000">
+        <div class="frow2">
+          <div class="frow">
+            <div class="flabel">取引先コード</div>
+            <input class="finput" id="s-pcode" type="text" placeholder="例：A001">
+          </div>
+          <div class="frow">
+            <div class="flabel">いつまでにもらう約束</div>
+            <select class="finput" id="s-pterm"></select>
+            <input class="finput num" id="s-ptermn" type="text" inputmode="numeric" placeholder="日数" style="margin-top:6px;display:none">
+          </div>
         </div>
         <div class="frow">
-          <div class="flabel">いつまでにもらう約束</div>
-          <select class="finput" id="s-pterm"></select>
-          <input class="finput num" id="s-ptermn" type="text" inputmode="numeric" placeholder="日数" style="margin-top:6px;display:none">
+          <div class="flabel">この相手のインボイス登録番号</div>
+          <input class="finput" id="s-pinvoice" type="text" placeholder="T のあと 13桁">
+          <p class="hint" id="s-pinvoice-hint">紙には出ません（適格請求書に要るのは 出す側＝自社の登録番号です）。控えとして持っておく欄です。</p>
         </div>
-      </div>
-      <div class="frow">
-        <label class="check"><input type="checkbox" id="s-pgensen"><span>この取引先は源泉徴収の対象（新しく作る1通に最初から入る）</span></label>
-        <p class="hint">対象かどうかは相手（払う側）が決めます。1通ごとに変える時は、入力の「細かく決める」から。</p>
-      </div>
-      <!-- ★取引先を足すのは 入力の画面（だれに）で出来る★＝ここから外のアプリへ出さない -->
-      <div class="btn-row">
-        <button class="btn-primary" type="button" id="b-pt-save">この取引先を保存</button>
-      </div>
+        <div class="frow">
+          <label class="check"><input type="checkbox" id="s-pgensen"><span>この取引先は源泉徴収の対象（新しく作る1通に最初から入る）</span></label>
+          <p class="hint">対象かどうかは相手（払う側）が決めます。1通ごとに変える時は、入力の「細かく決める」から。</p>
+        </div>
+        <!-- ★取引先を足すのは 入力の画面（だれに）で出来る★＝ここから外のアプリへ出さない -->
+        <div class="btn-row">
+          <button class="btn-primary" type="button" id="b-pt-save">この取引先を保存</button>
+        </div>
+      </details>
       <div class="ok" id="pt-ok" style="display:none"></div>
       <div class="bad" id="pt-err" style="display:none"></div>
     </div>
@@ -472,33 +492,35 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=7dcd0b0f"></script>
-<script src="../lib/xlsx.full.min.js?v=7dcd0b0f"></script>
-<script src="../js/file-out.js?v=7dcd0b0f"></script>
-<script src="../js/suite-data.js?v=7dcd0b0f"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=7dcd0b0f"></script>
+<script src="../js/supa-config.js?v=0a95a2fd"></script>
+<script src="../lib/xlsx.full.min.js?v=0a95a2fd"></script>
+<script src="../js/file-out.js?v=0a95a2fd"></script>
+<script src="../js/suite-data.js?v=0a95a2fd"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=0a95a2fd"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-tax.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-gensen.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-carry.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-cols.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-templates.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-doc.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-name.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-paper.js?v=7dcd0b0f"></script>
-<script src="lib/seikyu-aoa.js?v=7dcd0b0f"></script>
-<script src="js/seikyu-store.js?v=7dcd0b0f"></script>
-<script src="js/seikyu-out.js?v=7dcd0b0f"></script>
-<script src="js/seikyu-app.js?v=7dcd0b0f"></script>
-<script src="../js/rakually-login.js?v=7dcd0b0f"></script>
-<script src="js/auth.js?v=7dcd0b0f"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-tax.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-gensen.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-carry.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-cols.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-templates.js?v=0a95a2fd"></script>
+<script src="../lib/toroku-no.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-doc.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-partner-ask.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-name.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-paper.js?v=0a95a2fd"></script>
+<script src="lib/seikyu-aoa.js?v=0a95a2fd"></script>
+<script src="js/seikyu-store.js?v=0a95a2fd"></script>
+<script src="js/seikyu-out.js?v=0a95a2fd"></script>
+<script src="js/seikyu-app.js?v=0a95a2fd"></script>
+<script src="../js/rakually-login.js?v=0a95a2fd"></script>
+<script src="js/auth.js?v=0a95a2fd"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=7dcd0b0f"></script>
+<script src="../js/env-badge.js?v=0a95a2fd"></script>
 </body>
 </html>

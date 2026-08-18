@@ -47,6 +47,10 @@ const OUTSIDE = [
   'kyuyo/lib/shiharai-chosho.js',      // ★源泉の率と式（法定の唯一の正）CHOSHO.gensenA★
   'kyuyo/lib/shouhizei-ritsu.js',      // ★消費税の率（法定の唯一の正）SR.hyojun / SR.keigen★
   'lib/xlsx.full.min.js',              // Excel の読み書き
+  /* ★2026-08-18 取引先を1問ずつ聞く★（指示役）… 登録番号（T＋13桁）の打ち間違いを弾く。
+     ★共有データの画面（js/hub.js）と請求書の両方が呼ぶ★ので seikyu/ の外に置いた
+     ＝同じ判定を2か所に書かないため。通信は一切しない。 */
+  'lib/toroku-no.js',                  // ★インボイス登録番号の検査（判定の唯一の正）★
 ];
 
 /* ★入口から辿れないが 捨てない物の台帳★（＝死にコードの台帳）

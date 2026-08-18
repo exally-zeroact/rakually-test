@@ -17,6 +17,8 @@
   var NAME = global.SeikyuName, AOA = global.SeikyuAoa, OUT = global.SeikyuOut;
   var COLS = global.SeikyuCols, TPL = global.SeikyuTemplates;
   var GENSEN = global.SeikyuGensen, CARRY = global.SeikyuCarry;
+  /* ★登録番号は当てない。打ち間違いだけ弾く（通信なし）★ 判定は lib/toroku-no.js が持ち主 */
+  var TOROKU = global.TorokuNo;
 
   var TEMPLATE_ID = TPL.DEFAULT_ID;
   var ALIGN_LABEL = { left: '左', center: '中', right: '右' };
@@ -347,6 +349,7 @@
     if ($('e-lead')) $('e-lead').value = (v.data && v.data.lead) || '';
     drawLeadHint();
     renderGuess();
+    renderPtAsk();
     renderLines();
     renderDeductions();
     recalc();
@@ -1910,6 +1913,7 @@
     })), '');
     fillSelect($('s-pterm'), DOC.PAY_TERMS.map(function (t) { return { v: t.key, t: t.label }; }), 'none');
     fillPartnerForm('');
+    renderPtAsk();
 
     // 様式と列（★会社の既定★。作りかけの1通ではなく、これから作る物に効く）
     drawSetTpl(s.template);
@@ -1956,22 +1960,276 @@
       : '「取引先＋年月＋連番」を選ぶ時は、下の欄で取引先コードを入れてください（空のままだと番号を作りません）。');
   }
 
+  /* ═══ ★取引先を1問ずつ聞く★（司さん 2026-08-16「聞いてあげる。埋めさせない。」）═══
+     ・問いの中身と ★当てと その根拠★ は seikyu/lib/seikyu-partner-ask.js が持ち主
+       （画面で当て直すと、画面と lib が別々の答えを出す）
+     ・★1問 答えるたびに倉庫へ書く★（まとめて保存を待たせない）
+     ・出る場所は2つ ＝ 入力（作った直後）と 設定。★同じ描き手・同じ配線★
+     ・★答え終われば 自分で消える★（答えた人の画面に空欄を残さない） */
+  var PTASK = global.SeikyuPartnerAsk;
+
+  function ptAskPartner(where) {
+    var id = (where === 'set') ? ($('s-partner') && $('s-partner').value) : (S.cur && S.cur.partner_id);
+    return partnerById(id);
+  }
+  function ptQs(p) {
+    return PTASK.questions({
+      partner: p, partners: S.partners, invoices: S.invoices,
+      terms: DOC.PAY_TERMS, numberFormat: settings().format,
+    });
+  }
+  /** ★答えたら その場で返す言葉★（日付の計算は seikyu-doc が持ち主） */
+  function ptResultOf(q, d) {
+    if (q.key === 'payTerm') {
+      var t = d.payTerm || { kind: 'none', n: 0 };
+      if (!t.kind || t.kind === 'none') return '支払期限は 紙に出しません。';
+      var due = DOC.dueDateFrom(todayYmd(), t);
+      return due
+        ? '今日（' + todayYmd() + '）出すと お支払期限は ' + due + ' になります。'
+        : 'この約束では 期限を作れませんでした（日数を入れてください）。';
+    }
+    if (typeof q.result === 'function') {
+      var v = (q.key === 'gensen') ? (d.gensen ? 'yes' : 'no') : d[q.key];
+      return q.result(v) || '';
+    }
+    return '';
+  }
+  function ptNowLabel(q, d) {
+    if (q.key === 'gensen') return (d.gensen === true) ? 'する' : (d.gensen === false) ? 'しない' : '';
+    if (q.key === 'payTerm') {
+      var t = d.payTerm || {}; if (!t.kind || t.kind === 'none') return '決めていない';
+      return termLabel(t);
+    }
+    if (q.key === 'honor') return String(d.honor || d.keisho || '');
+    var v = String(d[q.key] == null ? '' : d[q.key]);
+    return v || '（入れない）';
+  }
+
+  function ptAskHTML(where) {
+    var p = ptAskPartner(where);
+    if (!p) {
+      return where === 'set'
+        ? '<p class="hint">上で相手を選ぶと、決まっていない事だけを 1問ずつ聞きます。</p>'
+        : '';
+    }
+    var d = (p.data || {});
+    var r = ptQs(p);
+    var name = String(d.name || '(名称未設定)');
+    var h = '<div class="pask" data-pask-where="' + esc(where) + '">';
+    h += '<div class="pask-prog">' + esc(name) + '　<b>' + r.total + '問のうち ' + r.done + '問 答えました</b></div>';
+
+    var q = r.next;
+    if (!q) {
+      h += '<p class="pask-fin">この相手のことは ぜんぶ決まっています。</p>';
+    } else {
+      h += '<div class="pask-q"><div class="pask-qt">' + esc(q.q) + '</div>';
+      if (q.hint) h += '<p class="pask-hint">' + q.hint.replace(/★/g, '') + '</p>';
+      if (q.guess) {
+        h += '<div class="pask-guess">当てました：<b>' + esc(ptGuessLabel(q)) + '</b>'
+          + '<button class="pask-why" type="button" data-pask-why="' + esc(q.key) + '">なぜ？</button></div>';
+      }
+      if (q.kind === 'pick') {
+        h += '<div class="pask-opts">' + q.options.map(function (o) {
+          var on = (String(q.now) === String(o.v));
+          return '<button class="pask-o' + (on ? ' on' : '') + '" type="button" data-pask-pick="'
+            + esc(q.key) + '" data-v="' + esc(o.v) + '">' + esc(o.t) + '</button>';
+        }).join('') + '</div>';
+        if (q.key === 'payTerm' && (q.now === 'days' || q.now === 'nextDay')) {
+          h += '<div class="pask-n"><input class="finput num" id="pask-n" type="text" inputmode="numeric" '
+            + 'placeholder="日数" value="' + esc((d.payTerm && d.payTerm.n) || '') + '">'
+            + '<button class="pask-ok" type="button" data-pask-ok="payTerm">これで</button></div>';
+        }
+      } else if (q.kind === 'yesno') {
+        h += '<div class="pask-opts">'
+          + '<button class="pask-o' + (q.now === 'yes' ? ' on' : '') + '" type="button" data-pask-pick="' + esc(q.key) + '" data-v="yes">する</button>'
+          + '<button class="pask-o' + (q.now === 'no' ? ' on' : '') + '" type="button" data-pask-pick="' + esc(q.key) + '" data-v="no">しない</button>'
+          + '</div>';
+      } else {
+        var val = q.now || (q.guess ? q.guess.value : '');
+        h += '<input class="finput" id="pask-t" type="text" value="' + esc(val) + '">';
+        if (q.chips && q.chips.length) {
+          h += '<div class="pask-chips">' + q.chips.map(function (c) {
+            return '<button class="pask-c" type="button" data-pask-chip="' + esc(c.v) + '">' + esc(c.t) + '</button>';
+          }).join('') + '</div>';
+        }
+        h += '<div class="pask-row"><button class="pask-ok" type="button" data-pask-ok="' + esc(q.key) + '">これで</button>';
+        if (q.skipLabel) h += '<button class="pask-skip" type="button" data-pask-skip="' + esc(q.key) + '">' + esc(q.skipLabel) + '</button>';
+        h += '</div>';
+      }
+      h += '</div>';
+    }
+
+    var answered = r.list.filter(function (x) { return x.done; });
+    if (answered.length) {
+      h += '<div class="pask-done"><div class="pask-done-h">答えた物（押すと直せます）</div>'
+        + answered.map(function (x) {
+          var res = ptResultOf(x, d);
+          return '<button class="pask-d" type="button" data-pask-again="' + esc(x.key) + '">'
+            + '<span class="pask-d-k">' + esc(ptQTitle(x)) + '</span>'
+            + '<span class="pask-d-v">' + esc(ptNowLabel(x, d)) + '</span>'
+            + (res ? '<span class="pask-d-r">' + esc(res) + '</span>' : '')
+            + '</button>';
+        }).join('') + '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  var PT_TITLE = {
+    name: '会社名', honor: '敬称', person: '担当者', payTerm: '支払いの約束',
+    gensen: '源泉徴収', addr: '住所', code: '取引先コード',
+  };
+  function ptQTitle(q) { return PT_TITLE[q.key] || q.key; }
+  function ptGuessLabel(q) {
+    var g = q.guess; if (!g) return '';
+    if (q.key === 'gensen') return g.value === 'yes' ? 'する' : 'しない';
+    if (q.key === 'payTerm') return termLabel({ kind: g.value, n: 0 });
+    return String(g.value);
+  }
+
+  function renderPtAsk() {
+    var setHost = $('pt-ask-set');
+    if (setHost) setHost.innerHTML = ptAskHTML('set');
+    var card = $('pt-ask-card'), editHost = $('pt-ask-edit');
+    if (card && editHost) {
+      var p = ptAskPartner('edit');
+      var r = p ? ptQs(p) : null;
+      /* ★出すのは まだ答えていない事が在る時だけ★（答えた人の画面に空欄を残さない） */
+      var on = !!(p && r && r.next && !locked());
+      show(card, on);
+      editHost.innerHTML = on ? ptAskHTML('edit') : '';
+    }
+    /* ★同じ値を2か所で別々に持たない★＝「ぜんぶ見る」も同時に描き直す */
+    if ($('s-partner')) fillPartnerForm($('s-partner').value);
+  }
+
+  /** ★1問ごとに保存★（倉庫へ書けなければ 画面の値も戻す＝嘘の成功を出さない） */
+  function ptAskSave(id, add, ok) {
+    var p = partnerById(id); if (!p) return Promise.resolve();
+    var askOk = Object.assign({}, (p.data && p.data.askOk) || {});
+    if (ok) askOk[ok] = true;
+    var patch = Object.assign({}, add, { askOk: askOk });
+    /* 先に手元へ入れて すぐ描く（返事を待たせない）。書けなければ読み直して戻す */
+    p.data = Object.assign({}, p.data || {}, patch);
+    renderPtAsk();
+    if (S.cur) { recalc(); fillEdit(); }
+    box('pt-err', '');
+    return S.store.partners.patch(id, patch).then(function (r) {
+      if (!r || !r.ok) {
+        box('pt-err', '保存できませんでした（' + ((r && r.reason) || '理由不明') + '）。もう一度 押してください。');
+        return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); });
+      }
+      return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); });
+    }).catch(function (e) {
+      box('pt-err', '保存できませんでした（' + ((e && e.message) || 'error') + '）。もう一度 押してください。');
+    });
+  }
+
+  function ptAskAnswer(where, key, v) {
+    var p = ptAskPartner(where); if (!p) return Promise.resolve();
+    var d = p.data || {};
+    var add = {}, markOk = key;
+    if (key === 'honor') { add.honor = v; add.keisho = v; }
+    else if (key === 'gensen') { add.gensen = (v === 'yes'); }
+    else if (key === 'payTerm') {
+      var n = Math.trunc(Number(($('pask-n') && $('pask-n').value) || (d.payTerm && d.payTerm.n) || 0));
+      add.payTerm = { kind: v, n: n };
+      /* ★日数が要る約束は 日数を聞くまで「答えた」にしない★（0日後の期限を黙って作らない） */
+      if ((v === 'days' || v === 'nextDay') && !(n > 0)) markOk = null;
+    } else { add[key] = String(v == null ? '' : v).trim(); }
+    return ptAskSave(p.id, add, markOk);
+  }
+
+  function bindPtAsk() {
+    ['pt-ask-set', 'pt-ask-edit'].forEach(function (hostId) {
+      var host = $(hostId); if (!host) return;
+      host.addEventListener('click', function (ev) {
+        var t = ev.target;
+        var box_ = t.closest && t.closest('[data-pask-where]');
+        var where = (box_ && box_.dataset.paskWhere) || (hostId === 'pt-ask-set' ? 'set' : 'edit');
+        var p = ptAskPartner(where); if (!p) return;
+
+        var why = t.closest && t.closest('[data-pask-why]');
+        if (why) {
+          var q = ptQs(p).list.filter(function (x) { return x.key === why.dataset.paskWhy; })[0];
+          if (q && q.guess) {
+            box('pt-ok', '');
+            uiNote('どうして そう当てたか', esc(ptQTitle(q)) + '：<b>' + esc(ptGuessLabel(q)) + '</b><br>'
+              + esc(q.guess.why) + '<br><span class="pask-note">当てただけです。ちがう物を押せば そのまま変わります。</span>');
+          }
+          return;
+        }
+        var pick = t.closest && t.closest('[data-pask-pick]');
+        if (pick) { ptAskAnswer(where, pick.dataset.paskPick, pick.dataset.v); return; }
+        var chip = t.closest && t.closest('[data-pask-chip]');
+        if (chip) { var i = $('pask-t'); if (i) { i.value = chip.dataset.paskChip; i.focus(); } return; }
+        var okb = t.closest && t.closest('[data-pask-ok]');
+        if (okb) {
+          var k = okb.dataset.paskOk;
+          if (k === 'payTerm') { ptAskAnswer(where, 'payTerm', (p.data && p.data.payTerm && p.data.payTerm.kind) || 'none'); return; }
+          ptAskAnswer(where, k, ($('pask-t') && $('pask-t').value) || '');
+          return;
+        }
+        var skip = t.closest && t.closest('[data-pask-skip]');
+        if (skip) { ptAskAnswer(where, skip.dataset.paskSkip, ''); return; }
+        var again = t.closest && t.closest('[data-pask-again]');
+        if (again) {
+          var key = again.dataset.paskAgain;
+          var askOk = Object.assign({}, (p.data && p.data.askOk) || {});
+          delete askOk[key];
+          p.data = Object.assign({}, p.data || {}, { askOk: askOk });
+          renderPtAsk();
+          S.store.partners.patch(p.id, { askOk: askOk });
+        }
+      });
+    });
+  }
+
+  /** 小さな知らせ（★知らせの出口は1つ★＝alert は使わない） */
+  function uiNote(title, html) {
+    var d = $('pask-note-box');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'pask-note-box';
+      d.className = 'pask-note-box';
+      d.innerHTML = '<div class="pask-note-in"><h3 id="pask-note-t"></h3><div id="pask-note-b"></div>'
+        + '<button class="btn-primary" type="button" id="pask-note-x">閉じる</button></div>';
+      document.body.appendChild(d);
+      d.addEventListener('click', function (ev) {
+        if (ev.target.id === 'pask-note-x' || ev.target === d) d.style.display = 'none';
+      });
+    }
+    $('pask-note-t').textContent = title;
+    $('pask-note-b').innerHTML = html;
+    d.style.display = '';
+  }
+
   function fillPartnerForm(id) {
     var p = partnerById(id);
     var d = (p && p.data) || {};
     $('s-pcode').value = d.code || '';
     $('s-phonor').value = d.honor || d.keisho || '御中';
     $('s-pperson').value = d.person || '';
-    $('s-pzip').value = d.zip || '';
-    $('s-ptel').value = d.tel || '';
+    $('s-paddr').value = d.addr || '';
+    $('s-pinvoice').value = d.invoiceNo || '';
+    ptInvoiceHint();
     var t = d.payTerm || { kind: 'none', n: 0 };
     $('s-pterm').value = t.kind || 'none';
     $('s-ptermn').value = t.n || '';
     show($('s-ptermn'), t.kind === 'days' || t.kind === 'nextDay');
     $('s-pgensen').checked = !!d.gensen;
     var on = !!p;
-    ['s-pcode', 's-phonor', 's-pperson', 's-pzip', 's-ptel', 's-pterm', 's-ptermn', 's-pgensen'].forEach(function (x) { $(x).disabled = !on; });
+    ['s-pcode', 's-phonor', 's-pperson', 's-paddr', 's-pinvoice', 's-pterm', 's-ptermn', 's-pgensen'].forEach(function (x) { $(x).disabled = !on; });
     $('b-pt-save').disabled = !on;
+  }
+
+  /** ★打った その場で 形を見る★（通信しない・国税庁のサイトは叩かない） */
+  function ptInvoiceHint() {
+    var el = $('s-pinvoice'), h = $('s-pinvoice-hint'); if (!el || !h) return;
+    var base = '紙には出ません（適格請求書に要るのは 出す側＝自社の登録番号です）。控えとして持っておく欄です。';
+    var chk = TOROKU.check(el.value);
+    h.textContent = (chk.level === 'empty') ? base : (chk.msg + '　' + base);
+    h.className = 'hint' + (chk.ok ? '' : ' bad-t');
   }
 
   function saveSettings() {
@@ -2018,7 +2276,7 @@
         recalc();
         setText('pt-new-msg', r.already
           ? '「' + name + '」は もう在ったので、その相手を選びました。'
-          : '「' + name + '」を作って、この請求書の相手にしました。敬称は「御中」にしています（設定で変えられます）。');
+          : '「' + name + '」を作って、この請求書の相手にしました。あとは下で 1問ずつ聞きます。');
         show($('pt-new-msg'), true);
       });
     });
@@ -2033,16 +2291,24 @@
       honor: $('s-phonor').value,
       keisho: $('s-phonor').value,   // ★ハブの取引先画面が読むキー。片方だけ直すと画面で食い違う
       person: $('s-pperson').value.trim(),
-      zip: $('s-pzip').value.trim(),
-      tel: $('s-ptel').value.trim(),
+      addr: $('s-paddr').value.trim(),
+      invoiceNo: TOROKU.check($('s-pinvoice').value).no,
       payTerm: { kind: kind, n: Math.trunc(Number($('s-ptermn').value) || 0) },
       gensen: $('s-pgensen').checked,   // ★源泉の対象かは相手が決める（この相手の既定）
     };
+    /* ★「ぜんぶ見る」で自分で入れた物も『答えた』にする★
+       ＝ここで入れたのに あとから同じ事を聞かれる（＝2度 聞く）のを止める。 */
+    var askOk = Object.assign({}, ((partnerById(id) || {}).data || {}).askOk || {});
+    ['honor', 'person', 'addr', 'code', 'payTerm', 'gensen'].forEach(function (k) { askOk[k] = true; });
+    add.askOk = askOk;
+    /* ★登録番号は当てない★＝形が違う時だけ止める（検査用数字の違いは注意に留める） */
+    var chk = TOROKU.check($('s-pinvoice').value);
+    if (!chk.ok) { box('pt-err', chk.msg); return Promise.resolve(); }
     box('pt-err', '');
     return S.store.partners.patch(id, add).then(function (r) {
       if (!r.ok) { box('pt-err', '保存できませんでした（' + r.reason + '）'); return; }
-      box('pt-ok', '保存しました。');
-      return S.store.partners.list().then(function (list) { S.partners = list; });
+      box('pt-ok', '保存しました。' + (chk.level === 'digit' ? '（' + chk.msg + '）' : ''));
+      return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); });
     });
   }
 
@@ -2099,6 +2365,9 @@
       recalc();
       drawGensenHint();
       renderGuess();
+      /* ★相手を変えたら 聞く形も描き直す★
+         （実UIの押し込みで見つけた：変えても聞かれない＝設定へ行かせていた） */
+      renderPtAsk();
       return autoNumber();
     };
     $('e-issue').onchange = function () {
@@ -2202,7 +2471,9 @@
     $('s-rows').oninput = rowsHint;
     $('s-dedrows').oninput = rowsHint;
     $('s-reset').onchange = settingsHint;
-    $('s-partner').onchange = function () { fillPartnerForm($('s-partner').value); };
+    $('s-partner').onchange = function () { fillPartnerForm($('s-partner').value); renderPtAsk(); };
+    $('s-pinvoice').oninput = ptInvoiceHint;
+    bindPtAsk();
     $('s-pterm').onchange = function () {
       var k = $('s-pterm').value;
       show($('s-ptermn'), k === 'days' || k === 'nextDay');

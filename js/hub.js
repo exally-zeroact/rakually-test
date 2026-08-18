@@ -67,6 +67,19 @@
     $$('.pane').forEach(function (p) { p.classList.toggle('active', p.id === 'pane-' + tab); });
   }
 
+  /* ★登録番号は当てない。打ち間違いだけ弾く（通信なし）★（指示役 2026-08-18）
+     判定は lib/toroku-no.js が持ち主。★同じ判定を2か所に書かない★ */
+  var TOROKU = global.TorokuNo;
+  function torokuNote(inputId, noteId, base) {
+    var el = $(inputId), n = $(noteId); if (!el || !n) return { ok: true, no: '' };
+    var chk = TOROKU.check(el.value);
+    n.textContent = (chk.level === 'empty') ? base : (chk.msg + '　' + base);
+    n.style.color = chk.ok ? '' : '#B3261E';
+    return chk;
+  }
+  var ORG_NOTE = '請求書の紙に そのまま刷られます。';
+  var PT_NOTE = '相手の番号です。請求書の紙には出ません（控えです）。';
+
   /* ═══ 会社(pay_org) ═══ */
   function fillOrg() {
     var o = state.org || {};
@@ -74,6 +87,7 @@
     $('org-addr').value = o.addr || '';
     $('org-tel').value = o.tel || '';
     $('org-invoice').value = o.invoiceNo || '';
+    torokuNote('org-invoice', 'org-invoice-note', ORG_NOTE);
     renderBizChips();
   }
   function renderBizChips() {
@@ -94,8 +108,11 @@
       yago: $('org-yago').value.trim(),
       addr: $('org-addr').value.trim(),
       tel: $('org-tel').value.trim(),
-      invoiceNo: $('org-invoice').value.trim()
+      invoiceNo: TOROKU.check($('org-invoice').value).no
     };
+    /* ★形が違う時だけ止める★（検査用数字の違いは 個人の事業者では効かないので注意に留める） */
+    var chk = torokuNote('org-invoice', 'org-invoice-note', ORG_NOTE);
+    if (!chk.ok) { msg('org-msg', chk.msg, true); return Promise.resolve(); }
     msg('org-msg', '保存中...');
     return SD.org.save(patch).then(function (r) {
       if (r && r.ok) { state.org = r.data; msg('org-msg', '保存しました'); }
@@ -209,6 +226,7 @@
     $('pt-keisho').value = d.keisho || '御中';
     $('pt-addr').value = d.addr || '';
     $('pt-invoice').value = d.invoiceNo || '';
+    torokuNote('pt-invoice', 'pt-invoice-note', PT_NOTE);
     $('pt-del').style.display = id ? '' : 'none';
     $('pt-edit').style.display = '';
     msg('pt-edit-msg', '');
@@ -218,7 +236,9 @@
     if (!SD) { msg('pt-edit-msg', 'ログインしてください', true); return Promise.resolve(); }
     var name = $('pt-name').value.trim();
     if (!name) { msg('pt-edit-msg', '名称を入れてください', true); return Promise.resolve(); }
-    var data = { name: name, keisho: $('pt-keisho').value, addr: $('pt-addr').value.trim(), invoiceNo: $('pt-invoice').value.trim() };
+    var data = { name: name, keisho: $('pt-keisho').value, addr: $('pt-addr').value.trim(), invoiceNo: TOROKU.check($('pt-invoice').value).no };
+    var chk = torokuNote('pt-invoice', 'pt-invoice-note', PT_NOTE);
+    if (!chk.ok) { msg('pt-edit-msg', chk.msg, true); return Promise.resolve(); }
     msg('pt-edit-msg', '保存中...');
     return SD.partners.upsert({ id: state.editPtId || undefined, data: data }).then(function (r) {
       if (r && r.ok) { closePt(); toast('保存しました'); return loadPartners(); }
@@ -296,6 +316,9 @@
     $('pt-save').addEventListener('click', savePt);
     $('pt-cancel').addEventListener('click', closePt);
     $('pt-del').addEventListener('click', delPt);
+    /* ★打っている その場で 形を見せる★（保存を押すまで黙っていない） */
+    $('org-invoice').addEventListener('input', function () { torokuNote('org-invoice', 'org-invoice-note', ORG_NOTE); });
+    $('pt-invoice').addEventListener('input', function () { torokuNote('pt-invoice', 'pt-invoice-note', PT_NOTE); });
 
   }
 

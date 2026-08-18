@@ -282,3 +282,72 @@
    ＝★入りきらない時だけ★ 切る（ふつうの日本語は今までどおり文節で折り返す）。 */
 .ov-v { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .ov-none { color: #7AA08C; }
+
+/* ═══ ★取引先を1問ずつ聞く★（司さん 2026-08-16「聞いてあげる。埋めさせない。」）═══
+   ・★本文に色を足さない★＝読ませる字の色は 皮（rakually-ui.css）から受け継ぐ。
+     ここで #333 などを書くと ★3アプリでバラける★（前科）。色は ★押せる物と選ばれている物だけ★。
+   ・囲い・地の色も ★皮に在る物だけ★を使う（勝手な緑を増やさない）
+   ・★入力欄は16px★（iOSが勝手に拡大しない大きさ）
+   ・★flex の箱で1文字ずつ縦に割れる前科★があるので、縮む側に min-width:0 を必ず置く */
+.pask { margin-top: 10px; }
+.pask-prog { font-size: 13px; padding: 8px 10px; background: #F0FAF4; border-radius: 8px; }
+.pask-prog b { color: #2E7D54; }
+.pask-q { margin-top: 10px; padding: 12px 10px; border: 1px solid #D4EAE0; border-radius: 10px; }
+.pask-qt { font-size: 16px; font-weight: 700; line-height: 1.5; }
+.pask-hint { margin: 6px 0 0; font-size: 13px; line-height: 1.6; }
+.pask-guess { margin-top: 8px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pask-why {
+  flex: 0 0 auto; border: 1px solid #2E7D54; background: #FFFFFF; color: #2E7D54;
+  border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.pask-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.pask-o {
+  min-height: 40px; padding: 8px 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid #D4EAE0; background: #FFFFFF; font-size: 15px;
+}
+.pask-o.on { border-color: #2E7D54; background: #2E7D54; color: #FFFFFF; font-weight: 700; }
+.pask-q .finput { margin-top: 10px; font-size: 16px; }
+.pask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pask-c {
+  border: 1px solid #D4EAE0; background: #FFFFFF;
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+}
+.pask-row, .pask-n { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.pask-n .finput { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+.pask-ok {
+  flex: 0 0 auto; min-height: 40px; padding: 8px 18px; border: 0; border-radius: 10px;
+  background: #2E7D54; color: #FFFFFF; font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.pask-skip {
+  flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border: 1px solid #D4EAE0;
+  border-radius: 10px; background: #FFFFFF; font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.pask-fin { margin: 10px 0 0; font-size: 14px; }
+.pask-done { margin-top: 12px; }
+.pask-done-h { font-size: 13px; margin-bottom: 6px; }
+.pask-d {
+  display: block; width: 100%; text-align: left; margin-bottom: 6px; cursor: pointer;
+  border: 1px solid #E8F6EE; border-radius: 8px; background: #FFFFFF; padding: 8px 10px;
+}
+.pask-d-k { display: block; font-size: 12px; }
+.pask-d-v { display: block; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.pask-d-r { display: block; font-size: 12px; margin-top: 2px; line-height: 1.5; }
+.pask-note { font-size: 12px; }
+
+/* ぜんぶ見る（畳んである）。★消していない★＝ここで直せる */
+.pt-all { margin-top: 12px; border-top: 1px solid #E8F6EE; padding-top: 8px; }
+.pt-all > summary { cursor: pointer; font-size: 14px; color: #2E7D54; font-weight: 700; padding: 4px 0; }
+.hint.bad-t { color: #C0392B; }
+
+/* ★知らせの出口は1つ★（alert は使わない） */
+.pask-note-box {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 90;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.pask-note-in {
+  background: #FFFFFF; border-radius: 12px; padding: 16px; max-width: 420px; width: 100%;
+  max-height: 80vh; overflow: auto;
+}
+.pask-note-in h3 { margin: 0 0 8px; font-size: 16px; }
+.pask-note-in > div { font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.pask-note-in .btn-primary { margin-top: 14px; width: 100%; }

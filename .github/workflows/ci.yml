@@ -177,8 +177,16 @@ jobs:
         run: node kyuyo/tests/run.js
       # ★人が埋める欄を毎回 数える★（減らしたと言うなら、前と後を同じ道具で数える）。
       #   0欄なら赤＝「画面が描けていないのに0件で緑」を作らない。
+      # ★取引先を1問ずつ聞く（聞いてあげる。埋めさせない。）★ 指示役 2026-08-18
+      #   ★空欄を並べない／当てた物は根拠つき／1問ごと保存／登録番号は当てず打ち間違いだけ弾く★
+      - name: ★取引先7問 (よく出る順の候補/根拠つき/その場で返す/1問ごと保存/登録番号の検査/使わない物は聞かない)
+        run: node seikyu/tests/partner-ask.test.mjs
+      - name: ★取引先7問 (本物のソースを壊して赤になるかの自己確認・7通り)
+        run: node seikyu/tests/partner-ask.test.mjs --self-test
+      - name: ★取引先7問 実UI (本物の画面を動かして 押す物の一覧を出してから全部 押す)
+        run: node seikyu/tests/partner-ask-ui.mjs
       - name: ★人が埋める欄を数える (給与の会社情報／請求書の入力)
-        run: node scripts/count-fields.mjs kyuyo/index.html --sel "#set-company" && node scripts/count-fields.mjs seikyu/index.html
+        run: node scripts/count-fields.mjs kyuyo/index.html --sel "#set-company" && node scripts/count-fields.mjs seikyu/index.html && node scripts/count-fields.mjs seikyu/index.html --closed
       # ★会社マスタ7問（聞いてあげる。埋めさせない。）★ 司さん 2026-08-16／指示役 2026-08-18
       #   ★同じ値を2か所が持たない★（7問へ上げた物はチップから消す）を機械で見張る。
       - name: ★会社マスタ7問 (7つ在る/県→最賃と業種→率が libの実数と一致/チップに残っていない/県が実際に効く)
