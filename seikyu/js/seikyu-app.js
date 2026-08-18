@@ -2212,6 +2212,8 @@
     $('s-phonor').value = d.honor || d.keisho || '御中';
     $('s-pperson').value = d.person || '';
     $('s-paddr').value = d.addr || '';
+    $('s-pzip').value = d.zip || '';
+    $('s-ptel').value = d.tel || '';
     $('s-pinvoice').value = d.invoiceNo || '';
     ptInvoiceHint();
     var t = d.payTerm || { kind: 'none', n: 0 };
@@ -2220,7 +2222,7 @@
     show($('s-ptermn'), t.kind === 'days' || t.kind === 'nextDay');
     $('s-pgensen').checked = !!d.gensen;
     var on = !!p;
-    ['s-pcode', 's-phonor', 's-pperson', 's-paddr', 's-pinvoice', 's-pterm', 's-ptermn', 's-pgensen'].forEach(function (x) { $(x).disabled = !on; });
+    ['s-pcode', 's-phonor', 's-pperson', 's-paddr', 's-pzip', 's-ptel', 's-pinvoice', 's-pterm', 's-ptermn', 's-pgensen'].forEach(function (x) { $(x).disabled = !on; });
     $('b-pt-save').disabled = !on;
   }
 
@@ -2293,6 +2295,8 @@
       keisho: $('s-phonor').value,   // ★ハブの取引先画面が読むキー。片方だけ直すと画面で食い違う
       person: $('s-pperson').value.trim(),
       addr: $('s-paddr').value.trim(),
+      zip: $('s-pzip').value.trim(),
+      tel: $('s-ptel').value.trim(),
       invoiceNo: TOROKU.check($('s-pinvoice').value).no,
       payTerm: { kind: kind, n: Math.trunc(Number($('s-ptermn').value) || 0) },
       gensen: $('s-pgensen').checked,   // ★源泉の対象かは相手が決める（この相手の既定）

@@ -180,8 +180,21 @@ T('⑧ ★使わない物は聞かない★（紙にもExcelにも出ない欄�
   /* 住所は Excel が使う＝聞く */
   ok(/p\.addr/.test(AOASRC), 'Excelが住所を使っていない（なら住所も聞かない）');
   ok(keys.indexOf('addr') >= 0, '住所を聞いていない（Excelに出るのに）');
-  /* ★画面から欄も消えている★（データは倉庫に残す） */
-  ok(!/id="s-pzip"/.test(HTML) && !/id="s-ptel"/.test(HTML), '使わない欄が画面に残っている');
+  /* ★聞く順から外すだけ。画面から消さない★（指示役 2026-08-18 の条件）
+     ＝入れてある会社が「無くなった」と思う／郵送・電話に使う人が居る。
+     ★「ぜんぶ見る」の畳みの中に在る事★ を機械で見張る（外に出ていても赤）。 */
+  const foldAt = HTML.indexOf('<details class="pt-all"');
+  ok(foldAt > 0, '「ぜんぶ見る」の畳みが無い');
+  /* ★終わりは その畳みの終わり★（先頭から数えると 別の畳みで切れて 中身が空になる） */
+  const fold = HTML.slice(foldAt, HTML.indexOf('</details>', foldAt));
+  ['s-pzip', 's-ptel', 's-pinvoice'].forEach((id) => {
+    ok(new RegExp('id="' + id + '"').test(fold), '★' + id + ' が「ぜんぶ見る」から消えている（消すなと言われている）★');
+  });
+  /* 聞く順の外＝畳みの外に 出していない事（一度に見せる数を増やさない） */
+  const outside = HTML.replace(fold, '');
+  ['s-pzip', 's-ptel', 's-pinvoice'].forEach((id) => {
+    ok(!new RegExp('id="' + id + '"').test(outside), '★' + id + ' を畳みの外に出している（一度に見せる数が増える）★');
+  });
   console.log('     聞く=' + keys.join(',') + ' ／ 郵便番号・電話・相手の登録番号は 紙もExcelも0箇所');
 });
 
