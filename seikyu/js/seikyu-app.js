@@ -2002,7 +2002,8 @@
     }
     if (q.key === 'honor') return String(d.honor || d.keisho || '');
     var v = String(d[q.key] == null ? '' : d[q.key]);
-    return v || '（入れない）';
+    /* ★空の時は 聞いた言葉で返す★（「出しますか？」に「（入れない）」だと 噛み合わない） */
+    return v || (q.skipLabel ? '（' + q.skipLabel + '）' : '（決めていない）');
   }
 
   function ptAskHTML(where) {

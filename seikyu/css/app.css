@@ -289,13 +289,13 @@
    ・囲い・地の色も ★皮に在る物だけ★を使う（勝手な緑を増やさない）
    ・★入力欄は16px★（iOSが勝手に拡大しない大きさ）
    ・★flex の箱で1文字ずつ縦に割れる前科★があるので、縮む側に min-width:0 を必ず置く */
-.pask { margin-top: 10px; }
-.pask-prog { font-size: 13px; padding: 8px 10px; background: #F0FAF4; border-radius: 8px; }
+.pask { margin-top: 10px; color: #2B3A31; }   /* ★読ませる字は薄い黒★（この画面の既定は緑なので必ず書く） */
+.pask-prog { font-size: 13px; padding: 8px 10px; background: #F0FAF4; border-radius: 8px; color: #2B3A31; }
 .pask-prog b { color: #2E7D54; }
 .pask-q { margin-top: 10px; padding: 12px 10px; border: 1px solid #D4EAE0; border-radius: 10px; }
-.pask-qt { font-size: 16px; font-weight: 700; line-height: 1.5; }
-.pask-hint { margin: 6px 0 0; font-size: 13px; line-height: 1.6; }
-.pask-guess { margin-top: 8px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pask-qt { font-size: 16px; font-weight: 700; line-height: 1.5; color: #2B3A31; }
+.pask-hint { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: #2B3A31; }
+.pask-guess { margin-top: 8px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: #2B3A31; }
 .pask-why {
   flex: 0 0 auto; border: 1px solid #2E7D54; background: #FFFFFF; color: #2E7D54;
   border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
@@ -303,14 +303,14 @@
 .pask-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .pask-o {
   min-height: 40px; padding: 8px 14px; border-radius: 10px; cursor: pointer;
-  border: 1px solid #D4EAE0; background: #FFFFFF; font-size: 15px;
+  border: 1px solid #D4EAE0; background: #FFFFFF; font-size: 15px; color: #2B3A31;
 }
 .pask-o.on { border-color: #2E7D54; background: #2E7D54; color: #FFFFFF; font-weight: 700; }
 .pask-q .finput { margin-top: 10px; font-size: 16px; }
 .pask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pask-c {
   border: 1px solid #D4EAE0; background: #FFFFFF;
-  border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: #2B3A31;
 }
 .pask-row, .pask-n { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 .pask-n .finput { flex: 1 1 auto; min-width: 0; margin-top: 0; }
@@ -320,19 +320,19 @@
 }
 .pask-skip {
   flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border: 1px solid #D4EAE0;
-  border-radius: 10px; background: #FFFFFF; font-size: 14px; cursor: pointer; white-space: nowrap;
+  border-radius: 10px; background: #FFFFFF; font-size: 14px; cursor: pointer; white-space: nowrap; color: #2B3A31;
 }
-.pask-fin { margin: 10px 0 0; font-size: 14px; }
+.pask-fin { margin: 10px 0 0; font-size: 14px; color: #2B3A31; }
 .pask-done { margin-top: 12px; }
-.pask-done-h { font-size: 13px; margin-bottom: 6px; }
+.pask-done-h { font-size: 13px; margin-bottom: 6px; color: #2B3A31; }
 .pask-d {
   display: block; width: 100%; text-align: left; margin-bottom: 6px; cursor: pointer;
-  border: 1px solid #E8F6EE; border-radius: 8px; background: #FFFFFF; padding: 8px 10px;
+  border: 1px solid #E8F6EE; border-radius: 8px; background: #FFFFFF; padding: 8px 10px; color: #2B3A31;
 }
-.pask-d-k { display: block; font-size: 12px; }
-.pask-d-v { display: block; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
-.pask-d-r { display: block; font-size: 12px; margin-top: 2px; line-height: 1.5; }
-.pask-note { font-size: 12px; }
+.pask-d-k { display: block; font-size: 12px; color: #2B3A31; }
+.pask-d-v { display: block; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; color: #2B3A31; }
+.pask-d-r { display: block; font-size: 12px; margin-top: 2px; line-height: 1.5; color: #2B3A31; }
+.pask-note { font-size: 12px; color: #2B3A31; }
 
 /* ぜんぶ見る（畳んである）。★消していない★＝ここで直せる */
 .pt-all { margin-top: 12px; border-top: 1px solid #E8F6EE; padding-top: 8px; }
@@ -348,6 +348,6 @@
   background: #FFFFFF; border-radius: 12px; padding: 16px; max-width: 420px; width: 100%;
   max-height: 80vh; overflow: auto;
 }
-.pask-note-in h3 { margin: 0 0 8px; font-size: 16px; }
-.pask-note-in > div { font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.pask-note-in h3 { margin: 0 0 8px; font-size: 16px; color: #2B3A31; }
+.pask-note-in > div { font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; color: #2B3A31; }
 .pask-note-in .btn-primary { margin-top: 14px; width: 100%; }

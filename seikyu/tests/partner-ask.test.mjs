@@ -212,10 +212,26 @@ T('⑩ ★読ませる字は薄い黒・色は押せる物だけ★（全アプ�
   const used = (block.match(/#[0-9A-Fa-f]{6}\b/g) || []).map((c) => c.toUpperCase());
   used.forEach((c) => ok(inSkin.has(c), '★皮に無い色 ' + c + ' を足している★'));
   const colors = used;
-  /* 読ませる字（問い・注意・答えた物）に color を書いていない＝受け継ぐ */
-  ['.pask-qt', '.pask-hint', '.pask-d-v', '.pask-d-r'].forEach((sel) => {
-    const rule = (new RegExp('\\' + sel + ' \\{([^}]*)\\}').exec(block) || [])[1] || '';
-    ok(!/color:/.test(rule), '★' + sel + ' に本文の色を書いている（皮から受け継ぐ）★');
+  /* ★読ませる字は「薄い黒」を必ず書く★
+     ここは前は「色を書かない＝皮から受け継ぐ」にしていた。本物のブラウザで実測したら
+     ★この画面は body の字の色が主色の緑（#2E7D54）★で、受け継いだ字が ★全部 緑★になっていた
+     （押す物は受け継がず 真っ黒 rgb(0,0,0)）。＝★受け継ぐ★では決まりを守れない。
+     使う黒は ★皮に在る一番 黒に近い #2B3A31★（皮に無い色は足さない）。 */
+  const BLACK = '#2B3A31';
+  ['.pask', '.pask-qt', '.pask-hint', '.pask-prog', '.pask-guess', '.pask-o', '.pask-c',
+    '.pask-skip', '.pask-d', '.pask-d-k', '.pask-d-v', '.pask-d-r', '.pask-fin', '.pask-note-in > div',
+  ].forEach((sel) => {
+    const esc2 = sel.replace(/[.>]/g, (c) => '\\' + c).replace(/ /g, '\\s*');
+    const rule = (new RegExp(esc2 + '\\s*\\{([^}]*)\\}').exec(block) || [])[1] || '';
+    ok(rule, '★' + sel + ' の見た目が無い★');
+    const c = (/color:\s*(#[0-9A-Fa-f]{6})/.exec(rule) || [])[1];
+    ok(c && c.toUpperCase() === BLACK, '★' + sel + ' の読ませる字が 薄い黒でない（' + (c || '色を書いていない＝この画面では緑になる') + '）★');
+  });
+  /* ★主色で本文を書かない★（色は押せる物と選ばれている物だけ） */
+  ['.pask-qt', '.pask-hint', '.pask-d-v'].forEach((sel) => {
+    const esc2 = sel.replace(/[.>]/g, (c) => '\\' + c);
+    const rule = (new RegExp(esc2 + '\\s*\\{([^}]*)\\}').exec(block) || [])[1] || '';
+    ok(!/#2E7D54/i.test(rule), '★' + sel + ' を主色の緑で書いている★');
   });
   /* ★禁じている濃い緑は tests/no-dark-green.test.mjs が repo 全体で見張る★
      ここに その色の文字を書くと、その見張り自身が赤くなる（実際に赤くした）＝二重に書かない。 */

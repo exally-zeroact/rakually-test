@@ -211,9 +211,9 @@ T('1-b. ★うちのミント #52B788 と 差し色 #3D9E72 が実際に効い�
 });
 
 T('1-b. ★皮に無い緑を勝手に足していない（3アプリでバラけた原因）', () => {
-  const allowed = new Set(['#2e7d54', '#3d9e72', '#52b788', '#3d6b53', '#5c7e6c', '#7aa08c',
-    '#d4eae0', '#c8ecd8', '#f0faf4', '#e8f6ee', '#ffffff', '#c0392b', '#f0d5d0', '#fdf0ee',
-    '#92500a', '#f0ddbc', '#fdf3e3']);
+  /* ★許す色は 皮から読む★（手で書き写すと 皮に在る色まで赤くなる＝2026-08-18 実際に赤くした）
+     ＝同じ物を2か所に書かない。皮に無い色を足したら赤、は変わらない。 */
+  const allowed = new Set((SKIN.match(/#[0-9a-fA-F]{6}/g) || []).map((c) => c.toLowerCase()));
   const used = [...APPCSS.replace(/\/\*[\s\S]*?\*\//g, ' ').matchAll(/#[0-9a-fA-F]{6}\b/g)]
     .map((m) => m[0].toLowerCase());
   const stray = [...new Set(used)].filter((c) => !allowed.has(c));
