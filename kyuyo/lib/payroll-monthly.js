@@ -63,7 +63,31 @@
   function prefRate(code, payYm) { var S = SHH(); if (S && S.getKenko) { var k = S.getKenko(code, payYm); var sh = S.getShienkin ? S.getShienkin(payYm) : 0; return k.jugyoin + sh; } var K = (S && S.KENKO_RITSU) || {}; return (K[code] && K[code].jugyoin) || 0.04955; }
 
   // ── 通勤 ──
-  // マイカー通勤 1か月非課税限度(片道km・国税庁No.2585 令和8年4月〜)★12区分 公式照合済2026-07★
+  /* マイカー通勤 1か月非課税限度（片道km）
+     ★出典を lib 自身が名乗る★（2026-08-18 指示役の指摘）:
+       中央 statutory には この表の kind が無い。だから画面が別の kind（所得税の税額表）の
+       出典を出していて ★押すと出る根拠が嘘★になっていた。
+       ⇒ ★値を作った所が 自分の出典を持つ★。画面はこれを見せる。
+     ★時期★: この表は ★令和8年4月〜★。それより前の月には この表を当ててはいけない。
+       ただし ★旧表は持っていない★ので、額は今までどおり返し（計算は1円も変えない）、
+       ★「その月には この表は使えない」と言える印(stale)を別の口で返す★。
+       ＝★黙って新しい表を返さない★（画面が「分かりません」と言える）。 */
+  var COMMUTE_CAR_SOURCE = {
+    name: '国税庁 No.2585 通勤手当の非課税限度額（マイカー等）',
+    url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/gensen/2585.htm',
+    from: '2026-04',            // 令和8年4月〜（施行）
+    verified_at: '2026-07',     // 12区分を公式で照合した月
+    kubun: 12,
+  };
+  /** その月に この表を当ててよいか＋額。★施行日より前は notForThisMonth=true★（額は今までどおり） */
+  function carCommuteNonTaxInfo(km, ym) {
+    var m = String(ym || '');
+    return {
+      yen: carCommuteNonTax(km),
+      source: COMMUTE_CAR_SOURCE,
+      notForThisMonth: !!(m && m < COMMUTE_CAR_SOURCE.from),
+    };
+  }
   function carCommuteNonTax(km) {
     km = num(km);
     if (km < 2) return 0; if (km < 10) return 4200; if (km < 15) return 7300; if (km < 25) return 13500; if (km < 35) return 19700; if (km < 45) return 25900;
@@ -294,7 +318,7 @@
     num: num,
     defPayRule: defPayRule, ensurePayRule: ensurePayRule, payRuleCtx: payRuleCtx, payRuleResult: payRuleResult,
     employRateOf: employRateOf, prefRate: prefRate,
-    carCommuteNonTax: carCommuteNonTax, commuteLimit: commuteLimit, syncCommute: syncCommute,
+    carCommuteNonTax: carCommuteNonTax, carCommuteNonTaxInfo: carCommuteNonTaxInfo, COMMUTE_CAR_SOURCE: COMMUTE_CAR_SOURCE, commuteLimit: commuteLimit, syncCommute: syncCommute,
     stType: stType, santeiRule: santeiRule, gekkakuTh: gekkakuTh, shahoBasisOf: shahoBasisOf,
     isInBasis: isInBasis, warimashiBasis: warimashiBasis, dmin: dmin, warimashiMins: warimashiMins, warimashiOf: warimashiOf,
     kintaiVal: kintaiVal, workedMin: workedMin, workedLabel: workedLabel, effShukkin: effShukkin, syncBasePay: syncBasePay,

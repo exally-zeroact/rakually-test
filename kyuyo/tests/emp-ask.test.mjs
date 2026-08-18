@@ -146,5 +146,36 @@ T('⑧ 1問ごと保存＋画面の箱が在る＋既定の形を1バイトも�
   ok(def.indexOf('askOk') < 0, '★defEmp に askOk を足している（fixtureが動く）★');
 });
 
+
+/* ═══ ★根拠の出典が「その値を作った所」と一致するか★（2026-08-18 指示役の指摘）═══
+   前科: 通勤の非課税限度（国税庁 No.2585）の根拠に、所得税の税額表(shotokuzei_densan)の
+   出典を出していた＝★押すと出る根拠が嘘★。★間違った根拠を見せるなら 見せない方がマシ★。 */
+T('⑨ ★根拠の出典が その値を作った所と一致する（嘘の根拠を出さない）', () => {
+  const block = APP.slice(APP.indexOf('function EMP_ASK_Q('), APP.indexOf('function empAskCounts('));
+  const cm = block.slice(block.indexOf('function empCommuteAnswer('));
+  ok(/carCommuteNonTaxInfo/.test(cm), '通勤が lib の出典つきの口を使っていない');
+  ok(/srcLib/.test(cm), '通勤が lib の出典を画面へ渡していない');
+  ok(!/askSource\('shotokuzei_densan'/.test(cm), '★通勤が 所得税の税額表の出典を出している（別物）★');
+  const S = PM.COMMUTE_CAR_SOURCE;
+  ok(S && /2585/.test(S.url || ''), 'lib の出典が 国税庁 No.2585 でない');
+  ok(S.from && S.verified_at, '出典に「いつからの表か」と「確認した月」が無い');
+  const tc = block.slice(block.indexOf("key:'taxClass'"), block.indexOf("key:'fuyou'"));
+  ok(/shotokuzei_densan/.test(tc), '甲乙が税額表の出典を指していない');
+  const bd = block.slice(block.indexOf("key:'birthYmd'"), block.indexOf("key:'pay'"));
+  ok(/shakaihoken/.test(bd), '年齢の判定が社会保険の出典を指していない');
+  console.log('     通勤→No.2585 ／ 甲乙→shotokuzei_densan ／ 年齢→shakaihoken');
+});
+
+T('⑩ ★施行日より前の月に 黙って新しい表を当てない（分かりませんと言う）', () => {
+  const a = PM.carCommuteNonTaxInfo(12, '2026-08');
+  const b = PM.carCommuteNonTaxInfo(12, '2026-03');
+  eq(a.notForThisMonth, false, '施行後の月なのに「使えない」と言っている');
+  eq(b.notForThisMonth, true, '★施行日より前の月なのに 黙って新表を返している★');
+  eq(a.yen, b.yen, '額そのものは変えていない（計算を1円も動かさない）');
+  const cm = APP.slice(APP.indexOf('function empCommuteAnswer('), APP.indexOf('function empAskCounts('));
+  ok(/notForThisMonth/.test(cm), '画面が「その月には使えない」を出していない');
+  console.log('     2026-08=使える ／ 2026-03=★この月の限度額は分かりません★（額は ' + a.yen + '円のまま）');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

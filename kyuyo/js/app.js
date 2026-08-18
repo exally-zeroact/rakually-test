@@ -1260,9 +1260,14 @@
   function empCommuteAnswer(e){
     if(e.commuteType==='car'){
       if(!num(e.commuteKm)) return null;
-      var lim=carCommuteNonTax(num(e.commuteKm));
-      return { text:'片道'+num(e.commuteKm)+'km なら ★月 '+yen(lim)+'まで所得税がかかりません★（超えた分は課税）。',
-               guessed:true, src:askSource('shotokuzei_densan', 2026) };
+      /* ★出典は「その値を作った所」が名乗る物を出す★（2026-08-18 指示役の指摘で直した）
+         前は所得税の税額表(shotokuzei_densan)の出典を出していた＝★押すと出る根拠が嘘★だった。
+         通勤の非課税限度は ★国税庁 No.2585★（lib が自分で持っている）。 */
+      var info=PM().carCommuteNonTaxInfo(num(e.commuteKm), state.month);
+      var t='片道'+num(e.commuteKm)+'km なら ★月 '+yen(info.yen)+'まで所得税がかかりません★（超えた分は課税）。';
+      /* ★施行日より前の月に、黙って新しい表を当てない★ */
+      if(info.notForThisMonth) t+='<br>★'+state.month+'は この表（'+info.source.from+'〜）より前の月です。この月の限度額は分かりません★（当時の表を持っていません）。';
+      return { text:t, guessed:true, srcLib:info.source };
     }
     if(num(e.commute)>0) return { text:'電車・バスは ★月 15万円まで★ 所得税がかかりません。' };
     if(e.commuteType==='none') return { text:'通勤手当は無しで計算します。' };
@@ -1323,6 +1328,11 @@
     var e=empAskTarget(); if(!e) return '';
     var q=EMP_ASK_Q(e).filter(function(x){return x.key===key;})[0]; if(!q) return '';
     var a=q.answer&&q.answer(); if(!a) return '';
+    /* ★値を作った lib が自分で名乗る出典★（中央 statutory に kind が無い法定値はこちら） */
+    if(a.srcLib) return '<div style="font-size:12.5px;line-height:1.7">'
+      +'<div><b>出典</b><br>'+esc(a.srcLib.name)+'<br><a href="'+esc(a.srcLib.url)+'" target="_blank" rel="noopener">'+esc(a.srcLib.url)+'</a></div>'
+      +'<div style="margin-top:8px"><b>いつからの表か</b> '+esc(a.srcLib.from)+'〜（'+a.srcLib.kubun+'区分）</div>'
+      +'<div style="margin-top:4px"><b>確認した月</b> '+esc(a.srcLib.verified_at)+'</div></div>';
     if(a.src) return '<div style="font-size:12.5px;line-height:1.7">'
       +'<div><b>出典</b><br><a href="'+esc(a.src.url)+'" target="_blank" rel="noopener">'+esc(a.src.url)+'</a></div>'
       +'<div style="margin-top:8px"><b>確認した日</b> '+esc(a.src.at)+'</div>'
