@@ -175,6 +175,16 @@ jobs:
       # ── 給与(kyuyo/) 由来（据置） ──
       - name: Payroll unit tests (依存なし・実数リテラル+回帰)
         run: node kyuyo/tests/run.js
+      # ★人が埋める欄を毎回 数える★（減らしたと言うなら、前と後を同じ道具で数える）。
+      #   0欄なら赤＝「画面が描けていないのに0件で緑」を作らない。
+      - name: ★人が埋める欄を数える (給与の会社情報／請求書の入力)
+        run: node scripts/count-fields.mjs kyuyo/index.html --sel "#set-company" && node scripts/count-fields.mjs seikyu/index.html
+      # ★会社マスタ7問（聞いてあげる。埋めさせない。）★ 司さん 2026-08-16／指示役 2026-08-18
+      #   ★同じ値を2か所が持たない★（7問へ上げた物はチップから消す）を機械で見張る。
+      - name: ★会社マスタ7問 (7つ在る/県→最賃と業種→率が libの実数と一致/チップに残っていない/県が実際に効く)
+        run: node kyuyo/tests/company-ask.test.mjs
+      - name: ★会社マスタ7問 (わざと戻して赤になるかの自己確認・4通り)
+        run: node kyuyo/tests/company-ask.test.mjs --self-test
       - name: Payroll integration (jsdomで本物のapp.jsを読み配線/UI/状態/描画)
         run: node kyuyo/tests/integration.mjs
       - name: Payroll full-feature real-data (給与全パターン)

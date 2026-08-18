@@ -15,6 +15,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -23,11 +26,7 @@
         "annualHolidays": "120",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",
@@ -5401,6 +5400,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -5409,11 +5411,7 @@
         "annualHolidays": "120",
         "shakaTokutei": true,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",
@@ -5871,6 +5869,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -5879,11 +5880,7 @@
         "annualHolidays": "120",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "20",
         "rateHoliday": "30",
@@ -6056,6 +6053,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -6064,11 +6064,7 @@
         "annualHolidays": "80",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",
@@ -6241,6 +6237,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -6249,11 +6248,7 @@
         "annualHolidays": "120",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",
@@ -6426,6 +6421,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -6434,11 +6432,7 @@
         "annualHolidays": "120",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",
@@ -6887,6 +6881,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -6895,11 +6892,7 @@
         "annualHolidays": "120",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",
@@ -7348,6 +7341,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -7356,11 +7352,7 @@
         "annualHolidays": "120",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",
@@ -7809,6 +7801,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -7817,11 +7812,7 @@
         "annualHolidays": "120",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",
@@ -8270,6 +8261,9 @@
         "payCycle": "monthly",
         "shimeMethod": "monthly",
         "shimeN": "10",
+        "pref": "",
+        "shahoKanyu": "",
+        "askOk": {},
         "holidays": [
           0
         ],
@@ -8278,11 +8272,7 @@
         "annualHolidays": "120",
         "shakaTokutei": false,
         "ruleOn": {
-          "teikyu": true,
-          "shotei": true,
-          "annual": true,
-          "warimashiRate": true,
-          "koyoGyoshu": true
+          "warimashiRate": true
         },
         "rateOt": "",
         "rateHoliday": "",

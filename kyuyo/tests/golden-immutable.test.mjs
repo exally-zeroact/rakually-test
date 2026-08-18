@@ -6,6 +6,13 @@
  *   ・golden.meta.baseCommit が移設前コミットのままであること
  *   後からゴールデンを作り直す/入力をいじると、ここが赤くなる。
  *
+ * ★2026-08-18 入力fixtureの sha を1回だけ差し替えた（理由をここに残す）★
+ *   会社マスタ7問（聞いて選ばす）で ★会社に pref / shahoKanyu / askOk の3つを足した★ため、
+ *   defCompany() を写している入力fixtureの中身が変わった（会社の項目 29→32・ruleOn は表示フラグが5→1）。
+ *   ★期待値(datasets)は1バイトも変えていない★（goldenSha256 は据え置き）。
+ *   ★計算が1円も動いていない証明★＝ops-golden-parity が「59名・差分0件」で緑のまま。
+ *   ＝入力の形が増えただけで、答えは同じ。★期待値を自分の出力から作り直してはいない★。
+ *
  * 使い方: node tests/golden-immutable.test.mjs
  */
 import fs from 'node:fs';

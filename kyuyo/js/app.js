@@ -294,11 +294,11 @@
     return '<option value=""'+(cur?'':' selected')+'>未選択</option>'
       +Object.keys(K).map(function(code){return '<option value="'+code+'"'+(code===cur?' selected':'')+'>'+esc(K[code].name)+'</option>';}).join('');
   }
-  function prefMissingWarn(){ return PW().prefMissingWarn(activeEmployees()); }
+  function prefMissingWarn(){ return PW().prefMissingWarn(activeEmployees(), ctxOf()); }
   function prefTokyoNote(){ return PW().prefTokyoNote(state.employees||[]); }
   // 対象月に在籍している人（＝この月の計算に乗る人）だけを見る
   function activeEmployees(){ return (state.employees||[]).filter(function(e){ return isActiveInMonth(e,state.month) && !e.retired; }); }
-  function prefMissingIds(){ return PW().prefStats(activeEmployees()).missing.map(function(x){return x.id;}); }
+  function prefMissingIds(){ return PW().prefStats(activeEmployees(), ctxOf()).missing.map(function(x){return x.id;}); }
   // 健保従業員負担率(対象月payYmの社保年度で自動選択)＋子育て支援金(令和8/4〜)。両方healthRateに含めて社保計算へ渡す。
   function prefRate(code, payYm){ return PM().prefRate(code, payYm); }
 
@@ -319,11 +319,23 @@
       shaho:{ mode:'auto', months:[{pay:'',days:'30'},{pay:'',days:'30'},{pay:'',days:'30'}], mikomi:'', manual:'' } };
   }
   var WDAYS=['日','月','火','水','木','金','土'];
-  var RULE_ITEMS=[['teikyu','休みの日'],['companyHol','会社独自の休日'],['shotei','1日の働く時間'],['annual','年間の休み'],['warimashiRate','割増の率'],['koyoGyoshu','雇用保険の業種'],['paymentDays','支払基礎日数の数え方'],['shahoTiming','社保の当月／翌月徴収'],['kekkin','欠勤控除の計算'],['minashi','固定残業（みなし）'],['daikyu','代休・振替休日'],['shoyo','賞与の有無']];
+  /* ★2026-08-18 7問へ上げた4つを ここから消した★（司さん「聞いて選ばすスタイル」）
+     消した物: teikyu(休みの日) / shotei(1日の働く時間) / annual(年間の休み) / koyoGyoshu(雇用保険の業種)
+     理由＝★同じ物を「7問」と「チップ」の2か所が持つと、2か所で別々に判定する事故になる★
+       （「全員確認済」と「2名が未確認」が同時に出た型）。値の持ち主は1か所＝7問。
+     ★割増の率は7問に上げない★＝法定なので聞かない（会社が上げる時だけ ここで触る）。
+     残りは ★使う時に初めて聞く★物（賞与・固定残業・代休・支払基礎日数・社保の徴収月 ほか）。 */
+  var RULE_ITEMS=[['companyHol','会社独自の休日'],['warimashiRate','割増の率'],['paymentDays','支払基礎日数の数え方'],['shahoTiming','社保の当月／翌月徴収'],['kekkin','欠勤控除の計算'],['minashi','固定残業（みなし）'],['daikyu','代休・振替休日'],['shoyo','賞与の有無']];
   // 会社の既定値(毎回新規オブジェクト=共有参照事故防止)。ロード時はこれにマージ=古い保存で欠けた項目がundefinedにならない。
+  /* ★2026-08-18 会社マスタ7問（聞いて選ばす）で使う2つを足した★
+     pref       … ★事業場の所在地の県★（最低賃金は「事業場の所在地」で決まる＝会社に1つ持つ）
+                   人ごとの pref は「上書き」で、空なら この会社の県を使う。
+     shahoKanyu … ★社会保険（健保・厚年）に入っている会社か★（''=まだ聞いていない / 'yes' / 'no'）
+     askOk      … 7問のどれを人が「はい」と言ったか（★1問ごとに保存★するための印） */
   function defCompany(){ return { name:'株式会社 ゼロアクト',addr:'',close:'末日',paydayRel:'next',paydayDay:'25', payCycle:'monthly', shimeMethod:'monthly', shimeN:'10',
+      pref:'', shahoKanyu:'', askOk:{},
       holidays:[0], dailyWorkH:'8', dailyWorkM:'0', annualHolidays:'120', shakaTokutei:false,
-      ruleOn:{teikyu:true,shotei:true,annual:true,warimashiRate:true,koyoGyoshu:true},
+      ruleOn:{warimashiRate:true},
       rateOt:'', rateHoliday:'', rateNight:'', rateOver60:'', gyoshu:'ippan', rousaiRate:'',
       furiCode:'', furiName:'', furiBankNo:'', furiBankName:'', furiBranchNo:'', furiBranchName:'', furiYokin:'普通', furiAccount:'', furiDate:'' }; }
   // 対象月の既定=当月(初回起動時)。保存済みがあればロード時に上書きされる(過去月固定を防ぐ)。
@@ -455,7 +467,7 @@
   var A11Y_TOGGLE_SEL='.mco-hd,.emp-dtgl,.emp-sub-h,.sh-mode,.imode,.pmode,.dls,.chip,.help-i,.ef-b,.sh-seg b';
 
   /* ---------- 設定: 会社情報 ---------- */
-  function fillCompany(){ $('#c-name').value=state.company.name||''; $('#c-addr').value=state.company.addr||''; $('#c-close').value=state.company.close||''; $('#c-payrel').value=state.company.paydayRel||'next'; $('#c-payday-day').value=state.company.paydayDay||''; var pc=$('#c-paycycle'); if(pc)pc.value=state.company.payCycle||'monthly'; var sm=$('#c-shime'); if(sm)sm.value=state.company.shimeMethod||'monthly'; var sn=$('#c-shimen'); if(sn)sn.value=state.company.shimeN||'10'; updatePaydayPreview(); payCycleNote(); shimeNote(); renderRuleChips(); renderCompanyRules(); renderDesign(); }
+  function fillCompany(){ $('#c-name').value=state.company.name||''; $('#c-addr').value=state.company.addr||''; $('#c-close').value=state.company.close||''; $('#c-payrel').value=state.company.paydayRel||'next'; $('#c-payday-day').value=state.company.paydayDay||''; var pc=$('#c-paycycle'); if(pc)pc.value=state.company.payCycle||'monthly'; var sm=$('#c-shime'); if(sm)sm.value=state.company.shimeMethod||'monthly'; var sn=$('#c-shimen'); if(sn)sn.value=state.company.shimeN||'10'; updatePaydayPreview(); payCycleNote(); shimeNote(); renderRuleChips(); renderCompanyRules(); renderDesign(); renderAsk(); }
   // 初回オンボーディング(4ステップ案内・×で閉じたら二度と出ない)。"すぐ分かる"を底上げ。
   // はじめかたガイドの各ステップの達成判定(freee/MF流のライブToDo)。全完了で自動的に消える。
   function onboardSteps(){
@@ -483,6 +495,174 @@
           +(s.done?'<span class="ob-done-lb">完了</span>':'<span class="ob-arrow">›</span>')+'</button>'; }).join('')
       +'</div>';
   }
+  /* ═══════════════════════════════════════════════════════════════════
+     ★会社マスタ7問（聞いてあげる。埋めさせない。）★  司さん 2026-08-16 / 指示役 2026-08-18
+     ・★別ウィザードを作らない★＝この「会社情報」の画面そのものが対話。下の一覧と ★同じ値★を見る。
+     ・★答えたら その場で結果を返す★（県→最賃／業種→雇用保険の率／休みの曜日→年間休日・週の所定）
+     ・★機械が当てた物は印を付け、押すと根拠★（法定データの出典・確認日＝StatutoryMeta）
+     ・★1問ごと保存★（答えた瞬間に保存。途中で閉じても残る）
+     ・★既に埋まっている会社は「これでいいですか？」★＝空欄に戻して聞き直さない
+     ・★AIは使わない★（全部ルールベース・オフライン・決定論）
+     ・★聞かない物★＝割増率(法定)／労災率(全額 事業主負担＝明細の控除に出ない・部品も一次情報も無い)／
+       源泉の甲乙(業種では決まらない＝扶養の申告書を出したかどうか)／振込の委託者情報(使う時に聞く)
+     ═══════════════════════════════════════════════════════════════════ */
+  function SM(){ return (typeof window!=='undefined'&&window.StatutoryMeta)||null; }
+  function askToday(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function prefNameOf(code){ var S=SHH(); var K=(S&&S.KENKO_RITSU)||{}; return (K[code]&&K[code].name)||''; }
+  function askJpDate(iso){ var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(+m[1]+'年'+(+m[2])+'月'+(+m[3])+'日'):''; }
+  function askYen(n){ return (Number(n)||0).toLocaleString('ja-JP'); }
+
+  /* 当てた物の根拠（押すと出す）。法定データは ★中央の出典・確認日★ をそのまま見せる。 */
+  function askSource(kind, year){
+    var m=SM(); var g=m&&m.get(kind, year);
+    if(!g) return null;
+    return { url:g.source_url||'', at:g.verified_at||'', note:g.note||'' };
+  }
+  /* 休みの曜日＋1日の時間から「年間休日・週の所定」を機械で出す（★決定論・法定ではない計算★） */
+  function askWeekCalc(c){
+    var wd=(c.holidays||[]).length;
+    var h=num(c.dailyWorkH)+num(c.dailyWorkM)/60;
+    var days=7-wd;
+    return { restDays:wd, workDays:days, dailyH:h, weekH:Math.round(days*h*10)/10, annual:wd*52 };
+  }
+
+  /* 7問の定義。★1問＝1つの値★。answer() が「その場で返す言葉」を作る。 */
+  function ASK_Q(){
+    var c=state.company;
+    return [
+      { key:'name', q:'会社の名前は？', now:c.name||'',
+        input:function(){ return '<input class="ask-in" data-ask="name" value="'+attr(c.name)+'" placeholder="株式会社 ゼロアクト">'; },
+        answer:function(){ return c.name?{ text:'「'+esc(c.name)+'」で紙に刷ります。' }:null; } },
+
+      { key:'pref', q:'どこの県ですか？', sub:'最低賃金は「事業場の所在地」で決まります',
+        now:c.pref?prefNameOf(c.pref):'',
+        input:function(){ return '<select class="ask-in" data-ask="pref">'+prefOptions(c.pref)+'</select>'; },
+        answer:function(){
+          if(!c.pref) return null;
+          var S=SAI(); if(!S) return { text:prefNameOf(c.pref)+' で登録しました。' };
+          var yen=S.chinginOn(c.pref, askToday()), hat=S.hatsukoOf(c.pref);
+          return { text:'★'+prefNameOf(c.pref)+'の最低賃金は '+askYen(yen)+'円★（'+askJpDate(hat)+'から）。時給がこれを下回ると赤で止めます。',
+                   guessed:true, src:askSource('saitei_chingin', 2025) };
+        } },
+
+      { key:'gyoshu', q:'何の仕事ですか？', sub:'雇用保険の率がこれで決まります',
+        now:(function(){ var g=EMPLOY_GYOSHU.filter(function(x){return x[0]===c.gyoshu;})[0]; return g?g[1]:''; })(),
+        input:function(){ return '<select class="ask-in" data-ask="gyoshu">'+EMPLOY_GYOSHU.map(function(g){
+          return '<option value="'+g[0]+'"'+(c.gyoshu===g[0]?' selected':'')+'>'+esc(g[1])+'</option>'; }).join('')+'</select>'; },
+        answer:function(){
+          var r=employRateOf(c.gyoshu);
+          if(!(r>0)) return null;
+          return { text:'★雇用保険（本人が払う分）は '+(r*1000).toFixed(1)+'／1000★ で計算します。',
+                   guessed:true, src:askSource('koyo', 2026) };
+        } },
+
+      { key:'payday', q:'給料日はいつですか？', now:(c.paydayDay?((c.paydayRel==='next'?'翌月':'当月')+' '+c.paydayDay+'日'):''),
+        input:function(){ return '<span class="ask-row">'
+          +'<select class="ask-in ask-sm" data-ask="paydayRel"><option value="current"'+(c.paydayRel==='current'?' selected':'')+'>当月</option><option value="next"'+(c.paydayRel!=='current'?' selected':'')+'>翌月</option></select>'
+          +'<input class="ask-in ask-sm num" data-ask="paydayDay" inputmode="numeric" value="'+attr(c.paydayDay)+'" placeholder="25"><i>日</i></span>'; },
+        answer:function(){
+          if(!c.paydayDay) return null;
+          return { text:(c.close==='末日'?'今月末で締めた分':'締めた分')+'は「'+(c.paydayRel==='next'?'翌月':'当月')+' '+esc(c.paydayDay)+'日」に支払います。' };
+        } },
+
+      { key:'holidays', q:'休みの曜日は？', sub:'複数えらべます',
+        now:(c.holidays||[]).map(function(i){return WDAYS[i];}).join('・'),
+        input:function(){ return '<div class="wdays ask-wd">'+WDAYS.map(function(d,i){
+          return '<span class="wday'+((c.holidays||[]).indexOf(i)>=0?' on':'')+'" data-ask-wd="'+i+'">'+d+'</span>'; }).join('')+'</div>'; },
+        answer:function(){
+          if(!(c.holidays||[]).length) return null;
+          var w=askWeekCalc(c);
+          return { text:'★年間の休みは およそ '+w.annual+'日／週に働くのは '+w.workDays+'日・'+w.weekH+'時間★（国民の祝日は自動で入ります）',
+                   guessed:true, calc:'休みの曜日 '+w.restDays+'日 × 52週 ＝ '+w.annual+'日 ／ (7−'+w.restDays+')日 × '+w.dailyH+'時間 ＝ '+w.weekH+'時間' };
+        } },
+
+      { key:'daily', q:'1日 何時間 働きますか？', sub:'所定労働時間',
+        now:(c.dailyWorkH?(c.dailyWorkH+'時間'+(num(c.dailyWorkM)?(' '+c.dailyWorkM+'分'):'')):''),
+        input:function(){ return '<span class="ask-row"><input class="ask-in ask-sm num" data-ask="dailyWorkH" inputmode="numeric" value="'+attr(c.dailyWorkH)+'"><i>時間</i>'
+          +'<input class="ask-in ask-sm num" data-ask="dailyWorkM" inputmode="numeric" value="'+attr(c.dailyWorkM)+'"><i>分</i></span>'; },
+        answer:function(){
+          if(!c.dailyWorkH && !c.dailyWorkM) return null;
+          var w=askWeekCalc(c);
+          return { text:'週に働くのは '+w.workDays+'日・★'+w.weekH+'時間★です。' };
+        } },
+
+      { key:'shahoKanyu', q:'社会保険に入っていますか？', sub:'健康保険・厚生年金',
+        now:(c.shahoKanyu==='yes'?'入っている':(c.shahoKanyu==='no'?'入っていない':'')),
+        input:function(){ return '<span class="ask-row">'
+          +'<span class="ask-yn'+(c.shahoKanyu==='yes'?' on':'')+'" data-ask-yn="yes">入っている</span>'
+          +'<span class="ask-yn'+(c.shahoKanyu==='no'?' on':'')+'" data-ask-yn="no">入っていない</span></span>'; },
+        answer:function(){
+          if(!c.shahoKanyu) return null;
+          return c.shahoKanyu==='yes'
+            ? { text:'健康保険・厚生年金を ★毎月の明細から引きます★（率は'+(c.pref?prefNameOf(c.pref):'県')+'の表から自動）。' }
+            : { text:'健康保険・厚生年金は ★引きません★（雇用保険と所得税だけになります）。' };
+        } }
+    ];
+  }
+
+  /* 「答えた数」と「機械が当てた数」＝★最後に1行 出す★（何を自分で決めたかが分かるように） */
+  function askCounts(){
+    var qs=ASK_Q(), ok=state.company.askOk||{};
+    var answered=0, guessed=0;
+    qs.forEach(function(q){ if(ok[q.key]) answered++; var a=q.answer&&q.answer(); if(a&&a.guessed) guessed++; });
+    /* 聞かずに機械が決めている物（法定）＝割増率4つ（残業・休日・深夜・60時間超） */
+    return { total:qs.length, answered:answered, guessed:guessed+4 };
+  }
+
+  function renderAsk(){
+    var host=$('#ask-host'); if(!host) return;
+    var qs=ASK_Q(), ok=state.company.askOk||{};
+    var idx=-1;
+    for(var i=0;i<qs.length;i++){ if(!ok[qs[i].key]){ idx=i; break; } }
+    var cnt=askCounts();
+
+    if(idx<0){
+      host.innerHTML='<div class="ask-done">'
+        +'<div class="ask-done-t">✓ 会社の設定はこれで動きます</div>'
+        +'<div class="ask-done-s">★'+cnt.answered+'問 答えていただきました。あと '+cnt.guessed+'個は こちらで決めました★'
+        +'（最低賃金・雇用保険の率・年間休日と週の所定・割増の率）</div>'
+        +'<div class="ask-acts"><span class="ask-again" data-ask-again="1">もう一度 確かめる</span></div></div>';
+      return;
+    }
+    var q=qs[idx], a=q.answer&&q.answer(), editing=!!(state._askEdit&&state._askEdit[q.key]);
+    var has=!!String(q.now||'').trim();
+    var h='<div class="ask-wrap">'
+      +'<div class="ask-prog">'+(idx+1)+' / '+qs.length+'</div>'
+      +'<div class="ask-q">'+esc(q.q)+(q.sub?'<span class="ask-sub">'+esc(q.sub)+'</span>':'')+'</div>';
+    if(has && !editing){
+      h+='<div class="ask-now">'+esc(q.now)+'</div>'
+        +(a?'<div class="ask-ans'+(a.guessed?' guessed':'')+'">'+(a.guessed?'<span class="ask-badge" data-ask-src="'+q.key+'">当てました</span>':'')+a.text+'</div>':'')
+        +'<div class="ask-acts"><button class="ask-ok" data-ask-ok="'+q.key+'">はい、これで</button>'
+        +'<span class="ask-edit" data-ask-editk="'+q.key+'">ちがう（直す）</span></div>';
+    }else{
+      h+='<div class="ask-input">'+q.input()+'</div>'
+        +(a?'<div class="ask-ans'+(a.guessed?' guessed':'')+'">'+(a.guessed?'<span class="ask-badge" data-ask-src="'+q.key+'">当てました</span>':'')+a.text+'</div>':'')
+        +'<div class="ask-acts"><button class="ask-ok" data-ask-ok="'+q.key+'"'+(a?'':' disabled')+'>'+(a?'これで進む':'入れてください')+'</button></div>';
+    }
+    h+='<div class="ask-foot">答えた '+cnt.answered+' / '+qs.length+'　こちらで決めた '+cnt.guessed+'個</div></div>';
+    host.innerHTML=h;
+  }
+
+  /* 根拠を出す（★押すと出典と確認日★） */
+  function askSourceHTML(key){
+    var q=ASK_Q().filter(function(x){return x.key===key;})[0]; if(!q) return '';
+    var a=q.answer&&q.answer(); if(!a) return '';
+    if(a.src) return '<div style="font-size:12.5px;line-height:1.7">'
+      +'<div><b>出典</b><br><a href="'+esc(a.src.url)+'" target="_blank" rel="noopener">'+esc(a.src.url)+'</a></div>'
+      +'<div style="margin-top:8px"><b>確認した日</b> '+esc(a.src.at)+'</div>'
+      +(a.src.note?'<div style="margin-top:8px;color:#3D6B53">'+esc(a.src.note)+'</div>':'')+'</div>';
+    if(a.calc) return '<div style="font-size:12.5px;line-height:1.7"><b>この数の出し方</b><br>'+esc(a.calc)+'</div>';
+    return '<div style="font-size:12.5px">入れていただいた値から出しています。</div>';
+  }
+
+  /* 1問ごとの保存＝★答えた瞬間に保存する★（途中で閉じても残る） */
+  function askSave(){
+    fillCompany();
+    if(state.employees) renderInput();
+    if(window.persistSave) persistSave();
+    else if(window.persistSaveDebounced) persistSaveDebounced();
+  }
+
   function renderRuleChips(){
     var host=$('#rule-chips'); if(!host)return; var on=state.company.ruleOn||{};
     host.innerHTML=RULE_ITEMS.map(function(it){var o=!!on[it[0]];return '<span class="chip'+(o?' on':'')+'" data-rule="'+it[0]+'">'+(o?'✓ ':'')+it[1]+'</span>';}).join('');
@@ -496,6 +676,8 @@
       +(open?'<div class="ri-body">'+inner+'<div style="text-align:right;margin-top:8px"><span class="ri-x" data-rule-x="'+key+'">× この項目を使わない</span></div></div>':'')
       +'</div>';
   }
+  /* ★2026-08-18 teikyu / shotei / annual / koyoGyoshu の4つを ここから外した★
+     ＝7問（renderAsk）が持つ。★描く所も1か所にする★（2か所で描くと、片方だけ古くなる）。 */
   function renderCompanyRules(){
     var host=$('#rule-host'); if(!host)return; var c=state.company, on=c.ruleOn||{}, h='';
     /* 社保の特定適用事業所トグル。パートの社保「適用拡大」判定をONにする（既定OFF=小さい会社では出さない）。
@@ -507,18 +689,10 @@
     h+='<div class="cr-item" style="border:1px solid #E4EFE9;border-radius:12px;padding:10px 12px;margin-bottom:10px">'
       +'<label class="cr-chk" style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#2E7D54;cursor:pointer"><input type="checkbox" data-cf="shakaTokutei"'+(c.shakaTokutei?' checked':'')+'>社会保険 '+skN+'人以上（特定適用事業所）</label>'
       +'<div class="ri-note" style="margin-top:5px">厚生年金の被保険者が<b>常時'+skN+'人以上</b>の会社はチェック。パートでも<b>'+esc(skReq)+'</b>で社保加入の対象になります。<b>'+(skN-1)+'人以下ならチェック不要</b>（この判定は出しません）。</div></div>';
-    if(on.teikyu){ h+=ruleItemHTML('teikyu','休みの日は？','法定休日','teikyu',
-      '<div class="wdays">'+WDAYS.map(function(d,i){return '<span class="wday'+((c.holidays||[]).indexOf(i)>=0?' on':'')+'" data-wd="'+i+'">'+d+'</span>';}).join('')+'</div><div class="ri-note">複数えらべます。法律上の休み(法定休日)は自動で特定。例：日曜だけ＝週休1日(現場系OK)。</div>'); }
     if(on.companyHol){
       var coh=(c.companyHolidays||[]);
       var cohRows=coh.map(function(d,di){ return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input type="date" class="finput" data-coh="'+di+'" value="'+attr(d)+'" style="flex:1"><button class="b-del" data-coh-del="'+di+'" style="width:30px" aria-label="この休日を削除">×</button></div>'; }).join('');
       h+=ruleItemHTML('companyHol','会社独自の休日','年末年始・夏季休暇など','','<div>'+cohRows+'</div><button class="mini add" data-coh-add="1" style="margin-top:4px">＋ 休日を追加</button><div class="ri-note">国民の祝日は<b>自動</b>です。ここは会社が独自に決めた休み（創立記念日・年末年始・夏季休暇など）だけ。当月の所定労働日数に反映します。</div>'); }
-    if(on.shotei){ h+=ruleItemHTML('shotei','1日の働く時間','所定労働','shotei',
-      '<span class="dur"><input class="cr-f cr-dur" data-cf="dailyWorkH" inputmode="numeric" value="'+attr(c.dailyWorkH)+'"><i>時間</i><input class="cr-f cr-dur" data-cf="dailyWorkM" inputmode="numeric" value="'+attr(c.dailyWorkM)+'"><i>分</i></span>'); }
-    if(on.annual){
-      var annCo=(window.Warimashi&&Warimashi.annualHoursCheck)?(function(){ var ly=parseInt(String(state.month||'').slice(0,4),10)||0, leap=(ly%4===0&&ly%100!==0)||(ly%400===0); return Warimashi.annualHoursCheck(c.annualHolidays, num(c.dailyWorkH)+num(c.dailyWorkM)/60, leap); })():null;
-      var annWarn=(annCo&&annCo.over)?'<div class="cr-warn" style="margin:6px 2px 0">⚠ '+annualHoursWarnText(annCo)+'</div>':'';
-      h+=ruleItemHTML('annual','年間の休み','日','annual','<input class="cr-f cr-wide" data-cf="annualHolidays" inputmode="numeric" value="'+attr(c.annualHolidays)+'">'+annWarn); }
     if(on.warimashiRate){
       var rr='<div class="rate-grid">'
         +'<div><div class="mini-l">残業</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateOt" inputmode="numeric" value="'+attr(c.rateOt)+'" placeholder="125"><i>%</i></span></div>'
@@ -528,9 +702,6 @@
         +'</div><div class="ri-note">空欄＝法定どおり自動（残業125%・休日135%・深夜+25%）。会社は上げられます（詳しくは💡）。</div>'
         +rateFloorWarn(c);
       h+=ruleItemHTML('warimashiRate','割増の率','残業・休日・深夜','warimashi',rr); }
-    if(on.koyoGyoshu){
-      var gopts=EMPLOY_GYOSHU.map(function(g){return '<option value="'+g[0]+'"'+(c.gyoshu===g[0]?' selected':'')+'>'+esc(g[1])+'（労'+(employRateOf(g[0])*100).toFixed(2)+'%）</option>';}).join('');
-      h+=ruleItemHTML('koyoGyoshu','雇用保険の業種','一般/建設/農林','koyoGyoshu','<select class="cr-sel" data-cf="gyoshu">'+gopts+'</select><div class="ri-note">建設・農林水産・清酒製造は料率が高め。雇用保険は通勤手当も含む賃金総額に掛けます。<b>料率は対象月の年度で自動</b>（'+koyoRateNote()+'）。</div>'); }
     if(on.paymentDays){
       var pm=c.paymentDaysMethod||'';
       var pmo=[['','自動（月給=暦日数 / 日給・時給=出勤日数）'],['calendar','暦日数（毎月その月の日数）'],['scheduled','所定労働日数（欠勤は差引）'],['worked','出勤日数']]
@@ -1390,7 +1561,7 @@
     /* 「今月を確定」ボタン(表/カード両ビューで共通)。★以前は表ビューで未定義=「undefined」表示+確定不可だった★
        ★都道府県が未選択の人が1人でもいたら押せない★＝黙って東京の率で確定させない。
          理由はボタンの中に入れる（下に小さく置くと読まれない・昨日の振込タブと同じ形）。 */
-    var prefMiss=PW().prefStats(activeEmployees());
+    var prefMiss=PW().prefStats(activeEmployees(), ctxOf());
     /* ★スマホ幅では折り返す★。折り返さないと、説明文が1文字ずつの縦帯になって読めない
        （幅390で 行の高さ421px・説明の幅36px＝実測して直した）。 */
     var confirmBtn='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 4px"><button class="btn-primary" data-confirm-month'+(prefMiss.missingCount?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映')+'）</button>'
@@ -2866,6 +3037,54 @@
       if(s==='emp'){ renderEmpMaster(); loadEmpProfiles(); } if(s==='design')renderDesign(); });
     // 従業員マスタ：絞り込み(在籍中/休暇中/退職者/全員)
     $('#emp-list').addEventListener('click',function(ev){ var f=ev.target.closest('[data-empfilter]'); if(!f)return; state.empFilter=f.dataset.empfilter; renderEmpMaster(); });
+    /* ═══ 会社マスタ7問（聞いて選ばす）の押し込み ═══
+       ★1問ごとに保存★＝答えた瞬間に askSave()（途中で閉じても残る）。
+       ★値の持ち主は state.company の1か所★＝下の一覧も同じ値を描く。 */
+    var askHost=$('#ask-host');
+    if(askHost){
+      askHost.addEventListener('click',function(ev){
+        var t=ev.target;
+        var src=t.closest('[data-ask-src]');
+        if(src){ uiModal({ title:'この数はどこから？', html:askSourceHTML(src.dataset.askSrc), buttons:[{label:'閉じる',val:true,primary:true}] }); return; }
+        var wd=t.closest('[data-ask-wd]');
+        if(wd){
+          var i=+wd.dataset.askWd, hs=(state.company.holidays||[]).slice();
+          var p=hs.indexOf(i); if(p>=0) hs.splice(p,1); else hs.push(i);
+          state.company.holidays=hs.sort(function(a,b){return a-b;});
+          askSave(); return;
+        }
+        var yn=t.closest('[data-ask-yn]');
+        if(yn){ state.company.shahoKanyu=yn.dataset.askYn; askSave(); return; }
+        var ed=t.closest('[data-ask-editk]');
+        if(ed){ state._askEdit=state._askEdit||{}; state._askEdit[ed.dataset.askEditk]=true; renderAsk(); return; }
+        var ok=t.closest('[data-ask-ok]');
+        if(ok){
+          if(ok.disabled) return;
+          var k=ok.dataset.askOk;
+          if(!state.company.askOk) state.company.askOk={};
+          state.company.askOk[k]=true;
+          if(state._askEdit) delete state._askEdit[k];
+          askSave(); return;
+        }
+        var ag=t.closest('[data-ask-again]');
+        if(ag){ state.company.askOk={}; state._askEdit={}; askSave(); return; }
+      });
+      /* 打った字・選んだ物は その場で入れて、その場で返す（★答えたら結果が出る★） */
+      askHost.addEventListener('input',function(ev){
+        var f=ev.target.dataset&&ev.target.dataset.ask; if(!f) return;
+        var v=ev.target.value;
+        if(f==='paydayDay'||f==='dailyWorkH'||f==='dailyWorkM') v=v.replace(/[^0-9]/g,'');
+        state.company[f]=v;
+        renderAsk();
+        if(window.persistSaveDebounced) persistSaveDebounced();
+      });
+      askHost.addEventListener('change',function(ev){
+        var f=ev.target.dataset&&ev.target.dataset.ask; if(!f) return;
+        state.company[f]=ev.target.value;
+        askSave();
+      });
+    }
+
     ['name','addr','close'].forEach(function(k){ var el=$('#c-'+k); if(el) el.addEventListener('input',function(){ state.company[k]=this.value; }); });
     var pr=$('#c-payrel'); if(pr) pr.addEventListener('change',function(){ state.company.paydayRel=this.value; updatePaydayPreview(); });
     var pd=$('#c-payday-day'); if(pd) pd.addEventListener('input',function(){ state.company.paydayDay=this.value.replace(/[^0-9末]/g,''); updatePaydayPreview(); });

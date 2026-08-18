@@ -54,17 +54,28 @@
   }
   // 最賃算入の固定手当(月額・契約額=e.shikyuは日割前)。基本給と除外手当を除く。
   function minWageTeate(e) { return (e.shikyu || []).filter(function (x) { return isInMinWage(x.label) && num(x.value) > 0; }).reduce(function (a, x) { return a + num(x.value); }, 0); }
+  /* ★その人に効く県★＝人の県が空なら ★会社の県★ を使う（2026-08-18 会社マスタ7問）。
+     ・最低賃金は「事業場の所在地」で決まる＝会社に1つ持つのが正しい。
+     ・人ごとの県は「上書き」＝入っていればそちらが勝つ（★勝手に書き換えない★）。
+     ・ここ1か所で決める＝「画面は会社の県で緑なのに、計算は空で赤」を作らない。 */
+  function effPref(e, ctx) {
+    var p = String((e && e.pref) == null ? '' : e.pref).trim();
+    if (p) return p;
+    var co = C(ctx) || {};
+    return String(co.pref == null ? '' : co.pref).trim();
+  }
   // 最低賃金チェック(事業所所在地=従業員prefの地域別最賃と時間額を比較)。役員/休業中は対象外。返り{hourly,minWage,prefName,ok,teate}
   function minWageInfo(e, ctx) {
     if (!e || e.payType === '役員' || e.employmentType === 'contractor' || (e.workStatus && e.workStatus !== 'normal')) return null;
     var S = SAI(); if (!S || !S.getChingin) return null;
     // ★最賃は「発効日以降の労働」に効く。県ごとに発効日が違うので、対象月×県で額を選ぶ。
     //   月の途中で発効する月は額が2つある＝丸めずに両方持つ（丸めるとどちらでも嘘になる）。
-    var sp = S.monthSplit ? S.monthSplit(e.pref, YM(ctx)) : null;
+    var pref = effPref(e, ctx);
+    var sp = S.monthSplit ? S.monthSplit(pref, YM(ctx)) : null;
     var mw, split = null;
     if (sp && sp.split) { mw = sp.after; split = { hatsukoYmd: sp.hatsukoYmd, before: sp.before, after: sp.after }; }
     else if (sp) { mw = sp.chingin; }
-    else { mw = S.getChingin(e.pref); }
+    else { mw = S.getChingin(pref); }
     if (!mw) return null;
     var co = C(ctx);
     var ah = (e.annualHolidays != null && e.annualHolidays !== '') ? e.annualHolidays : co.annualHolidays;
@@ -92,7 +103,7 @@
       split.underBefore = !(hourly === 0 || hourly >= split.effBefore);
       split.ambiguous = !split.underBefore && !okNow;    // 旧額はクリア・新額は未達＝日で分かれる
     }
-    return { hourly: hourly, minWage: mw, effMinWage: effMw, reduce: reduce, prefName: ((S.todofuken || {})[e.pref] || {}).name || '', ok: okNow, teate: teate, split: split, stale: (S.saiteiStale ? S.saiteiStale(YM(ctx)) : false) };
+    return { hourly: hourly, minWage: mw, effMinWage: effMw, reduce: reduce, prefName: ((S.todofuken || {})[pref] || {}).name || '', ok: okNow, teate: teate, split: split, stale: (S.saiteiStale ? S.saiteiStale(YM(ctx)) : false) };
   }
   // 最賃割れのtooltip/説明文(表ビューの⚠とカードのバナーで文面を統一)。製品方針=黄色・非ブロック・具体的に伝える。
   function mwWarnText(mw) {
@@ -234,19 +245,21 @@
    *   ＝ 赤くも黄色くもならずに違う金額で回る。だから【選ぶまで確定させない】。
    * ★既に入っている県は書き換えない★（勝手に直さない）。東京のままの人数は数えて出すだけ。
    * 純関数＝画面に触らないので、テストが作り物で確かめられる。 */
-  function prefStats(emps) {
+  function prefStats(emps, ctx) {
+    /* ★会社の県が入っていれば、人が空でも「未選択」ではない★（会社の県で計算できる）。
+       ctx を渡さずに呼ばれた時は 今までどおり人の県だけを見る（古い呼び方を壊さない）。 */
     var list = emps || [], missing = [], tokyo = 0;
     for (var i = 0; i < list.length; i++) {
       var e = list[i] || {};
-      var p = String(e.pref == null ? '' : e.pref).trim();
+      var p = String(effPref(e, ctx) == null ? '' : effPref(e, ctx)).trim();
       if (!p) missing.push({ id: e.id, name: e.name || '' });
       else if (p === 'tokyo') tokyo++;
     }
     return { missing: missing, missingCount: missing.length, tokyoCount: tokyo, total: list.length };
   }
   // 未選択が1人でもいれば黄色。0人なら空文字（＝何も出さない）。
-  function prefMissingWarn(emps) {
-    var s = prefStats(emps);
+  function prefMissingWarn(emps, ctx) {
+    var s = prefStats(emps, ctx);
     if (!s.missingCount) return '';
     var nm = s.missing.map(function (x) { return esc(x.name); });
     var who = nm.length <= 2 ? nm.join('・') : (nm[0] + 'ほか' + (nm.length - 1) + '名');
@@ -255,8 +268,8 @@
       + '設定 ▸ 従業員マスタ で選んでください。</div>';
   }
   // 「東京のままの人が何人いるか」を知らせるだけの1行（黄色にしない・書き換えない）。0人なら空。
-  function prefTokyoNote(emps) {
-    var s = prefStats(emps);
+  function prefTokyoNote(emps, ctx) {
+    var s = prefStats(emps, ctx);
     if (!s.tokyoCount) return '';
     return '<p class="hint" style="margin:0 0 8px">都道府県が<b>東京都</b>のまま：' + s.tokyoCount + '名'
       + '（初期値のままかもしれません。健康保険料率は県ごとに違います）</p>';
