@@ -1,7 +1,9 @@
 /* 給与明細アプリ — Exally統一ミントUI（CSS変数は使わず直hex / CLAUDE.md準拠） */
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
-body{font-family:'Noto Sans JP',sans-serif;color:#2E7D54;background:#F0FAF4;-webkit-text-size-adjust:100%;}
+/* ★この画面は皮(css/rakually-ui.css)を読んでいない★ので、字の色はここが持ち主。
+   値は全アプリ共通の #333333（司さんの決定）。 */
+body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-webkit-text-size-adjust:100%;}
 input,select,button{font-family:inherit;}
 
 /* ---- appbar ---- */
@@ -9,31 +11,31 @@ input,select,button{font-family:inherit;}
 .logo{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;letter-spacing:-0.5px;color:#52B788;}
 .appbar-sub{font-size:10px;letter-spacing:.18em;color:#5C7E6C;}
 .appbar-month{margin-left:auto;display:flex;align-items:center;gap:6px;}
-.appbar-month label{font-size:10px;color:#5C7E6C;}
-.appbar-tab{margin-left:auto;font-size:15px;font-weight:700;color:#3D6B53;letter-spacing:.04em;}
+.appbar-month label{font-size:10px;color:#333333;}
+.appbar-tab{margin-left:auto;font-size:15px;font-weight:700;color:#333333;letter-spacing:.04em;}
 .scr-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;}
 .scr-head .scr-title{margin-bottom:8px;}
 .scr-month-wrap{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
-.scr-month-wrap label{font-size:10px;color:#5C7E6C;}
+.scr-month-wrap label{font-size:10px;color:#333333;}
 
 /* ---- main / screens ---- */
 .main{max-width:880px;margin:0 auto;padding:16px 16px 84px;}
 .screen{display:none;}
 .screen.active{display:block;padding-top:14px;}
 .scr-period{font-size:13px;color:#3D6B53;font-weight:500;}
-.scr-title{font-size:17px;font-weight:700;color:#2E7D54;margin:4px 0 12px;}
-.scr-sub{font-size:12px;color:#5C7E6C;font-weight:400;margin-left:8px;}
+.scr-title{font-size:17px;font-weight:700;color:#333333;margin:4px 0 12px;}
+.scr-sub{font-size:12px;color:#333333;font-weight:400;margin-left:8px;}
 
 /* ---- card ---- */
 .card{background:#fff;border:1px solid #d4eae0;border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(30,80,46,.06);}
-.card-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2E7D54;margin-bottom:10px;}
+.card-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#333333;margin-bottom:10px;}
 
 /* ---- forms ---- */
 .frow{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;min-width:0;}
 .frow2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .frow2>*{min-width:0;}
-.frow2 label,.frow label,.flabel{font-size:11px;font-weight:700;color:#3D6B53;}
-.flabel .hint2{font-weight:400;color:#5C7E6C;font-size:10px;margin-left:4px;}
+.frow2 label,.frow label,.flabel{font-size:11px;font-weight:700;color:#333333;}
+.flabel .hint2{font-weight:400;color:#333333;font-size:10px;margin-left:4px;}
 .finput{width:100%;min-width:0;padding:10px 12px;border:1.5px solid #d4eae0;border-radius:10px;font-size:14px;color:#2E7D54;background:#fff;-webkit-appearance:none;appearance:none;}
 .finput.num{font-family:'DM Mono',monospace;text-align:right;}
 select.finput{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"><path d="M1 1l5 5 5-5" stroke="%237aa08c" stroke-width="2" fill="none"/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
@@ -268,7 +270,7 @@ input[type="date"].finput:not(.finput-sm),input[type="month"].finput:not(.finput
 .dl-f{padding:7px 6px;font-size:12px;}
 .dl-del{padding:4px 8px;color:#C0392B;border-color:#f0d4cf;font-weight:700;}
 .dl-tot{font-size:12px;color:#3D6B53;font-weight:700;margin:4px 2px 8px;padding:6px 8px;background:#EAF4EE;border-radius:8px;}
-.hint{font-size:11px;color:#5C7E6C;line-height:1.6;margin-top:6px;}
+.hint{font-size:11px;color:#333333;line-height:1.6;margin-top:6px;}
 
 /* ---- buttons / chips ---- */
 .btn-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}/* ★収まらない時は折り返す（横に隠れて押せない物を作らない・2026-08-10 実測して追加）★ */

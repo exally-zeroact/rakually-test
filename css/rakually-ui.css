@@ -1,3 +1,10 @@
+/* ★読ませる字は #333333（薄い黒）★ 司さんの決定（全アプリ）／指示役 2026-08-18 裁定
+   ・★色が付いてよいのは「押せる物」と「選ばれている物」だけ★
+   ・2026-08-18 まで ここの body が主色 #2E7D54 だったため、色を書いていない字が
+     ★全部 緑★で出ていた（本物のブラウザで実測 rgb(46,125,84)・114箇所）。
+   ・.warn / .bad は ★色そのものが意味★（箱の色と同じ）なので 色のまま。
+   ・見張り: node scripts/text-colors.mjs（★描かれた色を数える★。書いてある文字列では数えない）
+*/
 /* rakually-ui.css — ★Exally スイート共通の皮（見た目の唯一の正）★
  * ==============================================================================
  * なぜ要るのか（2026-08-10 実測）:
@@ -44,7 +51,7 @@
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0;
-  background: #F0FAF4; color: #2E7D54;
+  background: #F0FAF4; color: #333333;   /* ★読ませる字は薄い黒★ */
   font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont,
                'Hiragino Kaku Gothic ProN', sans-serif;
   font-size: 14px; line-height: 1.7;
@@ -73,8 +80,8 @@ input, select, button, textarea { font-family: inherit; }
 .grow { flex: 1 1 auto; min-width: 0; }
 /* ★ログイン中の人は「設定」の中に出す（頭には出さない＝給与と同じ）★
    頭に置くと、狭い端末でメールが見出しを押し出す。 */
-.who { color: #2B3A31; font-weight: 500; overflow-wrap: break-word; }
-.note { margin: 0 0 10px; font-size: 13px; color: #4A5D52; }
+.who { color: #333333; font-weight: 500; overflow-wrap: break-word; }
+.note { margin: 0 0 10px; font-size: 13px; color: #333333; }
 
 /* ── 器 ─────────────────────────────────────────────── */
 .main { padding: 12px 12px 84px; max-width: 900px; margin: 0 auto; }
@@ -84,7 +91,7 @@ input, select, button, textarea { font-family: inherit; }
 }
 .card-h {
   display: flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 700; color: #2E7D54; margin-bottom: 10px;
+  font-size: 13px; font-weight: 700; color: #333333; margin-bottom: 10px;
 }
 
 /* ── 文（★block・最低幅・折り返し可。ここを守らないと縦帯になる★）── */
@@ -93,15 +100,15 @@ input, select, button, textarea { font-family: inherit; }
   line-height: 1.8; margin: 6px 0;
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
-.hint { font-size: 12px; color: #5C7E6C; }
-.why  { font-size: 11.5px; color: #7AA08C; margin-top: 6px; }
+.hint { font-size: 12px; color: #333333; }
+.why  { font-size: 11.5px; color: #333333; margin-top: 6px; }
 .warn { font-size: 12px; color: #92500A; background: #FDF3E3; border: 1px solid #F0DDBC; border-radius: 10px; padding: 8px 10px; }
 .bad  { font-size: 12px; color: #C0392B; background: #FDF0EE; border: 1px solid #F0D5D0; border-radius: 10px; padding: 8px 10px; }
-.ok   { font-size: 12px; color: #2E7D54; background: #F0FAF4; border: 1px solid #C8ECD8; border-radius: 10px; padding: 8px 10px; }
+.ok   { font-size: 12px; color: #333333; background: #F0FAF4; border: 1px solid #C8ECD8; border-radius: 10px; padding: 8px 10px; }
 
 /* ── 入力 ───────────────────────────────────────────── */
 .frow { margin-bottom: 10px; min-width: 0; }
-.flabel { font-size: 12px; color: #3D6B53; font-weight: 700; margin-bottom: 4px; }
+.flabel { font-size: 12px; color: #333333; font-weight: 700; margin-bottom: 4px; }
 
 /* ★入/切の1行★
    flex だが、★文の側に最低幅を持たせて縮ませない★。
@@ -110,7 +117,7 @@ input, select, button, textarea { font-family: inherit; }
 .check > input[type="checkbox"] { flex: 0 0 auto; width: 20px; height: 20px; margin: 2px 0 0; accent-color: #2E7D54; }
 .check > span {
   flex: 1 1 auto; min-width: 140px;
-  font-size: 13px; color: #2B3A31; line-height: 1.7;
+  font-size: 13px; color: #333333; line-height: 1.7;
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
 .frow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -121,7 +128,7 @@ input, select, button, textarea { font-family: inherit; }
 .finput {
   width: 100%; min-width: 0; font-size: 16px; padding: 10px 12px;
   border: 1.5px solid #D4EAE0; border-radius: 10px;
-  background: #FFFFFF; color: #2E7D54;
+  background: #FFFFFF; color: #333333;
   outline: none; -webkit-appearance: none; appearance: none;
 }
 .finput:focus { border-color: #52B788; }
@@ -174,9 +181,9 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
 .row:hover { background: #F0FAF4; }
 .tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .tag-on { background: #F0FAF4; color: #2E7D54; }
-.tag-off { background: #E8F6EE; color: #5C7E6C; }
-.tag-mute { background: #F0FAF4; color: #7AA08C; }
-.empty { text-align: center; color: #7AA08C; padding: 26px 12px; }
+.tag-off { background: #E8F6EE; color: #333333; }
+.tag-mute { background: #F0FAF4; color: #333333; }
+.empty { text-align: center; color: #333333; padding: 26px 12px; }
 
 /* ── 下のナビ ───────────────────────────────────────── */
 .botnav {
@@ -196,7 +203,7 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
 }
 .ov.open { display: flex; }
 .ov-card { width: 100%; max-width: 420px; background: #FFFFFF; border-radius: 16px; padding: 16px; }
-.ov-t { font-size: 14px; font-weight: 700; color: #2E7D54; margin-bottom: 6px; }
+.ov-t { font-size: 14px; font-weight: 700; color: #333333; margin-bottom: 6px; }
 
 /* ── 目に見えるフォーカス（キーボード/スイッチ操作で現在地が分かる）── */
 a:focus-visible, button:focus-visible, select:focus-visible,

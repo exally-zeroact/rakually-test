@@ -7,7 +7,7 @@
 html, body { margin: 0; padding: 0; }
 body {
   font-family: 'Noto Sans JP', system-ui, -apple-system, sans-serif;
-  background: #F0FAF4; color: #2E7D54;
+  background: #F0FAF4; color: #333333;   /* ★読ませる字は薄い黒★（この画面も皮を読んでいない） */
   -webkit-text-size-adjust: 100%;
 }
 button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで拡大されない */
@@ -23,18 +23,18 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 }
 .hd-logo { font-family: 'DM Mono', ui-monospace, monospace; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; color: #52B788; }
 /* ★長いメールで折り返してログアウトが押し出されるのを防ぐ(実機で確認)。1行に収めて溢れは ... で切る */
-.hd-user { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 11px; color: #7AA08C; }
+.hd-user { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 11px; color: #333333; }
 .hd-mail { max-width: 168px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hd-out { color: #C0392B; text-decoration: underline; cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
 
 /* ── 画面切替 ── */
 .scr { display: none; padding: 16px; }
 .scr.active { display: block; }
-.scr-t { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
-.scr-s { font-size: 12px; color: #7AA08C; margin: 0 0 16px; }
+.scr-t { font-size: 17px; font-weight: 700; margin: 0 0 4px; color: #333333; }
+.scr-s { font-size: 12px; color: #333333; margin: 0 0 16px; }
 
 /* ── ハブのタイル ── */
-.greet { font-size: 15px; color: #3D6B53; margin: 4px 0 18px; }
+.greet { font-size: 15px; color: #333333; margin: 4px 0 18px; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .tile {
   display: block; text-align: left; text-decoration: none;
@@ -46,7 +46,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .tile:active { transform: translateY(1px); }
 .tile-ic { display: block; font-size: 28px; line-height: 1.1; margin-bottom: 8px; }
 .tile-t { display: block; font-size: 15px; font-weight: 700; }
-.tile-d { display: block; font-size: 11px; color: #7AA08C; margin-top: 3px; }
+.tile-d { display: block; font-size: 11px; color: #333333; margin-top: 3px; }
 .tile-go { display: block; font-size: 12px; font-weight: 700; color: #3D9E72; margin-top: 12px; }
 .tile-soon { background: #F7FBF9; border-style: dashed; }
 .tile-soon .tile-ic { opacity: .5; }
@@ -67,13 +67,13 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 
 /* ── カード/フォーム ── */
 .card { background: #ffffff; border: 1px solid #D4EAE0; border-radius: 14px; padding: 16px; margin-bottom: 12px; }
-.card-t { font-size: 14px; font-weight: 700; margin: 0 0 10px; }
-.note { font-size: 12px; color: #7AA08C; margin: 0 0 14px; line-height: 1.6; }
+.card-t { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #333333; }
+.note { font-size: 12px; color: #333333; margin: 0 0 14px; line-height: 1.6; }
 .fld { margin-bottom: 12px; }
-.fld label { display: block; font-size: 12px; color: #3D6B53; font-weight: 700; margin-bottom: 5px; }
+.fld label { display: block; font-size: 12px; color: #333333; font-weight: 700; margin-bottom: 5px; }
 .fld input, .fld select {
   width: 100%; padding: 11px 12px; border: 1.5px solid #D4EAE0; border-radius: 10px;
-  color: #2E7D54; background: #ffffff; -webkit-appearance: none;
+  color: #333333; background: #ffffff; -webkit-appearance: none;
 }
 .fld input::placeholder { color: #B7CFC3; }   /* 記入例は薄いグレーで(邪魔しない) */
 .fld input:focus, .fld select:focus { outline: none; border-color: #52B788; }
@@ -107,46 +107,46 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .row-main { flex: 1; min-width: 0; }
 /* ★display:block が無いと、名称と住所が同じ行に繋がって1つの文字列に見える(実機で確認) */
 .row-t { display: block; font-size: 15px; font-weight: 700; }
-.row-s { display: block; font-size: 12px; color: #7AA08C; margin-top: 4px; }
+.row-s { display: block; font-size: 12px; color: #333333; margin-top: 4px; }
 .row-ar { color: #B7CFC3; font-size: 15px; }
 .pill {
   display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px;
   padding: 2px 8px; margin-right: 5px;
 }
-.pill-emp { background: #E8F6EE; color: #2E7D54; border: 1px solid #C6E6D5; }
+.pill-emp { background: #E8F6EE; color: #333333; border: 1px solid #C6E6D5; }
 .pill-out { background: #FDF3E3; color: #92500A; border: 1px solid #F0DDBC; }
 .pill-biz { background: #EEF4FB; color: #2C5A87; border: 1px solid #CFE0F0; }
 
 /* ── 集計 ── */
 .agg-ctl { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
-.agg-ctl select { flex: 0 0 auto; width: auto; padding: 10px 12px; border: 1.5px solid #D4EAE0; border-radius: 10px; background: #fff; color: #2E7D54; }
-.agg-range { font-size: 12px; color: #7AA08C; margin-bottom: 14px; }
+.agg-ctl select { flex: 0 0 auto; width: auto; padding: 10px 12px; border: 1.5px solid #D4EAE0; border-radius: 10px; background: #fff; color: #333333; }
+.agg-range { font-size: 12px; color: #333333; margin-bottom: 14px; }
 .agg-custom { display: none; gap: 8px; margin-bottom: 12px; }
 .agg-custom.on { display: flex; }
-.agg-custom input { flex: 1; padding: 10px; border: 1.5px solid #D4EAE0; border-radius: 10px; color: #2E7D54; }
+.agg-custom input { flex: 1; padding: 10px; border: 1.5px solid #D4EAE0; border-radius: 10px; color: #333333; }
 .agg-head, .agg-row {
   display: grid; grid-template-columns: 1fr 52px 96px; gap: 8px; align-items: center;
   padding: 10px 2px; border-bottom: 1px solid #E4F1EA;
 }
-.agg-head { font-size: 11px; color: #7AA08C; font-weight: 700; border-bottom: 1px solid #D4EAE0; }
+.agg-head { font-size: 11px; color: #333333; font-weight: 700; border-bottom: 1px solid #D4EAE0; }
 .agg-b { font-size: 14px; font-weight: 700; }
 .agg-n { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
 .agg-m { font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px; text-align: right; }
 .agg-bar { grid-column: 1 / -1; height: 8px; background: #E4F1EA; border-radius: 999px; overflow: hidden; margin-top: -2px; }
 .agg-bar > i { display: block; height: 100%; background: #52B788; border-radius: 999px; }
-.agg-pct { font-size: 11px; color: #7AA08C; }
+.agg-pct { font-size: 11px; color: #333333; }
 .agg-total { display: grid; grid-template-columns: 1fr 52px 96px; gap: 8px; padding: 13px 2px; border-top: 2px solid #3D9E72; font-weight: 700; }
 
 /* ── 空状態・お知らせ ── */
 .empty { text-align: center; padding: 34px 18px; color: #7AA08C; }
 .empty-ic { font-size: 34px; }
-.empty-t { font-size: 15px; font-weight: 700; color: #3D6B53; margin: 10px 0 6px; }
+.empty-t { font-size: 15px; font-weight: 700; color: #333333; margin: 10px 0 6px; }
 .empty-s { font-size: 12px; line-height: 1.7; }
 .warn {
   background: #FDF3E3; border: 1px solid #F0DDBC; color: #92500A;
   border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; margin-bottom: 12px;
 }
-.msg { font-size: 12px; min-height: 17px; color: #3D6B53; margin-top: 8px; text-align: right; }
+.msg { font-size: 12px; min-height: 17px; color: #333333; margin-top: 8px; text-align: right; }
 .msg.err { color: #C0392B; }
 
 /* ── 下部タブ ── */
@@ -174,7 +174,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .toast.on { display: block; }
 
 /* ── 日次台帳(E2) ── */
-.lg-shime { font-size: 12px; color: #7AA08C; margin: 0 0 14px; }
+.lg-shime { font-size: 12px; color: #333333; margin: 0 0 14px; }
 .lg-shime-s { color: #B7CFC3; margin-left: 6px; }
 .ptabs { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; }
 .ptab {
@@ -182,21 +182,21 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
   background: #ffffff; color: #3D6B53; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
 }
 .ptab.active { background: #3D9E72; border-color: #3D9E72; color: #ffffff; }
-.lg-range { font-size: 12px; color: #7AA08C; margin: 0 0 12px; }
+.lg-range { font-size: 12px; color: #333333; margin: 0 0 12px; }
 .lg-card { background: #ffffff; border: 1px solid #D4EAE0; border-radius: 14px; padding: 14px; margin-bottom: 10px; }
 .lg-card-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lg-name { font-size: 15px; font-weight: 700; }
 .lg-card-b { margin: 8px 0 12px; }
-.lg-sum { display: block; font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; color: #2E7D54; }
+.lg-sum { display: block; font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; color: #333333; }
 .lg-sep { color: #B7CFC3; margin: 0 5px; }
-.lg-rows { display: block; font-size: 11px; color: #7AA08C; margin-top: 3px; }
+.lg-rows { display: block; font-size: 11px; color: #333333; margin-top: 3px; }
 .lg-none { font-size: 13px; color: #B7CFC3; }
 .lg-total { background: #E8F6EE; border: 1px solid #C6E6D5; border-radius: 14px; padding: 14px; margin-top: 14px; }
-.lg-total-t { font-size: 13px; font-weight: 700; color: #2E7D54; }
+.lg-total-t { font-size: 13px; font-weight: 700; color: #333333; }
 .lg-total-b { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; }
-.lg-note { font-size: 11px; color: #7AA08C; line-height: 1.7; margin: 10px 0 0; }
+.lg-note { font-size: 11px; color: #333333; line-height: 1.7; margin: 10px 0 0; }
 .lg-day { margin-bottom: 14px; }
-.lg-day-h { font-size: 12px; font-weight: 700; color: #3D6B53; padding: 6px 2px; border-bottom: 1px solid #D4EAE0; }
+.lg-day-h { font-size: 12px; font-weight: 700; color: #333333; padding: 6px 2px; border-bottom: 1px solid #D4EAE0; }
 .chip-btn { cursor: pointer; background: #ffffff; border: 1.5px solid #D4EAE0; color: #3D6B53; font-weight: 700; padding: 9px 14px; }
 .chip-btn.on { background: #3D9E72; border-color: #3D9E72; color: #ffffff; }
 .chk { display: flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 13px; color: #3D6B53; font-weight: 400; }
@@ -209,7 +209,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .x-row.x-zero { opacity: .62; }                       /* 動いていない事業(薄くするが隠さない) */
 .x-h { display: flex; align-items: baseline; gap: 8px; }
 .x-b { font-size: 14px; font-weight: 700; }
-.x-pct { font-size: 11px; color: #7AA08C; }
+.x-pct { font-size: 11px; color: #333333; }
 .x-zero-tag { font-size: 10px; font-weight: 700; color: #92500A; background: #FDF3E3; border: 1px solid #F0DDBC; border-radius: 999px; padding: 2px 7px; }
 .x-m { margin-left: auto; font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px; }
 .x-bar { height: 8px; background: #E4F1EA; border-radius: 999px; overflow: hidden; margin: 7px 0 6px; }
