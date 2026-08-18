@@ -25,7 +25,7 @@
 .lines-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .lines { border-collapse: collapse; margin-top: 6px; }
 .lines th {
-  font-size: 11px; color: #5C7E6C; font-weight: 400; text-align: left;
+  font-size: 11px; color: #333333; font-weight: 400; text-align: left;
   padding: 0 4px 4px; white-space: nowrap;
 }
 .lines td { padding: 2px 4px 6px; vertical-align: top; }
@@ -57,10 +57,10 @@
 /* ── 合計 ─────────────────────────────────────────────── */
 .tot { margin-top: 12px; border-top: 1px solid #D4EAE0; padding-top: 10px; }
 .tot-r { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 3px 0; }
-.tot-l { color: #5C7E6C; white-space: nowrap; }
+.tot-l { color: #333333; white-space: nowrap; }
 .tot-v { font-family: 'DM Mono', ui-monospace, monospace; white-space: nowrap; }
 .tot-g {
-  font-size: 17px; font-weight: 700; color: #2E7D54;
+  font-size: 17px; font-weight: 700; color: #333333;
   border-top: 1px solid #D4EAE0; margin-top: 6px; padding-top: 8px;
 }
 
@@ -144,14 +144,14 @@
 .no-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 40px; }
 .no-v {
   flex: 1 1 120px; min-width: 120px;
-  font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px; color: #2E7D54;
+  font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px; color: #333333;
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
 
 /* ── 当てた印（前回から入れた値だと分かるようにする）──────── */
 .guess-tag {
   display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
-  background: #F0FAF4; border: 1px solid #C8ECD8; color: #5C7E6C;
+  background: #F0FAF4; border: 1px solid #C8ECD8; color: #333333;
   font-size: 10.5px; font-weight: 400; white-space: nowrap;
 }
 /* 前回の中身の読み合わせ（★flexの子に文を直接置かない＝表で組む★） */
@@ -180,7 +180,7 @@
 /* 紙には出さないが 入力には要る列（税率）の印 */
 .l-only {
   display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 999px;
-  background: #F0FAF4; border: 1px solid #C8ECD8; color: #7AA08C; font-size: 9.5px; font-weight: 400;
+  background: #F0FAF4; border: 1px solid #C8ECD8; color: #333333; font-size: 9.5px; font-weight: 400;
 }
 
 /* 注意書きは1件1行（何件 出ても読める） */
@@ -291,7 +291,7 @@
    ・★flex の箱で1文字ずつ縦に割れる前科★があるので、縮む側に min-width:0 を必ず置く */
 .pask { margin-top: 10px; color: #333333; }   /* ★読ませる字は薄い黒★（この画面の既定は緑なので必ず書く） */
 .pask-prog { font-size: 13px; padding: 8px 10px; background: #F0FAF4; border-radius: 8px; color: #333333; }
-.pask-prog b { color: #2E7D54; }
+.pask-prog b { color: #333333; }   /* ★進み具合は読む字★（押せる物ではない） */
 .pask-q { margin-top: 10px; padding: 12px 10px; border: 1px solid #D4EAE0; border-radius: 10px; }
 .pask-qt { font-size: 16px; font-weight: 700; line-height: 1.5; color: #333333; }
 .pask-hint { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: #333333; }

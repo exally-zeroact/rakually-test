@@ -53,6 +53,33 @@ const hex = (rgb) => {
 /* ★動かしてから数える★ 画面ごとの「動かし方」。
    ここに書いていない画面は ★HTMLに書いてある字だけ★を数える（届いていない事を隠さない）。 */
 const BOOT = {
+  'seikyu/index.html': async (dom) => {
+    const win = dom.window;
+    /* 偽の倉庫は tests/fake-supa.js（前から在る物）を そのまま使う */
+    const src = fs.readFileSync(path.join(ROOT, 'tests/fake-supa.js'), 'utf8');
+    const m = { exports: {} };
+    new Function('module', 'exports', src)(m, m.exports);
+    win.__mkSb = () => m.exports.createFakeSupa({
+      uid: 'u1',
+      tables: {
+        pay_org: [{ account_id: 'u1', data: { yago: '株式会社ゼロアクト', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
+        pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中', askOk: { honor: 1, person: 1, addr: 1, payTerm: 1, gensen: 1 } }, deleted_at: null }],
+        pay_invoices: [], pay_receipts: [],
+        pay_companies: [{ account_id: 'u1', data: {}, updated_at: '2026-08-01T00:00:00Z' }],
+      },
+      pk: { pay_org: 'account_id', pay_companies: 'account_id' },
+      unique: { pay_invoices: [['account_id', 'doc_type', 'no']] },
+    });
+    return {
+      after: 300,
+      then2: async (d) => {
+        const w = d.window;
+        if (w.SeikyuApp) { await w.SeikyuApp.attach(w.__mkSb()); }
+      },
+      /* ★描けた証拠★（0件を「未検査」で出さない） */
+      expect: ['#tot-box .tot-r', '#e-no-view'],
+    };
+  },
   'kyuyo/meisai.html': async (dom) => {
     const win = dom.window, doc = win.document;
     /* 倉庫は偽物（画面の色を見るだけ。★本物のデータは使わない★） */
@@ -108,7 +135,10 @@ async function measure(entry, opts) {
     const boot = await BOOT[entry](dom);
     for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
       const src = m[1].split('?')[0];
-      if (/^https?:/.test(src) || /supa-config|auth\.js|env-badge|store\.js/.test(src)) continue;
+      /* ★外す物は名前で ぴったり合わせる★（ゆるく書くと seikyu-store.js まで落として
+         「倉庫が無い」で止まる＝2026-08-18 に実際に踏んだ） */
+      const base = src.split('/').pop();
+      if (/^https?:/.test(src) || ['supa-config.js', 'auth.js', 'env-badge.js', 'store.js', 'rakually-login.js'].indexOf(base) >= 0) continue;
       const p = path.resolve(path.dirname(file), src);
       if (!fs.existsSync(p)) continue;
       const el = doc.createElement('script');
@@ -170,11 +200,18 @@ async function measure(entry, opts) {
       /* それ以外＝★押せる行／押せる札の中身★。行が押せる事は触れば分かる。
          ★月の見出しも 金額も 読む物★なので 読ませる字として数える。 */
     }
-    let sel = false;
-    for (let n = e; n; n = n.parentElement) {
-      if (SELECTED.test(String(n.className || ''))) { sel = true; break; }
+    /* ★選ばれている物＝押す物の見た目★（入れ物が active でも それは選択ではない）
+       前科: <section class="screen active"> に当たって ★開いている画面の中を1つも数えていなかった★ */
+    let sel = SELECTED.test(String(e.className || ''));
+    if (!sel) {
+      for (let n2 = e.parentElement; n2 && n2.tagName !== 'BODY'; n2 = n2.parentElement) {
+        if (!SELECTED.test(String(n2.className || ''))) continue;
+        const isControl = n2.matches(PRESS) || dom.window.getComputedStyle(n2).cursor === 'pointer';
+        if (isControl) { sel = true; }
+        break;
+      }
     }
-    if (sel) return;                                                // 選ばれている物
+    if (sel) return;                                                // 選ばれている物（押す物の見た目）
     const c = hex(dom.window.getComputedStyle(e).color);
     if (!c || c === BODY_BLACK || STATE_OK[c]) return;
     /* ★地に色が付いた札の白字★（例: 「未読」の緑の札）は 地と対で読む物＝色を許す。
@@ -254,6 +291,10 @@ if (process.argv.includes('--self-test')) {
     ['kyuyo/css/app.css', /(\.finput\{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '給与の打つ欄の中の字（値・金額）'],
     ['kyuyo/meisai.html', /(\.dlist \.drow \.dv\{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '明細の一覧の金額（JSが描く字）'],
     ['kyuyo/meisai.html', /(\.nw-q\{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '年末調整の質問文（JSが描く字）'],
+    /* ★2026-08-18 実配信で見つかった穴D★ … 開いている画面 <section class="screen active"> を
+       「選ばれている物」と見て ★中身を1つも数えていなかった★。ここを外すと また画面ごと見落とす。 */
+    ['seikyu/css/app.css', /(\.no-v \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '請求番号（開いている画面の中）'],
+    ['seikyu/css/app.css', /(\.tot-g \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '締めの合計金額（JSが描く字）'],
     /* ★この道具の届かない所★ … .pask-* は ★JSが描く字★なので、HTMLを読むだけでは見えない。
        そこは seikyu/tests/partner-ask.test.mjs ⑩（決まりの色を名指しで見る）と
        ★本物のブラウザで実測★ が受け持つ。

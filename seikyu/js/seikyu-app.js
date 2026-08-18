@@ -314,6 +314,9 @@
     // ★別の1通に切り替えたら、前の紙の下見は消す（違う請求書の紙を出したままにしない）
     show($('pv-wrap'), false);
 
+    /* ★いつでも新しい相手を作れる★（2026-08-18 DB-testの1周で判明）
+       前は「その場で作る」を ★0社の時だけ★出していたので、1社でも在ると
+       2社目からは ★外のアプリへ行くしかなかった★＝司さんの決定と食い違う。 */
     fillSelect($('e-partner'), [{ v: '', t: '（選んでください）' }].concat(S.partners.map(function (p) {
       return { v: p.id, t: (p.data && p.data.name) || '(名称未設定)' };
     })), v.partner_id || '');
@@ -321,10 +324,19 @@
        ★外のアプリへ行かせない★（司さん 2026-08-17）
          前は「Exally のハブで追加してください」＝★1通も出さないうちに 外へ出していた★。
          ＝★その場で作れる口を出す★（会社名だけ答えたら 相手が出来て そのまま選ばれる）。 */
+    /* 「＋ 新しい相手を作る」を いつでも一番下に置く */
+    var selEl = $('e-partner');
+    if (selEl && !locked()) {
+      var o = document.createElement('option');
+      o.value = '__new__';
+      o.textContent = '＋ 新しい相手を作る';
+      selEl.appendChild(o);
+    }
     var noPartner = !S.partners.length;
     show($('e-partner-hint'), noPartner);
     if (noPartner) setText('e-partner-hint', '取引先がまだ1社もありません。下に会社名を入れると、その相手を作ってそのまま使えます。');
-    show($('pt-new'), noPartner && !locked());
+    /* ★0社なら最初から開けておく★（1社でも在れば「＋」を選んだ時に開く） */
+    show($('pt-new'), (noPartner || S.ptNewOpen) && !locked());
 
     $('e-issue').value = v.issue_ymd || '';
     var term = (v.data && v.data.term) || { kind: 'none', n: 0 };
@@ -2275,6 +2287,7 @@
         S.partners = list;
         if (S.cur) S.cur.partner_id = r.id;          // ★作った相手を そのまま使う★
         $('pt-new-name').value = '';
+        S.ptNewOpen = false;              // 作れたら 欄は閉じる（空欄を残さない）
         fillEdit();
         recalc();
         setText('pt-new-msg', r.already
@@ -2355,6 +2368,14 @@
     $('b-reload').onclick = function () { return loadMasters().then(loadList); };
 
     $('e-partner').onchange = function () {
+      /* ★「＋ 新しい相手を作る」を選んだら その場で作る欄を開く★（外のアプリへ行かせない） */
+      if ($('e-partner').value === '__new__') {
+        S.ptNewOpen = true;
+        $('e-partner').value = S.cur.partner_id || '';
+        show($('pt-new'), true);
+        var nm = $('pt-new-name'); if (nm) nm.focus();
+        return;
+      }
       S.cur.partner_id = $('e-partner').value;
       S.guessDone = false;          // 相手を変えたら、また前回から当て直す
       applyPartnerDefaults();

@@ -286,6 +286,32 @@ await TA('13. ★「ぜんぶ見る」で入れた物は もう一度 聞かな�
   });
 });
 
+await TA('15. ★取引先が在っても 新しい相手を いつでも作れる（外のアプリへ行かせない）', async () => {
+  /* 2026-08-18 DB-test の本物の1周で判明：
+     「その場で作る」欄は ★0社の時だけ★出ていたので、1社でも在ると
+     ★2社目からは 入口（別画面）へ行くしかなかった★＝司さんの決定と食い違っていた。 */
+  click(qa('[data-scr="scr-edit"]')[0]);
+  await sleep(30);
+  const sel = $('e-partner');
+  ok(win.SeikyuApp._state.partners.length > 0, '取引先が0社では この検査にならない');
+  const opt = [...sel.options].filter((o) => o.value === '__new__')[0];
+  ok(opt, '★「＋ 新しい相手を作る」が 選択肢に無い★');
+  eq(opt.textContent, '＋ 新しい相手を作る', '言葉が違う');
+  eq($('pt-new').style.display, 'none', '最初から開いていると 空欄を並べる事になる');
+  sel.value = '__new__';
+  sel.dispatchEvent(new win.Event('change'));
+  await sleep(60);
+  ok($('pt-new').style.display !== 'none', '★選んでも 作る欄が開かない★');
+  /* ★選んだ相手が「＋」に化けていない★（選択が消えると 今の1通の相手が外れる） */
+  ok(sel.value !== '__new__', '選択が「＋」のまま残っている');
+  $('pt-new-name').value = 'テスト商事株式会社';
+  click($('b-pt-new'));
+  await sleep(120);
+  const made = win.SeikyuApp._state.partners.filter((p) => (p.data || {}).name === 'テスト商事株式会社')[0];
+  ok(made, '★作れていない★');
+  eq($('pt-new').style.display, 'none', '作ったあと 空の欄が残っている');
+});
+
 await TA('14. ★最後まで JS が1つも落ちていない', async () => {
   eq(errs.length, 0, errs.join(' / '));
 });

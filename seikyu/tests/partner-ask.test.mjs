@@ -257,6 +257,20 @@ T('⑩ ★読ませる字は薄い黒・色は押せる物だけ★（全アプ�
   console.log('     色=' + Array.from(new Set(colors)).join(' ') + ' ／ 入力欄16px ／ min-width:0');
 });
 
+T('⑪ ★「決めていない」を先頭に置かない★（急いで押した人を 期限なしにしない）', () => {
+  /* 2026-08-18 DB-test の本物の1周で判明：
+     手がかり（他の取引先の約束）が0だと 元の並びの先頭＝「決めていない」が候補の先頭に来て、
+     ★押した瞬間に 支払期限の無い請求書★になっていた。 */
+  const none = ASK.termCandidates(DOC.PAY_TERMS, []);
+  eq(none[0].key !== 'none', true, '★手がかり0で 先頭が「決めていない」★');
+  eq(none[none.length - 1].key, 'none', '「決めていない」が最後でない');
+  /* 数が在る時の並びは 変えない（よく出る順が勝つ） */
+  const some = ASK.termCandidates(DOC.PAY_TERMS, OTHERS);
+  eq(some[0].key, 'nextEom', 'よく出る順が壊れた');
+  eq(some[some.length - 1].key, 'none', '数が同じ物の中で「決めていない」が最後でない');
+  console.log('     手がかり0 → ' + none.map((t) => t.label).join(' / '));
+});
+
 /* ═══ ★自己確認★ わざと壊して 赤になるか ═══
    ★見せかけの自己確認にしない★＝作り物を見て赤くするのではなく、
    ★本物の lib のソースを その場で書き換えて読み直し★、本番と同じ判定にかける。
@@ -301,6 +315,14 @@ if (process.argv.includes('--self-test')) {
   S('④-b 重みの 1,2,1,2… を ぜんぶ 1 にする', () => {
     const bad = reload('lib/toroku-no.js', 'var q = (n % 2 === 1) ? 1 : 2;', 'var q = 1;');
     eq(bad.check('T3500003003293').level, 'ok', '実在の番号を弾いた');
+  });
+  S('⑦「決めていない」を先頭に戻す', () => {
+    /* ★並べ替えを丸ごと止める★（1行だけ戻しても もう1行が効いてしまう＝壊し方が弱かった） */
+    const bad = reload('seikyu/lib/seikyu-partner-ask.js',
+      "      if (a.v === 'none' && b.v !== 'none') return 1;\n      if (b.v === 'none' && a.v !== 'none') return -1;",
+      '      return 0;');
+    const none = bad.termCandidates(DOC.PAY_TERMS, []);
+    eq(none[0].key !== 'none', true, '手がかり0で 先頭が「決めていない」');
   });
   S('⑤郵便番号を 聞く物に戻す', () => {
     const bad = reload('seikyu/lib/seikyu-partner-ask.js', '    if (usesCode) {',

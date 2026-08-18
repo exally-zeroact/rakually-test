@@ -67,7 +67,15 @@
       if (k && k !== 'none') counts[k] = (counts[k] || 0) + 1;
     });
     var keys = (terms || []).map(function (t) { return t.key; });
-    return byFreq(keys, counts).map(function (x) {
+    /* ★「決めていない」は 数が同じなら いちばん後ろ★（2026-08-18 DB-testの1周で判明）
+       手がかりが0の時に 先頭が「決めていない」だと、急いで押した人が
+       ★期限の無い請求書★になる。他の候補を先に見せる。 */
+    return byFreq(keys, counts).sort(function (a, b) {
+      if (a.n !== b.n) return 0;                       // 数が違う並びは byFreq のまま
+      if (a.v === 'none' && b.v !== 'none') return 1;
+      if (b.v === 'none' && a.v !== 'none') return -1;
+      return 0;
+    }).map(function (x) {
       var t = (terms || []).filter(function (y) { return y.key === x.v; })[0] || { key: x.v, label: x.v };
       return { key: x.v, label: t.label, n: x.n };
     });
