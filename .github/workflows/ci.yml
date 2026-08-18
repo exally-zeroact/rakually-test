@@ -185,6 +185,11 @@ jobs:
         run: node kyuyo/tests/company-ask.test.mjs
       - name: ★会社マスタ7問 (わざと戻して赤になるかの自己確認・4通り)
         run: node kyuyo/tests/company-ask.test.mjs --self-test
+      # ★従業員マスタ7問（1人ずつ聞く）★ 甲乙と扶養は別々の2問（指示役 2026-08-18 の訂正）
+      - name: ★従業員マスタ7問 (7つ在る/年齢で決まる物/給料は押すまで入れない/マイカーの非課税はlib/県は会社から継ぐ)
+        run: node kyuyo/tests/emp-ask.test.mjs
+      - name: ★従業員マスタ7問 (わざと戻して赤になるかの自己確認・4通り)
+        run: node kyuyo/tests/emp-ask.test.mjs --self-test
       - name: Payroll integration (jsdomで本物のapp.jsを読み配線/UI/状態/描画)
         run: node kyuyo/tests/integration.mjs
       - name: Payroll full-feature real-data (給与全パターン)

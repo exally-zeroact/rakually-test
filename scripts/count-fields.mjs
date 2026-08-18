@@ -30,6 +30,9 @@ const require_ = createRequire(pathToFileURL(path.join(ROOT, 'package.json')));
 const entry = process.argv[2];
 const selArg = process.argv.includes('--sel') ? process.argv[process.argv.indexOf('--sel') + 1] : null;
 const asJson = process.argv.includes('--json');
+/* ★数える前に押す物★（例: 従業員マスタは1人 足さないと欄が出ない）
+   使い方: --press "#b-add-emp" --press ".m-open"  … 左から順に1回ずつ押す */
+const presses = process.argv.reduce((a, v, i) => (v === '--press' ? a.concat([process.argv[i + 1]]) : a), []);
 if (!entry) { console.error('使い方: node scripts/count-fields.mjs <画面.html> [--sel "#箱"] [--json]'); process.exit(2); }
 
 let JSDOM;
@@ -62,6 +65,16 @@ for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
 }
 await new Promise((r) => setTimeout(r, 120));
 
+/* ★指定された物を先に押す★（1人 足す・開く など。押せなければ そう言う） */
+const pressed = [];
+for (const sel of presses) {
+  const el = doc.querySelector(sel);
+  if (!el) { console.error('★押す物が無い: ' + sel + '（数える前に止める）'); process.exit(2); }
+  el.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  pressed.push(sel);
+  await new Promise((r) => setTimeout(r, 200));
+}
+
 /* ★畳んである物を開く★（details / 折りたたみのチップ） */
 let opened = 0;
 for (const d of doc.querySelectorAll('details')) { if (!d.open) { d.open = true; opened++; } }
@@ -91,7 +104,7 @@ const list = fields.map((e) => ({
 }));
 
 const out = {
-  entry, scope: selArg || 'body', loadedJs: loaded, opened,
+  entry, scope: selArg || 'body', loadedJs: loaded, opened, pressed,
   fields: list.length,
   visible: list.filter((x) => x.visible).length,
   hidden: list.filter((x) => !x.visible).length,
@@ -100,7 +113,7 @@ const out = {
 if (asJson) { console.log(JSON.stringify(out, null, 1)); }
 else {
   console.log('\n[count-fields] ' + entry + (selArg ? ' … ' + selArg : ''));
-  console.log('  読んだJS ' + loaded + '本 ／ 開いた畳み ' + opened + '個');
+  console.log('  読んだJS ' + loaded + '本 ／ 開いた畳み ' + opened + '個' + (pressed.length ? ' ／ 先に押した物 ' + pressed.join(' , ') : ''));
   console.log('  ★人が埋める欄 ' + out.fields + '（見えている ' + out.visible + ' ／ 隠れている ' + out.hidden + '）★');
   list.forEach((x, i) => console.log('   ' + String(i + 1).padStart(3) + ' ' + (x.visible ? ' ' : '·') + ' ' + (x.id || '-') + '  ' + x.label));
 }

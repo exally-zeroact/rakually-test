@@ -540,8 +540,8 @@
         answer:function(){
           if(!c.pref) return null;
           var S=SAI(); if(!S) return { text:prefNameOf(c.pref)+' で登録しました。' };
-          var yen=S.chinginOn(c.pref, askToday()), hat=S.hatsukoOf(c.pref);
-          return { text:'★'+prefNameOf(c.pref)+'の最低賃金は '+askYen(yen)+'円★（'+askJpDate(hat)+'から）。時給がこれを下回ると赤で止めます。',
+          var gaku=S.chinginOn(c.pref, askToday()), hat=S.hatsukoOf(c.pref);
+          return { text:'★'+prefNameOf(c.pref)+'の最低賃金は '+askYen(gaku)+'円★（'+askJpDate(hat)+'から）。時給がこれを下回ると赤で止めます。',
                    guessed:true, src:askSource('saitei_chingin', 2025) };
         } },
 
@@ -1106,8 +1106,240 @@
       +'</div>';
   }
   function importEmpProfile(eid){ var p=(state._empProfiles||{})[eid], e=state.employees.filter(function(x){return x.id===eid;})[0]; if(!p||!e) return false; applyEmpProfile(e,p.data); if(!state._profImported)state._profImported={}; state._profImported[eid]=true; return true; }
+  /* ═══════════════════════════════════════════════════════════════════
+     ★従業員マスタ7問（1人ずつ聞く）★  司さん 2026-08-16／指示役 2026-08-18
+     ・★別ウィザードを作らない★＝この従業員マスタの画面そのものが対話。下の一覧と同じ値を見る。
+     ・★後の質問が減る順★に聞く（生年月日→年齢で決まる物／申告書→甲乙／扶養→税額表の列）
+     ・★機械が当てる物は聞かない★＝県(会社から継ぐ)・最賃・社保の加入判定・週所定・割増率
+     ・★給料の決め方は「読んだ結果」を人が確認するまで確定しない★（勝手に決めない）
+     ・★1問ごと保存★（emp.askOk に印。答えた時に生える＝既定の形は1バイトも変えない）
+     ・★答えていない所は空欄のままマスタに出る★（後から埋められる）
+     ★指示役の訂正（2026-08-18）を反映★
+       甲/乙は「★扶養控除等申告書を出したか★」で決まる（扶養の人数では決まらない）。
+       扶養の人数は「★税額表の列★」を決める物。だから ★2つ 別々に聞く★。
+     ═══════════════════════════════════════════════════════════════════ */
+  function PC(){ return (typeof window!=='undefined'&&window.PayrollCalc)||null; }
+  function PP(){ return (typeof window!=='undefined'&&window.PayParse)||null; }
+  function empAge(birthYmd, ym){
+    var b=String(birthYmd||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!b) return null;
+    var m=String(ym||state.month||'').match(/^(\d{4})-(\d{2})$/); if(!m) return null;
+    var a=+m[1]-(+b[1]); if(+m[2]<+b[2]) a--;
+    return a;
+  }
+  /* 生年月日から「年齢で決まる物」を当てる（★法定の判定は lib を呼ぶ★・ここでは文にするだけ） */
+  function empAgeFacts(e){
+    var pc=PC(); if(!pc) return [];
+    var ym=state.month, out=[];
+    var age=empAge(e.birthYmd, ym);
+    if(age!=null) out.push({ t:age+'歳（'+ym+'の時点）' });
+    if(pc.isKaigoTarget) out.push({ t:pc.isKaigoTarget(e.birthYmd,ym)?'介護保険を引きます（40〜64歳）':'介護保険は引きません（40歳未満か65歳以上）', src:'shakaihoken' });
+    if(pc.isPensionTarget) out.push({ t:pc.isPensionTarget(e.birthYmd,ym)?'厚生年金を引きます':'★厚生年金は引きません（70歳で資格喪失）★', src:'shakaihoken' });
+    if(pc.isHealthTarget) out.push({ t:pc.isHealthTarget(e.birthYmd,ym)?'健康保険を引きます':'★健康保険は引きません（75歳から後期高齢者医療）★', src:'shakaihoken' });
+    if(pc.isMinor && pc.isMinor(e.birthYmd,ym)) out.push({ t:'★18歳未満です（深夜の仕事と時間外に決まりがあります）★' });
+    return out;
+  }
+  /* 通勤の型（★マイカーは片道kmだけ聞いて 非課税限度は機械★） */
+  var EMP_COMMUTE=[['none','なし'],['public','電車・バス'],['car','マイカー等']];
+
+  /* いま聞いている人（居なければ「まだ確認していない人」を上から選ぶ） */
+  function empAskTarget(){
+    var list=state.employees||[];
+    if(!list.length) return null;
+    var cur=list.filter(function(e){ return e.id===state._empAskId; })[0];
+    if(cur && !empAskDone(cur)) return cur;
+    var next=list.filter(function(e){ return !empAskDone(e); })[0];
+    return next||null;
+  }
+  function empAskDone(e){ var ok=e.askOk||{}; return EMP_ASK_Q(e).every(function(q){ return ok[q.key]; }); }
+
+  function EMP_ASK_Q(e){
+    return [
+      { key:'name', q:'お名前は？', now:e.name||'',
+        input:function(){ return '<input class="ask-in" data-eask="name" value="'+attr(e.name)+'" placeholder="山田 太郎">'; },
+        answer:function(){ return e.name?{ text:'「'+esc(e.name)+'」さんですね。明細にこの名前で出ます。' }:null; } },
+
+      { key:'birthYmd', q:'生年月日は？', sub:'年齢で決まる物を こちらで当てます',
+        /* ★既定値のままは「まだ答えていない」扱い★＝他人の日付を「これでいいですか？」と出さない */
+        now:(e.birthYmd && e.birthYmd!=='1980-05-15')?e.birthYmd:'',
+        input:function(){ return '<input class="ask-in" data-eask="birthYmd" type="date" value="'+attr(e.birthYmd)+'">'; },
+        answer:function(){
+          if(!e.birthYmd) return null;
+          var f=empAgeFacts(e); if(!f.length) return null;
+          return { text:f.map(function(x){return x.t;}).join('／'), guessed:true, src:askSource('shakaihoken', 2026) };
+        } },
+
+      { key:'pay', q:'給料の決め方を そのまま書いてください', sub:'例「月給25万、残業は別」「時給1,200円」「日給12,000円＋歩合3%」',
+        now:empPayNow(e),
+        input:function(){
+          var t=(state._empAskText&&state._empAskText[e.id])||'';
+          return '<input class="ask-in" data-eask="payText" value="'+attr(t)+'" placeholder="月給 250,000円　通勤 10,000円">'
+            +'<div class="ask-note">そのまま書いてください。読んだ結果を出すので、合っていたら「これで」を押してください。</div>';
+        },
+        answer:function(){ return empPayAnswer(e); } },
+
+      { key:'commute', q:'通勤は？', sub:'マイカーは片道の距離だけ聞きます',
+        now:empCommuteNow(e),
+        input:function(){
+          var h='<span class="ask-row">'+EMP_COMMUTE.map(function(c){
+            return '<span class="ask-yn'+((e.commuteType||'public')===c[0]&&(c[0]!=='none'||!num(e.commute))?' on':'')+'" data-eask-ct="'+c[0]+'">'+c[1]+'</span>'; }).join('')+'</span>';
+          if(e.commuteType==='car') h+='<span class="ask-row" style="margin-top:10px"><input class="ask-in ask-sm num" data-eask="commuteKm" inputmode="numeric" value="'+attr(e.commuteKm)+'" placeholder="片道 km"><i>km（片道）</i></span>';
+          else if(e.commuteType==='public') h+='<span class="ask-row" style="margin-top:10px"><input class="ask-in ask-sm num" data-eask="commute" inputmode="numeric" value="'+attr(e.commute)+'" placeholder="10000"><i>円／月</i></span>';
+          return h;
+        },
+        answer:function(){ return empCommuteAnswer(e); } },
+
+      { key:'taxClass', q:'うちに「扶養控除等申告書」を出していますか？', sub:'これで甲・乙が決まります（人数では決まりません）',
+        now:(e.taxClass==='ko'?'出している（甲）':(e.taxClass==='otsu'?'出していない（乙）':'')),
+        input:function(){ return '<span class="ask-row">'
+          +'<span class="ask-yn'+(e.taxClass==='ko'?' on':'')+'" data-eask-tc="ko">出している</span>'
+          +'<span class="ask-yn'+(e.taxClass==='otsu'?' on':'')+'" data-eask-tc="otsu">出していない</span></span>'; },
+        answer:function(){
+          if(!e.taxClass) return null;
+          return e.taxClass==='ko'
+            ? { text:'所得税は ★甲欄★ で計算します（扶養の人数で列が決まります）。', guessed:true, src:askSource('shotokuzei_densan', 2026) }
+            : { text:'所得税は ★乙欄★ で計算します（掛け持ちの方など。扶養の人数は使いません）。', guessed:true, src:askSource('shotokuzei_densan', 2026) };
+        } },
+
+      { key:'fuyou', q:'扶養は何人ですか？', sub:'税額表の「列」が決まります（16歳未満は数えません）',
+        now:(e.taxClass==='otsu')?'（乙なので使いません）':((e.fuyou===''||e.fuyou==null)?'':e.fuyou+'人'),
+        input:function(){
+          if(e.taxClass==='otsu') return '<div class="ask-note">乙欄なので この数は使いません。「これで進む」を押してください。</div>';
+          return '<span class="ask-row"><input class="ask-in ask-sm num" data-eask="fuyou" inputmode="numeric" value="'+attr(e.fuyou)+'" placeholder="0"><i>人</i></span>';
+        },
+        answer:function(){
+          if(e.taxClass==='otsu') return { text:'乙欄なので 扶養の人数は使いません。' };
+          if(e.fuyou===''||e.fuyou==null) return null;
+          return { text:'税額表の ★'+num(e.fuyou)+'人の列★ で引きます。' };
+        } },
+
+      { key:'bank', q:'振込先は？', sub:'あとで本人に入れてもらえます',
+        now:(e.bank?'登録あり':''),
+        input:function(){ return '<div class="ask-note">★あとで大丈夫です★。ご本人が「Web明細」から自分で登録できます。'
+          +'<br>今 入れるなら「一覧」で開いて入力してください。</div>'
+          +'<span class="ask-row" style="margin-top:8px"><span class="ask-yn" data-eask-bank="later">あとで（本人に入れてもらう）</span></span>'; },
+        answer:function(){ return { text:'振込先は ★あとで本人が登録できます★（Web明細から）。空欄のままでも先に進めます。' }; } }
+    ];
+  }
+
+  /* 給料の決め方 … 今の値を言葉にする（★読んだ結果を人が確認するまで確定しない★） */
+  function empPayNow(e){
+    if(!e.payType) return '';
+    var v=e.payType+'：';
+    if(e.payType==='時給') v+=(e.hourly?yen(e.hourly):'');
+    else v+=(e.base?yen(e.base):'');
+    return (e.base||e.hourly)?v:'';
+  }
+  function empPayAnswer(e){
+    var t=(state._empAskText&&state._empAskText[e.id])||'';
+    if(t.trim()){
+      var pp=PP(); if(!pp) return null;
+      var r=pp.parse(t);
+      if(!r||!r.ok) return { text:'★読み取れませんでした★（'+esc(String(r&&r.unrecognized||t).slice(0,30))+'）。書き方を変えるか、「一覧」で直接 入れてください。' };
+      /* ★読んだ結果を見せるだけ★。押されるまで emp には入れない（勝手に確定しない） */
+      var prev={ payType:e.payType, base:e.base, hourly:e.hourly };
+      var tmp=Object.assign({}, e, { payType:r.payType }, r.fields||{});
+      var c=null; try{ c=compute(tmp); }catch(_e){ c=null; }
+      /* ★キー名は実物を読んで確かめた★（total/deduct は無い＝NaN が出ていた・2026-08-18 実測で直した）
+         shikyuTotal=総支給 ／ kojoTotal=控除の合計 ／ net=手取り */
+      var money=(c&&isFinite(c.shikyuTotal)&&isFinite(c.net))
+        ?('その月の実数で計算すると ★総支給 '+yen(c.shikyuTotal)+'／控除 '+yen(num(c.kojoTotal))+'／手取り '+yen(c.net)+'★')
+        :'';
+      return { text:'こう読みました → ★'+esc(r.summary||r.payType)+'★'+(money?'<br>'+money:'')
+        + '<br><span class="ask-note">合っていたら「これで」を押してください（押すまで入れません）。</span>', pending:tmp };
+    }
+    if(!e.base && !e.hourly) return null;
+    var c2=null; try{ c2=compute(e); }catch(_e){ c2=null; }
+    return { text:empPayNow(e)+((c2&&isFinite(c2.shikyuTotal)&&isFinite(c2.net))?('／その月の実数は 総支給 '+yen(c2.shikyuTotal)+'・手取り '+yen(c2.net)):'') };
+  }
+  /* 通勤 … 今の値と、その場の返し（★マイカーの非課税限度は機械★） */
+  function empCommuteNow(e){
+    if(e.commuteType==='car') return e.commuteKm?('マイカー 片道'+e.commuteKm+'km'):'';
+    if(num(e.commute)>0) return '電車・バス '+yen(e.commute)+'／月';
+    return '';
+  }
+  function empCommuteAnswer(e){
+    if(e.commuteType==='car'){
+      if(!num(e.commuteKm)) return null;
+      var lim=carCommuteNonTax(num(e.commuteKm));
+      return { text:'片道'+num(e.commuteKm)+'km なら ★月 '+yen(lim)+'まで所得税がかかりません★（超えた分は課税）。',
+               guessed:true, src:askSource('shotokuzei_densan', 2026) };
+    }
+    if(num(e.commute)>0) return { text:'電車・バスは ★月 15万円まで★ 所得税がかかりません。' };
+    if(e.commuteType==='none') return { text:'通勤手当は無しで計算します。' };
+    return null;
+  }
+
+  function empAskCounts(e){
+    var qs=EMP_ASK_Q(e), ok=e.askOk||{};
+    var answered=0, guessed=0;
+    qs.forEach(function(q){ if(ok[q.key]) answered++; var a=q.answer&&q.answer(); if(a&&a.guessed) guessed++; });
+    /* 聞かずに機械が決めている物＝県(会社から継ぐ)・最賃・社保の加入判定・週所定・年間休日・割増率 */
+    return { total:qs.length, answered:answered, guessed:guessed+6 };
+  }
+
+  function renderEmpAsk(){
+    var host=$('#emp-ask-host'); if(!host) return;
+    var list=state.employees||[];
+    if(!list.length){
+      host.innerHTML='<div class="ask-wrap"><div class="ask-q">まだ 人がいません</div>'
+        +'<div class="ask-note">1人ずつ聞いていきます（7問）。名前から始めます。</div>'
+        +'<div class="ask-acts"><button class="ask-ok" data-eask-add="1">1人目を足す</button></div></div>';
+      return;
+    }
+    var e=empAskTarget();
+    if(!e){
+      host.innerHTML='<div class="ask-done"><div class="ask-done-t">✓ '+list.length+'名 ぶん そろいました</div>'
+        +'<div class="ask-done-s">下の一覧から いつでも直せます。</div>'
+        +'<div class="ask-acts"><button class="ask-ok" data-eask-add="1">もう1人 足す</button>'
+        +'<span class="ask-again" data-eask-again="1">もう一度 確かめる</span></div></div>';
+      return;
+    }
+    var qs=EMP_ASK_Q(e), ok=e.askOk||{}, idx=0;
+    for(var i=0;i<qs.length;i++){ if(!ok[qs[i].key]){ idx=i; break; } }
+    var q=qs[idx], a=q.answer&&q.answer(), editing=!!(state._empAskEdit&&state._empAskEdit[q.key]);
+    var has=!!String(q.now||'').trim();
+    var cnt=empAskCounts(e);
+    var who=e.name||('（'+(list.indexOf(e)+1)+'人目）');
+    var h='<div class="ask-wrap">'
+      +'<div class="ask-prog">'+who+'　'+(idx+1)+' / '+qs.length+'</div>'
+      +'<div class="ask-q">'+esc(q.q)+(q.sub?'<span class="ask-sub">'+esc(q.sub)+'</span>':'')+'</div>';
+    if(has && !editing){
+      h+='<div class="ask-now">'+esc(q.now)+'</div>'
+        +(a?'<div class="ask-ans'+(a.guessed?' guessed':'')+'">'+(a.guessed?'<span class="ask-badge" data-eask-src="'+q.key+'">当てました</span>':'')+a.text+'</div>':'')
+        +'<div class="ask-acts"><button class="ask-ok" data-eask-ok="'+q.key+'">はい、これで</button>'
+        +'<span class="ask-edit" data-eask-editk="'+q.key+'">ちがう（直す）</span></div>';
+    }else{
+      h+='<div class="ask-input">'+q.input()+'</div>'
+        +(a?'<div class="ask-ans'+(a.guessed?' guessed':'')+'">'+(a.guessed?'<span class="ask-badge" data-eask-src="'+q.key+'">当てました</span>':'')+a.text+'</div>':'')
+        +'<div class="ask-acts"><button class="ask-ok" data-eask-ok="'+q.key+'"'+(a?'':' disabled')+'>'+(a?'これで進む':'入れてください')+'</button>'
+        +(q.key==='bank'?'<span class="ask-edit" data-eask-ok="bank">あとでにする</span>':'')+'</div>';
+    }
+    h+='<div class="ask-foot">答えた '+cnt.answered+' / '+qs.length+'　こちらで決めた '+cnt.guessed+'個'
+      +'（県・最低賃金・社保の加入・週の所定・年間休日・割増の率）</div></div>';
+    host.innerHTML=h;
+  }
+
+  function empAskSourceHTML(key){
+    var e=empAskTarget(); if(!e) return '';
+    var q=EMP_ASK_Q(e).filter(function(x){return x.key===key;})[0]; if(!q) return '';
+    var a=q.answer&&q.answer(); if(!a) return '';
+    if(a.src) return '<div style="font-size:12.5px;line-height:1.7">'
+      +'<div><b>出典</b><br><a href="'+esc(a.src.url)+'" target="_blank" rel="noopener">'+esc(a.src.url)+'</a></div>'
+      +'<div style="margin-top:8px"><b>確認した日</b> '+esc(a.src.at)+'</div>'
+      +(a.src.note?'<div style="margin-top:8px;color:#3D6B53">'+esc(a.src.note)+'</div>':'')+'</div>';
+    return '<div style="font-size:12.5px">入れていただいた値から出しています。</div>';
+  }
+
+  function empAskSave(){
+    renderEmpMaster();
+    renderEmpAsk();
+    if(state.employees) renderInput();
+    if(window.persistSave) persistSave();
+  }
+
   function renderEmpMaster(){
     fillCompany();
+    renderEmpAsk();
     var host=$('#emp-list'); if(!host) return;
     // 部署でグループ化（誰も部署無しなら見出し非表示）
     var anyDept=state.employees.some(function(e){return e.dept;});
@@ -3106,6 +3338,74 @@
     });
     rh.addEventListener('input',function(ev){ if(ev.target.tagName==='SELECT'||ev.target.type==='checkbox')return; var f=ev.target.dataset.cf; if(f) state.company[f]=ev.target.value.replace(/[^0-9]/g,''); });
     rh.addEventListener('change',function(ev){ if(ev.target.dataset.coh!=null){ state.company.companyHolidays=(state.company.companyHolidays||[]); state.company.companyHolidays[+ev.target.dataset.coh]=ev.target.value; return; } var f=ev.target.dataset.cf; if(f==='gyoshu'){ state.company.gyoshu=ev.target.value; return; } if(f==='shahoTiming'){ state.company.shahoTiming=ev.target.value; return; } if(f==='paymentDaysMethod'){ state.company.paymentDaysMethod=ev.target.value; return; } if(f==='kekkinMethod'){ state.company.kekkinMethod=ev.target.value; return; } if(f==='kanzenGekkyu'){ state.company.kanzenGekkyu=ev.target.checked; renderCompanyRules(); return; } if(f==='daikyuDeduct'){ state.company.daikyuDeduct=ev.target.checked; return; } if(f==='shakaTokutei'){ state.company.shakaTokutei=ev.target.checked; return; } if(f==='annualHolidays'||f==='dailyWorkH'||f==='dailyWorkM'||f==='rateOt'||f==='rateHoliday'||f==='rateNight'||f==='rateOver60') renderCompanyRules(); }); // 年間労働時間(32条)/割増率(37条)の黄警告をライブ更新
+    /* ═══ 従業員マスタ7問（1人ずつ聞く）の押し込み ═══
+       ★1問ごとに保存★／★給料の決め方は「これで」を押すまで入れない★ */
+    var eaHost = $('#emp-ask-host');
+    if (eaHost) {
+      eaHost.addEventListener('click', function (ev) {
+        var t = ev.target, e = empAskTarget();
+        var add = t.closest('[data-eask-add]');
+        if (add) {
+          var ne = defEmp('従業員 ' + (state.employees.length + 1));
+          state.employees.push(ne); state.open[ne.id] = true;
+          state._empAskId = ne.id;
+          empAskSave(); return;
+        }
+        var again = t.closest('[data-eask-again]');
+        if (again) { (state.employees || []).forEach(function (x) { x.askOk = {}; }); state._empAskId = null; empAskSave(); return; }
+        if (!e) return;
+        var src = t.closest('[data-eask-src]');
+        if (src) { uiModal({ title: 'この数はどこから？', html: empAskSourceHTML(src.dataset.easkSrc), buttons: [{ label: '閉じる', val: true, primary: true }] }); return; }
+        var ct = t.closest('[data-eask-ct]');
+        if (ct) {
+          e.commuteType = ct.dataset.easkCt;
+          if (e.commuteType === 'none') { e.commute = ''; e.commuteKm = ''; }
+          empAskSave(); return;
+        }
+        var tc = t.closest('[data-eask-tc]');
+        if (tc) { e.taxClass = tc.dataset.easkTc; empAskSave(); return; }
+        var bk = t.closest('[data-eask-bank]');
+        if (bk) { if (!e.askOk) e.askOk = {}; e.askOk.bank = true; empAskSave(); return; }
+        var ed = t.closest('[data-eask-editk]');
+        if (ed) { state._empAskEdit = state._empAskEdit || {}; state._empAskEdit[ed.dataset.easkEditk] = true; renderEmpAsk(); return; }
+        var ok = t.closest('[data-eask-ok]');
+        if (ok) {
+          if (ok.disabled) return;
+          var k = ok.dataset.easkOk;
+          /* ★給料の決め方は ここで初めて入れる★（読んだ結果を人が見て押した時だけ＝勝手に確定しない） */
+          if (k === 'pay') {
+            var q = EMP_ASK_Q(e).filter(function (x) { return x.key === 'pay'; })[0];
+            var a = q && q.answer && q.answer();
+            if (a && a.pending) {
+              Object.keys(a.pending).forEach(function (kk) { if (kk !== 'id' && kk !== 'askOk') e[kk] = a.pending[kk]; });
+              if (state._empAskText) delete state._empAskText[e.id];
+            }
+          }
+          if (!e.askOk) e.askOk = {};
+          e.askOk[k] = true;
+          if (state._empAskEdit) delete state._empAskEdit[k];
+          empAskSave(); return;
+        }
+      });
+      eaHost.addEventListener('input', function (ev) {
+        var f = ev.target.dataset && ev.target.dataset.eask; if (!f) return;
+        var e = empAskTarget(); if (!e) return;
+        var v = ev.target.value;
+        if (f === 'payText') { state._empAskText = state._empAskText || {}; state._empAskText[e.id] = v; renderEmpAsk(); return; }
+        if (f === 'commute' || f === 'commuteKm' || f === 'fuyou') v = v.replace(/[^0-9]/g, '');
+        e[f] = v;
+        renderEmpAsk();
+        if (window.persistSaveDebounced) persistSaveDebounced();
+      });
+      eaHost.addEventListener('change', function (ev) {
+        var f = ev.target.dataset && ev.target.dataset.eask; if (!f) return;
+        var e = empAskTarget(); if (!e) return;
+        if (f === 'payText') return;
+        e[f] = ev.target.value;
+        empAskSave();
+      });
+    }
+
     $('#b-add-emp').addEventListener('click',function(){ var e=defEmp('従業員 '+(state.employees.length+1)); state.employees.push(e); state.open[e.id]=true; if($('#emp-search'))$('#emp-search').value=''; renderEmpMaster(); });
     (function(){ var es=$('#emp-search'); if(es) es.addEventListener('input', filterEmpSearch); })(); // 氏名検索(UX#9)
 
