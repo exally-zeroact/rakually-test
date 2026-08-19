@@ -437,5 +437,36 @@ T('★据え置きの名前は「0件」に見せない（何がいつまで残�
   }
   if (!shown) console.log('     据え置き ★0件★（Kyually は 2026-08-18 に Rakually へ統一済み）');
 });
+/* ═══ ★ホーム画面に追加できる画面は manifest を持つ／絵は本物のロゴ★（2026-08-19）═══ */
+T('★ホーム画面に追加する4画面が manifest を持ち、絵が本物のロゴを指す', () => {
+  const SCREENS = [
+    ['index.html', 'manifest.json'],
+    ['kyuyo/index.html', 'kyuyo/manifest.json'],
+    ['seikyu/index.html', 'seikyu/manifest.json'],
+    ['kyuyo/meisai.html', 'kyuyo/meisai.webmanifest'],
+  ];
+  const seen = [];
+  for (const [page, mf] of SCREENS) {
+    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
+    const m = /<link[^>]+rel="manifest"[^>]+href="([^"]+)"/.exec(html);
+    ok(m, '★' + page + ' に manifest の link が無い★（ホーム画面から開いても別の窓にならない）');
+    ok(!/^data:/.test(m[1]),
+      '★' + page + ' の manifest が data: に埋め込まれている★＝中の絵を差し替え忘れる（実際に起きた）');
+    const file = path.resolve(path.dirname(path.join(ROOT, page)), m[1].split('?')[0]);
+    ok(fs.existsSync(file), '★' + page + ' の manifest ' + m[1] + ' が無い（404）★');
+    const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+    ok(j.name && j.short_name, mf + ' に name / short_name が無い');
+    ok(Array.isArray(j.icons) && j.icons.length >= 2, mf + ' の絵が足りない');
+    j.icons.forEach((ic) => {
+      ok(!/^data:/.test(ic.src), '★' + mf + ' の絵が data: の手描き★（本物のロゴを指す）');
+      const img = path.resolve(path.dirname(file), ic.src.split('?')[0]);
+      ok(fs.existsSync(img), '★' + mf + ' の絵 ' + ic.src + ' が無い★');
+    });
+    ok(j.icons.some((ic) => ic.purpose === 'maskable'), mf + ' に maskable の絵が無い（Androidで丸く切られる）');
+    seen.push(page + '→' + m[1]);
+  }
+  console.log('     ' + seen.join(' ／ '));
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

@@ -16,7 +16,11 @@
 <link rel="apple-touch-icon" href="img/meisai-180.png?v=2b5a7f40">
 <link rel="icon" type="image/png" sizes="32x32" href="../img/favicon-32.png?v=56581ebc">
 <link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png?v=e0197076">
-<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22給与明細%22%2C%22short_name%22%3A%22給与明細%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F0FAF4%22%2C%22theme_color%22%3A%22%233D9E72%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%253D%2527http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2527%2520width%253D%2527192%2527%2520height%253D%2527192%2527%253E%253Crect%2520width%253D%2527192%2527%2520height%253D%2527192%2527%2520rx%253D%252742%2527%2520fill%253D%2527%25233D9E72%2527%252F%253E%253Ctext%2520x%253D%252796%2527%2520y%253D%2527130%2527%2520font-size%253D%2527104%2527%2520font-family%253D%2527sans-serif%2527%2520fill%253D%2527white%2527%2520text-anchor%253D%2527middle%2527%253E給%253C%252Ftext%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<!-- ★ホーム画面の絵は 本物のロゴを使う★（2026-08-19）
+     前は data: の中に ★手描きの「給」SVG★ を埋めていたので、
+     08-18 にロゴへ差し替えた時 ★ここだけ古い絵のまま★ 残っていた。
+     ★start_url は書かない★＝開いている ?t=… のまま追加される（合言葉が消えない）。 -->
+<link rel="manifest" href="meisai.webmanifest">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-webkit-text-size-adjust:100%;min-height:100vh;}

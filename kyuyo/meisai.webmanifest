@@ -1,0 +1,14 @@
+{
+  "name": "給与明細",
+  "short_name": "給与明細",
+  "description": "自分の給与明細を見る（Rakually）",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F0FAF4",
+  "theme_color": "#2E7D54",
+  "icons": [
+    { "src": "../img/icon-192.png?v=0b5c345d", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "../img/icon-512.png?v=a4ed3ea2", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "../img/icon-512-maskable.png?v=fb5a555b", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
