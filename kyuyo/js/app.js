@@ -631,17 +631,48 @@
       +'<div class="ask-q">'+esc(q.q)+(q.sub?'<span class="ask-sub">'+esc(q.sub)+'</span>':'')+'</div>';
     if(has && !editing){
       h+='<div class="ask-now">'+esc(q.now)+'</div>'
-        +(a?'<div class="ask-ans'+(a.guessed?' guessed':'')+'">'+(a.guessed?'<span class="ask-badge" data-ask-src="'+q.key+'">当てました</span>':'')+a.text+'</div>':'')
+        +askAnsHTML(a, q.key, 'data-ask-src')
         +'<div class="ask-acts"><button class="ask-ok" data-ask-ok="'+q.key+'">はい、これで</button>'
         +'<span class="ask-edit" data-ask-editk="'+q.key+'">ちがう（直す）</span></div>';
     }else{
       h+='<div class="ask-input">'+q.input()+'</div>'
-        +(a?'<div class="ask-ans'+(a.guessed?' guessed':'')+'">'+(a.guessed?'<span class="ask-badge" data-ask-src="'+q.key+'">当てました</span>':'')+a.text+'</div>':'')
+        +askAnsHTML(a, q.key, 'data-ask-src')
         +'<div class="ask-acts"><button class="ask-ok" data-ask-ok="'+q.key+'"'+(a?'':' disabled')+'>'+(a?'これで進む':'入れてください')+'</button></div>';
     }
     h+='<div class="ask-foot">答えた '+cnt.answered+' / '+qs.length+'　こちらで決めた '+cnt.guessed+'個</div></div>';
     host.innerHTML=h;
   }
+
+  /* ★答えの1行の作り方は 1か所★（描き直す時も 打っている時も 同じ物を使う） */
+  function askAnsHTML(a, key, attr){
+    if(!a) return '';
+    return '<div class="ask-ans'+(a.guessed?' guessed':'')+'">'
+      +(a.guessed?'<span class="ask-badge" '+attr+'="'+key+'">当てました</span>':'')+a.text+'</div>';
+  }
+  /* ★打っている間は 描き直さない★（描き直すと 入力欄が作り直されて
+     焦点が外れる＝キーボードが閉じる／日本語の変換が途中で壊れる。2026-08-19 に実際に起きた）
+     ＝答えの1行と「これで進む」だけを その場で書き換える。 */
+  function askLive(host, a, key, attr){
+    if(!host) return;
+    var box=host.querySelector('.ask-ans');
+    var html=askAnsHTML(a, key, attr);
+    if(box){ if(html){ box.outerHTML=html; } else { box.remove(); } }
+    else if(html){ var ip=host.querySelector('.ask-input'); if(ip) ip.insertAdjacentHTML('afterend', html); }
+    var ok=host.querySelector('.ask-ok');
+    if(ok && !ok.dataset.askEditk){ ok.disabled=!a; ok.textContent=a?'これで進む':'入れてください'; }
+  }
+  /* ★変換中か★（日本語を打っている最中は 何もしない） */
+  var _imeOn=false;
+  function askImeBind(host){
+    if(!host || host.dataset.imeBound) return;
+    host.dataset.imeBound='1';
+    host.addEventListener('compositionstart', function(){ _imeOn=true; });
+    host.addEventListener('compositionend', function(ev){
+      _imeOn=false;
+      ev.target.dispatchEvent(new Event('input', { bubbles:true }));   // 確定した字で1回だけ入れ直す
+    });
+  }
+  function askComposing(){ return _imeOn; }
 
   /* 根拠を出す（★押すと出典と確認日★） */
   function askSourceHTML(key){
@@ -1310,12 +1341,12 @@
       +'<div class="ask-q">'+esc(q.q)+(q.sub?'<span class="ask-sub">'+esc(q.sub)+'</span>':'')+'</div>';
     if(has && !editing){
       h+='<div class="ask-now">'+esc(q.now)+'</div>'
-        +(a?'<div class="ask-ans'+(a.guessed?' guessed':'')+'">'+(a.guessed?'<span class="ask-badge" data-eask-src="'+q.key+'">当てました</span>':'')+a.text+'</div>':'')
+        +askAnsHTML(a, q.key, 'data-eask-src')
         +'<div class="ask-acts"><button class="ask-ok" data-eask-ok="'+q.key+'">はい、これで</button>'
         +'<span class="ask-edit" data-eask-editk="'+q.key+'">ちがう（直す）</span></div>';
     }else{
       h+='<div class="ask-input">'+q.input()+'</div>'
-        +(a?'<div class="ask-ans'+(a.guessed?' guessed':'')+'">'+(a.guessed?'<span class="ask-badge" data-eask-src="'+q.key+'">当てました</span>':'')+a.text+'</div>':'')
+        +askAnsHTML(a, q.key, 'data-eask-src')
         +'<div class="ask-acts"><button class="ask-ok" data-eask-ok="'+q.key+'"'+(a?'':' disabled')+'>'+(a?'これで進む':'入れてください')+'</button>'
         +(q.key==='bank'?'<span class="ask-edit" data-eask-ok="bank">あとでにする</span>':'')+'</div>';
     }
@@ -3312,12 +3343,20 @@
         if(ag){ state.company.askOk={}; state._askEdit={}; askSave(); return; }
       });
       /* 打った字・選んだ物は その場で入れて、その場で返す（★答えたら結果が出る★） */
+      askImeBind(askHost);
       askHost.addEventListener('input',function(ev){
         var f=ev.target.dataset&&ev.target.dataset.ask; if(!f) return;
+        /* ★変換中は 一切 触らない★（触ると「株式会社」が「株式会 ゼは」になる） */
+        if(askComposing()) return;
         var v=ev.target.value;
-        if(f==='paydayDay'||f==='dailyWorkH'||f==='dailyWorkM') v=v.replace(/[^0-9]/g,'');
+        if(f==='paydayDay'||f==='dailyWorkH'||f==='dailyWorkM'){
+          var only=v.replace(/[^0-9]/g,'');
+          if(only!==v){ v=only; ev.target.value=only; }   // 数字だけの欄は その場で直す（描き直さない）
+        }
         state.company[f]=v;
-        renderAsk();
+        /* ★描き直さない★＝答えの1行と ボタンだけ書き換える（焦点を外さない） */
+        var qq=ASK_Q().filter(function(x){return x.key===f;})[0];
+        askLive(askHost, qq&&qq.answer&&qq.answer(), f, 'data-ask-src');
         if(window.persistSaveDebounced) persistSaveDebounced();
       });
       askHost.addEventListener('change',function(ev){
@@ -3397,14 +3436,24 @@
           empAskSave(); return;
         }
       });
+      askImeBind(eaHost);
       eaHost.addEventListener('input', function (ev) {
         var f = ev.target.dataset && ev.target.dataset.eask; if (!f) return;
         var e = empAskTarget(); if (!e) return;
+        /* ★変換中は 一切 触らない★（名前が「山田 太」で切れる） */
+        if (askComposing()) return;
         var v = ev.target.value;
-        if (f === 'payText') { state._empAskText = state._empAskText || {}; state._empAskText[e.id] = v; renderEmpAsk(); return; }
-        if (f === 'commute' || f === 'commuteKm' || f === 'fuyou') v = v.replace(/[^0-9]/g, '');
-        e[f] = v;
-        renderEmpAsk();
+        if (f === 'payText') { state._empAskText = state._empAskText || {}; state._empAskText[e.id] = v; }
+        else {
+          if (f === 'commute' || f === 'commuteKm' || f === 'fuyou') {
+            var only = v.replace(/[^0-9]/g, '');
+            if (only !== v) { v = only; ev.target.value = only; }
+          }
+          e[f] = v;
+        }
+        /* ★描き直さない★＝答えの1行と ボタンだけ書き換える（焦点を外さない） */
+        var qq = EMP_ASK_Q(e).filter(function (x) { return x.key === f || (f === 'payText' && x.key === 'pay'); })[0];
+        askLive(eaHost, qq && qq.answer && qq.answer(), (qq && qq.key) || f, 'data-eask-src');
         if (window.persistSaveDebounced) persistSaveDebounced();
       });
       eaHost.addEventListener('change', function (ev) {

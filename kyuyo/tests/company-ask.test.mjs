@@ -44,6 +44,18 @@ const KEYS = ['name', 'pref', 'gyoshu', 'payday', 'holidays', 'daily', 'shahoKan
 /* 7問へ上げた＝チップから消した物 */
 const MOVED = ['teikyu', 'shotei', 'annual', 'koyoGyoshu'];
 
+
+/* ★打っている間に 入力欄を作り直さない★（2026-08-19 指示役の指摘）
+   前科: 聞く形の input で 打つたびに renderAsk() / renderEmpAsk() を呼び ★入力欄ごと作り直していた★
+   → 焦点が外れる → ★キーボードが閉じる★／★日本語の変換が途中で壊れる★
+     （「株式会社」が「株式会 ゼは」・「山田 太郎」が「山田 太」）。 */
+function inputBody(src, hostVar) {
+  const a = src.indexOf(hostVar + ".addEventListener('input'");
+  if (a < 0) return '';
+  const b = src.indexOf("addEventListener('change'", a);
+  return src.slice(a, b > 0 ? b : a + 1600);
+}
+
 if (process.argv.includes('--self-test')) {
   console.log('\n[company-ask --self-test] ★わざと戻して赤になるか★');
   T('① 7問のどれかを消したら 数が合わなくなる（気づける）', () => {
@@ -62,6 +74,14 @@ if (process.argv.includes('--self-test')) {
   T('⑥ 会社の県を無視する作りに戻したら赤（人が空＝最賃が出ない）', () => {
     const info = PW.minWageInfo({ payType: '時給', hourly: '1000', pref: '' }, { company: {}, month: '2026-08' });
     ok(!info || !info.minWage, '会社の県が無いのに最賃が出ている＝どこかで勝手に補っている');
+  });
+  T('⑦ 打つたびに renderAsk() を戻したら赤', () => {
+    const broken = APP.replace('askLive(askHost,', 'renderAsk(); askLive(askHost,');
+    ok(/renderAsk\(\)/.test(inputBody(broken, 'askHost')), '★戻しても見つけられない＝見張りが効いていない★');
+  });
+  T('⑧ 変換中の見張りを外したら赤', () => {
+    const broken = APP.split('if (askComposing()) return;').join('').split('if(askComposing()) return;').join('');
+    ok(!/askComposing\(\)/.test(inputBody(broken, 'askHost')), '★外しても気づけない＝見張りが効いていない★');
   });
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
@@ -157,6 +177,26 @@ T('⑧ 1問ごと保存の道が在る（答えた瞬間に保存する）', () 
   const b = APP.slice(APP.indexOf('function askSave()'), APP.indexOf('function askSave()') + 400);
   ok(/persistSave/.test(b), '保存を呼んでいない（閉じると消える）');
   ok(/askOk\[k\]=true/.test(APP.replace(/\s/g, '')), '答えた印を1問ずつ付けていない');
+});
+
+T('⑤ ★打っている間は 描き直さない（キーボードが閉じない）', () => {
+  const co = inputBody(APP, 'askHost');
+  const em = inputBody(APP, 'eaHost');
+  ok(co, '会社の聞く形の input が見つからない');
+  ok(em, '従業員の聞く形の input が見つからない');
+  ok(!/renderAsk\(\)/.test(co), '★会社：打つたびに renderAsk() で作り直している（焦点が外れる）★');
+  ok(!/renderEmpAsk\(\)/.test(em), '★従業員：打つたびに renderEmpAsk() で作り直している（焦点が外れる）★');
+  ok(/askLive\(/.test(co) && /askLive\(/.test(em), '答えの1行だけ書き換える口（askLive）を使っていない');
+  console.log('     input の中に renderAsk / renderEmpAsk は 0件（askLive で1行だけ書き換え）');
+});
+
+T('⑥ ★変換中（日本語を打っている最中）は 一切 触らない', () => {
+  ok(/compositionstart/.test(APP) && /compositionend/.test(APP), '★変換の始まり／終わりを見ていない★');
+  ok(/function askComposing\(\)/.test(APP), '変換中かを答える口が無い');
+  ok(/askComposing\(\)/.test(inputBody(APP, 'askHost')), '★会社：変換中でも state を書き換えている★');
+  ok(/askComposing\(\)/.test(inputBody(APP, 'eaHost')), '★従業員：変換中でも state を書き換えている★');
+  ok(/compositionend[\s\S]{0,240}dispatchEvent/.test(APP), '変換が終わった時に 入れ直していない');
+  console.log('     変換中は return ／ 確定した時に1回だけ入れ直す');
 });
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
