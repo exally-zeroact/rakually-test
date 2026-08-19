@@ -332,7 +332,7 @@
                    人ごとの pref は「上書き」で、空なら この会社の県を使う。
      shahoKanyu … ★社会保険（健保・厚年）に入っている会社か★（''=まだ聞いていない / 'yes' / 'no'）
      askOk      … 7問のどれを人が「はい」と言ったか（★1問ごとに保存★するための印） */
-  function defCompany(){ return { name:'株式会社 ゼロアクト',addr:'',close:'末日',paydayRel:'next',paydayDay:'25', payCycle:'monthly', shimeMethod:'monthly', shimeN:'10',
+  function defCompany(){ return { name:'合同会社Rakually',addr:'',close:'末日',paydayRel:'next',paydayDay:'25', payCycle:'monthly', shimeMethod:'monthly', shimeN:'10',
       pref:'', shahoKanyu:'', askOk:{},
       holidays:[0], dailyWorkH:'8', dailyWorkM:'0', annualHolidays:'120', shakaTokutei:false,
       ruleOn:{warimashiRate:true},
@@ -475,7 +475,7 @@
     var realEmp=emps.length>1 || emps.some(function(e){ return e.name && !/^(山田 太郎|日払 太郎)$/.test(String(e.name).trim()); });
     var conf=state.confirmed&&state.confirmed[state.month]; var inputDone=!!(conf&&Object.keys(conf).length);
     return [
-      { done: !!(state.company&&String(state.company.name||'').trim() && !/^株式会社 ゼロアクト$/.test(String(state.company.name).trim())), label:'会社情報を入れる', sub:'会社名を自社に変更（初期はサンプル）', go:'company' },
+      { done: !!(state.company&&String(state.company.name||'').trim() && !/^合同会社Rakually$/.test(String(state.company.name).trim())), label:'会社情報を入れる', sub:'会社名を自社に変更（初期はサンプル）', go:'company' },
       { done: realEmp, label:'従業員を追加する', sub:'サンプルの山田太郎は書き換え/削除でOK', go:'emp' },
       { done: inputDone, label:'当月を入力して確認', sub:'勤怠を入れて「今月を確定」', go:'input' },
       { done: !!state.onboardOutput, label:'明細を出力する', sub:'PDF/Web明細/Excel/振込データ', go:'print' }
@@ -531,7 +531,7 @@
     var c=state.company;
     return [
       { key:'name', q:'会社の名前は？', now:c.name||'',
-        input:function(){ return '<input class="ask-in" data-ask="name" value="'+attr(c.name)+'" placeholder="株式会社 ゼロアクト">'; },
+        input:function(){ return '<input class="ask-in" data-ask="name" value="'+attr(c.name)+'" placeholder="合同会社Rakually">'; },
         answer:function(){ return c.name?{ text:'「'+esc(c.name)+'」で紙に刷ります。' }:null; } },
 
       { key:'pref', q:'どこの県ですか？', sub:'最低賃金は「事業場の所在地」で決まります',
@@ -3963,7 +3963,7 @@
   /* 統合テスト用API。★本番ブラウザには露出しない（jsdomのときだけ）★=RC1対策の自動統合テスト(tests/integration.mjs)の入口。 */
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
-      compute:compute, defEmp:defEmp, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit,
+      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit,
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf }; }
   }catch(e){}
   /* ---------- 永続化(localStorage既定・window.SUPA設定でSupabaseにも保存) ---------- */

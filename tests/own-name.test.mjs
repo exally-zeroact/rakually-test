@@ -468,5 +468,28 @@ T('★ホーム画面に追加する4画面が manifest を持ち、絵が本物
   console.log('     ' + seen.join(' ／ '));
 });
 
+/* ═══ ★見本の会社名は このアプリの名前（合同会社Rakually）★（司さん 2026-08-19）═══ */
+T('★配る物に 別の会社名の見本を書かない（見本は 合同会社Rakually）', () => {
+  /* 客に配る物＝画面のHTMLと 画面のJS（テストと凍結した物は 見ない） */
+  const SHIP = [
+    'index.html', 'kyuyo/index.html', 'kyuyo/meisai.html', 'kyuyo/admin.html', 'seikyu/index.html',
+    'js/hub.js', 'kyuyo/js/app.js', 'seikyu/js/seikyu-app.js',
+  ];
+  const NG = ['ゼロアクト', 'ZEROact', 'zeroact'];
+  const hit = [];
+  SHIP.forEach((f) => {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    NG.forEach((w) => { if (src.indexOf(w) >= 0) hit.push(f + ' に「' + w + '」'); });
+  });
+  ok(!hit.length, '★配る物に別の会社名が残っている★ … ' + hit.join(' / '));
+  /* 見本そのものは 在る事（既定が空だと「まだ入れていない」が判らなくなる） */
+  const app = fs.readFileSync(path.join(ROOT, 'kyuyo/js/app.js'), 'utf8');
+  ok(/name:'合同会社Rakually'/.test(app), '★既定の会社名が 合同会社Rakually でない★');
+  ok(/\/\^合同会社Rakually\$\/\.test\(/.test(app), '★「まだ自社に変えていない」の判定が 見本と揃っていない★');
+  const n = (app.match(/合同会社Rakually/g) || []).length;
+  ok(n >= 3, '見本の3か所（既定・判定・置き字）が揃っていない（' + n + '箇所）');
+  console.log('     配る物 ' + SHIP.length + '本に 別の会社名 0件 ／ app.js の見本 ' + n + '箇所');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
