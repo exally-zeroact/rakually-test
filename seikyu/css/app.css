@@ -268,8 +268,10 @@
    ＝取引先が0社の時だけ 出す。1行に「会社名」と「作る」を並べる。
    ★flex の箱に長い字を入れると 1文字ずつ縦に割れる★前科があるので、
      入力側は min-width:0 で縮ませ、ボタン側は縮ませない（実測して決める）。 */
-.pt-new { display: flex; gap: 8px; align-items: center; margin-top: 8px; padding-right: 10px; }
-.pt-new .finput { flex: 1 1 auto; min-width: 0; }
+.pt-new { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; padding-right: 10px; }
+/* ★置き字が読み切れる幅を残す★（375pxで実測：入力欄158px／「会社名を入れてください」に要る幅175px＝切れていた）
+   ＝入りきらない時は ★ボタンを下へ折り返す★（字を削らない） */
+.pt-new .finput { flex: 1 1 200px; min-width: 0; }
 .pt-new .btn-primary { flex: 0 0 auto; white-space: nowrap; }
 
 /* ★自社の情報（読むだけ）★ 何が紙に刷られるかを その場で見せる。
