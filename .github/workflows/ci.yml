@@ -183,6 +183,13 @@ jobs:
         run: node seikyu/tests/partner-ask.test.mjs
       - name: ★取引先7問 (本物のソースを壊して赤になるかの自己確認・7通り)
         run: node seikyu/tests/partner-ask.test.mjs --self-test
+      # ★黙って消える所★（指示役 2026-08-21）
+      #   #ERROR より「合計が黙って小さくなる」方が怖い（527,000 が 186,000 になった型）。
+      #   ★お金・合計を作る所の catch で「黙って0を返す」物を 0件に保つ★
+      - name: ★黙って0を返す catch が お金の所に無いか
+        run: node scripts/silent-catch.mjs --check
+      - name: ★黙って0を返す catch (わざと作ったら見つけられるかの自己確認)
+        run: node scripts/silent-catch.mjs --self-test
       # ★給与の「今どんな状態か」を 動かして数える★（司さん 2026-08-19）
       #   docs/STATE_kyuyo.md の数字は この道具が正。★1つ直すたびに表を手で更新する約束にしない★
       - name: ★給与の状態を数え直す (docs/STATE_kyuyo.md の数と突き合わせ・ズレたら赤)

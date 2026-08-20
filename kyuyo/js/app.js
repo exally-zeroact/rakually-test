@@ -3288,7 +3288,9 @@
     if(inScr){
       inScr.addEventListener('click',function(ev){
         if(ev.target.closest('[data-confirm-bonus]')){ try{ saveBonusPayslips(); }catch(_){} persistSave();
-          publishMeisaiNow(true,{silent:true}).then(function(n){ toast('賞与を確定しました（年調・台帳に反映'+(n?'・従業員のWeb明細に公開）':'）')); }, function(){ toast('賞与を確定しました（年調・台帳に反映）'); }); return; }
+          publishMeisaiNow(true,{silent:true}).then(function(n){ toast('賞与を確定しました（年調・台帳に反映'+(n?'・従業員のWeb明細に公開）':'）')); },
+            /* ★確定は出来たが 公開は出来なかった★を はっきり分けて言う（黙って同じ文にしない） */
+            function(){ toast('賞与を確定しました（年調・台帳に反映）。★従業員のWeb明細には公開できていません★'); }); return; }
         if(ev.target.closest('[data-bonus-harau]')){ try{ downloadBonusHarau(); }catch(_){} return; } // 賞与支払届 Excel出力
         var addS=ev.target.closest('[data-bsadd]'); if(addS){ var es=bonusById(addS.dataset.bsadd); if(es){ var i1=inScr.querySelector('[data-bsaddl="'+addS.dataset.bsadd+'"]'); var l1=(i1&&i1.value||'').trim()||'特別賞与'; bonusEntry(es).addShikyu.push({label:l1,value:'',hikazei:false}); renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); } return; }
         var addK=ev.target.closest('[data-bkadd]'); if(addK){ var ek=bonusById(addK.dataset.bkadd); if(ek){ var i2=inScr.querySelector('[data-bkaddl="'+addK.dataset.bkadd+'"]'); var l2=(i2&&i2.value||'').trim()||'控除'; bonusEntry(ek).addKojo.push({label:l2,value:''}); renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); } return; }
@@ -3601,7 +3603,9 @@
           if(!ok) return;
           state.employees.forEach(function(emp){ if(isActiveInMonth(emp,state.month)) setConfirm(emp.id,true); }); try{ saveMonthlyPayslips(true); }catch(_){} persistSave(); renderInput();
           // ★確定した月は自動で従業員のWeb明細に公開(会社が「Web明細で公開」を押さなくても、従業員はいつでもどの月でも閲覧可)
-          publishMeisaiNow(false,{silent:true}).then(function(n){ toast('今月を確定しました'+(n?'（従業員のWeb明細に公開）':'')); }, function(){ toast('今月を確定しました'); });
+          publishMeisaiNow(false,{silent:true}).then(function(n){ toast('今月を確定しました'+(n?'（従業員のWeb明細に公開）':'')); },
+            /* ★確定は出来たが 公開は出来なかった★を はっきり分けて言う */
+            function(){ toast('今月を確定しました。★従業員のWeb明細には公開できていません★'); });
         }); return; }
       var fs=e.target.closest('[data-fillsche]');
       if(fs){ var sd=fs.dataset.fillsche;
@@ -3837,7 +3841,9 @@
     $('#b-webpub').addEventListener('click',function(){
       var g=webPubGate();
       if(!g.enabled){ uiAlert('この月はまだ確定していません（'+g.short+'）。入力タブで確認してから公開してください。'); return; }
-      uiConfirm(PUBLISH_MSG).then(function(ok){ if(!ok) return; markOutput(); publishMeisaiNow(state.printMode==='bonus'); });
+      uiConfirm(PUBLISH_MSG).then(function(ok){ if(!ok) return; markOutput();
+        /* 失敗は publishMeisaiNow が言う。ここで握り潰さない（未処理の失敗も残さない） */
+        publishMeisaiNow(state.printMode==='bonus').catch(function(){ /* 言い終わっている */ }); });
     });
     $('#webmeisai-card').addEventListener('click',function(e){
       var cp=e.target.closest('.wm-copy'); if(cp){ try{ navigator.clipboard.writeText(cp.dataset.link); toast('コピーしました'); }catch(err){} return; }
@@ -3900,7 +3906,13 @@
     var items=emps.map(function(e){ var person=(isBonus?buildBonusPeople([e]):buildPeople([e]))[0];
       return { employeeId:e.id, name:e.name, ym:ym, kind:kind,
         data:{ person:person, doc:isBonus?{month:bonusMonthLabel(),kind:'bonus'}:{month:monthLabel()}, prefer:state.prefer, theme:state.theme } }; });
-    return Store.publishMeisai(items).then(function(){ renderWebMeisai(); if(!opts.silent) toast(emps.length+'名の'+(isBonus?'賞与':'給与')+'明細をWeb公開しました'); return emps.length; }).catch(function(){ return 0; });
+    return Store.publishMeisai(items).then(function(){ renderWebMeisai(); if(!opts.silent) toast(emps.length+'名の'+(isBonus?'賞与':'給与')+'明細をWeb公開しました'); return emps.length; }).catch(function(err){
+      /* ★失敗を0にしない★（0を返すと「0名 公開した」に見えて、
+         従業員に届いていない事が 誰にも伝わらない＝前科の型）。
+         ★言って★から ★投げ直す★（呼び手の失敗の道に入れる）。 */
+      toast('Web明細を公開できませんでした（' + ((err && (err.message || err.reason)) || '理由不明') + '）。もう一度 押してください。');
+      throw err;
+    });
   }
   // Web明細: 公開状況(従業員リンク＋同意＋未読/開封)を印刷タブに表示
   // 現在の名簿(在籍+退職者)のemployee_id。Web明細一覧をこれで絞る=削除済み(名簿に無い)は出さない。退職者は名簿に残るので出る。
