@@ -2223,8 +2223,16 @@
     }).join('');
     return note+cards;
   }
+  /* ★倉庫につながっていない時の言い方は ここ1か所★
+     （前は「履歴保存が未対応です」と ★4か所に同じ言葉★を書いていた＝
+       「出来ていない物の言葉を客に見せない」に反していたし、直す時に4か所 直す事になる） */
+  function noStoreHTML(sub){
+    return sub + '<div class="card"><p class="hint">'
+      + '過去の月を読み込めませんでした。ログインし直すと出ます。'
+      + '</p></div>';
+  }
   function renderChinginDaicho(sub){ var host=$('#view-cho'); var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
-    if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=sub+'<div class="card"><p class="hint">履歴保存が未対応です（保存を有効化してください）。</p></div>'; return; }
+    if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
     Store.getPayslipsByYm(year+'-01', year+'-12').then(function(recs){ recs=confirmedRecs(recs).filter(function(r){return r.data.kind!=='bonus';}); host.innerHTML=sub+chinginDaichoHTML(CD().buildLedger(recs, year, state.employees), year); }) // 賃金台帳(月次)は賞与除外
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
   function choSub(v){ return '<div class="seg" style="margin-bottom:10px;flex-wrap:wrap">'
@@ -2269,7 +2277,7 @@
     return note+'<div class="card"><div class="card-h">算定基礎届（'+year+'年4〜6月）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
   }
   function renderSantei(sub){ var host=$('#view-cho'); var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
-    if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=sub+'<div class="card"><p class="hint">履歴保存が未対応です。</p></div>'; return; }
+    if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
     Store.getPayslipsByYm(year+'-04', year+'-06').then(function(recs){ recs=confirmedRecs(recs).filter(function(r){return r.data.kind!=='bonus';});
       state._santeiRows=santeiRows(recs, year, state.employees); host.innerHTML=sub+santeiHTML(state._santeiRows, year); })
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
@@ -2308,7 +2316,7 @@
     return note+'<div class="card"><div class="card-h">月額変更届（随時改定）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
   }
   function renderGekkaku(sub){ var host=$('#view-cho'); var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
-    if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=sub+'<div class="card"><p class="hint">履歴保存が未対応です。</p></div>'; return; }
+    if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
     Store.getPayslipsByYm((year-1)+'-01', year+'-12').then(function(recs){ recs=confirmedRecs(recs); // 変動月は各人バラバラ=前年〜当年を広めに取得
       state._gekkakuRows=gekkakuRows(recs, state.employees); host.innerHTML=sub+gekkakuHTML(state._gekkakuRows); })
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
@@ -2378,7 +2386,7 @@
     return note+'<div class="card"><div class="card-h">労働保険 算定基礎賃金集計表（'+fy+'年度）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+ryoBox;
   }
   function renderRoudou(sub){ var host=$('#view-cho'); var fy=roudouFYof();
-    if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=sub+'<div class="card"><p class="hint">履歴保存が未対応です。</p></div>'; return; }
+    if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
     Store.getPayslipsByYm(fy+'-04', (fy+1)+'-03').then(function(recs){ recs=confirmedRecs(recs);
       state._roudouSum=roudouSummary(recs, fy, state.employees); host.innerHTML=sub+roudouHTML(state._roudouSum, fy); })
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
@@ -2534,7 +2542,8 @@
     return { shunyu:shunyu, genzen:genzen, shaho:shaho, res:res };
   }
   function nenResHTML(c, n){
-    if(!c) return '<p class="hint">計算エンジン未対応</p>';
+    /* ★部品が読めていないだけ★（出来ていないのではない）＝何が起きたかと 直し方を書く */
+    if(!c) return '<p class="hint">年末調整の計算の部品が読み込めていません。画面を開き直してください。</p>';
     var r=c.res, k=r.kabusoku; n=n||{};
     var badge = k<0 ? '<b style="color:#2E7D54">還付 '+yen(-k)+'</b>' : (k>0 ? '<b style="color:#C0392B">追加徴収 '+yen(k)+'</b>' : '<b>過不足なし</b>');
     // 二重計上ガード: 同じ19-22歳の子は「特定扶養(所得62万以下)」か「特定親族特別控除(62万超123万以下)」のどちらか一方
@@ -2623,7 +2632,7 @@
     state._nenRecs=recs;
     var emps=state.employees.filter(function(e){ return isActiveInMonth(e, year+'-12') || (recs||[]).some(function(r){return r.employee_id===e.id;}); });
     state._nenEmps=emps;
-    var yearGuard = (year<2026||year>2027) ? '<div class="cr-warn" style="margin:0 0 8px">⚠ この年末調整の税額計算は<b>令和8・9年分（2026・2027年）専用</b>です。対象年 '+year+' 年は未対応のため、控除額・税額が正しくない可能性があります（対象月を令和8・9年に設定してください）。</div>' : '';
+    var yearGuard = (year<2026||year>2027) ? '<div class="cr-warn" style="margin:0 0 8px">⚠ この年末調整の税額計算は<b>令和8・9年分（2026・2027年）専用</b>です。対象年 '+year+' 年の表は<b>持っていません</b>。このまま出すと 控除額・税額が正しくない可能性があります（対象月を令和8・9年に設定してください）。</div>' : '';
     // 本人のWeb申告 提出状況(提出済/未提出=公開済だが未申告)
     var decls=state._nenDecls||{}, pubIds=state._nenPubIds||{};
     var subN=emps.filter(function(e){ return decls[e.id]&&decls[e.id].decl; }).length;
