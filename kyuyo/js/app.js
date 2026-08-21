@@ -1882,7 +1882,7 @@
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">'
         +stateChip
         +'<b style="color:#333333;font-size:13px">確認 '+cnt.done+'/'+cnt.total+'名</b>'
-        +(cnt.need>0?'<span style="background:#fff8e1;border:1px solid #F4D8A8;color:#92500A;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#3D9E72;font-weight:700">✓ 全員確認済</span>')
+        +(cnt.need>0?'<span style="background:#fff8e1;border:1px solid #F4D8A8;color:#92500A;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700">✓ 全員確認済</span>')
         +'<label style="font-size:11px;color:#3D6B53;display:inline-flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" data-reviewonly'+(reviewOnly?' checked':'')+'>要確認だけ表示</label>'
         +'<span id="save-status" style="margin-left:auto;font-size:10.5px;color:#6E6E6E">'+(state._savedAt?'自動保存済 '+esc(state._savedAt):'')+'</span>'
       +'</div>'
@@ -1901,7 +1901,7 @@
     /* ★スマホ幅では折り返す★。折り返さないと、説明文が1文字ずつの縦帯になって読めない
        （幅390で 行の高さ421px・説明の幅36px＝実測して直した）。 */
     var confirmBtn='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 4px"><button class="btn-primary" data-confirm-month'+(prefMiss.missingCount?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映')+'）</button>'
-      +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#3D9E72;font-weight:700;white-space:nowrap">✓ 確認済</span>')
+      +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700;white-space:nowrap">✓ 確認済</span>')
       +'<span style="flex:1 0 100%;font-size:10px;color:#555555"><b>保存は自動</b>です。「確定」は全員を確認済みにし、<b>賃金台帳・年末調整の集計対象</b>として今月を記録し、<b>従業員のWeb明細に自動公開</b>します（従業員はいつでも閲覧可・あとで直せます）。</span></div>';
     if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+renderInputTableHTML(reviewOnly)+confirmBtn; return; }
     var cards=state.employees.map(function(e,i){
@@ -4009,8 +4009,8 @@
         +list.map(function(p){
           var ds=(p.docs||[]).slice().sort(function(a,b){return (b.ym||'').localeCompare(a.ym||'');});
           var openedTxt=ds.map(function(d){ return esc(d.ym)+(d.kind==='bonus'?'賞':'')+(d.openedAt?'✓':'<span style="color:#C0392B">未</span>'); }).join(' ');
-          var pwState=p.hasPassword?'<span style="font-size:10.5px;color:#2E7D54">パスワード設定済</span>':'<span style="font-size:10.5px;color:#92500A">パスワード未設定</span>';
-          var consentState=p.consentAt?'<span style="font-size:10.5px;color:#2E7D54">・同意済</span>':'<span style="font-size:10.5px;color:#92500A">・未同意</span>';
+          var pwState=p.hasPassword?'<span style="font-size:10.5px;color:#333333">パスワード設定済</span>':'<span style="font-size:10.5px;color:#92500A">パスワード未設定</span>';
+          var consentState=p.consentAt?'<span style="font-size:10.5px;color:#333333">・同意済</span>':'<span style="font-size:10.5px;color:#92500A">・未同意</span>';
           // 初回コードはリンク(?c=)に内包=従業員は入力不要。会社は「リンク(QR)を本人に渡す」だけ。漏れたら「リンク再発行」で旧リンクを無効化。
           var codeRow = '<div style="font-size:10.5px;color:#555555;margin-top:5px">'
             +(p.hasPassword ? 'パスワード設定済み。' : 'このリンク（QR）を開くと本人がパスワードを設定します。')
@@ -4019,7 +4019,7 @@
           var handoutUrl = origin+p.link + ((!p.hasPassword && p.initCode) ? ('&c='+encodeURIComponent(p.initCode)) : '');
           return '<div style="border:1px solid #d4eae0;border-radius:10px;padding:9px 11px;margin-bottom:7px">'
             +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:13px">'+esc(p.name||'(氏名未取得)')+'</b><span>'+pwState+consentState+'</span></div>'
-            +'<div style="display:flex;gap:6px;align-items:center;margin-top:5px"><span style="font-size:11px;color:#3D6B53;min-width:52px">リンク</span><input class="finput" readonly value="'+attr(handoutUrl)+'" style="flex:1;font-size:11px;padding:7px 9px" onclick="this.select()"><button class="btn-ghost wm-copy" data-link="'+attr(handoutUrl)+'" style="padding:7px 10px;font-size:11px">コピー</button><button class="btn-ghost wm-qr" data-qr-url="'+attr(handoutUrl)+'" data-qr-name="'+attr(p.name||'')+'" style="padding:7px 10px;font-size:11px">QR</button></div>'
+            +'<div style="display:flex;gap:6px;align-items:center;margin-top:5px"><span style="font-size:11px;color:#555555;min-width:52px">リンク</span><input class="finput" readonly value="'+attr(handoutUrl)+'" style="flex:1;font-size:11px;padding:7px 9px" onclick="this.select()"><button class="btn-ghost wm-copy" data-link="'+attr(handoutUrl)+'" style="padding:7px 10px;font-size:11px">コピー</button><button class="btn-ghost wm-qr" data-qr-url="'+attr(handoutUrl)+'" data-qr-name="'+attr(p.name||'')+'" style="padding:7px 10px;font-size:11px">QR</button></div>'
             +codeRow
             +'<div style="font-size:10.5px;color:#555555;margin-top:5px">公開: '+openedTxt+'</div></div>';
         }).join('');
