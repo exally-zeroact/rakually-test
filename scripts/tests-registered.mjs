@@ -46,6 +46,21 @@ function findRoot(from) {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = findRoot(HERE);
 
+/* ★★この見張りは 自分が置いてある場所の repo を測ります★★（2026-08-21 指示役が踏んだ）
+   14個の repo で走らせたら ★14回とも 同じ数（110本／0本）★ が出た。
+   ＝★どの repo から走らせても、黙って「自分の家」を測って 緑を返していた★。
+   ⇒ ① ★測った所を いちばん上に1行 出す★（見れば すぐ気づける）
+      ② ★走らせた場所が 測った根の外なら 赤★（コピーせずに 外から走らせる使い方を塞ぐ）
+   ⇒ ★使い方は「測りたい repo の中へ このファイルを1本 置いて、その repo の中で走らせる」★ */
+function isInside(root, cwd) {
+  const norm = (p) => (process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p));
+  const r = path.relative(norm(root), norm(cwd));
+  return r === '' || (!r.startsWith('..') && !path.isAbsolute(r));
+}
+function whereLine(root) {
+  return '測った所 … ' + path.resolve(root) + '（' + path.basename(path.resolve(root)) + '）';
+}
+
 const SKIP_FILE = 'tests-no-ci.json';
 const SEP = String.fromCharCode(47);      /* /  */
 const BS = String.fromCharCode(92);       /* 円記号（Windowsの区切り） */
@@ -183,6 +198,7 @@ function run(root, label) {
   const stale = Object.keys(SKIP).filter((k) => tests.indexOf(k) < 0);
   const asi = scanASI(root);
 
+  console.log(whereLine(root));
   console.log('[' + label + '] 在る試験 ' + tests.length + '本'
     + ' ／ 走っていない ' + missing.length + '本'
     + ' ／ 走らせないと決めた ' + Object.keys(SKIP).length + '本'
@@ -192,6 +208,18 @@ function run(root, label) {
   skipBad.forEach((t) => console.log('  ' + t));
   asi.forEach((t) => console.log('  ★undefined を返す return★ ' + t));
   return missing.length + stale.length + skipBad.length + asi.length;
+}
+
+/* ★走らせた場所が 測った根の外なら 赤★（--self-test でも同じ。黙って別の repo を測らせない） */
+if (!isInside(ROOT, process.cwd())) {
+  console.error(whereLine(ROOT));
+  console.error('★走らせた場所 … ' + process.cwd());
+  console.error('');
+  console.error('★測った所と 走らせた場所が 違います★');
+  console.error('　この見張りは ★自分が置いてある repo★ を測ります。外から走らせると');
+  console.error('　黙って「置いてある方の repo」を測って 緑を返してしまいます（指示役が14repoで踏んだ）。');
+  console.error('　⇒ ★測りたい repo の中へ このファイルを1本 置いて、その repo の中で走らせてください★');
+  process.exit(1);
 }
 
 /* ── わざと壊して 赤になるか ───────────────────── */
@@ -233,9 +261,19 @@ if (process.argv.includes('--self-test')) {
     must(1, run(tmp, '⑦ return の次の行が + '), 'undefined を返す return を見つける');
     W('src/x.js', 'function f(){ return ' + NL + '  // ただの覚書' + NL + '  1; }' + NL);
     must(0, run(tmp, '⑧ return の次が覚書なら 数えない'), '覚書で誤検知しない');
+
+    /* ★測った所と 走らせた場所が 違ったら赤★（指示役が14repoで踏んだ穴） */
+    console.log('[自己診断] ⑨⑩ 測った所と 走らせた場所');
+    must(true, isInside(tmp, path.join(tmp, 'app', 'tests')), '★repoの中から走らせたら 通す');
+    must(false, isInside(tmp, path.dirname(tmp)), '★repoの外から走らせたら 止める');
+    must(true, isInside(tmp, tmp), '根そのものは 中');
+    must(false, isInside(path.join(tmp, 'app'), tmp), '親から子を測ろうとしたら 止める');
+    /* ★測った所を いちばん上に出しているか★（出ていなければ 指示役は気づけない） */
+    must(true, /^測った所 … /.test(whereLine(tmp)), '★測った所を 1行目に出す');
+    must(true, whereLine(tmp).indexOf(path.basename(tmp)) > 0, '★repo名も出す');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   if (ng) { console.error(NL + '★自己診断 ' + ng + '件 失敗★'); process.exit(1); }
-  console.log(NL + '自己診断 8件 とも 正しい');
+  console.log(NL + '自己診断 14件 とも 正しい');
   process.exit(0);
 }
 
