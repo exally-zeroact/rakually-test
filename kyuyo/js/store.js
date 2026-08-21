@@ -33,8 +33,26 @@
     return step();
   }
 
-  function lsAll(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch(e){ return []; } }
-  function lsWrite(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+  /* ★「読めなかった」を「空」と言わない★（2026-08-21）
+     前は 壊れていても [] を返し、その [] を そのまま上書きしていた＝
+     ★この端末に保存してある物が 黙って全部 消える★。
+     ・使えない端末（localStorage を触れない）… ★本当に空★＝[] のままでよい
+     ・中身が壊れている … [] は返すが ★書き込みを止める★（消さない・投げて伝える） */
+  var _lsBroken = {};
+  function readList(key){
+    var raw;
+    try{ raw = localStorage.getItem(key); }catch(e){ return []; }      /* 使えない端末＝本当に空 */
+    if(raw == null || raw === '') { _lsBroken[key] = false; return []; }
+    try{ var v = JSON.parse(raw); _lsBroken[key] = false; return Array.isArray(v) ? v : []; }
+    catch(e){ _lsBroken[key] = true; return []; }                       /* ★壊れている★ */
+  }
+  function writeList(key, arr){
+    if(_lsBroken[key]) throw new Error('この端末に保存してある物を読めませんでした（壊れています）。消さないように 書き込みを止めました。');
+    try{ localStorage.setItem(key, JSON.stringify(arr)); }
+    catch(e){ throw new Error('この端末に保存できませんでした（' + ((e&&e.message)||'空き容量など') + '）。'); }
+  }
+  function lsAll(){ return readList(LS_KEY); }
+  function lsWrite(arr){ writeList(LS_KEY, arr); }
   function uid(){ return 'b_'+Math.abs(Date.now()).toString(36)+'_'+Math.floor(performance.now()).toString(36); }
 
   var Store = {
@@ -204,8 +222,8 @@
   //  ★kind('monthly'|'bonus')を data.kind に埋め込む→取得側で用途別にフィルタ(定時決定/前月比は賞与を除外・年調は含める)★。
   //  DBスキーマ非変更(kindは既存 data jsonb 内)。未kind=旧データ=monthly扱い。未ログイン/未SUPAはlocalStorage層。
   var PS_KEY = 'payslip_payslips_v1';
-  function psAll(){ try{ return JSON.parse(localStorage.getItem(PS_KEY)||'[]'); }catch(e){ return []; } }
-  function psWrite(arr){ try{ localStorage.setItem(PS_KEY, JSON.stringify(arr)); }catch(e){} }
+  function psAll(){ return readList(PS_KEY); }
+  function psWrite(arr){ writeList(PS_KEY, arr); }
   Store.savePayslip = function(ym, employeeId, data, kind){
     kind = (kind==='bonus')?'bonus':'monthly';
     var id = (kind==='bonus'?'psb_':'ps_')+ym+'_'+employeeId;
@@ -248,10 +266,10 @@
   // 自分のパスワードを設定→以後はパスワード(＋端末記憶deviceToken)で閲覧。★電子交付の同意(所得税法)まで明細を1バイトも返さない★。
   // 生年月日PINは廃止(同じ誕生日・推測に弱い)。未読/開封(openedAt)を記録。本番=Supabase(schema/RPC)。ここはlocalStorage実装。
   var MPUB_KEY='payslip_meisai_pub_v1', MDOC_KEY='payslip_meisai_docs_v1';
-  function mPub(){ try{ return JSON.parse(localStorage.getItem(MPUB_KEY)||'[]'); }catch(e){ return []; } }
-  function mPubW(a){ try{ localStorage.setItem(MPUB_KEY, JSON.stringify(a)); }catch(e){} }
-  function mDoc(){ try{ return JSON.parse(localStorage.getItem(MDOC_KEY)||'[]'); }catch(e){ return []; } }
-  function mDocW(a){ try{ localStorage.setItem(MDOC_KEY, JSON.stringify(a)); }catch(e){} }
+  function mPub(){ return readList(MPUB_KEY); }
+  function mPubW(a){ writeList(MPUB_KEY, a); }
+  function mDoc(){ return readList(MDOC_KEY); }
+  function mDocW(a){ writeList(MDOC_KEY, a); }
   // 簡易ハッシュ(localStorage用・非暗号)。★本番はSupabase RPCでpgcrypto crypt()/bcryptの適正ハッシュ★。
   function hashOf(s){ s=String(s||''); var h=5381; for(var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))>>>0; } return 'h'+h.toString(36); }
   function rndToken(){ return 't'+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,6); }
@@ -471,8 +489,8 @@
   // ── 従業員セルフ登録: 振込先(本人がWeb明細から登録→会社が従業員マスタへ取り込む) ──
   //  本番=Supabase RPC(save_emp_profile/get_emp_profile・認証は明細と同じ)。localStorage層は下のMPRF。
   var MPRF_KEY='payslip_emp_profile_v1';
-  function mPrf(){ try{ return JSON.parse(localStorage.getItem(MPRF_KEY)||'[]'); }catch(e){ return []; } }
-  function mPrfW(a){ try{ localStorage.setItem(MPRF_KEY, JSON.stringify(a)); }catch(e){} }
+  function mPrf(){ return readList(MPRF_KEY); }
+  function mPrfW(a){ writeList(MPRF_KEY, a); }
   // 従業員: 振込先を保存(認証必須)。返り={ok} or {unauth}
   Store.saveEmpProfile = function(token, cred, data){
     if(hasSupa){ cred=cred||{};

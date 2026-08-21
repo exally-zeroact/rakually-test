@@ -151,6 +151,21 @@ T('⑤ ★知らせが 画面からはみ出さない書き方か（375pxで実�
   console.log('     実測：この知らせは 1行だと 404px 要る／スマホは375px＝★折り返しが要る★');
 });
 
+T('⑥ ★下絵0枚では 印刷ボタンを押せない（白紙の印刷ダイアログを出さない）', () => {
+  /* 指示役 2026-08-21：framePageCount は下絵が読めない時 0 を返す。
+     ★0枚でも押せる作りなら 白紙の印刷ダイアログが出る★（前に踏んだ型）ので、押して確かめる。 */
+  A.state.company = A.defCompany(); A.state.month = '2026-08'; A.state.employees = [];
+  A.updatePrintBtn();
+  const b = doc.getElementById('b-print');
+  ok(b, '印刷ボタンが無い');
+  eq(b.disabled, true, '★下絵0枚なのに 印刷ボタンが押せる（白紙のダイアログが出る）★');
+  ok(/対象者なし|刷る物がありません|日別の入力がありません/.test(b.textContent || ''), '押せない理由が ボタンに出ていない');
+  const g0 = A.printGate(0), g1 = A.printGate(1);
+  eq(g0.enabled, false, '0枚で 開いている');
+  eq(g1.enabled, true, '1枚でも 開かない');
+  console.log('     0枚→押せない（「' + (b.textContent || '').trim() + '」）／1枚→押せる');
+});
+
 if (process.argv.includes('--self-test')) {
   console.log('\n★自己確認（わざと戻して 赤になるか）★');
   let sp = 0, sf = 0;
