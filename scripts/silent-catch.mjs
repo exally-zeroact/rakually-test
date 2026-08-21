@@ -66,7 +66,7 @@ for (const f of FILES) {
     if (/return\s*(0|Number\(0\)|\{\s*\}\s*)?;?\s*$/.test(body) && /return\s*0\b/.test(body)) kind = '①0を返す';
     else if (/return\s*(\[\s*\]|\{\s*\}|''|""|null|undefined)\s*;?/.test(body)) kind = '②空を返す';
     else if (!body) kind = '③そのまま進む';
-    else if (/console\.|throw|msg\(|box\(|setText\(|alert\(/.test(body)) kind = '④知らせている';
+    else if (/console\.|throw|msg\(|box\(|setText\(|alert\(|toast\(/.test(body)) kind = '④知らせている';
     else kind = '③そのまま進む';
     rows.push({ file: f, line: src.slice(0, c.at).split('\n').length, owner: ownerOf(src, c.at), money: isMoney, kind, body: body.slice(0, 60) });
   }
@@ -76,6 +76,22 @@ const money = rows.filter((r) => r.money);
 const byKind = {};
 money.forEach((r) => { byKind[r.kind] = (byKind[r.kind] || 0) + 1; });
 const zero = money.filter((r) => r.kind === '①0を返す');
+
+/* ★外へ出す呼び出しは 全部 失敗の受け皿を持つ★
+   （2026-08-21：Web明細は catch が在ったが ★源泉徴収票の交付は catch すら無かった★＝
+     交付できていないのに 誰にも伝わらない） */
+const OUT_CALLS = ['Store.publishMeisai(', 'Store.savePayslip('];
+const noCatch = [];
+for (const f of FILES) {
+  const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  for (const call of OUT_CALLS) {
+    let i = -1;
+    while ((i = src.indexOf(call, i + 1)) >= 0) {
+      const tail = src.slice(i, i + 520);
+      if (!/\.catch\(/.test(tail)) noCatch.push(f + ':' + src.slice(0, i).split('\n').length + '  ' + call);
+    }
+  }
+}
 
 if (process.argv.includes('--list')) {
   console.log('\n[お金を作る所の catch] ' + money.length + '件');
@@ -87,6 +103,7 @@ if (process.argv.includes('--list')) {
   ['①0を返す', '②空を返す', '③そのまま進む', '④知らせている'].forEach((k) => {
     console.log('    ' + k + ' … ' + (byKind[k] || 0) + '件');
   });
+  console.log('    外へ出す呼び出しで 受け皿が無い所 … ' + noCatch.length + '件');
   if (zero.length) {
     console.log('\n  ★①0を返す（一番 危ない）★');
     zero.forEach((r) => console.log('    ' + r.file + ':' + r.line + '  ' + r.owner));
@@ -107,6 +124,12 @@ if (process.argv.includes('--self-test')) {
 }
 
 if (process.argv.includes('--check')) {
+  if (noCatch.length) {
+    console.error('\n★外へ出す呼び出しに 失敗の受け皿が無い（' + noCatch.length + '件）★');
+    noCatch.forEach((x) => console.error('   ' + x));
+    console.error('  失敗しても 誰にも伝わりません。★言ってから 投げ直す★を付けてください。');
+    process.exit(1);
+  }
   if (zero.length) {
     console.error('\n★お金を作る所で「黙って0を返す」catch が ' + zero.length + '件★');
     console.error('  0にして進むと ★合計が黙って小さくなる★（527,000 が 186,000 になった型）。');

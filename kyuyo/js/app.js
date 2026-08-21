@@ -1593,7 +1593,21 @@
     for(var ym in c){ if(Object.prototype.hasOwnProperty.call(c,ym) && c[ym] && c[ym][id]) out.push(ym); }
     return out.sort();
   }
-  function toast(msg){ try{ var t=document.getElementById('app-toast'); if(!t){ t=document.createElement('div'); t.id='app-toast'; t.style.cssText='position:fixed;left:50%;bottom:88px;transform:translateX(-50%);background:#2E7D54;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.22);z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none'; document.body.appendChild(t); } t.textContent=msg; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(function(){ t.style.opacity='0'; },2200); }catch(e){} }
+  function toast(msg){ try{ var t=document.getElementById('app-toast'); if(!t){ t=document.createElement('div'); t.id='app-toast'; t.style.cssText='position:fixed;left:50%;bottom:88px;transform:translateX(-50%);'+'max-width:calc(100vw - 32px);width:max-content;box-sizing:border-box;'+'white-space:normal;overflow-wrap:anywhere;line-height:1.6;text-align:center;'+'background:#2E7D54;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;'+'box-shadow:0 4px 16px rgba(0,0,0,.22);z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none'; document.body.appendChild(t); } t.textContent=msg; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(function(){ t.style.opacity='0'; },2200); }catch(e){} }
+  /* ★保存できなかった人を まとめて1回だけ言う★（2026-08-21）
+     前は try{...}catch(_e){} で囲むだけ＝★約束の失敗は捕まらない★ので、
+     ★台帳にも年調にも入っていないのに「確定しました」と出ていた★。
+     人ごとに言うと うるさいので、数えて 少し待ってから1回だけ言う。 */
+  var _saveFailN = 0, _saveFailT = null;
+  function saveFailed(){
+    _saveFailN++;
+    clearTimeout(_saveFailT);
+    _saveFailT = setTimeout(function(){
+      toast(_saveFailN + '名分を保存できませんでした（台帳・年末調整に入っていません）。もう一度 確定してください。');
+      _saveFailN = 0;
+    }, 400);
+  }
+
   // アプリ内モーダル(native alert/confirm/promptの置換)。Promiseで解決=非同期。DOMは動的生成(HTML変更不要)。
   //  uiAlert→Promise<true> / uiConfirm→Promise<bool> / uiPrompt→Promise<string|null(キャンセル)>
   function uiModal(opts){
@@ -1775,7 +1789,8 @@
         } else { needInput++; }
         // 先月履歴(相手の数字をfaithfulに)。凍結も立て、後続の自動保存で消えないよう守る。
         try{ if(window.Store&&Store.savePayslip){
-          Store.savePayslip(prevYm, e.id, { name:e.name, net:theirNet, shikyuTotal:num(row.prev.gross), kojoTotal:num(row.prev.kojoTotal), shikyu:e.shikyu.map(function(s){ return { label:s.label, value:String(s.value) }; }), kojo:(row.prev.kojo||[]).map(function(k){ return { label:k.label, value:num(k.value) }; }), confirmed:true, migrated:true }, 'monthly');
+          Store.savePayslip(prevYm, e.id, { name:e.name, net:theirNet, shikyuTotal:num(row.prev.gross), kojoTotal:num(row.prev.kojoTotal), shikyu:e.shikyu.map(function(s){ return { label:s.label, value:String(s.value) }; }), kojo:(row.prev.kojo||[]).map(function(k){ return { label:k.label, value:num(k.value) }; }), confirmed:true, migrated:true }, 'monthly')
+            .catch(saveFailed);      /* ★約束の失敗は ここでしか捕まらない★ */
           state.confirmed=state.confirmed||{}; (state.confirmed[prevYm]=state.confirmed[prevYm]||{})[e.id]=true;
         } }catch(_){ }
       }
@@ -2074,7 +2089,8 @@
           hyojun:num(si.hyojun), // 標準賞与額=健保573万 年度累計(ytd)の自動集計に使う
           shikyu:shikyu, tax:num(c.taxAmt),
           siTotal:si.total||0, si:{ health:num(si.health), kaigo:num(si.kaigo), pension:num(si.pension), employ:num(si.employ) },
-          dept:(e.dept||'') }, 'bonus');
+          dept:(e.dept||'') }, 'bonus')
+          .catch(saveFailed);        /* ★約束の失敗は ここでしか捕まらない★ */
       }catch(_e){}
     });
   }
@@ -2795,7 +2811,10 @@
     if(!(window.Store&&Store.publishMeisai)) return;
     uiConfirm(emps.length+'名の源泉徴収票を、従業員のWeb明細で交付します（電磁的方法・所得税法226条等）。\n・従業員はログイン＋電子交付の同意後に閲覧・PDF保存/印刷できます\n・本人交付用のためマイナンバーは記載されません\n・書面（紙）を希望する従業員には、別途書面で交付してください\nよろしいですか？').then(function(ok){ if(!ok) return;
       var items=emps.map(function(e){ return { employeeId:e.id, name:e.name, ym:year+'-12', kind:'gensen', data:{ gensenHtml:nenGensenDoc(e, year), person:{ name:e.name }, year:year } }; });
-      Store.publishMeisai(items).then(function(){ toast(emps.length+'名の源泉徴収票をWeb交付しました'); });
+      Store.publishMeisai(items).then(function(){ toast(emps.length+'名の源泉徴収票をWeb交付しました'); })
+        /* ★失敗を黙って捨てない★（catch が無いと 交付できていないのに 誰にも伝わらない＝
+           2026-08-21 に Web明細で潰したのと同じ型。ここにも在った） */
+        .catch(function(err){ toast('源泉徴収票をWeb交付できませんでした（'+((err&&(err.message||err.reason))||'理由不明')+'）。もう一度 押してください。'); });
     });
   }
 
@@ -3965,7 +3984,8 @@
       Store.savePayslip(ym, e.id, { name:e.name, shikyuTotal:r.shikyuTotal, paymentDays:days, kojoTotal:r.kojoTotal, net:r.net, kazei:r.kazei, siTotal:si.total||0,
         confirmed:!!(conf&&conf[e.id]), // ★確定フラグ=賃金台帳/年調は確定済みだけ集計(未確定の下書き月を混入させない)。旧データ(無し)は後方互換で集計対象
         shikyu:r.shikyu, kojo:r.kojo, hyojun:r.hyojun, dept:(e.dept||''), tax:num(r.incomeTax), jumin:num(r.residentTax),
-        si:{ health:num(si.health), kaigo:num(si.kaigo), pension:num(si.pension), employ:num(si.employ) }, work:work });
+        si:{ health:num(si.health), kaigo:num(si.kaigo), pension:num(si.pension), employ:num(si.employ) }, work:work })
+        .catch(saveFailed);   /* ★約束の失敗は ここでしか捕まらない★ */
     }catch(_e){} });
   }
   // 定時決定: 当年の4・5・6月の履歴から 総支給+支払基礎日数 を自動セット(無い月は空欄=手入力)

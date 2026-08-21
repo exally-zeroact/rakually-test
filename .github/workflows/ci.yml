@@ -190,6 +190,10 @@ jobs:
         run: node scripts/silent-catch.mjs --check
       - name: ★黙って0を返す catch (わざと作ったら見つけられるかの自己確認)
         run: node scripts/silent-catch.mjs --self-test
+      - name: ★わざと失敗させて押す (公開が落ちた時に 言うか／袋小路にならないか)
+        run: node kyuyo/tests/publish-fail-ui.mjs
+      - name: ★わざと失敗させて押す (0を返す形へ戻したら赤になるかの自己確認)
+        run: node kyuyo/tests/publish-fail-ui.mjs --self-test
       # ★給与の「今どんな状態か」を 動かして数える★（司さん 2026-08-19）
       #   docs/STATE_kyuyo.md の数字は この道具が正。★1つ直すたびに表を手で更新する約束にしない★
       - name: ★給与の状態を数え直す (docs/STATE_kyuyo.md の数と突き合わせ・ズレたら赤)
