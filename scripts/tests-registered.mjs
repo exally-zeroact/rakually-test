@@ -14,13 +14,24 @@
  *                  その2件は「登録の直後に袋小路にしない」＝★客が入れなくなる穴★だった。
  *    ＝★「CI緑」は「試験が全部 走った」ではない★。在る試験と 走る試験を 突き合わせる。
  *
- *  ★見張り自身が 嘘をついた事が 3回ある（全部 直して 自己確認に入れた）★（2026-08-21）
+ *  ★見張り自身が 嘘をついた事が 4回ある（全部 直して 自己確認に入れた）★（2026-08-21）
  *    (a) CIの本文だけ読み、tests/run.js が中で走らせている4本を「走っていない」と言った
  *    (b) 自分が置いてある場所の repo を測り、★14repoで走らせて 14回とも同じ数★を返した
  *    (c) 走らせ役の名前だけ見て、vitest の ★拾う範囲★ を読まず、
  *        飲み屋で ★走っている9本を「走っていない」と赤にした（嘘の赤）★
  *        さらに直す途中で「vitest」の字が依存に在るだけで 既定の拾う範囲を当て、
  *        ★誰も走らせていない試験を「走っている」と言いかけた（嘘の緑）★
+ *    (d) ★「名前がどこかに書いてあれば 走っている」にしていた（緩めすぎ）★
+ *        exally-staging の kyuyo/tests/exally-login.test.mjs を名前で持っているのは
+ *        tests/ci-coverage.test.mjs だけ。それは ★走らせる物ではなく「CIから外れた試験が
+ *        無いか見張る物」★で、中の
+ *            'kyuyo/tests/exally-login.test.mjs': { …戻す条件… }
+ *        は ★除外リストの鍵★。それを「走っている」と読んで 131本/5本 → 142本/0本 にした。
+ *        ⇒ ★実際に走らせている書き方か★で見る（下の collectExecuted）
+ *           ○ node <path> ／ npx … <path> ／ execFile・spawn 等
+ *             ／ ★走らせる物（exec を持つ file）の 一覧に載っている★
+ *           ✕ 除外リストの鍵（'…': {…}）／覚書の中／ただの文字列の突き合わせ
+ *           ★見分けが付かない時は 緑にせず「未測定」で赤★
  *
  *  ★拾う範囲まで読みます★
  *    vitest … vitest.config / vite.config の include・exclude・dir（無ければ vitest の既定）
@@ -261,6 +272,118 @@ function coveredByRanges(ranges, relPath) {
   return null;
 }
 
+/* ★「名前が出てくる」＝走っている ではない★（2026-08-21 指示役が exally-staging で踏んだ）
+   exally-staging の kyuyo/tests/exally-login.test.mjs を名前で持っているのは
+   tests/ci-coverage.test.mjs だけで、それは ★走らせる物ではなく「CIから外れた試験が無いか見張る物」★。
+   その中の
+       'kyuyo/tests/exally-login.test.mjs': { …戻す条件… }
+   という ★除外リストの鍵★ を見つけて「走っている」と言い、131本/5本 → 142本/0本 にした＝★嘘の緑★。
+   ⇒ ★実際に走らせている書き方か★で見る。
+      ○ node <path> ／ npx … <path> ／ execFile・spawn 等で <path>
+        ／ ★走らせる物（exec を持つ file）の中の 一覧に 載っている★
+      ✕ 除外リストの鍵（'…': {…}）／覚書の中／ただの文字列の突き合わせ
+   ⇒ ★見分けが付かない時は 緑にせず「走らせているか読めません（未測定）」で赤★ */
+
+/* 覚書を取り除く（文字列の中は 消さない）。1本で持ち運ぶため ここに置く。 */
+function stripComments(src) {
+  let out = '', i = 0; const n = src.length;
+  let q = null, last = '';
+  while (i < n) {
+    const c = src[i], d = src[i + 1];
+    if (q) {
+      if (c === BS) { out += c + (d || ''); i += 2; continue; }
+      if (c === q) q = null;
+      out += c; i++; continue;
+    }
+    if (c === Q || c === D || c === '`') { q = c; out += c; last = c; i++; continue; }
+    if (c === '/' && d === '/') { while (i < n && src[i] !== NL) { out += ' '; i++; } continue; }
+    if (c === '/' && d === '*') {
+      i += 2;
+      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) { out += src[i] === NL ? NL : ' '; i++; }
+      i += 2; continue;
+    }
+    out += c; if (!/\s/.test(c)) last = c; i++;
+  }
+  return out;
+}
+
+/* 文字列を すべて取り出す。★鍵（'…': ）は 走らせる物ではない★ので 印を付ける。 */
+function literals(src) {
+  const rx = new RegExp('([' + Q + D + '`])([^' + Q + D + '`]{1,300}?)' + BS + '1', 'g');
+  const out = [];
+  for (const m of src.matchAll(rx)) {
+    const after = src.slice(m.index + m[0].length, m.index + m[0].length + 4);
+    out.push({ v: m[2], at: m.index, isKey: /^\s*:/.test(after) });
+  }
+  return out;
+}
+
+const FILE_RX = /\.(mjs|cjs|js)$/;
+/* ★「走らせる物」かどうかの見分け★
+   ・execFile / spawn などで 外に出している
+   ・require(f) / import(x) のように ★変数を渡して★ 読み込んでいる（＝一覧を順に走らせる形）
+   ★require('assert') のような 決め打ちの読み込みは 数えない★
+   （どのファイルにも在るので、数えると 除外リストの見張りまで「走らせる物」になってしまう） */
+const EXEC_CALL = /\b(execFileSync|execFile|execSync|spawnSync|spawn|fork)\s*\(|\b(require|import)\s*\(\s*[A-Za-z_$]/;
+const IMPORT_NEAR = /\b(import|require|from)\b[^\n]{0,40}$/;
+
+/* 命令の字から「node/npx で叩いている物」を拾う */
+function fromCommands(text) {
+  const out = [];
+  for (const m of text.matchAll(/(?:^|[\s;&|(])(?:node|npx)\s+((?:--?\S+\s+)*)([\w./@-]+\.(?:mjs|cjs|js))/g)) out.push(m[2]);
+  return out;
+}
+
+/* ★走らせている物★を集める。unknown が付いたら 赤（未測定）。 */
+function collectExecuted(root, cmds) {
+  const runs = [];                 /* 走らせていると分かった書き方 */
+  const unknown = [];
+  const seen = new Set();
+  const queue = [];
+
+  fromCommands(cmds).forEach((p) => { runs.push(p); queue.push(p); });
+
+  for (let depth = 0; depth < 3 && queue.length; depth++) {
+    const now = queue.splice(0, queue.length);
+    for (const rel0 of now) {
+      const key = rel0.replace(/^\.\//, '');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const abs = path.join(root, key);
+      if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) continue;
+      let src;
+      try { src = stripComments(fs.readFileSync(abs, 'utf8')); } catch { continue; }
+
+      /* ★exec を1つも持たない物は「走らせる物」ではない★＝見張る物・除外リスト */
+      if (!EXEC_CALL.test(src)) continue;
+
+      /* 中で叩いている物（node … の形） */
+      fromCommands(src).forEach((p) => { runs.push(p); queue.push(p); });
+
+      /* 一覧に載っている物（★鍵は数えない★） */
+      const lits = literals(src).filter((L) => !L.isKey && FILE_RX.test(L.v));
+      if (!lits.length) {
+        unknown.push(key + ' … 走らせる物だが、走らせる一覧が 変数や組み立てで書かれていて 読めません');
+        continue;
+      }
+      const dir = path.dirname(key);
+      lits.forEach((L) => {
+        const v = L.v.replace(/^\.\//, '');
+        runs.push(v);
+        const joined = (dir === '.' ? v : dir + SEP + v).split(SEP).filter((x) => x !== '.').join(SEP);
+        runs.push(joined);
+        queue.push(joined);
+      });
+    }
+  }
+  return { runs, unknown };
+}
+
+function hitsRun(runs, t) {
+  const base = t.split(SEP).pop();
+  return runs.some((r) => r === t || r === base || r.endsWith(SEP + base) || r.endsWith(SEP + t));
+}
+
 function registered(root) {
   const parts = [];
   const wf = path.join(root, '.github', 'workflows');
@@ -376,40 +499,36 @@ function run(root, label) {
      ⇒ ★本当に叩いている命令だけ★を見る（package.json の scripts の中身と CI の run: の行）。 */
   const { ranges, unreadable } = pickRanges(root, runCommands(root));
 
-  /* 名前で書かれているか */
-  const named = (t) => {
-    if (ci.indexOf(t) >= 0) return '名前で登録';
-    const base = t.split(SEP).pop();
-    if (ci.indexOf(Q + base + Q) >= 0 || ci.indexOf(D + base + D) >= 0 || ci.indexOf(SEP + base) >= 0) return '走らせ役の一覧';
-    return null;
-  };
+  /* ★走らせている書き方か★で見る（名前が出てくるだけでは 走っていない） */
+  const { runs, unknown: execUnknown } = collectExecuted(root, runCommands(root));
 
-  /* ① まず「名前で書いてある」「拾う範囲に入る」試験を 走っていると見る */
+  /* ① 走らせている物・拾う範囲に入る物 */
   const why = {};
   for (const t of tests) {
-    const n = named(t) || coveredByRanges(ranges, t);
-    if (n) why[t] = n;
+    if (hitsRun(runs, t)) { why[t] = '走らせている'; continue; }
+    const g = coveredByRanges(ranges, t);
+    if (g) why[t] = g;
   }
-  /* ② ★走っていると分かった試験が 中で呼んでいる試験も 走っている★
-        （飲み屋の app-source.mjs / supa-from-config.mjs は nomiya-deploy.test.js から呼ばれる）
-        ★走っていない試験の中身は読まない★＝そこから広げたら 嘘になる */
+  /* ② ★走っている試験が import/require している試験も 走っている★
+        （飲み屋の app-source.mjs は nomiya-deploy.test.js が import している）
+        ★走っていない試験の中身は読まない★／★鍵（'…': {…}）は 呼び出しではない★ */
   for (let round = 0; round < 5; round++) {
     let added = 0;
     for (const t of tests) {
       if (!why[t]) continue;
       let src;
-      try { src = fs.readFileSync(path.join(root, t), 'utf8'); } catch { continue; }
-      /* ★名前の部分一致で広げない★（2026-08-21 自分で踏んだ＝嘘の緑）
-         payroll-calc.test.js の中に calc.test.js が入っているので、
-         走っていない calc.test.js を「呼ばれている」と言い、★わざと外しても赤にならなかった★。
-         ⇒ ★字の並びで探さず、文字列（'…'）を取り出して 終わりが一致するかで見る★ */
-      const QRX = new RegExp('[' + Q + D + '`]([^' + Q + D + '`]{1,200})[' + Q + D + '`]', 'g');
-      const lits = [...src.matchAll(QRX)].map((m) => m[1]);
+      try { src = stripComments(fs.readFileSync(path.join(root, t), 'utf8')); } catch { continue; }
+      const lits = literals(src).filter((L) => {
+        if (L.isKey) return false;                       /* 除外リストの鍵は 呼び出しではない */
+        const head = src.slice(Math.max(0, L.at - 40), L.at);
+        return IMPORT_NEAR.test(head);                   /* import / require / from の直後だけ */
+      }).map((L) => L.v);
       for (const u of tests) {
         if (why[u]) continue;
         const base = u.split(SEP).pop();
-        const hit = lits.some((L) => L === u || L === base || L.endsWith(SEP + base) || L.endsWith(SEP + u));
-        if (hit) { why[u] = t + ' が呼んでいる'; added++; }
+        if (lits.some((L) => L === u || L === base || L.endsWith(SEP + base) || L.endsWith(SEP + u))) {
+          why[u] = t + ' が呼んでいる'; added++;
+        }
       }
     }
     if (!added) break;
@@ -419,6 +538,7 @@ function run(root, label) {
   /* 走らせないと書いたのに もう無い物 … 一覧が古い＝これも直す */
   const stale = Object.keys(SKIP).filter((k) => tests.indexOf(k) < 0);
   const asi = scanASI(root);
+  execUnknown.forEach((u) => unreadable.push(u));
 
   console.log(whereLine(root));
   if (ranges.length) {
@@ -478,7 +598,10 @@ if (process.argv.includes('--self-test')) {
 
     /* ★CIの本文だけ見ると嘘をつく★＝まとめて走らせる子の中も読めているか */
     W('.github/workflows/ci.yml', 'steps:' + NL + '  - run: node tests/run.js' + NL);
-    W('tests/run.js', 'const FILES=[' + Q + '../app/tests/a.mjs' + Q + ',' + Q + '../app/tests/b.mjs' + Q + '];' + NL);
+    /* ★exec を持たない run.js は「走らせる物」ではない★＝実物に合わせて execFileSync を入れる */
+    W('tests/run.js', 'const { execFileSync } = require(' + Q + 'child_process' + Q + ');' + NL
+      + 'const FILES=[' + Q + '../app/tests/a.mjs' + Q + ',' + Q + '../app/tests/b.mjs' + Q + '];' + NL
+      + 'FILES.forEach(function(f){ execFileSync(' + Q + 'node' + Q + ',[f]); });' + NL);
     must(0, run(tmp, '③ 走らせ役(run.js)の中も読む'), 'run.jsの中を読めば緑（前はここで嘘をついた）');
 
     /* 走らせない物は 理由と戻す条件が要る */
@@ -538,10 +661,45 @@ if (process.argv.includes('--self-test')) {
     fs.rmSync(path.join(tmp, 'vitest.config.js'));
     fs.rmSync(path.join(tmp, 'playwright.config.js'));
     W('package.json', JSON.stringify({ devDependencies: { vitest: '1.0.0' }, scripts: { test: 'node tests/run.js' } }));
-    W('tests/run.js', 'const F=[' + Q + './a.test.js' + Q + ',' + Q + './b.test.js' + Q + ',' + Q + './yobareru.mjs' + Q + '];' + NL);
+    W('tests/run.js', 'const { execFileSync } = require(' + Q + 'child_process' + Q + ');' + NL
+      + 'const F=[' + Q + './a.test.js' + Q + ',' + Q + './b.test.js' + Q + ',' + Q + './yobareru.mjs' + Q + '];' + NL
+      + 'F.forEach(function(f){ execFileSync(' + Q + 'node' + Q + ',[f]); });' + NL);
     must(1, run(tmp, '⑮ vitest は 依存に在るだけ＝使っていない'), '★字が在るだけで 既定の拾う範囲を当てない');
 
     /* ★測った所と 走らせた場所が 違ったら赤★（指示役が14repoで踏んだ穴） */
+
+    /* ★「名前が出てくる」＝走っている ではない★（指示役が exally-staging で踏んだ穴）
+       除外リストの鍵を見つけて「走っている」と言い、131本/5本 → 142本/0本 にした＝嘘の緑。 */
+    console.log('[自己診断] ⑯〜⑲ 走らせている書き方か');
+    ['tests', 'kyuyo/tests', 'app', 'src', '.github/workflows'].forEach(
+      (d) => fs.rmSync(path.join(tmp, d), { recursive: true, force: true }));
+    fs.rmSync(path.join(tmp, 'vitest.config.js'), { force: true });
+    fs.rmSync(path.join(tmp, 'playwright.config.js'), { force: true });
+    W('package.json', JSON.stringify({ scripts: {} }));
+    W('.github/workflows/ci.yml', 'steps:' + NL + '  - run: node tests/run.js' + NL + '  - run: node tests/ci-coverage.test.mjs' + NL);
+    W('tests/run.js', 'const { execFileSync } = require(' + Q + 'child_process' + Q + ');' + NL
+      + 'const F=[' + Q + '../kyuyo/tests/a.test.mjs' + Q + '];' + NL
+      + 'F.forEach(function(f){ execFileSync(' + Q + 'node' + Q + ',[f]); });' + NL);
+    W('kyuyo/tests/a.test.mjs', 'export const a=1;' + NL);
+    must(0, run(tmp, '⑯ run.js の一覧に在って 実行されている'), '★一覧に在って 実行されていれば 走っている');
+
+    W('kyuyo/tests/hazure.test.mjs', 'export const b=1;' + NL);
+    W('tests/ci-coverage.test.mjs', 'import fs from ' + Q + 'node:fs' + Q + ';' + NL
+      + 'const KNOWN = { ' + Q + 'kyuyo/tests/hazure.test.mjs' + Q + ': { why: ' + Q + '未展開' + Q
+      + ', back: ' + Q + '戻す条件' + Q + ' } };' + NL + 'console.log(Object.keys(KNOWN).length);' + NL);
+    must(1, run(tmp, '⑰ 除外リストの鍵に 名前だけ在る'), '★除外リストの鍵を「走っている」と言わない');
+
+    /* 見張る物（exec を持たない）の 一覧に 素で並んでいても 走っていない */
+    W('tests/ci-coverage.test.mjs', 'import fs from ' + Q + 'node:fs' + Q + ';' + NL
+      + 'const LIST = [' + Q + 'kyuyo/tests/hazure.test.mjs' + Q + '];' + NL + 'console.log(LIST.length);' + NL);
+    must(1, run(tmp, '⑱ 見張る物の一覧に 並んでいるだけ'), '★走らせない物の一覧は「走っている」ではない');
+
+    /* 走らせる物なのに 一覧が変数＝読めない → 緑にしない */
+    W('tests/ci-coverage.test.mjs', 'console.log(1);' + NL);
+    W('tests/run.js', 'const { execFileSync } = require(' + Q + 'child_process' + Q + ');' + NL
+      + 'const F = buildList();' + NL + 'F.forEach(function(f){ execFileSync(' + Q + 'node' + Q + ',[f]); });' + NL);
+    must(3, run(tmp, '⑲ 走らせる物だが 一覧が読めない'), '★読めない時は 緑にせず 未測定で赤');
+
     console.log('[自己診断] ⑯〜 測った所と 走らせた場所');
     must(true, isInside(tmp, path.join(tmp, 'app', 'tests')), '★repoの中から走らせたら 通す');
     must(false, isInside(tmp, path.dirname(tmp)), '★repoの外から走らせたら 止める');
@@ -552,7 +710,7 @@ if (process.argv.includes('--self-test')) {
     must(true, whereLine(tmp).indexOf(path.basename(tmp)) > 0, '★repo名も出す');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   if (ng) { console.error(NL + '★自己診断 ' + ng + '件 失敗★'); process.exit(1); }
-  console.log(NL + '自己診断 21件 とも 正しい');
+  console.log(NL + '自己診断 25件 とも 正しい');
   process.exit(0);
 }
 
