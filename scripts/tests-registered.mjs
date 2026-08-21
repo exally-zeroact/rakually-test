@@ -380,8 +380,33 @@ const QUOTES = Q + D + BT;
 const isQuote = (c) => QUOTES.indexOf(c) >= 0;
 const unquote = (s) => (isQuote(s[0]) ? s.slice(1).replace(new RegExp('[' + QUOTES + ']$'), '') : s);
 
+/* ★叩いている先が「今 調べているファイル自身」か★（＝自己診断）
+   ★文字列で比べない。パスに直してから比べる★（指示役 2026-08-22・誤検知3件）
+     spawnSync(process.execPath, [ path.join(__dirname, '自分と同じファイル名') ])
+   という形は import.meta.url / __filename / process.argv[1] を1つも書かないので
+   ★昔の 'self' 判定に入らず、一覧を持つ物として読んで「一覧が読めない」＝嘘の赤★ を3件 出した。
+   （exally-staging mobile-labels.test.mjs:170 / grid-sort.test.mjs:211 / grid-freeze.test.mjs:307） */
+const samePath = (a, b) => (process.platform === 'win32'
+  ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
+  : path.resolve(a) === path.resolve(b));
+
+function pointsAtSelf(args, absFile) {
+  if (SELF_RX.test(args)) return true;                 /* 自分を指す言い回し */
+  if (!absFile) return false;
+  const dir = path.dirname(absFile);
+  /* ★組み立てている先を パスに直して 自分と同じか見る★
+     path.join(__dirname, 'x.mjs') ／ HERE + '/x.mjs' ／ './x.mjs' … どれも同じに扱う */
+  for (const L of literals(args)) {
+    if (L.isKey || !FILE_RX.test(L.v)) continue;
+    const v = L.v.split(SEP).join(path.sep);
+    if (samePath(path.resolve(dir, v), absFile)) return true;
+    if (path.isAbsolute(v) && samePath(v, absFile)) return true;
+  }
+  return false;
+}
+
 /* 'runner' = 試験の一覧を持つ物 ／ 'self' = 自己診断だけ ／ 'other' = 別のexe・exec なし */
-function runnerKind(src) {
+function runnerKind(src, absFile) {
   let runner = false, self = false;
   EXEC_RX.lastIndex = 0;
   let m;
@@ -395,8 +420,8 @@ function runnerKind(src) {
       || /process\.execPath/.test(first)
       || NODE_BIN.test(lit)
       || (isQuote(first[0]) && /(^|[\s;&|])(node|npx)[\s]/.test(lit));
-    if (!nodeish) continue;                            /* ★git など 別のexe＝一覧ではない★ */
-    if (SELF_RX.test(args)) { self = true; continue; } /* ★自分自身＝自己診断・一覧ではない★ */
+    if (!nodeish) continue;                                 /* ★git など 別のexe＝一覧ではない★ */
+    if (pointsAtSelf(args, absFile)) { self = true; continue; } /* ★自分自身＝自己診断・一覧ではない★ */
     runner = true;
   }
   if (DYN_LOAD.test(src)) runner = true;               /* 変数を渡す読み込み＝一覧を順に走らせる形 */
@@ -434,7 +459,7 @@ function collectExecuted(root, cmds) {
       /* ★走らせる物かどうか★＝走らせている先まで見る（穴④）。
          'self'（自分を1回 走らせるだけの自己診断）と 'other'（git など・exec なし）は
          ★一覧ではない★＝ここで黙って外して良い。★未測定にしない（嘘の赤を出さない）★ */
-      if (runnerKind(src) !== 'runner') continue;
+      if (runnerKind(src, abs) !== 'runner') continue;
 
       /* 中で叩いている物（node … の形） */
       fromCommands(src).forEach((p) => { runs.push(p); queue.push(p); });
@@ -814,6 +839,44 @@ if (process.argv.includes('--self-test')) {
     W('scripts/cmp.mjs', 'import { spawnSync } from ' + Q + 'node:child_process' + Q + ';' + NL
       + 'spawnSync(process.execPath,[__filename,' + Q + '--self-test' + Q + ']);' + NL);
     must(0, R(tmp, '㉑ 自分自身を叩くだけ'), '★自己診断(自分を1回 走らせる)は 一覧ではない');
+
+    /* ★㉑-b 自分自身の 別の叩き方★（指示役が exally-staging で見つけた誤検知3件・2026-08-22）
+       実物 … tests/grid-freeze.test.mjs:307 ほか2本
+         spawnSync(process.execPath, [path.join(__dirname, 'grid-freeze.test.mjs')], {…})
+       ★実物を写して確かめた事★（当てずに測った）
+         その3本は ★正規表現の中に引用符★ を持っていて、ファイル全体の文字列の対が崩れ、
+         ★236個の文字列を拾っても .mjs で終わる物が 0個★になる。だから昔は
+         「走らせる物なのに 一覧が読めない」＝★未測定（赤）★ になっていた。
+       ⇒ ここでも ★同じ形（正規表現の中の引用符）★ を入れないと この試験は空振りする。
+         （最初 入れずに書いて ★昔の姿に戻しても緑のまま＝空振り★ だったので 実物を読み直した） */
+    W('scripts/cmp.mjs', 'import { spawnSync } from ' + Q + 'node:child_process' + Q + ';' + NL
+      + 'import path from ' + Q + 'node:path' + Q + ';' + NL
+      + 'spawnSync(process.execPath,[path.join(__dirname,' + Q + 'cmp.mjs' + Q + '),'
+      + Q + '--self-test' + Q + ']);' + NL);
+    must(0, R(tmp, '㉑-b __dirname＋自分のファイル名'), '通しでも 緑（★この1本だけでは 昔の姿でも緑＝空振り★）');
+
+    /* ★㉑-b2 ここが 本当の見張り★
+       通しの形（上）は ★昔の姿に戻しても緑のまま＝空振り★ だった。実物を写して測ったら、
+       実物は ★ファイル全体の引用符の対が崩れて 自分の名前を拾えない★ ので未測定になっていた。
+       その崩れ方は 作り物では再現しにくい ⇒ ★実物の1行を そのまま判定に渡す★。
+       出典（読んだだけ・1文字も書いていない）:
+         exally-staging tests/grid-freeze.test.mjs:307 ／ grid-sort.test.mjs:211 ／
+         mobile-labels.test.mjs:170 */
+    const REAL = 'const { spawnSync } = await import(' + Q + 'node:child_process' + Q + ');' + NL
+      + 'const isRed = spawnSync(process.execPath, [path.join(__dirname, ' + Q + 'grid-freeze.test.mjs'
+      + Q + ')], { encoding: ' + Q + 'utf8' + Q + ', env }).status !== 0;' + NL;
+    const realFile = path.join(tmp, 'tests', 'grid-freeze.test.mjs');
+    must('self', runnerKind(REAL, realFile), '★実物の形（__dirname＋自分の名前）を self と見る');
+    must('runner', runnerKind(REAL.split('grid-freeze.test.mjs').join('hoka.test.mjs'), realFile),
+      '★組み立てた先が別のファイルなら runner のまま（緩めすぎない）');
+
+    /* ★逆★＝組み立てた先が ★別のファイル★なら ちゃんと一覧として読む（緩めすぎない） */
+    W('scripts/cmp.mjs', 'import { spawnSync } from ' + Q + 'node:child_process' + Q + ';' + NL
+      + 'import path from ' + Q + 'node:path' + Q + ';' + NL
+      + 'spawnSync(process.execPath,[path.join(__dirname,' + Q + '../app/tests/b.mjs' + Q + ')]);' + NL);
+    W('app/tests/b.mjs', 'export const b=1;' + NL);
+    must(0, R(tmp, '㉑-c 組み立てた先が別のファイル'), '★別のファイルなら 走らせていると数える');
+    fs.rmSync(path.join(tmp, 'app/tests/b.mjs'), { force: true });
 
     W('scripts/cmp.mjs', 'import { execFileSync } from ' + Q + 'node:child_process' + Q + ';' + NL
       + 'const F = buildList();' + NL
