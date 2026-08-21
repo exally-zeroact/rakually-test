@@ -4,7 +4,7 @@
  */
 (function () {
   'use strict';
-  if (!(window.SUPA && window.supabase)) { document.getElementById('msg').textContent = 'Supabase設定が読めません'; return; }
+  if (!(window.SUPA && window.supabase)) { document.getElementById('msg').textContent = 'つなぎ先の設定が読み込めませんでした。ページを開き直してください。'; return; }
   var sb = window.supabase.createClient(window.SUPA.url, window.SUPA.key);
   var $ = function (id) { return document.getElementById(id); };
 

@@ -77,7 +77,7 @@
   function create(opts) {
     opts = opts || {};
     var sb = opts.client;
-    if (!sb) throw new Error('SuiteData.create: client(supabaseクライアント) が必要です');
+    if (!sb) throw new Error('つなぎ先が渡されていません（client が要ります）');
     var seq = 0;
     // id は「同じミリ秒に別タブで作っても衝突しない」よう乱数を混ぜる(連番だけだとタブ間で被る)
     var newId = opts.newId || function (prefix) {

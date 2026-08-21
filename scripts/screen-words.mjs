@@ -65,6 +65,18 @@ const BAD = [
   { w: 'WEB交付', why: '従業員は知らない言葉（電子交付の中の呼び方）', allow: [] },
 ];
 
+/* ★業者の名前★（2026-08-21 実スクショで見つけた「保存先: Supabase（クラウド）」）
+   ただし Store.mode==='supabase' のような ★中の合図★ まで赤にすると 直しようがない。
+   ⇒ ★同じ文字列の中に 日本語が在る時だけ数える★＝それは 人に読ませる文だから。 */
+const VENDOR = [
+  { w: 'Supabase', why: '客は 倉庫の会社名を知らない' },
+  { w: 'supabase', why: '同上' },
+  { w: 'localStorage', why: '客は ブラウザの言葉を知らない' },
+  { w: 'Vercel', why: '客は 配信の会社名を知らない' },
+  { w: 'GitHub', why: '同上' },
+];
+const JP = /[぀-ヿ一-龯]/;
+
 /* ── 覚書を取り除く（文字列の中は 消さない） ───────────────── */
 function stripJsComments(src) {
   let out = '', i = 0, n = src.length;
@@ -130,6 +142,20 @@ function countIn(file, src) {
   const clean = strip(file, src);
   const lines = clean.split('\n');
   const hits = [];
+  /* ★人に読ませる文（日本語が入っている文字列）の中の 業者名だけ 数える★ */
+  const QS = String.fromCharCode(39) + String.fromCharCode(34) + String.fromCharCode(96);
+  const BSL = String.fromCharCode(92);
+  const litRx = new RegExp('([' + QS + '])([^' + QS + ']{1,300}?)' + BSL + '1', 'g');
+  for (const m of clean.matchAll(litRx)) {
+    const lit = m[2];
+    if (!JP.test(lit)) continue;
+    const line = clean.slice(0, m.index).split(String.fromCharCode(10)).length;
+    for (const v of VENDOR) {
+      if (lit.indexOf(v.w) >= 0) {
+        hits.push({ file, line, word: v.w, why: v.why, text: lit.trim().slice(0, 80) });
+      }
+    }
+  }
   for (const b of BAD) {
     lines.forEach((ln, idx) => {
       let at = -1;
@@ -157,8 +183,9 @@ function run(root, files, label) {
   }
   const per = {};
   BAD.forEach((b) => { per[b.w] = hits.filter((h) => h.word === b.w).length; });
+  const vend = hits.filter((h) => VENDOR.some((v) => v.w === h.word)).length;
   console.log('[' + label + '] 見たファイル ' + (files.length - missing.length) + '本 ／ '
-    + BAD.map((b) => b.w + ' ' + per[b.w] + '件').join(' ／ '));
+    + BAD.map((b) => b.w + ' ' + per[b.w] + '件').join(' ／ ') + ' ／ 業者の名前 ' + vend + '件');
   missing.forEach((f) => console.log('  ★書いてあるのに ファイルが無い★ ' + f));
   hits.forEach((h) => console.log('  ★画面に出る字に「' + h.word + '」★ ' + h.file + ':' + h.line + '  ' + h.text));
   return hits.length + missing.length;
