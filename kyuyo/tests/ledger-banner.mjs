@@ -42,8 +42,8 @@ const MARK = '/*★行数を見る★*/';
 function blindSrc() {
   const lines = APP_SRC.split('\n');
   const kept = lines.filter((l) => l.indexOf(MARK) < 0);
-  if (lines.length - kept.length !== 2) {
-    console.log('★印「' + MARK + '」が 2行 見つかりません（' + (lines.length - kept.length) + '行）。空振りします。');
+  if (lines.length - kept.length !== 3) {
+    console.log('★印「' + MARK + '」が 3行 見つかりません（' + (lines.length - kept.length) + '行）。空振りします。');
     process.exit(2);
   }
   return kept.join('\n');
@@ -138,12 +138,19 @@ async function 一式(appSrc, ラベル) {
     ok(st.calls.range === '2026-08-01〜2026-08-31', '数えた期間が当月でない: ' + st.calls.range);
   });
 
-  await T('③ ★読めない時は出さない（読めない＝在る にしない）★', async () => {
+  await T('③ ★読めない時は ボタンを出さず「1行だけ」言う★（読めない＝在る にしない）', async () => {
     const st = seed('読めない');
     const { A, doc } = await boot(appSrc, st);
-    A.renderInput(); await sleep(120); A.renderInput(); await sleep(60);
+    A.renderInput(); await sleep(120); A.renderInput(); await sleep(120); A.renderInput(); await sleep(60);
     const b = banner(doc);
-    ok(出ていない(b), '読めないのに出た: ' + JSON.stringify(b));
+    ok(出ていない(b), '読めないのにボタンが出た: ' + JSON.stringify(b));
+    /* ★2回とも読めなかった時だけ 1行★（指示役の裁定 2026-08-22）
+       ＝黙って消えると 台帳を持つ会社が そのまま二度打ちに戻る */
+    const host = doc.getElementById('input-list');
+    const 知らせ = (host ? host.innerHTML : '').split('台帳を読み込めませんでした').length - 1;
+    ok(知らせ === 1, '「読み込めませんでした」の1行が ' + 知らせ + '件（1件のはず）');
+    /* jsdom に innerText は無い＝textContent で読む（無い物で測ると いつも緑になる） */
+    ok((host.textContent || '').indexOf('開き直すと もう一度 読みに行きます') >= 0, '次の手が書かれていない');
   });
 
   await T('④ ★1件以上なら 3つとも出る／押すと台帳を読みに行く★', async () => {

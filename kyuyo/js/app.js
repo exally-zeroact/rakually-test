@@ -1842,7 +1842,11 @@
   function ledgerImportBanner(){
     if(!(window.SUPA && window.Store && Store.getLedger)) return ''; // オフライン(ローカルのみ)は台帳が無いので出さない
     var _n=ledgerRowCount(state.month); /*★行数を見る★*/
-    // 0件・読めない・まだ数えていない → ★見出しもボタンも説明文も出さない★
+    /* ★2回とも読めなかった時だけ 1行だけ出す★（指示役の裁定 2026-08-22）
+       理由＝★台帳を持っている会社が 黙って二度打ちに戻る★（読めないだけなのに 機能が消える）。
+       ★ボタンは出さない（押せない物を見せない）／出口は1つ／理由と次の手を書く★ */
+    if(_n===null) return '<div class="cal-box" style="background:#F7F7F5;border:1px solid #E2E2DC;border-radius:12px;padding:10px 12px;margin-bottom:12px"><div style="font-size:11.5px;color:#333333">台帳を読み込めませんでした。この画面を開き直すと もう一度 読みに行きます。</div></div>'; /*★行数を見る★*/
+    // 0件・まだ数えていない → ★見出しもボタンも説明文も出さない★
     if(!(typeof _n==='number' && _n>=1)) return ''; /*★行数を見る★*/
     var imported=(state.employees||[]).some(function(e){ return e && e._ledgerCtx; });
     return '<div class="cal-box" style="background:#F0FAF4;border:1px solid #C8ECD8;border-radius:12px;padding:10px 12px;margin-bottom:12px">'
