@@ -1739,7 +1739,7 @@
         + '<button class="mini" type="button" data-w="-8" aria-label="幅を狭く">−</button>'
         + '<span class="col-w">' + Math.round(raw) + '</span>'
         + '<button class="mini" type="button" data-w="8" aria-label="幅を広く">＋</button>'
-        + '<span class="col-w" style="color:#7AA08C">' + w[i].toFixed(1) + '%</span>'
+        + '<span class="col-w" style="color:#6E6E6E">' + w[i].toFixed(1) + '%</span>'
         + '<span class="col-gap"></span>'
         + ['left', 'center', 'right'].map(function (a) {
           return '<button class="mini' + (al === a ? ' on' : '') + '" type="button" data-al="' + a + '">' + ALIGN_LABEL[a] + '</button>';

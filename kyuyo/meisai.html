@@ -67,7 +67,7 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .nw-in .finput{width:auto;min-width:96px;padding:8px 10px;font-size:14px;}
 .nw-unit{font-size:11px;color:#7aa08c;}
 .nw-yn{display:inline-flex;border:1.5px solid #d4eae0;border-radius:9px;overflow:hidden;}
-.nw-yn .ynb{padding:7px 15px;font-size:13px;font-weight:700;color:#5C7E6C;background:#fff;cursor:pointer;min-width:46px;text-align:center;user-select:none;}
+.nw-yn .ynb{padding:7px 15px;font-size:13px;font-weight:700;color:#555555;background:#fff;cursor:pointer;min-width:46px;text-align:center;user-select:none;}
 .nw-yn .ynb+.ynb{border-left:1.5px solid #d4eae0;}
 .nw-yn .ynb.on{background:#3D9E72;color:#fff;}
 .nen-done{background:#EAF7F0;border:1.5px solid #C8ECD8;border-radius:10px;padding:10px 12px;font-size:12px;color:#333333;margin-bottom:10px;line-height:1.6;}
@@ -169,18 +169,18 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 </div>
 
 <!-- ★既存Service Worker/キャッシュを削除して常に最新に(古い版が居座る問題の根絶) --><script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
-<script src="js/render.js?v=5a181bdb"></script>
-<script src="lib/nencho-declaration.js?v=5a181bdb"></script>
+<script src="js/render.js?v=37ac63b4"></script>
+<script src="lib/nencho-declaration.js?v=37ac63b4"></script>
 <!-- PDF保存=jsPDFで自前生成(A4ぴったり1ページ・ブラウザのフッター無し)。iOSのwebページ印刷は必ずURL/日付フッターが付き余白で2ページ化するため不使用。 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <!-- 本番はSupabase(RPC)。window.SUPA/supabase未読込ならstore.jsはlocalStorage層にフォールバック。 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=5a181bdb"></script>
-<script src="js/store.js?v=5a181bdb"></script>
-<script src="js/meisai.js?v=5a181bdb"></script>
+<script src="../js/supa-config.js?v=37ac63b4"></script>
+<script src="js/store.js?v=37ac63b4"></script>
+<script src="js/meisai.js?v=37ac63b4"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=5a181bdb"></script>
+<script src="../js/env-badge.js?v=37ac63b4"></script>
 </body>
 </html>

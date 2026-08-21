@@ -75,6 +75,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
   width: 100%; padding: 11px 12px; border: 1.5px solid #D4EAE0; border-radius: 10px;
   color: #333333; background: #ffffff; -webkit-appearance: none;
 }
+input, select, textarea { color: #333333; }   /* ★打った値は読ませる字＝薄い黒★（既定の真っ黒にしない・.fld の外の欄も） */
 .fld input::placeholder { color: #B7CFC3; }   /* 記入例は薄いグレーで(邪魔しない) */
 .fld input:focus, .fld select:focus { outline: none; border-color: #52B788; }
 .fld select { background-image: none; }
@@ -93,7 +94,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
   background: #E8F6EE; border: 1px solid #C6E6D5; border-radius: 999px;
   padding: 6px 8px 6px 12px; font-size: 13px; color: #2E7D54;
 }
-.chip-x { border: none; background: none; color: #7AA08C; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 3px; }
+.chip-x { border: none; background: none; color: #6E6E6E; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 3px; }
 .chip-add { display: flex; gap: 8px; }
 .chip-add input { flex: 1; }
 
@@ -138,7 +139,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .agg-total { display: grid; grid-template-columns: 1fr 52px 96px; gap: 8px; padding: 13px 2px; border-top: 2px solid #3D9E72; font-weight: 700; }
 
 /* ── 空状態・お知らせ ── */
-.empty { text-align: center; padding: 34px 18px; color: #7AA08C; }
+.empty { text-align: center; padding: 34px 18px; color: #6E6E6E; }
 .empty-ic { font-size: 34px; }
 .empty-t { font-size: 15px; font-weight: 700; color: #333333; margin: 10px 0 6px; }
 .empty-s { font-size: 12px; line-height: 1.7; }
@@ -159,7 +160,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 }
 .bn-i {
   flex: 1; border: none; background: none; cursor: pointer;
-  padding: 9px 2px 8px; color: #7AA08C; font-size: 10px; font-weight: 700;
+  padding: 9px 2px 8px; color: #6E6E6E; font-size: 10px; font-weight: 700;
 }
 .bn-i .bn-ic { display: block; font-size: 20px; line-height: 1.3; }
 .bn-i.active { color: #3D9E72; }
@@ -229,7 +230,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .mo-card { width: 100%; max-width: 640px; max-height: 82vh; overflow-y: auto; background: #ffffff; border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
 .mo-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .mo-t { font-size: 15px; font-weight: 700; }
-.mo-x { border: none; background: none; font-size: 24px; line-height: 1; color: #7AA08C; cursor: pointer; padding: 0 6px; }
+.mo-x { border: none; background: none; font-size: 24px; line-height: 1; color: #6E6E6E; cursor: pointer; padding: 0 6px; }
 
 /* ── PC ── */
 @media (min-width: 720px) {

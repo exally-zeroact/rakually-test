@@ -389,7 +389,7 @@
   // 支給サイクルの説明(表示のみ・計算方式は月単位で不変)。日払いは丙欄へ誘導。
   function payCycleNote(){ var el=$('#paycycle-note'); if(!el)return; var c=(state.company&&state.company.payCycle)||'monthly';
     var m={ monthly:'月に1回まとめて支給。', semimonthly:'月に2回に分けて支給。明細に区分を表示します。', weekly:'毎週支給。明細に「週払い」を表示します。', daily:'1日ごとに支給。<b>所得税は日額表</b>で日ごとに計算します（従業員ごとの税区分：甲＝扶養反映／乙／丙＝日雇い）。' };
-    el.innerHTML=(m[c]||'')+'<br><span style="color:#6E907E">※月の社会保険・所得税の計算方式は変わりません（本設定は明細の表示と税区分の目安）。任意期間で締め直す本格計算は対象外。</span>'; }
+    el.innerHTML=(m[c]||'')+'<br><span style="color:#6E6E6E">※月の社会保険・所得税の計算方式は変わりません（本設定は明細の表示と税区分の目安）。任意期間で締め直す本格計算は対象外。</span>'; }
   // K2 締め方(期間分割)。会社設定 shimeMethod/shimeN。Periods libで期間を算出。
   function shimeMethodOf(){ return (state.company&&state.company.shimeMethod)||'monthly'; }
   function shimeNOf(){ return num((state.company&&state.company.shimeN))||10; }
@@ -400,7 +400,7 @@
     if(!shimeSplit()){ el.innerHTML='1か月ぶんを 明細1枚で出します。'; return; }
     var ps=shimePeriods(); var labels=ps.map(function(p){return p.label;}).join('／');
     el.innerHTML='当月（'+esc(state.month)+'）は <b>'+ps.length+'期間</b>：'+esc(labels)+'。入力タブで<b>日付・金額</b>を入れると期間ごとの明細に振り分きます。'
-      +'<br><span style="color:#6E907E">業務委託＝控除なしの報酬明細。従業員＝社保/所得税は月額基準のため期間明細は<b>概算</b>（黄色でお知らせ）。</span>'; }
+      +'<br><span style="color:#6E6E6E">業務委託＝控除なしの報酬明細。従業員＝社保/所得税は月額基準のため期間明細は<b>概算</b>（黄色でお知らせ）。</span>'; }
   function monthLabel(){ var y=Number((state.month||'2026-06').slice(0,4)), m=Number((state.month||'2026-06').slice(5,7)); var k=['','一','二','三','四','五','六','七','八','九','十','十一','十二']; return '令 和 '+(y-2018)+' 年 '+k[m]+' 月 分'; }
 
   /* ---------- ナビ ---------- */
@@ -738,7 +738,7 @@
     var skN=(window.ShahoKanyu?ShahoKanyu.tokuteiMinInsured(state.month):51);
     var skReq=(window.ShahoKanyu?ShahoKanyu.kakudaiReqText(state.month).replace(/ \/ /g,'・'):'');
     h+='<div class="cr-item" style="border:1px solid #E4EFE9;border-radius:12px;padding:10px 12px;margin-bottom:10px">'
-      +'<label class="cr-chk" style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#2E7D54;cursor:pointer"><input type="checkbox" data-cf="shakaTokutei"'+(c.shakaTokutei?' checked':'')+'>社会保険 '+skN+'人以上（特定適用事業所）</label>'
+      +'<label class="cr-chk" style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#333333;cursor:pointer"><input type="checkbox" data-cf="shakaTokutei"'+(c.shakaTokutei?' checked':'')+'>社会保険 '+skN+'人以上（特定適用事業所）</label>'
       +'<div class="ri-note" style="margin-top:5px">厚生年金の被保険者が<b>常時'+skN+'人以上</b>の会社はチェック。パートでも<b>'+esc(skReq)+'</b>で社保加入の対象になります。<b>'+(skN-1)+'人以下ならチェック不要</b>（この判定は出しません）。</div></div>';
     if(on.companyHol){
       var coh=(c.companyHolidays||[]);
@@ -820,15 +820,15 @@
     var partsHtml=(v.parts||[]).map(function(p,idx){ var isCom=(p.type==='commission'), isTiered=(p.type==='tiered');
       var head='<div class="bx-row">'
         +'<select class="finput pr-type" data-prtype="'+i+':'+idx+'" style="flex:1.3;min-width:0">'+TYPES.map(function(t){return '<option value="'+t[0]+'"'+(p.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('')+'</select>'
-        +(isTiered?'':(isCom?'<span style="font-size:10px;color:#6E907E;flex:1">歩合額は毎月「入力」で</span>':'<input class="finput num pr-amt" data-pramt="'+i+':'+idx+'" inputmode="numeric" value="'+attr(fmtN(p.amount))+'" placeholder="'+amtPh(p.type)+'" style="width:90px">'))
+        +(isTiered?'':(isCom?'<span style="font-size:10px;color:#6E6E6E;flex:1">歩合額は毎月「入力」で</span>':'<input class="finput num pr-amt" data-pramt="'+i+':'+idx+'" inputmode="numeric" value="'+attr(fmtN(p.amount))+'" placeholder="'+amtPh(p.type)+'" style="width:90px">'))
         +'<button class="btn-ghost bx-del" data-prdel="'+i+':'+idx+'" aria-label="この項目を削除">×</button></div>';
       if(!isTiered) return head;
       var tiers=(p.tiers&&p.tiers.length)?p.tiers:[{from:0,rate:''}];
       var tiersHtml=tiers.map(function(tr,tidx){ return '<div class="bx-row" style="gap:4px;padding-left:8px">'
         +'<input class="finput num pr-tier-f" data-prtier="'+i+':'+idx+':'+tidx+':from" inputmode="numeric" value="'+attr(fmtN(tr.from))+'" placeholder="下限(円)" style="width:104px">'
-        +'<span style="font-size:11px;color:#6E907E">円〜</span>'
+        +'<span style="font-size:11px;color:#6E6E6E">円〜</span>'
         +'<input class="finput pr-tier-r" data-prtier="'+i+':'+idx+':'+tidx+':rate" inputmode="decimal" value="'+attr(tr.rate==null?'':tr.rate)+'" placeholder="率" style="width:58px">'
-        +'<span style="font-size:11px;color:#6E907E">%</span>'
+        +'<span style="font-size:11px;color:#6E6E6E">%</span>'
         +'<button class="btn-ghost bx-del" data-prtierdel="'+i+':'+idx+':'+tidx+'" aria-label="この段を削除">×</button></div>'; }).join('');
       return head+'<div class="pr-tiers" style="margin:2px 0 6px">'+tiersHtml
         +'<div class="addcustom"><button class="btn-ghost" data-prtieradd="'+i+':'+idx+'" style="padding:6px 10px">＋段を追加</button></div>'
@@ -856,7 +856,7 @@
     var pats=state.payPatterns||[];
     return '<div class="frow"><div class="flabel">給与パターン<span class="hint2">任意</span></div>'
       +'<div style="display:flex;gap:6px;align-items:center">'
-      +(pats.length?'<select class="finput pat-apply" data-i="'+i+'" style="flex:1"><option value="">— 選んで適用 —</option>'+pats.map(function(p){return '<option value="'+attr(p.id)+'">'+esc(p.name)+'</option>';}).join('')+'</select>':'<span style="flex:1;font-size:11px;color:#6E907E">まだパターンがありません</span>')
+      +(pats.length?'<select class="finput pat-apply" data-i="'+i+'" style="flex:1"><option value="">— 選んで適用 —</option>'+pats.map(function(p){return '<option value="'+attr(p.id)+'">'+esc(p.name)+'</option>';}).join('')+'</select>':'<span style="flex:1;font-size:11px;color:#6E6E6E">まだパターンがありません</span>')
       +'<button class="btn-ghost pat-save" data-i="'+i+'" style="padding:9px 10px;white-space:nowrap;font-size:12px">この設定を保存</button></div></div>'
       +'<div class="hint" style="margin:2px 2px 8px">'+(pats.length?'選ぶと 給与形態・決め方・支給/控除項目 をこの人に反映（氏名・扶養・通勤などは変わりません）。':'「この設定を保存」で いまの給与形態・決め方・項目 を"パターン"化 → 他の人へ一括適用できます。')+'</div>';
   }
@@ -904,7 +904,7 @@
     } else if(cur==='sonota'){
       note='<div class="hint" style="margin:2px 2px 8px;color:#8A5A00">区分が曖昧な時は「その他（非該当扱い）」＝源泉なし。掲載報酬に当たる場合のみ具体区分を選択（掛け過ぎ厳禁・最終判断は会社）。</div>';
     } else {
-      note='<div class="hint" style="margin:2px 2px 8px;color:#6E907E">非該当（運転代行・運送等）＝源泉なし・支払調書の対象外（支給＝支払額）。</div>';
+      note='<div class="hint" style="margin:2px 2px 8px;color:#6E6E6E">非該当（運転代行・運送等）＝源泉なし・支払調書の対象外（支給＝支払額）。</div>';
     }
     return '<div class="frow" style="margin:2px 2px 2px"><div class="flabel">源泉区分<span class="hint2">204条・該当時のみ源泉</span><span class="help-i" data-help="houshu">💡</span></div>'
       +'<select class="finput m-f" data-f="houshuKubun">'+opts+'</select></div>'+note;
@@ -928,7 +928,7 @@
           +'<li>勤務時間・場所を会社が指定・管理している</li>'
           +'<li>本人が他人に代わってもらえない（代替不可）</li>'
           +'<li>報酬が時間・日給ベースで、欠勤控除や残業手当がある</li>'
-          +'</ul><div style="font-size:11px;color:#6E907E;margin-top:5px">補足：車両・機材が会社負担／他社の仕事ができない専属 も労働者性を強めます。最終判断は総合判断＝このアプリは<b>可能性の目安</b>で、ブロックはしません。</div>'
+          +'</ul><div style="font-size:11px;color:#6E6E6E;margin-top:5px">補足：車両・機材が会社負担／他社の仕事ができない専属 も労働者性を強めます。最終判断は総合判断＝このアプリは<b>可能性の目安</b>で、ブロックはしません。</div>'
           +'<div style="font-size:11px;color:#8A5A00;margin-top:5px">※ 士業・原稿料・デザイン料など<b>源泉徴収が必要な報酬</b>（所得税法204条）は、下の<b>「源泉区分」</b>で選ぶと明細に源泉が反映されます。運転代行・運送は源泉不要＝「非該当」のまま。</div></details></div>'
         : '')
       +(isContractor ? houshuKubunRow(e) : '')
@@ -976,7 +976,7 @@
           +'<span class="chip'+(e.honninKafuHitorioya==='kafu'?' on':'')+'" data-honnin="kafu">'+(e.honninKafuHitorioya==='kafu'?'✓ ':'')+'寡婦</span>'
           +'<span class="chip'+(e.honninKafuHitorioya==='hitorioya'?' on':'')+'" data-honnin="hitorioya">'+(e.honninKafuHitorioya==='hitorioya'?'✓ ':'')+'ひとり親</span>'
           +'<span class="chip'+(e.honninKinrou?' on':'')+'" data-honnin="kinrou">'+(e.honninKinrou?'✓ ':'')+'勤労学生</span></div>'
-          +'<div class="hint" style="margin:0 2px 10px;font-size:10px;color:#527A66">該当すると甲欄の源泉税で「扶養親族等の数」に＋1（該当ごと）。扶養親族が障害者の場合は年末調整で精算します。</div>'
+          +'<div class="hint" style="margin:0 2px 10px;font-size:10px;color:#555555">該当すると甲欄の源泉税で「扶養親族等の数」に＋1（該当ごと）。扶養親族が障害者の場合は年末調整で精算します。</div>'
         : '')
       +'<div class="chip-row" style="margin:-2px 0 10px;align-items:center"><span style="font-size:11px;color:#3D6B53;font-weight:700;margin-right:2px">所得税区分</span>'
         +[['ko','甲（通常）'],['otsu','乙（副業）'],['hei','丙（日雇い）']].map(function(o){ var on=(e.taxClass||'ko')===o[0]; return '<span class="chip'+(on?' on':'')+'" data-taxc="'+o[0]+'">'+(on?'✓ ':'')+o[1]+'</span>'; }).join('')
@@ -994,7 +994,7 @@
         : '')
       +'<div class="chip-row" style="margin:-2px 0 10px;align-items:center"><span style="font-size:11px;color:#3D6B53;font-weight:700;margin-right:2px">住民税の納め方</span>'
         +[['special','特別徴収（給与天引き）'],['ordinary','普通徴収（本人納付）']].map(function(o){ var on=(e.juminCollect||'special')===o[0]; return '<span class="chip'+(on?' on':'')+'" data-jumincol="'+o[0]+'">'+(on?'✓ ':'')+o[1]+'</span>'; }).join('')
-        +'<span class="hint" style="font-size:10px;color:#527A66;margin-left:4px">給与支払報告書の総括表で人員を内訳します。</span></div>';
+        +'<span class="hint" style="font-size:10px;color:#555555;margin-left:4px">給与支払報告書の総括表で人員を内訳します。</span></div>';
     var gShaho=''
       +shahoSection(e)
       +'<div class="sec-lb" style="border-top:1px dashed #d4eae0">法定控除（使わないものは外せる）<span class="help-i" data-help="legalkojo">💡</span></div>'
@@ -1082,7 +1082,7 @@
       // 支払基礎日数の区分(算定基礎届・月額変更届の日数基準が変わる)。通常17日/パート=17日(なければ15日)/短時間労働者(社保)=11日
       seg+='<div class="chip-row" style="margin:-2px 0 4px"><span style="font-size:11px;color:#3D6B53;font-weight:700;margin-right:2px">勤務区分</span>'
         +[['','通常（17日）'],['part','短時間就労者・パート（15日特例）'],['tanjikan','短時間労働者・社保（11日）']].map(function(o){ var on=(stType(e)===o[0]); return '<span class="chip'+(on?' on':'')+'" data-sttype="'+o[0]+'">'+(on?'✓ ':'')+o[1]+'</span>'; }).join('')+'</div>'
-        +'<div class="hint" style="margin:0 2px 8px;font-size:10px;color:#527A66">算定基礎届・月額変更届の支払基礎日数の基準が変わります（通常17日／パートは17日、無ければ15日／社保の短時間被保険者は11日）。</div>';
+        +'<div class="hint" style="margin:0 2px 8px;font-size:10px;color:#555555">算定基礎届・月額変更届の支払基礎日数の基準が変わります（通常17日／パートは17日、無ければ15日／社保の短時間被保険者は11日）。</div>';
     } else {
       seg='<div class="sh-auto-lead">✓ 標準報酬は<b>基本給から自動</b>で計算（見込み・4〜6月の入力は不要）</div>'
         +'<div class="sh-dtgl" data-shd="'+e.id+'">詳しく（定時決定・入社時・随時改定・直接入力）<span class="mco-cv" style="margin-left:6px">▾</span></div>';
@@ -1126,7 +1126,7 @@
     if(r.si.health>0) sohoParts.push('健康保険 <b>'+yen(r.si.health)+'</b>');
     if(r.si.pension>0) sohoParts.push('厚生年金 <b>'+yen(r.si.pension)+'</b>');
     if(r.si.kaigo>0) sohoParts.push('介護保険 <b>'+yen(r.si.kaigo)+'</b>');
-    return '<div class="sh-hero"><div class="lb">毎月この人から天引きする社会保険（本人負担）</div><div class="big">'+yen(soho)+(tag?'<span style="font-size:12px;color:#5C7E6C;font-family:\'Noto Sans JP\'">'+tag+'</span>':'')+'</div>'
+    return '<div class="sh-hero"><div class="lb">毎月この人から天引きする社会保険（本人負担）</div><div class="big">'+yen(soho)+(tag?'<span style="font-size:12px;color:#555555;font-family:\'Noto Sans JP\'">'+tag+'</span>':'')+'</div>'
       +'<div class="bd">'+(sohoParts.length?sohoParts.join('　＋　'):'年齢により社会保険の対象外です')+'</div></div>'
       +'<div class="sh-sub">もとになる「標準報酬月額」＝<b>'+yen(r.hyojun)+'</b>'+(isAuto?'（基本給＋手当から自動）':undet?'（暫定：当月支給ベース）':'（保険料計算の“ものさし”・自動で決まる）')+'／適用：'+period+'</div>';
   }
@@ -1459,7 +1459,7 @@
         // 非課税は名称一致(通勤/出張/旅費/宿泊/日当)なら既定ON・ただし外せる(課税の日当等に対応)。明示hikazei(true/false)があれば尊重。
         var isNT = (it.hikazei===true) || (it.hikazei==null && labelAuto);
         var ttl = labelAuto ? 'この名称は通常 非課税（外せます。課税の日当・出張手当ならチェックを外す）' : 'チェックで所得税の非課税にする(社保は対象)';
-        hz = '<label class="row-hz" title="'+ttl+'" style="font-size:10px;color:'+(isNT?'#3D9E72':'#6E907E')+';font-weight:'+(isNT?'700':'400')+';white-space:nowrap;display:inline-flex;align-items:center;gap:2px"><input type="checkbox" class="ck" data-g="shikyu" data-ri="'+ri+'"'+(isNT?' checked':'')+'>非課税</label>';
+        hz = '<label class="row-hz" title="'+ttl+'" style="font-size:10px;color:'+(isNT?'#3D9E72':'#6E6E6E')+';font-weight:'+(isNT?'700':'400')+';white-space:nowrap;display:inline-flex;align-items:center;gap:2px"><input type="checkbox" class="ck" data-g="shikyu" data-ri="'+ri+'"'+(isNT?' checked':'')+'>非課税</label>';
       }
       return '<div class="row" style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input class="finput" data-g="'+g+'" data-ri="'+ri+'" data-f="label" value="'+attr(it.label)+'" style="flex:1.3" placeholder="項目"><input class="finput num" data-g="'+g+'" data-ri="'+ri+'" data-f="value" value="'+attr(it.value)+'" style="flex:1" placeholder="'+(g==='kintai'?'値':'金額')+'">'+hz+'<button class="b-del m-del" data-g="'+g+'" data-ri="'+ri+'" aria-label="この項目を削除">×</button></div>';
     }).join('');
@@ -1535,7 +1535,7 @@
       return '<div class="grp"><div class="grp-h">歩合給（出来高）</div>'
         +'<label class="ic-f ic-f2"><span>歩合給額<small>円</small></span><input class="finput num cm-f ic-in" data-cmf="commissionAmt" inputmode="numeric" placeholder="0" value="'+attr(fmtN(e.commissionAmt))+'"></label>'
         +'<div class="basepay-note">'+basePayNoteOnly(e)+'</div>'
-        +'<div style="font-size:10px;color:#5C7E6C;margin:-4px 2px 8px">保障給の時給は「設定▸従業員マスタ」で。割増は下の「歩合の上乗せ」で。</div></div>'; }
+        +'<div style="font-size:10px;color:#555555;margin:-4px 2px 8px">保障給の時給は「設定▸従業員マスタ」で。割増は下の「歩合の上乗せ」で。</div></div>'; }
     if(e.payType==='カスタム'){ var spc=ensurePayRule(e); var prts=(spc.variable&&spc.variable.parts)||[];
       var hasCom=prts.some(function(p){return p.type==='commission';}), hasRate=prts.some(function(p){return p.type==='rate'||p.type==='tiered';}), hasPiece=prts.some(function(p){return p.type==='piece';});
       var hh='<div class="grp"><div class="grp-h">給与（カスタム）</div>';
@@ -1543,7 +1543,7 @@
       if(hasPiece) hh+='<label class="ic-f ic-f2"><span>当月の件数<small>件</small></span><input class="finput num cm-f ic-in" data-cmf="pieceCount" inputmode="numeric" placeholder="0" value="'+attr(fmtN(e.pieceCount))+'"></label>';
       if(hasRate) hh+='<label class="ic-f ic-f2"><span>当月の売上<small>円</small></span><input class="finput num cm-f ic-in" data-cmf="salesAmt" inputmode="numeric" placeholder="0" value="'+attr(fmtN(e.salesAmt))+'"></label>';
       hh+='<div class="basepay-note">'+basePayNoteOnly(e)+'</div>';
-      hh+='<div style="font-size:10px;color:#5C7E6C;margin:-4px 2px 8px">決め方（固定・時給・率など）は「設定▸従業員マスタ」で。割増は下で。</div></div>';
+      hh+='<div style="font-size:10px;color:#555555;margin:-4px 2px 8px">決め方（固定・時給・率など）は「設定▸従業員マスタ」で。割増は下で。</div></div>';
       return hh; }
     return '<div class="basepay-note"></div>';
   }
@@ -1853,7 +1853,7 @@
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">'
         +'<b style="color:#2E7D54;font-size:13px">🗒️ 台帳から取り込む</b>'
         +(imported?'<span style="font-size:11px;color:#3D9E72;font-weight:700">✓ 今月ぶんを取り込み済み</span>':'')
-        +'<button data-ledger-import="1" style="margin-left:auto;padding:7px 12px;border:1px solid #3D9E72;background:#fff;color:#2E7D54;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer">'+(imported?'台帳を再取り込み':'台帳から取り込む')+'（'+esc(state.month||'')+'）</button>'
+        +'<button data-ledger-import="1" style="margin-left:auto;padding:7px 12px;border:1px solid #3D9E72;background:#fff;color:#2E7D54;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer">'+(imported?'台帳を再取り込み':'台帳から取り込む')+'（売上・件数）</button>'
       +'</div>'
       +'<div style="font-size:10.5px;color:#3D6B53;margin-top:5px">毎日つけた記録（売上・時間・件数）を読み込んで、<b>売上や歩合で決まる基本給を自動計算</b>します。二度打ちは不要です。</div>'
       +'</div>';
@@ -1866,13 +1866,13 @@
     var calHTML = sche==null ? '' :
       '<div class="cal-box" style="background:#F0FAF4;border:1px solid #C8ECD8;border-radius:12px;padding:10px 12px;margin-bottom:12px">'
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">'
-        +'<b style="color:#2E7D54;font-size:13px">当月の所定労働日数 '+sche+'日</b>'
-        +'<span style="font-size:10.5px;color:#5C7E6C">（休みの曜日・祝日・会社休を除く）</span>'
+        +'<b style="color:#333333;font-size:13px">当月の所定労働日数 '+sche+'日</b>'
+        +'<span style="font-size:10.5px;color:#555555">（休みの曜日・祝日・会社休を除く）</span>'
         +'<button class="cal-fill" data-fillsche="'+sche+'" style="margin-left:auto;padding:7px 12px;border:1px solid #3D9E72;background:#fff;color:#2E7D54;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer">全員の出勤を所定('+sche+'日)で埋める</button>'
-        +'<button data-csvimport="1" style="padding:7px 12px;border:1px solid #C8ECD8;background:#fff;color:#3D6B53;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer" title="他社勤怠システム/Excelの勤怠CSVを取り込む">📄 勤怠CSV取込 <span class="help-i" data-help="kintaicsv" style="cursor:help">💡</span></button>'
+        +'<button data-csvimport="1" style="padding:7px 12px;border:1px solid #C8ECD8;background:#fff;color:#3D6B53;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer" title="他社勤怠システム/Excelの勤怠CSVを取り込む">📄 勤怠CSVを取り込む（出勤・労働時間）</button>'
       +'</div>'
-      +'<div style="font-size:10.5px;color:#3D6B53;margin-top:5px">祝日: '+esc(holStr)+'</div>'
-      +'<div style="font-size:10px;color:#5C7E6C;margin-top:3px">出勤日数は所定を初期表示。各自で手修正できます（赤で止めません）。会社独自の休みは「設定▸会社の決まり」で追加できます。</div>'
+      +'<div style="font-size:10.5px;color:#555555;margin-top:5px">祝日: '+esc(holStr)+'</div>'
+      +'<div style="font-size:10px;color:#555555;margin-top:3px">出勤日数は所定を初期表示。各自で手修正できます（赤で止めません）。会社独自の休みは「設定▸会社の決まり」で追加できます。</div>'
       +'</div>';
     var cnt=reviewCounts(), reviewOnly=!!state._reviewOnly;
     // 月の状態バッジ(下書き/確定済)=freee型「確定=凍結」の状態を可視化(UX🟠#7)。全員確認済=確定済(凍結)
@@ -1881,12 +1881,12 @@
     var progHTML='<div class="cal-box" style="background:#fff;border:1px solid #d4eae0;border-radius:12px;padding:10px 12px;margin-bottom:12px">'
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">'
         +stateChip
-        +'<b style="color:#2E7D54;font-size:13px">確認 '+cnt.done+'/'+cnt.total+'名</b>'
+        +'<b style="color:#333333;font-size:13px">確認 '+cnt.done+'/'+cnt.total+'名</b>'
         +(cnt.need>0?'<span style="background:#fff8e1;border:1px solid #F4D8A8;color:#92500A;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#3D9E72;font-weight:700">✓ 全員確認済</span>')
         +'<label style="font-size:11px;color:#3D6B53;display:inline-flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" data-reviewonly'+(reviewOnly?' checked':'')+'>要確認だけ表示</label>'
-        +'<span id="save-status" style="margin-left:auto;font-size:10.5px;color:#6E907E">'+(state._savedAt?'自動保存済 '+esc(state._savedAt):'')+'</span>'
+        +'<span id="save-status" style="margin-left:auto;font-size:10.5px;color:#6E6E6E">'+(state._savedAt?'自動保存済 '+esc(state._savedAt):'')+'</span>'
       +'</div>'
-      +'<div style="font-size:10px;color:#5C7E6C;margin-top:4px">前月と変わった人だけ「確認」を。変わっていない人は自動で確認済み扱いです。</div>'
+      +'<div style="font-size:10px;color:#555555;margin-top:4px">前月と変わった人だけ「確認」を。変わっていない人は自動で確認済み扱いです。</div>'
       +'</div>';
     // 入力ビュー切替(カード/表)。2人以上のときだけ表を出す(1人は表の意味が薄い)
     var activeCount=state.employees.filter(function(e){return isActiveInMonth(e,state.month);}).length;
@@ -1902,7 +1902,7 @@
        （幅390で 行の高さ421px・説明の幅36px＝実測して直した）。 */
     var confirmBtn='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 4px"><button class="btn-primary" data-confirm-month'+(prefMiss.missingCount?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映')+'）</button>'
       +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#3D9E72;font-weight:700;white-space:nowrap">✓ 確認済</span>')
-      +'<span style="flex:1 0 100%;font-size:10px;color:#5C7E6C"><b>保存は自動</b>です。「確定」は全員を確認済みにし、<b>賃金台帳・年末調整の集計対象</b>として今月を記録し、<b>従業員のWeb明細に自動公開</b>します（従業員はいつでも閲覧可・あとで直せます）。</span></div>';
+      +'<span style="flex:1 0 100%;font-size:10px;color:#555555"><b>保存は自動</b>です。「確定」は全員を確認済みにし、<b>賃金台帳・年末調整の集計対象</b>として今月を記録し、<b>従業員のWeb明細に自動公開</b>します（従業員はいつでも閲覧可・あとで直せます）。</span></div>';
     if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+renderInputTableHTML(reviewOnly)+confirmBtn; return; }
     var cards=state.employees.map(function(e,i){
       if(!isActiveInMonth(e,state.month)) return '';
@@ -2101,7 +2101,7 @@
         +'<div style="padding:0 12px 12px">'
         +'<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><span style="font-size:12px;color:#2E7D54;font-weight:700;min-width:54px">賞与額</span><input class="finput num" data-ba="'+e.id+'" inputmode="numeric" value="'+attr(en.amount)+'" placeholder="円" style="flex:1"></div>'
         +prevBox
-        +'<div style="font-size:11px;color:#4b6b58;margin:5px 0">本年度の既往賞与（標準賞与額）累計 <input class="finput num" data-by="'+e.id+'" inputmode="numeric" value="'+attr(en.ytd)+'" placeholder="'+(c.ytdAuto?fmtN(c.ytdVal):'0')+'" style="width:110px"> 円 <span style="color:#6E907E">'+(c.ytdAuto?'（当年度の確定賞与から<b>自動 '+yen(c.ytdVal)+'</b>・上書き可）':'（2回目以降のみ・健保 年573万上限用）')+'</span></div>'
+        +'<div style="font-size:11px;color:#4b6b58;margin:5px 0">本年度の既往賞与（標準賞与額）累計 <input class="finput num" data-by="'+e.id+'" inputmode="numeric" value="'+attr(en.ytd)+'" placeholder="'+(c.ytdAuto?fmtN(c.ytdVal):'0')+'" style="width:110px"> 円 <span style="color:#6E6E6E">'+(c.ytdAuto?'（当年度の確定賞与から<b>自動 '+yen(c.ytdVal)+'</b>・上書き可）':'（2回目以降のみ・健保 年573万上限用）')+'</span></div>'
         +editor
         +(caps?'<div style="margin:4px 0">'+caps+'</div>':'')+warn
         +'<div class="calc-box"><div class="ch">賞与の自動計算（標準賞与額 '+yen(hyojun)+'）<span class="help-i" data-help="hyojunbonus">💡</span></div>'
@@ -2528,7 +2528,7 @@
     h+='<div class="sec-lb">提出対象 '+targets.length+'名</div>';
     if(targets.length){
       h+='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="border-bottom:1px solid #d4eae0;color:#3D6B53"><th style="text-align:left;padding:6px 4px">氏名</th><th style="text-align:left;padding:6px 4px">区分</th><th style="text-align:right;padding:6px 4px">年間支払(税込)</th><th style="text-align:right;padding:6px 4px">源泉徴収税</th></tr></thead><tbody>';
-      h+=targets.map(function(r){ return '<tr style="border-bottom:1px solid #eef6f1"><td style="padding:6px 4px">'+esc(r.name)+'</td><td style="padding:6px 4px;font-size:11px;color:#527A66">'+esc(r.kubunLabel)+'</td><td style="text-align:right;padding:6px 4px">'+yen(r.annualPay)+'</td><td style="text-align:right;padding:6px 4px">'+yen(r.annualGensen)+'</td></tr>'; }).join('');
+      h+=targets.map(function(r){ return '<tr style="border-bottom:1px solid #eef6f1"><td style="padding:6px 4px">'+esc(r.name)+'</td><td style="padding:6px 4px;font-size:11px;color:#555555">'+esc(r.kubunLabel)+'</td><td style="text-align:right;padding:6px 4px">'+yen(r.annualPay)+'</td><td style="text-align:right;padding:6px 4px">'+yen(r.annualGensen)+'</td></tr>'; }).join('');
       h+='</tbody></table><div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn" data-choxlsx="chosho" style="padding:10px 18px;border:none;border-radius:10px;background:#2E7D54;color:#fff;font-weight:700;cursor:pointer">支払調書をExcel出力</button></div>';
     } else { h+='<div class="empty">提出基準を超える対象者はいません。</div>'; }
     if(others.length){ h+='<div class="sec-lb" style="margin-top:12px">対象外 '+others.length+'名</div>'
@@ -2652,7 +2652,7 @@
     }).join('');
   }
   function nenDetailInner(eid, n, agg){
-    return '<div style="font-size:11px;color:#5C7E6C;margin-bottom:6px">自動集計を上書きする場合のみ入力（空欄=履歴から自動）</div>'
+    return '<div style="font-size:11px;color:#555555;margin-bottom:6px">自動集計を上書きする場合のみ入力（空欄=履歴から自動）</div>'
       +'<div class="nrow"><span class="nlbl">給与収入(年)</span>'+nf(eid,'shunyuOverride',n.shunyuOverride,fmtN(agg.shunyu))+'<span class="nlbl">源泉徴収済(年)</span>'+nf(eid,'genzenOverride',n.genzenOverride,fmtN(agg.genzen))+'</div>'
       +'<div class="nrow"><span class="nlbl">社保(天引・上書)</span>'+nf(eid,'shahoOverride',n.shahoOverride,fmtN(agg.shaho))+'<span class="nlbl">社保(申告追加)</span>'+nf(eid,'shinkokuShaho',n.shinkokuShaho)+'</div>'
       +'<div class="nsec" style="margin-top:10px">申告（生活語で・控除証明書の数字を写すだけ）</div>'
@@ -3949,7 +3949,7 @@
   function showMeisaiQR(name, url){
     var svg=qrSvg(url, 220); if(!svg){ uiAlert('QRコードを生成できませんでした。'); return; }
     uiModal({ title:(name?name+' さんの ':'')+'Web明細 QRコード',
-      html:'<div style="text-align:center">'+svg+'<div style="font-size:11px;color:#5C7E6C;margin-top:8px;word-break:break-all">'+esc(url)+'</div><div class="hint" style="margin-top:8px">スマホのカメラで読み取ると明細ページが開きます。初回だけ「初回コード」でパスワードを設定してください。</div></div>',
+      html:'<div style="text-align:center">'+svg+'<div style="font-size:11px;color:#555555;margin-top:8px;word-break:break-all">'+esc(url)+'</div><div class="hint" style="margin-top:8px">スマホのカメラで読み取ると明細ページが開きます。初回だけ「初回コード」でパスワードを設定してください。</div></div>',
       buttons:[{label:'閉じる',val:false},{label:'このQRを印刷',val:true,primary:true}]
     }).then(function(v){ if(v) printQRCards([{ name:name, url:url }]); });
   }
@@ -3961,7 +3961,7 @@
         +'<div class="qh">スマホのカメラでこのQRを読み取り→初回だけ自分のパスワードを決めてください（次回からはパスワードだけ）。</div>'
         +'<div class="qu">'+esc(it.url)+'</div></div>'; }).join('');
     // ★新窓(window.open)は使わない=スマホ/ホーム画面アプリで開けず「戻れない」ため。アプリ内オーバーレイで表示＋任意で印刷。
-    var css='.qc{border:1px dashed #9ac3ad;border-radius:10px;padding:12px;width:230px;max-width:100%;text-align:center;page-break-inside:avoid;box-sizing:border-box}.qc svg{width:180px;height:180px}.qn{font-weight:700;font-size:14px;margin:6px 0 2px}.qi{font-size:12px;margin:2px 0}.qh{font-size:10px;color:#5C7E6C;margin:6px 0 4px;line-height:1.5}.qu{font-size:8.5px;color:#8aa89a;word-break:break-all}';
+    var css='.qc{border:1px dashed #9ac3ad;border-radius:10px;padding:12px;width:230px;max-width:100%;text-align:center;page-break-inside:avoid;box-sizing:border-box}.qc svg{width:180px;height:180px}.qn{font-weight:700;font-size:14px;margin:6px 0 2px}.qi{font-size:12px;margin:2px 0}.qh{font-size:10px;color:#555555;margin:6px 0 4px;line-height:1.5}.qu{font-size:8.5px;color:#8aa89a;word-break:break-all}';
     uiModal({ title:'Web給与明細 アクセス用QRコード（従業員に配布）',
       html:'<style>'+css+'</style><div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-height:62vh;overflow:auto;padding:2px">'+cards+'</div>',
       buttons:[{label:'閉じる',val:false},{label:'印刷する',val:true,primary:true}]
@@ -4012,7 +4012,7 @@
           var pwState=p.hasPassword?'<span style="font-size:10.5px;color:#2E7D54">パスワード設定済</span>':'<span style="font-size:10.5px;color:#92500A">パスワード未設定</span>';
           var consentState=p.consentAt?'<span style="font-size:10.5px;color:#2E7D54">・同意済</span>':'<span style="font-size:10.5px;color:#92500A">・未同意</span>';
           // 初回コードはリンク(?c=)に内包=従業員は入力不要。会社は「リンク(QR)を本人に渡す」だけ。漏れたら「リンク再発行」で旧リンクを無効化。
-          var codeRow = '<div style="font-size:10.5px;color:#5C7E6C;margin-top:5px">'
+          var codeRow = '<div style="font-size:10.5px;color:#555555;margin-top:5px">'
             +(p.hasPassword ? 'パスワード設定済み。' : 'このリンク（QR）を開くと本人がパスワードを設定します。')
             +'<b>リンクは本人にだけ渡してください</b>（リンクが鍵）。<button class="btn-ghost wm-reissue" data-token="'+attr(p.token)+'" style="padding:4px 8px;font-size:10.5px;margin-left:6px">リンク再発行（前のを無効化）</button></div>';
           // 配布用URL: パスワード未設定の間は初回コードを ?c= で埋め込む→従業員はスキャン/リンクを開くだけでコード自動入力→パスワードを決めるだけ(手間最小)。設定後はコード不要なので付けない。
@@ -4021,7 +4021,7 @@
             +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:13px">'+esc(p.name||'(氏名未取得)')+'</b><span>'+pwState+consentState+'</span></div>'
             +'<div style="display:flex;gap:6px;align-items:center;margin-top:5px"><span style="font-size:11px;color:#3D6B53;min-width:52px">リンク</span><input class="finput" readonly value="'+attr(handoutUrl)+'" style="flex:1;font-size:11px;padding:7px 9px" onclick="this.select()"><button class="btn-ghost wm-copy" data-link="'+attr(handoutUrl)+'" style="padding:7px 10px;font-size:11px">コピー</button><button class="btn-ghost wm-qr" data-qr-url="'+attr(handoutUrl)+'" data-qr-name="'+attr(p.name||'')+'" style="padding:7px 10px;font-size:11px">QR</button></div>'
             +codeRow
-            +'<div style="font-size:10.5px;color:#5C7E6C;margin-top:5px">公開: '+openedTxt+'</div></div>';
+            +'<div style="font-size:10.5px;color:#555555;margin-top:5px">公開: '+openedTxt+'</div></div>';
         }).join('');
     });
   }

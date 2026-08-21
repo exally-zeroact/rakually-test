@@ -10,7 +10,7 @@
  * なぜ要るのか（2026-08-10 実測）:
  *   js は既に共有していた（auth / exally-login / file-out / suite-data / supa-config）のに、
  *   ★css の共有は0枚★ だった。だからアプリを足すたびに見た目がバラけていた。
- *     薄い文字   給与 #5C7E6C ／ ハブ #7AA08C ／ 請求書 #7A9A87  ＝3アプリ3色
+ *     薄い文字   給与 #555555 ／ ハブ #6E6E6E ／ 請求書 #7A9A87  ＝3アプリ3色
  *     薄い緑の地 給与 #F0FAF4 ／ ハブ #E4F1EA ／ 請求書 #EEF7F1
  *     ブランドのミント #52B788  給与23回 ／ ハブ5回 ／ 請求書 ★0回★
  *   ＝請求書だけ「うちのミントを1回も使っていない別の緑の画面」になっていた。
@@ -20,7 +20,7 @@
  * ★この皮の値は、給与(kyuyo/css/app.css)とハブ(css/hub.css)が今 使っている値★
  *   ＝ここに寄せても、給与とハブの見た目は1px も変わらない。
  *   食い違っていた所は、いちばん多く使われている方（給与）に合わせた:
- *     薄い文字 #5C7E6C（給与37回）／ もっと薄い #7AA08C（ハブ17回）
+ *     薄い文字 #555555（給与37回）／ もっと薄い #6E6E6E（ハブ17回）
  *     地の緑   #F0FAF4（給与25回・ハブのbodyも同じ）
  *   ★今 読み込むのは請求書(seikyu/)だけ。給与とハブは後日、
  *     「見た目が1px も変わらない」ことをスクショで見せてから差し替える。★
@@ -30,8 +30,8 @@
  *   #3D9E72  押すボタンの地（差し色）
  *   #52B788  ブランドのミント（ロゴ・オンの印）
  *   #3D6B53  濃い緑（小見出し・ラベル）
- *   #5C7E6C  薄い文字
- *   #7AA08C  もっと薄い文字
+ *   #555555  薄い文字
+ *   #6E6E6E  もっと薄い文字
  *   #D4EAE0  線
  *   #C8ECD8  少し濃い線
  *   #F0FAF4  画面の地・薄い緑の帯
@@ -232,7 +232,7 @@ input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
   display: block; white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
 .more > summary::-webkit-details-marker { display: none; }
-.more > summary::before { content: "▸ "; color: #7AA08C; }
+.more > summary::before { content: "▸ "; color: #6E6E6E; }
 .more[open] > summary::before { content: "▾ "; }
 .more[open] > summary { border-bottom: 1px solid #D4EAE0; margin-bottom: 10px; }
 .more > *:not(summary) { padding: 0 14px 12px; }

@@ -72,8 +72,14 @@ const OUT = path.join(os.tmpdir(), 'rakually-text-colors');
 fs.mkdirSync(OUT, { recursive: true });
 const WIDTH = 390, HEIGHT = 844;   /* 客がいちばん使う幅（iPhone） */
 
-/* ★読ませる字の色は これ1つ★（2つの「薄い黒」を作らない） */
+/* ★読ませる字の色＝3段だけ★（指示役の裁定 2026-08-22・★新しい段を作らない★）
+     #333333 … 本文・値・金額（body の既定はこれ）
+     #555555 … 副の情報（注記・補足）
+     #6E6E6E … いちばん薄い注記
+   ★社内で既に使っている3段★（飲み屋が 2026-08-21 に本番へ入れた物）＝勝手に増やさない。
+   ★戻す条件★ … 司さんが段を増やす／減らすと決めた日。 */
 const BODY_BLACK = '#333333';
+const READ_OK = ['#333333', '#555555', '#6E6E6E'];
 /* ★例外（理由と戻す条件つき）★ 状態そのものが色で意味を持つ字。箱の色と揃えている。 */
 const STATE_OK = {
   '#92500A': '注意（.warn）… 箱の色と同じ。★色が意味★なので黒にしない',
@@ -280,22 +286,22 @@ function measure(tag, html) {
    ★数え方★ … 幅390px・本物のChrome・押せない字のうち 薄い黒でない物（例外3色は数えない） */
 const NOW = {
   '入口': 0,
-  '入口 ▸ 共有データ': 1,
-  '給与 ▸ 設定': 12,
-  '給与 ▸ 入力': 22,
-  '給与 ▸ 一覧/集計': 2,
+  '入口 ▸ 共有データ': 0,
+  '給与 ▸ 設定': 0,
+  '給与 ▸ 入力': 0,
+  '給与 ▸ 一覧/集計': 0,
   '給与 ▸ 印刷': 0,
-  '給与 ▸ 振込': 2,
+  '給与 ▸ 振込': 0,
   'Web明細 ▸ 開く前': 0,
   'Web明細': 0,
   'Web明細 ▸ 年末調整': 0,
-  '管理': 6,
+  '管理': 0,
   '請求書': 0,
-  '請求書 ▸ 設定': 33,
+  '請求書 ▸ 設定': 0,
 };
 
 /* 薄い黒でも 例外でもない物だけ残す */
-const badOnly = (rows) => rows.filter((r) => r.color !== BODY_BLACK && !STATE_OK[r.color]);
+const badOnly = (rows) => rows.filter((r) => READ_OK.indexOf(r.color) < 0 && !STATE_OK[r.color]);
 
 const list = process.argv.includes('--list');
 const selfTest = process.argv.includes('--self-test');
