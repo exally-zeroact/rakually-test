@@ -131,6 +131,7 @@ const EMPTY_OK = {
   me: '同上（ログインしていない）',
   attempt: '同上（認証の やり直し）',
   ymLabel: 'URLの合言葉・端末の記憶が読めない時は null。★中身は1バイトも出さない★のが正しい',
+  oops: '同上（URLの合言葉・端末の記憶を読む所。すぐ上に知らせの関数が在るので この名前で出る）★中身は1バイトも出さない★',
 };
 
 const money = rows.filter((r) => r.money);
@@ -143,21 +144,54 @@ const emptyAll = rows.filter((r) => r.kind === '②空を返す' || r.kind === '
 const emptyBad = emptyAll.filter((r) => !EMPTY_OK[r.owner]);
 const emptyOk = emptyAll.filter((r) => EMPTY_OK[r.owner]);
 
-/* ★外へ出す呼び出しは 全部 失敗の受け皿を持つ★
-   （2026-08-21：Web明細は catch が在ったが ★源泉徴収票の交付は catch すら無かった★＝
-     交付できていないのに 誰にも伝わらない） */
-const OUT_CALLS = ['Store.publishMeisai(', 'Store.savePayslip('];
-const noCatch = [];
+/* ★外へ出す呼び出しは ★呼んでいる場所ごとに★ 失敗の受け皿を持つ★
+   （2026-08-21 夜：listMeisaiPub は3か所から呼ばれていて、受け皿は1か所だけだった＝
+     ★1か所 直して「直した」と言っていた★） */
+function statementAt(src, at) {
+  /* その呼び出しを含む1文を取り出す（( ) { } の釣り合いを見て ; まで） */
+  let i = at, par = 0, bra = 0;
+  const limit = Math.min(src.length, at + 4000);
+  while (i < limit) {
+    const ch = src[i];
+    if (ch === '(') par++;
+    else if (ch === ')') par--;
+    else if (ch === '{') bra++;
+    else if (ch === '}') bra--;
+    else if (ch === ';' && par <= 0 && bra <= 0) { i++; break; }
+    i++;
+  }
+  return src.slice(at, i);
+}
+/* 倉庫（外）を呼ぶ所。約束を返す物だけ見る */
+const OUT_RX = /\b(?:Store|suite|SD|S\.store)\.([A-Za-z_$][\w$]*)\s*\(/g;
+const OUT_SKIP = new Set(['getUser', 'getSession']);   /* 約束を返さない・見ても意味が無い物 */
+const calls = [];
 for (const f of FILES) {
   const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
-  for (const call of OUT_CALLS) {
-    let i = -1;
-    while ((i = src.indexOf(call, i + 1)) >= 0) {
-      const tail = src.slice(i, i + 520);
-      if (!/\.catch\(/.test(tail)) noCatch.push(f + ':' + src.slice(0, i).split('\n').length + '  ' + call);
-    }
+  let m;
+  OUT_RX.lastIndex = 0;
+  while ((m = OUT_RX.exec(src))) {
+    const name = m[1];
+    if (OUT_SKIP.has(name)) continue;
+    const st = statementAt(src, m.index);
+    /* 約束の道に乗っている物だけ（.then / .catch / await / return が在る）＝呼びっぱなしを見る */
+    const isPromise = /\.then\(|\.catch\(|await\s|return\s/.test(st) || /\.then\(/.test(src.slice(m.index, m.index + 400));
+    if (!isPromise) continue;
+    calls.push({
+      file: f, line: src.slice(0, m.index).split('\n').length, name,
+      caught: /\.catch\(/.test(st),
+    });
   }
 }
+const noCatch = calls.filter((c) => !c.caught).map((c) => c.file + ':' + c.line + '  Store.' + c.name + '(');
+/* ★1か所だけ直っている関数★ を数える */
+const byName = {};
+calls.forEach((c) => {
+  byName[c.name] = byName[c.name] || { all: 0, ok: 0 };
+  byName[c.name].all++;
+  if (c.caught) byName[c.name].ok++;
+});
+const halfDone = Object.keys(byName).filter((k) => byName[k].ok > 0 && byName[k].ok < byName[k].all);
 
 if (process.argv.includes('--list')) {
   console.log('\n[お金を作る所の catch] ' + money.length + '件');
@@ -173,7 +207,12 @@ if (process.argv.includes('--list')) {
   ['①0を返す', '②空を返す', '③そのまま進む', '④知らせている'].forEach((k) => {
     console.log('    ' + k + ' … ' + (byKind[k] || 0) + '件');
   });
-  console.log('    外へ出す呼び出しで 受け皿が無い所 … ' + noCatch.length + '件');
+  console.log('  ★外へ出す呼び出し（呼んでいる場所ごと）… ' + calls.length + 'か所／受け皿が無い ' + noCatch.length + 'か所★');
+  if (noCatch.length) { console.log('  ★受け皿が無い所（1か所ずつ）★'); noCatch.forEach((x)=>console.log('    '+x)); }
+  if (halfDone.length) {
+    console.log('  ★1か所だけ直っている関数 … ' + halfDone.length + '本★');
+    halfDone.forEach((k) => console.log('    ' + k + ' … ' + byName[k].all + 'か所のうち ' + byName[k].ok + 'か所だけ受け皿あり'));
+  }
   console.log('    うち ★理由を書いて残した物★ … ' + emptyOk.length + '件／★一覧に無い物★ … ' + emptyBad.length + '件');
   if (emptyOk.length) emptyOk.forEach((r) => console.log('      残す：' + r.owner + '  … ' + EMPTY_OK[r.owner]));
   if (zero.length) {

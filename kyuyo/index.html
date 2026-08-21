@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png?v=e0197076">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=5fa7ed9b">
+<link rel="stylesheet" href="css/app.css?v=48efedcb">
 </head>
 <body>
 <header class="appbar">
@@ -173,68 +173,68 @@
   </div>
 </div>
 
-<script src="lib/shakaihoken-hyo.js?v=5fa7ed9b"></script>
-<script src="lib/koyo-hoken.js?v=5fa7ed9b"></script>
-<script src="lib/payroll-calc.js?v=5fa7ed9b"></script>
-<script src="lib/shotokuzei-densan.js?v=5fa7ed9b"></script>
-<script src="lib/shotokuzei-hei.js?v=5fa7ed9b"></script>
-<script src="lib/shotokuzei-nichi.js?v=5fa7ed9b"></script>
-<script src="lib/calc.js?v=5fa7ed9b"></script>
-<script src="lib/shoyo-zei.js?v=5fa7ed9b"></script>
-<script src="lib/warimashi.js?v=5fa7ed9b"></script>
-<script src="lib/pay-rule.js?v=5fa7ed9b"></script>
-<script src="lib/pay-parse.js?v=5fa7ed9b"></script>
-<script src="lib/daily-pay.js?v=5fa7ed9b"></script>
-<script src="lib/zaiseki.js?v=5fa7ed9b"></script>
-<script src="lib/juminzei.js?v=5fa7ed9b"></script>
-<script src="lib/chingin-daicho.js?v=5fa7ed9b"></script>
-<script src="lib/holidays.js?v=5fa7ed9b"></script>
-<script src="lib/saitei-chingin.js?v=5fa7ed9b"></script>
-<script src="lib/nenmatsu.js?v=5fa7ed9b"></script>
-<script src="../lib/periods.js?v=5fa7ed9b"></script>
-<script src="lib/ledger-agg.js?v=5fa7ed9b"></script>
-<script src="lib/shaho-kanyu.js?v=5fa7ed9b"></script>
-<script src="lib/shiharai-chosho.js?v=5fa7ed9b"></script>
-<script src="lib/nencho-declaration.js?v=5fa7ed9b"></script>
-<script src="lib/taishoku-shotoku.js?v=5fa7ed9b"></script>
-<script src="lib/zengin.js?v=5fa7ed9b"></script>
-<script src="lib/qr.js?v=5fa7ed9b"></script>
-<script src="lib/kintai-csv.js?v=5fa7ed9b"></script>
-<script src="lib/migrate-map.js?v=5fa7ed9b"></script>
-<script src="../lib/access.js?v=5fa7ed9b"></script>
+<script src="lib/shakaihoken-hyo.js?v=48efedcb"></script>
+<script src="lib/koyo-hoken.js?v=48efedcb"></script>
+<script src="lib/payroll-calc.js?v=48efedcb"></script>
+<script src="lib/shotokuzei-densan.js?v=48efedcb"></script>
+<script src="lib/shotokuzei-hei.js?v=48efedcb"></script>
+<script src="lib/shotokuzei-nichi.js?v=48efedcb"></script>
+<script src="lib/calc.js?v=48efedcb"></script>
+<script src="lib/shoyo-zei.js?v=48efedcb"></script>
+<script src="lib/warimashi.js?v=48efedcb"></script>
+<script src="lib/pay-rule.js?v=48efedcb"></script>
+<script src="lib/pay-parse.js?v=48efedcb"></script>
+<script src="lib/daily-pay.js?v=48efedcb"></script>
+<script src="lib/zaiseki.js?v=48efedcb"></script>
+<script src="lib/juminzei.js?v=48efedcb"></script>
+<script src="lib/chingin-daicho.js?v=48efedcb"></script>
+<script src="lib/holidays.js?v=48efedcb"></script>
+<script src="lib/saitei-chingin.js?v=48efedcb"></script>
+<script src="lib/nenmatsu.js?v=48efedcb"></script>
+<script src="../lib/periods.js?v=48efedcb"></script>
+<script src="lib/ledger-agg.js?v=48efedcb"></script>
+<script src="lib/shaho-kanyu.js?v=48efedcb"></script>
+<script src="lib/shiharai-chosho.js?v=48efedcb"></script>
+<script src="lib/nencho-declaration.js?v=48efedcb"></script>
+<script src="lib/taishoku-shotoku.js?v=48efedcb"></script>
+<script src="lib/zengin.js?v=48efedcb"></script>
+<script src="lib/qr.js?v=48efedcb"></script>
+<script src="lib/kintai-csv.js?v=48efedcb"></script>
+<script src="lib/migrate-map.js?v=48efedcb"></script>
+<script src="../lib/access.js?v=48efedcb"></script>
 <!-- SheetJS CE 0.20.3 (Apache-2.0) をリポジトリに同梱。以前は jsdelivr の 0.18.5 を外から読んでいた。
      ①外部CDNへの依存を切る(通信が不安定でもExcel機能が死なない) ②版対応ハーネスで検証済みの版に揃える
      ③同じ物が2つの版で混在する状態を残さない。入手元とsha256は tests/xlsx-harness/golden/RECIPE.md -->
-<script src="../lib/xlsx.full.min.js?v=5fa7ed9b"></script>
-<script src="lib/payslip-xlsx.js?v=5fa7ed9b"></script>
+<script src="../lib/xlsx.full.min.js?v=48efedcb"></script>
+<script src="lib/payslip-xlsx.js?v=48efedcb"></script>
 <!-- ★月次給与の計算エンジン=唯一の真実源。app.js は ctxOf() を渡して委譲するだけ。
      グリッド/チャット/オペレーション(ops/payroll.monthly.js)も同じこれを呼ぶ。依存する lib 群より後に読む。 -->
-<script src="lib/payroll-monthly.js?v=5fa7ed9b"></script>
-<script src="lib/payroll-warnings.js?v=5fa7ed9b"></script>
+<script src="lib/payroll-monthly.js?v=48efedcb"></script>
+<script src="lib/payroll-warnings.js?v=48efedcb"></script>
 <!-- ★契約(エンジン↔面)の入口。docs/SPEC_engine_grid_contract_v0.md
      op-registry=id からオペを引く唯一の場所 / statutory-meta=内蔵値の出典・確認日・指紋
      ops/payroll.monthly.js=第一オペ。app.js の「Excelに保存(月次)」はここを通る。 -->
-<script src="lib/statutory-central.generated.js?v=5fa7ed9b"></script>
-<script src="lib/statutory-meta.js?v=5fa7ed9b"></script>
-<script src="../lib/op-registry.js?v=5fa7ed9b"></script>
-<script src="lib/op-contract.js?v=5fa7ed9b"></script>
-<script src="ops/payroll.monthly.js?v=5fa7ed9b"></script>
+<script src="lib/statutory-central.generated.js?v=48efedcb"></script>
+<script src="lib/statutory-meta.js?v=48efedcb"></script>
+<script src="../lib/op-registry.js?v=48efedcb"></script>
+<script src="lib/op-contract.js?v=48efedcb"></script>
+<script src="ops/payroll.monthly.js?v=48efedcb"></script>
 <!-- 印刷/PDF保存=jsPDFで自前生成(A4ぴったり・iOSのフッター無し・戻れる)。iOSのwebページ印刷は不採用。 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=5fa7ed9b"></script>
+<script src="../js/supa-config.js?v=48efedcb"></script>
 <!-- ★ファイルの渡し口(種類を正しく付ける/iPhoneは共有シート)と、月の選択(iOSに無いtype=monthの代わり) -->
-<script src="../js/file-out.js?v=5fa7ed9b"></script>
-<script src="js/ym-picker.js?v=5fa7ed9b"></script>
-<script src="js/render.js?v=5fa7ed9b"></script>
-<script src="js/store.js?v=5fa7ed9b"></script>
-<script src="js/app.js?v=5fa7ed9b"></script>
-<script src="../js/rakually-login.js?v=5fa7ed9b"></script>
-<script src="js/auth.js?v=5fa7ed9b"></script>
+<script src="../js/file-out.js?v=48efedcb"></script>
+<script src="js/ym-picker.js?v=48efedcb"></script>
+<script src="js/render.js?v=48efedcb"></script>
+<script src="js/store.js?v=48efedcb"></script>
+<script src="js/app.js?v=48efedcb"></script>
+<script src="../js/rakually-login.js?v=48efedcb"></script>
+<script src="js/auth.js?v=48efedcb"></script>
 <!-- ★Service Workerは登録しない=キャッシュで古い版が居座り更新が反映されない問題(既知)を根絶。開くたびに既存SWを登録解除+全キャッシュ削除して常に最新にする。 --><script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=5fa7ed9b"></script>
+<script src="../js/env-badge.js?v=48efedcb"></script>
 </body>
 </html>

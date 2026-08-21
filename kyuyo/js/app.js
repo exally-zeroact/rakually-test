@@ -2470,7 +2470,8 @@
     Store.getPayslipsByYm(year+'-01', year+'-12').then(function(recs){
       recs=confirmedRecs(recs).filter(function(r){ return r.data.kind!=='bonus'; });
       state._choshoRows=_SC.choshoRows(choshoPeople(recs));
-      host.innerHTML=sub+choshoHTML(state._choshoRows, year); }); }
+      host.innerHTML=sub+choshoHTML(state._choshoRows, year); })
+      .catch(function(){ host.innerHTML=noStoreHTML(sub); }); }
   function choshoHTML(rows, year){
     var targets=rows.filter(function(r){ return r.target; }), others=rows.filter(function(r){ return !r.target; });
     var h='<div class="card"><div class="card-h">支払調書（報酬・料金等） '+year+'年<span class="help-i" data-help="houshu">💡</span></div>'
@@ -2498,7 +2499,7 @@
       PayslipXlsx.downloadSheets([{name:'支払調書'+cyr, aoa:choshoAoa(state._choshoRows,cyr)}], {filename:'支払調書_'+cyr+'.xlsx'}); return; }
     if(kind==='dept'){ var g=CD().deptGroups(deptRows()); PayslipXlsx.downloadSheets([{name:'部署別集計', aoa:PayslipXlsx.deptSummaryAOA(g,{company:co,monthLabel:mlabel})}], {filename:'部署別集計_'+state.month+'.xlsx'}); return; }
     if(kind==='daicho'){ var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
-      Store.getPayslipsByYm(year+'-01',year+'-12').then(function(recs){ recs=confirmedRecs(recs).filter(function(r){return r.data.kind!=='bonus';}); var L=CD().buildLedger(recs,year,state.employees); // 賃金台帳(月次)は賞与除外
+      Store.getPayslipsByYm(year+'-01',year+'-12').catch(function(e){ toast('過去の月を読み込めませんでした（' + ((e&&e.message)||'つながりません') + '）。Excelは作りません。'); throw e; }).then(function(recs){ recs=confirmedRecs(recs).filter(function(r){return r.data.kind!=='bonus';}); var L=CD().buildLedger(recs,year,state.employees); // 賃金台帳(月次)は賞与除外
         var sheets=PayslipXlsx.chinginDaichoSheets(L, year, CD(), {company:co}); if(!sheets.length){ uiAlert('確定済みの月がありません。'); return; } PayslipXlsx.downloadSheets(sheets,{filename:'賃金台帳_'+year+'.xlsx'}); }); return; }
     if(kind==='santei'){ var yr=parseInt(String(state.month||'').slice(0,4),10)||2026; var rows=state._santeiRows||[]; var withData=rows.filter(function(x){return x.hasData;});
       if(!withData.length){ uiAlert('4〜6月の確定済み明細がありません。'); return; } PayslipXlsx.downloadSheets([{name:'算定基礎届', aoa:santeiAoa(withData, yr)}], {filename:'算定基礎届_'+yr+'.xlsx'}); return; }
@@ -3881,11 +3882,11 @@
       var cp=e.target.closest('.wm-copy'); if(cp){ try{ navigator.clipboard.writeText(cp.dataset.link); toast('コピーしました'); }catch(err){} return; }
       var qb=e.target.closest('.wm-qr'); if(qb){ showMeisaiQR(qb.dataset.qrName, qb.dataset.qrUrl); return; } // 個人のQR表示/印刷
       if(e.target.closest('.wm-qrall')){ // 全員のQRを印刷(リンク+初回コード同梱)
-        Store.listMeisaiPub(rosterIds()).then(function(list){ var origin=(location.origin&&location.origin.indexOf('http')===0)?location.origin+location.pathname.replace(/[^\/]*$/,''):'';
+        Store.listMeisaiPub(rosterIds()).catch(function(e){ toast('公開ずみの明細を読み込めませんでした（' + ((e&&e.message)||'つながりません') + '）。★0件ではありません★'); throw e; }).then(function(list){ var origin=(location.origin&&location.origin.indexOf('http')===0)?location.origin+location.pathname.replace(/[^\/]*$/,''):'';
           printQRCards((list||[]).map(function(p){ var code=(!p.hasPassword?p.initCode:''); return { name:p.name, url:origin+p.link+(code?('&c='+encodeURIComponent(code)):''), initCode:code }; })); }); // QRに初回コードを埋め込む=スキャンで自動入力
         return; }
       var ri=e.target.closest('.wm-reissue'); if(ri){ var tok=ri.dataset.token; uiConfirm('初回コードを再発行しますか？\n現在のパスワードと端末の記憶は無効になり、従業員は新しい初回コードで再設定します。').then(function(ok){ if(!ok)return;
-        Store.reissueMeisaiInit(tok).then(function(){ renderWebMeisai(); toast('初回コードを再発行しました'); }); }); return; }
+        Store.reissueMeisaiInit(tok).catch(function(e){ toast('初回コードを再発行できませんでした（' + ((e&&e.message)||'つながりません') + '）。'); throw e; }).then(function(){ renderWebMeisai(); toast('初回コードを再発行しました'); }); }); return; }
     });
     window.addEventListener('resize',function(){ if($('#scr-print').classList.contains('active'))doPreview(); });
   }
@@ -3951,7 +3952,7 @@
   function rosterIds(){ return (state.employees||[]).map(function(e){ return e.id; }); }
   function renderWebMeisai(){
     var card=$('#webmeisai-card'), host=$('#webmeisai-body'); if(!card||!host||!(window.Store&&Store.listMeisaiPub))return;
-    Store.listMeisaiPub(rosterIds()).then(function(list){
+    Store.listMeisaiPub(rosterIds()).catch(function(e){ toast('公開ずみの明細を読み込めませんでした（' + ((e&&e.message)||'つながりません') + '）。★0件ではありません★'); throw e; }).then(function(list){
       card.style.display=list.length?'':'none'; if(!list.length){ host.innerHTML=''; return; }
       var unread=0; list.forEach(function(p){ (p.docs||[]).forEach(function(d){ if(!d.openedAt)unread++; }); });
       var origin=(location.origin&&location.origin.indexOf('http')===0)?location.origin+location.pathname.replace(/[^\/]*$/,''):'';
@@ -4034,7 +4035,15 @@
     if(!lsOk) setS('⚠ 保存できません（このブラウザの空き容量）'); // 容量超過を握り潰さず表示
     if(window.Store&&Store.cloudSaveState){
       // ★クラウド保存の成否を待ってから表示(失敗を「保存済」と嘘表示しない)
-      Promise.resolve().then(function(){ return Store.cloudSaveState(snap); }).then(function(r){
+      /* ★雲に保存できていないのに 黙らない★（この端末にしか無い状態になる）
+         受け皿は ★その呼び出しの直後★に置く（外側に置くと どの呼び出しの受け皿か分からない） */
+      Promise.resolve().then(function(){
+        return Store.cloudSaveState(snap).catch(function(e){
+          toast('クラウドに保存できませんでした（' + ((e&&e.message)||'つながりません') + '）。この端末にだけ残っています。');
+          throw e;
+        });
+      })
+      .then(function(r){
         // no-user=未ログイン=クラウド対象外(ローカル保存が正)→警告しない。ログイン中の実失敗のみ警告。
         if(r&&r.ok===false&&r.reason==='conflict'){ // ★楽観ロック: 上書きせず警告(データ消失防止)。neverSynced=別端末更新でなく"クラウド未読込"→文言を分ける
           setS(r.neverSynced ? '⚠ クラウドに保存済みのデータがあります（未読込）' : '⚠ 別の端末で更新されました（クラウド未保存）');

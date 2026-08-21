@@ -10,6 +10,24 @@
   function yen(n){ n=Math.round(Number(n)||0); return '¥'+n.toLocaleString('en-US'); }
   function ymLabel(ym, kind){ var y=(ym||'').slice(0,4), m=parseInt((ym||'').slice(5,7),10)||0; if(kind==='gensen') return '令和'+(y-2018)+'年 源泉徴収票'; return '令和'+(y-2018)+'年'+m+'月'+(kind==='bonus'?'（賞与）':'分'); }
 
+  /* ★つながらない時に 何も出ないまま止めない★（2026-08-21）
+     倉庫を呼ぶ所には ★1か所ずつ★ 受け皿を付ける。ここは その知らせ（1か所にまとめる）。
+     ★「リンクが正しくありません」は使わない★＝つながらないのとは別の事（嘘になる）。 */
+  function oops(what, err){
+    var t=document.getElementById('m-oops');
+    if(!t){
+      t=document.createElement('div'); t.id='m-oops';
+      t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);'
+        +'max-width:calc(100vw - 32px);width:max-content;box-sizing:border-box;'
+        +'white-space:normal;overflow-wrap:anywhere;line-height:1.6;text-align:center;'
+        +'background:#C0392B;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;'
+        +'box-shadow:0 4px 16px rgba(0,0,0,.22);z-index:9999';
+      document.body.appendChild(t);
+    }
+    t.textContent = what + 'ができませんでした（' + ((err && (err.message||err.reason)) || 'つながりません') + '）。電波の良い所で もう一度 開いてください。';
+    t.style.display='';
+  }
+
   var token=(function(){ try{ return new URLSearchParams(location.search).get('t'); }catch(e){ return null; } })();
   // QR/リンクに初回コードを埋め込む(?c=)と、初回パスワード設定画面で自動入力=従業員はコード入力不要でパスワードを決めるだけ。
   var initFromUrl=(function(){ try{ return (new URLSearchParams(location.search).get('c')||'').trim(); }catch(e){ return ''; } })();
@@ -25,7 +43,7 @@
     if(r.remembered){ cred={ deviceToken:savedDev }; afterAuth(r.name); return; }   // 記憶済→パスワード省略
     if(!r.hasPassword){ show('sc-setup'); return; }                                  // 初回=パスワード設定(コードはリンクに内包・従業員は入力不要)
     show('sc-login');                                                                // 2回目以降=パスワード
-  });
+  }).catch(function(e){ oops('本人の確かめ', e); });
 
   // 認証後: 同意チェック→明細一覧(or 同意画面)
   function afterAuth(name){
@@ -33,7 +51,7 @@
       if(!r || r.unauth){ show('sc-login'); return; }
       if(r.needConsent){ show('sc-consent'); return; }
       docs=r.docs||[]; renderList(r.name||name); show('sc-list');
-    });
+    }).catch(function(e){ oops('明細の読み込み', e); });
   }
 
   // ① 初回パスワード設定(コードはリンク(?c=)に内包=従業員はパスワードを決めるだけ)
@@ -47,7 +65,7 @@
       if(!r || !r.ok){ $('setup-err').textContent = (r&&r.locked)?'しばらくロックされています。時間をおいて再度お試しください。':(r&&r.weak)?'パスワードは8文字以上にしてください。':(r&&r.badInit)?'このリンクが正しくありません。会社から届いた最新のリンク（QR）をそのまま開いてください。':(r&&r.alreadySet)?'すでにパスワードが設定済みです。ログインしてください。':'設定できませんでした。'; if(r&&r.alreadySet)show('sc-login'); return; }
       // 設定できたらそのままパスワードでログイン→端末記憶
       loginWith(pw);
-    });
+    }).catch(function(e){ oops('パスワードの登録', e); });
   });
 
   // ② パスワードでログイン
@@ -60,7 +78,7 @@
       try{ localStorage.setItem(DEVKEY, r.deviceToken); }catch(e){}   // 端末に記憶(次回からパスワード不要)
       cred={ deviceToken:r.deviceToken };
       afterAuth();
-    });
+    }).catch(function(e){ oops('パスワードの確かめ', e); });
   }
 
   // ③ 電子交付の同意(認証済cred必須)
@@ -68,7 +86,7 @@
     Store.setMeisaiConsent(token, cred).then(function(r){
       if(!r || !r.ok){ show('sc-login'); return; }
       afterAuth();
-    });
+    }).catch(function(e){ oops('同意の記録', e); });
   });
   $('consent-no').addEventListener('click', function(){ show('sc-login'); });
 
@@ -95,7 +113,7 @@
   var _isLand=false, _psHtml='', _psW=794, _psH=1123;
   function openDoc(i){
     var d=docs[i]; if(!d) return; var data=d.data||{};
-    if(d.openedAt==null){ Store.markMeisaiOpened(d.id, token, cred).then(function(){ d.openedAt=new Date().toISOString(); }); }
+    if(d.openedAt==null){ Store.markMeisaiOpened(d.id, token, cred).then(function(){ d.openedAt=new Date().toISOString(); }).catch(function(e){ oops('開いた記録', e); }); }
     var pw=794, ph=1123, html; _isLand=false;
     try{
       if(d.kind==='gensen'){ html=data.gensenHtml||'<!doctype html><html><head><meta charset="UTF-8"></head><body><p style="padding:16px">源泉徴収票を表示できませんでした。</p></body></html>'; }
@@ -214,7 +232,7 @@
       declState = (r && r.found && r.decl) ? JSON.parse(JSON.stringify(r.decl)) : (ND?ND.blank():{});
       if(r && r.found){ var sv=$('nencho-saved'); sv.textContent='前回の申告を読み込みました。修正して再提出できます。'; sv.classList.remove('hidden'); }
       renderNenWiz(); show('sc-nencho'); window.scrollTo(0,0);
-    });
+    }).catch(function(e){ oops('前の申告の読み込み', e); });
   }
   var toN=$('to-nencho'); if(toN) toN.addEventListener('click', openNencho);
   var nBack=$('nencho-back'); if(nBack) nBack.addEventListener('click', function(){ renderList(); show('sc-list'); });
@@ -234,7 +252,7 @@
       declState=JSON.parse(JSON.stringify(decl)); renderNenWiz();
       var sv=$('nencho-saved'); sv.textContent='申告を保存しました。会社が確認して年末調整に反映します。修正があればこの画面から再提出できます。'; sv.classList.remove('hidden');
       window.scrollTo(0,0);
-    });
+    }).catch(function(e){ oops('申告の送信', e); });
   });
 
   // ⑦ 従業員セルフ登録: 自分の情報(住所＋振込先)。住所は源泉徴収票に使います。
@@ -264,7 +282,7 @@
       profState = (r && r.found && r.data) ? JSON.parse(JSON.stringify(r.data)) : {};
       if(r && r.found){ var sv=$('furi-saved'); sv.textContent='前回の登録を読み込みました。修正して再登録できます。'; sv.classList.remove('hidden'); }
       renderProfForm(); show('sc-furikomi'); window.scrollTo(0,0);
-    });
+    }).catch(function(e){ oops('登録した内容の読み込み', e); });
   }
   var toF=$('to-furikomi'); if(toF) toF.addEventListener('click', openFurikomi);
   var fBack=$('furi-back'); if(fBack) fBack.addEventListener('click', function(){ renderList(); show('sc-list'); });
@@ -278,6 +296,6 @@
       profState=JSON.parse(JSON.stringify(data)); renderProfForm();
       var sv=$('furi-saved'); sv.textContent='振込先を登録しました。会社が確認して反映します。修正があればこの画面から再登録できます。'; sv.classList.remove('hidden');
       window.scrollTo(0,0);
-    });
+    }).catch(function(e){ oops('登録の保存', e); });
   });
 })();
