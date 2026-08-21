@@ -1,7 +1,7 @@
 {
   "seikyu/tests/live-seikyu.mjs": { "why": "DB-test へ実接続する（鍵が要る・CIには鍵も網も無い）", "back": "CI に DB-test の鍵を置いた日" },
   "tests/live-roundtrip.mjs":     { "why": "DB-test へ実接続する（鍵が要る）", "back": "CI に DB-test の鍵を置いた日" },
-  "tests/live-seed.mjs":          { "why": "試験ではなく ★種を撒く道具★（手で走らせる）", "back": "入れた物を確かめる試験に作り替えた日" },
-  "tests/dbtest-seed.mjs":        { "why": "試験ではなく ★種を撒く道具★（手で走らせる）", "back": "入れた物を確かめる試験に作り替えた日" },
-  "tests/repo-supa.mjs":          { "why": "試験ではなく ★倉庫の中を見る道具★（手で走らせる）", "back": "見た物を確かめる試験に作り替えた日" }
+  "tests/live-seed.mjs":          { "kind": "tool", "why": "試験ではなく ★種を撒く道具★（手で走らせる）", "back": "入れた物を確かめる試験に作り替えた日" },
+  "tests/dbtest-seed.mjs":        { "kind": "tool", "why": "試験ではなく ★種を撒く道具★（手で走らせる）", "back": "入れた物を確かめる試験に作り替えた日" },
+  "tests/repo-supa.mjs":          { "kind": "tool", "why": "試験ではなく ★倉庫の中を見る道具★（手で走らせる）", "back": "見た物を確かめる試験に作り替えた日" }
 }
