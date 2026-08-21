@@ -1826,7 +1826,7 @@
         +(imported?'<span style="font-size:11px;color:#3D9E72;font-weight:700">✓ 今月ぶんを取り込み済み</span>':'')
         +'<button data-ledger-import="1" style="margin-left:auto;padding:7px 12px;border:1px solid #3D9E72;background:#fff;color:#2E7D54;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer">'+(imported?'台帳を再取り込み':'台帳から取り込む')+'（'+esc(state.month||'')+'）</button>'
       +'</div>'
-      +'<div style="font-size:10.5px;color:#3D6B53;margin-top:5px">毎日つけた記録（売上・時間・件数）を読み込んで、代行など<b>売上や歩合で決まる基本給を自動計算</b>します。二度打ちは不要です。</div>'
+      +'<div style="font-size:10.5px;color:#3D6B53;margin-top:5px">毎日つけた記録（売上・時間・件数）を読み込んで、<b>売上や歩合で決まる基本給を自動計算</b>します。二度打ちは不要です。</div>'
       +'</div>';
   }
   function renderInput(){

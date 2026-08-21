@@ -1383,7 +1383,7 @@
   function autoNumber() {
     var v = S.cur;
     if (!v || locked()) return Promise.resolve();
-    if (((v.data && v.data.noMode) || 'auto') !== 'auto') { setText('e-no-hint', '自分で決めた番号も「使用済み」として数えます。同じ番号は倉庫が受け付けません。'); return Promise.resolve(); }
+    if (((v.data && v.data.noMode) || 'auto') !== 'auto') { setText('e-no-hint', '自分で決めた番号も「使用済み」として数えます。同じ番号は 二度 受け付けません。'); return Promise.resolve(); }
     var s = settings();
     var p = partnerById(v.partner_id);
     var code = (p && p.data && p.data.code) || '';
