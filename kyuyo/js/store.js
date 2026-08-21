@@ -261,6 +261,25 @@
     return Promise.resolve({ rows:[], count:0, truncated:false }); // 台帳はクラウド専用(未ログイン=空)
   };
 
+  // ── K4: 台帳の「行数だけ」を数える(行は1件も読まない) ──
+  //  ★何に使うか★＝「台帳から取り込む」を ★出すか出さないか★ だけ。だから head:true(本文なし・countだけ)。
+  //    ＝★問い合わせを増やさない★(行を読む getLedger は 押された時だけ)。
+  //  返り: { count:Number } ／ ★読めなかった時は { count:null, error:'…' }★
+  //  ★読めない を 0件 にしない★（0件＝本当に無い／null＝分からない）。呼び手はどちらでも「出さない」。
+  Store.countLedger = function(fromYmd, toYmd){
+    if(hasSupa){
+      return Promise.resolve(sb.from('pay_ledger').select('id', { count:'exact', head:true })
+          .is('deleted_at', null).gte('ymd', fromYmd).lte('ymd', toYmd))
+        .then(function(r){
+          if(r && r.error) return { count:null, error:(r.error.message||'error') };
+          if(!r || typeof r.count!=='number') return { count:null, error:'no-count' }; // ★数が来ない＝分からない★
+          return { count:r.count };
+        })
+        .catch(function(e){ return { count:null, error:(e&&e.message)||'exception' }; });
+    }
+    return Promise.resolve({ count:0 }); // 台帳はクラウド専用(未ログイン/ローカル=0件)
+  };
+
   // ── Web明細(従業員向け配布・パスワード方式) ──
   // 会社が月次/賞与明細を「Web公開」→従業員は リンク(?t=token)で開き、初回だけ「会社発行の初回コード」で本人を縛って
   // 自分のパスワードを設定→以後はパスワード(＋端末記憶deviceToken)で閲覧。★電子交付の同意(所得税法)まで明細を1バイトも返さない★。

@@ -204,6 +204,12 @@ jobs:
         run: node kyuyo/tests/publish-fail-ui.mjs
       - name: ★わざと失敗させて押す (0を返す形へ戻したら赤になるかの自己確認)
         run: node kyuyo/tests/publish-fail-ui.mjs --self-test
+      # ★出来ていない物のボタンを見せるな★（指示役の裁定 2026-08-22）
+      #   「台帳から取り込む」は ★その月の台帳が1件以上の時だけ★ 出す。0件・読めない・まだ数えていない は出さない。
+      - name: ★台帳ボタンは行数を見てから出しているか (0件/読めない/未計測で出たら赤)
+        run: node kyuyo/tests/ledger-banner.mjs
+      - name: ★台帳ボタン (行数を見ない昔の姿へ戻したら赤になるかの自己確認)
+        run: node kyuyo/tests/ledger-banner.mjs --self-test
       # ★給与の「今どんな状態か」を 動かして数える★（司さん 2026-08-19）
       #   docs/STATE_kyuyo.md の数字は この道具が正。★1つ直すたびに表を手で更新する約束にしない★
       - name: ★給与の状態を数え直す (docs/STATE_kyuyo.md の数と突き合わせ・ズレたら赤)

@@ -164,6 +164,7 @@
     var rng=monthYmdRange(state.month); if(!rng){ uiAlert('対象月が不正です。'); return Promise.resolve({ok:false,reason:'bad-month'}); }
     return Store.getLedger(rng.from, rng.to).then(function(res){
       if(res&&res.error){ uiAlert('台帳の読み込みに失敗しました：'+res.error); return {ok:false,reason:'error'}; }
+      if(res&&typeof res.count==='number') _ledgerN[state.month]=res.count; // ★読んだ数をそのまま使う(数え直さない)★
       if(res&&res.truncated){ uiAlert('台帳の件数が多く、全部を読み切れませんでした（'+res.count+'件中'+res.rows.length+'件）。期間を短く分けて取り込んでください。合計がずれるため取り込みを中止しました。'); return {ok:false,reason:'truncated'}; }
       var r=applyLedgerToEmployees(state.employees, (res&&res.rows)||[]);
       renderInput(); if(typeof doPreview==='function') doPreview();
@@ -1816,9 +1817,33 @@
     });
     return { added:added, match:match, mismatch:mismatch, needInput:needInput, mmList:mmList, prevYm:prevYm };
   }
+  // ★台帳の行数(月ごと)。★ボタンを出すかは 行数を見てから決める★(指示役の裁定 2026-08-22)。
+  //   number = 数えられた ／ null = 読めなかった ／ undefined = まだ数えていない
+  //   ★undefined も null も「出さない」★＝「読めない＝在る」にしない・先に描いて後で消さない。
+  //   ★問い合わせは 月ごとに最大2回★(1回目が読めなかった時だけ もう1回)。行は読まない(head:true)。
+  var _ledgerN={}, _ledgerTries={}, _ledgerBusy={};
+  function ledgerRowCount(ym){
+    ym=String(ym||''); if(!ym) return undefined;
+    if(typeof _ledgerN[ym]==='number') return _ledgerN[ym];      // 数えてある
+    if(_ledgerBusy[ym]) return undefined;                        // 数えている最中＝★まだ出さない★
+    if((_ledgerTries[ym]||0)>=2) return null;                    // 2回とも読めなかった＝分からない
+    if(!(window.Store && Store.countLedger)) return undefined;   // 数える口が無い＝出さない
+    var rng=monthYmdRange(ym); if(!rng) return undefined;
+    _ledgerTries[ym]=(_ledgerTries[ym]||0)+1; _ledgerBusy[ym]=true;
+    Store.countLedger(rng.from, rng.to).then(function(r){
+      _ledgerBusy[ym]=false;
+      _ledgerN[ym]=(r&&typeof r.count==='number')?r.count:null;
+      // ★出す時だけ 1回 描き直す★(先に入れてから呼ぶ＝描き直しの輪にならない)
+      if(_ledgerN[ym]>=1 && ym===state.month && $('#input-list')) renderInput();
+    }).catch(function(){ _ledgerBusy[ym]=false; _ledgerN[ym]=null; }); /* ★読めない＝出さない(在る事にしない)★ */
+    return undefined;
+  }
   // ★K4: 台帳(Exallyで毎日入れた記録)から当月ぶんを取り込むバナー。クラウド接続時のみ表示。
   function ledgerImportBanner(){
     if(!(window.SUPA && window.Store && Store.getLedger)) return ''; // オフライン(ローカルのみ)は台帳が無いので出さない
+    var _n=ledgerRowCount(state.month); /*★行数を見る★*/
+    // 0件・読めない・まだ数えていない → ★見出しもボタンも説明文も出さない★
+    if(!(typeof _n==='number' && _n>=1)) return ''; /*★行数を見る★*/
     var imported=(state.employees||[]).some(function(e){ return e && e._ledgerCtx; });
     return '<div class="cal-box" style="background:#F0FAF4;border:1px solid #C8ECD8;border-radius:12px;padding:10px 12px;margin-bottom:12px">'
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">'
@@ -4038,7 +4063,7 @@
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit,
-      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf }; }
+      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf }; }
   }catch(e){}
   /* ---------- 永続化(localStorage既定・window.SUPA設定でSupabaseにも保存) ---------- */
   var PKEY='payslip_state_v1';

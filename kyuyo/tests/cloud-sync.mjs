@@ -15,7 +15,7 @@ function ok(c, m) { if (!c) throw new Error(m || 'expected truthy'); }
 // ── Supabaseモック(呼び出しを記録・失敗も注入できる) ──
 function makeMock(opts) {
   opts = opts || {};
-  const calls = { companyUpsert: [], empUpsert: [], deletes: [] };
+  const calls = { companyUpsert: [], empUpsert: [], deletes: [], selects: [] };
   let serverEmpIds = (opts.serverEmpIds || []).slice();
   // dbFormatモード=実Postgres(timestamptz)を模擬: 送られたISO(…Z)を保存時に…+00:00へ書式変換し、読み戻しはその値を返す。
   //  ＝JS生成文字列(…Z)を競合基準にすると読み戻し(…+00:00)と毎回不一致になる本番バグを再現する。
@@ -60,7 +60,7 @@ function makeMock(opts) {
         p.select = () => ({ single: () => Promise.resolve(res), maybeSingle: () => Promise.resolve(res), then: (f, r) => Promise.resolve(res).then(f, r) });
         return p;
       },
-      select: (cols) => query(table === 'pay_ledger' ? 'ledger' : table === 'pay_companies' ? 'companyData' : cols === 'id' ? 'empIds' : 'emps'),
+      select: (cols, sopts) => { calls.selects.push({ table, cols, opts: sopts || {} }); return query(table === 'pay_ledger' ? 'ledger' : table === 'pay_companies' ? 'companyData' : cols === 'id' ? 'empIds' : 'emps'); },
       delete: () => ({ in: (col, ids) => { calls.deletes.push(ids); return Promise.resolve({ error: null }); } }),
     };
   }
@@ -191,6 +191,28 @@ runs.push(T('K4 getLedger: 全行読めた時 truncated:false・rows/count 一�
 runs.push(T('K4 getLedger: サーバ上限で切れたら truncated:true(count>rows)', async function () {
   // Supabase既定1000行で切れた状況: 実データ1500件だが1000件しか返らない
   const rows = Array.from({ length: 1000 }, (_, i) => ({ id: 'l' + i, employee_id: 'e1', ymd: '2026-07-03', data: {} }));
+
+// ── K4: Store.countLedger(行を読まずに件数だけ) ──
+//  ★何に使うか★＝「台帳から取り込む」を出すか出さないかだけ。だから ★head:true(本文なし)★。
+//  ★読めない を 0件 にしない★（0件＝本当に無い／null＝分からない。どちらでも呼び手は「出さない」）
+runs.push(T('K4 countLedger: 件数だけ返す・★行は読まない(head:true)★', async function () {
+  const mock = makeMock({ ledgerRows: [], ledgerCount: 5 });
+  const Store = loadStore(mock);
+  const r = await Store.countLedger('2026-08-01', '2026-08-31');
+  ok(r.count === 5, 'count=5: ' + r.count);
+  ok(!r.error, 'errorなし');
+  const sel = mock.__calls.selects.filter(x => x.table === 'pay_ledger').pop();
+  ok(sel && sel.opts.head === true, '★head:true で呼んでいない(行を読んでしまう)★: ' + JSON.stringify(sel && sel.opts));
+  ok(sel && sel.cols === 'id', '読む列が id ではない: ' + (sel && sel.cols));
+}));
+
+runs.push(T('K4 countLedger: ★読めない時は count:null（0件にしない）★', async function () {
+  const mock = makeMock({ ledgerRows: [], ledgerError: { message: '権限がありません' } });
+  const Store = loadStore(mock);
+  const r = await Store.countLedger('2026-08-01', '2026-08-31');
+  ok(r.count === null, '★読めないのに 0件と言っている★: ' + JSON.stringify(r));
+  ok(!!r.error, '理由(error)が付いていない');
+}));
   const mock = makeMock({ ledgerRows: rows, ledgerCount: 1500 });
   const Store = loadStore(mock);
   const r = await Store.getLedger('2026-07-01', '2026-07-31');
