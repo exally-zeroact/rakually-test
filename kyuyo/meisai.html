@@ -74,7 +74,7 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 </style>
 </head>
 <body>
-<header class="mhead"><span class="logo">給与明細</span><span class="sub">WEB交付</span></header>
+<header class="mhead"><span class="logo">給与明細</span><span class="sub">スマホで見る</span></header>
 <div class="wrap">
 
   <!-- ① トークン不正 -->
@@ -137,7 +137,7 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
   <!-- ④'' 振込先 従業員セルフ登録 -->
   <div class="card hidden" id="sc-furikomi">
     <h2>自分の情報（住所・振込先）の登録</h2>
-    <p class="lead"><b>ご自分の住所</b>と<b>給与を受け取る口座</b>を登録してください。住所は源泉徴収票に使います。口座は通帳・キャッシュカード・銀行アプリで確認できます。分からない項目は空欄でも大丈夫です（会社が確認して反映します）。</p>
+    <p class="lead"><b>ご自分の住所</b>と<b>給与を受け取る口座</b>を登録してください。住所は源泉徴収票に使います。口座は通帳・キャッシュカード・銀行アプリで確認できます。住所と口座は 空のままだと 給料を振り込めません。分かる所まで入れて 保存できます（あとから続きを入れられます）。</p>
     <div class="nen-done hidden" id="furi-saved"></div>
     <div id="furi-form" style="margin-top:10px"></div>
     <button class="btn" id="furi-save">この内容で登録する</button>
@@ -169,18 +169,18 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 </div>
 
 <!-- ★既存Service Worker/キャッシュを削除して常に最新に(古い版が居座る問題の根絶) --><script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
-<script src="js/render.js?v=2975818b"></script>
-<script src="lib/nencho-declaration.js?v=2975818b"></script>
+<script src="js/render.js?v=c706213c"></script>
+<script src="lib/nencho-declaration.js?v=c706213c"></script>
 <!-- PDF保存=jsPDFで自前生成(A4ぴったり1ページ・ブラウザのフッター無し)。iOSのwebページ印刷は必ずURL/日付フッターが付き余白で2ページ化するため不使用。 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <!-- 本番はSupabase(RPC)。window.SUPA/supabase未読込ならstore.jsはlocalStorage層にフォールバック。 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=2975818b"></script>
-<script src="js/store.js?v=2975818b"></script>
-<script src="js/meisai.js?v=2975818b"></script>
+<script src="../js/supa-config.js?v=c706213c"></script>
+<script src="js/store.js?v=c706213c"></script>
+<script src="js/meisai.js?v=c706213c"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=2975818b"></script>
+<script src="../js/env-badge.js?v=c706213c"></script>
 </body>
 </html>
