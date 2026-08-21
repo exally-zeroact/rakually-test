@@ -20,14 +20,39 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
 
-/* ★客が読む字を作っているファイル★（ここに足したら この一覧にも足す） */
-const FILES = [
-  'index.html', 'js/hub.js', 'js/rakually-login.js',
-  'kyuyo/index.html', 'kyuyo/meisai.html', 'kyuyo/admin.html',
-  'kyuyo/js/app.js', 'kyuyo/js/meisai.js', 'kyuyo/js/render.js',
-  'seikyu/index.html', 'seikyu/js/seikyu-app.js', 'seikyu/js/seikyu-out.js',
-  'seikyu/lib/seikyu-paper.js', 'seikyu/lib/seikyu-doc.js',
+/* ★手で書いた一覧は 必ず漏れる★（2026-08-21 実際に漏れた）
+   最初は「客が読む字を作っているファイル」を14本 手で書いた。そこに js/env-badge.js が無く、
+   実配信を押して回ったら ★「練習用の倉庫です」★ が出た＝★見張りが 0件と言っている横で 画面に出ていた★。
+   ⇒ ★一覧を手で書くのをやめて 全部の .html / .js を見る★。見ない所は 理由を書いて外す。 */
+const NOSCAN = [
+  { dir: 'node_modules', why: '他人の物' },
+  { dir: 'tests', why: '試験＝客は読まない（試験の中の言葉まで直させない）' },
+  { dir: 'test', why: '同上' },
+  { dir: 'scripts', why: '道具＝客は読まない（この見張り自身の説明も ここに在る）' },
+  { dir: 'docs', why: '覚書＝客は読まない' },
+  { dir: 'vendor', why: '他人の物' }, { dir: 'dist', why: '作った物' }, { dir: 'build', why: '作った物' },
 ];
+function listFiles(root) {
+  const out = [];
+  const walk = (d, depth) => {
+    if (depth > 6) return;
+    let ents;
+    try { ents = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const e of ents) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) {
+        if (e.name.startsWith('.')) continue;
+        if (NOSCAN.some((x) => x.dir === e.name)) continue;
+        walk(p, depth + 1); continue;
+      }
+      if (!/\.(html?|js|mjs)$/i.test(e.name)) continue;
+      out.push(path.relative(root, p).split(String.fromCharCode(92)).join('/'));
+    }
+  };
+  walk(root, 0);
+  return out.sort();
+}
+const FILES = listFiles(ROOT);
 
 /* ★出してはいけない語★（＝うちの中の言葉・他アプリの名前）
    allow … 客の言葉として正しい並び（例「運転代行」＝所得税法204条の非該当の例） */

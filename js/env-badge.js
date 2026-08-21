@@ -76,7 +76,7 @@
     bar.id = 'envbar';
     bar.setAttribute('role', 'status');
     bar.innerHTML = '<b>テスト環境</b>'
-      + '<span class="envbar-sub">ここで入れた内容は本番には入りません（練習用の倉庫です）</span>';
+      + '<span class="envbar-sub">ここで入れた内容は本番には入りません（練習用のデータです）</span>';
     d.body.insertBefore(bar, d.body.firstChild);
 
     fit(bar);
