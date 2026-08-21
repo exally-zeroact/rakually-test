@@ -445,7 +445,7 @@
   //  本番=Supabase RPC(save_nencho_decl/get_nencho_decl・認証は明細と同じdevice/pw)。localStorage層は下のMNCH。
   //  declは lib/nencho-declaration.js の normalize済オブジェクト(サーバは中身を検証せず保管)。
   var MNCH_KEY='payslip_nencho_decl_v1';
-  function mNch(){ try{ return JSON.parse(localStorage.getItem(MNCH_KEY)||'[]'); }catch(e){ return []; } }
+  function mNch(){ return readList(MNCH_KEY); }   /* ★壊れていたら 書き込みを止める★（5対と同じ形） */
   function mNchW(a){ try{ localStorage.setItem(MNCH_KEY, JSON.stringify(a)); }catch(e){} }
   // 従業員: 申告を保存(認証必須)。返り={ok} or {unauth}
   Store.saveNenchoDecl = function(token, cred, year, decl){

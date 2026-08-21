@@ -2682,13 +2682,26 @@
     var host=$('#view-nen'); if(!host)return; var year=nenYear();
     if(!(window.Store&&Store.getPayslipsByYm&&Nen_())){ host.innerHTML='<div class="empty-cta"><div class="ec-emoji">📅</div><div class="ec-t">年末調整のデータがまだありません</div><div class="ec-s">各月の入力を「今月を確定」で記録すると、1〜12月分がここに自動集計されます。まずは入力タブで当月を確定してください。</div><button class="btn-primary ec-btn" data-scr="scr-input">入力タブへ</button></div>'; return; }
     host.innerHTML='<div class="card"><div class="card-h">年末調整 '+year+'年</div><p class="hint">読込中…</p></div>';
-    var declP = (Store.listNenchoDecl) ? Store.listNenchoDecl(year).catch(function(){ return []; }) : Promise.resolve([]);
-    var pubP = (Store.listMeisaiPub) ? Store.listMeisaiPub(rosterIds()).catch(function(){ return []; }) : Promise.resolve([]);
+    /* ★読めなかったを「0件」と言わない★（2026-08-21）
+       前は 読めなくても [] を返していたので
+         ・申告 … ★まだ誰も出していません★ に見える
+         ・公開ずみ ★まだ公開していません★ に見える → ★二重公開★を招く
+       ＝空（本当に0件）と 読めなかったを ★作り分ける★。読めなかった時は言う。 */
+    var _readFail = [];
+    var declP = (Store.listNenchoDecl)
+      ? Store.listNenchoDecl(year).catch(function(){ _readFail.push('年末調整の申告'); return null; })
+      : Promise.resolve([]);
+    var pubP = (Store.listMeisaiPub)
+      ? Store.listMeisaiPub(rosterIds()).catch(function(){ _readFail.push('公開ずみの明細'); return null; })
+      : Promise.resolve([]);
     Promise.all([Store.getPayslipsByYm(year+'-01', year+'-12'), declP, pubP]).then(function(res){
-      var recs=res[0], decls=res[1]||[], pubs=res[2]||[];
+      /* ★null＝読めなかった／[]＝読めた上で0件★ を作り分ける（混ぜない） */
+      var decls=res[1]||[], pubs=res[2]||[], recs=res[0];
       state._nenDecls={}; decls.forEach(function(d){ if(d&&d.employeeId) state._nenDecls[d.employeeId]=d; }); // 従業員のWeb申告(employeeId→{decl,submittedAt,updatedAt})
       state._nenPubIds={}; pubs.forEach(function(p){ if(p&&p.employeeId) state._nenPubIds[p.employeeId]=true; }); // Web明細を配布済み=本人が申告できる
       host.innerHTML=nenViewHTML(confirmedRecs(recs), year); nenTotal();
+      /* ★読めなかった物が在れば 言う★（0件と混ぜない） */
+      if(_readFail.length) toast(_readFail.join('と')+'を読み込めませんでした。0件ではありません（もう一度 開き直してください）。');
     }).catch(function(){ host.innerHTML='<div class="card"><p class="hint">読込に失敗しました。</p></div>'; });
   }
   // 年末調整一覧(源泉徴収簿)のExcel出力。年調ビューが描画済み(state._nenEmps/_nenRecs)前提。
