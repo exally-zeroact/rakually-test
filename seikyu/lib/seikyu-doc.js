@@ -53,7 +53,7 @@
     { key: 'y-seq', label: '年＋連番', sample: '2026-0001', digits: 4, scope: 'year' },
     { key: 'ym-seq', label: '年月＋連番', sample: '202609-001', digits: 3, scope: 'month' },
     { key: 'p-ym-seq', label: '取引先＋年月＋連番', sample: 'A001-202609-01', digits: 2, scope: 'partner-month' },
-    { key: 'manual', label: '自分で決める', sample: '（自由入力）', digits: 0, scope: 'manual' },
+    { key: 'manual', label: '自分で決める', sample: '番号を手で打ちます', digits: 0, scope: 'manual' },
   ];
   function fmtDef(key) {
     for (var i = 0; i < NUMBER_FORMATS.length; i++) if (NUMBER_FORMATS[i].key === key) return NUMBER_FORMATS[i];

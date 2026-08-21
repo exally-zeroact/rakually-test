@@ -233,7 +233,6 @@
   /** 一覧の見出し・ボタンの言葉を、今 見ている種類にそろえる（呼び名は DOC が唯一の正） */
   function drawKind() {
     var lb = DOC.docLabel(S.docType);
-    setText('list-h', lb);
     var b = $('b-new'); if (b) b.textContent = '＋ 新しい' + lb;
     setText('list-hint', '発行した' + lb + 'は、あとから中身を直せません（取り消して作り直します）。'
       + '番号は同じ物を二度使いません（' + DOC.docLabel('invoice') + 'と' + DOC.docLabel('quote') + 'は別の系列です）。');
@@ -964,7 +963,7 @@
        税率は ★計算に要る入力★なので、紙に出さなくても ★入力の表には必ず出す★。
        （適用税率そのものは 紙の「（内訳）」に必ず出るので、適格請求書の要件は落ちない） */
     var hasRate = spec.items.some(function (k) { return role(k) === 'rate'; });
-    var rateHead = hasRate ? '' : '<th class="l-md">税率<span class="l-only">入力だけ</span></th>';
+    var rateHead = hasRate ? '' : '<th class="l-md">税率<span class="l-only">紙には出ません</span></th>';
 
     head.innerHTML = spec.items.map(function (k) {
       var r = role(k);
@@ -1403,7 +1402,7 @@
       // ★ふだん読むだけの欄にも入れる（番号は非同期に決まるので、ここで入れないと「（自動）」のまま）
       setText('e-no-view', no || '（作れません）');
       setText('e-no-hint', no
-        ? '「設定」で決めた形から作りました。同じ番号を二度使わないことは倉庫が守ります。'
+        ? '「設定」で決めた形から作りました。同じ番号は 二度 出しません。'
         : '番号が作れませんでした（請求日か取引先コードを確かめてください）。');
       /* ★番号は後から（非同期で）決まる★
          ここで塗り直さないと「発行する」が ★『請求番号が空です』と言ったまま灰色★ で残る。

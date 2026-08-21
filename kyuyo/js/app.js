@@ -193,7 +193,7 @@
     design:{ t:'💡 明細のデザイン', b:'給与明細の見た目を決めます（ここが毎月の既定）。\n\n● <b>レイアウト</b>…縦1人（1人1枚）／2カラム（1枚に2人）／横ストリップ（横向きに数人）。人数が多くても<b>自動で複数ページに分けて全員</b>出ます。\n● <b>色</b>…アクセント・罫線・文字を別々に。Excelで使える色から選べます。\n● <b>初期設定に戻す</b>…レイアウトと色を最初の状態に戻します。\n\n印刷タブで「その回だけ」変えることもできます。' },
     workstatus:{ t:'💡 就業状況（産休・育休・休職など）', b:'休んでいる人の区分です。給与計算に自動で反映します（すべて手で調整できます）。\n\n● <b>産休・育休</b>…社会保険（健保・厚年・介護）が<b>免除</b>＝自動で0に。給与は無給が一般的（入力で調整）。出産手当金・育児休業給付金は健保/雇用保険から出るお金で<b>給与には含めません</b>。\n● <b>介護休・病気休職</b>…社会保険は<b>継続</b>（無給でも本人負担が出ます）。介護休業給付金・傷病手当金は別途（給与でない）。\n● <b>休業（会社都合）</b>…<b>休業手当＝平均賃金の60%以上</b>を支給に入れます（課税・社保の対象）。\n\n※自動の社保オフは「法定控除」のチップで個別に戻せます。' },
     houshu:{ t:'💡 源泉区分（報酬・料金の源泉徴収／所得税法204条）', b:'業務委託でも、<b>所得税法204条の掲載報酬</b>を払う場合は源泉徴収が必要です（区分ごとに計算式が違います）。\n\n● <b>非該当（運転代行・運送・軽貨物 等）</b>…源泉なし・支払調書なし（既定）。<b>全部の業務委託に源泉は掛けません。</b>\n● <b>一般・士業（原稿料/講演/デザイン/弁護士/税理士 等）</b>…支払額×10.21%（1回100万円超の部分は20.42%）。\n● <b>司法書士等</b>…（支払額−1万円）×10.21%。\n● <b>外交員等</b>…（その月の報酬−12万円※同月の給与控除後）×10.21%。\n● <b>その他（要確認）</b>…区分が曖昧なら非該当扱い（源泉なし）にして、当たる場合のみ具体区分を選択。\n\n税額は復興特別所得税込み（×1.021）・1円未満切り捨て。対象額は原則<b>税込</b>。支払調書は同一人・年間で 士業/原稿料 5万円超・外交員等 50万円超 で提出（翌年1/31）。<b>最終判断は会社</b>（アプリは目安・ブロックしません）。' },
-    emptype:{ t:'💡 雇用形態（従業員／業務委託）', b:'給与計算の大枠を決めます。\n\n● <b>従業員（正社員/パート）</b>…労働者。社会保険・源泉徴収・住民税・年末調整あり（従来どおり）。\n● <b>業務委託（個人事業主）</b>…外注先への<b>報酬</b>。<b>控除なしの報酬明細</b>（源泉・社保・住民税・年末調整なし＝支給＝支払額）。運転代行・運送などの外注はこちら。\n\n【源泉徴収】業務委託でも源泉が要るのは原稿料・デザイン・士業・モデル・ホステス等の<b>限定8区分だけ</b>。運転・運送は対象外＝源泉しません（国税庁No.2792）。\n\n【偽装請負に注意】契約が業務委託でも、<b>実態が労働者</b>なら社会保険・労働法の対象になり得ます（総合判断）。当てはまる要素が多いと「従業員の可能性」を黄色でお知らせします（ブロックはしません・最終判断は会社で）。' },
+    emptype:{ t:'💡 雇用形態（従業員／業務委託）', b:'給与計算の大枠を決めます。\n\n● <b>従業員（正社員/パート）</b>…労働者。社会保険・源泉徴収・住民税・年末調整あり（ふつうの雇用です）。\n● <b>業務委託（個人事業主）</b>…外注先への<b>報酬</b>。<b>控除なしの報酬明細</b>（源泉・社保・住民税・年末調整なし＝支給＝支払額）。運転代行・運送などの外注はこちら。\n\n【源泉徴収】業務委託でも源泉が要るのは原稿料・デザイン・士業・モデル・ホステス等の<b>限定8区分だけ</b>。運転・運送は対象外＝源泉しません（国税庁No.2792）。\n\n【偽装請負に注意】契約が業務委託でも、<b>実態が労働者</b>なら社会保険・労働法の対象になり得ます（総合判断）。当てはまる要素が多いと「従業員の可能性」を黄色でお知らせします（ブロックはしません・最終判断は会社で）。' },
     taxclass:{ t:'💡 所得税の区分（甲・乙・丙）', b:'所得税の源泉徴収の区分です。\n\n● <b>甲欄</b>…「扶養控除等申告書」を提出している人（＝メインの勤務先）。扶養を加味して計算。通常はこちら。\n● <b>乙欄</b>…申告書を未提出の人（副業・掛け持ちの2か所目など）。税率が高め・扶養は加味しません。\n● <b>丙欄</b>…<b>日雇い</b>（日々雇い入れられる人・継続2か月以内）。日額表 丙欄×出勤日数で計算。2か月を超えたら甲/乙へ。\n\n年分（令和7/令和8）は給与の対象月から自動で正しい税額表を選びます。' },
     shahoTiming:{ t:'💡 社会保険料の当月／翌月徴収', b:'社会保険料（健保・厚年・介護）を<b>いつの給与から天引きするか</b>です。\n\n● <b>翌月徴収</b>（法律の原則・健保167条/厚年84条）…前月分の保険料を当月の給与から控除。<b>入社した月は天引きなし</b>（翌月から）、<b>月末退職の月は2か月分</b>（前月＋当月）を最終給与から控除。\n● <b>当月徴収</b>…当月分をその月の給与から控除（会社の慣行）。\n\n※このアプリの既定は<b>当月</b>（今までの計算と同じ）。翌月に切り替えると入社月・退職月の天引きが上記のとおり変わります。雇用保険はどちらも実支払額×率です。' },
     webmeisai:{ t:'💡 Web明細（従業員へ配布）', b:'給与明細を<b>従業員のスマホ/PCで閲覧</b>できるように公開します。\n\n● 「Web明細で公開」を押すと、対象月の在籍者ぶんの明細が公開され、<b>従業員ごとのリンク＋初回コード</b>ができます。\n● 従業員に<b>リンクと初回コード</b>を渡してください（LINE/メール/手渡しでOK）。従業員はリンクを開き、初回だけ<b>初回コードで自分のパスワードを設定</b>→<b>電子交付に同意</b>すると明細を見られます（所得税法の要件）。\n● 次回からは<b>パスワードだけ（その端末では省略）</b>。パスワードを忘れた/漏れたら「初回コード再発行」で再設定できます。\n● 誰が見たか（未読/開封）を一覧で確認できます。\n\n※本番運用はクラウド保存が必要です（同意するまで明細は表示されません）。' },
@@ -212,7 +212,7 @@
     hyojunbonus:{ t:'💡 標準賞与額とは？', b:'標準賞与額は、<b>賞与の社会保険料を計算するための金額</b>です。賞与額（税引き前）から<b>1,000円未満を切り捨て</b>た額を使います。\n\n保険料がかかる上限：\n● 健康保険＝<b>年度累計573万円</b>まで\n● 厚生年金＝<b>1回あたり150万円</b>まで\n\n※所得税のほうは別の「算出率の表」で、前月給与と扶養人数から率が決まります。' },
     toukyu:{ t:'💡 等級（標準報酬の等級）', b:'等級は、社会保険の<b>「標準報酬月額」が保険料額表の何段目か</b>を表す番号です。報酬が上がると等級も上がります（健康保険は50等級・厚生年金は32等級）。\n\n<b>随時改定（月額変更届）</b>では、固定給が変わってから3か月の平均が、<b>従前と2等級以上ちがう</b>と届出が必要かを判断します。差が1等級以内なら対象外です。' },
     shimebi:{ t:'💡 締め日・支給日', b:'給与の対象期間と支払日を決めます（会社の給与規程どおりに）。\n\n● <b>締め日</b>＝計算の対象期間の区切り（例：<b>末日締め</b>＝その月の1日〜末日ぶんを計算）。\n● <b>支給日</b>＝その給与を実際に払う日（例：<b>翌月25日</b>＝当月ぶんを翌月25日に支払う）。\n\n「当月／翌月」＋「◯日」で、対象月からいつ払うかを指定します。※この設定は明細の表示と社保の当月／翌月徴収の目安に使い、税額そのものは変わりません。' },
-    shime:{ t:'💡 締め方（期間で分ける）', b:'1か月を<b>期間で分けて、期間ごとに報酬明細</b>を出せます（代行の 1〜10／11〜20／21〜末＝月3回 など）。\n\n● <b>月まとめ</b>…従来どおり月1枚。\n● <b>半月</b>…1〜15／16〜末の2期間。\n● <b>10日締め</b>…1〜10／11〜20／21〜末の3期間（月3回）。\n● <b>任意N日</b>…N日ごとに区切ります。\n\n入力タブで<b>日付・金額</b>を入れると、締め方に合わせて期間ごとの明細に自動で振り分きます。\n\n【業務委託】控除なしの報酬明細がそのまま期間ごとに出ます。\n【従業員】社会保険・所得税は<b>月額でまとめて</b>計算するため、期間明細は<b>支給額の概算</b>です（正式な控除は月次明細で。黄色でお知らせします）。' },
+    shime:{ t:'💡 締め方（期間で分ける）', b:'1か月を<b>期間で分けて、期間ごとに報酬明細</b>を出せます（1〜10／11〜20／21〜末＝月3回 のように分ける）。\n\n● <b>月まとめ</b>…1か月ぶんを 明細1枚で出します。\n● <b>半月</b>…1〜15／16〜末の2期間。\n● <b>10日締め</b>…1〜10／11〜20／21〜末の3期間（月3回）。\n● <b>任意N日</b>…N日ごとに区切ります。\n\n入力タブで<b>日付・金額</b>を入れると、締め方に合わせて期間ごとの明細に自動で振り分きます。\n\n【業務委託】控除なしの報酬明細がそのまま期間ごとに出ます。\n【従業員】社会保険・所得税は<b>月額でまとめて</b>計算するため、期間明細は<b>支給額の概算</b>です（正式な控除は月次明細で。黄色でお知らせします）。' },
     daily:{ t:'💡 日払い・週払い（日別入力）', b:'支給サイクルが<b>日払い・週払い</b>のとき、日ごとに<b>日付・労働時間・支給額</b>を入れます。\n\n● 所得税は税区分ごとに<b>日額表</b>で日ごとに計算します（甲＝扶養反映／乙／丙＝日雇い）。\n● <b>丙欄（日雇い）</b>は継続2か月以内が対象。2か月を超えたら甲／乙へ。\n\n明細には日別の内訳が出ます。' }
   };
   function openHelp(k){ var h=HELP[k]; if(!h)return; var t=document.getElementById('help-t'),b=document.getElementById('help-b'); t.textContent=h.t; b.innerHTML=h.b; document.getElementById('help-ov').classList.add('on'); }
@@ -396,7 +396,7 @@
   function shimeSplit(){ var cyc=(state.company&&state.company.payCycle)||'monthly'; if(cyc==='daily'||cyc==='weekly') return false; return !!(window.Periods&&Periods.hasSplit(shimeMethodOf())); }
   function shimePeriods(ym){ return (window.Periods?Periods.buildPeriods(ym||state.month, shimeMethodOf(), shimeNOf()):[]); }
   function shimeNote(){ var el=$('#shime-note'); if(!el)return; var row=$('#c-shimen-row'); if(row) row.style.display=(shimeMethodOf()==='ndays')?'':'none';
-    if(!shimeSplit()){ el.innerHTML='月1枚の明細（従来どおり）。'; return; }
+    if(!shimeSplit()){ el.innerHTML='1か月ぶんを 明細1枚で出します。'; return; }
     var ps=shimePeriods(); var labels=ps.map(function(p){return p.label;}).join('／');
     el.innerHTML='当月（'+esc(state.month)+'）は <b>'+ps.length+'期間</b>：'+esc(labels)+'。入力タブで<b>日付・金額</b>を入れると期間ごとの明細に振り分きます。'
       +'<br><span style="color:#6E907E">業務委託＝控除なしの報酬明細。従業員＝社保/所得税は月額基準のため期間明細は<b>概算</b>（黄色でお知らせ）。</span>'; }
@@ -600,13 +600,33 @@
     ];
   }
 
-  /* 「答えた数」と「機械が当てた数」＝★最後に1行 出す★（何を自分で決めたかが分かるように） */
+  /* ★当てた物は 数だけでなく 何を当てたかを出す★（「7個」だけでは 確かめようが無い）
+     数も語も ここで作った一覧から出すので ★食い違わない★ */
+  var CO_LBL={ pref:'最低賃金', gyoshu:'雇用保険の率', holidays:'年間休日と週の所定', daily:'年間休日と週の所定' };
+  var CO_FIXED=['割増の率（残業）','割増の率（休日）','割増の率（深夜）','割増の率（月60時間超）'];
+  var EMP_LBL={ birthYmd:'年齢で決まる物', pay:'給料の読み取り', commute:'通勤の非課税',
+                taxClass:'所得税の甲・乙', fuyou:'税額表の列', shahoKanyu:'社会保険（入る/入らない）' };
+  var EMP_FIXED=['県','最低賃金','社保の加入','週の所定','年間休日','割増の率'];
+  function askGuessList(qs, lbl, fixed){
+    var out=[];
+    qs.forEach(function(q){ var a=q.answer&&q.answer();
+      if(a&&a.guessed&&lbl[q.key]&&out.indexOf(lbl[q.key])<0) out.push(lbl[q.key]); });
+    fixed.forEach(function(t){ if(out.indexOf(t)<0) out.push(t); });
+    return out;
+  }
+  /* 当てた物の一覧を「3個（あれ・これ・それ）」の形にする＝★1か所★ */
+  function askGuessText(cnt){
+    var L=cnt.guessedList||[];
+    return L.length+'個（'+L.join('・')+'）';
+  }
+
   function askCounts(){
     var qs=ASK_Q(), ok=state.company.askOk||{};
     var answered=0, guessed=0;
     qs.forEach(function(q){ if(ok[q.key]) answered++; var a=q.answer&&q.answer(); if(a&&a.guessed) guessed++; });
-    /* 聞かずに機械が決めている物（法定）＝割増率4つ（残業・休日・深夜・60時間超） */
-    return { total:qs.length, answered:answered, guessed:guessed+4 };
+    /* ★数と中身は 同じ1本の一覧から作る★（別々に書くと 7個なのに4語 になる） */
+    return { total:qs.length, answered:answered, guessed:guessed+CO_FIXED.length,
+             guessedList:askGuessList(qs, CO_LBL, CO_FIXED) };
   }
 
   function renderAsk(){
@@ -619,15 +639,14 @@
     if(idx<0){
       host.innerHTML='<div class="ask-done">'
         +'<div class="ask-done-t">✓ 会社の設定はこれで動きます</div>'
-        +'<div class="ask-done-s">★'+cnt.answered+'問 答えていただきました。あと '+cnt.guessed+'個は こちらで決めました★'
-        +'（最低賃金・雇用保険の率・年間休日と週の所定・割増の率）</div>'
+        +'<div class="ask-done-s">★'+cnt.answered+'問 答えていただきました。あと こちらで決めた物は '+askGuessText(cnt)+'★</div>'
         +'<div class="ask-acts"><span class="ask-again" data-ask-again="1">もう一度 確かめる</span></div></div>';
       return;
     }
     var q=qs[idx], a=q.answer&&q.answer(), editing=!!(state._askEdit&&state._askEdit[q.key]);
     var has=!!String(q.now||'').trim();
     var h='<div class="ask-wrap">'
-      +'<div class="ask-prog">'+(idx+1)+' / '+qs.length+'</div>'
+      +'<div class="ask-prog">'+(idx+1)+'問目 / 全'+qs.length+'問</div>'
       +'<div class="ask-q">'+esc(q.q)+(q.sub?'<span class="ask-sub">'+esc(q.sub)+'</span>':'')+'</div>';
     if(has && !editing){
       h+='<div class="ask-now">'+esc(q.now)+'</div>'
@@ -639,7 +658,7 @@
         +askAnsHTML(a, q.key, 'data-ask-src')
         +'<div class="ask-acts"><button class="ask-ok" data-ask-ok="'+q.key+'"'+(a?'':' disabled')+'>'+(a?'これで進む':'入れてください')+'</button></div>';
     }
-    h+='<div class="ask-foot">答えた '+cnt.answered+' / '+qs.length+'　こちらで決めた '+cnt.guessed+'個</div></div>';
+    h+='<div class="ask-foot">答えた '+cnt.answered+'問 / 全'+qs.length+'問　こちらで決めた '+askGuessText(cnt)+'</div></div>';
     host.innerHTML=h;
   }
 
@@ -779,7 +798,7 @@
         +'<div class="frow"><div class="flabel">休業開始日<span class="hint2">任意</span></div><input type="date" class="finput m-f" data-f="leaveStartYmd" value="'+attr(e.leaveStartYmd)+'"></div>'
         +'<div class="frow"><div class="flabel">休業終了日<span class="hint2">予定可</span></div><input type="date" class="finput m-f" data-f="leaveEndYmd" value="'+attr(e.leaveEndYmd)+'"></div></div>'
         +(s==='ikukyu'?'<div class="frow"><div class="flabel">当月の育休日数<span class="hint2">14日ルール用・任意</span></div><input class="finput num m-f" data-f="leaveDaysInMonth" inputmode="numeric" value="'+attr(e.leaveDaysInMonth)+'" placeholder="同一月内に14日以上で免除"></div>':'')
-        +'<div class="ri-note" style="margin-top:4px;color:#92500A">日付を入れると<b>その月の末日が休業中の月だけ</b>社保免除（年金機構・月末基準）。'+(s==='ikukyu'?'月末が育休でない短期月でも<b>同一月内14日以上</b>なら免除（令和4年10月改正）。賞与は連続1か月超で免除。':'賞与は産休中の支払月も免除。')+'<br>日付未入力なら<b>全月免除</b>（従来）のまま。</div>';
+        +'<div class="ri-note" style="margin-top:4px;color:#92500A">日付を入れると<b>その月の末日が休業中の月だけ</b>社保免除（年金機構・月末基準）。'+(s==='ikukyu'?'月末が育休でない短期月でも<b>同一月内14日以上</b>なら免除（令和4年10月改正）。賞与は連続1か月超で免除。':'賞与は産休中の支払月も免除。')+'<br>日付未入力なら<b>全月免除</b>（日付を入れない時は 全月 免除）のまま。</div>';
     }
     return warn+'<div class="ri-note" style="margin-top:6px">'+msg+'<br>※自動の社保オフは下の「法定控除」で個別に戻せます。</div>'+dates;
   }
@@ -1002,7 +1021,7 @@
       +'<div class="sec-lb">控除項目（法定は自動・任意分のみ）</div><div class="chip-row">'+chips(e,KOJO_POOL,'extraKojo')+'</div>'
       +'<div class="addcustom"><input class="finput ac-inp" data-g="extraKojo" list="dl-item-kojo" placeholder="自由な項目名（例：寮費）"><button class="btn-ghost ac-btn" data-g="extraKojo" style="padding:10px 12px">＋追加</button></div>';
     // 業務委託=税・社保は無関係なので節ごと差し替え(個別トグルを触らせない=固まらない・複雑化しない)。従業員は従来どおり。
-    var contractorPanel='<div class="emp-sub"><div class="emp-sub-b"><div class="ri-note" style="margin:8px 2px">業務委託（個人事業主）＝<b>控除なしの報酬明細</b>。源泉徴収・社会保険・住民税・年末調整はありません（支給＝支払額）。<br>※源泉が要るのは原稿料・士業など<b>限定8区分だけ</b>。運転代行・運送の外注は対象外＝源泉しません（国税庁No.2792）。従業員に切り替えると従来のフル控除に戻ります。</div></div></div>';
+    var contractorPanel='<div class="emp-sub"><div class="emp-sub-b"><div class="ri-note" style="margin:8px 2px">業務委託（個人事業主）＝<b>控除なしの報酬明細</b>。源泉徴収・社会保険・住民税・年末調整はありません（支給＝支払額）。<br>※源泉が要るのは原稿料・士業など<b>限定8区分だけ</b>。運転代行・運送の外注は対象外＝源泉しません（国税庁No.2792）。従業員に切り替えると 控除は すべて付きます。</div></div></div>';
     var detail=(isContractor
         ? subsec('zaiseki','在籍・勤務',gZaiseki)+contractorPanel+subsec('teate','手当・振込・控除',gTeate)
         : subsec('zaiseki','在籍・勤務',gZaiseki)+subsec('zei','税・住民税',gZei)+subsec('shaho','社会保険',gShaho)+subsec('teate','通勤・手当・振込・控除',gTeate))
@@ -1310,7 +1329,8 @@
     var answered=0, guessed=0;
     qs.forEach(function(q){ if(ok[q.key]) answered++; var a=q.answer&&q.answer(); if(a&&a.guessed) guessed++; });
     /* 聞かずに機械が決めている物＝県(会社から継ぐ)・最賃・社保の加入判定・週所定・年間休日・割増率 */
-    return { total:qs.length, answered:answered, guessed:guessed+6 };
+    return { total:qs.length, answered:answered, guessed:guessed+EMP_FIXED.length,
+             guessedList:askGuessList(qs, EMP_LBL, EMP_FIXED) };
   }
 
   function renderEmpAsk(){
@@ -1337,7 +1357,7 @@
     var cnt=empAskCounts(e);
     var who=e.name||('（'+(list.indexOf(e)+1)+'人目）');
     var h='<div class="ask-wrap">'
-      +'<div class="ask-prog">'+who+'　'+(idx+1)+' / '+qs.length+'</div>'
+      +'<div class="ask-prog">'+who+'　'+(idx+1)+'問目 / 全'+qs.length+'問</div>'
       +'<div class="ask-q">'+esc(q.q)+(q.sub?'<span class="ask-sub">'+esc(q.sub)+'</span>':'')+'</div>';
     if(has && !editing){
       h+='<div class="ask-now">'+esc(q.now)+'</div>'
@@ -1350,8 +1370,7 @@
         +'<div class="ask-acts"><button class="ask-ok" data-eask-ok="'+q.key+'"'+(a?'':' disabled')+'>'+(a?'これで進む':'入れてください')+'</button>'
         +(q.key==='bank'?'<span class="ask-edit" data-eask-ok="bank">あとでにする</span>':'')+'</div>';
     }
-    h+='<div class="ask-foot">答えた '+cnt.answered+' / '+qs.length+'　こちらで決めた '+cnt.guessed+'個'
-      +'（県・最低賃金・社保の加入・週の所定・年間休日・割増の率）</div></div>';
+    h+='<div class="ask-foot">答えた '+cnt.answered+'問 / 全'+qs.length+'問　こちらで決めた '+askGuessText(cnt)+'</div></div>';
     host.innerHTML=h;
   }
 

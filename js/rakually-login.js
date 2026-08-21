@@ -91,7 +91,12 @@
       ov.id = "loginOv";
       document.body.appendChild(ov);
     }
-    ov.innerHTML =
+    /* ★登録の直後に袋小路にしない★（2026-08-21 実機で読んで見つけた）
+       いままで：確認メールが要る設定だと session が無いのに そのままログインを試し、
+       失敗して「登録できました。そのままログインしてください」と出していた。
+       ＝★まだ入れないのに『入ってください』と言う★ので 何度でも失敗する。
+       これから：session が無い＝確認メールを送った、と分かるので ★待ち画面を出す★。 */
+    function cardHTML(){ return ''+
       '<div class="login-card">' +
       /* ★客が読む字はここだけ替える（2026-08-17 司さん「Rakually は別アプリ」）。
            ファイル名と中の仕組み(SMTP・確認メールの分岐)は据え置き＝1行だけ。 */
@@ -113,7 +118,24 @@
       '<div class="login-note">' +
       esc(o.note || "一度ログインすれば、次からは自動で入れます。") +
       "</div>" +
-      "</div>";
+      "</div>"; }
+
+    function confirmHTML(email){ return ''
+      + '<div class="login-card" id="loginConfirmSent">'
+      + '<div class="login-logo">Rakually <span>ラクアリー</span></div>'
+      + '<div class="login-title">確認メールを送りました</div>'
+      + '<div class="login-sub">' + esc(email) + '</div>'
+      + '<div class="login-mid">このメールに届いた リンクを押すと 登録が終わります。<br>'
+      + '押してから ここへ戻って ログインしてください。</div>'
+      + '<button class="login-btn login-btn-sub" type="button" id="btnBackLogin">ログイン画面へ戻る</button>'
+      + '<div class="login-note">メールが見つからない時は、迷惑メールの箱も見てください。</div>'
+      + '</div>'; }
+
+    function showLoginForm(){ ov.innerHTML = cardHTML(); bindCard(); }
+    function showConfirmSent(email){
+      ov.innerHTML = confirmHTML(email);
+      document.getElementById("btnBackLogin").onclick = showLoginForm;
+    }
 
     var $ = function (id) {
       return document.getElementById(id);
@@ -177,20 +199,19 @@
         ok(r.data.user);
         return;
       }
-      var li = await sb.auth.signInWithPassword({ email: email, password: pass });
+      /* ★ここで もう一度ログインを試さない★＝確認が済むまで必ず失敗する（袋小路） */
       busy(false);
-      if (li.error) {
-        err("登録できました。そのままログインしてください");
-        return;
-      }
-      ok(li.data.user);
+      showConfirmSent(email);
     }
 
-    $("btnLogin").onclick = login;
-    $("btnSignup").onclick = signup;
-    $("loginPass").onkeydown = function (ev) {
-      if (ev.key === "Enter") login();
-    };
+    function bindCard() {
+      $("btnLogin").onclick = login;
+      $("btnSignup").onclick = signup;
+      $("loginPass").onkeydown = function (ev) {
+        if (ev.key === "Enter") login();
+      };
+    }
+    showLoginForm();
 
     return { show: show, hide: hide, error: err, el: ov };
   }

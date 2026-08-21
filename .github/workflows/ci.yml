@@ -53,6 +53,12 @@ jobs:
         run: node tests/run.js
       - name: ★重複ガード (同じ物が2箇所に無いか・法定データは例外なし)
         run: node tests/no-duplicate-libs.test.mjs
+      - name: ★入口のログイン（登録の直後に袋小路にしない）
+        run: node kyuyo/tests/rakually-login.test.mjs
+      - name: ★在る試験が 全部 走っているか（登録しないと1本も走らない）＋returnの直後の改行
+        run: node scripts/tests-registered.mjs
+      - name: ★同じ見張りを わざと壊して 赤になるか
+        run: node scripts/tests-registered.mjs --self-test
       - name: ★参照ガード (require/importの先が実在するか・api/が実際に読み込めるか)
         run: node tests/refs-resolve.test.mjs && node tests/refs-resolve.test.mjs --self-test
       - name: ★法定値の直書きガード (率・額が説明文に固定されていないか)
