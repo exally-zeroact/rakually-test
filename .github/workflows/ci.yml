@@ -55,6 +55,8 @@ jobs:
         run: node tests/no-duplicate-libs.test.mjs
       - name: ★入口のログイン（登録の直後に袋小路にしない）
         run: node kyuyo/tests/rakually-login.test.mjs
+      - name: ★入口のログイン（パスワードを忘れた＝逃げ道）
+        run: node kyuyo/tests/rakually-login-forgot.test.mjs
       - name: ★画面に出る字に 中の言葉が0件か（覚書の中は数えない）
         run: node scripts/screen-words.mjs
       - name: ★同じ見張りを わざと壊して 赤になるか（本物に1件 戻す所まで）
