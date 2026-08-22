@@ -22,11 +22,20 @@
     return out.map(function (s) { return s.replace(/^﻿/, '').trim(); });
   }
 
-  // 列名→正準フィールド。1つの見出しが複数該当しないよう優先順(深夜/休日/60超を先に判定)。
+  // 列名→正準フィールド。1つの見出しが複数該当しないよう優先順(★狭い物から先に★)。
+  // ★2026-08-23 に直した所（指示役の宿題）★
+  //   ①「時間外60時間超」と「休日深夜」の置き場が無かった。
+  //      60時間超は ★法定50%割増★ の材料。置き場が無いと ★割増が付かない★。
+  //   ②置き場が無いので「時間外60時間超」は /時間外/ に当たり ★普通の残業として入っていた★＝
+  //      ★金額が黙って化ける（警告0）★。しかも ★どちらが勝つかは 列の並び順しだい★だった
+  //      （先に出てきた列が勝つ作りのため）。
+  //   ⇒ ★狭い物（休日深夜・60時間超）を先に判定する★＝並び順で結果が変わらない。
   function classify(h) {
     var s = String(h || '').replace(/\s|　/g, '');
     if ((/番号|コード|ＩＤ/i.test(s) || /ID/.test(s)) && /従業員|社員/.test(s)) return 'no'; // 「従業員番号」は氏名より先に
     if (/氏名|名前|従業員名|社員名|従業員|担当者/.test(s)) return 'name';
+    if (/休日.*深夜|深夜.*休日/.test(s)) return 'holidayNight';   // ★深夜・休日より先★
+    if (/60\s*(時間|h|H)?\s*(超|以上|超過)|時間外60|残業60/.test(s)) return 'over60'; // ★時間外より先★
     if (/深夜|深夜労働|夜勤/.test(s)) return 'night';
     if (/法定休日|休日出勤|休日労働|休日/.test(s)) return 'holiday';
     if (/残業|時間外|普通残業/.test(s)) return 'ot';
@@ -55,7 +64,12 @@
     if (!lines.length) return { headers: [], map: {}, rows: [], recognized: [], warnings: ['空のCSVです'] };
     var headers = splitLine(lines[0]);
     var idx = {}; // field -> column index
-    headers.forEach(function (h, i) { var f = classify(h); if (f && idx[f] == null) idx[f] = i; });
+    var dup = [], skipped = [];
+    headers.forEach(function (h, i) {
+      var f = classify(h);
+      if (!f) { if (String(h || '').trim()) skipped.push(h); return; }   // ★読まない列は 名前で残す★
+      if (idx[f] == null) idx[f] = i; else dup.push(h);                 // ★同じ意味の列が2つ★
+    });
     if (idx.name == null) warnings.push('「氏名」の列が見つかりません（氏名/名前/従業員名 等の見出しが必要）');
     var recognized = Object.keys(idx);
     var rows = [];
@@ -72,10 +86,17 @@
         workedMin: idx.worked != null ? toMinutes(cols[idx.worked]) : null,
         otMin: idx.ot != null ? toMinutes(cols[idx.ot]) : null,
         nightMin: idx.night != null ? toMinutes(cols[idx.night]) : null,
-        holidayMin: idx.holiday != null ? toMinutes(cols[idx.holiday]) : null
+        holidayMin: idx.holiday != null ? toMinutes(cols[idx.holiday]) : null,
+        over60Min: idx.over60 != null ? toMinutes(cols[idx.over60]) : null,
+        holidayNightMin: idx.holidayNight != null ? toMinutes(cols[idx.holidayNight]) : null
       });
     }
-    return { headers: headers, map: idx, rows: rows, recognized: recognized, warnings: warnings };
+    /* ★読まない列を 黙って捨てない★（列名が変わった/増えた時に 気づけるようにする）
+       ★止めはしない★＝取り込みは出来るが、何を読まなかったかを 画面に出す。 */
+    return {
+      headers: headers, map: idx, rows: rows, recognized: recognized, warnings: warnings,
+      skipped: skipped, duplicated: dup
+    };
   }
 
   return { parse: parse, classify: classify, toMinutes: toMinutes, splitLine: splitLine };

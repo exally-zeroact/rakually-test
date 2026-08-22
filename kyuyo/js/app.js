@@ -1719,7 +1719,17 @@
     rows.forEach(function(row){ var e=findEmpForKintai(row); if(!e){ unmatched.push(row.name); return; }
       setKintaiVal(e,/出勤/,'出勤日数',row.shukkin); setKintaiVal(e,/欠勤/,'欠勤日数',row.kekkin); setKintaiVal(e,/有給|有休/,'有給取得',row.yukyu);
       if(row.workedMin!=null){ e.workedH=String(Math.floor(row.workedMin/60)); e.workedM=String(row.workedMin%60); }
-      if(row.otMin!=null||row.nightMin!=null||row.holidayMin!=null){ e.warimashi=e.warimashi||{}; e.warimashi.mode='easy';
+      /* ★60時間超・休日深夜が来た時は「くわしく」に入れる★（指示役の宿題 2026-08-23）
+         かんたん(easy)には ★その2つの置き場が無い★。easy のまま入れると
+         ★法定50%割増（60時間超）が付かない★／★休日深夜が どこにも入らない★。
+         ⇒ どちらかが来たら mode='detail' にして 来た物だけ入れる（来ていない物は 触らない）。 */
+      if(row.over60Min!=null || row.holidayNightMin!=null){
+        e.warimashi=e.warimashi||{}; e.warimashi.mode='detail';
+        var d=e.warimashi.detail=e.warimashi.detail||{};
+        var putD=function(k,min){ if(min==null) return; d[k]={ h:String(Math.floor(min/60)), m:String(min%60) }; };
+        putD('ot',row.otMin); putD('night',row.nightMin); putD('holiday',row.holidayMin);
+        putD('over60',row.over60Min); putD('holidayNight',row.holidayNightMin);
+      } else if(row.otMin!=null||row.nightMin!=null||row.holidayMin!=null){ e.warimashi=e.warimashi||{}; e.warimashi.mode='easy';
         if(row.otMin!=null){ e.warimashi.otH=String(Math.floor(row.otMin/60)); e.warimashi.otM=String(row.otMin%60); }
         if(row.nightMin!=null){ e.warimashi.nightH=String(Math.floor(row.nightMin/60)); e.warimashi.nightM=String(row.nightMin%60); }
         if(row.holidayMin!=null){ e.warimashi.holidayH=String(Math.floor(row.holidayMin/60)); e.warimashi.holidayM=String(row.holidayMin%60); }
@@ -1734,9 +1744,13 @@
     if(r.warnings.length){ uiAlert('取り込めません:\n'+r.warnings.join('\n')); return; }
     if(!r.rows.length){ uiAlert('データ行がありません。'); return; }
     var matched=0, unmatched=[]; r.rows.forEach(function(row){ if(findEmpForKintai(row)) matched++; else unmatched.push(row.name); });
-    var FN={shukkin:'出勤日数',kekkin:'欠勤日数',yukyu:'有給',worked:'労働時間',ot:'残業',night:'深夜',holiday:'休日'};
+    var FN={shukkin:'出勤日数',kekkin:'欠勤日数',yukyu:'有給',worked:'労働時間',ot:'残業',night:'深夜',holiday:'休日',
+            over60:'時間外60時間超',holidayNight:'休日深夜'};
     var cols=r.recognized.filter(function(f){ return f!=='name'&&f!=='no'; }).map(function(f){ return FN[f]||f; }).join('・')||'(なし)';
-    var msg='勤怠CSVを取り込みます（対象月 '+state.month+'）。\n\n認識した項目: '+cols+'\n反映される人: '+matched+'名'
+    /* ★読まなかった列を 黙って捨てない★（列名が変わった/増えた時に 気づけるようにする） */
+    var extra=(r.skipped&&r.skipped.length?'\n読まなかった列: '+r.skipped.join('・'):'')
+      +(r.duplicated&&r.duplicated.length?'\n⚠ 同じ意味の列が2つ以上あります（先に出てきた列だけ読みます）: '+r.duplicated.join('・'):'');
+    var msg='勤怠CSVを取り込みます（対象月 '+state.month+'）。\n\n認識した項目: '+cols+extra+'\n反映される人: '+matched+'名'
       +(unmatched.length?'\n⚠ 未一致（氏名が従業員と不一致）: '+unmatched.slice(0,10).join('・')+(unmatched.length>10?' 他':''):'')
       +'\n\nこの内容で反映しますか？（反映後も各自 手修正できます）';
     if(matched===0){ uiAlert('一致する従業員がいません。CSVの氏名と従業員マスタの氏名を合わせてください。\n未一致: '+unmatched.join('・')); return; }
@@ -4067,7 +4081,7 @@
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit,
-      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf }; }
+      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf }; }
   }catch(e){}
   /* ---------- 永続化(localStorage既定・window.SUPA設定でSupabaseにも保存) ---------- */
   var PKEY='payslip_state_v1';

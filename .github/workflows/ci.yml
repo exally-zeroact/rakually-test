@@ -212,6 +212,12 @@ jobs:
         run: node kyuyo/tests/ledger-banner.mjs
       - name: ★台帳ボタン (行数を見ない昔の姿へ戻したら赤になるかの自己確認)
         run: node kyuyo/tests/ledger-banner.mjs --self-test
+      # ★勤怠CSVの受け口＝お金の材料★（指示役の宿題 2026-08-23）
+      #   「時間外60時間超」は法定50%割増の材料。置き場が無いと 普通の残業として入り 払い足りない。
+      - name: ★勤怠CSVの60時間超が 本当に50%で払われるか (本物のエンジンで金額を見る)
+        run: node kyuyo/tests/kintai-csv-money.mjs
+      - name: ★勤怠CSVの60時間超 (置き場を消したら赤になるかの自己確認)
+        run: node kyuyo/tests/kintai-csv-money.mjs --self-test
       # ★給与の「今どんな状態か」を 動かして数える★（司さん 2026-08-19）
       #   docs/STATE_kyuyo.md の数字は この道具が正。★1つ直すたびに表を手で更新する約束にしない★
       - name: ★給与の状態を数え直す (docs/STATE_kyuyo.md の数と突き合わせ・ズレたら赤)
