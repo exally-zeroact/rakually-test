@@ -34,8 +34,17 @@
     var s = String(h || '').replace(/\s|　/g, '');
     if ((/番号|コード|ＩＤ/i.test(s) || /ID/.test(s)) && /従業員|社員/.test(s)) return 'no'; // 「従業員番号」は氏名より先に
     if (/氏名|名前|従業員名|社員名|従業員|担当者/.test(s)) return 'name';
-    if (/休日.*深夜|深夜.*休日/.test(s)) return 'holidayNight';   // ★深夜・休日より先★
-    if (/60\s*(時間|h|H)?\s*(超|以上|超過)|時間外60|残業60/.test(s)) return 'over60'; // ★時間外より先★
+    /* ★狭い物から先に★＝並び順で結果が変わらない。★エンジンが読む欄は 全部 持つ★（下の決まり）
+       割増の重なり方（kyuyo/lib/payroll-monthly.js の detail）:
+         時間外25% ／ 深夜25% ／ 休日35% ／ ★60時間超50%★
+         ★時間外深夜＝25+25＝50%★ ／ ★60時間超深夜＝50+25＝75%★ ／ ★休日深夜＝35+25＝60%★
+       ＝★狭い欄が無いと 低い方の欄に落ちて 払い足りない★ */
+    var over60 = /60\s*(時間|h|H)?\s*(超|以上|超過)|時間外60|残業60/.test(s);
+    var night = /深夜|夜勤/.test(s);
+    if (over60 && night) return 'over60Night';                    // ★いちばん狭い★
+    if (night && /残業|時間外/.test(s)) return 'otNight';
+    if (night && /休日/.test(s)) return 'holidayNight';
+    if (over60) return 'over60';
     if (/深夜|深夜労働|夜勤/.test(s)) return 'night';
     if (/法定休日|休日出勤|休日労働|休日/.test(s)) return 'holiday';
     if (/残業|時間外|普通残業/.test(s)) return 'ot';
@@ -88,7 +97,9 @@
         nightMin: idx.night != null ? toMinutes(cols[idx.night]) : null,
         holidayMin: idx.holiday != null ? toMinutes(cols[idx.holiday]) : null,
         over60Min: idx.over60 != null ? toMinutes(cols[idx.over60]) : null,
-        holidayNightMin: idx.holidayNight != null ? toMinutes(cols[idx.holidayNight]) : null
+        holidayNightMin: idx.holidayNight != null ? toMinutes(cols[idx.holidayNight]) : null,
+        otNightMin: idx.otNight != null ? toMinutes(cols[idx.otNight]) : null,
+        over60NightMin: idx.over60Night != null ? toMinutes(cols[idx.over60Night]) : null
       });
     }
     /* ★読まない列を 黙って捨てない★（列名が変わった/増えた時に 気づけるようにする）

@@ -1723,12 +1723,13 @@
          かんたん(easy)には ★その2つの置き場が無い★。easy のまま入れると
          ★法定50%割増（60時間超）が付かない★／★休日深夜が どこにも入らない★。
          ⇒ どちらかが来たら mode='detail' にして 来た物だけ入れる（来ていない物は 触らない）。 */
-      if(row.over60Min!=null || row.holidayNightMin!=null){
+      if(row.over60Min!=null || row.holidayNightMin!=null || row.otNightMin!=null || row.over60NightMin!=null){
         e.warimashi=e.warimashi||{}; e.warimashi.mode='detail';
         var d=e.warimashi.detail=e.warimashi.detail||{};
         var putD=function(k,min){ if(min==null) return; d[k]={ h:String(Math.floor(min/60)), m:String(min%60) }; };
         putD('ot',row.otMin); putD('night',row.nightMin); putD('holiday',row.holidayMin);
         putD('over60',row.over60Min); putD('holidayNight',row.holidayNightMin);
+        putD('otNight',row.otNightMin); putD('over60Night',row.over60NightMin);
       } else if(row.otMin!=null||row.nightMin!=null||row.holidayMin!=null){ e.warimashi=e.warimashi||{}; e.warimashi.mode='easy';
         if(row.otMin!=null){ e.warimashi.otH=String(Math.floor(row.otMin/60)); e.warimashi.otM=String(row.otMin%60); }
         if(row.nightMin!=null){ e.warimashi.nightH=String(Math.floor(row.nightMin/60)); e.warimashi.nightM=String(row.nightMin%60); }
@@ -1745,7 +1746,7 @@
     if(!r.rows.length){ uiAlert('データ行がありません。'); return; }
     var matched=0, unmatched=[]; r.rows.forEach(function(row){ if(findEmpForKintai(row)) matched++; else unmatched.push(row.name); });
     var FN={shukkin:'出勤日数',kekkin:'欠勤日数',yukyu:'有給',worked:'労働時間',ot:'残業',night:'深夜',holiday:'休日',
-            over60:'時間外60時間超',holidayNight:'休日深夜'};
+            over60:'時間外60時間超',holidayNight:'休日深夜',otNight:'時間外深夜',over60Night:'時間外60時間超の深夜'};
     var cols=r.recognized.filter(function(f){ return f!=='name'&&f!=='no'; }).map(function(f){ return FN[f]||f; }).join('・')||'(なし)';
     /* ★読まなかった列を 黙って捨てない★（列名が変わった/増えた時に 気づけるようにする） */
     var extra=(r.skipped&&r.skipped.length?'\n読まなかった列: '+r.skipped.join('・'):'')

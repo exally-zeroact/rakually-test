@@ -218,6 +218,12 @@ jobs:
         run: node kyuyo/tests/kintai-csv-money.mjs
       - name: ★勤怠CSVの60時間超 (置き場を消したら赤になるかの自己確認)
         run: node kyuyo/tests/kintai-csv-money.mjs --self-test
+      # ★受け口は「エンジンが読む欄」を全部持つ★（指示役の決まり 2026-08-23）
+      #   欄が片方にしか無いと、その時間は低い方の欄に落ちて 払い足りない（警告0）。
+      - name: ★勤怠CSVの受け口が エンジンの割増7欄を全部 持っているか
+        run: node kyuyo/tests/csv-covers-engine.test.mjs
+      - name: ★受け口の欄を1つ消したら赤になるかの自己確認
+        run: node kyuyo/tests/csv-covers-engine.test.mjs --self-test
       # ★給与の「今どんな状態か」を 動かして数える★（司さん 2026-08-19）
       #   docs/STATE_kyuyo.md の数字は この道具が正。★1つ直すたびに表を手で更新する約束にしない★
       - name: ★給与の状態を数え直す (docs/STATE_kyuyo.md の数と突き合わせ・ズレたら赤)

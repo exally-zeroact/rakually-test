@@ -102,6 +102,28 @@ async function run(label) {
     ok(with60 > allOt, '★60時間超なのに 総支給が増えない＝法定50%が付いていない★');
   });
 
+  /* ★⑤ 60時間超の「深夜」＝50%+25%＝75%★（指示役 2026-08-23 ■③）
+     受け口に欄が無いと ★otNight(50%) に落ちて 25%ぶん 払い足りない★ */
+  await T('⑤ ★60時間超の深夜は 時間外深夜より 高い★（75% > 50%）', async () => {
+    const mk = async (csv) => {
+      const { A } = await boot();
+      const e = makeEmp(A);
+      A.state.company = A.defCompany(); A.state.company.pref = 'ehime';
+      A.state.month = '2026-08'; A.state.employees = [e];
+      A.applyKintaiRows(K.parse(csv).rows);
+      return { e: e, total: A.compute(e).shikyuTotal };
+    };
+    const a = await mk(['氏名,時間外60時間超深夜', '山田 太郎,10:00', ''].join('\n'));
+    const b = await mk(['氏名,時間外深夜', '山田 太郎,10:00', ''].join('\n'));
+    eq(a.e.warimashi.detail.over60Night.h, '10');
+    eq(b.e.warimashi.detail.otNight.h, '10');
+    console.log('      60超の深夜 ' + yen(a.total) + ' ／ 時間外の深夜 ' + yen(b.total)
+      + ' ／ ★差 ' + yen(a.total - b.total) + '★');
+    ok(a.total > b.total, '★60時間超の深夜なのに 高くならない＝低い方の欄に落ちている★');
+    const perH = (a.total - b.total) / 10 / 0.25;   /* 75% − 50% ＝ +25%ぶん */
+    ok(perH > 1000 && perH < 3000, '★差が 25%ぶんに合わない（1時間 ' + Math.round(perH) + '円）★');
+  });
+
   await T('④ ★差が「10時間ぶんの 25%上乗せ」と合う★（中の値でなく 出た金額で見る）', async () => {
     /* 60時間超は 25%→50%＝★+25%ぶん★だけ増える。1時間あたり＝月給÷所定月平均時間。 */
     ok(with60 - allOt > 0, '差が0');
@@ -120,7 +142,7 @@ if (!SELF) {
   console.log('\n★自己診断★ … 「60時間超」を 普通の残業に混ぜる姿へ戻して 赤が出るかを見る');
   const p = path.join(ROOT, 'kyuyo/lib/kintai-csv.js');
   const keep = fs.readFileSync(p, 'utf8');
-  const mark = "    if (/60\\s*(時間|h|H)?\\s*(超|以上|超過)|時間外60|残業60/.test(s)) return 'over60'; // ★時間外より先★\n";
+  const mark = "    if (over60) return 'over60';\n";
   if (keep.indexOf(mark) < 0) { console.log('  ★壊す場所が見つからない＝この自己診断は古い★'); process.exit(2); }
   try {
     fs.writeFileSync(p, keep.replace(mark, ''));
