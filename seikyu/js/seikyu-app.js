@@ -359,6 +359,7 @@
     // ★「◯年◯月分」＝請求日の前月（実物32枚と同じ）。空なら自動で入る
     if ($('e-lead')) $('e-lead').value = (v.data && v.data.lead) || '';
     drawLeadHint();
+    renderTplAsk();
     renderGuess();
     renderPtAsk();
     renderLines();
@@ -416,6 +417,110 @@
       }
     }
     return '決めていない';
+  }
+
+  /* ── ★どの紙で出しますか★（司さん 2026-08-17／2026-08-24） ─────────────
+     ・★何を書くかより先に テンプレを決めさせる★
+     ・★見本も一緒に見せる★＝★本物の紙を そのまま小さくして出す★（作り物の絵を置かない）
+     ・★答えたら その場で畳んで1行に★／★[変える]で いつでも戻って 続きから★
+     ・★1問ごと保存★（下書きなら その場で保存する）
+     ★別ウィザードは作らない★＝この画面のまま 1問だけ増やす。 */
+  function tplGuess() {
+    /* ★当てて見せる★＝この相手に 前に出した紙が在れば それを勧める（根拠つき） */
+    var v = S.cur; if (!v || !v.partner_id) return null;
+    var mine = S.invoices.filter(function (x) {
+      return x.partner_id === v.partner_id && x.id !== v.id && x.template_id;
+    }).sort(function (a, b) { return String(b.issue_ymd || '').localeCompare(String(a.issue_ymd || '')); });
+    if (!mine.length) return null;
+    var t = TPL.get(mine[0].template_id); if (!t) return null;
+    var nm = DOC.partnerNameOf ? DOC.partnerNameOf(mine[0], S.partners) : '';
+    return { id: t.id, why: (nm || 'この相手') + ' には 前回 「' + t.label + '」 で出しています（'
+      + (mine[0].issue_ymd || '日付なし') + '）' };
+  }
+
+  function tplSampleHtml(id) {
+    /* ★本物の紙を作る★。まだ中身が整っていない時だけ 見本の中身で描く（見本と分かる字を入れる）。 */
+    /* ★紙は inv.template_id を見る★（o.templateId ではない）。
+       ここを間違えると ★見本2枚が 同じ絵★になる（2026-08-24 に実際に踏んだ＝★見本が嘘★）。
+       列も その様式の物へ差し替える（様式ごとに列が違う）。 */
+    var pi = paperInput();
+    if (pi) return PAPER.build(Object.assign({}, pi, {
+      inv: Object.assign({}, pi.inv, { template_id: id }),
+      templateId: id,
+      cols: COLS.normalizeSpec(TPL.getOrDefault(id).cols),
+    })).html;
+    var sample = {
+      no: '（見本）', issue_ymd: (S.cur && S.cur.issue_ymd) || '', doc_type: (S.cur && S.cur.doc_type) || 'invoice',
+      template_id: id, tax_mode: 'exclusive',
+      lines: [{ name: '作業一式', qty: '1', unit: '式', price: '100000' }],
+      data: {},
+    };
+    try {
+      return PAPER.build({
+        inv: sample, tax: TAX.compute({ lines: sample.lines, mode: 'exclusive' }),
+        partner: { name: '（見本）株式会社', keisho: '御中' },
+        org: { data: (S.org || {}) }, templateId: id,
+        cols: COLS.normalizeSpec(TPL.getOrDefault(id).cols),
+      }).html;
+    } catch (e) {
+      /* ★空を返さない★＝空だと「見本が無い紙」に見える（黙って消える）。
+         ★描けなかった事を そのまま見せる★（指示役の決まり：黙って消える所を作らない）。 */
+      return '<!doctype html><meta charset="utf-8"><body style="margin:0;font:12px sans-serif;color:#555555;'
+        + 'display:flex;align-items:center;justify-content:center;height:100%;text-align:center">'
+        + '見本を描けませんでした<br>（紙は出せます）</body>';
+    }
+  }
+
+  function renderTplAsk() {
+    var card = $('tpl-card'), strip = $('tpl-strip'), list = $('tpl-list');
+    if (!card || !strip || !list) return;
+    var v = S.cur;
+    if (!v || locked()) { show(card, false); show(strip, false); return; }
+    var cur = v.template_id || settings().template || TPL.DEFAULT_ID;
+    var asked = !!(v.data && v.data.tplAsked);
+    show(card, !asked); show(strip, asked);
+    if (asked) {
+      var t = TPL.getOrDefault(cur);
+      setText('tpl-strip-v', t.label);
+      return;
+    }
+    var g = tplGuess();
+    show($('tpl-guess'), !!g);
+    if (g) setText('tpl-guess', '当てました。' + g.why + '。ちがう紙にもできます。');
+    list.innerHTML = '';
+    TPL.list().forEach(function (t) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tpl-pick' + ((g ? g.id : cur) === t.id ? ' on' : '');
+      b.setAttribute('data-tpl', t.id);
+      var shot = document.createElement('div'); shot.className = 'tpl-shot';
+      var f = document.createElement('iframe');
+      f.setAttribute('title', t.label + ' の見本');
+      f.setAttribute('tabindex', '-1');
+      f.width = '794'; f.height = '1123';                 /* A4 を そのまま作って 縮める */
+      f.style.transform = 'scale(.24)';
+      f.srcdoc = tplSampleHtml(t.id);
+      shot.appendChild(f);
+      var nm = document.createElement('div'); nm.className = 'tpl-nm'; nm.textContent = t.label;
+      var no = document.createElement('div'); no.className = 'tpl-note'; no.textContent = t.note || '';
+      b.appendChild(shot); b.appendChild(nm); b.appendChild(no);
+      b.onclick = function () { chooseTpl(t.id); };
+      list.appendChild(b);
+    });
+  }
+
+  function chooseTpl(id) {
+    var v = S.cur; if (!v) return;
+    v.template_id = id;
+    v.data = v.data || {}; v.data.tplAsked = true;
+    if (!v.data.cols) v.data.cols = COLS.normalizeSpec(TPL.getOrDefault(id).cols);
+    renderTplAsk();
+    renderLines();
+    recalc();
+    /* ★1問ごと保存★（下書きだけ。発行済みは触らない） */
+    /* 日付と番号がそろっている下書きだけ その場で保存する
+       （そろう前に保存を呼ぶと「請求日を入れてください」の赤が出る＝まだ聞いていない事で怒らない） */
+    if (DOC.canEdit(v) && v.issue_ymd && v.no) { try { saveDraft(); } catch (e) { /* 知らせは画面に出る */ } }
   }
 
   function renderGuess() {
@@ -1228,6 +1333,33 @@
     });
   }
 
+  /* ── ★紙が出せない時は 押せなくして 理由を出す★（指示役 2026-08-24 ■④） ──────
+     前は doPrint/doExcel が ★if (!pi) return;★ で ★黙って何も起きなかった★。
+     ＝★押したのに 何も起きない★＝いちばん困る形（給与で「下絵0枚の白紙ダイアログ」を踏んだ型）。
+     ⇒ ★出せない間は ボタンを押せなくして、なぜ出せないかを1行 出す★。 */
+  function paperGate() {
+    var v = S.cur;
+    if (!v) return { ok: false, why: '請求書を開いてから 出せます。' };
+    var t = null;
+    try { t = currentTax(); } catch (e) { t = null; }
+    if (!t || !t.ok) {
+      return { ok: false, why: '中身がまだ整っていないので 紙は出せません。'
+        + ((t && t.errors && t.errors.length) ? '（' + t.errors[0] + '）' : '（明細を入れてください）') };
+    }
+    if (!v.partner_id) return { ok: false, why: '「だれに」を選ぶと 紙が出せます。' };
+    if (!v.issue_ymd) return { ok: false, why: '請求日を入れると 紙が出せます。' };
+    return { ok: true };
+  }
+  function applyPaperGate() {
+    var g = paperGate();
+    ['b-preview', 'b-print', 'b-xlsx'].forEach(function (id) {
+      var b = $(id); if (b) b.disabled = !g.ok;
+    });
+    var p = $('paper-gate');
+    if (p) { show(p, !g.ok); if (!g.ok) p.textContent = g.why; }
+    return g;
+  }
+
   function recalc() {
     var v = S.cur; if (!v) return null;
     var t;
@@ -1237,6 +1369,7 @@
     if (!t.ok) {
       box('edit-err', t.errors.join('\n'));
       if (host) host.innerHTML = '<div class="hint">合計は、明細が直ったら出ます。</div>';
+      applyPaperGate();          /* ★出せない間は 押せなくする★ */
       return t;
     }
     box('edit-err', '');
@@ -1326,6 +1459,7 @@
     }
     drawPagesNote(t);      // ★2枚目に入る前に言う★
     drawIssueButton();     // ★打つたびに「発行する」の押せる/押せないを塗り直す★
+    applyPaperGate();      /* ★紙が出せない間は 出す物のボタンを押せなくする★ */
     return t;
   }
 
@@ -2415,6 +2549,15 @@
     /* ★税の入れ方・円未満の丸め方・紙の様式は「設定」で1回 決める★
        ＝入力の画面では聞かない（打つ前に選ばせない）。
        番号も ふだんは読むだけ。「変える」を押した時だけ自分で決める形にする。 */
+    /* ★[変える]＝1問目へ戻る（続きから）★（司さん 2026-08-24）
+       ★中身は消さない★＝戻っても 相手も明細も そのまま。紙だけ選び直せる。 */
+    var tplCh = $('b-tpl-change');
+    if (tplCh) tplCh.onclick = function () {
+      if (!S.cur) return;
+      S.cur.data = S.cur.data || {};
+      S.cur.data.tplAsked = false;
+      renderTplAsk();
+    };
     $('b-no-edit').onclick = function () {
       var open = $('e-no').style.display !== 'none';
       if (open) {

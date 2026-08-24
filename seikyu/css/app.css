@@ -353,3 +353,21 @@
 .pask-note-in h3 { margin: 0 0 8px; font-size: 16px; color: #333333; }
 .pask-note-in > div { font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; color: #333333; }
 .pask-note-in .btn-primary { margin-top: 14px; width: 100%; }
+
+/* ── ★どの紙で出しますか★（司さん 2026-08-24「見本も一緒に見せる」） ──────────
+   ★見本は 本物の紙をそのまま小さくして出す★（作り物の絵を置かない）。
+   決めたら 1行に畳み、★[変える]で いつでも戻って続きから★。 */
+.tpl-list { display: flex; flex-wrap: wrap; gap: 12px; }
+.tpl-pick {
+  flex: 1 1 220px; min-width: 200px; text-align: left; cursor: pointer;
+  background: #fff; border: 1.5px solid #D4EAE0; border-radius: 12px; padding: 10px;
+  display: flex; flex-direction: column; gap: 8px; font: inherit;
+}
+.tpl-pick.on { border-color: #2E7D54; box-shadow: 0 0 0 2px rgba(46,125,84,.14); }
+.tpl-shot { width: 100%; height: 190px; border: 1px solid #D4EAE0; border-radius: 8px; overflow: hidden; background: #fff; position: relative; }
+.tpl-shot iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.tpl-nm { font-size: 13px; font-weight: 700; color: #333333; }
+.tpl-note { font-size: 11.5px; color: #555555; line-height: 1.5; }
+.tpl-strip { display: flex; align-items: center; gap: 10px; }
+.tpl-strip-k { font-size: 11px; color: #6E6E6E; letter-spacing: .06em; }
+.tpl-strip-v { font-size: 13px; font-weight: 700; color: #333333; flex: 1 1 auto; }

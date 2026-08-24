@@ -326,7 +326,10 @@ T('2-a. ★出すボタンは1つだけ大きく・ほかは畳む（7個 横並
   const outside = [...$('scr-edit').querySelectorAll('button')].filter((b) => shown(b) && !b.closest('details') && !b.closest('#lines-body') && !/btn-add/.test(b.className) && b.id !== 'b-no-edit' && !b.id.startsWith('b-guess')
     /* ★2枚になった時だけ出る「枠を増やす」は 出すボタンではない★（案内の中の行き先）。
        ふだんは1枚に収まるので出ていない＝画面に並ぶボタンは増えない。 */
-    && b.id !== 'b-goto-rows');
+    && b.id !== 'b-goto-rows'
+    /* ★「どの紙で出しますか」の見本＝選ぶ物であって 出す口ではない★（2026-08-24）
+       ここで数えたいのは ★紙を出すボタンが横に並んでいないか★ だけ。 */
+    && !/tpl-pick/.test(b.className) && b.id !== 'b-tpl-change');
   eq(outside.map((b) => b.id).join(','), 'b-issue', '畳みの外にボタンが多い: ' + outside.map((b) => b.id));
   eq(shown($('b-pay-add')), false, '★下書きなのに「入金を記録」が出ている（まだ請求していない）★');
 });

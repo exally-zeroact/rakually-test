@@ -89,18 +89,26 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
 /* ── ① 紙の様式（テンプレ）を決める ★ここが1段目★ ── */
 {
   N.紙の様式 = T.list().length;
-  /* 画面に「様式を選ぶ所」が本当に在るか（動かして見る） */
-  const box = [...doc.querySelectorAll('.card-h,.sub-h')].map((e) => e.textContent.trim());
-  const 在る = box.some((t) => /紙の様式/.test(t));
-  N.様式を選ぶ箱 = 在る ? 1 : 0;
-  /* ★決めさせているか★＝新しい請求書を作る時に 先に聞くか */
-  const 聞く = /様式|どの紙/.test(doc.body.textContent || '') ? 1 : 0;
+  /* ★作る時に 先に聞くか★（司さん 2026-08-17）＝新しい請求書を1通 作って 実際に見る。
+     ★body.textContent で字を探さない★＝<script> の中身まで入るので嘘の数になる（2026-08-24 に踏んだ）。 */
+  doc.getElementById('b-new').click();
+  await new Promise((r) => setTimeout(r, 400));
+  const card = doc.getElementById('tpl-card');
+  N.作る時に聞く箱 = (card && card.style.display !== 'none') ? 1 : 0;
+  /* ★見本も一緒に見せるか★（司さん 2026-08-24）＝見本の絵が何枚 描けているか（空は数えない） */
+  const shots = [...doc.querySelectorAll('.tpl-shot iframe')]
+    .map((f) => f.getAttribute('srcdoc') || '').filter((x) => x.length > 500);
+  N.見本の絵 = shots.length;
+  N.見本が別の絵 = (shots.length === 2 && shots[0] !== shots[1]) ? 1 : 0;
+  /* ★戻って続きから★（司さん 2026-08-24）＝[変える]が在るか */
+  N.戻る動線 = doc.getElementById('b-tpl-change') ? 1 : 0;
   stage.push({
-    段: '① 紙の様式を決める', 状態: (N.紙の様式 >= 2 && 在る) ? '半分' : '無い',
-    数: '様式 ' + N.紙の様式 + '種／選ぶ箱 ' + N.様式を選ぶ箱 + '個',
+    段: '① 紙の様式を決める', 状態: (N.作る時に聞く箱 && N.見本の絵 >= 2 && N.戻る動線) ? '半分' : '無い',
+    数: '様式 ' + N.紙の様式 + '種／作る時に聞く ' + N.作る時に聞く箱 + '／見本 ' + N.見本の絵
+      + '枚（別の絵 ' + N.見本が別の絵 + '）／戻る動線 ' + N.戻る動線,
   });
-  if (N.紙の様式 < 3) note.push('★様式は2種だけ（std1／elegant）。業者ごとに紙が違うので ここが薄い★');
-  if (!聞く) note.push('★新しく作る時に「どの紙か」を先に聞いていない（設定の中に在るだけ）★');
+  if (N.紙の様式 < 3) note.push('★様式は2種だけ（std1／elegant）。実物は16社42枚 在る＝ここが薄い★');
+  if (!N.見本が別の絵) note.push('★見本2枚が同じ絵＝様式が効いていない（見本が嘘）★');
 }
 
 /* ── ② 自社を入れる（紙に刷られる物） ── */

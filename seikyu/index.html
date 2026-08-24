@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakually-ui.css?v=f4ed9f4a">
-<link rel="stylesheet" href="css/app.css?v=f4ed9f4a">
+<link rel="stylesheet" href="../css/rakually-ui.css?v=e6634258">
+<link rel="stylesheet" href="css/app.css?v=e6634258">
 </head>
 <body>
 
@@ -98,6 +98,23 @@
           <input class="finput" id="e-no" type="text" style="margin-top:6px;display:none">
         </div>
       </div>
+    </div>
+
+    <!-- ★どの紙で出すかを 先に決める★
+         司さん 2026-08-17「★何を書くかより先に ユーザーのテンプレを決めさせる★」
+         司さん 2026-08-24「★様式を聞くのと一緒に 見本も見せる★」
+                          「★そこから また戻って 続きから できる動線も要る★」
+         ＝★別ウィザードは作らない★（この画面のまま 1問だけ増やす）。
+           答えたら その場で畳んで 1行に。★[変える]で いつでも戻れて 続きから★。 -->
+    <div class="card" id="tpl-card" style="display:none">
+      <div class="card-h">どの紙で出しますか</div>
+      <p class="hint" id="tpl-guess" style="display:none"></p>
+      <div id="tpl-list" class="tpl-list"></div>
+    </div>
+    <div class="card tpl-strip" id="tpl-strip" style="display:none">
+      <span class="tpl-strip-k">紙</span>
+      <span class="tpl-strip-v" id="tpl-strip-v"></span>
+      <button class="mini" type="button" id="b-tpl-change">変える</button>
     </div>
 
     <!-- ★前回から当てて確かめる（空欄を並べて埋めさせない）★ -->
@@ -254,6 +271,8 @@
           <button class="btn-ghost" type="button" id="b-print">印刷 / PDF保存</button>
           <button class="btn-ghost" type="button" id="b-xlsx">Excel</button>
         </div>
+        <!-- ★押せない時は なぜ押せないかを1行★（黙って何も起きない作りにしない） -->
+        <p class="hint" id="paper-gate" style="display:none"></p>
         <!-- ★紙はA4 1枚に収まるよう「実際に測って」組んである★
              印刷の画面で「用紙に合わせる／縮小」を選ぶと その寸法が崩れる。 -->
         <p class="hint" id="print-scale-note">印刷するときは、拡大・縮小を「実際のサイズ（100%）」にしてください。A4 1枚に収まるよう寸法を測って作っています。</p>
@@ -506,35 +525,35 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=f4ed9f4a"></script>
-<script src="../lib/xlsx.full.min.js?v=f4ed9f4a"></script>
-<script src="../js/file-out.js?v=f4ed9f4a"></script>
-<script src="../js/suite-data.js?v=f4ed9f4a"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=f4ed9f4a"></script>
+<script src="../js/supa-config.js?v=e6634258"></script>
+<script src="../lib/xlsx.full.min.js?v=e6634258"></script>
+<script src="../js/file-out.js?v=e6634258"></script>
+<script src="../js/suite-data.js?v=e6634258"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=e6634258"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-tax.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-gensen.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-carry.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-cols.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-templates.js?v=f4ed9f4a"></script>
-<script src="../lib/toroku-no.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-doc.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-partner-ask.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-name.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-paper.js?v=f4ed9f4a"></script>
-<script src="lib/seikyu-aoa.js?v=f4ed9f4a"></script>
-<script src="js/seikyu-store.js?v=f4ed9f4a"></script>
-<script src="js/seikyu-out.js?v=f4ed9f4a"></script>
-<script src="js/seikyu-app.js?v=f4ed9f4a"></script>
-<script src="../js/rakually-login.js?v=f4ed9f4a"></script>
-<script src="js/auth.js?v=f4ed9f4a"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=e6634258"></script>
+<script src="lib/seikyu-tax.js?v=e6634258"></script>
+<script src="lib/seikyu-gensen.js?v=e6634258"></script>
+<script src="lib/seikyu-carry.js?v=e6634258"></script>
+<script src="lib/seikyu-cols.js?v=e6634258"></script>
+<script src="lib/seikyu-templates.js?v=e6634258"></script>
+<script src="../lib/toroku-no.js?v=e6634258"></script>
+<script src="lib/seikyu-doc.js?v=e6634258"></script>
+<script src="lib/seikyu-partner-ask.js?v=e6634258"></script>
+<script src="lib/seikyu-name.js?v=e6634258"></script>
+<script src="lib/seikyu-paper.js?v=e6634258"></script>
+<script src="lib/seikyu-aoa.js?v=e6634258"></script>
+<script src="js/seikyu-store.js?v=e6634258"></script>
+<script src="js/seikyu-out.js?v=e6634258"></script>
+<script src="js/seikyu-app.js?v=e6634258"></script>
+<script src="../js/rakually-login.js?v=e6634258"></script>
+<script src="js/auth.js?v=e6634258"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=f4ed9f4a"></script>
+<script src="../js/env-badge.js?v=e6634258"></script>
 </body>
 </html>
