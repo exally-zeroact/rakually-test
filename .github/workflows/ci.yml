@@ -230,6 +230,11 @@ jobs:
         run: node scripts/state-kyuyo.mjs --check
       - name: ★給与の状態 (数を1つずらしたら赤になるかの自己確認)
         run: node scripts/state-kyuyo.mjs --self-test
+      # ★請求書の「今どんな状態か」を 動かして数える★（給与と同じ形・同じ道具）
+      - name: ★請求書の状態を数え直す (docs/STATE_seikyu.md の数と突き合わせ・ズレたら赤)
+        run: node scripts/state-seikyu.mjs --check
+      - name: ★請求書の状態 (数を1つずらしたら赤になるかの自己確認)
+        run: node scripts/state-seikyu.mjs --self-test
       # ★読ませる字は薄い黒。色は押せる物と選ばれている物だけ★（司さん・全アプリ／指示役 2026-08-18 裁定）
       #   ★見張りは「色を書いていない」ではなく ★描かれた色★ で数える★
       #   （前科：「色を書いていない＝正しい」を正にしたら、皮の body が緑で 字が全部 緑になった）
