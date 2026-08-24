@@ -27,6 +27,7 @@ const eq = (a, b, m) => { if (a !== b) throw new Error((m ? m + ': ' : '') + '�
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const T = async (n, f) => { try { await f(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
 const yen = (n) => '¥' + Number(n).toLocaleString('ja-JP');
+const NL = String.fromCharCode(10);   /* CSVの改行（この字を source に直に書かない） */
 
 const INDEX = path.join(ROOT, 'kyuyo/index.html');
 const html = fs.readFileSync(INDEX, 'utf8');
@@ -122,6 +123,34 @@ async function run(label) {
     ok(a.total > b.total, '★60時間超の深夜なのに 高くならない＝低い方の欄に落ちている★');
     const perH = (a.total - b.total) / 10 / 0.25;   /* 75% − 50% ＝ +25%ぶん */
     ok(perH > 1000 && perH < 3000, '★差が 25%ぶんに合わない（1時間 ' + Math.round(perH) + '円）★');
+  });
+
+  /* ★⑥ 直せない欠けは 客に伝える★（指示役 2026-08-24）
+     見出しが「深夜」だけの時、それが休日の深夜を含むかは ★言葉からは分からない★。
+     ★中身は読めない＝直せない★ので、★取り込みの確認に1行 出す★（黙って混ぜない）。 */
+  await T('⑥ ★「深夜」だけの時 取り込みの確認に「分けて出して」と1行 出る★', async () => {
+    const { A, doc } = await boot();
+    const e = makeEmp(A);
+    A.state.company = A.defCompany(); A.state.month = '2026-08'; A.state.employees = [e];
+    A.importKintaiCsv(['氏名,深夜', '山田 太郎,3:00', ''].join(NL));
+    await sleep(300);
+    /* ★body.textContent を読まない★＝<script> の中身（app.js の source）まで入るので
+       ★ソースに その字が在るだけで 緑になる★。2026-08-24 に実際に踏んだ。
+       ⇒ ★知らせの箱（.ui-modal-b）だけを読む★。 */
+    const say = (dd) => [...dd.querySelectorAll('.ui-modal-b')].map((x) => x.textContent).join(' ');
+    const t = say(doc);
+    ok(t, '★知らせの箱が出ていない＝押せていない★');
+    ok(t.indexOf('休日深夜') >= 0 && t.indexOf('分けた列で出してください') >= 0,
+      '★1行が出ていない（黙って混ぜている）★ 出た字: ' + t.slice(0, 120));
+    /* ★分けて出した時は 出さない★（要らない字を毎回 見せない） */
+    const b = await boot();
+    const e2 = makeEmp(b.A);
+    b.A.state.company = b.A.defCompany(); b.A.state.month = '2026-08'; b.A.state.employees = [e2];
+    b.A.importKintaiCsv(['氏名,深夜,休日深夜', '山田 太郎,3:00,1:00', ''].join(NL));
+    await sleep(300);
+    const t2 = say(b.doc);
+    ok(t2, '★知らせの箱が出ていない＝押せていない★');
+    ok(t2.indexOf('分けた列で出してください') < 0, '★分けて出しているのに まだ言っている★');
   });
 
   await T('④ ★差が「10時間ぶんの 25%上乗せ」と合う★（中の値でなく 出た金額で見る）', async () => {
