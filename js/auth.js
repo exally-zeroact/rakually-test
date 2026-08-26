@@ -15,7 +15,11 @@
     LOGIN = global.RakuallyLogin.mount({
       app: 'ホーム',
       sb: sbForLogin,
-      note: '給与・請求書も、同じメールとパスワードで入れます。',
+      /* ★この配信に在る物だけ 名前を出す★（2026-08-26 本番で実測して見つけた）
+         本番(rakually)は 請求書だけ＝「給与」と書くと ★無い物の名前★になる。
+         在るかどうかは ★入口のタイルが在るか★ で決める（配信そのものを見る）。 */
+      note: (document.getElementById('tile-payslip') ? '給与・請求書' : '請求書')
+        + 'も、同じメールとパスワードで入れます。',
       onLogin: function (user) { afterLogin((user && user.email) || ''); }
     });
     ov = LOGIN.el;

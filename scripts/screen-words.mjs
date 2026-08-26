@@ -16,6 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { repoEnv } from './repo-env.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -64,6 +65,18 @@ const BAD = [
      従業員は「WEB交付」を知らない＝管理画面の「USERS」と同じ型。 */
   { w: 'WEB交付', why: '従業員は知らない言葉（電子交付の中の呼び方）', allow: [] },
 ];
+
+/* ★この配信に無い物の名前を 客に見せない★（指示役の決まり）
+   ＝★本番(rakually)だけ★ 見る語。テスト線には給与が在るので 数えない。
+   2026-08-26 実測：本番へ出した直後に数えたら ★3件★ 出た。
+     js/auth.js「給与・請求書も、同じ…」／js/hub.js「給与で従業員を登録すると…」／
+     seikyu/js/auth.js「ホーム・給与も、同じ…」
+   ＝どれも ★本番には無い画面の名前★。ソースを見て「残りは覚書」と言っていたが、
+     ★覚書を取り除いてから数えたら 客の字だった★。だから ★repo ごとに 機械で数える★。 */
+const BAD_PROD = [
+  { w: '給与', why: '本番(rakually)には 給与の画面が無い＝無い物の名前を客に見せない', allow: [] },
+];
+const WATCH = repoEnv(ROOT) === 'prod' ? BAD.concat(BAD_PROD) : BAD;
 
 /* ★業者の名前★（2026-08-21 実スクショで見つけた「保存先: Supabase（クラウド）」）
    ただし Store.mode==='supabase' のような ★中の合図★ まで赤にすると 直しようがない。
@@ -156,7 +169,7 @@ function countIn(file, src) {
       }
     }
   }
-  for (const b of BAD) {
+  for (const b of WATCH) {
     lines.forEach((ln, idx) => {
       let at = -1;
       while ((at = ln.indexOf(b.w, at + 1)) >= 0) {
@@ -182,10 +195,10 @@ function run(root, files, label) {
     hits.push(...countIn(f, fs.readFileSync(p, 'utf8')));
   }
   const per = {};
-  BAD.forEach((b) => { per[b.w] = hits.filter((h) => h.word === b.w).length; });
+  WATCH.forEach((b) => { per[b.w] = hits.filter((h) => h.word === b.w).length; });
   const vend = hits.filter((h) => VENDOR.some((v) => v.w === h.word)).length;
   console.log('[' + label + '] 見たファイル ' + (files.length - missing.length) + '本 ／ '
-    + BAD.map((b) => b.w + ' ' + per[b.w] + '件').join(' ／ ') + ' ／ 業者の名前 ' + vend + '件');
+    + WATCH.map((b) => b.w + ' ' + per[b.w] + '件').join(' ／ ') + ' ／ 業者の名前 ' + vend + '件');
   missing.forEach((f) => console.log('  ★書いてあるのに ファイルが無い★ ' + f));
   hits.forEach((h) => console.log('  ★画面に出る字に「' + h.word + '」★ ' + h.file + ':' + h.line + '  ' + h.text));
   return hits.length + missing.length;

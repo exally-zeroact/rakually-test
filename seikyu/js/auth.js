@@ -22,7 +22,10 @@
     LOGIN = global.RakuallyLogin.mount({
       app: '請求書',
       sb: sbForLogin,
-      note: 'ホーム・給与も、同じメールとパスワードで入れます。',
+      /* ★この配信に在る物だけ 名前を出す★（2026-08-26 本番で実測して見つけた）
+         請求書の画面から 給与が在るかは見えない（別の画面）ので、
+         ★どちらの配信でも 必ず在る「ホーム」だけ★ を言う。 */
+      note: 'ホームも、同じメールとパスワードで入れます。',
       onLogin: function (user) { afterLogin((user && user.email) || ''); },
     });
     return LOGIN;

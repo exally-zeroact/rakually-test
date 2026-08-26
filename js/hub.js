@@ -148,7 +148,11 @@
     if (!state.employees.length) {
       host.innerHTML = '<div class="empty"><div class="empty-ic">🙂</div>'
         + '<div class="empty-t">まだ人が登録されていません</div>'
-        + '<div class="empty-s">給与で従業員を登録すると、ここに出ます。</div></div>';
+        /* ★この配信に在る物だけ 名前を出す★（2026-08-26 本番で実測して見つけた）
+           本番(rakually)には給与が無い＝「給与で登録すると」は ★行けない所への案内★。 */
+        + '<div class="empty-s">'
+        + ($('tile-payslip') ? '給与で従業員を登録すると、ここに出ます。' : '従業員を登録すると、ここに出ます。')
+        + '</div></div>';
       return;
     }
     host.innerHTML = state.employees.map(function (e) {
