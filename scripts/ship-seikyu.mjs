@@ -76,8 +76,12 @@ export function unrunnableTests(to) {
       const re = /(?:ENOENT[^\n]*?(?:open|scandir|stat) |Cannot find module )'([^']+)'/g;
       let m;
       while ((m = re.exec(err))) {
-        const rel = path.relative(to, m[1]).split(path.sep).join('/');
-        if (!fs.existsSync(m[1]) && gone.indexOf(rel) < 0) gone.push(rel);
+        /* ★在るかどうかは 運び先を基準に見る★
+           ＝相対の道のまま fs.existsSync に渡すと ★今いる場所（＝元の repo）を見て★
+             「在る」と答え、1本も外れない（2026-08-26 Linux の CI だけ赤になった正体）。 */
+        const abs = path.isAbsolute(m[1]) ? m[1] : path.join(to, m[1]);
+        const rel = path.relative(to, abs).split(path.sep).join('/');
+        if (!fs.existsSync(abs) && gone.indexOf(rel) < 0) gone.push(rel);
       }
       /* ★無いファイルのせいで転んだ物だけ★ 外す。それ以外の赤は 外さない＝直す物 */
       if (gone.length) out.push({ file: d + '/' + n, gone: gone });
