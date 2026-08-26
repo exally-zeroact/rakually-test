@@ -6,6 +6,7 @@
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
+const { repoEnv } = await import('../scripts/repo-env.mjs');
 let JSDOM; try { ({ JSDOM } = await import('jsdom')); }
 catch { console.log('★jsdomが入っていません。この検証は飛ばせません（SKIPを緑と呼ばない）。npm install してください。'); process.exit(1); }
 
@@ -102,9 +103,18 @@ doc.getElementById('app').hidden = false;   // 以降はログイン済みとし
 /* ═══ 1. ハブ ═══ */
 /* ★3つ★＝給与/請求書/共有データ（2026-08-18 台帳と集計を外した＝Exally の物）。
    表(ブック)は Exally の物なので Rakually には出さない（2026-08-17）。★数で見張る＝1つ増えても減っても赤★ */
-T('1. 入口が出る・タイルは3つ(給与/請求書/共有データ)', () => {
+/* ★2026-08-26★ この見張りは 本番(rakually／請求書だけ)へも そのまま運ばれる。
+   本番には ★給与の画面が無い★ ので タイルは2つ（請求書/共有データ）＝
+   「出来ていない物のボタンを見せるな」を ★本番側でも 数で見張る★。
+   どちらの repo かは 名札(js/supa-config.js の env)で決める。
+   ★読み方は 1か所★＝scripts/repo-env.mjs（覚書に書いた env:'prod' に釣られない）。 */
+const ENV = repoEnv(ROOT);
+const WANT_TILES = ENV === 'prod' ? 2 : 3;
+T('1. 入口が出る・タイルの数が この repo の通り(' + WANT_TILES + 'つ)', () => {
+  ok(ENV === 'test' || ENV === 'prod', '名札(env)が test でも prod でもない: ' + JSON.stringify(ENV));
   ok(doc.getElementById('scr-hub').classList.contains('active'), '入口が表示されていない');
-  ok(doc.querySelectorAll('#scr-hub .tile').length === 3, 'タイル数=' + doc.querySelectorAll('#scr-hub .tile').length);
+  ok(doc.querySelectorAll('#scr-hub .tile').length === WANT_TILES,
+    'タイル数=' + doc.querySelectorAll('#scr-hub .tile').length + '（欲しい ' + WANT_TILES + '）');
 });
 // 2026-08-01 統合: 給与は別サイト(payslip-app-olive)ではなく【同一オリジンの kyuyo/】になった。
 //   同一オリジンであることが「ログイン1回で両方使える」の条件そのものなので、そこを見張る。
@@ -112,8 +122,16 @@ T('1. 入口が出る・タイルは3つ(給与/請求書/共有データ)', () 
 //   (https://exally-zeroact.github.io/exally-staging/)なので、'/kyuyo/' と書くと
 //   github.io の直下を指してしまい 404 になる。相対なら本番(ルート配信)でも同じ場所を指す＝両方で正しい。
 //   機械での見張りは tests/no-absolute-paths.test.mjs（配信物全体）。ここは意味(同一オリジン)を見る。
-T('1. ★給与タイルは同一オリジンの kyuyo/ へ繋がる(別サイトへ飛ばさない・相対)', () => {
+T('1. ★給与タイル … ' + (ENV === 'prod'
+  ? '本番には給与が無いので ★1つも出さない★（押した人を行き止まりにしない）'
+  : '同一オリジンの kyuyo/ へ繋がる(別サイトへ飛ばさない・相対)'), () => {
   const a = doc.getElementById('tile-payslip');
+  if (ENV === 'prod') {
+    ok(!a, '★本番に 給与タイルが出ている（kyuyo/ は無いので404になる）★');
+    ok(doc.getElementById('scr-hub').innerHTML.indexOf('kyuyo/') < 0,
+      '★入口に kyuyo/ への行き先が残っている★');
+    return;
+  }
   ok(a, '給与タイルが無い');
   ok(a.tagName === 'A', 'リンクでない');
   ok(a.getAttribute('href') === 'kyuyo/', 'href=' + a.getAttribute('href') + ' (相対 kyuyo/ であること)');

@@ -33,6 +33,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Buffer } from 'node:buffer';
 import { fileURLToPath } from 'node:url';
+import { repoEnv } from '../scripts/repo-env.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -180,9 +181,19 @@ T('★許可リストの各行に理由が書いてある', () => {
   }
 });
 T('★許可リストが現実から離れていない（消えたファイルが残っていない）', () => {
-  // pages-hosting のように片方のrepoにしか無い物があるので「5本以上が実在」で見る
+  // pages-hosting のように片方のrepoにしか無い物があるので「何本以上が実在」で見る。
+  // ★2026-08-26★ この見張りは 本番(rakually／請求書だけ)へも運ばれる＝給与の3本が無い。
+  //   下限を repo ごとに分け、★この repo に無い行は 黙らせず 名前を出す★。
   const alive = Object.keys(ALLOWED).filter((f) => fs.existsSync(path.join(ROOT, f)));
-  if (alive.length < 5) throw new Error('実在するのは ' + alive.length + '本だけ: ' + alive.join(', '));
+  const gone = Object.keys(ALLOWED).filter((f) => !fs.existsSync(path.join(ROOT, f)));
+  const env = repoEnv(ROOT);   /* ★読み方は 1か所★＝scripts/repo-env.mjs */
+  const floor = env === 'prod' ? 3 : 5;
+  if (gone.length) console.log('     この repo に無い許可行: ' + gone.join(', '));
+  if (!alive.includes('js/supa-config.js')) throw new Error('★向き先そのものが 許可リストに無い★');
+  if (alive.length < floor) {
+    throw new Error('実在するのは ' + alive.length + '本だけ（この repo(' + env + ') の下限 '
+      + floor + '）: ' + alive.join(', '));
+  }
 });
 T('検査が空振りしていない（実際にファイルを読み、倉庫を1つ以上見つけている）', () => {
   if (Object.keys(files).length < 50) throw new Error('読めたファイルが少なすぎます: ' + Object.keys(files).length);

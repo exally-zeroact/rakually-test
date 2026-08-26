@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { repoEnv, envOf } from '../scripts/repo-env.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require_ = createRequire(path.join(ROOT, 'package.json'));
@@ -35,9 +36,9 @@ const TEST = { env: 'test' };
 
 /* ★この見張りは 本番(rakually)へも そのまま運ばれる★（2026-08-26 請求書を本番へ出した日）。
    ＝同じ1本で「テスト線では帯が出る／★本番では帯が出ない★」の両方を見る。
-   だから ★この repo が どちらなのか★ を 名札(env)から読んでから 判定を分ける。 */
-const ENV = (fs.readFileSync(path.join(ROOT, 'js/supa-config.js'), 'utf8')
-  .match(/env:\s*'([a-z]+)'/) || [, ''])[1];
+   だから ★この repo が どちらなのか★ を 名札(env)から読んでから 判定を分ける。
+   ★読み方は 1か所★＝scripts/repo-env.mjs（覚書に書いた env:'prod' に釣られない）。 */
+const ENV = repoEnv(ROOT);
 
 /* 配信される画面＝直下の *.html ＋ 各アプリ直下の *.html（pages-hosting と同じ考え方） */
 function shippedHtml() {
@@ -80,15 +81,17 @@ if (process.argv.includes('--self-test')) {
      ＝「この repo はどちらか」を名札から読んで 判定を分ける所が、
        ★名札を読み違えても 気づけるか★ を ここで確かめる。 */
   S('③ 名札が読めない/知らない値なら 赤にする（どちらとも分からないを通さない）', () => {
-    const readEnv = (s) => (String(s).match(/env:\s*'([a-z]+)'/) || [, ''])[1];
-    eq(readEnv("window.SUPA={ env: 'prod' };"), 'prod', '作り物から読めていない＝空振り');
-    eq(readEnv("window.SUPA={ env: 'test' };"), 'test', '作り物から読めていない＝空振り');
-    eq(readEnv('window.SUPA={ url: 1 };'), '', '名札が無いのに 何かを読んでいる');
+    /* ★本物の読み手(scripts/repo-env.mjs)を使う★＝ここに写しの正規表現を書くと
+       片方だけ直して 本番で判定が逆になる。 */
+    const naive = (s) => (String(s).match(/env:\s*'([a-z]+)'/) || [, ''])[1];
+    const trap = "/* 本番は env:'prod' */\nwindow.SUPA = { env: 'test' };";
+    eq(naive(trap), 'prod', '作り物が釣られていない＝この検査が空振り');
+    eq(envOf(trap), 'test', "★本物が 覚書の env:'prod' に釣られている★");
+    eq(envOf('window.SUPA={ url: 1 };'), '', '名札が無いのに 何かを読んでいる');
     const okEnv = (e) => e === 'test' || e === 'prod';
     ok(!okEnv(''), '★名札が無いのに 通してしまう★');
     ok(!okEnv('staging'), '★知らない名札を 通してしまう★');
-    ok(okEnv(readEnv(fs.readFileSync(path.join(ROOT, 'js/supa-config.js'), 'utf8'))),
-      '★この repo の名札が test でも prod でもない★');
+    ok(okEnv(ENV), '★この repo の名札が test でも prod でもない★');
   });
 
   S('④ 本番で「帯を出す」作りに戻したら 赤になる（本番に嘘の帯を出さない）', () => {

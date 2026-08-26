@@ -241,6 +241,10 @@ jobs:
       - name: ★1問目を出さない姿へ戻したら赤になるかの自己確認
         run: node seikyu/tests/tpl-ask-ui.mjs --self-test
       # ★本番へ運ぶ道具★（手で写さない／呼ばれる側も一緒に／写す前と後で数える）
+      # ★この repo は テスト線か本番か★ を答える道具（見張りが判定を分ける時の唯一の読み手）
+      #   覚書に書いた env:'prod' に釣られると ★本番で判定が逆になる★（帯を出す/タイルを出す）。
+      - name: ★この repo の名札(env)を1か所で読む (覚書の env に釣られないか・9通り)
+        run: node scripts/repo-env.mjs --self-test
       - name: ★運ぶ道具の自己確認 (入口から給与のタイルを外す/法定2本も運ぶ/前後の数が同じ)
         run: node scripts/ship-seikyu.mjs --self-test
       # ★読ませる字は薄い黒。色は押せる物と選ばれている物だけ★（司さん・全アプリ／指示役 2026-08-18 裁定）
