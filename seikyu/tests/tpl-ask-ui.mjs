@@ -68,8 +68,29 @@ async function measureShape(doc) {
       var r = sh.getBoundingClientRect();
       var f = sh.querySelector('iframe');
       var fr = f ? f.getBoundingClientRect() : null;
+      /* ★見切れを捕まえる★＝枠の中で 紙が どれだけの大きさで出ているか（srcdoc は同じ元なので中を読める）
+         2026-08-26 司さん「見切れとるやないか」…枠は正しくても ★中の紙が左上だけ★ だった */
+      /* ★見切れは「形」では測れない★（2026-08-26 実測して分かった）
+         壊れていた形＝★入れ物(html)を縮める★。この時 紙は html の幅で ★切られてから★ 縮むので、
+         紙の rect は 正しい時と ★同じ数★になる（rect は 切られた事を知らない）。
+         ⇒ ★紙そのものに縮尺が掛かっているか★ と ★紙のレイアウト幅×縮尺が 枠を埋めるか★ で見る。 */
+      var sw = 0, shh = 0, ok2 = 0, own = 0;
+      try {
+        var dd = f.contentDocument;
+        var sheet = dd.querySelector('.sheet') || dd.body;
+        var tr = dd.defaultView.getComputedStyle(sheet).transform;
+        own = (tr && tr !== 'none') ? 1 : 0;                 /* ★紙自身が縮んでいるか★ */
+        /* ★この文字列は 中で走る★ので 逆斜線を書かない（テンプレ文字列で構文の赤になる） */
+        var k = 1;
+        var open = String(tr || '').indexOf('(');
+        if (open > 0) { k = parseFloat(String(tr).slice(open + 1).split(',')[0]) || 1; }
+        sw = Math.round(sheet.offsetWidth * k);              /* ★レイアウト幅×縮尺＝実際に出る幅★ */
+        shh = Math.round(sheet.offsetHeight * k);
+        ok2 = 1;
+      } catch (e) { ok2 = 0; }
       out.push({ w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top),
-        pw: fr ? Math.round(fr.width) : 0, ph: fr ? Math.round(fr.height) : 0 });
+        pw: fr ? Math.round(fr.width) : 0, ph: fr ? Math.round(fr.height) : 0,
+        sw: sw, sh: shh, read: ok2, own: own });
     });
     return { shots: out, vw: window.innerWidth };
   `;
@@ -191,6 +212,15 @@ async function run(label, appSrc) {
         '★' + (i + 1) + '枚目の枠が A4縦の形でない★ ' + s2.w + '×' + s2.h + '（横÷縦 ' + katachi.toFixed(2) + '／ほしい 0.71）');
       ok(s2.ph <= s2.h + 2, '★' + (i + 1) + '枚目の紙が 枠から ' + (s2.ph - s2.h) + 'px はみ出している（下が切れる）★');
       ok(s2.pw <= s2.w + 2, '★' + (i + 1) + '枚目の紙が 横に はみ出している★');
+      /* ★紙が 枠いっぱいに出ているか★＝左上だけ出て 見切れていないか */
+      ok(s2.read, '★' + (i + 1) + '枚目の 見本の中を読めません（測れていない＝0と言わない）★');
+      ok(s2.own, '★' + (i + 1) + '枚目は 紙そのものを縮めていない★＝入れ物を縮めると'
+        + ' 紙が先に切られて ★左上だけ出る（見切れ）★');
+      ok(s2.sw >= s2.w * 0.9 && s2.sh >= s2.h * 0.9,
+        '★' + (i + 1) + '枚目の紙が 見切れている★ 枠 ' + s2.w + '×' + s2.h
+        + ' に対して 紙は ' + s2.sw + '×' + s2.sh + '（枠の9割を埋めていない）');
+      ok(s2.sw <= s2.w + 2 && s2.sh <= s2.h + 2,
+        '★' + (i + 1) + '枚目の紙が 枠から出ている★ ' + s2.sw + '×' + s2.sh);
     });
     ok(j.shots[1].top < 844, '★2枚目が 画面の外＝スクロールしないと気づけない★（top ' + j.shots[1].top + '）');
     console.log('      枠 ' + j.shots.map((x) => x.w + '×' + x.h).join(' / ')

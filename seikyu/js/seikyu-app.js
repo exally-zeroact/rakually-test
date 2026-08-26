@@ -446,11 +446,20 @@
      ★2026-08-26 司さんの指摘★…前は 親が決め打ちの縮尺で縮めていたので、
      枠が横長＋紙が下から はみ出して ★紙が横に見えた★。 */
   function fitInFrame(html) {
-    var js = '<script>(function(){var k=window.innerWidth/794;'
-      + 'var e=document.documentElement;e.style.transformOrigin="0 0";e.style.transform="scale("+k+")";'
-      + 'e.style.overflow="hidden";'                 /* ★見本の中に 滑り棒を出さない★ */
-      + 'document.body.style.overflow="hidden";'
-      + 'document.body.style.margin="0";})();<' + '/script>';
+    /* ★紙の実寸を 測ってから縮める★（794px と決めつけない）
+       ★2026-08-26 司さん「見切れとるやないか」★
+         私は ★html（枠と同じ幅131pxの入れ物）★ を縮めていた。
+         中の紙(794px)は 131pxで切られ、それをさらに0.165倍＝★紙の左上21pxぶんしか出ていなかった★。
+       ⇒ ★縮めるのは 紙そのもの（.sheet）★／★縮尺は 幅と高さの小さい方＝全部 入る方★
+         （代行請求が canvas に object-fit: contain でやっているのと 同じ意味）。 */
+    var js = '<script>(function(){'
+      + 'var s=document.querySelector(".sheet")||document.body;'
+      + 'var w=s.scrollWidth,h=s.scrollHeight; if(!w||!h) return;'
+      + 'var k=Math.min(window.innerWidth/w, window.innerHeight/h);'
+      + 's.style.transformOrigin="0 0"; s.style.transform="scale("+k+")";'
+      + 'document.documentElement.style.overflow="hidden";'
+      + 'document.body.style.margin="0"; document.body.style.overflow="hidden";'
+      + '})();<' + '/script>';
     var i = html.lastIndexOf('</body>');
     return (i < 0) ? (html + js) : (html.slice(0, i) + js + html.slice(i));
   }
