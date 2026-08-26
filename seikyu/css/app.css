@@ -357,17 +357,37 @@
 /* ── ★どの紙で出しますか★（司さん 2026-08-24「見本も一緒に見せる」） ──────────
    ★見本は 本物の紙をそのまま小さくして出す★（作り物の絵を置かない）。
    決めたら 1行に畳み、★[変える]で いつでも戻って続きから★。 */
-.tpl-list { display: flex; flex-wrap: wrap; gap: 12px; }
+/* ★2枚を並べる★＝スマホでも 2つとも見える（スクロールしないと2枚目に気づけない を無くす） */
+.tpl-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .tpl-pick {
-  flex: 1 1 220px; min-width: 200px; text-align: left; cursor: pointer;
+  text-align: left; cursor: pointer; min-width: 0;
   background: #fff; border: 1.5px solid #D4EAE0; border-radius: 12px; padding: 10px;
   display: flex; flex-direction: column; gap: 8px; font: inherit;
 }
 .tpl-pick.on { border-color: #2E7D54; box-shadow: 0 0 0 2px rgba(46,125,84,.14); }
-.tpl-shot { width: 100%; height: 190px; border: 1px solid #D4EAE0; border-radius: 8px; overflow: hidden; background: #fff; position: relative; }
+/* ★見本の枠は A4縦と同じ形★（210:297）。
+   ★2026-08-26 司さんの指摘★…前は 298×190 の ★横長の枠★ で、
+   中のA4縦の紙が ★下から80px はみ出して切れていた★＝★紙が横になって見えた★。
+   ⇒ 枠を紙と同じ形にし、紙は ★枠の幅ぴったり★に縮める（縮尺は JS が幅から測って決める）。 */
+.tpl-shot {
+  width: 100%; aspect-ratio: 210 / 297; border: 1px solid #D4EAE0; border-radius: 8px;
+  overflow: hidden; background: #fff; position: relative;
+}
 .tpl-shot iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; }
 .tpl-nm { font-size: 13px; font-weight: 700; color: #333333; }
 .tpl-note { font-size: 11.5px; color: #555555; line-height: 1.5; }
 .tpl-strip { display: flex; align-items: center; gap: 10px; }
 .tpl-strip-k { font-size: 11px; color: #6E6E6E; letter-spacing: .06em; }
 .tpl-strip-v { font-size: 13px; font-weight: 700; color: #333333; flex: 1 1 auto; }
+
+/* ★選ばれている物の ✓★（代行請求と同じ見せ方・2026-08-26 司さん「他のアプリも参考にしろ」）
+   枠の色だけだと どれが選ばれているか 一目で分からない。 */
+.tpl-pick { position: relative; }
+.tpl-badge {
+  position: absolute; top: 6px; right: 6px; z-index: 1;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #2E7D54; color: #FFFFFF; font-size: 12px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+}
+.tpl-pick.on .tpl-badge { display: flex; }
+.tpl-pick.on { box-shadow: 0 0 0 1.5px #2E7D54 inset; }

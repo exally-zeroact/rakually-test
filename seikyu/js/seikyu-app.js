@@ -438,37 +438,36 @@
       + (mine[0].issue_ymd || '日付なし') + '）' };
   }
 
+  /* ★見本は 自分で 枠の幅に合わせる★（親のJSに頼らない）
+     ＝A4(794px幅)で作った紙を、枠の幅ぶんだけ縮める。枠は A4縦と同じ形なので ★下も切れない★。
+     ★2026-08-26 司さんの指摘★…前は 親が決め打ちの縮尺で縮めていたので、
+     枠が横長＋紙が下から はみ出して ★紙が横に見えた★。 */
+  function fitInFrame(html) {
+    var js = '<script>(function(){var k=window.innerWidth/794;'
+      + 'var e=document.documentElement;e.style.transformOrigin="0 0";e.style.transform="scale("+k+")";'
+      + 'document.body.style.margin="0";})();<' + '/script>';
+    var i = html.lastIndexOf('</body>');
+    return (i < 0) ? (html + js) : (html.slice(0, i) + js + html.slice(i));
+  }
+
   function tplSampleHtml(id) {
     /* ★本物の紙を作る★。まだ中身が整っていない時だけ 見本の中身で描く（見本と分かる字を入れる）。 */
     /* ★紙は inv.template_id を見る★（o.templateId ではない）。
        ここを間違えると ★見本2枚が 同じ絵★になる（2026-08-24 に実際に踏んだ＝★見本が嘘★）。
        列も その様式の物へ差し替える（様式ごとに列が違う）。 */
     var pi = paperInput();
-    if (pi) return PAPER.build(Object.assign({}, pi, {
+    if (pi) return fitInFrame(PAPER.build(Object.assign({}, pi, {
       inv: Object.assign({}, pi.inv, { template_id: id }),
       templateId: id,
       cols: COLS.normalizeSpec(TPL.getOrDefault(id).cols),
-    })).html;
-    var sample = {
-      no: '（見本）', issue_ymd: (S.cur && S.cur.issue_ymd) || '', doc_type: (S.cur && S.cur.doc_type) || 'invoice',
-      template_id: id, tax_mode: 'exclusive',
-      lines: [{ name: '作業一式', qty: '1', unit: '式', price: '100000' }],
-      data: {},
-    };
-    try {
-      return PAPER.build({
-        inv: sample, tax: TAX.compute({ lines: sample.lines, mode: 'exclusive' }),
-        partner: { name: '（見本）株式会社', keisho: '御中' },
-        org: { data: (S.org || {}) }, templateId: id,
-        cols: COLS.normalizeSpec(TPL.getOrDefault(id).cols),
-      }).html;
-    } catch (e) {
-      /* ★空を返さない★＝空だと「見本が無い紙」に見える（黙って消える）。
-         ★描けなかった事を そのまま見せる★（指示役の決まり：黙って消える所を作らない）。 */
-      return '<!doctype html><meta charset="utf-8"><body style="margin:0;font:12px sans-serif;color:#555555;'
-        + 'display:flex;align-items:center;justify-content:center;height:100%;text-align:center">'
-        + '見本を描けませんでした<br>（紙は出せます）</body>';
-    }
+    })).html);
+    /* ★作り物の見本を置かない★（司さん 2026-08-18 代行請求で同じ事を言われている:
+       「他のアプリは実際の見せとんのに なんでこれだけ意味わからんやり方なんど」）
+       ⇒ 紙が作れない時は ★何をすれば出るか★ を書く（代行請求と同じ言い方）。 */
+    return '<!doctype html><meta charset="utf-8"><body style="margin:0;font:12px sans-serif;'
+      + 'color:#555555;display:flex;align-items:center;justify-content:center;height:100%;'
+      + 'text-align:center;padding:8px;box-sizing:border-box">'
+      + '明細を1件 入れると<br>ここに実際の紙が出ます</body>';
   }
 
   function renderTplAsk() {
@@ -493,12 +492,15 @@
       b.type = 'button';
       b.className = 'tpl-pick' + ((g ? g.id : cur) === t.id ? ' on' : '');
       b.setAttribute('data-tpl', t.id);
+      /* ★選ばれている物には ✓ を出す★（代行請求の見せ方に合わせた・2026-08-26 司さん）
+         枠の色だけだと ★どれが選ばれているか 一目で分からない★ */
+      var bg = document.createElement('div'); bg.className = 'tpl-badge'; bg.textContent = '✓';
+      b.appendChild(bg);
       var shot = document.createElement('div'); shot.className = 'tpl-shot';
       var f = document.createElement('iframe');
       f.setAttribute('title', t.label + ' の見本');
       f.setAttribute('tabindex', '-1');
-      f.width = '794'; f.height = '1123';                 /* A4 を そのまま作って 縮める */
-      f.style.transform = 'scale(.24)';
+      f.style.width = '100%'; f.style.height = '100%';    /* 枠いっぱい。★縮尺は 見本の中で決まる★ */
       f.srcdoc = tplSampleHtml(t.id);
       shot.appendChild(f);
       var nm = document.createElement('div'); nm.className = 'tpl-nm'; nm.textContent = t.label;

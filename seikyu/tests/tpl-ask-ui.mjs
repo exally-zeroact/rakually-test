@@ -32,6 +32,68 @@ const T = async (n, f) => { try { await f(); pass++; console.log('  ✓ ' + n); 
 
 const FILE = path.join(ROOT, 'seikyu/index.html');
 
+/* ★形は 本物のブラウザでしか測れない★（jsdom には段組みが無い＝幅も高さも0）
+   手本＝timeally-test/scripts/screen-check.mjs（新しいやり方を作らない）:
+   jsdom で動かす → script を外す → CSS は本物を file:// で読む → ★Chrome の枠(iframe)の中で測る★ */
+function findChrome() {
+  const c = [
+    path.join(process.env['ProgramFiles'] || '', 'Google/Chrome/Application/chrome.exe'),
+    path.join(process.env['ProgramFiles(x86)'] || '', 'Google/Chrome/Application/chrome.exe'),
+    path.join(process.env['LOCALAPPDATA'] || '', 'Google/Chrome/Application/chrome.exe'),
+    '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium',
+  ];
+  for (const p of c) if (p && fs.existsSync(p)) return p;
+  return null;
+}
+async function measureShape(doc) {
+  const CHROME = findChrome();
+  if (!CHROME) throw new Error('★ブラウザが見つかりません＝形を測れません（0と言わない）★');
+  const os = await import('node:os');
+  const { execFileSync } = await import('node:child_process');
+  const OUT = path.join(os.tmpdir(), 'rakually-tpl-shape');
+  fs.mkdirSync(OUT, { recursive: true });
+  doc.querySelectorAll('script').forEach((x) => x.remove());
+  /* ★ログイン前は <div id="app" hidden> で丸ごと隠れている★（auth.js が開ける）。
+     ここでは auth.js を外しているので ★開けてから測る★。
+     開けないと ★枠が 0×0 で返り「形が違う」と嘘の赤★になる（2026-08-26 に踏んだ）。 */
+  doc.querySelectorAll('[hidden]').forEach((x) => x.removeAttribute('hidden'));
+  doc.querySelectorAll('link[rel="stylesheet"]').forEach((l) => {
+    const href = (l.getAttribute('href') || '').split('?')[0];
+    if (/^https?:/.test(href)) { l.remove(); return; }
+    l.setAttribute('href', pathToFileURL(path.resolve(path.dirname(FILE), href)).href);
+  });
+  const PROBE = `
+    var out = [];
+    [].forEach.call(document.querySelectorAll('.tpl-shot'), function (sh) {
+      var r = sh.getBoundingClientRect();
+      var f = sh.querySelector('iframe');
+      var fr = f ? f.getBoundingClientRect() : null;
+      out.push({ w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top),
+        pw: fr ? Math.round(fr.width) : 0, ph: fr ? Math.round(fr.height) : 0 });
+    });
+    return { shots: out, vw: window.innerWidth };
+  `;
+  const tail = '<script>window.addEventListener("load",function(){var r;try{r=JSON.stringify((function(){'
+    + PROBE + '})());}catch(e){r=JSON.stringify({error:String(e)});}parent.postMessage(r,"*");});</scr' + 'ipt>';
+  const html = '<!doctype html>' + String.fromCharCode(10) + doc.documentElement.outerHTML;
+  const cut = html.lastIndexOf('</body>');
+  const page = path.join(OUT, 'p.html');
+  fs.writeFileSync(page, html.slice(0, cut) + tail + html.slice(cut), 'utf8');
+  const host = path.join(OUT, 'h.html');
+  fs.writeFileSync(host, '<!doctype html><html><head><meta charset="utf-8">'
+    + '<style>html,body{margin:0}iframe{border:0;display:block}</style></head><body>'
+    + '<iframe width="390" height="844" src="p.html"></iframe>'
+    + '<script>window.addEventListener("message",function(e){document.title=e.data;});</scr' + 'ipt></body></html>', 'utf8');
+  const out = execFileSync(CHROME, ['--headless', '--disable-gpu', '--hide-scrollbars',
+    '--window-size=1200,1000', '--virtual-time-budget=5000', '--dump-dom', pathToFileURL(host).href],
+  { encoding: 'latin1', maxBuffer: 40 * 1024 * 1024, timeout: 90000 });
+  const m = /<title>([^<]*)<\/title>/.exec(out);
+  if (!m || !m[1]) throw new Error('★枠の中から答えが返りません＝測れていません★');
+  const j = JSON.parse(Buffer.from(m[1], 'latin1').toString('utf8').replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+  if (j.error) throw new Error('測れません: ' + j.error);
+  return j;
+}
+
 async function boot(appSrc) {
   const html = fs.readFileSync(FILE, 'utf8');
   const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''), {
@@ -114,6 +176,25 @@ async function run(label, appSrc) {
     ok(doc.getElementById('tpl-card').style.display !== 'none', '戻れていない');
     eq(win.SeikyuApp._state.cur.partner_id, before, '★戻ったら 相手が消えた（続きからになっていない）★');
     eq(win.SeikyuApp._state.cur.template_id, 'elegant', '★戻ったら 選んだ紙が消えた★');
+  });
+
+  await T('⑥ ★見本の形が A4縦★／★紙が枠から はみ出さない★／★2枚とも 画面に入る★（Chromeで実測）', async () => {
+    /* ★2026-08-26 司さんの指摘★ 前は 枠が 298×190（横÷縦 1.57＝横長）で、
+       中のA4縦の紙が ★下から80px はみ出して切れていた★＝★紙が横に見えた★。 */
+    const { doc } = await boot(appSrc);
+    const j = await measureShape(doc);
+    eq(j.vw, 390, '390pxで測れていない');
+    eq(j.shots.length, 2, '見本の数');
+    j.shots.forEach((s2, i) => {
+      const katachi = s2.w / s2.h;
+      ok(Math.abs(katachi - 210 / 297) < 0.03,
+        '★' + (i + 1) + '枚目の枠が A4縦の形でない★ ' + s2.w + '×' + s2.h + '（横÷縦 ' + katachi.toFixed(2) + '／ほしい 0.71）');
+      ok(s2.ph <= s2.h + 2, '★' + (i + 1) + '枚目の紙が 枠から ' + (s2.ph - s2.h) + 'px はみ出している（下が切れる）★');
+      ok(s2.pw <= s2.w + 2, '★' + (i + 1) + '枚目の紙が 横に はみ出している★');
+    });
+    ok(j.shots[1].top < 844, '★2枚目が 画面の外＝スクロールしないと気づけない★（top ' + j.shots[1].top + '）');
+    console.log('      枠 ' + j.shots.map((x) => x.w + '×' + x.h).join(' / ')
+      + '　紙 ' + j.shots.map((x) => x.pw + '×' + x.ph).join(' / '));
   });
 
   await T('⑤ ★紙が出せない時は 押せなくして 理由を出す★（黙って何も起きない を無くす）', async () => {
