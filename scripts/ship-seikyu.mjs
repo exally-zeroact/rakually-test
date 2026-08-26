@@ -11,7 +11,10 @@
  *   ② その全部＋★見張り一式★を 写す
  *   ③ ★入口だけ 作り替える★＝★給与のタイルを出さない★
  *      （請求書だけ出すので `kyuyo/` は無い。押した人を行き止まりにしない）
- *   ④ ★写した後 もう一度 数えて 前と後の数を出す★（合わなければ赤）
+ *   ④ ★CIも 作り替える★＝★運び先に無いファイルを指すステップを外す★
+ *      ★外した物は 名前を全部 出す★（黙って減らさない＝「素通り」を作らない）
+ *      ★1つのステップの中で 在る物と無い物が混ざったら 赤★（勝手に直さない）
+ *   ⑤ ★写した後 もう一度 数えて 前と後の数を出す★（合わなければ赤）
  *
  * 使い方:
  *   node scripts/ship-seikyu.mjs --to <運び先>        … 運ぶ
@@ -25,15 +28,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
 const ENTRY = 'seikyu/index.html';
 
-/* ★見張りも一緒に運ぶ★＝無いと 本番だけ古くなる（payslip-app で40件が2週間 生きていた） */
-const GUARDS = ['tests', 'scripts', '.github', 'package.json', 'tests-no-ci.json', 'vercel.json',
-  '.gitattributes', '.gitignore', 'CLAUDE.md', 'sw.js'];
+/* ★見張りも一緒に運ぶ★＝無いと 本番だけ古くなる（payslip-app で40件が2週間 生きていた）
+   seikyu/tests は「請求書そのものの見張り」なので 一緒に行く。
+   kyuyo/tests は行かない＝給与の画面を運ばないから（見る物が無い試験は CI から外す＝④） */
+const GUARDS = ['tests', 'seikyu/tests', 'scripts', '.github', 'package.json', 'tests-no-ci.json',
+  'vercel.json', '.gitattributes', '.gitignore', 'CLAUDE.md', 'sw.js'];
 
 function count(root) {
   const out = execFileSync(process.execPath, ['scripts/dep-count.mjs', ENTRY, '--json'],
@@ -50,6 +55,65 @@ export function hubWithoutKyuyo(html) {
   if (end < 0) return { html: html, removed: 0 };
   const before = html.slice(0, i).replace(/\s+$/, '\n      ');
   return { html: before + html.slice(end + 4), removed: 1 };
+}
+
+/* ★CIのステップが 触るファイルを 全部 拾う★（run: の中の それらしい道だけ） */
+export function filesOfStep(block) {
+  const out = [];
+  const re = /[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+\.(?:mjs|js|html|json|yml|sh)/g;
+  block.split('\n').forEach((L) => {
+    if (/^\s*#/.test(L)) return;               /* ★覚書の中の道は 数えない★ */
+    let m;
+    re.lastIndex = 0;
+    while ((m = re.exec(L))) if (out.indexOf(m[0]) < 0) out.push(m[0]);
+  });
+  return out;
+}
+
+/* ★運び先に無いファイルを指すステップを外す★（外した物は名前を返す） */
+export function ciForShipped(yml, exists) {
+  const head = yml.indexOf('\n      - name:');
+  if (head < 0) throw new Error('CIの形が変わっています（- name: が見つからない）');
+  const top = yml.slice(0, head + 1);
+  const rest = yml.slice(head + 1);
+  const parts = rest.split(/\n(?=      - name:)/);
+  const kept = [];
+  const dropped = [];
+  const mixed = [];
+  parts.forEach((b) => {
+    const files = filesOfStep(b);
+    if (!files.length) { kept.push(b); return; }
+    const gone = files.filter((f) => !exists(f));
+    if (!gone.length) { kept.push(b); return; }
+    const nm = (b.match(/- name:\s*(.*)/) || [, '?'])[1].trim();
+    /* ★走らせる物(.mjs/.js)が 在る物と無い物に割れたら 赤★
+       ＝そのまま外すと ★動くはずの試験まで 一緒に捨てる★ 事になるので 勝手に直さない
+       （元の側で ステップを分ける）。
+       見る物(.html など)だけが無い時は ★走らせても 見る物が無い★ ので 外して 名前を出す。 */
+    const isRun = (f) => /\.(mjs|js)$/.test(f);
+    if (files.filter(isRun).some(exists) && gone.some(isRun)) {
+      mixed.push({ name: nm, have: files.filter(isRun).filter(exists), gone: gone });
+      return;
+    }
+    dropped.push({ name: nm, files: files });
+  });
+  return { yml: top + kept.join('\n'), dropped: dropped, mixed: mixed };
+}
+
+/* ★外した物は 必ず CI の頭に書く★（この repo の決まり） */
+function ciHeaderNote(yml, dropped) {
+  const mark = '\non:\n';
+  const i = yml.indexOf(mark);
+  if (i < 0) return yml;
+  const lines = ['',
+    '# ★★ここは 本番 rakually（請求書だけ）★★ … 元は rakually-test の CI をそのまま運んだ物。',
+    '#   scripts/ship-seikyu.mjs が ★運び先に無いファイルを指すステップだけ★ 外して作る。',
+    '#   ★外した理由は1つだけ＝給与の画面(kyuyo/)を運んでいないから★（機能を削った訳ではない）。',
+    '#   ★戻す条件★: 本番にも給与を出す日（＝10月の改名・URL切替の塊）。その時 一緒に戻す。',
+    '#   ★手で消さない★＝ここを直す時は rakually-test 側を直して 運び直す。',
+    '#   ★外したステップ ' + dropped.length + '本★'];
+  dropped.forEach((d) => lines.push('#     ・' + d.name + '  ( ' + d.files.join(' , ') + ' )'));
+  return yml.slice(0, i) + lines.join('\n') + yml.slice(i);
 }
 
 function copyOne(rel, to) {
@@ -100,6 +164,29 @@ function ship(to, dry) {
   fs.writeFileSync(hub, r.html, 'utf8');
   console.log('★入口を作り替えた★ … 給与のタイルを 1個 外した');
 
+  /* ★CIを 作り替える★ */
+  const ciPath = path.join(to, '.github/workflows/ci.yml');
+  const exists = (f) => fs.existsSync(path.join(to, f));
+  const ci = ciForShipped(fs.readFileSync(ciPath, 'utf8'), exists);
+  if (ci.mixed.length) {
+    console.error('★1つのステップの中で 在る物と無い物が混ざっています（勝手に直しません）★');
+    ci.mixed.forEach((m) => console.error('  ・' + m.name + ' … 無い＝' + m.gone.join(' , ')));
+    return 1;
+  }
+  fs.writeFileSync(ciPath, ciHeaderNote(ci.yml, ci.dropped), 'utf8');
+  console.log('★CIを作り替えた★ … 運び先に無いファイルを指すステップを ' + ci.dropped.length + '本 外した');
+  ci.dropped.forEach((d) => console.log('    外した: ' + d.name));
+  const still = [];
+  fs.readFileSync(ciPath, 'utf8').split(/\n(?=      - name:)/)
+    .forEach((b) => filesOfStep(b).forEach((f) => {
+      if (!exists(f) && still.indexOf(f) < 0) still.push(f);
+    }));
+  if (still.length) {
+    console.error('★運び先のCIが まだ無いファイルを指しています★ … ' + still.join(' , '));
+    return 1;
+  }
+  console.log('★運び先のCIが 指すファイル … 無い物 0件★');
+
   const after = count(to);
   const need2 = [ENTRY].concat(after.inside, after.outside);
   console.log('★写した後★ 中 ' + after.inside.length + '本 ／ 外 ' + after.outside.length
@@ -129,10 +216,20 @@ if (process.argv.includes('--self-test')) {
   must(1, r.removed, '★入口から 給与のタイルを外せる★');
   must(false, /id="tile-payslip"/.test(r.html), '外したあと 給与のタイルが残っていない');
   must(true, /id="tile-seikyu"/.test(r.html), '★請求書のタイルは 残っている★');
-  must(false, /href="kyuyo\/"/.test(r.html), '★kyuyo/ への行き先が 1つも残っていない★');
+  must(false, /href="kyuyo\/"/.test(r.html), '★kyuyo\/ への行き先が 1つも残っていない★');
   /* ★作りが変わったら 気づけるか★（外せなかったら 0を返す＝運ぶのを止める） */
   must(0, hubWithoutKyuyo('<html><body>タイルなし</body></html>').removed,
     '★タイルが無い入口では 0を返す（黙って通さない）★');
+  /* ★CIの読み取りが 本当に道を拾えているか★ */
+  const yml0 = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+  const all = ciForShipped(yml0, () => true);
+  must(0, all.dropped.length, '★全部 在る時は 1本も外さない★');
+  must(0, all.mixed.length, '全部 在る時は 混ざりも0');
+  const none = ciForShipped(yml0, (f) => f.indexOf('kyuyo/') !== 0);
+  must(true, none.dropped.length > 0, '★kyuyo/ を消すと その分だけ外れる★（' + none.dropped.length + '本）');
+  /* ★在る物と無い物が混ざったステップは 勝手に直さず 赤にするか★ */
+  const mix = ciForShipped(yml0, (f) => !/ym-picker/.test(f));
+  must(true, mix.mixed.length > 0, '★在る物と無い物が混ざったステップは 赤にする★');
   /* ★数える所が 本当に効くか★＝運んでみて 前と後が同じ数になる */
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-'));
   try {
@@ -146,6 +243,12 @@ if (process.argv.includes('--self-test')) {
       '★給与の画面は 運んでいない★');
     must(true, fs.existsSync(path.join(tmp, '.github/workflows/ci.yml')),
       '★見張り（CI）も 一緒に運ばれている★');
+    must(true, fs.existsSync(path.join(tmp, 'seikyu/tests/seikyu-ui.mjs')),
+      '★請求書の見張りも 一緒に運ばれている★');
+    const shipped = fs.readFileSync(path.join(tmp, '.github/workflows/ci.yml'), 'utf8');
+    must(true, /外したステップ \d+本/.test(shipped), '★外した物が CI の頭に書いてある★');
+    must(false, /kyuyo\/tests\//.test(shipped.replace(/^\s*#.*$/gm, '')),
+      '★運んだCIに 給与の試験が 1本も残っていない（覚書の中は数えない）★');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   if (ng) { console.error('\n★自己診断 ' + ng + '件 失敗★'); process.exit(1); }
   console.log('\n自己診断 ぜんぶ 正しい');

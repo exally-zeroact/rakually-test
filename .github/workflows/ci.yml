@@ -252,8 +252,13 @@ jobs:
         run: node scripts/text-colors.mjs --self-test
       - name: ★取引先7問 実UI (本物の画面を動かして 押す物の一覧を出してから全部 押す)
         run: node seikyu/tests/partner-ask-ui.mjs
-      - name: ★人が埋める欄を数える (給与の会社情報／請求書の入力)
-        run: node scripts/count-fields.mjs kyuyo/index.html --sel "#set-company" && node scripts/count-fields.mjs seikyu/index.html && node scripts/count-fields.mjs seikyu/index.html --closed
+      # ★1つのステップで 給与と請求書を混ぜない★（指示役 2026-08-26 の運びで実際に詰まった）
+      #   混ざっていると ★本番へ運ぶ時に「在る物と無い物が混ざったステップ」になって止まる★。
+      #   ship-seikyu.mjs は ★勝手に直さず 赤にする★ 作りなので、元の側で分けておく。
+      - name: ★人が埋める欄を数える (給与の会社情報)
+        run: node scripts/count-fields.mjs kyuyo/index.html --sel "#set-company"
+      - name: ★人が埋める欄を数える (請求書の入力・畳んだ中も)
+        run: node scripts/count-fields.mjs seikyu/index.html && node scripts/count-fields.mjs seikyu/index.html --closed
       # ★会社マスタ7問（聞いてあげる。埋めさせない。）★ 司さん 2026-08-16／指示役 2026-08-18
       #   ★同じ値を2か所が持たない★（7問へ上げた物はチップから消す）を機械で見張る。
       - name: ★会社マスタ7問 (7つ在る/県→最賃と業種→率が libの実数と一致/チップに残っていない/県が実際に効く)
