@@ -18,7 +18,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /* ★中身(window.SUPA = { ... })だけを見る★＝覚書に書いた env は拾わない */
 export function envOf(src) {
@@ -47,7 +49,14 @@ export function assertEnv(env) {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
 
-if (process.argv.includes('--self-test')) {
+/* ★自分が「呼ばれた本人」の時だけ 道具として動く★
+   ＝これを見ないと、--self-test 付きで走らせた ★別の見張りが この中で exit(0) して緑になる★
+   （2026-08-26 実測：env-badge と no-hardcoded-supa の自己確認が この道具の自己診断に
+     すり替わり、★本体を1つも見ないまま緑★ になっていた）。 */
+const IS_MAIN = process.argv[1]
+  && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (IS_MAIN && process.argv.includes('--self-test')) {
   console.log('\n[repo-env --self-test] 紛らわしい物を食わせて 読み違えないか');
   let p = 0, f = 0;
   const S = (want, got, why) => {
@@ -70,13 +79,32 @@ if (process.argv.includes('--self-test')) {
   threw = 0;
   try { assertEnv('staging'); } catch { threw = 1; }
   S(1, threw, '★知らない名札は 赤にする★');
-  S('test', assertEnv(repoEnv(ROOT) === 'prod' ? 'prod' : 'test') === 'prod' ? 'prod' : 'test',
-    'この repo の名札が 読めている（' + repoEnv(ROOT) + '）');
+  const here = repoEnv(ROOT);
+  S(true, here === 'test' || here === 'prod',
+    'この repo の名札が 読めている（' + JSON.stringify(here) + '）');
+  /* ★取り込まれた時に 勝手に道具として動かない★（別の見張りを緑にすり替えない）
+     ＝実際に「--self-test 付きで走る別のファイル」から取り込んで 確かめる。 */
+  {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'repoenv-'));
+    const f = path.join(tmp, 'caller.mjs');
+    const nl2 = String.fromCharCode(10);
+    fs.writeFileSync(f, "import { envOf } from " + JSON.stringify(pathToFileURL(fileURLToPath(import.meta.url)).href) + ";" + nl2
+      + "console.log('よそから取り込んだ:', envOf(\"window.SUPA={ env: 'test' };\"));" + nl2, 'utf8');
+    let out = '';
+    try {
+      out = execFileSync(process.execPath, [f, '--self-test'], { encoding: 'utf8', stdio: 'pipe' });
+    } catch (e) { out = String((e.stdout || '') + (e.stderr || '')); }
+    fs.rmSync(tmp, { recursive: true, force: true });
+    S(true, out.indexOf('よそから取り込んだ: test') >= 0,
+      '★取り込んだ側が 最後まで走る（途中で exit されない）★');
+    S(false, out.indexOf('[repo-env --self-test]') >= 0,
+      '★取り込まれた時は 道具として動かない（別の見張りを緑にすり替えない）★');
+  }
   console.log('\n[self-test] ' + p + ' passed, ' + f + ' failed');
   process.exit(f ? 1 : 0);
 }
 
-if (process.argv[1] && process.argv[1].indexOf('repo-env.mjs') >= 0) {
+if (IS_MAIN) {
   const e = repoEnv(ROOT);
   console.log('この repo の名札(env) = ' + JSON.stringify(e)
     + (e === 'prod' ? '  ★本番★' : e === 'test' ? '  ★テスト線★' : '  ★読めない★'));
