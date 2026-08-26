@@ -10,16 +10,27 @@
   // ログイン画面は全アプリ共通の部品(js/rakually-login.js)。見た目も文言もそこが一次情報。
   var LOGIN = null;
   var ov = null;
+  /* ★別の画面へ行くタイルの名前★（a.tile だけ＝共有データは同じ画面の中なので button）。
+     ここに名前を書かない事で、★配信に無い物の名前が 客の字に混ざらない★。 */
+  function appNames() {
+    var t = document.querySelectorAll('a.tile .tile-t');
+    var out = [];
+    for (var i = 0; i < t.length; i++) {
+      var s = (t[i].textContent || '').trim();
+      if (s) out.push(s);
+    }
+    return out;
+  }
   function mountLogin(sbForLogin) {
     if (LOGIN) return LOGIN;
     LOGIN = global.RakuallyLogin.mount({
       app: 'ホーム',
       sb: sbForLogin,
       /* ★この配信に在る物だけ 名前を出す★（2026-08-26 本番で実測して見つけた）
-         本番(rakually)は 請求書だけ＝「給与」と書くと ★無い物の名前★になる。
-         在るかどうかは ★入口のタイルが在るか★ で決める（配信そのものを見る）。 */
-      note: (document.getElementById('tile-payslip') ? '給与・請求書' : '請求書')
-        + 'も、同じメールとパスワードで入れます。',
+         本番(rakually)は 請求書だけ＝ここに他の画面の名前を書くと ★無い物の名前★になる。
+         ⇒ ★名前を ここに書かない★。入口に出ているタイルの字を そのまま使う。
+            （if で切り替えるだけだと ★使わない方の名前が この中に残る★＝見張りが赤にする） */
+      note: appNames().join('・') + 'も、同じメールとパスワードで入れます。',
       onLogin: function (user) { afterLogin((user && user.email) || ''); }
     });
     ov = LOGIN.el;

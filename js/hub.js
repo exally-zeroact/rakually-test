@@ -143,16 +143,22 @@
   }
 
   /* ═══ 人(pay_employees・読み中心) ═══ */
+  /* ★どこで登録するかは 入口のタイルの字から取る★（この配信に無い物の名前を書かない） */
+  function whereToAdd() {
+    var t = document.querySelector('#tile-payslip .tile-t');
+    var s = t ? (t.textContent || '').trim() : '';
+    return s ? s + 'で' : '';
+  }
   function renderEmps() {
     var host = $('emp-rows'); if (!host) return;
     if (!state.employees.length) {
       host.innerHTML = '<div class="empty"><div class="empty-ic">🙂</div>'
         + '<div class="empty-t">まだ人が登録されていません</div>'
         /* ★この配信に在る物だけ 名前を出す★（2026-08-26 本番で実測して見つけた）
-           本番(rakually)には給与が無い＝「給与で登録すると」は ★行けない所への案内★。 */
-        + '<div class="empty-s">'
-        + ($('tile-payslip') ? '給与で従業員を登録すると、ここに出ます。' : '従業員を登録すると、ここに出ます。')
-        + '</div></div>';
+           本番(rakually)には給与が無い＝「給与で登録すると」は ★行けない所への案内★。
+           ⇒ ★名前を ここに書かない★。入口のタイルの字を そのまま使う
+              （if で切り替えるだけだと 使わない方の名前が この中に残る）。 */
+        + '<div class="empty-s">' + whereToAdd() + '従業員を登録すると、ここに出ます。</div></div>';
       return;
     }
     host.innerHTML = state.employees.map(function (e) {
