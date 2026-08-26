@@ -373,7 +373,7 @@
   width: 100%; aspect-ratio: 210 / 297; border: 1px solid #D4EAE0; border-radius: 8px;
   overflow: hidden; background: #fff; position: relative;
 }
-.tpl-shot iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.tpl-shot iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: hidden; }
 .tpl-nm { font-size: 13px; font-weight: 700; color: #333333; }
 .tpl-note { font-size: 11.5px; color: #555555; line-height: 1.5; }
 .tpl-strip { display: flex; align-items: center; gap: 10px; }

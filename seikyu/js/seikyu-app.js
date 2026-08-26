@@ -433,7 +433,10 @@
     }).sort(function (a, b) { return String(b.issue_ymd || '').localeCompare(String(a.issue_ymd || '')); });
     if (!mine.length) return null;
     var t = TPL.get(mine[0].template_id); if (!t) return null;
-    var nm = DOC.partnerNameOf ? DOC.partnerNameOf(mine[0], S.partners) : '';
+    /* ★名前は 今 選んでいる相手から取る★（古い1通から引くと、その相手が消えている時に
+       ★「（消えた取引先）には 前回…」という字が 客に出る★＝2026-08-26 実配信で踏んだ） */
+    var pNow = partnerById(v.partner_id);
+    var nm = (pNow && pNow.data && pNow.data.name) || '';
     return { id: t.id, why: (nm || 'この相手') + ' には 前回 「' + t.label + '」 で出しています（'
       + (mine[0].issue_ymd || '日付なし') + '）' };
   }
@@ -445,6 +448,8 @@
   function fitInFrame(html) {
     var js = '<script>(function(){var k=window.innerWidth/794;'
       + 'var e=document.documentElement;e.style.transformOrigin="0 0";e.style.transform="scale("+k+")";'
+      + 'e.style.overflow="hidden";'                 /* ★見本の中に 滑り棒を出さない★ */
+      + 'document.body.style.overflow="hidden";'
       + 'document.body.style.margin="0";})();<' + '/script>';
     var i = html.lastIndexOf('</body>');
     return (i < 0) ? (html + js) : (html.slice(0, i) + js + html.slice(i));

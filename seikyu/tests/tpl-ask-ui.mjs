@@ -197,6 +197,22 @@ async function run(label, appSrc) {
       + '　紙 ' + j.shots.map((x) => x.pw + '×' + x.ph).join(' / '));
   });
 
+  await T('⑦ ★当てた根拠に「（消えた取引先）」を出さない★（今 選んでいる相手の名前で言う）', async () => {
+    /* ★2026-08-26 実配信で踏んだ★…古い1通から名前を引いていたので、
+       その相手が消えていると ★「（消えた取引先）には 前回…」★ と客に出た。 */
+    const { win, doc } = await boot(appSrc);
+    const S = win.SeikyuApp._state;
+    S.invoices.push({ id: 'iv_old', partner_id: S.cur.partner_id, template_id: 'elegant',
+      issue_ymd: '2026-08-18', status: 'issued', data: {}, lines: [] });
+    win.SeikyuApp._state.cur.data.tplAsked = false;
+    doc.getElementById('b-tpl-change') && doc.getElementById('b-tpl-change').click();
+    await sleep(300);
+    const t = (doc.getElementById('tpl-guess').textContent || '');
+    ok(t.indexOf('当てました') >= 0, '当てて見せていない: ' + t.slice(0, 60));
+    ok(t.indexOf('消えた') < 0, '★「消えた取引先」が客の字に出ている★: ' + t.slice(0, 80));
+    ok(t.indexOf('A株式会社') >= 0, '今の相手の名前で言っていない: ' + t.slice(0, 80));
+  });
+
   await T('⑤ ★紙が出せない時は 押せなくして 理由を出す★（黙って何も起きない を無くす）', async () => {
     const { win, doc } = await boot(appSrc);
     ok(!doc.getElementById('b-print').disabled, 'はじめから押せない（測れていない）');
