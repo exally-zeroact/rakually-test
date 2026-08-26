@@ -42,9 +42,49 @@ const ENTRIES = ['seikyu/index.html', 'index.html'];
    seikyu/tests は「請求書そのものの見張り」なので 一緒に行く。
    docs/ と supabase/ は ★請求書の見張りが見る物★（状態の表・棚の設計図）なので 一緒に行く。
    ★配信はしない★＝.vercelignore で外す（客に SQL や覚書を配らない）。
-   kyuyo/tests は行かない＝給与の画面を運ばないから（見る物が無い試験は CI から外す＝④） */
-const GUARDS = ['tests', 'seikyu/tests', 'scripts', '.github', 'package.json', 'tests-no-ci.json',
+   kyuyo/tests は行かない＝給与の画面を運ばないから（見る物が無い試験は CI から外す＝④）
+   seikyu/ は ★丸ごと★ 運ぶ＝入口から呼ばれていない物(seikyu/lib/seikyu-book.js など)も
+   ★見張りが「作ったが呼ばれていない台帳」として見ている★ので、置いていくと 台帳が空になって
+   見張りが空振りする（2026-08-26 実測）。 */
+const GUARDS = ['seikyu', 'tests', 'scripts', '.github', 'package.json', 'tests-no-ci.json',
   'vercel.json', '.gitattributes', '.gitignore', 'CLAUDE.md', 'sw.js', 'docs', 'supabase'];
+
+/* ★運び先に無いファイルを見に行く試験は 運ばない★（名前と 見に行った先を 全部 書き残す）
+   ＝置いていくと「登録していない試験が在る」で見張りが赤くなり、
+     直そうとして ★見張りの登録の方を緩める★ という一番まずい直し方に流れる。
+   ★ソースを読んで決めない★＝自己確認の中には ★わざと在るはずのない名前★（js/a.js や
+   「ここに写しを作ったら赤」の seikyu/lib/shouhizei-ritsu.js）が書いてある。
+   ソースの字で判定すると ★正しく動く試験まで捨てる★（2026-08-26 実際にそうなった）。
+   ⇒ ★実際に走らせて、無いファイルを開こうとして転んだ物だけ★ を外す。 */
+export function unrunnableTests(to) {
+  const dirs = ['tests', 'seikyu/tests'];
+  const out = [];
+  dirs.forEach((d) => {
+    const dir = path.join(to, d);
+    if (!fs.existsSync(dir)) return;
+    fs.readdirSync(dir).forEach((n) => {
+      const p = path.join(dir, n);
+      if (!fs.statSync(p).isFile() || !/\.(mjs|js)$/.test(n)) return;
+      if (n === 'run.js') return;                 /* 束ねる物は 中身が減れば付いてくる */
+      let err = '';
+      try {
+        execFileSync(process.execPath, [d + '/' + n],
+          { cwd: to, encoding: 'utf8', stdio: 'pipe', maxBuffer: 20 * 1024 * 1024 });
+        return;                                   /* 通った＝ここで走れる */
+      } catch (e) { err = String((e.stdout || '') + (e.stderr || '')); }
+      const gone = [];
+      const re = /(?:ENOENT[^\n]*?(?:open|scandir|stat) |Cannot find module )'([^']+)'/g;
+      let m;
+      while ((m = re.exec(err))) {
+        const rel = path.relative(to, m[1]).split(path.sep).join('/');
+        if (!fs.existsSync(m[1]) && gone.indexOf(rel) < 0) gone.push(rel);
+      }
+      /* ★無いファイルのせいで転んだ物だけ★ 外す。それ以外の赤は 外さない＝直す物 */
+      if (gone.length) out.push({ file: d + '/' + n, gone: gone });
+    });
+  });
+  return out;
+}
 
 /* ★配信から外す物★＝repo には置くが Vercel には上げない（見張りは生かす・客には配らない） */
 const VERCELIGNORE = ['# ★運ぶ道具(scripts/ship-seikyu.mjs)が作る。手で書かない★',
@@ -70,8 +110,46 @@ const CI_SKIP = [
   { has: '空振りしているテストが無いか',
     why: 'kyuyo/tests を見に行く作り＝この repo には無い' },
   { has: 'Stamp tool tests',
-    why: '入口のインラインscriptと 撤去した看板の一覧を見る作り＝この repo には見る物が無い' }
+    why: '入口のインラインscriptと 撤去した看板の一覧を見る作り＝この repo には見る物が無い' },
+  { has: '★配信ガード',
+    why: '★配信HTMLの本数で空振りを見る作り★＝この repo は2枚しか無い（自己確認も給与の画面を壊す作り）' },
+  { has: 'CI coverage guard',
+    why: 'CIが回すテストの本数で空振りを見る作り＝この repo では本数が違う' },
+  { has: '同じ見張りを わざと壊して 赤になるか（本物に1件 戻す所まで）',
+    why: '自己確認が ★給与の kyuyo/js/app.js に1件 戻して★ 赤を確かめる作り（本体の screen-words は毎回 走る）' },
+  { has: 'アイコンの ?v=',
+    why: '5画面＋manifest3本を名前で固定して数える作り＝この repo は2画面＋manifest1本' },
+  { has: '黙って0を返す catch',
+    why: 'お金の所の一覧に 給与のファイルが入っている＝この repo では一覧が成り立たない（元で毎回 走る）' },
+  { has: '給与の状態',
+    why: '給与の画面を数える道具＝この repo には給与の画面が無い' },
+  { has: '描かれた字の色',
+    why: '13画面を名前で固定して描かせる作り＝この repo は2画面（色は元の側で毎回 数える）' }
 ];
+
+/* ★走らせない事にした見張りの「試験ファイル」は 置いていかない★
+   ＝置くと「在るのに登録していない＝1本も走っていない」で見張りが赤くなり、
+     ★見張りの登録の方を緩める★ という一番まずい直し方に流れる。 */
+function testFilesOfSkipped(dropped) {
+  const out = [];
+  dropped.forEach((d) => (d.files || []).forEach((f) => {
+    if (/^(tests|seikyu\/tests)\//.test(f) && /\.(mjs|js)$/.test(f) && out.indexOf(f) < 0) out.push(f);
+  }));
+  return out;
+}
+
+/* ★束ねる物(tests/run.js)の一覧から 消えたファイルを外す★（1行1本なので 行ごと外す） */
+export function pruneRunList(src, exists) {
+  const lines = src.split('\n');
+  const kept = [];
+  const gone = [];
+  lines.forEach((L) => {
+    const m = L.match(/^\s*\[?\s*'([A-Za-z0-9_.-]+\.(?:mjs|js))'/);
+    if (m && !exists(m[1])) { gone.push(m[1]); return; }
+    kept.push(L);
+  });
+  return { src: kept.join('\n'), gone: gone };
+}
 
 function count(root) {
   const all = { inside: [], outside: [], missing: [] };
@@ -129,7 +207,11 @@ export function ciForShipped(yml, exists) {
     const nm0 = (b.match(/- name:\s*(.*)/) || [, '?'])[1].trim();
     /* ★手で書いた「走らせない」一覧★（理由つき）を先に見る */
     const sk = CI_SKIP.filter((s) => nm0.indexOf(s.has) >= 0)[0];
-    if (sk) { skipUsed[sk.has] = 1; dropped.push({ name: nm0, files: ['（理由）' + sk.why] }); return; }
+    if (sk) {
+      skipUsed[sk.has] = 1;
+      dropped.push({ name: nm0, files: filesOfStep(b), why: sk.why });
+      return;
+    }
     const files = filesOfStep(b);
     if (!files.length) { kept.push(b); return; }
     const gone = files.filter((f) => !exists(f));
@@ -163,7 +245,8 @@ function ciHeaderNote(yml, dropped) {
     '#   ★戻す条件★: 本番にも給与を出す日（＝10月の改名・URL切替の塊）。その時 一緒に戻す。',
     '#   ★手で消さない★＝ここを直す時は rakually-test 側を直して 運び直す。',
     '#   ★外したステップ ' + dropped.length + '本★'];
-  dropped.forEach((d) => lines.push('#     ・' + d.name + '  ( ' + d.files.join(' , ') + ' )'));
+  dropped.forEach((d) => lines.push('#     ・' + d.name
+    + (d.why ? '  ★理由★ ' + d.why : '  ( ' + d.files.join(' , ') + ' )')));
   return yml.slice(0, i) + lines.join('\n') + yml.slice(i);
 }
 
@@ -213,6 +296,14 @@ function ship(to, dry) {
   fs.writeFileSync(hub, r.html, 'utf8');
   console.log('★入口を作り替えた★ … 給与のタイルを 1個 外した');
 
+  /* ★運び先で走れない試験は 置いていかない★（名前と 見に行った先を 全部 出す）
+     ＝自己診断では ここは飛ばす（全試験を2回 走らせると CI が重くなる）。
+     その代わり ★分け方そのもの★ を 下で 小さな作り物で 1回 試す。 */
+  const dead = process.env.SHIP_FAST ? [] : unrunnableTests(to);
+  dead.forEach((d) => fs.rmSync(path.join(to, d.file), { force: true }));
+  console.log('★運び先に無い物を見に行く試験を ' + dead.length + '本 外した★（元では毎回 走る）');
+  dead.forEach((d) => console.log('    外した試験: ' + d.file + '  → 見に行く先 ' + d.gone.join(' , ')));
+
   /* ★CIを 作り替える★ */
   const ciPath = path.join(to, '.github/workflows/ci.yml');
   const exists = (f) => fs.existsSync(path.join(to, f));
@@ -226,6 +317,20 @@ function ship(to, dry) {
     console.error('★「走らせない」に書いたのに 当たらない物が ' + ci.stale.length + '件★ … '
       + ci.stale.join(' , ') + '（CIの名前が変わった＝掃除し忘れ）');
     return 1;
+  }
+  /* ★走らせない見張りの試験ファイルも 置いていかない★ */
+  const skipFiles = testFilesOfSkipped(ci.dropped).filter(exists);
+  skipFiles.forEach((f) => fs.rmSync(path.join(to, f), { force: true }));
+  if (skipFiles.length) {
+    console.log('★走らせない事にした試験を ' + skipFiles.length + '本 置いていかない★ … ' + skipFiles.join(' , '));
+  }
+  /* ★束ねる物の一覧からも 消えた分を外す★（残すと Cannot find module で赤） */
+  const runPath = path.join(to, 'tests/run.js');
+  if (fs.existsSync(runPath)) {
+    const pr = pruneRunList(fs.readFileSync(runPath, 'utf8'),
+      (f) => fs.existsSync(path.join(to, 'tests', f)));
+    fs.writeFileSync(runPath, pr.src, 'utf8');
+    console.log('★tests/run.js の一覧から ' + pr.gone.length + '本 外した★ … ' + pr.gone.join(' , '));
   }
   fs.writeFileSync(ciPath, ciHeaderNote(ci.yml, ci.dropped), 'utf8');
   fs.writeFileSync(path.join(to, '.vercelignore'), VERCELIGNORE.join('\n'), 'utf8');
@@ -280,7 +385,9 @@ if (process.argv.includes('--self-test')) {
   const yml0 = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
   const all = ciForShipped(yml0, () => true);
   /* ★全部 在る時に外れるのは 手で書いた一覧の分だけ★（ファイルが無くて外れる物は0本） */
-  must(CI_SKIP.length, all.dropped.length, '★全部 在る時は 手で書いた ' + CI_SKIP.length + '本 だけ外れる★');
+  must(0, all.dropped.filter((d) => !d.why).length,
+    '★全部 在る時に外れるのは 手で理由を書いた物だけ★（' + all.dropped.length + '本／一覧 '
+    + CI_SKIP.length + '件）');
   must(0, all.stale.length, '★「走らせない」に書いた物が 全部 CIに実在する（掃除し忘れ0）★');
   must(0, all.mixed.length, '全部 在る時は 混ざりも0');
   const none = ciForShipped(yml0, (f) => f.indexOf('kyuyo/') !== 0);
@@ -288,10 +395,31 @@ if (process.argv.includes('--self-test')) {
   /* ★在る物と無い物が混ざったステップは 勝手に直さず 赤にするか★ */
   const mix = ciForShipped(yml0, (f) => !/ym-picker/.test(f));
   must(true, mix.mixed.length > 0, '★在る物と無い物が混ざったステップは 赤にする★');
+  /* ★「走れない試験」の分け方を 小さな作り物で 1回 試す★
+     ＝ソースの字で判定していた頃は ★わざと在るはずのない名前★を書いた自己確認を
+       「走れない」と誤って捨てていた（2026-08-26）。その型を ここで固定する。 */
+  const t2 = fs.mkdtempSync(path.join(os.tmpdir(), 'shipx-'));
+  try {
+    fs.mkdirSync(path.join(t2, 'tests'), { recursive: true });
+    const nl = String.fromCharCode(10);
+    fs.writeFileSync(path.join(t2, 'tests', 'a.test.mjs'),
+      'import fs from "node:fs";' + nl + 'fs.readFileSync("kyuyo/index.html");' + nl, 'utf8');
+    fs.writeFileSync(path.join(t2, 'tests', 'b.test.mjs'),
+      'import fs from "node:fs";' + nl
+      + 'if (fs.existsSync("kyuyo/index.html")) { throw new Error("在ってはいけない"); }' + nl
+      + 'console.log("ok");' + nl, 'utf8');
+    const d2 = unrunnableTests(t2);
+    must(1, d2.length, '★無い物を開こうとして転んだ試験だけ 外す（1本）★');
+    must('tests/a.test.mjs', (d2[0] || {}).file, '外れたのは 開こうとした方');
+    must(true, ((d2[0] || {}).gone || []).join(',').indexOf('kyuyo/index.html') >= 0,
+      '★見に行った先を 名前で残す★');
+  } finally { fs.rmSync(t2, { recursive: true, force: true }); }
   /* ★数える所が 本当に効くか★＝運んでみて 前と後が同じ数になる */
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-'));
   try {
+    process.env.SHIP_FAST = '1';
     const code = ship(tmp, false);
+    delete process.env.SHIP_FAST;
     must(0, code, '★運んで 前と後が 同じ数になる★');
     must(true, fs.existsSync(path.join(tmp, 'kyuyo/lib/shouhizei-ritsu.js')),
       '★法定の2本（消費税）も 一緒に運ばれている★');

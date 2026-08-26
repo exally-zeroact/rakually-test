@@ -33,6 +33,12 @@ const ok = (v, m) => { if (!v) throw new Error(m || 'false'); };
 const PROD = { env: 'prod' };
 const TEST = { env: 'test' };
 
+/* ★この見張りは 本番(rakually)へも そのまま運ばれる★（2026-08-26 請求書を本番へ出した日）。
+   ＝同じ1本で「テスト線では帯が出る／★本番では帯が出ない★」の両方を見る。
+   だから ★この repo が どちらなのか★ を 名札(env)から読んでから 判定を分ける。 */
+const ENV = (fs.readFileSync(path.join(ROOT, 'js/supa-config.js'), 'utf8')
+  .match(/env:\s*'([a-z]+)'/) || [, ''])[1];
+
 /* 配信される画面＝直下の *.html ＋ 各アプリ直下の *.html（pages-hosting と同じ考え方） */
 function shippedHtml() {
   const out = fs.readdirSync(ROOT).filter((f) => /\.html$/i.test(f));
@@ -70,6 +76,27 @@ if (process.argv.includes('--self-test')) {
     eq(BADGE.shouldShow(''), false, '★本物が「分からない」で出している★');
   });
 
+  /* ★2026-08-26 追加★ この見張りは 本番(rakually)へも そのまま運ばれる。
+     ＝「この repo はどちらか」を名札から読んで 判定を分ける所が、
+       ★名札を読み違えても 気づけるか★ を ここで確かめる。 */
+  S('③ 名札が読めない/知らない値なら 赤にする（どちらとも分からないを通さない）', () => {
+    const readEnv = (s) => (String(s).match(/env:\s*'([a-z]+)'/) || [, ''])[1];
+    eq(readEnv("window.SUPA={ env: 'prod' };"), 'prod', '作り物から読めていない＝空振り');
+    eq(readEnv("window.SUPA={ env: 'test' };"), 'test', '作り物から読めていない＝空振り');
+    eq(readEnv('window.SUPA={ url: 1 };'), '', '名札が無いのに 何かを読んでいる');
+    const okEnv = (e) => e === 'test' || e === 'prod';
+    ok(!okEnv(''), '★名札が無いのに 通してしまう★');
+    ok(!okEnv('staging'), '★知らない名札を 通してしまう★');
+    ok(okEnv(readEnv(fs.readFileSync(path.join(ROOT, 'js/supa-config.js'), 'utf8'))),
+      '★この repo の名札が test でも prod でもない★');
+  });
+
+  S('④ 本番で「帯を出す」作りに戻したら 赤になる（本番に嘘の帯を出さない）', () => {
+    const bad = (c) => String((c || {}).env || '') !== '';   // 名札が在れば何でも出す
+    ok(bad(PROD), '作り物が出していない＝この検査が空振り');
+    eq(BADGE.shouldShow(PROD), false, '★本物が本番で帯を出している★');
+  });
+
   console.log('\n[self-test] ' + sp + ' passed, ' + sf + ' failed');
   if (sf) process.exit(1);
 }
@@ -96,9 +123,17 @@ T('★どちらとも分からない時も出さない（安全側に倒す）',
 T('★テストの倉庫だと分かった時だけ出す', () => {
   eq(BADGE.shouldShow(TEST), true);
   eq(BADGE.shouldShow('test'), true, '文字で渡しても効く');
-  // ★この repo の接続設定が実際に test の名札を持っているか（配信そのものを見る）
-  const cfg = fs.readFileSync(path.join(ROOT, 'js/supa-config.js'), 'utf8');
-  ok(/env:\s*'test'/.test(cfg), "js/supa-config.js に env:'test' が無い＝テスト線なのに帯が出ない");
+  // ★この repo の接続設定が どの名札を持っているか（配信そのものを見る）
+  //   ★どちらでもない・名札が無い は 赤★（「どちらとも分からない」を黙って通さない）
+  ok(ENV === 'test' || ENV === 'prod',
+    "js/supa-config.js の env が 'test' でも 'prod' でもない: " + JSON.stringify(ENV));
+  if (ENV === 'test') {
+    eq(BADGE.shouldShow(TEST), true, 'テスト線なのに帯が出ない');
+    console.log('     この repo は ★テスト線★＝帯が出る');
+  } else {
+    eq(BADGE.shouldShow(PROD), false, '★本番なのに「テスト環境」の帯が出る★');
+    console.log('     この repo は ★本番★＝帯は出ない');
+  }
 });
 
 T('★本番とテストの見分けは「今どの倉庫か」だけで決める（ホスト名を見ていない）', () => {
@@ -117,7 +152,11 @@ T('★配信される画面すべてが帯を読み込んでいる（1画面で�
   /* ★実測 5枚★（2026-08-17 rakually-test）＝ index.html ／ kyuyo の3枚 ／ seikyu/index.html。
      前は8枚だった（Exally の book.html・chat.html・hub.html を含んでいた＝Rakually には無い）。
      ★画面を足したら この下限も上げる★＝「数え漏れ」を人の記憶に頼らないための数。 */
-  ok(files.length >= 5, '画面が少なすぎる（数え漏れ）: ' + files.length);
+  /* ★本番(rakually)は 入口＋請求書の2枚★（給与は exally に間借りのまま＝運んでいない）。
+     下限を repo ごとに分ける＝どちらでも「数え漏れ」を人の記憶に頼らない。 */
+  const floor = ENV === 'prod' ? 2 : 5;
+  ok(files.length >= floor,
+    '画面が少なすぎる（数え漏れ）: ' + files.length + ' ／ この repo(' + ENV + ') の下限 ' + floor);
   const miss = files.filter((f) => fs.readFileSync(path.join(ROOT, f), 'utf8').indexOf('env-badge.js') < 0);
   ok(miss.length === 0, '帯が入っていない画面: ' + miss.join(', '));
   console.log('     実測: ' + files.length + '画面すべてに入っている（' + files.join(' / ') + '）');
