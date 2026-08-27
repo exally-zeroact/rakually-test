@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakually-ui.css?v=fe2717a8">
-<link rel="stylesheet" href="css/app.css?v=fe2717a8">
+<link rel="stylesheet" href="../css/rakually-ui.css?v=aef58a19">
+<link rel="stylesheet" href="css/app.css?v=aef58a19">
 </head>
 <body>
 
@@ -364,6 +364,63 @@
         <div class="flabel">お振込先（紙に出ます）</div>
         <textarea class="finput" id="s-bank" placeholder="例：伊予銀行 今治支店 普通 1234567 ド）ラクアリー"></textarea>
       </div>
+
+      <!-- ★紙の書き方（会社ごとに選べる）★（指示役 2026-08-28「カスタム性があるようにしろや」）
+           ★焼き付けてよいのは 法律だけ★＝ここは 全部 見た目と言い方の話。
+           ★何も選ばなければ 様式の既定★ が効く（今までどおり）。
+           既定と その根拠は docs/CUSTOM_10_2026-08-28.md に1行ずつ書いてあります。 -->
+      <details id="s-style-box">
+        <summary class="sub-h">紙の書き方（言い方と並び）</summary>
+        <p class="hint">ここで変えるのは <b>言い方と並びだけ</b>です。相手に合わせて選べます。</p>
+        <div class="frow2">
+          <div class="frow">
+            <div class="flabel">締めの並び</div>
+            <select class="finput" id="s-sumsorder">
+              <option value="">明細の合計 → 消費税 → 合計（既定）</option>
+              <option value="B">消費税 → 小計（税込）</option>
+            </select>
+          </div>
+          <div class="frow">
+            <div class="flabel">金額の ¥ 記号</div>
+            <select class="finput" id="s-yen">
+              <option value="">付ける（既定）</option>
+              <option value="off">付けない</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="frow">
+            <div class="flabel">見出しの「（税込）」</div>
+            <select class="finput" id="s-zeikomi">
+              <option value="">付ける（既定）</option>
+              <option value="off">付けない</option>
+            </select>
+          </div>
+          <div class="frow">
+            <div class="flabel">お振込先の出し方</div>
+            <select class="finput" id="s-bankline">
+              <option value="">口座ごとに改行（既定）</option>
+              <option value="one">1行にまとめる</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="flabel">消費税の一言<span class="hint2">空なら 出しません</span></div>
+          <!-- ★法定の率を 説明文に直書きしない★＝見本の文は lib の率から作る（js が入れる） -->
+          <input class="finput" id="s-taxnote">
+        </div>
+        <div class="frow2">
+          <div class="frow">
+            <div class="flabel">控除の見出し</div>
+            <input class="finput" id="s-dedhead" placeholder="控除">
+          </div>
+          <div class="frow">
+            <div class="flabel">控除の合計の呼び名</div>
+            <input class="finput" id="s-dedsum" placeholder="控除計（控除の紙は 中計）">
+          </div>
+        </div>
+      </details>
+
       <div class="btn-row">
         <button class="btn-primary" type="button" id="b-set-save">保存</button>
       </div>
@@ -525,35 +582,35 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=fe2717a8"></script>
-<script src="../lib/xlsx.full.min.js?v=fe2717a8"></script>
-<script src="../js/file-out.js?v=fe2717a8"></script>
-<script src="../js/suite-data.js?v=fe2717a8"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=fe2717a8"></script>
+<script src="../js/supa-config.js?v=aef58a19"></script>
+<script src="../lib/xlsx.full.min.js?v=aef58a19"></script>
+<script src="../js/file-out.js?v=aef58a19"></script>
+<script src="../js/suite-data.js?v=aef58a19"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=aef58a19"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=fe2717a8"></script>
-<script src="lib/seikyu-tax.js?v=fe2717a8"></script>
-<script src="lib/seikyu-gensen.js?v=fe2717a8"></script>
-<script src="lib/seikyu-carry.js?v=fe2717a8"></script>
-<script src="lib/seikyu-cols.js?v=fe2717a8"></script>
-<script src="lib/seikyu-templates.js?v=fe2717a8"></script>
-<script src="../lib/toroku-no.js?v=fe2717a8"></script>
-<script src="lib/seikyu-doc.js?v=fe2717a8"></script>
-<script src="lib/seikyu-partner-ask.js?v=fe2717a8"></script>
-<script src="lib/seikyu-name.js?v=fe2717a8"></script>
-<script src="lib/seikyu-paper.js?v=fe2717a8"></script>
-<script src="lib/seikyu-aoa.js?v=fe2717a8"></script>
-<script src="js/seikyu-store.js?v=fe2717a8"></script>
-<script src="js/seikyu-out.js?v=fe2717a8"></script>
-<script src="js/seikyu-app.js?v=fe2717a8"></script>
-<script src="../js/rakually-login.js?v=fe2717a8"></script>
-<script src="js/auth.js?v=fe2717a8"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=aef58a19"></script>
+<script src="lib/seikyu-tax.js?v=aef58a19"></script>
+<script src="lib/seikyu-gensen.js?v=aef58a19"></script>
+<script src="lib/seikyu-carry.js?v=aef58a19"></script>
+<script src="lib/seikyu-cols.js?v=aef58a19"></script>
+<script src="lib/seikyu-templates.js?v=aef58a19"></script>
+<script src="../lib/toroku-no.js?v=aef58a19"></script>
+<script src="lib/seikyu-doc.js?v=aef58a19"></script>
+<script src="lib/seikyu-partner-ask.js?v=aef58a19"></script>
+<script src="lib/seikyu-name.js?v=aef58a19"></script>
+<script src="lib/seikyu-paper.js?v=aef58a19"></script>
+<script src="lib/seikyu-aoa.js?v=aef58a19"></script>
+<script src="js/seikyu-store.js?v=aef58a19"></script>
+<script src="js/seikyu-out.js?v=aef58a19"></script>
+<script src="js/seikyu-app.js?v=aef58a19"></script>
+<script src="../js/rakually-login.js?v=aef58a19"></script>
+<script src="js/auth.js?v=aef58a19"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=fe2717a8"></script>
+<script src="../js/env-badge.js?v=aef58a19"></script>
 </body>
 </html>

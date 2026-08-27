@@ -148,10 +148,14 @@
 
   /* ★紙の金額は ¥ 記号（画面は「1,100 円」。二重に付けない）★
      数にならない物は 0 にしない（取れなかったを 0 と作り分ける）。 */
+  /* ★¥記号を付けるか★は 会社が選べる（焼き付けない・既定は付ける）
+     実物は ★型A 4通は付く／型B 7通は付かない★（2026-08-28 実測）。
+     ★数そのものは 1円も変わらない★＝見た目だけの話。 */
+  var YEN_ON = true;
   function yen(v) {
     var n = Number(v);
     if (!Number.isFinite(n)) return '—';
-    return '¥' + Math.round(n).toLocaleString('ja-JP');
+    return (YEN_ON ? '¥' : '') + Math.round(n).toLocaleString('ja-JP');
   }
   /* 表の中の数（¥ を付けない・桁区切りだけ。桁が詰まって読みにくくなるため） */
   function comma(v) {
@@ -377,7 +381,12 @@
     var tax = o.tax || {};
     var p = o.partner || {};
     var g = o.org || {};
-    var TH = themeOf(o.theme);
+    /* ★紙の書き方は 会社が選べる★（2026-08-28 指示役「カスタム性」）
+       ★順番★ … ①その1通が持つ物（inv.data.style）→②会社が決めた物（o.style）→③様式の既定（theme）
+       ★焼き付けてよいのは 法律だけ★＝ここに来る物は 全部 見た目と言い方の話。 */
+    var TH = themeOf(Object.assign({}, o.theme || {}, o.style || {}, (inv.data && inv.data.style) || {}));
+    /* ★¥記号★ … 数は1円も変わらない（見た目だけ）。既定は付ける。 */
+    YEN_ON = (TH.yenMark === false) ? false : true;
     var era = o.era || (inv.data && inv.data.dateEra) || 'seireki';
 
     var spec = COLS.normalizeSpec((o.cols && o.cols.items && o.cols.items.length) ? o.cols : DEFAULT_COLS);
@@ -395,7 +404,11 @@
     var heading = isReceipt ? '領　収　書' : isQuote ? '見　積　書' : '請　求　書';
     /* 金額のラベルは様式が持つ（ご／御）。★どちらでもよい＝縛らない★ */
     var go = TH.grandGo || 'ご';
-    var grandLabel = isReceipt ? '領収金額（税込）' : go + (isQuote ? '見積金額（税込）' : '請求金額（税込）');
+    /* ★「（税込）」を付けるか★（会社が選べる・焼き付けない／既定は付ける）
+       ★根拠★ 国税庁の記載事項は「税抜価額 又は 税込価額」＝どちらでもよい。
+       ★どちらの額かが 読む人に分かる★ので 既定は「付ける」。 */
+    var zk = (TH.zeikomiTag === false) ? '' : '（税込）';
+    var grandLabel = isReceipt ? ('領収金額' + zk) : go + (isQuote ? ('見積金額' + zk) : ('請求金額' + zk));
     var noLabel = 'No.　';
     var headNo = isReceipt ? String((rc && rc.no) || '') : (inv.no || '');
     var docTitle = (o.title || (heading.replace(/　/g, '') + (headNo ? ' ' + headNo : '')));
@@ -581,7 +594,16 @@
     }
     function greetBlock() {
       var greet = isQuote ? '下記の通り御見積申し上げます。' : '下記の通り御請求申し上げます。';
-      return '<div class="lead lead-greet"><div class="lead-l"><span class="lead-g">' + greet + '</span></div></div>';
+      /* ★消費税の一言★（会社が選べる・焼き付けない／既定は出さない）
+         ★根拠★ 適格請求書の記載事項（国税庁 No.6625）に この文は入っていない＝法律の要件ではない。
+         うちの実物には47通とも在るが ★うちの実物は「正」ではなく1例★なので 既定にはしない。
+         ★言い方も会社が決める★（実物は「となっております」36通／「とします」11通に割れている）。 */
+      var note = textOf(TH.taxNote);
+      var noteHtml = note
+        ? '<div class="lead lead-greet"><div class="lead-l"><span class="lead-g">' + esc(note) + '</span></div></div>'
+        : '';
+      return noteHtml
+        + '<div class="lead lead-greet"><div class="lead-l"><span class="lead-g">' + greet + '</span></div></div>';
     }
     /* ★何枚のうち何枚目か★（1枚で収まる紙には出さない） */
     function pagenoBlock(pageIdx) {
@@ -633,6 +655,28 @@
            ★−28px はみ出した★（明細4枚以上で必ず起きる）。この書き方なら 何枚でも2行。 */
       var rows = [];
       var allPfx = multi ? '全ページの ' : '';
+      /* ★締めの並びは 2通り在る★（実物11通を1通ずつ突き合わせて分かった・2026-08-28）
+           A … 明細の合計（税抜）→ 消費税 → 合計（税込）   ← 4通
+           B … 消費税 → ★小計（税込）★                    ← 7通（税抜の行を出さない）
+         ★計算は どちらも同じ（外税・税抜×10%）★＝違うのは ★並びと言い方だけ★。
+         ★同じ「小計」が 型Aでは税抜・型Bでは税込を指す★ので ★言葉を焼き付けない★。 */
+      if (TH.sumsOrder === 'B') {
+        rows.push(['', allPfx + taxLabel(tax, inv.tax_mode), yen(tax.taxTotal)]);
+        rows.push(['sums-mid', textOf(TH.sumsTotalLabel) || '小計', yen(tax.grandTotal)]);
+        var hasDedB = showDeduct && (deduct === null || Number(deduct) !== 0);
+        if (hasDedB) {
+          var netB = (deduct === null) ? null : (tax.grandTotal - deduct);
+          rows.push(['sums-minus', textOf(TH.dedSum) || '控除', (deduct === null) ? '（未確認）' : '-' + yen(deduct)]);
+          rows.push(['', textOf(TH.finalLabel) || '合計', (netB === null ? '（未確認）' : yen(netB))]);
+        }
+        if (gen && gen.on) {
+          var payB = DOC.payableOf(tax, carry, gen, deduct);
+          rows.push(['sums-minus', esc(gen.label), '-' + yen(gen.amount)]);
+          rows.push(['', esc(gen.netLabel), (payB === null ? '（未確認）' : yen(payB))]);
+        }
+        rows[rows.length - 1][0] = 'sums-net';
+        return rows;
+      }
       /* ★税込で打つ紙は ここが「税抜」★＝表の中の「（税込）」と同じ言葉にしない。
          同じ「明細の合計」で 62,000 と 56,364 が並ぶと、必ず「なぜ？」になる。 */
       rows.push(['', allPfx + '明細の合計' + (inclusive ? '（税抜）' : ''), yen(tax.subtotal)]);

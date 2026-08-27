@@ -220,5 +220,40 @@ T('★見本3枚が 別の絵★（2枚が同じ絵だった穴を作らない�
   console.log('     3枚とも 別の絵（' + ids.join(' / ') + '）');
 });
 
+/* ═══ ★カスタム性＝会社が選べる★（指示役 2026-08-28）
+     ★焼き付けてよいのは 法律だけ★／★選んでも 金額は1円も変わらない★ ═══ */
+const sumsOf = (html) => [...String(html).matchAll(/<table class="sums">([\s\S]*?)<\/table>/g)]
+  .map((m) => [...m[1].matchAll(/<th>([\s\S]*?)<\/th><td>([\s\S]*?)<\/td>/g)]
+    .map((x) => x[1].replace(/<[^>]+>/g, '') + ' ' + x[2].replace(/<[^>]+>/g, '')).join(' | '))[0];
+
+T('★選べる① 締めの並び（型A＝既定／型B）★', () => {
+  const A = sumsOf(build().html);
+  const B = sumsOf(build({}, { style: { sumsOrder: 'B', yenMark: false } }).html);
+  ok(/明細の合計/.test(A), '既定（型A）に 明細の合計が無い: ' + A);
+  ok(!/明細の合計/.test(B), '★型Bなのに 税抜の行が出ている★: ' + B);
+  ok(/小計 217,360/.test(B), '★型Bの 小計（税込）が実物と違う★: ' + B);
+  ok(/合計 199,886/.test(B), '★型Bの 合計が実物と違う★: ' + B);
+  console.log('     型A … ' + A);
+  console.log('     型B … ' + B);
+});
+
+T('★選べる② ¥記号／（税込）／消費税の一言★', () => {
+  const on = textOf(build().html);
+  ok(on.some((x) => /御請求金額（税込）/.test(x)), '既定に（税込）が無い');
+  ok(!on.some((x) => /^消費税は/.test(x)), '★既定で 消費税の一言が出ている★（既定は 出さない）');
+  const off = textOf(build({}, { style: { yenMark: false, zeikomiTag: false, taxNote: '消費税は10%とします。' } }).html);
+  ok(off.some((x) => /^御請求金額$/.test(x)), '★（税込）を外したのに 残っている★');
+  ok(off.some((x) => /^消費税は10%とします。$/.test(x)), '消費税の一言が出ていない');
+  ok(!/¥/.test(sumsOf(build({}, { style: { yenMark: false } }).html)), '★¥を外したのに 残っている★');
+});
+
+T('★選んでも 金額は1円も変わらない（見た目だけ）★', () => {
+  const nums = (html) => (sumsOf(html).match(/[\d,]{3,}/g) || []).map((x) => Number(x.replace(/,/g, '')));
+  const a = nums(build().html);
+  const b = nums(build({}, { style: { yenMark: false, zeikomiTag: false, taxNote: 'あ', dedSum: '小計' } }).html);
+  eq(JSON.stringify(b), JSON.stringify(a), '★選び方を変えたら 数が変わった★');
+  console.log('     どちらも ' + JSON.stringify(a));
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

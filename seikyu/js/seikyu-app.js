@@ -96,6 +96,10 @@
       cols: (d.invoiceCols && Array.isArray(d.invoiceCols.items) && d.invoiceCols.items.length) ? d.invoiceCols : null,
       /* ★紙の枠の行数（空＝既定。既定の数は紙の側が持っている）★
          0以上の整数だけ受ける。読めない字が入っていたら「決めていない」と同じ扱い。 */
+      /* ★紙の書き方（会社が選べる・焼き付けない）★（指示役 2026-08-28「カスタム性」）
+         ★焼き付けてよいのは 法律だけ★＝ここは 全部 見た目と言い方の話。
+         空（未設定）なら ★様式の既定★ が効く（何も選ばなければ 今までどおり）。 */
+      paperStyle: (d.invoiceStyle && typeof d.invoiceStyle === 'object') ? d.invoiceStyle : {},
       paperRows: rowsSetting(d.invoicePaperRows),
       deductRows: rowsSetting(d.invoiceDeductRows),
     };
@@ -1617,6 +1621,7 @@
       inv: inv, tax: t, partner: partner, org: org, cols: colsOf(v), theme: themeOf(v),
       gensen: currentGensen(), carry: currentCarry(),
       deduct: ded, deductLines: dedLines,
+      style: st.paperStyle,
       paperRows: (rows === null ? undefined : rows),
       deductRows: (dRows === null ? undefined : dRows),
     };
@@ -2066,6 +2071,24 @@
     $('s-carry').checked = s.carry;
     $('s-rows').value = (s.paperRows === null ? '' : s.paperRows);
     $('s-dedrows').value = (s.deductRows === null ? '' : s.deductRows);
+    /* ★紙の書き方（会社ごと）★＝空なら 様式の既定（何も選ばなければ 今までどおり） */
+    (function () {
+      var st = s.paperStyle || {};
+      $('s-sumsorder').value = (st.sumsOrder === 'B') ? 'B' : '';
+      $('s-yen').value = (st.yenMark === false) ? 'off' : '';
+      $('s-zeikomi').value = (st.zeikomiTag === false) ? 'off' : '';
+      $('s-bankline').value = (st.bankOneLine === true) ? 'one' : '';
+      $('s-taxnote').value = st.taxNote || '';
+      /* ★率は lib が唯一の正★＝画面の見本の文にも 数字を直書きしない
+         （法が変わった日に ★画面の文だけ 取り残される★のを止める） */
+      (function () {
+        var rs = (TAX.rates ? TAX.rates() : []) || [];
+        var top = rs.length ? Math.max.apply(null, rs.map(Number)) : null;
+        $('s-taxnote').placeholder = top ? ('例：消費税は' + top + '%となっております。') : '例：消費税について ひとこと';
+      })();
+      $('s-dedhead').value = st.dedHead || '';
+      $('s-dedsum').value = st.dedSum || '';
+    })();
     rowsHint();
     settingsHint();
 
@@ -2409,6 +2432,18 @@
       invoiceDeductRows: rowsSetting($('s-dedrows').value),
       invoiceTemplate: settings().template,
       invoiceCols: COLS.normalizeSpec((S.org && S.org.invoiceCols) || TPL.getOrDefault(settings().template).cols),
+      /* ★選ばなかった物は 持たない★＝様式の既定が効く（空の値を保存して 既定を上書きしない） */
+      invoiceStyle: (function () {
+        var o = {};
+        if ($('s-sumsorder').value === 'B') o.sumsOrder = 'B';
+        if ($('s-yen').value === 'off') o.yenMark = false;
+        if ($('s-zeikomi').value === 'off') o.zeikomiTag = false;
+        if ($('s-bankline').value === 'one') o.bankOneLine = true;
+        if (String($('s-taxnote').value || '').trim()) o.taxNote = String($('s-taxnote').value).trim();
+        if (String($('s-dedhead').value || '').trim()) o.dedHead = String($('s-dedhead').value).trim();
+        if (String($('s-dedsum').value || '').trim()) o.dedSum = String($('s-dedsum').value).trim();
+        return o;
+      })(),
     };
     var errs = DOC.validateNumbering({ format: patch.numbering.invoice.format, resetYearly: patch.numbering.invoice.resetYearly, partnerCode: 'A001' });
     var cerrs = COLS.validate(patch.invoiceCols.items);
