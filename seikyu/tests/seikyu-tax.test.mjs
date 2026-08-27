@@ -128,6 +128,34 @@ T('★8%が1行でもあれば、標準と軽減を別々に集計して別々�
   eq(r.subtotal, 2000); eq(r.taxTotal, 180); eq(r.grandTotal, 2180);
 });
 
+/* ★2つの税率が どちらも 端数を出す時★（指示役 2026-08-28）
+   前の8%の検査は 1,100/1,080＝★端数が1件も出ない値★だったので、
+   ★行ごとに丸めても 同じ数★になり ★見分けられませんでした★。
+   ⇒ ★どちらの税率でも 差が出る値★で押す。
+   根拠 … 国税庁 インボイスQ&A 問57（令和6年4月改訂・★確かめた日 2026-08-28★）
+     「一の適格請求書につき、★税率ごとに1回★の端数処理を行う必要があります
+      （★消令70の10、基通1-8-15★）」
+     （注）「個々の商品ごとに…端数処理を行い、その合計額を…記載することは★認められません★」 */
+T('★★税率が2つとも 端数を出す時も 各1回だけ（行ごとに丸めない）★★', () => {
+  const lines = [
+    { name: 'a', amount: 1005, rate: STD }, { name: 'b', amount: 1005, rate: STD },
+    { name: 'c', amount: 1005, rate: RED }, { name: 'd', amount: 1005, rate: RED },
+    { name: 'e', amount: 1005, rate: RED },
+  ];
+  const r = TAX.compute({ lines: lines, taxMode: 'exclusive', rounding: 'floor' });
+  ok(r.ok, r.errors.join('/'));
+  const std = r.byRate.find((x) => x.pct === STD), red = r.byRate.find((x) => x.pct === RED);
+  /* ★手計算★ 標準 2,010×10% ＝ 201.0 → 201（行ごとなら floor(100.5)×2 ＝ 200） */
+  eq(std.base, 2010, '標準の対価'); eq(std.tax, 201, '標準の税（まとめて1回）');
+  /* ★手計算★ 軽減 3,015×8% ＝ 241.2 → 241（行ごとなら floor(80.4)×3 ＝ 240） */
+  eq(red.base, 3015, '軽減の対価'); eq(red.tax, 241, '軽減の税（まとめて1回）');
+  eq(r.taxTotal, 442, '合計の消費税');
+  /* ★前提の確認★＝行ごとに丸めると 本当に違う数になる（＝この検査が空振りしていない） */
+  const perLine = 2 * Math.floor(1005 * STD / 100) + 3 * Math.floor(1005 * RED / 100);
+  eq(perLine, 440, '（比較用）行ごとに丸めた誤った額');
+  ok(r.taxTotal !== perLine, '★行ごとに丸めた額と同じ＝どちらか分からない値で測っている★');
+});
+
 T('★軽減税率の行があることを紙が言えるように印を返す（※の根拠）', () => {
   const r = TAX.compute({ lines: [{ name: 'a', amount: 1080, rate: RED }], taxMode: 'inclusive', rounding: 'floor' });
   ok(r.hasReduced, '軽減の行があるのに印が立っていない');
