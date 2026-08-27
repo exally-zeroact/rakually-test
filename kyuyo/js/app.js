@@ -338,7 +338,13 @@
       holidays:[0], dailyWorkH:'8', dailyWorkM:'0', annualHolidays:'120', shakaTokutei:false,
       ruleOn:{warimashiRate:true},
       rateOt:'', rateHoliday:'', rateNight:'', rateOver60:'', gyoshu:'ippan', rousaiRate:'',
-      furiCode:'', furiName:'', furiBankNo:'', furiBankName:'', furiBranchNo:'', furiBranchName:'', furiYokin:'普通', furiAccount:'', furiDate:'' }; }
+      furiCode:'', furiName:'', furiBankNo:'', furiBankName:'', furiBranchNo:'', furiBranchName:'', furiYokin:'普通', furiAccount:'',
+      /* ★振込指定日は もう「1個の日付」では持たない★（2026-08-27）
+         ・その月の支給日から当てる（lib/payroll-monthly.js furikomiDateObj）
+         ・その月だけ変えた物は furiDateBy['YYYY-MM'] に持つ＝★翌月に持ち越さない★
+         ・paydayShift … 支給日が銀行の休みの時に 前/次 どちらの営業日へ寄せるか（既定=前）
+         ・furiDate は ★昔の物★＝拾い終わるまで残す（黙って捨てない） */
+      furiDate:'', furiDateBy:{}, paydayShift:'prev' }; }
   // 対象月の既定=当月(初回起動時)。保存済みがあればロード時に上書きされる(過去月固定を防ぐ)。
   function curYm(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
   var state={ company: defCompany(),
@@ -3218,6 +3224,64 @@
     return '<option value=""'+(auto?' selected':'')+'>銀行に合わせる（既定）</option>'
       +keys.map(function(k){ return '<option value="'+k+'"'+((!auto&&Zengin.newlineKey(v)===k)?' selected':'')+'>'+esc(FURI_NL_LABEL[k]||k)+'</option>'; }).join('');
   }
+  /* ★振込指定日＝その月の支給日★（2026-08-27 指示役 D）
+     ─────────────────────────────────────────────────────
+     前は ★会社の設定に置いた 日付の欄が1つだけ★で、対象月を変えても そのままだった。
+     ⇒ ★空なら 全銀の取組日が 0000★／★先月のままなら 先月の日付が銀行へ行く★（実測）。
+     いまは ★聞かずに 当てて、根拠を見せて、違う時だけ その月だけ直させる★。
+     ・当てる … lib/payroll-monthly.js furikomiDateObj（支給日→銀行が休みなら寄せる）
+     ・寄せ方 … 会社の設定 paydayShift（法律で決まっていない＝焼き付けない・既定は前の営業日）
+     ・その月だけの直し … company.furiDateBy['YYYY-MM']（★翌月に持ち越さない★） */
+  function furiOverrideOf(ym){
+    var c=state.company||{}; var by=c.furiDateBy||{};
+    var v=by[ym||state.month];
+    /* ★昔の1個の日付（furiDate）を 黙って捨てない★＝その月の初期値として1回だけ拾う */
+    if(!v && c.furiDate && /^\d{4}-\d{2}-\d{2}$/.test(c.furiDate) && c.furiDate.slice(0,7)===(ym||state.month)) v=c.furiDate;
+    return (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : '';
+  }
+  /* ★この月の振込指定日★（決めた物 or 当てた物）。出せない時は null＝呼んだ側が止める */
+  function furiDateOf(ym){
+    var m=ym||state.month;
+    var ov=furiOverrideOf(m);
+    if(ov) return { ymd:ov, by:'決めた', moved:0, reason:'' };
+    var o=PM().furikomiDateObj({month:m,company:state.company});
+    if(!o) return null;
+    var p=function(n){return (n<10?'0':'')+n;};
+    return { ymd:o.y+'-'+p(o.m)+'-'+p(o.d), by:'当てた', moved:o.moved, reason:o.reason, shift:o.shift };
+  }
+  function furiMMDD(ym){ var d=furiDateOf(ym); return d?d.ymd.slice(5,7)+d.ymd.slice(8,10):''; }
+  function furiDateBox(){
+    var c=state.company||{};
+    var d=furiDateOf(state.month);
+    var w=['日','月','火','水','木','金','土'];
+    if(!d){
+      return '<div class="frow"><div class="flabel">振込指定日</div>'
+        +'<div class="cr-warn" style="margin:0">この月の振込指定日を決められませんでした。'
+        +'会社の「支給日」を入れてください。</div></div>';
+    }
+    var dt=new Date(Number(d.ymd.slice(0,4)),Number(d.ymd.slice(5,7))-1,Number(d.ymd.slice(8,10)));
+    var head=d.ymd.slice(0,4)+'年'+Number(d.ymd.slice(5,7))+'月'+Number(d.ymd.slice(8,10))+'日（'+w[dt.getDay()]+'）';
+    var why;
+    if(d.by==='決めた'){ why='この月だけ 手で決めた日です。'; }
+    else if(d.moved){ why='会社の決まり「毎月'+esc(String(c.paydayDay||''))+'日・'
+      +((c.paydayRel||'next')==='next'?'翌月':'当月')+'払い」から出しました。'
+      +esc(d.reason)+'で銀行が休みなので '+(d.shift==='next'?'次':'前')+'の営業日にしています。'; }
+    else { why='会社の決まり「毎月'+esc(String(c.paydayDay||''))+'日・'
+      +((c.paydayRel||'next')==='next'?'翌月':'当月')+'払い」から出しました。'; }
+    var sh=(c.paydayShift==='next')?'next':'prev';
+    return '<div class="frow"><div class="flabel">振込指定日<span class="hint2">'+esc(state.month)+'</span></div>'
+      +'<div><div class="bx-val" id="furi-date-view" style="font-weight:700;white-space:nowrap;font-size:16px">'+esc(head)+'</div>'
+      +'<p class="hint" id="furi-date-why" style="margin:2px 0 6px">'+why+'</p>'
+      +'<div class="frow2" style="margin:0">'
+        +'<div class="frow"><div class="flabel">この月だけ変える</div>'
+          +'<input class="finput" type="date" id="furi-date-ovr" value="'+attr(furiOverrideOf(state.month))+'"></div>'
+        +'<div class="frow"><div class="flabel">支給日が銀行の休みの時</div>'
+          +'<select class="finput" data-fc="paydayShift">'
+          +'<option value="prev"'+(sh==='prev'?' selected':'')+'>前の営業日</option>'
+          +'<option value="next"'+(sh==='next'?' selected':'')+'>次の営業日</option>'
+          +'</select></div>'
+      +'</div></div></div>';
+  }
   function renderFuri(){
     var box=$('#furi-box'); if(!box) return;
     if((state.printMode||'monthly')==='bonus'){ box.innerHTML='<p class="hint" style="margin:0">総合振込データは「月次給与」で作成します。</p>'; return; }
@@ -3233,7 +3297,7 @@
         +'<div class="frow"><div class="flabel">支店コード<span class="hint2">3桁</span></div>'+fi('furiBranchNo','001','inputmode="numeric" maxlength="3"')+'</div></div>'
       +'<div class="frow2"><div class="frow"><div class="flabel">科目</div><select class="finput" data-fc="furiYokin"><option'+((c.furiYokin==='普通'||!c.furiYokin)?' selected':'')+'>普通</option><option'+(c.furiYokin==='当座'?' selected':'')+'>当座</option></select></div>'
         +'<div class="frow"><div class="flabel">口座番号<span class="hint2">7桁</span></div>'+fi('furiAccount','1234567','inputmode="numeric" maxlength="7"')+'</div></div>'
-      +'<div class="frow"><div class="flabel">振込指定日</div><input class="finput" type="date" data-fc="furiDate" value="'+attr(c.furiDate)+'"></div>';
+      +furiDateBox();
     /* ★手前が空なら、奥の設定より先に「まずここを埋めて」と言う（埋める順番を伝える）。 */
     var needBasics=!(String(c.furiCode||'').trim() && String(c.furiBankNo||'').trim()
       && String(c.furiBranchNo||'').trim() && String(c.furiAccount||'').trim());
@@ -3298,13 +3362,24 @@
   }
   function downloadZengin(){
     if(typeof Zengin==='undefined'){ uiAlert('全銀モジュールが読み込まれていません'); return; }
-    var c=state.company; var d=(c.furiDate&&/^\d{4}-\d{2}-\d{2}$/.test(c.furiDate))?c.furiDate.slice(5,7)+c.furiDate.slice(8,10):'';
+    var c=state.company;
+    /* ★取組日は その月から出す★（2026-08-27）＝会社の1個の日付を使わない。
+       ★出せない時は 1バイトも作らない★（前は 空→0000 が黙って銀行へ行っていた）。 */
+    var d=furiMMDD(state.month);
+    if(!/^\d{4}$/.test(d)){
+      uiAlert('この月の振込指定日を決められないので、全銀ファイルは作れません。\n'
+        +'「振込指定日」の所で この月の日付を決めるか、会社の「支給日」を入れてください。');
+      return;
+    }
     var committer={ code:c.furiCode, name:c.furiName, torikumiMMDD:d, bankNo:c.furiBankNo, bankName:c.furiBankName, branchNo:c.furiBranchNo, branchName:c.furiBranchName, yokin:c.furiYokin, account:c.furiAccount };
     var tr=buildTransfers().filter(function(t){return t.ready;});
     if(!tr.length){ uiAlert('振込対象がありません。従業員マスタの「総合振込データ用」に銀行/支店/口座を入力してください。'); return; }
     /* ★改行は会社の設定どおり。決めるのは lib（銀行→確認済みならその形／それ以外は既定CR+LF）。
        未設定・未確認の銀行・一覧にない銀行は、今まで通っている形（CR+LF）のまま。 */
-    var r=Zengin.build(committer, tr, { bank:c.furiBank, newline:c.furiNewline });
+    /* ★lib の門番で止まったら 1バイトも作らない★（黙って 0000 を出さない） */
+    var r;
+    try { r=Zengin.build(committer, tr, { bank:c.furiBank, newline:c.furiNewline }); }
+    catch(e){ uiAlert('全銀ファイルを作れませんでした。\n'+((e&&e.message)||e)); return; }
     dlBytes(r.bytes, 'furikomi_'+state.month+'.txt', 'text/plain');
     // 既定から変えている時だけ、何で作ったかを言う（既定の人には余計な字を出さない）。
     toast('全銀ファイルを作成しました（'+r.count+'件・'+yen(r.total)
@@ -3827,8 +3902,22 @@
     (function(){ var fb=$('#furi-box'); if(!fb) return;
       function setFc(ev){ var el=ev.target.closest&&ev.target.closest('[data-fc]'); if(el){ state.company[el.getAttribute('data-fc')]=el.value; persistSaveDebounced();
         // 銀行を選び直したら、その銀行についての1行を出し直す（選んで初めて分かる、を作らない）
-        if(el.getAttribute('data-fc')==='furiBank'){ var n=$('#furi-banknote'); if(n) n.innerHTML=furiBankNote(el.value); } } }
+        if(el.getAttribute('data-fc')==='furiBank'){ var n=$('#furi-banknote'); if(n) n.innerHTML=furiBankNote(el.value); }
+        /* ★寄せ方を変えたら その場で日付を出し直す★（選んで初めて分かる、を作らない） */
+        if(el.getAttribute('data-fc')==='paydayShift'){ renderFuri(); } } }
       fb.addEventListener('input', setFc); fb.addEventListener('change', setFc);
+      /* ★この月だけ変える★＝月ごとに持つ（翌月に持ち越さない）。空にしたら「当てた日」に戻る。 */
+      function setOvr(ev){
+        var el=ev.target; if(!el || el.id!=='furi-date-ovr') return;
+        var c=state.company; if(!c.furiDateBy) c.furiDateBy={};
+        var v=String(el.value||'');
+        if(v && /^\d{4}-\d{2}-\d{2}$/.test(v)) c.furiDateBy[state.month]=v;
+        else delete c.furiDateBy[state.month];
+        /* ★昔の1個の日付は もう使わない★（拾い終わったら消す＝次の月に効かない） */
+        if(c.furiDate) c.furiDate='';
+        persistSaveDebounced(); renderFuri();
+      }
+      fb.addEventListener('change', setOvr);
       // ★「銀行に取り込めなかった時」の開け閉め。開いた状態は保存しない（次はまた閉じている）
       function toggleFold(){ furiFoldOpen=!furiFoldOpen;
         var body=$('#furi-foldbody'), hd=$('#furi-fold');

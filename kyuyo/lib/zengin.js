@@ -168,7 +168,22 @@
    *   ★既定CRLF。空/未設定/知らない値/未確認の銀行/一覧にない銀行 は全部 既定へ倒す
    * @returns {object} {text, bytes, count, total, records[], newline}  (amount<=0の明細は除外)
    */
+  /* ★取組日は 日付であって 数ではない★（2026-08-27 実測）
+     padN は ★空を 0 と読んで 4桁に詰める★ので、振込指定日が空だと ★取組日 0000★ が
+     そのまま銀行へ行っていた。★build は取組日を1度も見ていなかった★。
+     ⇒ ここで ★MMDD として有り得る形か★ を見て、駄目なら ★作らない★（黙って 0000 を出さない）。 */
+  function checkTorikumi(v) {
+    var s = String(v == null ? '' : v).trim();
+    if (!/^\d{4}$/.test(s)) return '取組日(MMDD)が4桁の数字ではありません: ' + JSON.stringify(s);
+    var m = Number(s.slice(0, 2)), d = Number(s.slice(2));
+    if (m < 1 || m > 12) return '取組日の月が 1〜12 ではありません: ' + s;
+    if (d < 1 || d > 31) return '取組日の日が 1〜31 ではありません: ' + s;
+    return '';
+  }
+
   function build(committer, transfers, opts) {
+    var bad = checkTorikumi((committer || {}).torikumiMMDD);
+    if (bad) throw new Error('★全銀ファイルを作れません★ ' + bad);
     var list = (transfers || []).filter(function (t) { return num(t.amount) > 0; });
     var recs = [header(committer)];
     var total = 0;
@@ -183,7 +198,7 @@
   }
 
   return {
-    build: build, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
+    build: build, checkTorikumi: checkTorikumi, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
     toHankaku: toHankaku, padN: padN, padC: padC, yokinCode: yokinCode, toShiftJisBytes: toShiftJisBytes,
     newlineKey: newlineKey, resolveNewlineKey: resolveNewlineKey, bankOf: bankOf,
     NEWLINES: NEWLINES, NEWLINE_DEFAULT: NEWLINE_DEFAULT, BANKS: BANKS

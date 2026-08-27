@@ -18,17 +18,17 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory(require('./calc.js'), require('./payroll-calc.js'), require('./warimashi.js'),
       require('./zaiseki.js'), require('./juminzei.js'), require('./holidays.js'), require('./shotokuzei-hei.js'),
-      require('./shiharai-chosho.js'), require('./pay-rule.js'), require('./shakaihoken-hyo.js'), require('./koyo-hoken.js'));
+      require('./shiharai-chosho.js'), require('./pay-rule.js'), require('./shakaihoken-hyo.js'), require('./koyo-hoken.js'), require('./bank-holidays.js'));
   } else {
     // ★SHAKAIHOKEN_HYO は `const` 宣言でwindowに付かない(script global の字句スコープにだけ居る)。
     //   このUMDラッパはグローバルスコープで実行されるので bare 参照で拾える。window経由だけだと
     //   料率が既定フォールバック(0.04955)に落ちて健保が静かに間違う。
     root.PayrollMonthly = factory(root.PayslipCalc, root.PayrollCalc, root.Warimashi, root.Zaiseki, root.Juminzei,
       root.Holidays, root.ShotokuzeiHei, root.ShiharaiChosho, root.PayRule,
-      (typeof SHAKAIHOKEN_HYO !== 'undefined' ? SHAKAIHOKEN_HYO : root.SHAKAIHOKEN_HYO), root.KoyoHoken);
+      (typeof SHAKAIHOKEN_HYO !== 'undefined' ? SHAKAIHOKEN_HYO : root.SHAKAIHOKEN_HYO), root.KoyoHoken, root.BankHolidays);
   }
 })(typeof self !== 'undefined' ? self : this,
-  function (_Calc, _PayrollCalc, _Warimashi, _Zaiseki, _Juminzei, _Holidays, _Hei, _Chosho, _PayRule, _SHH, _KoyoHoken) {
+  function (_Calc, _PayrollCalc, _Warimashi, _Zaiseki, _Juminzei, _Holidays, _Hei, _Chosho, _PayRule, _SHH, _KoyoHoken, _Bank) {
   'use strict';
 
   // 依存の解決は「読み込み時に渡された物 → 無ければ実行時にグローバル」＝app.jsの遅延参照と同じ挙動(読込順に強い)
@@ -38,6 +38,7 @@
   function W() { return _Warimashi || G.Warimashi; }
   function ZK() { return _Zaiseki || G.Zaiseki; }
   function JZ() { return _Juminzei || G.Juminzei; }
+  function BH() { return _Bank || G.BankHolidays; }
   function HD() { return _Holidays || G.Holidays; }
   function HEI() { return _Hei || G.ShotokuzeiHei; }
   function SC() { return _Chosho || G.ShiharaiChosho; }
@@ -314,8 +315,43 @@
   }
   function payDateStr(ctx) { var o = payDateObj(ctx); return '令和' + (o.y - 2018) + '年' + o.m + '月' + o.d + '日'; }
 
+  /* ★振込指定日＝その月の支給日★（銀行が休みなら 会社の決め方で寄せる）
+     ─────────────────────────────────────────────────────────
+     ★2026-08-27 まで こうなっていなかった★
+       振込指定日は ★会社の設定に置いた 日付の欄が1つだけ★で、対象月を変えても そのまま。
+       ⇒ ★空なら 全銀の取組日が 0000★／★先月のままなら 先月の日付が銀行へ行く★（実測）。
+       ⇒ ★正しい日は payDateObj が もう計算できていた★＝持っている物を使っていなかっただけ。
+
+     ★寄せる向きは 法律で決まっていない★（労基法24条は「一定の期日」までしか言わない）。
+       ＝★焼き付けない★。会社の設定 paydayShift（'prev'＝前の営業日／'next'＝次の営業日）。
+       ★既定は 'prev'（前の営業日）★＝世の中でいちばん多い形。
+       ※ 2026-08-27 に本番の会社2件を数えたら ★どちらも振込指定日が空★＝
+          「今どうしているか」は データに無かった。だから ★当てて 根拠を見せて 直させる★。
+
+     ★銀行が休みの日は 法律で決まっている★＝bank-holidays.js（銀行法15条1項・施行令5条1項）。
+
+     返り … {y,m,d,moved,from,reason,shift} ／ 寄せられない時は null（呼んだ側が止める） */
+  function furikomiShiftOf(ctx) { return C(ctx).paydayShift === 'next' ? 'next' : 'prev'; }
+  function furikomiDateObj(ctx) {
+    var o = payDateObj(ctx);
+    var B = BH();
+    if (!B) return null;                       /* ★部品が無ければ 黙って何かを返さない★ */
+    var which = furikomiShiftOf(ctx);
+    var r = B.shift(o.y, o.m, o.d, which);
+    if (!r) return null;
+    r.shift = which;
+    return r;
+  }
+  /* ★全銀の取組日（MMDD 4桁）★ … 出せない時は 空（呼んだ側が「作らせない」） */
+  function furikomiMMDD(ctx) {
+    var o = furikomiDateObj(ctx);
+    var B = BH();
+    return (o && B) ? B.mmdd(o) : '';
+  }
+
   return {
     num: num,
+    furikomiDateObj: furikomiDateObj, furikomiMMDD: furikomiMMDD, furikomiShiftOf: furikomiShiftOf,
     defPayRule: defPayRule, ensurePayRule: ensurePayRule, payRuleCtx: payRuleCtx, payRuleResult: payRuleResult,
     employRateOf: employRateOf, prefRate: prefRate,
     carCommuteNonTax: carCommuteNonTax, carCommuteNonTaxInfo: carCommuteNonTaxInfo, COMMUTE_CAR_SOURCE: COMMUTE_CAR_SOURCE, commuteLimit: commuteLimit, syncCommute: syncCommute,
