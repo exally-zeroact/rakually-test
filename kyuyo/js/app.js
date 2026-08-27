@@ -3175,9 +3175,11 @@
     var cm=(typeof Zengin!=='undefined'&&Zengin.checkCommitter)?Zengin.checkCommitter(committer||{}):'';
     return {
       zengin:{ enabled:ready.length>0 && !cm, count:ready.length,
-        reason: cm ? cm : (ready.length ? '' : (listed.length ? '振込先(銀行・支店・口座)が入っていません' : '対象月に振込む人がいません')),
+        /* ★理由は 手前の物から言う★＝①人がいない ②振込先が無い ③委託者情報が無い。
+           （★奥の設定より先に 手前を言う★＝埋める順番を伝える） */
+        reason: ready.length ? (cm || '') : (listed.length ? '振込先(銀行・支店・口座)が入っていません' : '対象月に振込む人がいません'),
         // ★短い理由＝ボタンの中に入れる用。押せない理由を下まで読ませない。
-        short: cm ? '委託者情報なし' : (ready.length ? '' : (listed.length ? '振込先なし' : '対象者なし')) },
+        short: ready.length ? (cm ? '委託者情報なし' : '') : (listed.length ? '振込先なし' : '対象者なし') },
       xlsx:{ enabled:listed.length>0, count:listed.length,
         reason: listed.length ? '' : '対象月に振込む人がいません',
         short: listed.length ? '' : '対象者なし' }
