@@ -3273,8 +3273,12 @@
       +'<div><div class="bx-val" id="furi-date-view" style="font-weight:700;white-space:nowrap;font-size:16px">'+esc(head)+'</div>'
       +'<p class="hint" id="furi-date-why" style="margin:2px 0 6px">'+why+'</p>'
       +'<div class="frow2" style="margin:0">'
-        +'<div class="frow"><div class="flabel">この月だけ変える</div>'
-          +'<input class="finput" type="date" id="furi-date-ovr" value="'+attr(furiOverrideOf(state.month))+'"></div>'
+        /* ★空欄を並べて 人に埋めさせない★（指示役 2026-08-27）
+           空の「年/月/日」だけだと ★何を入れる所か／入れないとどうなるか★ が分からない。
+           ⇒ ★見出しで「別の日にする」と言い★、★入れなかった時にどうなるかを その場に書く★。 */
+        +'<div class="frow"><div class="flabel">この月だけ 別の日にする</div>'
+          +'<input class="finput" type="date" id="furi-date-ovr" value="'+attr(furiOverrideOf(state.month))+'">'
+          +'<p class="hint" style="margin:2px 0 0">入れなければ 上の '+esc(head)+' で出します。</p></div>'
         +'<div class="frow"><div class="flabel">支給日が銀行の休みの時</div>'
           +'<select class="finput" data-fc="paydayShift">'
           +'<option value="prev"'+(sh==='prev'?' selected':'')+'>前の営業日</option>'

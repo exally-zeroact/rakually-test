@@ -335,7 +335,7 @@ button:disabled,.btn-row button:disabled{background:#EAF3ED;color:#527A66;border
 .ic-kin{display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 12px;}
 .ic-f{display:flex;flex-direction:column;gap:3px;flex:1 1 64px;min-width:58px;}
 .ic-f>span{font-size:10px;color:#555555;font-weight:700;padding-left:1px;}
-.ic-f .ic-in{width:100%;padding:9px 8px;border:1.5px solid #d4eae0;border-radius:8px;font-size:15px;font-family:'DM Mono',monospace;text-align:right;color:#333333;-webkit-appearance:none;box-sizing:border-box;}
+.ic-f .ic-in{width:100%;padding:9px 8px;border:1.5px solid #d4eae0;border-radius:8px;font-size:16px;font-family:'DM Mono',monospace;text-align:right;color:#333333;-webkit-appearance:none;box-sizing:border-box;}
 .ic-f .ic-in:focus{outline:none;border-color:#52B788;}
 .ic-f2{flex:1.4 1 128px;}
 .ic-hm{display:flex;align-items:center;gap:4px;}
@@ -350,7 +350,7 @@ button:disabled,.btn-row button:disabled{background:#EAF3ED;color:#527A66;border
 .row{display:flex;gap:6px;align-items:center;}
 .row .lbl{flex:1.3;}
 .row .val{flex:1;text-align:right;font-family:'DM Mono',monospace;}
-.row input{padding:7px 9px;border:1px solid #d4eae0;border-radius:8px;font-size:13px;min-width:0;}
+.row input{padding:7px 9px;border:1px solid #d4eae0;border-radius:8px;font-size:16px;min-width:0;}/* ★16px以上★ iOSが勝手に拡大する（2026-08-27 実測で13pxだった） */
 .row .hz{display:flex;align-items:center;gap:3px;font-size:10px;color:#555555;white-space:nowrap;}
 .row .b-del{width:26px;height:30px;border:1px solid #e3ede8;border-radius:8px;background:#fff;color:#C62828;cursor:pointer;}
 

@@ -28,6 +28,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -47,11 +48,40 @@ function findChrome() {
   for (const p of c) { try { if (p && fs.existsSync(p)) return p; } catch (_) { /* 次を見る */ } }
   return '';
 }
+const require_ = createRequire(pathToFileURL(path.join(ROOT, 'package.json')));
+let JSDOM;
+try { ({ JSDOM } = require_('jsdom')); }
+catch { console.error('★jsdom が要ります（npm install）。動かして数えられないので止めます（0個と言わない）。'); process.exit(2); }
+
 const CHROME = findChrome();
 if (!CHROME) {
   console.error('★Chrome が見つかりません。測れないので止めます（0本と言わない）。');
   process.exit(2);
 }
+
+/* ★JSが作る物も 数える★（指示役 2026-08-27）
+   ─────────────────────────────────────────────────────
+   ★静的なHTMLだけ見る見張りは「JSが作る物」を一生 見ません★＝★何も見ていないのに緑★の型。
+   実際に 2026-08-27 の時点で、静的なHTMLに在る入/切は ★請求書の4個だけ★で、
+   ★給与の入/切は 1つも数えていませんでした★（JSが作るため）。
+   ⇒ ここでは ★アプリを本当に動かして タブを押してから★ 測る。
+   ★この repo に無い画面は「無い」と出す★（黙って飛ばさない）。 */
+const BOOTS = [
+  {
+    file: 'kyuyo/index.html',
+    tabs: ['scr-settings', 'scr-input', 'scr-list', 'scr-print', 'scr-furikomi'],
+    seed: (win) => {
+      const A = win.__PAYSLIP_TEST;
+      if (!A) throw new Error('app.js が動いていない（測れていません）');
+      const e = A.defEmp('山田 太郎');
+      e.payType = '月給'; e.base = '260000';
+      if (e.shikyu && e.shikyu[0]) e.shikyu[0].value = '260000';
+      e.pref = 'ehime';
+      const c = A.defCompany(); c.pref = 'ehime'; c.paydayDay = '25'; c.paydayRel = 'next';
+      A.state.company = c; A.state.month = '2026-08'; A.state.employees = [e];
+    },
+  },
+];
 
 /* ★見る画面は この repo から拾う★＝決め打ちしない（本番は2枚・テスト線は5枚） */
 export function screens(root) {
@@ -78,11 +108,25 @@ const PROBE = `
   });
   /* ★押す的★＝入/切・丸だけ見る（打つ欄は 横に長いので 高さで見る物ではない） */
   var taps=rows.filter(function(r){return r.t==='checkbox'||r.t==='radio';});
+  /* ★0×0 は「小さい」ではなく「測れていない」★＝隠れたまま（開けていない）。
+     ★言い分けないと 直しようのない赤を出し続ける★ので 分けて数える。 */
+  function hiddenBy(e){for(var a=e;a&&a!==document.documentElement;a=a.parentElement){
+    if(getComputedStyle(a).display==='none')return name(a).slice(0,40);}return '?';}
+  taps.forEach(function(r){});
+  var tapZero=[];
+  [].forEach.call(document.querySelectorAll('input[type=checkbox],input[type=radio]'),function(el){
+    var b=el.getBoundingClientRect();
+    if(b.width*b.height===0)tapZero.push({n:name(el).slice(0,40),by:hiddenBy(el)});});
   return {w:window.innerWidth,all:rows.length,
     small:rows.filter(function(r){return r.px<${MIN};}),
-    taps:taps.length,
-    tapSmall:taps.filter(function(r){return r.w<${TAP}||r.h<${TAP};})};
+    taps:taps.length,tapZero:tapZero,
+    tapSmall:taps.filter(function(r){return r.w>0&&r.h>0&&(r.w<${TAP}||r.h<${TAP});})};
 `;
+
+/* ★畳んである物を 開いてから測るための指定★（1か所に持つ）
+   ★ここに足す物は 見張りが名前で教えてくれる★＝「測れていない … 隠しているのは div.acc-body」
+   （2026-08-27 実測：給与の入力の 非課税の入/切が acc-body の中で 0×0 だった）。 */
+const OPEN_ALL = "<style>.screen{display:block!important}details>*{display:block!important}[hidden]{display:block!important}[style*=\"display:none\"]{display:block!important}.hide{display:block!important}.acc-body{display:block!important}</style>";
 
 const OUT = fs.mkdtempSync(path.join(os.tmpdir(), 'inputsize-'));
 
@@ -101,16 +145,17 @@ function pageOf(rel, tweak) {
   });
   /* ★畳んである箱を 開いてから測る★＝押す的の大きさは 隠れていると 0×0 になって測れない。
      字の大きさは display:none でも読めるが、大きさは読めない（2026-08-27 実測）。 */
-  html = html.replace('</head>', "<style>.screen{display:block!important}details>*{display:block!important}[hidden]{display:block!important}[style*=\"display:none\"]{display:block!important}.hide{display:block!important}</style>" + '</head>');
+  html = html.replace('</head>', OPEN_ALL + '</head>');
   if (tweak) html = tweak(html);
   return html;
 }
 
-function measure(rel, tweak) {
+function measure(rel, tweak) { return measureHtml(rel, pageOf(rel, tweak)); }
+
+function measureHtml(rel, html) {
   const base = rel.replace(/[^\w]+/g, '_');
   const page = path.join(OUT, base + '.html');
-  const html = pageOf(rel, tweak);
-  const tail = '<script>window.addEventListener("load",function(){var r;try{r=JSON.stringify((function(){'
+  const tail ='<script>window.addEventListener("load",function(){var r;try{r=JSON.stringify((function(){'
     + PROBE + '})());}catch(e){r=JSON.stringify({error:String(e)});}parent.postMessage(r,"*");});</scr' + 'ipt>';
   const cut = html.lastIndexOf('</body>');
   if (cut < 0) throw new Error(rel + ' … </body> が無い（測れていません）');
@@ -131,6 +176,68 @@ function measure(rel, tweak) {
   return j;
 }
 
+/* ★アプリを本当に動かして タブを押した後の姿★ を返す（text-colors と同じ作り方） */
+async function bootedHtml(b, tab, tweak) {
+  const file = path.join(ROOT, b.file);
+  const html = fs.readFileSync(file, 'utf8');
+  const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''), {
+    runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/' + b.file,
+  });
+  const win = dom.window, doc = win.document;
+  win.fetch = () => Promise.reject(new Error('no net'));
+  win.alert = () => {}; win.confirm = () => true; win.scrollTo = () => {}; win.print = () => {};
+  win.URL.createObjectURL = () => 'blob:fake';
+  win.open = () => ({ document: { write() {}, close() {} }, focus() {}, print() {}, close() {} });
+  const drop = ['supa-config.js', 'auth.js', 'env-badge.js', 'rakually-login.js'];
+  for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
+    const src = m[1].split('?')[0];
+    if (/^https?:/.test(src) || drop.indexOf(src.split('/').pop()) >= 0) continue;
+    const p = path.resolve(path.dirname(file), src);
+    if (!fs.existsSync(p)) continue;
+    const el = doc.createElement('script');
+    el.textContent = fs.readFileSync(p, 'utf8');
+    doc.body.appendChild(el);
+  }
+  await new Promise((r) => setTimeout(r, 500));
+  b.seed(win, doc);
+  const btn = doc.querySelector('button[data-scr="' + tab + '"]');
+  if (!btn) throw new Error(b.file + ' … タブが無い: ' + tab + '（測れていません）');
+  btn.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 350));
+  doc.querySelectorAll('script').forEach((s) => s.remove());
+  doc.querySelectorAll('[hidden]').forEach((x) => x.removeAttribute('hidden'));
+  doc.querySelectorAll('link[rel="stylesheet"]').forEach((l) => {
+    const href = (l.getAttribute('href') || '').split('?')[0];
+    if (/^https?:/.test(href)) { l.remove(); return; }
+    l.setAttribute('href', pathToFileURL(path.resolve(path.dirname(file), href)).href);
+  });
+  let out = '<!doctype html>\n' + doc.documentElement.outerHTML;
+  out = out.replace('</head>', OPEN_ALL + '</head>');
+  if (tweak) out = tweak(out);
+  return out;
+}
+
+async function runBooted(tweak) {
+  const res = [];
+  for (const b of BOOTS) {
+    if (!fs.existsSync(path.join(ROOT, b.file))) {
+      res.push({ rel: b.file + ' ▸（この repo には 無い）', all: 0, small: [], taps: 0, tapSmall: [], tapZero: [], absent: 1 });
+      continue;
+    }
+    for (const tab of b.tabs) {
+      const html = await bootedHtml(b, tab, tweak);
+      const j = measureHtml(b.file + ' ▸ ' + tab, html);
+      res.push({ rel: b.file + ' ▸ ' + tab, all: j.all, small: j.small, taps: j.taps, tapSmall: j.tapSmall, tapZero: j.tapZero || [] });
+    }
+  }
+  /* ★動かして数えたのに 入/切が1つも出てこない＝測れていない★（0個と言わない） */
+  const live = res.filter((r) => !r.absent);
+  if (live.length && live.reduce((a, r) => a + r.taps, 0) === 0) {
+    throw new Error('動かして数えたのに 入/切が1つも出てきません（★測れていません＝0個ではありません★）');
+  }
+  return res;
+}
+
 function run(tweak) {
   const list = screens(ROOT);
   const res = [];
@@ -143,7 +250,7 @@ function run(tweak) {
     /* ★入/切が在るのに 大きさが0のまま＝測れていない★（畳みを開けていない） */
     const hasCheck = /type="(checkbox|radio)"/i.test(raw);
     if (hasCheck && j.taps === 0) throw new Error(rel + ' … 入/切が在るのに 1つも測れていません');
-    res.push({ rel, all: j.all, small: j.small, taps: j.taps, tapSmall: j.tapSmall });
+    res.push({ rel, all: j.all, small: j.small, taps: j.taps, tapSmall: j.tapSmall, tapZero: j.tapZero || [] });
   }
   return res;
 }
@@ -155,14 +262,14 @@ if (process.argv.includes('--self-test')) {
     if (want === got) { p++; console.log('  ✓ ' + why); }
     else { f++; console.log('  ✗ ' + why + '（欲しい ' + JSON.stringify(want) + ' / 出た ' + JSON.stringify(got) + '）'); }
   };
-  const base = run();
+  const base = run().concat(await runBooted());
   const now = base.reduce((a, r) => a + r.small.length, 0);
   const seen = base.reduce((a, r) => a + r.all, 0);
   S(0, now, '★今は 16px未満が 0本★');
   S(true, seen >= 10, '★数えた欄が 十分に在る（空振りしていない）★（' + seen + '本）');
   /* ★わざと1本だけ小さくする★＝捕まえられるか */
-  const broke = run((html) => html.replace('</head>',
-    '<style>input,select,textarea{font-size:11px !important}</style></head>'));
+  const brk=(css)=>(html)=>html.replace('</head>','<style>'+css+'</style></head>');
+  const broke = run(brk('input,select,textarea{font-size:11px !important}'));
   const n2 = broke.reduce((a, r) => a + r.small.length, 0);
   S(true, n2 >= 10, '★全部を11pxにしたら 捕まえる★（' + n2 + '本）');
   /* ★1本だけ★ 小さくした時も 捕まえるか（見落としが無いか） */
@@ -178,7 +285,8 @@ if (process.argv.includes('--self-test')) {
   const tapBroke = run((html) => html.replace('</head>',
     '<style>input[type="checkbox"]{width:13px !important;height:13px !important;'
     + 'min-width:13px !important;min-height:13px !important}</style></head>'));
-  const t1 = tapBroke.reduce((a, r) => a + r.tapSmall.length, 0);
+  const tapBroke2 = await runBooted(brk('input[type="checkbox"]{width:13px !important;height:13px !important;min-width:13px !important;min-height:13px !important}'));
+  const t1 = tapBroke.concat(tapBroke2).reduce((a, r) => a + r.tapSmall.length, 0);
   S(true, t1 >= 1, '★押す的を13×13に戻したら 捕まえる★（' + t1 + '個）');
   fs.rmSync(OUT, { recursive: true, force: true });
   if (f) { console.error('\n★自己診断 ' + f + '件 失敗★'); process.exit(1); }
@@ -186,30 +294,35 @@ if (process.argv.includes('--self-test')) {
   process.exit(0);
 }
 
-const res = run();
+const res = run().concat(await runBooted());
 const small = res.reduce((a, r) => a + r.small.length, 0);
 const all = res.reduce((a, r) => a + r.all, 0);
 const taps = res.reduce((a, r) => a + r.taps, 0);
 const tapSmall = res.reduce((a, r) => a + r.tapSmall.length, 0);
+const tapZero = res.reduce((a, r) => a + (r.tapZero||[]).length, 0);
 console.log('[input-size] 幅' + WIDTH + 'px・本物のChrome ／ 見た画面 ' + res.length
   + ' ／ 数えた欄 ' + all + '本 ／ ★' + MIN + 'px未満 ' + small + '本★'
-  + ' ／ 押す的 ' + taps + '個 ／ ★' + TAP + '×' + TAP + '未満 ' + tapSmall + '個★');
+  + ' ／ 押す的 ' + taps + '個 ／ ★' + TAP + '×' + TAP + '未満 ' + tapSmall + '個★'
+  + ' ／ ★測れていない(0×0) ' + tapZero + '個★');
 res.forEach((r) => {
   console.log('  ' + r.rel.padEnd(20) + ' 欄 ' + String(r.all).padStart(3) + '本'
     + ' ／ 押す的 ' + String(r.taps).padStart(2) + '個'
     + (r.small.length ? '  ★' + r.small.length + '本が小さい★' : '')
-    + (r.tapSmall.length ? '  ★押す的 ' + r.tapSmall.length + '個が小さい★' : ''));
+    + (r.tapSmall.length ? '  ★押す的 ' + r.tapSmall.length + '個が小さい★' : '')
+    + ((r.tapZero||[]).length ? '  ★押す的 ' + r.tapZero.length + '個が 測れていない★' : ''));
   if (process.argv.includes('--list') || r.small.length) {
     r.small.forEach((s) => console.log('      ★' + s.px + 'px★ ' + s.t + '  ' + s.n));
   }
+  ((r.tapZero)||[]).forEach((z) => console.log('      ★測れていない(0×0)★ ' + z.n + '  … 隠しているのは ' + z.by));
   if (process.argv.includes('--list') || r.tapSmall.length) {
     r.tapSmall.forEach((s) => console.log('      ★押す的 ' + s.w + '×' + s.h + '★ ' + s.t + '  ' + s.n));
   }
 });
 fs.rmSync(OUT, { recursive: true, force: true });
-if (small || tapSmall) {
+if (small || tapSmall || tapZero) {
   if (small) console.error('\n★' + small + '本★ 16px未満です。iPhoneが勝手に拡大して 戻りません。');
   if (tapSmall) console.error('★' + tapSmall + '個★ 押す的が ' + TAP + '×' + TAP + ' 未満です。指で押せません。');
+  if (tapZero) console.error('★' + tapZero + '個★ 押す的が ★測れていません(0×0)★＝隠れたままです。「小さい」ではなく「測れていない」です。');
   console.error('直すまで進めません。');
   process.exit(1);
 }
