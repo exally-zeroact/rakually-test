@@ -58,6 +58,11 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 input, select, button, textarea { font-family: inherit; }
+/* ★打つ欄の字は 16px 以上★（iPhone は 16px 未満の欄に触ると 画面が勝手に拡大し 戻らない）
+   ★書いていない欄は ブラウザの既定 13.33px のまま★＝ここで まとめて底上げする。
+   （2026-08-27 指示役が本番のスマホ幅で 4本 見つけた／私が数えたら 給与にも2本 在った）
+   ★見張り★ scripts/input-size.mjs … ★描き終わった画面から 実際の px を読む★（隠れている物も数える） */
+input, select, textarea { font-size: 16px; }
 
 /* ── 上の帯 ─────────────────────────────────────────── */
 .appbar {

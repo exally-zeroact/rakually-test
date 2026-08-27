@@ -5,6 +5,11 @@ html,body{height:100%;}
    値は全アプリ共通の #333333（司さんの決定）。 */
 body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-webkit-text-size-adjust:100%;}
 input,select,button{font-family:inherit;}
+/* ★打つ欄の字は 16px 以上★（iPhone は 16px 未満の欄に触ると 勝手に拡大し 戻らない）
+   ★CSSに書いていない欄は ブラウザの既定 13.33px のまま★＝ここで まとめて底上げする。
+   （2026-08-27 実測：この画面の file の欄が2本 13.33px だった）
+   ★見張り★ scripts/input-size.mjs（描き終わった画面から 実際のpxを読む・隠れている物も数える） */
+input,select,textarea{font-size:16px;}
 
 /* ---- appbar ---- */
 .appbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;height:52px;padding:0 16px;background:#fff;border-bottom:1px solid #e3ede8;box-shadow:0 1px 4px rgba(30,60,40,.06);}
