@@ -75,6 +75,13 @@ jobs:
         run: node kyuyo/tests/button-wrap.test.mjs && node kyuyo/tests/button-wrap.test.mjs --self-test && node kyuyo/tests/ym-picker.test.mjs && node kyuyo/tests/ym-picker.test.mjs --self-test
       # ★振込指定日が対象月に追従しない＝先月の日付が銀行へ行く★（指示役 2026-08-27 D＝今週の優先1位）
       #   銀行の休みは ★法律★（銀行法15条1項・施行令5条1項）／★寄せる向きは法律に無い＝会社の設定★。
+      # ★⑦振込データを 実際に動かす★（指示役 2026-08-28「給与の一番 危ない所」）
+      #   ★画面のボタンを実際に押して★ 出たバイト列を ★120バイトずつ 欄の位置で 1文字ずつ読む★。
+      #   ★中の値どうしで閉じない★（作った値を自分で足し直すのは 検算ではない）。
+      - name: ★⑦振込データ 実際に動かして 全銀の欄を1文字ずつ読む (境界5つ・改行3通り)
+        run: node kyuyo/tests/zengin-real.mjs
+      - name: ★⑦振込データ (委託者コード空/受取人名が漢字だけ で押せるかの自己確認)
+        run: node kyuyo/tests/zengin-real.mjs --self-test
       - name: ★振込指定日が対象月に追従するか (12か月/年またぎ/末日/うるう年/土日祝/年末年始/全銀の4文字)
         run: node kyuyo/tests/furikomi-date.test.mjs
       - name: ★振込指定日 (昔の姿へ戻す/門番を外す/休みを見ない に戻したら赤になるかの自己確認)

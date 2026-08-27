@@ -181,10 +181,33 @@
     return '';
   }
 
+  /* ★空を 0 に読み替えて出す★ 穴は 取組日だけではなかった（2026-08-28 実際に動かして見つけた）
+     ・委託者コードが空 … padN が ★0000000000★ を作って ★そのまま銀行へ★
+     ・受取人名が漢字だけ … toHankaku が ★全部スペース★にして ★名前の無い振込★になる
+       （画面は e.furiKana が空だと ★漢字の氏名で代わりを埋める★＝カナに直せない字が全部消える）
+     ⇒ ★どちらも「作らない」★。★黙って空の物を銀行へ出さない★。 */
+  function checkCommitter(c) {
+    var code = String((c || {}).code == null ? '' : c.code).trim();
+    if (!code) return '委託者コードが空です（銀行から通知された10桁を入れてください）';
+    if (!/^\d{1,10}$/.test(code)) return '委託者コードが数字ではありません: ' + JSON.stringify(code);
+    if (/^0+$/.test(code)) return '委託者コードが 0 だけです: ' + JSON.stringify(code);
+    if (!toHankaku((c || {}).name).trim()) return '委託者名が空です（半角カナで入れてください）';
+    return '';
+  }
+  function checkName(t, i) {
+    if (toHankaku((t || {}).name).trim()) return '';
+    return (i + 1) + '件目の受取人名が空になります（半角カナで入れてください）: '
+      + JSON.stringify(String((t || {}).name || ''));
+  }
+
   function build(committer, transfers, opts) {
-    var bad = checkTorikumi((committer || {}).torikumiMMDD);
+    var bad = checkTorikumi((committer || {}).torikumiMMDD) || checkCommitter(committer);
     if (bad) throw new Error('★全銀ファイルを作れません★ ' + bad);
     var list = (transfers || []).filter(function (t) { return num(t.amount) > 0; });
+    for (var i = 0; i < list.length; i++) {
+      var nb = checkName(list[i], i);
+      if (nb) throw new Error('★全銀ファイルを作れません★ ' + nb);
+    }
     var recs = [header(committer)];
     var total = 0;
     list.forEach(function (t) { recs.push(dataRec(t)); total += num(t.amount); });
@@ -198,7 +221,7 @@
   }
 
   return {
-    build: build, checkTorikumi: checkTorikumi, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
+    build: build, checkTorikumi: checkTorikumi, checkCommitter: checkCommitter, checkName: checkName, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
     toHankaku: toHankaku, padN: padN, padC: padC, yokinCode: yokinCode, toShiftJisBytes: toShiftJisBytes,
     newlineKey: newlineKey, resolveNewlineKey: resolveNewlineKey, bankOf: bankOf,
     NEWLINES: NEWLINES, NEWLINE_DEFAULT: NEWLINE_DEFAULT, BANKS: BANKS

@@ -3165,15 +3165,19 @@
   /* ★純関数: 振込の対象から「押せるか／なぜ押せないか」を決める。
    *   画面にもライブラリにも触らないので、tests/furikomi-tab.test.mjs が作り物で確かめられる。
    *   ★押せない時は必ず理由を返す＝「押せないボタンだけ置いて黙る」を作らない。 */
-  function furikomiGate(transfers){
+  function furikomiGate(transfers, committer){
     var rows=transfers||[];
     var ready=rows.filter(function(t){return t.ready && t.amount>0;});
     var listed=rows.filter(function(t){return t.amount>0;});     // 振込一覧Excelに載る分
+    /* ★委託者情報が空なら 押させない★（2026-08-28 実際に動かして見つけた）
+       前は ★押せて、押してから 中で止まっていた★。★出来ていない物のボタンを見せるな★。
+       ★止める所は lib にも残す★（最後の砦＝Zengin.build の checkCommitter） */
+    var cm=(typeof Zengin!=='undefined'&&Zengin.checkCommitter)?Zengin.checkCommitter(committer||{}):'';
     return {
-      zengin:{ enabled:ready.length>0, count:ready.length,
-        reason: ready.length ? '' : (listed.length ? '振込先(銀行・支店・口座)が入っていません' : '対象月に振込む人がいません'),
+      zengin:{ enabled:ready.length>0 && !cm, count:ready.length,
+        reason: cm ? cm : (ready.length ? '' : (listed.length ? '振込先(銀行・支店・口座)が入っていません' : '対象月に振込む人がいません')),
         // ★短い理由＝ボタンの中に入れる用。押せない理由を下まで読ませない。
-        short: ready.length ? '' : (listed.length ? '振込先なし' : '対象者なし') },
+        short: cm ? '委託者情報なし' : (ready.length ? '' : (listed.length ? '振込先なし' : '対象者なし')) },
       xlsx:{ enabled:listed.length>0, count:listed.length,
         reason: listed.length ? '' : '対象月に振込む人がいません',
         short: listed.length ? '' : '対象者なし' }
@@ -3183,8 +3187,12 @@
   function buildTransfers(){
     return state.employees.filter(function(e){ return isActiveInMonth(e,state.month) && !e.retired; }).map(function(e){
       var net=0; try{ net=compute(e).net; }catch(_){}
-      var ready=!!(String(e.furiBankNo||'').trim() && String(e.furiBranchNo||'').trim() && String(e.furiAccount||'').trim() && net>0);
-      return { emp:e, name:(e.furiKana||e.name), bankNo:e.furiBankNo, bankName:e.furiBankName, branchNo:e.furiBranchNo, branchName:e.furiBranchName, yokin:e.furiYokin, account:e.furiAccount, amount:net, ready:ready };
+      /* ★受取人名が 銀行に出せる字になるか まで見る★（2026-08-28 実際に動かして見つけた）
+         カナが空だと ★漢字の氏名で代わりを埋めていた★ので、全銀に直す時に
+         ★全部スペース＝名前の無い振込★になっていた。★出せない物は ready にしない★。 */
+      var kana=(typeof Zengin!=='undefined'&&Zengin.toHankaku)?Zengin.toHankaku(e.furiKana||e.name):String(e.furiKana||'');
+      var ready=!!(String(e.furiBankNo||'').trim() && String(e.furiBranchNo||'').trim() && String(e.furiAccount||'').trim() && String(kana).trim() && net>0);
+      return { emp:e, name:(e.furiKana||e.name), kanaOk:!!String(kana).trim(), bankNo:e.furiBankNo, bankName:e.furiBankName, branchNo:e.furiBranchNo, branchName:e.furiBranchName, yokin:e.furiYokin, account:e.furiAccount, amount:net, ready:ready };
     });
   }
   /* ── 「銀行に取り込めなかった時」の中身（普段は閉じている） ────────────────
@@ -3320,7 +3328,7 @@
     var total=ready.reduce(function(a,t){return a+t.amount;},0);
     /* ★押せるかは furikomiGate が決める。押せない理由は【ボタンの中】に出す。
        （下に小さく置くと読まれない。横に置くと幅360で折り返してボタンが崩れる＝実測） */
-    var gate=furikomiGate(tr);
+    var gate=furikomiGate(tr, { code:c.furiCode, name:c.furiName });
     var btns='<div class="btn-row" style="margin-top:10px;align-items:center">'
       +'<button class="btn-primary" id="b-zengin"'+(gate.zengin.enabled?'':' disabled')+'>全銀ファイル（'
         +(gate.zengin.enabled?(gate.zengin.count+'件 '+yen(total)):esc(gate.zengin.short))+'）</button>'
