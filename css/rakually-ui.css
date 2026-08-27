@@ -118,8 +118,16 @@ input, select, textarea { font-size: 16px; }
 /* ★入/切の1行★
    flex だが、★文の側に最低幅を持たせて縮ませない★。
    これを忘れると、狭い端末で説明文が1文字ずつ縦に割れる（前科3回）。 */
+/* ★押す的は 20×20 以上★（指で押す物・指示役の裁定 2026-08-27）
+   ★.check の中の物だけ大きくしていた★ので、★裸で置いた入/切は 13×13 のまま★だった
+   （実測：#s-reset だけ 13×13／ほかは 20×20）。⇒ ★入/切と丸は 全部 底上げする★。
+   ★字の大きさは変えない★＝見た目は変わらず 押す的だけ広がる。
+   ★見張り★ scripts/input-size.mjs（描き終わった画面から 実際の大きさを読む・隠れている物も数える） */
+input[type="checkbox"], input[type="radio"] {
+  width: 20px; height: 20px; min-width: 20px; min-height: 20px; accent-color: #2E7D54;
+}
 .check { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
-.check > input[type="checkbox"] { flex: 0 0 auto; width: 20px; height: 20px; margin: 2px 0 0; accent-color: #2E7D54; }
+.check > input[type="checkbox"] { flex: 0 0 auto; margin: 2px 0 0; }
 .check > span {
   flex: 1 1 auto; min-width: 140px;
   font-size: 13px; color: #333333; line-height: 1.7;

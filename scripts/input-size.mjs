@@ -34,6 +34,7 @@ const ROOT = path.join(HERE, '..');
 const WIDTH = 390;                 /* iPhone の幅（司さんの実機に合わせる） */
 const HEIGHT = 844;
 const MIN = 16;                    /* ★これ未満だと iOS が勝手に拡大する★ */
+const TAP = 20;                    /* ★指で押す的の下限★（指示役の裁定 2026-08-27） */
 
 function findChrome() {
   const c = [
@@ -70,9 +71,17 @@ const PROBE = `
   [].forEach.call(document.querySelectorAll('input,select,textarea'),function(el){
     if(el.type==='hidden')return;
     var px=parseFloat(getComputedStyle(el).fontSize)||0;
-    rows.push({n:name(el).slice(0,60),t:(el.type||el.tagName.toLowerCase()),px:Math.round(px*100)/100});
+    var b=el.getBoundingClientRect();
+    rows.push({n:name(el).slice(0,60),t:(el.type||el.tagName.toLowerCase()),
+      px:Math.round(px*100)/100,
+      w:Math.round(b.width*10)/10, h:Math.round(b.height*10)/10});
   });
-  return {w:window.innerWidth,all:rows.length,small:rows.filter(function(r){return r.px<${MIN};})};
+  /* ★押す的★＝入/切・丸だけ見る（打つ欄は 横に長いので 高さで見る物ではない） */
+  var taps=rows.filter(function(r){return r.t==='checkbox'||r.t==='radio';});
+  return {w:window.innerWidth,all:rows.length,
+    small:rows.filter(function(r){return r.px<${MIN};}),
+    taps:taps.length,
+    tapSmall:taps.filter(function(r){return r.w<${TAP}||r.h<${TAP};})};
 `;
 
 const OUT = fs.mkdtempSync(path.join(os.tmpdir(), 'inputsize-'));
@@ -90,6 +99,9 @@ function pageOf(rel, tweak) {
     const abs = pathToFileURL(path.resolve(path.dirname(file), href)).href;
     return tag.replace(m[1], abs);
   });
+  /* ★畳んである箱を 開いてから測る★＝押す的の大きさは 隠れていると 0×0 になって測れない。
+     字の大きさは display:none でも読めるが、大きさは読めない（2026-08-27 実測）。 */
+  html = html.replace('</head>', "<style>.screen{display:block!important}details>*{display:block!important}[hidden]{display:block!important}[style*=\"display:none\"]{display:block!important}.hide{display:block!important}</style>" + '</head>');
   if (tweak) html = tweak(html);
   return html;
 }
@@ -128,7 +140,10 @@ function run(tweak) {
     const j = measure(rel, tweak);
     /* ★HTMLに欄が在るのに 1本も測れていない＝測れていない（0本と言わない）★ */
     if (hasInput && j.all === 0) throw new Error(rel + ' … 欄が在るのに 1本も測れていません');
-    res.push({ rel, all: j.all, small: j.small });
+    /* ★入/切が在るのに 大きさが0のまま＝測れていない★（畳みを開けていない） */
+    const hasCheck = /type="(checkbox|radio)"/i.test(raw);
+    if (hasCheck && j.taps === 0) throw new Error(rel + ' … 入/切が在るのに 1つも測れていません');
+    res.push({ rel, all: j.all, small: j.small, taps: j.taps, tapSmall: j.tapSmall });
   }
   return res;
 }
@@ -155,6 +170,16 @@ if (process.argv.includes('--self-test')) {
     '<style>input[type="date"]{font-size:12px !important}</style></head>'));
   const n3 = one.reduce((a, r) => a + r.small.length, 0);
   S(true, n3 >= 1, '★1種類だけ小さくしても 捕まえる★（' + n3 + '本）');
+  /* ★押す的★（指示役の裁定 2026-08-27） */
+  const t0 = base.reduce((a, r) => a + r.tapSmall.length, 0);
+  const tAll = base.reduce((a, r) => a + r.taps, 0);
+  S(0, t0, '★今は ' + TAP + '×' + TAP + '未満の押す的が 0個★');
+  S(true, tAll >= 1, '★押す的を 実際に数えている（空振りしていない）★（' + tAll + '個）');
+  const tapBroke = run((html) => html.replace('</head>',
+    '<style>input[type="checkbox"]{width:13px !important;height:13px !important;'
+    + 'min-width:13px !important;min-height:13px !important}</style></head>'));
+  const t1 = tapBroke.reduce((a, r) => a + r.tapSmall.length, 0);
+  S(true, t1 >= 1, '★押す的を13×13に戻したら 捕まえる★（' + t1 + '個）');
   fs.rmSync(OUT, { recursive: true, force: true });
   if (f) { console.error('\n★自己診断 ' + f + '件 失敗★'); process.exit(1); }
   console.log('\n自己診断 ' + p + '件 とも 正しい');
@@ -164,18 +189,28 @@ if (process.argv.includes('--self-test')) {
 const res = run();
 const small = res.reduce((a, r) => a + r.small.length, 0);
 const all = res.reduce((a, r) => a + r.all, 0);
+const taps = res.reduce((a, r) => a + r.taps, 0);
+const tapSmall = res.reduce((a, r) => a + r.tapSmall.length, 0);
 console.log('[input-size] 幅' + WIDTH + 'px・本物のChrome ／ 見た画面 ' + res.length
-  + ' ／ 数えた欄 ' + all + '本 ／ ★' + MIN + 'px未満 ' + small + '本★');
+  + ' ／ 数えた欄 ' + all + '本 ／ ★' + MIN + 'px未満 ' + small + '本★'
+  + ' ／ 押す的 ' + taps + '個 ／ ★' + TAP + '×' + TAP + '未満 ' + tapSmall + '個★');
 res.forEach((r) => {
   console.log('  ' + r.rel.padEnd(20) + ' 欄 ' + String(r.all).padStart(3) + '本'
-    + (r.small.length ? '  ★' + r.small.length + '本が小さい★' : ''));
+    + ' ／ 押す的 ' + String(r.taps).padStart(2) + '個'
+    + (r.small.length ? '  ★' + r.small.length + '本が小さい★' : '')
+    + (r.tapSmall.length ? '  ★押す的 ' + r.tapSmall.length + '個が小さい★' : ''));
   if (process.argv.includes('--list') || r.small.length) {
     r.small.forEach((s) => console.log('      ★' + s.px + 'px★ ' + s.t + '  ' + s.n));
   }
+  if (process.argv.includes('--list') || r.tapSmall.length) {
+    r.tapSmall.forEach((s) => console.log('      ★押す的 ' + s.w + '×' + s.h + '★ ' + s.t + '  ' + s.n));
+  }
 });
 fs.rmSync(OUT, { recursive: true, force: true });
-if (small) {
-  console.error('\n★' + small + '本★ 16px未満です。iPhoneが勝手に拡大して 戻りません。直すまで進めません。');
+if (small || tapSmall) {
+  if (small) console.error('\n★' + small + '本★ 16px未満です。iPhoneが勝手に拡大して 戻りません。');
+  if (tapSmall) console.error('★' + tapSmall + '個★ 押す的が ' + TAP + '×' + TAP + ' 未満です。指で押せません。');
+  console.error('直すまで進めません。');
   process.exit(1);
 }
-console.log('\nOK（16px未満の入力欄は 0本）');
+console.log('\nOK（16px未満の入力欄 0本 ／ ' + TAP + '×' + TAP + '未満の押す的 0個）');
