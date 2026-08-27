@@ -29,6 +29,9 @@ const OPEN_ALL = '<style>.screen{display:block!important}details>*{display:block
 /* ★playwright は 別の repo に入っている物を借りる★（rakually-test には入れない＝重い依存を足さない） */
 /* ★借り先★（この repo には入れない＝重い依存を足さない） */
 const LENDERS = [
+  /* ★この repo の物★（2026-08-28 案A＝devDependency に入れた） */
+  path.join(ROOT, 'node_modules/playwright/index.js'),
+  /* 手元に無い時だけ 借りる（司さんのPCで すぐ回せるように） */
   'C:/Users/zeroa/Exally-test/node_modules/playwright/index.js',
   'C:/Users/zeroa/Daikou-app/node_modules/playwright/index.js',
   'C:/Users/zeroa/Daikou-app-test/node_modules/playwright/index.js',
@@ -36,7 +39,9 @@ const LENDERS = [
 function unmeasured(why) {
   console.log('[webkit] ★未測定★ … ' + why);
   console.log('  ★これは「問題なし」ではありません★。Chrome で測る scripts/input-size.mjs は 毎回 走っています。');
-  console.log('  ★測るには★ playwright（webkit）が要ります: npx playwright install webkit');
+  console.log('  ★測るには★ npm install && npx playwright install webkit');
+  console.log('  ★決めた1行★ この見張りは ★週1（月曜朝）と 見た目に関わる所を触った時★ に');
+  console.log('              .github/workflows/webkit.yml で ★本当に測ります★（毎回のCIには置きません）。');
   process.exit(0);
 }
 let webkit = null;
