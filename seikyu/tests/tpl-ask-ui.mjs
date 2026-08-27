@@ -169,12 +169,19 @@ async function run(label, appSrc) {
     ok(/どの紙で出しますか/.test(card.textContent || ''), '問いの字が違う');
   });
 
-  await T('② ★見本を一緒に見せる／2枚は 別の絵★（同じ絵なら 見本が嘘）', async () => {
+  /* ★様式の数を 決め打ちしない★（2026-08-27 3つ目を足した日に ここが赤くなった）
+     ＝★lib(seikyu-templates.js)が持つ数が 正★。足した日に 試験を直さなくてよい形にする。 */
+const TPL_N = (function () {
+  const T2 = require_(path.join(ROOT, 'seikyu/lib/seikyu-templates.js'));
+  return T2.list().length;
+})();
+
+  await T('② ★見本を一緒に見せる／' + TPL_N + '枚とも 別の絵★（同じ絵なら 見本が嘘）', async () => {
     const { doc } = await boot(appSrc);
     const shots = [...doc.querySelectorAll('.tpl-shot iframe')].map((f) => f.getAttribute('srcdoc') || '');
-    eq(shots.length, 2, '見本の数');
-    ok(shots[0].length > 500 && shots[1].length > 500, '★見本が空＝描けていない★');
-    ok(shots[0] !== shots[1], '★見本2枚が 同じ絵＝様式が効いていない（見本が嘘）★');
+    eq(shots.length, TPL_N, '見本の数');
+    shots.forEach((x, i) => ok(x.length > 500, '★' + (i + 1) + '枚目の見本が空＝描けていない★'));
+    ok(new Set(shots).size === shots.length, '★同じ絵が混ざっている＝様式が効いていない（見本が嘘）★');
   });
 
   await T('③ ★選ぶと その場で畳んで 1行になる★（1問ごと保存）', async () => {
@@ -205,7 +212,7 @@ async function run(label, appSrc) {
     const { doc } = await boot(appSrc);
     const j = await measureShape(doc);
     eq(j.vw, 390, '390pxで測れていない');
-    eq(j.shots.length, 2, '見本の数');
+    eq(j.shots.length, TPL_N, '見本の数');
     j.shots.forEach((s2, i) => {
       const katachi = s2.w / s2.h;
       ok(Math.abs(katachi - 210 / 297) < 0.03,

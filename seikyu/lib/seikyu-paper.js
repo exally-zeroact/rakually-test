@@ -743,11 +743,16 @@
       for (var i = 0; i < blanks; i++) rows += '<tr class="r-blank"><th>&nbsp;</th><td>&nbsp;</td></tr>';
       /* ★このブロックの合計はこのブロックが持つ★（給料明細の「控除合計」と同じ）。
          締めの「請求額」とは役目が違う（ブロックの足し算／払う額）。 */
-      return '<div class="blk blk-ded">' + blockHead('控除')
+      /* ★呼び名は焼き付けない★（指示役の裁定 2026-08-27）
+         実物は ★同じ相手・同じ年でも 中計7通／小計4通に割れている★＝機械では決められない。
+         ⇒ ①その1通が持つ物 → ②会社が決めた物 → ③様式の既定 → ④今までの言い方 の順で決める。 */
+      var dHead = textOf((inv.data && inv.data.dedHeadLabel) || o.dedHeadLabel || TH.dedHead) || '控除';
+      var dSum = textOf((inv.data && inv.data.dedSumLabel) || o.dedSumLabel || TH.dedSum) || '控除計';
+      return '<div class="blk blk-ded">' + blockHead(dHead)
         + '<table class="ded"><tbody>'
         + '<tr class="ded-hd"><th>内容</th><td>金額</td></tr>'
         + rows + '</tbody></table>'
-        + blockSum('控除計', (deduct === null) ? '（未確認）' : (deduct ? '-' + yen(deduct) : yen(0)))
+        + blockSum(dSum, (deduct === null) ? '（未確認）' : (deduct ? '-' + yen(deduct) : yen(0)))
         + '</div>';
     }
 
@@ -757,7 +762,13 @@
     /* ★口座番号だけ 大きく・等幅★（読み間違いが一番 困る所）
        分け方（何行に分けるか）は ★bankLines が唯一の正★＝紙も Excel も同じ形にする。 */
     function bankHtml(bank) {
-      return bankLines(bank).map(function (line, i) {
+      var parts = bankLines(bank);
+      /* ★1行で出す様式★（実物の控除型は 11通とも 振込先が1行）＝様式が決める・焼き付けない */
+      if (TH.bankOneLine) {
+        var one = esc(parts.join(' ')).replace(/(\d{5,8})/g, '<span class="bank-no">$1</span>');
+        return one;
+      }
+      return parts.map(function (line, i) {
         var t = esc(line).replace(/(\d{5,8})/g, '<span class="bank-no">$1</span>');
         return (i === 0) ? t : '<span class="bank-nm">' + t + '</span>';
       }).join('<br>');

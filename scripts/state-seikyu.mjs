@@ -99,7 +99,9 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
   const shots = [...doc.querySelectorAll('.tpl-shot iframe')]
     .map((f) => f.getAttribute('srcdoc') || '').filter((x) => x.length > 500);
   N.見本の絵 = shots.length;
-  N.見本が別の絵 = (shots.length === 2 && shots[0] !== shots[1]) ? 1 : 0;
+  /* ★2枚 決め打ちをやめる★＝様式が3つになったら 3枚とも別の絵か を見る（2026-08-27）
+     ★「2枚の時だけ見る」形は 3枚目を足した瞬間 黙って0になった★＝決め打ちの穴。 */
+  N.見本が別の絵 = (shots.length >= 2 && new Set(shots).size === shots.length) ? 1 : 0;
   /* ★戻って続きから★（司さん 2026-08-24）＝[変える]が在るか */
   N.戻る動線 = doc.getElementById('b-tpl-change') ? 1 : 0;
   stage.push({
@@ -107,8 +109,8 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
     数: '様式 ' + N.紙の様式 + '種／作る時に聞く ' + N.作る時に聞く箱 + '／見本 ' + N.見本の絵
       + '枚（別の絵 ' + N.見本が別の絵 + '）／戻る動線 ' + N.戻る動線,
   });
-  if (N.紙の様式 < 3) note.push('★様式は2種だけ（std1／elegant）。実物は16社42枚 在る＝ここが薄い★');
-  if (!N.見本が別の絵) note.push('★見本2枚が同じ絵＝様式が効いていない（見本が嘘）★');
+  if (N.紙の様式 < 3) note.push('★様式が3種に足りない（実物は47通・11通が控除型）★');
+  if (!N.見本が別の絵) note.push('★見本に 同じ絵が混ざっている＝様式が効いていない（見本が嘘）★');
 }
 
 /* ── ② 自社を入れる（紙に刷られる物） ── */
