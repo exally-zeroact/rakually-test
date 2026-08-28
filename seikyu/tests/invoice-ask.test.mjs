@@ -108,11 +108,41 @@ T('★⑥ その場の返しが 数と日付で出る', () => {
   const qs = ASK.questions(base({ issue: '2026-10-05' }));
   const sub = qs.filter((q) => q.key === 'subject')[0];
   const due = qs.filter((q) => q.key === 'due')[0];
-  eq(sub.result('9月分 運転代行'), '紙の頭に「9月分 運転代行」と刷ります。', '件名の返し');
-  eq(sub.result(''), '件名の行は 刷りません。', '空の時の返し');
+  /* ★2026-08-29 直した★（司さん「件名はどこにでる？」）
+     前は「紙の頭に刷ります」と返していたが ★実測では 紙に0回★＝★嘘を返していた★。
+     ★出る所を そのまま言う★に直した。 */
+  const r1 = sub.result('9月分 運転代行');
+  ok(/Excelの「件名」に「9月分 運転代行」と入ります/.test(r1), '件名の返し：' + r1);
+  ok(/紙の請求書には 出ません/.test(r1), '★紙に出ない事を 言っていない★：' + r1);
+  ok(!/紙の頭に/.test(r1), '★まだ「紙の頭に刷ります」と言っている★：' + r1);
+  ok(/空のまま/.test(sub.result('')), '空の時の返し：' + sub.result(''));
   ok(/2026年11月30日 までに もらう約束/.test(due.result('2026-11-30')), '期限の返し：' + due.result('2026-11-30'));
   ok(/請求日から 56日後/.test(due.result('2026-11-30')), '日数が出ていない：' + due.result('2026-11-30'));
   eq(due.result('めちゃくちゃ'), '', '★読めない日に 何か言っている（嘘を返している）★');
+});
+
+T('★⑥-b ★本当に紙に出ないのか 実物の紙で数える★（言葉だけ直さない）', () => {
+  const PAPER = require_(path.join(HERE, '..', 'lib', 'seikyu-paper.js'));
+  const TPL = require_(path.join(HERE, '..', 'lib', 'seikyu-templates.js'));
+  const TAX = require_(path.join(HERE, '..', 'lib', 'seikyu-tax.js'));
+  const MARK = 'ZZ件名テストZZ';
+  const lines = [{ name: '運転代行', qty: '1', unit: '式', price: '10000', rate: 10 }];
+  const tax = TAX.compute({ lines: lines, mode: 'exclusive', rounding: 'floor' });
+  const v = { no: 'A-1', issue_ymd: '2026-10-05', due_ymd: '2026-11-30', kind: 'invoice',
+    data: { subject: MARK }, lines: lines, totals: { grandTotal: 11000 } };
+  const ids = TPL.list().map((t) => t.id || t.key || t);
+  ok(ids.length >= 3, '様式が ' + ids.length + '個＝数えられていない');
+  const hit = ids.map((id) => {
+    const h = PAPER.build({ inv: v, tax: tax, partner: { name: '○○建設株式会社', honor: '御中' },
+      org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293' },
+      template: TPL.getOrDefault(id) });
+    const str = typeof h === 'string' ? h : ((h && h.html) || JSON.stringify(h));
+    ok(str.length > 500, id + ' … 紙が作れていない（' + str.length + '字）＝数えても意味が無い');
+    return { id: id, n: (str.match(new RegExp(MARK, 'g')) || []).length };
+  });
+  const out = hit.map((x) => x.id + '=' + x.n).join(' / ');
+  ok(hit.every((x) => x.n === 0), '★紙に件名が出ている★ ' + out + ' … 返しの言葉を 直すこと');
+  console.log('     紙に件名が出た回数 … ' + out + '（3様式とも0＝返しの言葉と 合っている）');
 });
 
 T('★⑦ 1問ずつ進む（答えた物は もう聞かない）', () => {
