@@ -1,7 +1,7 @@
 /* ledger-banner.mjs — ★「台帳から取り込む」は 行数を見てから出す★（指示役の裁定 2026-08-22）
  * =============================================================================
  * なぜ要るか:
- *   台帳(pay_ledger)に書く画面は Rakually に 0件。だから台帳が空の会社では
+ *   台帳(pay_ledger)に書く画面は Rakunally に 0件。だから台帳が空の会社では
  *   ★押すと必ず空振り★ なのに ボタンと「二度打ちは不要です」が出ていた。
  *   ＝★出来ていない物のボタンを見せるな★。
  * 決まり（そのまま試験にした）:
@@ -63,7 +63,7 @@ async function boot(appSrc, store) {
   for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
     const src = m[1].split('?')[0];
     const base = src.split('/').pop();
-    if (/^https?:/.test(src) || ['supa-config.js', 'auth.js', 'env-badge.js', 'rakually-login.js'].includes(base)) continue;
+    if (/^https?:/.test(src) || ['supa-config.js', 'auth.js', 'env-badge.js', 'rakunally-login.js'].includes(base)) continue;
     const p = path.resolve(path.dirname(INDEX), src);
     if (!fs.existsSync(p)) continue;
     const el = doc.createElement('script');

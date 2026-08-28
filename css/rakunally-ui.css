@@ -5,7 +5,7 @@
    ・.warn / .bad は ★色そのものが意味★（箱の色と同じ）なので 色のまま。
    ・見張り: node scripts/text-colors.mjs（★描かれた色を数える★。書いてある文字列では数えない）
 */
-/* rakually-ui.css — ★Exally スイート共通の皮（見た目の唯一の正）★
+/* rakunally-ui.css — ★Exally スイート共通の皮（見た目の唯一の正）★
  * ==============================================================================
  * なぜ要るのか（2026-08-10 実測）:
  *   js は既に共有していた（auth / exally-login / file-out / suite-data / supa-config）のに、

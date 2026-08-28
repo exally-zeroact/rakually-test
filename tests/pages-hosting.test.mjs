@@ -22,12 +22,12 @@
  *   D. 本番SupabaseのURLが、例外表に無いファイルに出てこない
  *   F. 例外表が腐っていない(理由・戻す条件・ファイルの実在)
  *
- * ★2026-08-17 Rakually（rakually-test）へ運んだ時に替えた所★
+ * ★2026-08-17 Rakunally（rakually-test）へ運んだ時に替えた所★
  *   ・配信は ★Vercel のルート★（github.io のサブパスではない）。それでも この見張りは残す:
  *       ①絶対パス "/…" は 配信の置き方が変わると必ず壊れる（相対なら両方で正しい）
  *       ②★テスト線が本番倉庫を向く★のが一番の事故＝D/D2 はここでしか止められない
  *   ・★E（index.html が hub.html と1バイト違わない）は消した★
- *       ＝Rakually の入口は ★index.html の1枚だけ★（hub.html は Exally の物なので持って来ていない）。
+ *       ＝Rakunally の入口は ★index.html の1枚だけ★（hub.html は Exally の物なので持って来ていない）。
  *         写しが2枚無いので「写しが古くなる」事故は起きえない。戻す条件＝入口を2枚にする時。
  *
  * 使い方: node tests/pages-hosting.test.mjs
@@ -49,7 +49,7 @@ const DBTEST_REF = 'khawdrnvssdenumbiwfg';
    （tests/ci-coverage.test.mjs と同じやり方＝外すこと自体は認めるが、必ず一覧に出す） */
 const EXCEPTIONS = {
   //  ★book.html（グリッドのチャットが fetch('/api/claude')）の例外は 2026-08-17 に消した。
-  //    ＝book.html を Rakually に持って来ていない（Exally の物）。持っていない物の例外は残さない。
+  //    ＝book.html を Rakunally に持って来ていない（Exally の物）。持っていない物の例外は残さない。
   //  ★statutory-hydrate.js の例外は 2026-08-02 に消した。
   //    削除済み5枚の残骸12本を本番(abcc812)とstagingの両方から実際に削除したため。
   //    本番の実配信でも12本とも404になっていることを確認済み。
@@ -180,7 +180,7 @@ if (process.argv.includes('--self-test')) {
   const clone = () => JSON.parse(JSON.stringify(base));
   const cases = [
     ['① 入口のHTMLに href="/kyuyo/" を戻す', (m) => { m['index.html'] = m['index.html'].replace('href="kyuyo/"', 'href="/kyuyo/"'); }, 'absAttr'],
-    ['② 給与の「← Rakually」を href="/" に戻す', (m) => { m['kyuyo/index.html'] = m['kyuyo/index.html'].replace('href="../index.html"', 'href="/"'); }, 'absAttr'],
+    ['② 給与の「← Rakunally」を href="/" に戻す', (m) => { m['kyuyo/index.html'] = m['kyuyo/index.html'].replace('href="../index.html"', 'href="/"'); }, 'absAttr'],
     ['③ manifest の scope を "/" に戻す', (m) => { m['manifest.json'] = m['manifest.json'].replace('"scope": "./"', '"scope": "/"'); }, 'manifest'],
     // ★名前が manifest.json でない物(admin-manifest.json)も拾えるか＝2026-08-01に実際に取りこぼした穴
     // ★中身で探す（?v=<SHA> が付くので、名前の全文一致で探すと 壊せずに素通りする）★
@@ -232,7 +232,7 @@ T('D2. 接続設定 js/supa-config.js が DB-test を向いている', () => {
   if (V.dbtest.length) throw new Error(V.dbtest.join(' / '));
 });
 /* ★E（入口の写しが古くならないか）は 2026-08-17 に消した★
-   Rakually の入口は index.html の1枚だけ（hub.html は Exally の物＝持って来ていない）。
+   Rakunally の入口は index.html の1枚だけ（hub.html は Exally の物＝持って来ていない）。
    写しが2枚無いので この事故は起きえない。★代わりに「入口が2枚に戻っていないか」を見る★
    ＝写しを作った日に、上の E を書き戻す事を思い出せる形にしておく。 */
 T('E. ★入口は index.html の1枚だけ（写しを増やしていない＝古い写しが配られる事故を作らない）', () => {

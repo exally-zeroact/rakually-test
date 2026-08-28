@@ -1,5 +1,5 @@
-// rakually-login-forgot.test.mjs — ★パスワードを忘れた（2026-08-23 追加）★
-//  共通ログイン部品(js/rakually-login.js)の逃げ道を、実物のDOMで押して確かめる:
+// rakunally-login-forgot.test.mjs — ★パスワードを忘れた（2026-08-23 追加）★
+//  共通ログイン部品(js/rakunally-login.js)の逃げ道を、実物のDOMで押して確かめる:
 //   - 倉庫が resetPasswordForEmail を持つ時だけ ボタンを出す（出来ない物のボタンを見せない）
 //   - メール未入力で押したら 送らずに言葉で返す
 //   - 送ったら「送りました」の札。★その住所が登録されているかは言わない★
@@ -8,7 +8,7 @@
 //     ★新しいパスワードを決める札★ が最初から出る
 //   - 6文字未満は updateUser を呼ばない／決めたら onLogin が呼ばれ 目印がURLから消える
 //   - 回帰: ふつうのログイン・新規登録は前のまま
-//  依存: jsdom。使い方: node kyuyo/tests/rakually-login-forgot.test.mjs
+//  依存: jsdom。使い方: node kyuyo/tests/rakunally-login-forgot.test.mjs
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -20,14 +20,14 @@ function T(name, fn) { return Promise.resolve().then(fn).then(() => { pass++; co
 function ok(c, m) { if (!c) throw new Error(m || 'expected truthy'); }
 function eq(a, b, m) { if (a !== b) throw new Error((m ? m + ': ' : '') + 'expected ' + JSON.stringify(b) + ' got ' + JSON.stringify(a)); }
 
-const SRC = fs.readFileSync(path.join(ROOT, '..', 'js/rakually-login.js'), 'utf8');
+const SRC = fs.readFileSync(path.join(ROOT, '..', 'js/rakunally-login.js'), 'utf8');
 function loadLogin(url) {
   const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously', url: url || 'http://localhost/app.html', pretendToBeVisual: true });
   const win = dom.window;
   const el = win.document.createElement('script');
   el.textContent = SRC;
   win.document.body.appendChild(el);
-  ok(win.RakuallyLogin && win.RakuallyLogin.mount, 'RakuallyLogin.mount 露出');
+  ok(win.RakunallyLogin && win.RakunallyLogin.mount, 'RakunallyLogin.mount 露出');
   return win;
 }
 // mock supabase auth。呼ばれた回数と 渡された中身を記録する。
@@ -49,30 +49,30 @@ function fill(win, email, pw) {
 }
 function clickAsync(win, id) { const b = win.document.getElementById(id); ok(b, '#' + id + ' が無い'); return Promise.resolve(b.onclick()); }
 
-console.log('\n[rakually-login] パスワードを忘れた（逃げ道）');
+console.log('\n[rakunally-login] パスワードを忘れた（逃げ道）');
 const runs = [];
 
 runs.push(T('倉庫が再設定を持たない版では ★ボタンを見せない★（出来ない物のボタンを出さない）', async function () {
   const win = loadLogin();
   const sb = makeSb({ noReset: true });
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
   ok(!win.document.getElementById('btnForgot'), 'btnForgot は出ない');
   ok(win.document.getElementById('btnLogin'), 'ログインボタンは出ている');
 }));
 
 runs.push(T('持っている版では ボタンが出る／押せる字の色が付いている', async function () {
   const win = loadLogin();
-  win.RakuallyLogin.mount({ app: '給料明細', sb: makeSb({}), onLogin: function () {} }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb: makeSb({}), onLogin: function () {} }).show();
   const b = win.document.getElementById('btnForgot');
   ok(b, 'btnForgot が出る');
   eq(b.textContent, 'パスワードを忘れた', '言い方');
-  ok(/login-forgot/.test(b.className), 'Rakually の押せる字の見た目を使う');
+  ok(/login-forgot/.test(b.className), 'Rakunally の押せる字の見た目を使う');
 }));
 
 runs.push(T('メール未入力で押したら ★送らない★・言葉で返す', async function () {
   const win = loadLogin();
   const sb = makeSb({});
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
   fill(win, '   ', '');
   await clickAsync(win, 'btnForgot');
   eq(sb.calls.reset, 0, '★1通も送らない★');
@@ -82,7 +82,7 @@ runs.push(T('メール未入力で押したら ★送らない★・言葉で返
 runs.push(T('送ったら「送りました」の札／★登録されているかは言わない★／宛先は出す', async function () {
   const win = loadLogin();
   const sb = makeSb({});
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
   fill(win, 'z@b.com', '');
   await clickAsync(win, 'btnForgot');
   eq(sb.calls.reset, 1, '1回だけ送る');
@@ -97,7 +97,7 @@ runs.push(T('送ったら「送りました」の札／★登録されている�
 runs.push(T('戻り先に ★自分の目印 pwreset=1★ が付いている（版が変わっても拾えるように）', async function () {
   const win = loadLogin();
   const sb = makeSb({});
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
   fill(win, 'z@b.com', '');
   await clickAsync(win, 'btnForgot');
   const [email, arg] = sb.calls.resetArgs;
@@ -110,7 +110,7 @@ runs.push(T('戻り先に ★自分の目印 pwreset=1★ が付いている（�
 runs.push(T('送信が失敗したら 札を出さず 言葉で返す', async function () {
   const win = loadLogin();
   const sb = makeSb({ reset: { error: { message: 'Failed to fetch' } } });
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
   fill(win, 'z@b.com', '');
   await clickAsync(win, 'btnForgot');
   ok(!win.document.getElementById('loginResetSent'), '送りましたの札は出さない');
@@ -121,7 +121,7 @@ for (const [name, url] of [['?pwreset=1', 'http://localhost/app.html?pwreset=1']
                            ['#type=recovery', 'http://localhost/app.html#type=recovery&access_token=x']]) {
   runs.push(T('メールから戻ってきた人（' + name + '）は ★新しいパスワードの札★ が最初に出る', async function () {
     const win = loadLogin(url);
-    win.RakuallyLogin.mount({ app: '給料明細', sb: makeSb({}), onLogin: function () {} });
+    win.RakunallyLogin.mount({ app: '給料明細', sb: makeSb({}), onLogin: function () {} });
     ok(win.document.getElementById('loginReset'), '再設定の札が出る');
     ok(win.document.getElementById('loginNew'), '新しいパスワードの欄がある');
     ok(!win.document.getElementById('btnLogin'), 'ログインの札は出ていない（袋小路にしない）');
@@ -131,7 +131,7 @@ for (const [name, url] of [['?pwreset=1', 'http://localhost/app.html?pwreset=1']
 runs.push(T('合図 PASSWORD_RECOVERY でも ★新しいパスワードの札★ に切り替わる', async function () {
   const win = loadLogin();
   const sb = makeSb({});
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
   ok(win.document.getElementById('btnLogin'), 'はじめはログインの札');
   ok(typeof sb.calls.onAuth === 'function', '合図を受け取る用意がある');
   sb.calls.onAuth('PASSWORD_RECOVERY', {});
@@ -141,7 +141,7 @@ runs.push(T('合図 PASSWORD_RECOVERY でも ★新しいパスワードの札�
 runs.push(T('6文字未満は ★倉庫を呼ばない★・言葉で返す', async function () {
   const win = loadLogin('http://localhost/app.html?pwreset=1');
   const sb = makeSb({});
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} });
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} });
   win.document.getElementById('loginNew').value = '12345';
   await clickAsync(win, 'btnSetPass');
   eq(sb.calls.update, 0, '★updateUser を呼ばない★');
@@ -152,7 +152,7 @@ runs.push(T('決めたら 倉庫に渡す／onLogin が呼ばれる／★目印�
   const win = loadLogin('http://localhost/app.html?pwreset=1');
   const sb = makeSb({});
   let loggedIn = 'まだ';
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
   win.document.getElementById('loginNew').value = 'newpass1';
   await clickAsync(win, 'btnSetPass');
   eq(sb.calls.update, 1, 'updateUser を1回だけ呼ぶ');
@@ -165,7 +165,7 @@ runs.push(T('決めるのに失敗したら 入れない・言葉で返す', asy
   const win = loadLogin('http://localhost/app.html?pwreset=1');
   const sb = makeSb({ update: { error: { message: 'Password should be at least 6 characters' } } });
   let loggedIn = null;
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } });
   win.document.getElementById('loginNew').value = 'newpass1';
   await clickAsync(win, 'btnSetPass');
   ok(!loggedIn, '入れない');
@@ -177,7 +177,7 @@ runs.push(T('回帰: ふつうのログインは前のまま', async function ()
   const win = loadLogin();
   const sb = makeSb({});
   let loggedIn = null;
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function (u) { loggedIn = u; } }).show();
   fill(win, 'a@b.com', 'secret1');
   await clickAsync(win, 'btnLogin');
   ok(loggedIn && loggedIn.email === 'a@b.com', 'onLogin が呼ばれる');
@@ -186,7 +186,7 @@ runs.push(T('回帰: ふつうのログインは前のまま', async function ()
 runs.push(T('回帰: 確認メール待ちの札は前のまま出る', async function () {
   const win = loadLogin();
   const sb = makeSb({ signUp: { data: { user: { email: 'new@b.com' }, session: null } } });
-  win.RakuallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
+  win.RakunallyLogin.mount({ app: '給料明細', sb, onLogin: function () {} }).show();
   fill(win, 'new@b.com', 'secret1');
   await clickAsync(win, 'btnSignup');
   ok(win.document.getElementById('loginConfirmSent'), '確認メール待ちの札');

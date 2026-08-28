@@ -1,7 +1,7 @@
 /* 給与明細アプリ — Exally統一ミントUI（CSS変数は使わず直hex / CLAUDE.md準拠） */
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
-/* ★この画面は皮(css/rakually-ui.css)を読んでいない★ので、字の色はここが持ち主。
+/* ★この画面は皮(css/rakunally-ui.css)を読んでいない★ので、字の色はここが持ち主。
    値は全アプリ共通の #333333（司さんの決定）。 */
 body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-webkit-text-size-adjust:100%;}
 input,select,button{font-family:inherit;}

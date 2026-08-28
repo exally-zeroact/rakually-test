@@ -1,11 +1,11 @@
 name: CI
 
-# Rakually（入口＝会社/人/取引先・日次台帳・集計）と 給与(kyuyo/) と 請求書(seikyu/) を
+# Rakunally（入口＝会社/人/取引先・日次台帳・集計）と 給与(kyuyo/) と 請求書(seikyu/) を
 # 1つのワークフローで回す。
 #  ・元は exally / exally-staging の2本のCIを並べた物。★実行方式は変えていない★。
 #  ・kyuyo/ と seikyu/ は内部レイアウトをそのまま持ち込んでいるので、相対パスは無改変で通る。
 #
-# ★このリポジトリ(rakually-test)は Rakually のテスト線★（倉庫＝DB-test）。本番は rakually。
+# ★このリポジトリ(rakually-test)は Rakunally のテスト線★（倉庫＝DB-test）。本番は rakually。
 #   ・配信は Vercel（rakually-test.vercel.app）。★github.io は使わない★
 #   ・テスト線にしか無い物＝★テスト環境の帯★と★配信ガード(本番倉庫への誤接続を止める)★。
 #     どちらも【テストの厚み】であって、本番に無い画面や機能ではない。
@@ -13,7 +13,7 @@ name: CI
 # ★2026-08-17 rakually-test を立てた時に外したステップ（外した物は必ずここに書く）★
 #   ・グリッドの日付／列幅（tests/grid-*.test.mjs）… 見る物 book.html が無い（Exally のブック）
 #   ・LibreOffice 参照ジョブ … tools/golden-libre.sh と tests/xlsx-harness/ が無い（同上）
-#   ★戻す条件★: Rakually に表(ブック)を置くと決めた日。部品と一緒に この2つも戻す。
+#   ★戻す条件★: Rakunally に表(ブック)を置くと決めた日。部品と一緒に この2つも戻す。
 on:
   push:
     branches: [main]
@@ -35,7 +35,7 @@ jobs:
       - name: Install test deps (jsdom / jsqr)
         run: npm install --no-audit --no-fund
 
-      # ── Rakually 共通（入口・共有データ・台帳・集計。元 Exally 由来を据置） ──
+      # ── Rakunally 共通（入口・共有データ・台帳・集計。元 Exally 由来を据置） ──
       - name: Cache-buster stamp guard (貼り忘れ検知・コードより先に見る)
         run: node scripts/stamp-build.mjs --check
       - name: Stamp tool tests (ハッシュが決定論か=CRLF/LF・OS差でブレないか)
@@ -49,14 +49,14 @@ jobs:
         run: node tests/pages-hosting.test.mjs
       - name: ★配信ガード (わざと壊して赤になるかの自己確認・6通り)
         run: node tests/pages-hosting.test.mjs --self-test
-      - name: Rakually 共通 tests (入口UI/共有データ/集計/台帳→実績値/横断集計/配信ガード/HTMLの中のJS/禁止色)
+      - name: Rakunally 共通 tests (入口UI/共有データ/集計/台帳→実績値/横断集計/配信ガード/HTMLの中のJS/禁止色)
         run: node tests/run.js
       - name: ★重複ガード (同じ物が2箇所に無いか・法定データは例外なし)
         run: node tests/no-duplicate-libs.test.mjs
       - name: ★入口のログイン（登録の直後に袋小路にしない）
-        run: node kyuyo/tests/rakually-login.test.mjs
+        run: node kyuyo/tests/rakunally-login.test.mjs
       - name: ★入口のログイン（パスワードを忘れた＝逃げ道）
-        run: node kyuyo/tests/rakually-login-forgot.test.mjs
+        run: node kyuyo/tests/rakunally-login-forgot.test.mjs
       - name: ★画面に出る字に 中の言葉が0件か（覚書の中は数えない）
         run: node scripts/screen-words.mjs
       - name: ★同じ見張りを わざと壊して 赤になるか（本物に1件 戻す所まで）
@@ -112,10 +112,10 @@ jobs:
         run: node tests/html-script-syntax.test.mjs
       - name: ★HTMLの中のJS (わざと壊して赤になるかの自己確認・実物も1本 壊す)
         run: node tests/html-script-syntax.test.mjs --self-test
-      # ★この器は Rakually の物★（司さん 2026-08-17）。請求書だけの見張りを全画面へ広げた物。
-      - name: ★これは Rakually の器か (客が読む字・タブの題・ホーム画面の名前・★アイコン★を全5画面＋manifest3本で数える)
+      # ★この器は Rakunally の物★（司さん 2026-08-17）。請求書だけの見張りを全画面へ広げた物。
+      - name: ★これは Rakunally の器か (客が読む字・タブの題・ホーム画面の名前・★アイコン★を全5画面＋manifest3本で数える)
         run: node tests/own-name.test.mjs
-      - name: ★これは Rakually の器か (わざと他アプリの名前を戻して赤になるか＋アイコンの見張りが空振りしていないか・8通り)
+      - name: ★これは Rakunally の器か (わざと他アプリの名前を戻して赤になるか＋アイコンの見張りが空振りしていないか・8通り)
         run: node tests/own-name.test.mjs --self-test
       # ★アイコンの ?v= は stamp-build（js/lib/css だけ）の対象外＝別の道具で貼る。
       #   貼り忘れると「差し替えたのに端末は古い絵のまま」になる（ホーム画面は特に長く残る）。
@@ -123,6 +123,16 @@ jobs:
       #     （その代わり own-name.test.mjs が 寸法・不透明・丸く切っても欠けないか を毎回 実測する）。
       - name: ★アイコンの ?v= が中身のSHAと合っているか (5画面＋manifest3本・24本)
         run: node scripts/icon-stamp.mjs --check
+      # ★ロゴの文字を刷る道具★（2026-08-28 司さん「DM Mono で作り直せ」）。
+      #   本体（node scripts/make-logo.mjs）は ★Google Fonts に出る★のでCIでは走らせない。
+      #   ★自己確認だけは 毎回 回す★＝色の見分け・合わせ先の数字・「読めなければ止まる」道が
+      #   生きているかを見る（＝★在るのに0回★を作らない）。
+      - name: ★ロゴを刷る道具の自己確認 (色の見分け・合わせ先677/508/68・別の字体で刷らない)
+        run: node scripts/make-logo.mjs --self-test
+      # ★改名の道具★（Rakually→Rakunally）。替えてはいけない物（URL・repo名・司さんの引用）を
+      #   逃がす仕掛けが 生きているかを 毎回 見る。
+      - name: ★改名の道具の自己確認 (URL・repo名・引用を替えない／ファイル名と読みは替える)
+        run: node scripts/rename-to-rakunally.mjs --self-test
       - name: CI coverage guard (CIから黙って外れているテストが無いか=除外は理由と戻す条件つきのみ)
         run: node tests/ci-coverage.test.mjs
 
@@ -189,12 +199,12 @@ jobs:
         run: node seikyu/tests/dep-guard.test.mjs
       - name: ★請求書 呼ばれる側 (わざと1本 隠して赤になるかの自己確認)
         run: node seikyu/tests/dep-guard.test.mjs --self-test
-      # ★この画面は Rakually の物★（司さん 2026-08-17「Rakuallyは別アプリなんはいつ理解するわけ？」）
+      # ★この画面は Rakunally の物★（司さん 2026-08-17「Rakuallyは別アプリなんはいつ理解するわけ？」）
       #   客が読む字に他アプリの名前を出さない／取引先を作るのに外のアプリへ行かせない。
       #   ★字を消すだけでは嘘★（押したら別のアプリに着く）なので 出口ごと数える。
-      - name: ★請求書 これはRakuallyの画面か (客が読む字・紙・取引先を外へ出さない・自社は中身を見せる)
+      - name: ★請求書 これはRakunallyの画面か (客が読む字・紙・取引先を外へ出さない・自社は中身を見せる)
         run: node seikyu/tests/seikyu-own-name.mjs
-      - name: ★請求書 これはRakuallyの画面か (わざと他アプリの名前を戻して赤になるかの自己確認)
+      - name: ★請求書 これはRakunallyの画面か (わざと他アプリの名前を戻して赤になるかの自己確認)
         run: node seikyu/tests/seikyu-own-name.mjs --self-test
 
       # ── 給与(kyuyo/) 由来（据置） ──

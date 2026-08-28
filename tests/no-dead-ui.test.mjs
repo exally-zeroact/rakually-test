@@ -14,10 +14,10 @@
  *      onclick に書いた関数が本当に在るかを、画面を起動して1つずつ確かめる
  *      （関数だけ消してボタンが残る、の逆の事故を止める）
  *
- * ★2026-08-17 Rakually を立てた時に見る物を替えた（見張りを弱くしていないかを1つずつ書く）★
+ * ★2026-08-17 Rakunally を立てた時に見る物を替えた（見張りを弱くしていないかを1つずつ書く）★
  *   ・前は ★book.html 1枚★ を起動して見ていた。ブック(Excelの式エンジン)は Exally の物なので
- *     Rakually には無い。代わりに ★配信する5画面ぜんぶ★ を起動して見る（1枚→5枚＝強くなった）。
- *   ・★③「onclick が呼ぶ関数が実在するか」は Rakually に対象が0件★
+ *     Rakunally には無い。代わりに ★配信する5画面ぜんぶ★ を起動して見る（1枚→5枚＝強くなった）。
+ *   ・★③「onclick が呼ぶ関数が実在するか」は Rakunally に対象が0件★
  *     ＝5画面とも inline onclick を1つも使っていない（全部 addEventListener）。
  *     だから ★inline onclick を足したら赤★ に置き換えた（戻したら気づく形にする）。
  *     「押しても何も無いボタン」を実際に押して見る役目は
@@ -142,7 +142,7 @@ function onclickTargets(doc) {
 }
 const JS_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'return', 'typeof', 'function', 'catch', 'new', 'delete', 'void']);
 
-/* ★data-go="scr-○○" の行き先が本当に在るか★（押しても何も起きないボタンの Rakually 版）。
+/* ★data-go="scr-○○" の行き先が本当に在るか★（押しても何も起きないボタンの Rakunally 版）。
    入口(index.html)は画面の出し入れを data-go でやっているので、行き先が消えたらここで捕まる。 */
 function deadGoTargets(doc) {
   const out = [];
@@ -288,7 +288,7 @@ T('★② 描き終わった画面に「実装予定 / STEP<数字> / 未実装 
 /* ★押す物の一覧を先に書いてから押す★（数だけ報告しない）
    ②は「描いた直後の画面」しか見られない。中の言葉は
    ★ボタンを押した時の知らせにだけ出る★事があるので、実際に押して出た文字を見る。
-   ここで押すのは ★入口の画面を移すボタン（タイル・下の帯）★＝Rakually で押す物の全部。
+   ここで押すのは ★入口の画面を移すボタン（タイル・下の帯）★＝Rakunally で押す物の全部。
    給与と請求書の中のボタンは kyuyo/tests/ui-smoke.mjs と seikyu/tests/seikyu-ui.mjs が押す。 */
 const PRESS_LIST = ['#scr-hub .tile', 'nav.bn .bn-i'];
 T('★②-b 入口のボタンを実際に押して、出た知らせに中の言葉が無い／止める窓が開かない', () => {

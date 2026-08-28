@@ -1,5 +1,5 @@
 // hub-ui.mjs — ★②UI 全ボタン検証★
-//  本物の index.html(Rakually の入口) + js/hub.js を jsdom に読み込み、全画面・全タブ・全ボタンを実際にクリックして
+//  本物の index.html(Rakunally の入口) + js/hub.js を jsdom に読み込み、全画面・全タブ・全ボタンを実際にクリックして
 //  「JS例外0・各画面が中身を描画」を確かめる。Kyually の tests/ui-smoke.mjs と同じハーネス。
 //  Supabase(ネット)には繋がない=偽のデータ層を差し込んで、実データ相当の中身で描く。
 //  依存: jsdom。未導入なら SKIP(exit 0) だが「スキップした」と明示する。
@@ -33,8 +33,8 @@ for (const src of srcs) {
   el.textContent = fs.readFileSync(path.join(ROOT, src), 'utf8');
   doc.body.appendChild(el);
 }
-const H = win.__RAKUALLY_TEST;
-ok(H, '__RAKUALLY_TEST 露出(hub.js の init 成功)');
+const H = win.__RAKUNALLY_TEST;
+ok(H, '__RAKUNALLY_TEST 露出(hub.js の init 成功)');
 
 /* ── 偽のデータ層(SuiteDataと同じ形の返り) ── */
 const db = {
@@ -102,8 +102,8 @@ doc.getElementById('app').hidden = false;   // 以降はログイン済みとし
 
 /* ═══ 1. ハブ ═══ */
 /* ★3つ★＝給与/請求書/共有データ（2026-08-18 台帳と集計を外した＝Exally の物）。
-   表(ブック)は Exally の物なので Rakually には出さない（2026-08-17）。★数で見張る＝1つ増えても減っても赤★ */
-/* ★2026-08-26★ この見張りは 本番(rakually／請求書だけ)へも そのまま運ばれる。
+   表(ブック)は Exally の物なので Rakunally には出さない（2026-08-17）。★数で見張る＝1つ増えても減っても赤★ */
+/* ★2026-08-26★ この見張りは 本番(rakunally／請求書だけ)へも そのまま運ばれる。
    本番には ★給与の画面が無い★ ので タイルは2つ（請求書/共有データ）＝
    「出来ていない物のボタンを見せるな」を ★本番側でも 数で見張る★。
    どちらの repo かは 名札(js/supa-config.js の env)で決める。
@@ -165,8 +165,8 @@ T('1. ★撤去したお試し画面(chat.html)へのタイルは無い', () => 
   ok(!/chat.html/.test(doc.getElementById('scr-hub').innerHTML), 'ハブから chat.html へ行ける');
 });
 
-/* ★2026-08-17 Rakually を立てた時に替えた★
-   表(ブック)＝Excelの式エンジンは Exally の物なので Rakually には無い（司さん「Exally には要らん機能やろが」）。
+/* ★2026-08-17 Rakunally を立てた時に替えた★
+   表(ブック)＝Excelの式エンジンは Exally の物なので Rakunally には無い（司さん「Exally には要らん機能やろが」）。
    ★無い物のボタンを出していない★事を、ここで逆向きに見張る（戻したら赤）。 */
 T('1. ★表(ブック)のタイルは無い（Exally の物・ここに無い物のボタンを出さない）', () => {
   ok(!doc.getElementById('tile-book'), 'ブックのタイルが戻っている');
@@ -304,8 +304,8 @@ await (async () => {
 })();
 
 /* ★2026-08-18 「5. 集計(E1/E5)」と「5b. 日次台帳(E2)」の検査を外した★
-   ＝どちらも Exally の物なので Rakually の入口から外した（司さん「ささっと Exally から切り離せ」）。
-   外したのは 263行。★戻す条件★＝Rakually に台帳/集計を置く日に、画面・lib・この検査を まとめて戻す。 */
+   ＝どちらも Exally の物なので Rakunally の入口から外した（司さん「ささっと Exally から切り離せ」）。
+   外したのは 263行。★戻す条件★＝Rakunally に台帳/集計を置く日に、画面・lib・この検査を まとめて戻す。 */
 H.show('scr-hub');
 
 /* ═══ 6. 画面移動と全ボタン ═══ */

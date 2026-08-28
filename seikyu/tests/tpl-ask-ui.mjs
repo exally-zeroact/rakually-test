@@ -50,7 +50,7 @@ async function measureShape(doc) {
   if (!CHROME) throw new Error('★ブラウザが見つかりません＝形を測れません（0と言わない）★');
   const os = await import('node:os');
   const { execFileSync } = await import('node:child_process');
-  const OUT = path.join(os.tmpdir(), 'rakually-tpl-shape');
+  const OUT = path.join(os.tmpdir(), 'rakunally-tpl-shape');
   fs.mkdirSync(OUT, { recursive: true });
   doc.querySelectorAll('script').forEach((x) => x.remove());
   /* ★ログイン前は <div id="app" hidden> で丸ごと隠れている★（auth.js が開ける）。
@@ -131,7 +131,7 @@ async function boot(appSrc) {
   win.__mkSb = () => m.exports.createFakeSupa({
     uid: 'u1',
     tables: {
-      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakually', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
+      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中' }, deleted_at: null }],
       pay_invoices: [], pay_receipts: [],
       pay_companies: [{ account_id: 'u1', data: {}, updated_at: '2026-08-01T00:00:00Z' }],
@@ -139,7 +139,7 @@ async function boot(appSrc) {
     pk: { pay_org: 'account_id', pay_companies: 'account_id' },
     unique: { pay_invoices: [['account_id', 'doc_type', 'no']] },
   });
-  const DROP = ['supa-config.js', 'auth.js', 'env-badge.js', 'store.js', 'rakually-login.js'];
+  const DROP = ['supa-config.js', 'auth.js', 'env-badge.js', 'store.js', 'rakunally-login.js'];
   for (const mm of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
     const s = mm[1].split('?')[0], base = s.split('/').pop();
     if (/^https?:/.test(s) || DROP.includes(base)) continue;

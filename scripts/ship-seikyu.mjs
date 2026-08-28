@@ -243,7 +243,7 @@ function ciHeaderNote(yml, dropped) {
   const i = yml.indexOf(mark);
   if (i < 0) return yml;
   const lines = ['',
-    '# ★★ここは 本番 rakually（請求書だけ）★★ … 元は rakually-test の CI をそのまま運んだ物。',
+    '# ★★ここは 本番 rakunally（請求書だけ）★★ … 元は rakually-test の CI をそのまま運んだ物。',
     '#   scripts/ship-seikyu.mjs が ★運び先に無いファイルを指すステップだけ★ 外して作る。',
     '#   ★外した理由は1つだけ＝給与の画面(kyuyo/)を運んでいないから★（機能を削った訳ではない）。',
     '#   ★戻す条件★: 本番にも給与を出す日（＝10月の改名・URL切替の塊）。その時 一緒に戻す。',

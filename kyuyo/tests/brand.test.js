@@ -1,5 +1,5 @@
-/* brand.test.js — ★Rakually ブランドの後戻り防止★（旧「ZEROACT」「Kyually」表記の再発検知）。
- * 2026-08-18: 司さん「ささっと Exally から切り離せ」で Kyually → Rakually に統一（10月まで待たない）。
+/* brand.test.js — ★Rakunally ブランドの後戻り防止★（旧「ZEROACT」「Kyually」表記の再発検知）。
+ * 2026-08-18: 司さん「ささっと Exally から切り離せ」で Kyually → Rakunally に統一（10月まで待たない）。
  * 認証オーバーレイ(auth.js)はSupabase依存でUIスモーク対象外なので、ソース検査でロックする。 */
 'use strict';
 var fs = require('fs');
@@ -8,16 +8,16 @@ var root = path.join(__dirname, '..');
 
 function read(f) { return fs.readFileSync(path.join(root, f), 'utf8'); }
 
-T('ブランド: auth.js のログインロゴが Rakually（旧 ZEROACT / Kyually 表記なし）', function () {
+T('ブランド: auth.js のログインロゴが Rakunally（旧 ZEROACT / Kyually 表記なし）', function () {
   var src = read('js/auth.js');
-  ok(/auth-logo">Rakually</.test(src), 'ログインロゴが Rakually');
+  ok(/auth-logo">Rakunally</.test(src), 'ログインロゴが Rakunally');
   ok(!/ZEROACT/.test(src), 'auth.js に旧「ZEROACT」表記が残っていない');
   ok(!/Kyually/.test(src), 'auth.js に旧「Kyually」表記が残っている');
 });
 
 T('ブランド: 見せる字に Kyually が1つも残っていない（題・ロゴ・ホーム画面の名前）', function () {
   var idx = read('index.html'), man = read('manifest.json'), amn = read('admin-manifest.json');
-  ok(idx.indexOf('<title>給与 — Rakually</title>') >= 0, '題が「給与 — Rakually」でない');
+  ok(idx.indexOf('<title>給与 — Rakunally</title>') >= 0, '題が「給与 — Rakunally」でない');
   ok(/class="logo">給与</.test(idx), 'appbar のロゴが「給与」でない');
   ok(!/Kyually/.test(idx), 'index.html に Kyually が残っている');
   ok(!/Kyually/.test(man) && !/Kyually/.test(amn), 'manifest に Kyually が残っている');

@@ -1,11 +1,11 @@
 /* make-icons.mjs — ★渡された1枚のロゴから、アイコンを機械で作る★（描き直さない）
  *
  * なぜ この形か（司さん 2026-08-18「ホーム画面のアイコンを差し替える」）:
- *   ・★描き直すな・作り直すな★＝渡された1枚（docs/logo/rakually-logo.png）から
+ *   ・★描き直すな・作り直すな★＝渡された1枚（docs/logo/rakunally-logo.png）から
  *     ★切り出して・縮めて・置くだけ★。色も形も1ドットも作らない。
  *   ・その1枚は 1024x1024。★実測★（-fuzz 8% -trim で機械が測った）:
  *       マーク（角丸の枠＋RA＋チェック） = 408x291 の箱 @ (312,239)
- *       下の文字「Rakually」            = 497x127 の箱 @ (260,579)
+ *       下の文字「Rakunally」            = 497x127 の箱 @ (260,579)
  *     ★アイコンにはマークだけ使う★（192pxに文字を入れると読めない＝入れない方が正しい）。
  *   ・色は元のまま。使われている緑は ★#2E7D54（全アプリの緑）★ と #4FA77D（チェック）。
  *
@@ -36,7 +36,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = path.join(ROOT, 'docs/logo/rakually-logo.png');
+const SRC = path.join(ROOT, 'docs/logo/rakunally-logo.png');
 /** マークの箱（実測・上の説明の通り） */
 export const MARK = { w: 408, h: 291, x: 312, y: 239 };
 

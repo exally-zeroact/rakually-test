@@ -31,7 +31,7 @@ export const GOOD = '#2E7D54';
 export const SKIP = {
   'tests/no-dark-green.test.mjs': 'この検査自身（探す文字列を持っている）',
   /* ★禁止する側は、禁止する色の名前を書かないと守れない★
-     （2026-08-17 Rakually を立てた時に足した。3本とも「#1A4A2E が在ったら赤」にする側＝この検査と同じ役目）。
+     （2026-08-17 Rakunally を立てた時に足した。3本とも「#1A4A2E が在ったら赤」にする側＝この検査と同じ役目）。
      戻す条件＝その見張りが色を見なくなった時（見なくなったら、この行も消す）。 */
   'seikyu/tests/seikyu-cols.test.mjs': '請求書の列の見張り。#1A4A2E を禁止する側 ok(!/#1A4A2E/…)',
   'seikyu/tests/seikyu-paper.test.mjs': '請求書の紙の見張り。#1A4A2E を禁止する側',

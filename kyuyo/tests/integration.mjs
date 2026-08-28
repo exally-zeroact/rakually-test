@@ -121,7 +121,7 @@ T('B3/B4: 表でmax(売上,歩合)は両欄・役員は割増欄なし', functio
 // ── はじめかたガイド(ライブToDo): 各ステップの達成判定 ──
 T('オンボーディング: 達成判定(会社名✓/サンプルemp未/確定で入力✓/出力flag✓)', function () {
   const st = A.state;
-  /* ★見本の名前は app.js が持ち主★（2026-08-19 に見本を 合同会社Rakually へ変えた時、
+  /* ★見本の名前は app.js が持ち主★（2026-08-19 に見本を 合同会社Rakunally へ変えた時、
      ここに書き写していたので テストだけ古い名前で残った）＝★取りに行く★ */
   st.company = Object.assign(st.company, { name: A.defCompany().name }); // 既定の見本のまま
   st.employees = [A.defEmp('山田 太郎')]; st.month = '2026-06'; st.confirmed = {}; st.onboardOutput = false;

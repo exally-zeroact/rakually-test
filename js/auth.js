@@ -7,7 +7,7 @@
   'use strict';
   var hasSupa = !!(global.SUPA && global.SUPA.url && global.SUPA.key && global.supabase);
 
-  // ログイン画面は全アプリ共通の部品(js/rakually-login.js)。見た目も文言もそこが一次情報。
+  // ログイン画面は全アプリ共通の部品(js/rakunally-login.js)。見た目も文言もそこが一次情報。
   var LOGIN = null;
   var ov = null;
   /* ★別の画面へ行くタイルの名前★（a.tile だけ＝共有データは同じ画面の中なので button）。
@@ -23,7 +23,7 @@
   }
   function mountLogin(sbForLogin) {
     if (LOGIN) return LOGIN;
-    LOGIN = global.RakuallyLogin.mount({
+    LOGIN = global.RakunallyLogin.mount({
       app: 'ホーム',
       sb: sbForLogin,
       /* ★この配信に在る物だけ 名前を出す★（2026-08-26 本番で実測して見つけた）
@@ -43,7 +43,7 @@
   function hide() { if (LOGIN) LOGIN.hide(); var a = $('app'); if (a) a.hidden = false; }
   function msg(t, err) { if (err && LOGIN) LOGIN.error(t || ''); }
   function jpErr(s) {
-    if (global.RakuallyLogin) return global.RakuallyLogin.friendly({ message: s });
+    if (global.RakunallyLogin) return global.RakunallyLogin.friendly({ message: s });
     s = String(s || '');
     if (/Invalid login/i.test(s)) return 'メールかパスワードが違います';
     if (/already registered|User already/i.test(s)) return 'このメールは登録済みです。ログインしてください';
@@ -79,8 +79,8 @@
 
   function showLock() {
     var m = (global.Access && global.Access.lockMessage) ? global.Access.lockMessage() : { title: 'このアカウントは現在ご利用いただけません', body: '' };
-    /* ★客が読む字＝Rakually（2026-08-17）。ここはログイン画面の共通部品を通らない道（停止のお知らせ）★ */
-    ov.innerHTML = '<div class="login-card"><div class="login-logo">Rakually <span>ラクアリー</span></div>'
+    /* ★客が読む字＝Rakunally（2026-08-17）。ここはログイン画面の共通部品を通らない道（停止のお知らせ）★ */
+    ov.innerHTML = '<div class="login-card"><div class="login-logo">Rakunally <span>ラクナリー</span></div>'
       + '<div class="login-mid" style="color:#92500A;font-weight:700">' + m.title + '</div>'
       + (m.body ? '<div class="login-note">' + m.body + '</div>' : '')
       + '<button class="login-btn login-btn-sub" style="margin-top:14px" id="auth-lock-out" type="button">別のアカウントでログイン</button></div>';

@@ -1,11 +1,11 @@
-/* rakually-login.js — Exally 共通のログイン画面
+/* rakunally-login.js — Exally 共通のログイン画面
  * ==================================================================
  * 全アプリ（売上管理・代行請求・給料明細…）で同じ見た目・同じ言い方にするための部品。
  * 画面の作りも文言もここが一次情報＝各アプリに書き写さない。
  *
  * 使い方:
- *   <script src="rakually-login.js"></script>
- *   var LOGIN = RakuallyLogin.mount({
+ *   <script src="rakunally-login.js"></script>
+ *   var LOGIN = RakunallyLogin.mount({
  *     app: "売上管理",          // カードに出すアプリ名
  *     sb: SB,                   // supabase クライアント
  *     onLogin: function (user) {…}, // ログインできたら呼ばれる
@@ -19,7 +19,7 @@
 (function (root) {
   "use strict";
 
-  var CSS_ID = "rakually-login-css";
+  var CSS_ID = "rakunally-login-css";
   var CSS = [
     ".login-ov{position:fixed;inset:0;background:#eef7f1;z-index:400;display:none;",
     "align-items:center;justify-content:center;overflow:auto;",
@@ -48,7 +48,7 @@
     ".login-btn-sub{background:#eef7f1;color:#2f8f5b;border-color:#d4eae0;}",
     ".login-btn:disabled{opacity:.55;}",
     /* ★パスワードを忘れた人の逃げ道★（これが無いと、その人は二度と自分のデータに入れない）
-       押せる物なので色を付ける。見た目は Rakually の緑のまま＝他アプリから持ってこない。 */
+       押せる物なので色を付ける。見た目は Rakunally の緑のまま＝他アプリから持ってこない。 */
     ".login-forgot{background:none;border:0;padding:8px 4px 0;font-family:inherit;",
     "font-size:12px;color:#2f8f5b;text-decoration:underline;cursor:pointer;}",
     ".login-forgot:disabled{opacity:.55;}",
@@ -132,7 +132,7 @@
       '<div class="login-card">' +
       /* ★客が読む字はここだけ替える（2026-08-17 司さん「Rakually は別アプリ」）。
            ファイル名と中の仕組み(SMTP・確認メールの分岐)は据え置き＝1行だけ。 */
-      '<div class="login-logo">Rakually <span>ラクアリー</span></div>' +
+      '<div class="login-logo">Rakunally <span>ラクナリー</span></div>' +
       '<div class="login-title">' +
       esc(o.app || "") +
       "</div>" +
@@ -158,7 +158,7 @@
 
     function confirmHTML(email){ return ''
       + '<div class="login-card" id="loginConfirmSent">'
-      + '<div class="login-logo">Rakually <span>ラクアリー</span></div>'
+      + '<div class="login-logo">Rakunally <span>ラクナリー</span></div>'
       + '<div class="login-title">確認メールを送りました</div>'
       + '<div class="login-sub">' + esc(email) + '</div>'
       + '<div class="login-mid">このメールに届いた リンクを押すと 登録が終わります。<br>'
@@ -173,7 +173,7 @@
        ②戻ってきた … 新しいパスワードを決める画面。決めるまでログイン画面に戻さない。 */
     function sentHTML(email){ return ''
       + '<div class="login-card" id="loginResetSent">'
-      + '<div class="login-logo">Rakually <span>ラクアリー</span></div>'
+      + '<div class="login-logo">Rakunally <span>ラクナリー</span></div>'
       + '<div class="login-title">パスワードの再設定メールを送りました</div>'
       + '<div class="login-sub">' + esc(email) + '</div>'
       + '<div class="login-mid">このメールに届いた リンクを押すと<br>'
@@ -184,7 +184,7 @@
 
     function resetHTML(){ return ''
       + '<div class="login-card" id="loginReset">'
-      + '<div class="login-logo">Rakually <span>ラクアリー</span></div>'
+      + '<div class="login-logo">Rakunally <span>ラクナリー</span></div>'
       + '<div class="login-title">新しいパスワードを決める</div>'
       + '<div class="login-sub">6文字以上</div>'
       + '<input class="login-inp" id="loginNew" type="password" '
@@ -347,5 +347,5 @@
     return { show: show, hide: hide, error: err, el: ov, isRecovery: isRecovery };
   }
 
-  root.RakuallyLogin = { mount: mount, friendly: friendly };
+  root.RakunallyLogin = { mount: mount, friendly: friendly };
 })(typeof window !== "undefined" ? window : this);

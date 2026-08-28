@@ -93,7 +93,7 @@ test('★直下パターンを足しても外部CDNには付かない（: を含
   assert.strictEqual(stampHtml(html, 'abc12345'), html);
 });
 
-/* ★2026-08-17 Rakually: 見る画面を book.html（Exally のブック）から
+/* ★2026-08-17 Rakunally: 見る画面を book.html（Exally のブック）から
    ★請求書 seikyu/index.html★ に替えた。「在るか無いかで飛ばす」書き方は
    ★消えた日から永久に空振り★になるので使わない（読めなければ赤）。 */
 test('★seikyu/index.html の全ローカルアセットに ?v= が付いている', () => {
@@ -191,7 +191,7 @@ test('★index.html(入口) のインラインスクリプトが構文として�
 test('★売っていない課金や撤去した看板が、どのHTMLにも残っていない（除外なし）', () => {
   const NG = [/¥1,280/, /1日43円/, /Excel専門AI/, /Excel上級者/, /14日間無料/];
   const files = fs.readdirSync(ROOT).filter(x => /\.html$/i.test(x));
-  // 2026-08-17 Rakually: 直下は index.html の1枚だけになったので、★アプリの中も両方 見る★
+  // 2026-08-17 Rakunally: 直下は index.html の1枚だけになったので、★アプリの中も両方 見る★
   //   （kyuyo/ だけ見ていると請求書が検査の外に落ちる＝2026-08-10 に seikyu/ を足した時と同じ穴）。
   for (const a of ['kyuyo', 'seikyu']) {
     const sub = path.join(ROOT, a);

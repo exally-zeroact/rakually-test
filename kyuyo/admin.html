@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rakually 管理 — ユーザー</title>
+<title>Rakunally 管理 — ユーザー</title>
 <!-- PWA(ホーム画面/デスクトップに単独アプリとしてインストール) -->
 <link rel="manifest" href="admin-manifest.json">
 <meta name="theme-color" content="#2E7D54">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Rakually管理">
-<!-- ★ホーム画面は「管」で見分ける（給与と並ぶので同じ絵にしない）／タブの絵は Rakually ★ -->
+<meta name="apple-mobile-web-app-title" content="Rakunally管理">
+<!-- ★ホーム画面は「管」で見分ける（給与と並ぶので同じ絵にしない）／タブの絵は Rakunally ★ -->
 <link rel="apple-touch-icon" href="img/admin-192.png?v=268f435d">
 <link rel="icon" type="image/png" sizes="32x32" href="../img/favicon-32.png?v=56581ebc">
 <link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png?v=e0197076">
@@ -77,11 +77,11 @@
 </style>
 </head>
 <body>
-  <div class="bar hide" id="topbar"><b>Rakually 管理</b><small>使う人</small><span class="sp"></span><span class="who" id="who"></span><button class="out" id="logout">ログアウト</button></div>
+  <div class="bar hide" id="topbar"><b>Rakunally 管理</b><small>使う人</small><span class="sp"></span><span class="who" id="who"></span><button class="out" id="logout">ログアウト</button></div>
 
   <!-- ログイン -->
   <div id="login" class="card">
-    <h1>Rakually 管理</h1>
+    <h1>Rakunally 管理</h1>
     <p>管理者アカウントでログイン</p>
     <input id="email" type="email" placeholder="メールアドレス" autocomplete="username">
     <input id="pw" type="password" placeholder="パスワード" autocomplete="current-password">
@@ -124,23 +124,23 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../js/supa-config.js?v=657b934b"></script>
+  <script src="../js/supa-config.js?v=c78b4e0b"></script>
   <!-- 法定データlib(admin法定データ画面が中央へ投入する「あるべき値」の生成に使用) -->
-  <script src="lib/shakaihoken-hyo.js?v=657b934b"></script>
-  <script src="lib/koyo-hoken.js?v=657b934b"></script>
-  <script src="lib/shotokuzei-densan.js?v=657b934b"></script>
-  <script src="lib/shotokuzei-hei.js?v=657b934b"></script>
-  <script src="lib/shotokuzei-nichi.js?v=657b934b"></script>
-  <script src="lib/shoyo-zei.js?v=657b934b"></script>
-  <script src="lib/warimashi.js?v=657b934b"></script>
-  <script src="lib/saitei-chingin.js?v=657b934b"></script>
-  <script src="lib/nenmatsu.js?v=657b934b"></script>
-  <script src="lib/shouhizei-ritsu.js?v=657b934b"></script>
-  <script src="lib/statutory-rows.js?v=657b934b"></script>
-  <script src="js/admin.js?v=657b934b"></script>
+  <script src="lib/shakaihoken-hyo.js?v=c78b4e0b"></script>
+  <script src="lib/koyo-hoken.js?v=c78b4e0b"></script>
+  <script src="lib/shotokuzei-densan.js?v=c78b4e0b"></script>
+  <script src="lib/shotokuzei-hei.js?v=c78b4e0b"></script>
+  <script src="lib/shotokuzei-nichi.js?v=c78b4e0b"></script>
+  <script src="lib/shoyo-zei.js?v=c78b4e0b"></script>
+  <script src="lib/warimashi.js?v=c78b4e0b"></script>
+  <script src="lib/saitei-chingin.js?v=c78b4e0b"></script>
+  <script src="lib/nenmatsu.js?v=c78b4e0b"></script>
+  <script src="lib/shouhizei-ritsu.js?v=c78b4e0b"></script>
+  <script src="lib/statutory-rows.js?v=c78b4e0b"></script>
+  <script src="js/admin.js?v=c78b4e0b"></script>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=657b934b"></script>
+<script src="../js/env-badge.js?v=c78b4e0b"></script>
 </body>
 </html>

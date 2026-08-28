@@ -30,7 +30,7 @@
     { key: 'free', label: '無料' },
     { key: 'disabled', label: '停止' }
   ];
-  var APP_LABEL = { payslip: '給料明細', invoice: '請求書', daiko: 'ダイコメ', suite: 'Rakually' };
+  var APP_LABEL = { payslip: '給料明細', invoice: '請求書', daiko: 'ダイコメ', suite: 'Rakunally' };
   var rows = [];        // 全 entitlements
   var curEmail = '';
 

@@ -11,13 +11,13 @@
 
 | | 案A（**私の推し**） | 案B |
 |---|---|---|
-| 入れ物 | repo `exally-zeroact/rakually`（**空**）＋ Vercel の枠 `rakually`（**配信0本**） | 新しく repo と枠を作る |
+| 入れ物 | repo `exally-zeroact/rakually`（**空**）＋ Vercel の枠 `rakunally`（**配信0本**） | 新しく repo と枠を作る |
 | URL | **`https://rakually.vercel.app`**／請求書は **`/seikyu/`** | 別名 |
 
 **推す理由**
 - **枠はもう在る**（`prj_co2tidQZRjRopoH5hkMCeilFoe9v` / team `team_k1YqpQEr4m1xH7pP5U1uvhwq`）。
   2026-08-17 に作った物で、**中身が空なだけ**。新しく作ると **同じ物が2つ**になります。
-- **URLに他アプリの名前が出ません**（`rakually` だけ）。決まりどおり。
+- **URLに他アプリの名前が出ません**（`rakunally` だけ）。決まりどおり。
 - 案Bは **増やすだけで 得が無い**ので採りません。
 
 **指示役に確かめてほしい所**
@@ -79,7 +79,7 @@
 
 ## 4 戻り先URL（ログインの戻り先）
 
-`js/rakually-login.js:291` は **`location.origin + location.pathname`** を戻り先に使います。
+`js/rakunally-login.js:291` は **`location.origin + location.pathname`** を戻り先に使います。
 ＝ **開いていた画面にそのまま戻る**作りなので、**入口も請求書も 両方**要ります。
 
 足すURL（**この2本**）
@@ -154,10 +154,10 @@ seikyu/lib/seikyu-templates.js  seikyu/manifest.json
 
 ```
 index.html                      js/suite-data.js
-css/rakually-ui.css             js/supa-config.js   ← 中身は指示役が写す
+css/rakunally-ui.css             js/supa-config.js   ← 中身は指示役が写す
 js/env-badge.js                 lib/toroku-no.js
 js/file-out.js                  lib/xlsx.full.min.js
-js/rakually-login.js            img/apple-touch-icon-180.png
+js/rakunally-login.js            img/apple-touch-icon-180.png
 kyuyo/lib/shiharai-chosho.js    img/favicon-16.png
 kyuyo/lib/shouhizei-ritsu.js    img/favicon-32.png
 ```

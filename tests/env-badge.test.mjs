@@ -153,7 +153,7 @@ T('★本番とテストの見分けは「今どの倉庫か」だけで決め�
 T('★配信される画面すべてが帯を読み込んでいる（1画面でも抜けたら赤）', () => {
   const files = shippedHtml();
   /* ★実測 5枚★（2026-08-17 rakually-test）＝ index.html ／ kyuyo の3枚 ／ seikyu/index.html。
-     前は8枚だった（Exally の book.html・chat.html・hub.html を含んでいた＝Rakually には無い）。
+     前は8枚だった（Exally の book.html・chat.html・hub.html を含んでいた＝Rakunally には無い）。
      ★画面を足したら この下限も上げる★＝「数え漏れ」を人の記憶に頼らないための数。 */
   /* ★本番(rakually)は 入口＋請求書の2枚★（給与は exally に間借りのまま＝運んでいない）。
      下限を repo ごとに分ける＝どちらでも「数え漏れ」を人の記憶に頼らない。 */

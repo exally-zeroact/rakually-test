@@ -234,7 +234,7 @@ T('★api/ の各ファイルが実際に読み込める（Vercelと同じ事を
      ・どの画面からも呼ばれていなかった（chat.html を持って来ていない）
      ・★聞いて選ばすは AIを使わない（ルールベース）★ので この先も要らない
      ★0本を「空振り」と言わない★＝サーバ側の関数を1本でも置いたら、また実際に読み込んで確かめる。
-     戻す条件＝Rakually に api/ を置く日（その時この行を消せば、下の検査がそのまま効く）。 */
+     戻す条件＝Rakunally に api/ を置く日（その時この行を消せば、下の検査がそのまま効く）。 */
   if (!apiFiles.length) { console.log('     api/ は0本（サーバ側の関数を置いていない）'); return; }
   if (!process.env.ANTHROPIC_API_KEY) process.env.ANTHROPIC_API_KEY = 'test-dummy-key';
   const ng = [];

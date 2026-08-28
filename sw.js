@@ -1,7 +1,7 @@
-/* sw.js — 最小 Service Worker。目的=Rakually を PWAとしてインストール可能にする(+オフライン時のフォールバック)。
+/* sw.js — 最小 Service Worker。目的=Rakunally を PWAとしてインストール可能にする(+オフライン時のフォールバック)。
  *  ★network-first: オンライン時は必ず最新を取得(頻繁デプロイでも古いキャッシュを掴ませない)。
  *   ネットワーク失敗時のみ直近取得をキャッシュから返す。外部(API/CDN/Supabase等)は素通り。 */
-var CACHE = 'rakually-shell-v1';
+var CACHE = 'rakunally-shell-v1';
 self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
   e.waitUntil(

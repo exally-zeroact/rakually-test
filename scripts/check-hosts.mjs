@@ -27,7 +27,7 @@
  */
 
 const LIVE = [
-  /* ★Rakually の入口は2本だけ★（2026-08-17 に立てた・司さん「本番用とテスト用のURL作ってきっちり分けろや」）
+  /* ★Rakunally の入口は2本だけ★（2026-08-17 に立てた・司さん「本番用とテスト用のURL作ってきっちり分けろや」）
      ・配信は Vercel に揃える（★github.io は使わない★）
      ・★repo名やホスト名では環境を判断しない★。倉庫の向き先は 配信された js/supa-config.js を読んで確かめる
        （静的な突き合わせは tests/pages-hosting.test.mjs D2／週1の実測は下の checkWarehouse ではなく
@@ -47,7 +47,7 @@ const LIVE = [
    pending  : まだ塞いでいない（理由つき）＝NGにするが、何が残っているかが一覧で見える */
 const OLD = [
   /* ★今は0本★（2026-08-17）。
-     Rakually はまだ ★誰にも配っていない★ ので、古い入口が無い。
+     Rakunally はまだ ★誰にも配っていない★ ので、古い入口が無い。
      ★ここが埋まる日★＝Exally から kyuyo/ を外して exally.vercel.app/kyuyo/ を
        rakually.vercel.app/kyuyo/ へ転送する日（22人が使っている＝★消さずに転送を残す★）。
        その転送を打つのは ★Exally セッションの手番★。打った日に この一覧へ1行足す
@@ -154,7 +154,7 @@ if (process.argv.includes('--self-test')) {
     console.log('  今の入口 OK ' + (results.live.length - ngLive.length) + ' / NG ' + ngLive.length);
     console.log('  古い入口 OK ' + (results.old.length - ngOld.length) + ' / NG ' + ngOld.length);
     /* ★0件を「見て異常なし」に見せない★＝数えた物が0本なら、そう言う */
-    if (!results.old.length) console.log('  ※ 古い入口は ★まだ0本★（Rakually を誰にも配っていないため）。'
+    if (!results.old.length) console.log('  ※ 古い入口は ★まだ0本★（Rakunally を誰にも配っていないため）。'
       + 'Exally の kyuyo/ を転送する日に1行 足す＝それまでは「見張る物が無い」の0件。');
     if (!results.live.length) console.log('  ※ ★今の入口が0本＝この見張りは空振り★（一覧に足し忘れている）');
   }

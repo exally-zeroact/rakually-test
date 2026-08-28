@@ -1,6 +1,6 @@
 # 入口の一覧（どのURLが今の入口で、どれが古いか）
 
-Rakually 版 2026-08-17 作成（元 `exally-staging` 版 2026-08-04 を引き継ぎ）
+Rakunally 版 2026-08-17 作成（元 `exally-staging` 版 2026-08-04 を引き継ぎ）
 **★「古い」と書くだけにしない。実際に飛ぶことを機械で確認する★**
 機械: `node scripts/check-hosts.mjs`（週1・月曜9時JST＋手動 / `.github/workflows/hosts.yml`）
 判定そのものの自己確認: `node scripts/check-hosts.mjs --self-test`
@@ -21,7 +21,7 @@ Rakually 版 2026-08-17 作成（元 `exally-staging` 版 2026-08-04 を引き�
 | ★テスト 給与 | https://rakually-test.vercel.app/kyuyo/ | DB-test | `rakually-test` |
 | ★テスト 請求書 | https://rakually-test.vercel.app/seikyu/ | DB-test | `rakually-test` |
 | ★テスト Web明細 | https://rakually-test.vercel.app/kyuyo/meisai.html?t=… | DB-test | `rakually-test` |
-| ★本番 入口 | https://rakually.vercel.app/ | 本番 | `rakually` |
+| ★本番 入口 | https://rakually.vercel.app/ | 本番 | `rakunally` |
 
 ★本番は今「枠だけ」★＝**Deployment Protection が入っている**ので、開くと **401** が返る（それが正しい姿）。
 だから `check-hosts` の一覧（200 を期待する）には **まだ載せていない**。
@@ -35,7 +35,7 @@ Rakually 版 2026-08-17 作成（元 `exally-staging` 版 2026-08-04 を引き�
 
 ## 古い入口（★使わない。開いたら今の入口へ飛ぶ★）
 
-**★今は0本★**。Rakually はまだ誰にも配っていないので、古い入口が存在しない。
+**★今は0本★**。Rakunally はまだ誰にも配っていないので、古い入口が存在しない。
 `check-hosts` は「古い入口 OK 0 / NG 0」と**数を出す**（0件を「見て異常なし」に見せない）。
 
 ### ★ここが埋まる日（先に段取りだけ書いておく）★
@@ -103,7 +103,7 @@ Exally から `kyuyo/` を外す日に、**`exally.vercel.app/kyuyo/` → `rakua
 
 ## 他のアプリ
 
-Rakually 以外の入口（Exally／ダイコメ／飲み屋／アマかせ／代行請求…）の台帳は
+Rakunally 以外の入口（Exally／ダイコメ／飲み屋／アマかせ／代行請求…）の台帳は
 **それぞれの repo の `docs/HOSTS.md`** が持つ。全アプリ横断で倉庫の向き先を数えるのは
 `scripts/check-warehouse-pointers.mjs`（週1・6か所×全アプリ）。
-**ここには Rakually の入口だけを書く**（他アプリの入口をここに書くと、持ち主が2人になる）。
+**ここには Rakunally の入口だけを書く**（他アプリの入口をここに書くと、持ち主が2人になる）。

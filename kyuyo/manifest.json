@@ -1,7 +1,7 @@
 {
-  "name": "Rakually 給与",
+  "name": "Rakunally 給与",
   "short_name": "給与",
-  "description": "給与明細の作成・配布（Rakually）",
+  "description": "給与明細の作成・配布（Rakunally）",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

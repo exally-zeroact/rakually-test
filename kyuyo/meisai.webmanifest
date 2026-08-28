@@ -1,7 +1,7 @@
 {
   "name": "給与明細",
   "short_name": "給与明細",
-  "description": "自分の給与明細を見る（Rakually）",
+  "description": "自分の給与明細を見る（Rakunally）",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F0FAF4",

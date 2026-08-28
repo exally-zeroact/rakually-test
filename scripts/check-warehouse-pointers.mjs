@@ -37,11 +37,11 @@ export const TEST_REF = 'khawdrnvssdenumbiwfg';
 
 /* アプリ × 本番/テスト。★url は「向き先が書いてある物」を直接指す★ */
 const APPS = [
-  /* ★Rakually（2026-08-17 に立てた）★ 給与と請求書は同じ設定ファイルを見る（1つの器）。
+  /* ★Rakunally（2026-08-17 に立てた）★ 給与と請求書は同じ設定ファイルを見る（1つの器）。
      ★本番は今「枠だけ」＝Deployment Protection が入っているので 401 が返る＝🟡未測定として出る★
      （0件・異常なしにしない）。保護を外した日に 200 で測れるようになる。 */
-  { app: 'Rakually',      env: 'テスト', host: 'https://rakually-test.vercel.app',                 cfg: '/js/supa-config.js',  want: TEST_REF },
-  { app: 'Rakually',      env: '本番',   host: 'https://rakually.vercel.app',                      cfg: '/js/supa-config.js',  want: PROD_REF, note: '★枠だけ（保護ON）＝401なら🟡未測定。中身は見た目OKの後に運ぶ' },
+  { app: 'Rakunally',      env: 'テスト', host: 'https://rakually-test.vercel.app',                 cfg: '/js/supa-config.js',  want: TEST_REF },
+  { app: 'Rakunally',      env: '本番',   host: 'https://rakually.vercel.app',                      cfg: '/js/supa-config.js',  want: PROD_REF, note: '★枠だけ（保護ON）＝401なら🟡未測定。中身は見た目OKの後に運ぶ' },
   { app: 'Exally',        env: '本番',   host: 'https://exally.vercel.app',                        cfg: '/js/supa-config.js',  want: PROD_REF },
   { app: 'Exally',        env: 'テスト', host: 'https://exally-zeroact.github.io/exally-staging',  cfg: '/js/supa-config.js',  want: TEST_REF },
   // ★2026-08-07 Vercel版の staging は畳んだ（司さんOK）★
@@ -85,10 +85,10 @@ const EDGE_FUNCS = ['dk-issue-license', 'dk-register-company', 'dk-sync-jobs', '
 
 /* ④ 戻り先を確かめる住所（許可リストに載っているべき物） */
 const REDIRECT_HOSTS = [
-  /* ★Rakually（2026-08-17）★ ログインの戻り先。許可リストに無いと
+  /* ★Rakunally（2026-08-17）★ ログインの戻り先。許可リストに無いと
      ★別のアプリ（請求書アプリ）へ流れる★（reference_supabase_auth_redirect_shared の前科）。 */
-  { app: 'Rakually テスト', url: 'https://rakually-test.vercel.app/' },
-  { app: 'Rakually 本番',   url: 'https://rakually.vercel.app/' },
+  { app: 'Rakunally テスト', url: 'https://rakually-test.vercel.app/' },
+  { app: 'Rakunally 本番',   url: 'https://rakually.vercel.app/' },
   { app: 'Exally',         url: 'https://exally.vercel.app/hub.html' },
   { app: '給与 kyuyo',     url: 'https://exally.vercel.app/kyuyo/admin.html' },
   { app: 'Exally テスト',  url: 'https://exally-zeroact.github.io/exally-staging/hub.html' },

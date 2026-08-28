@@ -1,7 +1,7 @@
 {
-  "name": "Rakually 請求書",
+  "name": "Rakunally 請求書",
   "short_name": "請求書",
-  "description": "請求書・見積書の作成と入金の記録（Rakually）",
+  "description": "請求書・見積書の作成と入金の記録（Rakunally）",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

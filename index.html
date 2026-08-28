@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#52B788">
-<title>Rakually（ラクアリー）</title>
+<title>Rakunally（ラクナリー）</title>
 <link rel="manifest" href="manifest.json">
 <!-- ★iOSは manifest を見ない＝ここで渡す（透明を持たないPNG＝黒く塗られない）★ -->
 <link rel="apple-touch-icon" href="img/apple-touch-icon-180.png?v=2dfae617">
@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/hub.css?v=657b934b">
+<link rel="stylesheet" href="css/hub.css?v=c78b4e0b">
 
 </head>
 <body>
@@ -23,7 +23,7 @@
 <div class="app" id="app" hidden>
 
   <header class="hd">
-    <div class="hd-logo">Rakually</div>
+    <div class="hd-logo">Rakunally</div>
     <div class="hd-user" id="hd-user"></div>
   </header>
 
@@ -49,16 +49,16 @@
         <span class="tile-d">会社・人・取引先</span>
         <span class="tile-go">開く →</span>
       </button>
-      <!-- ★表(ブック)＝Excelの式エンジンは Exally の物なので Rakually には置かない（2026-08-17）。
+      <!-- ★表(ブック)＝Excelの式エンジンは Exally の物なので Rakunally には置かない（2026-08-17）。
            出来ていない物・ここに無い物のボタンは出さない。 -->
     </div>
   </section>
 
   <!-- ★2026-08-18 日次台帳(E2)と集計(E5)を この入口から外した★（司さん「ささっと Exally から切り離せ」）
-       ・どちらも Exally の物（E2/E5）。Rakually の入口に出す物は ★給与／請求書／共有データ★ の3つ。
+       ・どちらも Exally の物（E2/E5）。Rakunally の入口に出す物は ★給与／請求書／共有データ★ の3つ。
        ・外したのは 画面(section)・タイル・下の帯・読み込み(lib/aggregate.js, lib/ledger-source.js,
          lib/cross-agg.js, js/ledger.js)。★中身は git に残っている★（消滅ではない）。
-       ・戻す条件＝Rakually に台帳/集計を置くと決めた日。部品・テスト・CIの登録をまとめて戻す。 -->
+       ・戻す条件＝Rakunally に台帳/集計を置くと決めた日。部品・テスト・CIの登録をまとめて戻す。 -->
   <!-- ═══ 共有データ ═══ -->
   <section id="scr-data" class="scr">
     <h2 class="scr-t">共有データ</h2>
@@ -74,7 +74,7 @@
     <div id="pane-org" class="pane active">
       <div class="card">
         <p class="note">請求書や明細に出る、自分の会社の情報です。空欄のままでも先に進めます。</p>
-        <div class="fld"><label for="org-yago">屋号・会社名</label><input id="org-yago" type="text" placeholder="例：合同会社Rakually"></div>
+        <div class="fld"><label for="org-yago">屋号・会社名</label><input id="org-yago" type="text" placeholder="例：合同会社Rakunally"></div>
         <div class="fld"><label for="org-addr">住所</label><input id="org-addr" type="text" placeholder="例：愛媛県今治市○○町1-2-3"></div>
         <div class="fld"><label for="org-tel">電話番号</label><input id="org-tel" type="tel" placeholder="例：0898-00-0000"></div>
         <div class="fld"><label for="org-invoice">インボイス登録番号</label><input id="org-invoice" type="text" placeholder="T のあと 13桁"><p class="note" id="org-invoice-note">請求書の紙に そのまま刷られます。</p></div>
@@ -163,15 +163,15 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supa-config.js?v=657b934b"></script>
-<script src="lib/access.js?v=657b934b"></script>
-<script src="lib/toroku-no.js?v=657b934b"></script>
-<script src="js/suite-data.js?v=657b934b"></script>
-<script src="js/hub.js?v=657b934b"></script>
-<script src="js/rakually-login.js?v=657b934b"></script>
-<script src="js/auth.js?v=657b934b"></script>
+<script src="js/supa-config.js?v=c78b4e0b"></script>
+<script src="lib/access.js?v=c78b4e0b"></script>
+<script src="lib/toroku-no.js?v=c78b4e0b"></script>
+<script src="js/suite-data.js?v=c78b4e0b"></script>
+<script src="js/hub.js?v=c78b4e0b"></script>
+<script src="js/rakunally-login.js?v=c78b4e0b"></script>
+<script src="js/auth.js?v=c78b4e0b"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="js/env-badge.js?v=657b934b"></script>
+<script src="js/env-badge.js?v=c78b4e0b"></script>
 </body>
 </html>

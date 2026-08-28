@@ -6,7 +6,7 @@
  *   ＝1本でも消えたら、画面は真っ白のまま「テストは緑」になる。
  *
  * ★請求書は seikyu/ の外を13本 呼んでいる★（＝運ぶ時に一緒に運ばないと死ぬ物）。
- *   2026-08-18: アイコンを Rakually のロゴに差し替え、1本(img/icon-192.png)→3本になったので 11→13。
+ *   2026-08-18: アイコンを Rakunally のロゴに差し替え、1本(img/icon-192.png)→3本になったので 11→13。
  *   とくに ★kyuyo/lib/ を2本★（消費税率・源泉の率＝法定の唯一の正）。
  *   ★Exally から kyuyo/ を外すと 請求書は紙も Excel も出せません★
  *   （seikyu-gensen.js が「先に読んでください」で throw する）。
@@ -32,15 +32,15 @@ const eq = (a, b, m) => { if (a !== b) throw new Error((m ? m + ': ' : '') + 'ex
    ここに書いた物が ★1本でも消えたら赤★／★書いていない物が増えても赤★。
    ＝「いつのまにか別の物に頼っていた」を運ぶ日に初めて気づく、を無くす。 */
 const OUTSIDE = [
-  'css/rakually-ui.css',                 // 画面の見た目（帯・カード・ボタン）
-  'index.html',                        // ★Rakually の入口（共有データ＞会社）＝「会社の情報を直す」の飛び先
+  'css/rakunally-ui.css',                 // 画面の見た目（帯・カード・ボタン）
+  'index.html',                        // ★Rakunally の入口（共有データ＞会社）＝「会社の情報を直す」の飛び先
   /* ★2026-08-18 アイコンを差し替えた★ … img/icon-192.png（Exallyの文字だけの仮アイコン）を
-     ★Rakually のロゴ★の一組に替えた。iOSは manifest を見ないので apple-touch-icon が要る。 */
+     ★Rakunally のロゴ★の一組に替えた。iOSは manifest を見ないので apple-touch-icon が要る。 */
   'img/apple-touch-icon-180.png',      // ★iOSでホーム画面に追加した時の絵（manifestを見ない）
   'img/favicon-32.png',                // タブの絵（32）
   'img/favicon-16.png',                // タブの絵（16）
   'js/env-badge.js',                   // ★テスト環境の帯★（本番と取り違えない）
-  'js/rakually-login.js',                // ★ログイン画面の共通部品（唯一の正）★
+  'js/rakunally-login.js',                // ★ログイン画面の共通部品（唯一の正）★
   'js/file-out.js',                    // ★落とす口＝FileOut.deliver（全出力の窓口）★
   'js/suite-data.js',                  // 共有マスタ（会社・取引先）の読み書き
   'js/supa-config.js',                 // 倉庫の向き先（★配信ごとに違う＝写さない物★）

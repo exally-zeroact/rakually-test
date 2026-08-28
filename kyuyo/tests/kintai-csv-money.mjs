@@ -42,7 +42,7 @@ async function boot() {
   for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
     const src = m[1].split('?')[0];
     const base = src.split('/').pop();
-    if (/^https?:/.test(src) || ['supa-config.js', 'auth.js', 'env-badge.js', 'rakually-login.js'].includes(base)) continue;
+    if (/^https?:/.test(src) || ['supa-config.js', 'auth.js', 'env-badge.js', 'rakunally-login.js'].includes(base)) continue;
     const p = path.resolve(path.dirname(INDEX), src);
     if (!fs.existsSync(p)) continue;
     const el = doc.createElement('script');

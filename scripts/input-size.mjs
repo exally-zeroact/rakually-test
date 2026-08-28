@@ -188,7 +188,7 @@ async function bootedHtml(b, tab, tweak) {
   win.alert = () => {}; win.confirm = () => true; win.scrollTo = () => {}; win.print = () => {};
   win.URL.createObjectURL = () => 'blob:fake';
   win.open = () => ({ document: { write() {}, close() {} }, focus() {}, print() {}, close() {} });
-  const drop = ['supa-config.js', 'auth.js', 'env-badge.js', 'rakually-login.js'];
+  const drop = ['supa-config.js', 'auth.js', 'env-badge.js', 'rakunally-login.js'];
   for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
     const src = m[1].split('?')[0];
     if (/^https?:/.test(src) || drop.indexOf(src.split('/').pop()) >= 0) continue;

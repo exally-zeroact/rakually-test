@@ -220,7 +220,7 @@ T('⑩ ★読ませる字は薄い黒・色は押せる物だけ★（全アプ�
   ok(block.length > 200, '聞く形の見た目が入っていない');
   /* ★皮に在る色だけ★（勝手な緑を増やすと 3アプリでバラける＝前科）
      ＋★本文には色を足さない★＝読ませる字は 皮から受け継ぐ */
-  const skin = fs.readFileSync(path.join(ROOT, 'css/rakually-ui.css'), 'utf8');
+  const skin = fs.readFileSync(path.join(ROOT, 'css/rakunally-ui.css'), 'utf8');
   const inSkin = new Set((skin.match(/#[0-9A-Fa-f]{6}\b/g) || []).map((c) => c.toUpperCase()));
   const used = (block.match(/#[0-9A-Fa-f]{6}\b/g) || []).map((c) => c.toUpperCase());
   used.forEach((c) => ok(inSkin.has(c), '★皮に無い色 ' + c + ' を足している★'));
@@ -230,7 +230,7 @@ T('⑩ ★読ませる字は薄い黒・色は押せる物だけ★（全アプ�
      ★この画面は body の字の色が主色の緑（#2E7D54）★で、受け継いだ字が ★全部 緑★になっていた
      （押す物は受け継がず 真っ黒 rgb(0,0,0)）。＝★受け継ぐ★では決まりを守れない。
      使う黒は ★#333333★（司さんの決定・代行請求が本番へ入れた値／指示役 2026-08-18 裁定）。
-     ★2つの「薄い黒」を作らない★＝皮の側も同じ値にした（css/rakually-ui.css）。 */
+     ★2つの「薄い黒」を作らない★＝皮の側も同じ値にした（css/rakunally-ui.css）。 */
   const BLACK = '#333333';
   ['.pask', '.pask-qt', '.pask-hint', '.pask-prog', '.pask-guess', '.pask-o', '.pask-c',
     '.pask-skip', '.pask-d', '.pask-d-k', '.pask-d-v', '.pask-d-r', '.pask-fin', '.pask-note-in > div',

@@ -1,7 +1,7 @@
 {
   "name": "rakually",
   "version": "1.0.0",
-  "description": "Rakually（ラクアリー）— 給与(kyuyo/) と 請求書(seikyu/) と 共有データ(会社・人・取引先)。アプリ本体は依存ゼロの静的HTML/JS。",
+  "description": "Rakunally（ラクナリー）— 給与(kyuyo/) と 請求書(seikyu/) と 共有データ(会社・人・取引先)。アプリ本体は依存ゼロの静的HTML/JS。",
   "scripts": {
     "test": "node tests/run.js",
     "stamp": "node scripts/stamp-build.mjs",

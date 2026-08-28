@@ -182,7 +182,7 @@ T('★許可リストの各行に理由が書いてある', () => {
 });
 T('★許可リストが現実から離れていない（消えたファイルが残っていない）', () => {
   // pages-hosting のように片方のrepoにしか無い物があるので「何本以上が実在」で見る。
-  // ★2026-08-26★ この見張りは 本番(rakually／請求書だけ)へも運ばれる＝給与の3本が無い。
+  // ★2026-08-26★ この見張りは 本番(rakunally／請求書だけ)へも運ばれる＝給与の3本が無い。
   //   下限を repo ごとに分け、★この repo に無い行は 黙らせず 名前を出す★。
   const alive = Object.keys(ALLOWED).filter((f) => fs.existsSync(path.join(ROOT, f)));
   const gone = Object.keys(ALLOWED).filter((f) => !fs.existsSync(path.join(ROOT, f)));

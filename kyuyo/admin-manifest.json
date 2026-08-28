@@ -1,6 +1,6 @@
 {
-  "name": "Rakually 管理",
-  "short_name": "Rakually管理",
+  "name": "Rakunally 管理",
+  "short_name": "Rakunally管理",
   "description": "ユーザーの利用状態を管理",
   "start_url": "./",
   "scope": "./",

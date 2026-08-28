@@ -9,7 +9,7 @@
  *   exally_entitlements ... 利用権(既存・アプリ毎1行)
  *
  * ★絶対に守る事(実測に基づく・テストで担保)★
- *   1. pay_employees.data には RAKUALLY_EMP_KEYS のキーだけ書く。read-modify-write。
+ *   1. pay_employees.data には RAKUNALLY_EMP_KEYS のキーだけ書く。read-modify-write。
  *      Kyuallyは従業員を data に丸ごと書くが未知キーは保持する(mergeEmp)ので共存できる。
  *      "_"始まりは Kyually の保存(stripTransient)で静かに消えるので禁止。
  *   2. 従業員を更新したら pay_companies の updated_at だけ空更新する。
@@ -30,7 +30,7 @@
   'use strict';
 
   // ── §2-1 Exallyが pay_employees.data に書いてよいキー(これ以外は例外) ──
-  var RAKUALLY_EMP_KEYS = ['employmentType', 'business'];
+  var RAKUNALLY_EMP_KEYS = ['employmentType', 'business'];
   var EMPLOYMENT_TYPES = ['従業員', '業務委託'];
   var EMP_DEFAULTS = { employmentType: '従業員', business: '' };
 
@@ -49,7 +49,7 @@
     if (!keys.length) throw new Error('patch が空です');
     keys.forEach(function (k) {
       if (k.charAt(0) === '_') throw new Error('"_"始まりのキーは使えません(保存時に消えます): ' + k);
-      if (RAKUALLY_EMP_KEYS.indexOf(k) < 0) throw new Error('共有データが従業員に書けないキーです: ' + k + '（書けるのは ' + RAKUALLY_EMP_KEYS.join(' / ') + ' だけ）');
+      if (RAKUNALLY_EMP_KEYS.indexOf(k) < 0) throw new Error('共有データが従業員に書けないキーです: ' + k + '（書けるのは ' + RAKUNALLY_EMP_KEYS.join(' / ') + ' だけ）');
     });
     if ('employmentType' in patch && EMPLOYMENT_TYPES.indexOf(patch.employmentType) < 0) {
       throw new Error('employmentType は ' + EMPLOYMENT_TYPES.join(' / ') + ' のどちらかです: ' + patch.employmentType);
@@ -125,7 +125,7 @@
     }
 
     var api = {
-      RAKUALLY_EMP_KEYS: RAKUALLY_EMP_KEYS,
+      RAKUNALLY_EMP_KEYS: RAKUNALLY_EMP_KEYS,
       EMPLOYMENT_TYPES: EMPLOYMENT_TYPES,
       assertEmpPatch: assertEmpPatch,
       isYmd: isYmd,
@@ -153,7 +153,7 @@
                 var row = r && r.data;
                 if (!row) return { ok: false, reason: 'not-found' };   // 黙って新規作成しない
                 var data = Object.assign({}, row.data || {});
-                RAKUALLY_EMP_KEYS.forEach(function (k) { if (k in patch) data[k] = patch[k]; });
+                RAKUNALLY_EMP_KEYS.forEach(function (k) { if (k in patch) data[k] = patch[k]; });
                 return Promise.resolve(sb.from('pay_employees').upsert({ id: id, account_id: u, sort: row.sort, data: data, updated_at: nowIso() }))
                   .then(function (w) {
                     if (w && w.error) return { ok: false, reason: err(w.error) };
@@ -327,7 +327,7 @@
 
   return {
     create: create,
-    RAKUALLY_EMP_KEYS: RAKUALLY_EMP_KEYS,
+    RAKUNALLY_EMP_KEYS: RAKUNALLY_EMP_KEYS,
     EMPLOYMENT_TYPES: EMPLOYMENT_TYPES,
     assertEmpPatch: assertEmpPatch,
     isYmd: isYmd

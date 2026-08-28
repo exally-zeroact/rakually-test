@@ -1,7 +1,7 @@
 {
-  "name": "Rakually",
-  "short_name": "Rakually",
-  "description": "Rakually（ラクアリー） — 給与・請求書などの業務アプリ",
+  "name": "Rakunally",
+  "short_name": "Rakunally",
+  "description": "Rakunally（ラクナリー） — 給与・請求書などの業務アプリ",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

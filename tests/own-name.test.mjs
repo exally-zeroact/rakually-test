@@ -1,10 +1,10 @@
-/* own-name.test.mjs — ★この器は Rakually の物★（全画面・全アプリぶんを1本で数える）
+/* own-name.test.mjs — ★この器は Rakunally の物★（全画面・全アプリぶんを1本で数える）
  *
  * なぜ要るか（司さん 2026-08-17）:
  *   「★いつまでExallyのこといよんど／Rakuallyは別アプリなんはいつ理解するわけ？★」
  *   請求書だけを見張っていた（seikyu/tests/seikyu-own-name.mjs）。
  *   ★器を立てた日に「入口」と「給与」も客が読む字を持った★ので、
- *   見張りを ★Rakually 全体（配信する5画面）★ に広げる。
+ *   見張りを ★Rakunally 全体（配信する5画面）★ に広げる。
  *
  * ここで数える物（★客が読む字だけ★）:
  *   ① <title>（タブの題）
@@ -12,7 +12,7 @@
  *   ③ manifest の name / short_name / description（ホーム画面に出る字）
  *
  * ★数えない物（客は読まない）★
- *   ファイル名（css/rakually-ui.css・js/rakually-login.js）／中の名前（RakuallyLogin・RakuallyEnvBadge）／
+ *   ファイル名（css/rakunally-ui.css・js/rakunally-login.js）／中の名前（RakunallyLogin・RakunallyEnvBadge）／
  *   コード中のコメント（前科の記録は残す）。名前を替えるのは ★10月のURL切替と同じ塊★。
  *
  * 深い所（取引先を外へ出さない・自社の中身を見せる 等）は
@@ -31,14 +31,14 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /* ★他のアプリの名前★＝客が読んではいけない字。
-   Rakually の中の物（給与・請求書・台帳・集計）は お互いの名前を出してよい（同じ1つのアプリ）。 */
+   Rakunally の中の物（給与・請求書・台帳・集計）は お互いの名前を出してよい（同じ1つのアプリ）。 */
 export const OTHER_APPS = ['Exally', 'エクサリー', 'exally', 'Castally', 'キャスタリー', 'ダイコメ', 'アマかせ', 'Timeally',
   /* ★2026-08-18 Kyually を「据え置き」から禁止語に格上げ★（司さん「ささっと Exally から切り離せ」）
-     ＝給与の旧製品名。10月まで待たずに Rakually へ統一した。戻したら赤にする。 */
+     ＝給与の旧製品名。10月まで待たずに Rakunally へ統一した。戻したら赤にする。 */
   'Kyually', 'キュアリー'];
 
 /* ★据え置き（理由と期限つき）★
-   「Kyually」＝給与の旧製品名。★2026-08-12 に Rakually へ統一すると決まったが、改名は10月★
+   「Kyually」＝給与の旧製品名。★2026-08-12 に Rakunally へ統一すると決まったが、改名は10月★
    （URL切替と同じ塊で替える）。今 字だけ替えると、司さんが知っている画面と食い違う。
    ＝★見た目の変更なので、勝手に替えず「まだ残っている」と数えて出す★。 */
 export const PENDING = {
@@ -48,6 +48,14 @@ export const PENDING = {
 
 const SCREENS = ['index.html', 'kyuyo/index.html', 'kyuyo/admin.html', 'kyuyo/meisai.html', 'seikyu/index.html'];
 const MANIFESTS = ['manifest.json', 'kyuyo/manifest.json', 'kyuyo/admin-manifest.json'];
+
+/* ★旧製品名（08-28 Rakually → Rakunally）★ … 中身の説明は下の検査に書いた。
+   ★ここに置く理由★＝自己確認(--self-test)は このファイルの上半分で走るので、
+   下で宣言すると ★「初期化前」で3本とも落ちる★（2026-08-28 実際に踏んだ）。 */
+export const OLD_NAMES = ['Rakually', 'ラクアリー'];
+const ALL_MANIFESTS = ['manifest.json', 'kyuyo/manifest.json', 'kyuyo/admin-manifest.json',
+  'seikyu/manifest.json', 'kyuyo/meisai.webmanifest'];
+
 
 export const sha8 = (buf) => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
 
@@ -180,27 +188,27 @@ if (process.argv.includes('--self-test')) {
     ok(h.length === 0, '壊していないのに ' + h.length + '件: ' + JSON.stringify(h.slice(0, 3)));
   });
   T('① タブの題に「Exally」を戻すと赤', () => {
-    const m = clone(); m['index.html'] = m['index.html'].replace('<title>Rakually（ラクアリー）</title>', '<title>Exally（エクサリー）</title>');
+    const m = clone(); m['index.html'] = m['index.html'].replace('<title>Rakunally（ラクナリー）</title>', '<title>Exally（エクサリー）</title>');
     ok(findOtherNames(m).some((x) => x.where === 'タブの題'), '題を見ていない');
   });
   T('② 戻るリンクの字を「← Exally」に戻すと赤', () => {
-    const m = clone(); m['kyuyo/index.html'] = m['kyuyo/index.html'].replace('← Rakually', '← Exally');
+    const m = clone(); m['kyuyo/index.html'] = m['kyuyo/index.html'].replace('← Rakunally', '← Exally');
     ok(findOtherNames(m).some((x) => x.file === 'kyuyo/index.html'), '画面の字を見ていない');
   });
   T('③ 人が読む属性(title=)に他アプリの名前を戻すと赤', () => {
-    const m = clone(); m['kyuyo/index.html'] = m['kyuyo/index.html'].replace('title="Rakually の入口へ戻る"', 'title="Exally のハブへ戻る"');
+    const m = clone(); m['kyuyo/index.html'] = m['kyuyo/index.html'].replace('title="Rakunally の入口へ戻る"', 'title="Exally のハブへ戻る"');
     ok(findOtherNames(m).length > 0, '属性の中を見ていない');
   });
   T('④ manifest の名前を「Exally」に戻すと赤', () => {
-    const m = clone(); m['manifest.json'] = m['manifest.json'].replace('"name": "Rakually"', '"name": "Exally"');
+    const m = clone(); m['manifest.json'] = m['manifest.json'].replace('"name": "Rakunally"', '"name": "Exally"');
     ok(findOtherNames(m).some((x) => x.file === 'manifest.json'), 'manifest を見ていない');
   });
   T('⑤ ★コードのコメントは赤にしない★（前科の記録を消させない＝誤検知を作らない）', () => {
     const m = clone(); m['index.html'] = m['index.html'].replace('<body>', '<body>\n<!-- Exally の物なので置かない -->');
     ok(findOtherNames(m).length === 0, 'コメントまで数えている＝誤検知');
   });
-  T('⑥ ★<script> の中も赤にしない★（中の名前 RakuallyLogin は客が読まない）', () => {
-    const m = clone(); m['index.html'] = m['index.html'].replace('</body>', '<script>var x = window.RakuallyLogin;</script></body>');
+  T('⑥ ★<script> の中も赤にしない★（中の名前 RakunallyLogin は客が読まない）', () => {
+    const m = clone(); m['index.html'] = m['index.html'].replace('</body>', '<script>var x = window.RakunallyLogin;</script></body>');
     ok(findOtherNames(m).length === 0, '中のJSまで数えている＝誤検知');
   });
   T('⑥-b ★JSが画面に出す字を戻すと赤★（2026-08-18 これを素通りさせた）', () => {
@@ -211,7 +219,21 @@ if (process.argv.includes('--self-test')) {
   T('⑥-c ★コメントと識別子は赤にしない★（誤検知を作らない）', () => {
     ok(!jsStrings('/* Kyually の前科の記録 */ var x = 1;').some((t) => t.includes('Kyually')), 'コメントまで数えている');
     ok(!jsStrings('return { fromKyually: true };').some((t) => t.includes('Kyually')), 'キー名まで数えている');
-    ok(!jsStrings('global.RakuallyLogin = L;').some((t) => t.includes('Exally')), '識別子まで数えている');
+    ok(!jsStrings('global.RakunallyLogin = L;').some((t) => t.includes('Exally')), '識別子まで数えている');
+  });
+  T('⑨ ★旧製品名を1件 戻すと赤（タブの題）★', () => {
+    const m = clone(); m['index.html'] = m['index.html'].replace('<title>Rakunally（ラクナリー）</title>', '<title>Rakually（ラクアリー）</title>');
+    const h = findOtherNames(m, OLD_NAMES, {});
+    ok(h.length > 0, '★旧製品名を戻したのに緑＝この検査は空振り★');
+    console.log('     わざと戻した1件 → ' + h.length + '件 赤（' + h.map((x) => x.where).join(' / ') + '）');
+  });
+  T('⑨-b ★戻した物を元に戻すと また0件（戻し忘れを作らない）★', () => {
+    ok(findOtherNames(base, OLD_NAMES, {}).length === 0, '実ディスクに旧製品名が残っている');
+  });
+  T('⑨-c ★URLは赤にしない（10月の塊を今 壊さない）★', () => {
+    const m = clone();
+    m['index.html'] = m['index.html'].replace('</body>', '<a href="https://rakually-test.vercel.app/">戻る</a></body>');
+    ok(findOtherNames(m, OLD_NAMES, {}).length === 0, '★URLまで赤にしている＝配信を壊す直しを誘発する★');
   });
   T('⑦ ★?v= の突き合わせが効いている★（中身を1バイト変えたら別のSHAになる）', () => {
     const b = fs.readFileSync(path.join(ROOT, 'img/icon-192.png'));
@@ -230,7 +252,7 @@ if (process.argv.includes('--self-test')) {
 }
 
 /* ═══ 本番（実ディスク） ═══ */
-console.log('\n[own-name] この器は Rakually の物か（客が読む字を全画面で数える）');
+console.log('\n[own-name] この器は Rakunally の物か（客が読む字を全画面で数える）');
 const vfs = readVfs();
 
 T('★数える物が揃っている（1枚でも読めなければ空振り）', () => {
@@ -243,8 +265,8 @@ T('★数える物が揃っている（1枚でも読めなければ空振り）'
 
 /* ★ファイル名にも 他アプリの名前を残さない★（司さん 2026-08-18「ささっと Exally から切り離せ」）
    前は「客は読まないから据え置き」にしていた（css/exally-ui.css・js/exally-login.js）。
-   ★その据え置きを全部 取り消した★＝配る物の名前も Rakually にする。
-   ★中の名前（window.○○）も一緒に替えた★＝RakuallyLogin / RakuallyEnvBadge / RAKUALLY_EMP_KEYS。
+   ★その据え置きを全部 取り消した★＝配る物の名前も Rakunally にする。
+   ★中の名前（window.○○）も一緒に替えた★＝RakunallyLogin / RakunallyEnvBadge / RAKUNALLY_EMP_KEYS。
    ★替えない物★＝端末に保存済みの物の鍵（kyuyo/js/store.js の 'kyually-session-backup'）。
      替えると ★前に保存した控えが読めなくなる★＝名前ではなく ★端末に保存されている物の鍵★ なので残す。
      （2026-08-18 訂正: ここに「本番で22人が使っている」と書いていたが ★私の誤り★。
@@ -273,7 +295,7 @@ T('★配信するファイルの名前に exally / kyually が0本（据え置�
    （人が0人の時に必ず出る字だった）。＝★見た目(class)で探すな。中身で探せ★ と同じ形。
    ここでは「配信する .js の中の ★文字列リテラル★」を見る:
      ・コメントは数えない（前科の記録は消させない）
-     ・識別子・キー名は数えない（RakuallyLogin / fromKyually: は客が読まない）
+     ・識別子・キー名は数えない（RakunallyLogin / fromKyually: は客が読まない）
      ・★端末に保存済みの物の鍵★（'kyually-session-backup'）は 理由つきで外す＝下の KEEP_INSIDE */
 export function jsStrings(src) {
   /* コメントを落としてから 文字列だけ取り出す（順番が逆だとコメント内の '…' を拾う） */
@@ -327,6 +349,63 @@ T('★JSが作る字にも 他のアプリの名前が0件（HTMLに書いてい
   console.log('     JS ' + files.length + '本 / 文字列 ' + strs + '個 → 他アプリの名前 ★0件★'
     + '（物の名前として残す ' + kept + '件: '
     + Object.entries(KEEP_INSIDE_STR).map(([f, v]) => f + '=' + v.allow.join('/')).join(' , ') + '）');
+});
+
+/* ═══ ★旧製品名 Rakually が 客に見える所に1件も無い★（司さん 2026-08-28 決定）═════════
+   ★なぜ 別の検査か★
+     ・上の OTHER_APPS は ★他社・他アプリ★の名前（Exally 等）を見る物。
+       ★Rakually は「昨日までの自分の名前」★なので、同じ表に混ぜると
+       「この器は Rakually の物」という このファイル自身の説明文まで赤になる（＝誤検知で見張りを外す羽目になる）。
+     ・だから ★客が読む所だけ★ を別に数える。
+   ★替えない物（ここで赤にしない物）★
+     ・URL（rakually-test.vercel.app / rakually.vercel.app）・repo名・npmの物の名前 … ★10月のURL切替の塊★
+     ・★司さんの言葉そのまま★（「Rakuallyは別アプリなんはいつ理解するわけ？」）＝引用は書き換えない
+     ・道具 scripts/rename-to-rakunally.mjs（替える為の道具なので 旧名を持っているのが正しい）
+   ★見る所★ … タブの題／画面の字／人が読む属性／manifest の名前／JSが画面に出す字／配るファイルの名前 */
+T('★旧製品名「Rakually／ラクアリー」が 客が読む字に0件（08-28 Rakunally へ改名）', () => {
+  const v = {};
+  for (const f of [...SCREENS, ...ALL_MANIFESTS]) v[f] = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  ok(Object.keys(v).length === SCREENS.length + ALL_MANIFESTS.length, '読めた物が足りない');
+  const hits = findOtherNames(v, OLD_NAMES, {});
+  if (hits.length) {
+    throw new Error('★' + hits.length + '件★ 旧製品名が客に見えている\n     '
+      + hits.map((h) => h.file + ' の ' + h.where + ' に「' + h.name + '」').join('\n     '));
+  }
+  console.log('     画面 ' + SCREENS.length + '枚 ／ manifest ' + ALL_MANIFESTS.length + '本 → 旧製品名 ★0件★');
+});
+
+T('★旧製品名が JSが画面に出す字にも0件（HTMLに書いていない字＝ログイン画面のロゴ等）', () => {
+  const files = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
+    .filter((f) => /\.js$/.test(f) && !f.startsWith('tests/') && !f.startsWith('scripts/')
+      && !f.includes('/tests/') && !f.includes('/scripts/') && !/\.min\.js$/.test(f) && !f.startsWith('docs/'));
+  ok(files.length > 20, '数えたJSが ' + files.length + '本＝拾えていない');
+  const hits = [];
+  let strs = 0;
+  for (const f of files) {
+    const list = jsStrings(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+    strs += list.length;
+    for (const t of list) {
+      /* ★URL・repo名は 替えない★＝10月の塊。ここで赤にすると 配信を壊す直しを誘発する。 */
+      if (/rakually(-test)?\.vercel\.app|rakually-test|exally-zeroact\/rakually/.test(t)) continue;
+      for (const n of OLD_NAMES) if (t.includes(n)) hits.push(f + ' の文字列「' + t.slice(0, 40) + '」');
+    }
+  }
+  if (hits.length) throw new Error('★' + hits.length + '件★ JSが画面に出す字に旧製品名\n     ' + hits.join('\n     '));
+  console.log('     JS ' + files.length + '本 / 文字列 ' + strs + '個 → 旧製品名 ★0件★');
+});
+
+T('★配るファイルの名前にも rakually が0本（css/js/ロゴ/テスト の5本を替えた）', () => {
+  const files = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
+  ok(files.length > 100, '数えたファイルが ' + files.length + '本＝拾えていない');
+  /* ★道具は除く★＝rename-to-rakunally.mjs は 替える為の道具（名前に旧名を含まないが、増えた時の為に明示） */
+  const bad = files.filter((f) => /rakually/i.test(f.split('/').pop()) && !/rename-to-rakunally/.test(f));
+  if (bad.length) throw new Error('★' + bad.length + '本★ 名前に旧製品名\n     ' + bad.join('\n     '));
+  /* ★替えた5本が 実在する★（消しただけで終わっていないか） */
+  const must = ['css/rakunally-ui.css', 'js/rakunally-login.js', 'docs/logo/rakunally-logo.png',
+    'kyuyo/tests/rakunally-login.test.mjs', 'kyuyo/tests/rakunally-login-forgot.test.mjs'];
+  const miss = must.filter((f) => !fs.existsSync(path.join(ROOT, f)));
+  ok(!miss.length, '★替えた先が無い★ ' + miss.join(' / '));
+  console.log('     数えたファイル ' + files.length + '本 → 名前に旧製品名 ★0本★（替えた5本は実在）');
 });
 
 T('★他のアプリの名前が、客が読む字に0件（タブの題・画面の字・ホーム画面の名前）', () => {
@@ -435,7 +514,7 @@ T('★据え置きの名前は「0件」に見せない（何がいつまで残�
     console.log('     据え置き「' + n + '」' + where.join(' , ') + '（' + e.until + 'までに替える／' + e.where + '）');
     shown++;
   }
-  if (!shown) console.log('     据え置き ★0件★（Kyually は 2026-08-18 に Rakually へ統一済み）');
+  if (!shown) console.log('     据え置き ★0件★（Kyually は 2026-08-18 に Rakunally へ統一済み）');
 });
 /* ═══ ★ホーム画面に追加できる画面は manifest を持つ／絵は本物のロゴ★（2026-08-19）═══ */
 T('★ホーム画面に追加する4画面が manifest を持ち、絵が本物のロゴを指す', () => {
@@ -468,8 +547,8 @@ T('★ホーム画面に追加する4画面が manifest を持ち、絵が本物
   console.log('     ' + seen.join(' ／ '));
 });
 
-/* ═══ ★見本の会社名は このアプリの名前（合同会社Rakually）★（司さん 2026-08-19）═══ */
-T('★配る物に 別の会社名の見本を書かない（見本は 合同会社Rakually）', () => {
+/* ═══ ★見本の会社名は このアプリの名前（合同会社Rakunally）★（司さん 2026-08-19）═══ */
+T('★配る物に 別の会社名の見本を書かない（見本は 合同会社Rakunally）', () => {
   /* 客に配る物＝画面のHTMLと 画面のJS（テストと凍結した物は 見ない） */
   const SHIP = [
     'index.html', 'kyuyo/index.html', 'kyuyo/meisai.html', 'kyuyo/admin.html', 'seikyu/index.html',
@@ -484,9 +563,9 @@ T('★配る物に 別の会社名の見本を書かない（見本は 合同会
   ok(!hit.length, '★配る物に別の会社名が残っている★ … ' + hit.join(' / '));
   /* 見本そのものは 在る事（既定が空だと「まだ入れていない」が判らなくなる） */
   const app = fs.readFileSync(path.join(ROOT, 'kyuyo/js/app.js'), 'utf8');
-  ok(/name:'合同会社Rakually'/.test(app), '★既定の会社名が 合同会社Rakually でない★');
-  ok(/\/\^合同会社Rakually\$\/\.test\(/.test(app), '★「まだ自社に変えていない」の判定が 見本と揃っていない★');
-  const n = (app.match(/合同会社Rakually/g) || []).length;
+  ok(/name:'合同会社Rakunally'/.test(app), '★既定の会社名が 合同会社Rakunally でない★');
+  ok(/\/\^合同会社Rakunally\$\/\.test\(/.test(app), '★「まだ自社に変えていない」の判定が 見本と揃っていない★');
+  const n = (app.match(/合同会社Rakunally/g) || []).length;
   ok(n >= 3, '見本の3か所（既定・判定・置き字）が揃っていない（' + n + '箇所）');
   console.log('     配る物 ' + SHIP.length + '本に 別の会社名 0件 ／ app.js の見本 ' + n + '箇所');
 });

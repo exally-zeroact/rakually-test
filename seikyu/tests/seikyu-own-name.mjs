@@ -1,7 +1,7 @@
-/* seikyu-own-name.mjs — ★この画面は Rakually の物★（司さん 2026-08-17）
+/* seikyu-own-name.mjs — ★この画面は Rakunally の物★（司さん 2026-08-17）
  *
  * 何を止めたいか:
- *   ★請求書は Rakually のアプリなのに、客が読む字に「Exally」を出していた★
+ *   ★請求書は Rakunally のアプリなのに、客が読む字に「Exally」を出していた★
  *   （司さん 2026-08-17「いつまでExallyのこといよんど／Rakuallyは別アプリなんはいつ理解するわけ？」）
  *   実測で ★4か所★ … タブの題／戻るリンク「← Exally」／
  *   「Exally のハブ（共有データ ▸ 取引先）で追加してください」／同（会社）
@@ -40,9 +40,9 @@ const eq = (a, b, m) => { if (a !== b) throw new Error((m ? m + ': ' : '') + 'ex
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ★他のアプリの名前★（この画面の客が読んではいけない字）
-   ★Rakually の中の物（給与・請求書）は お互いの名前を出してよい★＝同じ1つのアプリなので。 */
+   ★Rakunally の中の物（給与・請求書）は お互いの名前を出してよい★＝同じ1つのアプリなので。 */
 const OTHER_APPS = ['Exally', 'エクサリー', 'exally', 'Kyually', 'キュアリー', 'Castally', 'ダイコメ', 'アマかせ'];
-/* ★字の中では見逃す物★＝ファイル名やクラス名は客が読まない（css/rakually-ui.css など）。
+/* ★字の中では見逃す物★＝ファイル名やクラス名は客が読まない（css/rakunally-ui.css など）。
    ここは「画面に描かれた文字」だけを数えるので、その手の物は そもそも入ってこない。 */
 
 /* ── 本物の画面を読む（CDN・接続設定・ログインは外す＝ネットに出ない） ── */
@@ -71,7 +71,7 @@ const sb = createFakeSupa({
 const $ = (id) => doc.getElementById(id);
 const SCREENS = ['scr-list', 'scr-edit', 'scr-set'];
 
-console.log('\n[請求書 これは Rakually の画面か]');
+console.log('\n[請求書 これは Rakunally の画面か]');
 await win.SeikyuApp.attach(sb);
 await sleep(30);
 

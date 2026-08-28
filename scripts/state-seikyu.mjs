@@ -55,7 +55,7 @@ win.addEventListener('unhandledrejection', (e) => errs.push('未処理:' + ((e.r
   win.__mkSb = () => m.exports.createFakeSupa({
     uid: 'u1',
     tables: {
-      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakually', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
+      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中' }, deleted_at: null }],
       pay_invoices: [], pay_receipts: [],
       pay_companies: [{ account_id: 'u1', data: {}, updated_at: '2026-08-01T00:00:00Z' }],
@@ -64,7 +64,7 @@ win.addEventListener('unhandledrejection', (e) => errs.push('未処理:' + ((e.r
     unique: { pay_invoices: [['account_id', 'doc_type', 'no']] },
   });
 }
-const DROP = ['supa-config.js', 'auth.js', 'env-badge.js', 'store.js', 'rakually-login.js'];
+const DROP = ['supa-config.js', 'auth.js', 'env-badge.js', 'store.js', 'rakunally-login.js'];
 for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
   const src = m[1].split('?')[0];
   if (/^https?:/.test(src) || DROP.indexOf(src.split('/').pop()) >= 0) continue;
@@ -183,7 +183,7 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
 
 /* ── ⑧ 渡す ── */
 {
-  /* ★メールで送る口は Rakually に無い★（あるなら数える）
+  /* ★メールで送る口は Rakunally に無い★（あるなら数える）
      ★body.innerHTML を見ない★＝<script> の中身（app.js の source）まで入るので
      ★ソースにその字が在るだけで「在る」と数えてしまう★（2026-08-24 に実際に踏んだ）。
      ⇒ ★押せる物・リンクだけを見る★。 */

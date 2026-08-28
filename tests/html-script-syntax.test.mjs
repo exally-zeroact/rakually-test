@@ -14,7 +14,7 @@
  *     kyuyo/index.html 250B ／ kyuyo/meisai.html 250B ／ kyuyo/admin.html 144B ／
  *     seikyu/index.html 250B ／ index.html は0本（読み込む物だけ）
  *   ★2026-08-17 に的が変わった★: 一番大きい的だった book.html（199,606バイト）は
- *     Exally のブックなので Rakually には持って来ていない。
+ *     Exally のブックなので Rakunally には持って来ていない。
  *     ＝「一番大きいブロックが10万バイト以上」という空振り検査は成り立たないので、
  *       ★HTML5枚・インライン4本・1本あたり100バイト以上★を数えて空振りを止める。
  *     （2026-07-29 に本番で踏んだ /?v=/ の落ちは ★250バイトの側★で起きている＝小さい方も的）
@@ -160,7 +160,7 @@ T('★インラインの <script> を取り出せている（0本なら空振り
   const total = found.reduce((a, x) => a + x.scripts.length, 0);
   ok(total > 0, '<script> が1本も取れていない');
   /* ★2026-08-17 に的が変わった★ 一番大きい的（book.html 199,606バイト）は Exally の物なので
-     Rakually には無い。代わりに ★本数と1本あたりの大きさ★ で空振りを止める。
+     Rakunally には無い。代わりに ★本数と1本あたりの大きさ★ で空振りを止める。
      実測: kyuyo/index.html 250B ／ kyuyo/meisai.html 250B ／ seikyu/index.html 250B ／ kyuyo/admin.html 144B */
   ok(total >= 4, 'インラインの <script> が ' + total + '本＝取り出せていない（実測4本）');
   const smallest = Math.min(...found.flatMap((x) => x.scripts.map((s) => s.code.length)));

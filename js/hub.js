@@ -268,9 +268,9 @@
   }
 
   /* ★2026-08-18 集計(E5)と日次台帳(E2)は この入口から外した★（司さん「ささっと Exally から切り離せ」）
-     ・どちらも Exally の物。Rakually の入口が出す物は ★給与／請求書／共有データ★ の3つ。
+     ・どちらも Exally の物。Rakunally の入口が出す物は ★給与／請求書／共有データ★ の3つ。
      ・外したのは renderAgg / paintAgg / renderCross / paintCross と その繋ぎ（121行）。
-     ・戻す条件＝Rakually に台帳/集計を置くと決めた日（git に残っている）。 */
+     ・戻す条件＝Rakunally に台帳/集計を置くと決めた日（git に残っている）。 */
 
   /* ═══ 読み込み ═══ */
   function loadPartners() {
@@ -364,7 +364,7 @@
     _modal: modal, _modalClose: modalClose
   };
   global.Hub = Hub;
-  global.__RAKUALLY_TEST = Hub;                       // ★UIテスト(jsdom/実機)から中を見る
+  global.__RAKUNALLY_TEST = Hub;                       // ★UIテスト(jsdom/実機)から中を見る
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

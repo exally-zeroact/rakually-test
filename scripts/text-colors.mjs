@@ -68,7 +68,7 @@ if (!CHROME) {
   console.error('★ブラウザが見つかりません。描き終わった画面を測れないので止めます（0件と言わない）。');
   process.exit(2);
 }
-const OUT = path.join(os.tmpdir(), 'rakually-text-colors');
+const OUT = path.join(os.tmpdir(), 'rakunally-text-colors');
 fs.mkdirSync(OUT, { recursive: true });
 const WIDTH = 390, HEIGHT = 844;   /* 客がいちばん使う幅（iPhone） */
 
@@ -76,9 +76,9 @@ const WIDTH = 390, HEIGHT = 844;   /* 客がいちばん使う幅（iPhone） */
      #333333 … 本文・値・金額（body の既定はこれ）
      #555555 … 副の情報（注記・補足）
      #6E6E6E … いちばん薄い注記
-   ★なぜ この3段か（Rakually として決めた理由・2026-08-22）★
+   ★なぜ この3段か（Rakunally として決めた理由・2026-08-22）★
      ・決まりは「薄い黒（#333前後）／色は押せる物と選ばれている物だけ／真っ黒にしない」。
-     ・Rakually の地は白なので ★白の上で読めるか★を先に測った（対比）:
+     ・Rakunally の地は白なので ★白の上で読めるか★を先に測った（対比）:
        #333333＝12.6:1 ／ #555555＝7.5:1 ／ #6E6E6E＝5.1:1。★どれも小さい字の下限 4.5:1 を超える★。
      ・段を3つで切るのは ★「2つめの薄い黒」を勝手に増やさないため★
        （実際に #000000 が2箇所 紛れていた）。
@@ -121,7 +121,7 @@ function seikyuBoot(win) {
   win.__mkSb = () => m.exports.createFakeSupa({
     uid: 'u1',
     tables: {
-      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakually', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
+      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中', askOk: { honor: 1, person: 1, addr: 1, payTerm: 1, gensen: 1 } }, deleted_at: null }],
       pay_invoices: [], pay_receipts: [],
       pay_companies: [{ account_id: 'u1', data: {}, updated_at: '2026-08-01T00:00:00Z' }],
@@ -186,7 +186,7 @@ async function render(sc) {
   win.open = () => ({ document: { write() {}, close() {} }, focus() {}, print() {}, close() {} });
   if (sc.boot && !sc.file.startsWith('kyuyo/index')) sc.boot(win, doc);   /* 倉庫の差し替えは 走らせる前 */
   /* ★外す物は名前で ぴったり合わせる★（ゆるく書くと seikyu-store.js まで落ちる） */
-  const drop = ['supa-config.js', 'auth.js', 'env-badge.js', 'rakually-login.js'];
+  const drop = ['supa-config.js', 'auth.js', 'env-badge.js', 'rakunally-login.js'];
   if (sc.file === 'kyuyo/meisai.html' || sc.file === 'seikyu/index.html') drop.push('store.js');
   for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
     const src = m[1].split('?')[0];
@@ -371,7 +371,7 @@ if (!selfTest) {
     ['kyuyo/meisai.html', /(\.dlist \.drow \.dv\{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '明細の一覧の金額（JSが描く字）', 'Web明細'],
     ['kyuyo/meisai.html', /(\.nw-q\{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '年末調整の質問文（JSが描く字）', 'Web明細 ▸ 年末調整'],
     ['kyuyo/admin.html', /(\.bar small\{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '管理の小さい説明', '管理'],
-    ['css/rakually-ui.css', /(\.hint \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '皮の注意書き（請求書が読む）', '請求書'],
+    ['css/rakunally-ui.css', /(\.hint \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '皮の注意書き（請求書が読む）', '請求書'],
     ['seikyu/css/app.css', /(\.sub-h \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '請求書の中見出し', '請求書 ▸ 設定'],
     ['seikyu/css/app.css', /(\.no-v \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '請求番号（開いている画面の中）', '請求書'],
     ['seikyu/css/app.css', /(\.tot-g \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '締めの合計金額（JSが描く字）', '請求書'],
