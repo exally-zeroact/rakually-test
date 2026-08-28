@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=08e18629">
-<link rel="stylesheet" href="css/app.css?v=08e18629">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=603fc1ef">
+<link rel="stylesheet" href="css/app.css?v=603fc1ef">
 </head>
 <body>
 
@@ -308,6 +308,17 @@
                       （2枚になった時だけ 入力の画面から「枠を増やす」で ここへ飛べる）
          ・明細の列 … ★列を足したい会社だけ★ が触る
          ★畳むだけで 消さない★（押せば出る）。★開いた時に見える設定を減らす★のが狙い。 -->
+    <!-- ★紙の作りを ここで1問ずつ聞く★（司さん 2026-08-16／指示役の順番 ⑤⑥）
+         ★聞く前に 数える★＝もう作った請求書を数えて
+           「この列、◯通で1度も使っていません。消しますか？」
+           「明細はいちばん多い月で◯行。枠は◯行で足ります。」
+         ★材料が足りない時（3通未満）は 何も出ない★／答え終われば 自分で消える。
+         ★下の「詳しい設定」と 同じ値の 2つの見え方★（別ウィザードを作らない）。 -->
+    <div class="card" id="paper-ask-card" style="display:none">
+      <div class="card-h">紙の作りで 決められる事が あります</div>
+      <div id="paper-ask"></div>
+    </div>
+
     <details class="card more" id="set-more">
       <summary class="more-s">詳しい設定（紙の行数・明細の列）</summary>
 
@@ -604,36 +615,37 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=08e18629"></script>
-<script src="../lib/xlsx.full.min.js?v=08e18629"></script>
-<script src="../js/file-out.js?v=08e18629"></script>
-<script src="../js/suite-data.js?v=08e18629"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=08e18629"></script>
+<script src="../js/supa-config.js?v=603fc1ef"></script>
+<script src="../lib/xlsx.full.min.js?v=603fc1ef"></script>
+<script src="../js/file-out.js?v=603fc1ef"></script>
+<script src="../js/suite-data.js?v=603fc1ef"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=603fc1ef"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=08e18629"></script>
-<script src="lib/seikyu-tax.js?v=08e18629"></script>
-<script src="lib/seikyu-gensen.js?v=08e18629"></script>
-<script src="lib/seikyu-carry.js?v=08e18629"></script>
-<script src="lib/seikyu-cols.js?v=08e18629"></script>
-<script src="lib/seikyu-templates.js?v=08e18629"></script>
-<script src="../lib/toroku-no.js?v=08e18629"></script>
-<script src="lib/seikyu-doc.js?v=08e18629"></script>
-<script src="lib/seikyu-partner-ask.js?v=08e18629"></script>
-<script src="lib/seikyu-invoice-ask.js?v=08e18629"></script>
-<script src="lib/seikyu-name.js?v=08e18629"></script>
-<script src="lib/seikyu-paper.js?v=08e18629"></script>
-<script src="lib/seikyu-aoa.js?v=08e18629"></script>
-<script src="js/seikyu-store.js?v=08e18629"></script>
-<script src="js/seikyu-out.js?v=08e18629"></script>
-<script src="js/seikyu-app.js?v=08e18629"></script>
-<script src="../js/rakunally-login.js?v=08e18629"></script>
-<script src="js/auth.js?v=08e18629"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=603fc1ef"></script>
+<script src="lib/seikyu-tax.js?v=603fc1ef"></script>
+<script src="lib/seikyu-gensen.js?v=603fc1ef"></script>
+<script src="lib/seikyu-carry.js?v=603fc1ef"></script>
+<script src="lib/seikyu-cols.js?v=603fc1ef"></script>
+<script src="lib/seikyu-templates.js?v=603fc1ef"></script>
+<script src="../lib/toroku-no.js?v=603fc1ef"></script>
+<script src="lib/seikyu-doc.js?v=603fc1ef"></script>
+<script src="lib/seikyu-partner-ask.js?v=603fc1ef"></script>
+<script src="lib/seikyu-invoice-ask.js?v=603fc1ef"></script>
+<script src="lib/seikyu-paper-ask.js?v=603fc1ef"></script>
+<script src="lib/seikyu-name.js?v=603fc1ef"></script>
+<script src="lib/seikyu-paper.js?v=603fc1ef"></script>
+<script src="lib/seikyu-aoa.js?v=603fc1ef"></script>
+<script src="js/seikyu-store.js?v=603fc1ef"></script>
+<script src="js/seikyu-out.js?v=603fc1ef"></script>
+<script src="js/seikyu-app.js?v=603fc1ef"></script>
+<script src="../js/rakunally-login.js?v=603fc1ef"></script>
+<script src="js/auth.js?v=603fc1ef"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=08e18629"></script>
+<script src="../js/env-badge.js?v=603fc1ef"></script>
 </body>
 </html>

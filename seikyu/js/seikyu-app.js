@@ -2113,6 +2113,7 @@
     drawSetTpl(s.template);
     renderColEditor();
     fillSeal();
+    renderPaperAsk();   /* ★紙の作り（列・行数）の聞く形も 一緒に描き直す★ */
   }
 
   function drawSetTpl(id) {
@@ -2383,6 +2384,124 @@
         fillEdit();
         renderInvAsk();
       }
+    });
+  }
+
+  /* ═══ ★紙の作りを 1問ずつ聞く★（⑤明細の列・⑥紙の行数）════════════════
+     ★聞く前に 数える★＝出した請求書を数えて「使っていない列」「足りる行数」を当てる。
+     ★見た目は 取引先・この1通の聞く形（pask）と同じ物★＝作り直さない。
+     ★1問ごと保存★（答えた瞬間に 会社の設定へ書く）。 */
+  var PASK2 = (typeof window !== 'undefined' && window.SeikyuPaperAsk) || null;
+
+  function paperAskCtx() {
+    if (!PASK2 || !S.org) return null;
+    var st = settings();
+    var spec = COLS.normalizeSpec((S.org && S.org.invoiceCols) || TPL.getOrDefault(st.template).cols);
+    /* ★出した紙だけ 数える★（下書きは 実績ではない） */
+    var issued = (S.list || []).filter(function (v) { return v && v.status && v.status !== 'draft'; });
+    var def = TPL.getOrDefault(st.template);
+    return {
+      cols: spec, invoices: issued,
+      rows: st.paperRows, defaultRows: (def && def.rows) || PAPER.ROWS_FIRST || 0,
+      answered: (S.org && S.org.paperAskOk) || {},
+      cellOf: function (ln, col, i, sp) { return COLS.cellOf(ln, col, i, sp); },
+      roleOf: function (sp, col) { return COLS.roleOfIn(sp, col); },
+    };
+  }
+
+  function paperAskHTML() {
+    var c = paperAskCtx(); if (!c) return '';
+    var r = PASK2.progress(c);
+    var h = '<div class="pask" data-paskp="1">';
+    h += '<div class="pask-prog"><b>' + r.total + '問のうち ' + r.done + '問 答えました</b></div>';
+    var q = r.next;
+    if (!q) { h += '<p class="pask-fin">紙の作りは ぜんぶ決まっています。</p>'; }
+    else {
+      h += '<div class="pask-q"><div class="pask-qt">' + esc(q.q) + '</div>';
+      if (q.hint) h += '<p class="pask-hint">' + esc(q.hint) + '</p>';
+      if (q.guess) {
+        h += '<div class="pask-guess">当てました：<b>' + esc(String(q.guess.value)) + '</b>'
+          + '<button class="pask-why" type="button" data-paskp-why="' + esc(q.key) + '">なぜ？</button></div>';
+      }
+      if (q.kind === 'yesno') {
+        h += '<div class="pask-opts">'
+          + '<button class="pask-o" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="yes">消す</button>'
+          + '<button class="pask-o" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="no">このまま残す</button>'
+          + '</div>';
+      } else {
+        h += '<div class="pask-opts">' + (q.options || []).map(function (o) {
+          return '<button class="pask-o" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="' + esc(o.v) + '">' + esc(o.t) + '</button>';
+        }).join('') + '</div>';
+      }
+      h += '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function renderPaperAsk() {
+    var card = $('paper-ask-card'), host = $('paper-ask');
+    if (!card || !host) return;
+    var c = paperAskCtx();
+    var on = !!(c && PASK2.progress(c).next);
+    show(card, on);
+    host.innerHTML = on ? paperAskHTML() : '';
+    bindPaperAsk();
+  }
+
+  /** ★1問ごと保存★（会社の設定へ書く。答えた印も 会社の設定に持つ） */
+  function paperAskAnswer(key, val) {
+    var c = paperAskCtx(); if (!c) return;
+    var q = PASK2.questions(c).filter(function (x) { return x.key === key; })[0];
+    if (!q) return;
+    if (/^col:/.test(key)) {
+      if (val === 'yes') {
+        var spec = COLS.normalizeSpec((S.org && S.org.invoiceCols) || TPL.getOrDefault(settings().template).cols);
+        var next = spec.items.filter(function (x) { return x !== q.col; });
+        var errs = COLS.validate(next);
+        if (errs.length) { box('col-err', errs.join(' ')); return; }   /* ★消せない時は 消さない★ */
+        spec.items = next;
+        S.org = Object.assign({}, S.org || {}, { invoiceCols: spec });
+      }
+    } else if (key === 'rows') {
+      S.org = Object.assign({}, S.org || {}, { invoicePaperRows: rowsSetting(val) });
+    }
+    var okm = Object.assign({}, (S.org && S.org.paperAskOk) || {});
+    okm[key] = true;
+    S.org = Object.assign({}, S.org || {}, { paperAskOk: okm });
+    box('col-ok', q.result ? q.result(val) : '');
+    fillSettings();
+    renderPaperAsk();
+    savePaperAsk();
+  }
+  /** ★保存できない時は 何もしない（「保存しました」と嘘を言わない）★ */
+  function savePaperAsk() {
+    if (!(S.store && S.store.org)) return;
+    S.store.org.save({
+      invoiceCols: S.org.invoiceCols, invoicePaperRows: S.org.invoicePaperRows, paperAskOk: S.org.paperAskOk,
+    }).then(function (r) {
+      if (!r || !r.ok) box('set-err', '保存できませんでした（' + ((r && r.reason) || '') + '）');
+      else if (r.data) S.org = r.data;
+    });
+  }
+
+  function bindPaperAsk() {
+    var host = $('paper-ask'); if (!host || host.dataset.bound) return;
+    host.dataset.bound = '1';
+    host.addEventListener('click', function (ev) {
+      var t = ev.target;
+      var why = t.closest && t.closest('[data-paskp-why]');
+      if (why) {
+        var c = paperAskCtx(); if (!c) return;
+        var q = PASK2.questions(c).filter(function (x) { return x.key === why.dataset.paskpWhy; })[0];
+        if (q && q.guess) {
+          uiNote('どうして そう当てたか', esc(q.q) + '<br>' + esc(q.guess.why).replace(/★/g, '')
+            + '<br><span class="pask-note">当てただけです。ちがう物を押せば そのまま変わります。</span>');
+        }
+        return;
+      }
+      var pick = t.closest && t.closest('[data-paskp-pick]');
+      if (pick) { paperAskAnswer(pick.dataset.paskpPick, pick.dataset.v); }
     });
   }
 

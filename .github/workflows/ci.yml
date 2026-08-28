@@ -221,6 +221,17 @@ jobs:
         run: node seikyu/tests/invoice-ask-ui.mjs
       - name: ★同 わざと壊して赤になるか（印を消す／空に戻す／材料が無い相手）
         run: node seikyu/tests/invoice-ask-ui.mjs --self-test
+      # ★紙の作りを 聞いてあげる★（⑤明細の列・⑥紙の行数）＝★聞く前に 数える★
+      #   もう作った請求書を数えて「この列 使っていません」「枠は◯行で足ります」と言う。
+      #   ★材料が足りない時（3通未満）は 何も言わない★／★計算で出る列は 数えない★
+      - name: ★請求書 紙の作りを聞く形に (使っていない列・紙の行数を 通数つきで当てる)
+        run: node seikyu/tests/paper-ask.test.mjs
+      - name: ★同 わざと壊して赤になるか（使っている列／通数の下限／根拠に数）
+        run: node seikyu/tests/paper-ask.test.mjs --self-test
+      - name: ★請求書 紙の作りの聞く形を実際に押す (3通未満は出ない／消す→本当に消える／1問ごと保存)
+        run: node seikyu/tests/paper-ask-ui.mjs
+      - name: ★同 わざと壊して赤になるか（印を消す／下書きは数えない／使っている列）
+        run: node seikyu/tests/paper-ask-ui.mjs --self-test
       - name: ★会社の情報は第3の場所か (請求書→給与のリンク0本・帰り道が出る・2か所持ちが無い)
         run: node seikyu/tests/kaisha-link.test.mjs
       - name: ★同 わざと戻して赤になるか（給与へのリンク／帰り道／給与の打てる欄）
