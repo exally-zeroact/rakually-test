@@ -70,7 +70,13 @@ function listTestFiles() {
   return out.sort();
 }
 
-const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+/* ★走らせている所は ci.yml だけではない★（2026-08-29 に踏んだ）
+   見た目の検査は ★本物のブラウザが要る★ので .github/workflows/webkit.yml で走らせている。
+   ここで ci.yml しか読まないと ★ちゃんと走っている物を「宙に浮いている」と言う★＝嘘の赤。
+   ⇒ ★.github/workflows/ の yml を 全部 読む★（増えても 自動で入る）。 */
+const WF_DIR = path.join(ROOT, '.github/workflows');
+const ci = fs.readdirSync(WF_DIR).filter((f) => /\.ya?ml$/.test(f))
+  .map((f) => fs.readFileSync(path.join(WF_DIR, f), 'utf8')).join('\n');
 const ciRuns = new Set((ci.match(/node\s+([A-Za-z0-9/._-]+)/g) || []).map(s => s.replace(/^node\s+/, '')));
 
 function runnerList(runnerRel) {

@@ -29,6 +29,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
+const NAME = 'button-uniform';
+
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LENDERS = [
   path.join(ROOT, 'node_modules/playwright/index.js'),
@@ -97,7 +99,18 @@ function pageOf(rel, extraCss) {
 
 async function measure(extraCss) {
   const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'btnu-'));
-  const b = await webkit.launch();
+  /* ★ここで止まってはいけない★（2026-08-29 CIで赤を出した）
+     ★部品(playwright)が入っていても ブラウザ本体が無い★事が在る（CIの走る所が それ）。
+     ★測れない＝未測定★であって ★問題なし でも 赤 でもない★。はっきり言って 抜ける。 */
+  let b;
+  try { b = await webkit.launch(); }
+  catch (e) {
+    console.log('[' + NAME + '] ★未測定★ … ブラウザ本体が 入っていません（'
+      + String(e && e.message).slice(0, 70) + '）');
+    console.log("  ★これは「問題なし」ではありません★。★測るには★ npx playwright install webkit");
+    console.log("  ★この検査は .github/workflows/webkit.yml（週1＋見た目を触った時）で 本当に走ります★");
+    process.exit(0);
+  }
   const out = [];
   for (const rel of SCREENS) {
     const f = path.join(TMP, rel.replace(/[^\w]+/g, '_') + '.html');

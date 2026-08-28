@@ -43,3 +43,13 @@ jobs:
         run: npx playwright install --with-deps webkit
       - name: ★WebKitで 375/390/430 を実測 (16px未満0本／押す的20×20未満0個／横はみ出し0px)
         run: node scripts/webkit-size.mjs
+      # ★見た目の統一★（司さん 2026-08-29「統一感は？」）＝本物のブラウザで 色の値を読む物。
+      #   ★毎回のCIには置かない★（ブラウザが無いので 毎回「未測定」になる＝在るのに0回）。
+      - name: ★押す物の見た目が全画面で揃っているか (台帳9通り・緑1種類・角丸12/999/0)
+        run: node tests/button-uniform.test.mjs
+      - name: ★同 わざと崩して赤になるか（緑を混ぜる／字を灰色に戻す）
+        run: node tests/button-uniform.test.mjs --self-test
+      - name: ★請求書 聞く形のボタンの色 (画面の本命/ほかと同じ・緑は1種類・押す的20×20)
+        run: node seikyu/tests/pask-color.test.mjs
+      - name: ★同 わざと色を戻して赤になるか
+        run: node seikyu/tests/pask-color.test.mjs --self-test
