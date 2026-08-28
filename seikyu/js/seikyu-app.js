@@ -366,6 +366,7 @@
     renderTplAsk();
     renderGuess();
     renderPtAsk();
+    renderInvAsk();      /* ★この1通のこと（件名・支払期限）も 1問ずつ聞く★ */
     renderLines();
     renderDeductions();
     recalc();
@@ -2280,6 +2281,135 @@
     return String(g.value);
   }
 
+  /* ═══ ★この1通のことを 1問ずつ聞く★（件名・支払期限）════════════════════
+     ★別ウィザードを作らない★＝下の「細かく決める」と ★同じ値の 2つの見え方★。
+     ★見た目は 取引先の聞く形（pask）と同じ物を使う★＝作り直さない。
+     ★1問ごと保存★／★答えたら その場で返す★／★当てた物は 根拠を見せる★。 */
+  var IASK = (typeof window !== 'undefined' && window.SeikyuInvoiceAsk) || null;
+
+  function invAskCtx() {
+    var v = S.cur; if (!v || !IASK) return null;
+    var all = (S.list || []).filter(function (x) { return x && x.id !== v.id; });
+    var prev = all.filter(function (x) { return x.partner_id && x.partner_id === v.partner_id; })
+      .sort(function (a, b) { return String(b.issue_ymd || '').localeCompare(String(a.issue_ymd || '')); })[0] || null;
+    return {
+      inv: v, issue: v.issue_ymd || '', prev: prev, others: all,
+      partner: (S.partners || []).filter(function (x) { return x.id === v.partner_id; })[0] || null,
+      dueFrom: function (ymd, term) { return DOC.dueDateFrom(ymd, term); },
+      payTerms: DOC.PAY_TERMS,
+      answered: (v.data && v.data.askOk) || {},
+    };
+  }
+
+  function invAskHTML() {
+    var c = invAskCtx(); if (!c) return '';
+    var r = IASK.progress(c);
+    var h = '<div class="pask" data-iask="1">';
+    h += '<div class="pask-prog"><b>' + r.total + '問のうち ' + r.done + '問 答えました</b></div>';
+    var q = r.next;
+    if (!q) { h += '<p class="pask-fin">この1通のことは ぜんぶ決まっています。</p>'; }
+    else {
+      h += '<div class="pask-q"><div class="pask-qt">' + esc(q.q) + '</div>';
+      if (q.hint) h += '<p class="pask-hint">' + esc(q.hint) + '</p>';
+      if (q.guess) {
+        h += '<div class="pask-guess">当てました：<b>' + esc(q.guess.value) + '</b>'
+          + '<button class="pask-why" type="button" data-iask-why="' + esc(q.key) + '">なぜ？</button></div>';
+      }
+      var val = q.now || (q.guess ? q.guess.value : '');
+      h += '<input class="finput" id="iask-t" type="' + (q.kind === 'date' ? 'date' : 'text') + '" value="' + esc(val) + '">';
+      /* ★もう欄に入っている物は 札に出さない★（同じ字が2つ並ぶと 押す意味が無い） */
+      var chips = (q.chips || []).filter(function (c2) { return String(c2.v) !== String(val); });
+      if (chips.length) {
+        h += '<div class="pask-chips">' + chips.map(function (c2) {
+          return '<button class="pask-c" type="button" data-iask-chip="' + esc(c2.v) + '">' + esc(c2.v) + '</button>';
+        }).join('') + '</div>';
+      }
+      h += '<div class="pask-row"><button class="pask-ok" type="button" data-iask-ok="' + esc(q.key) + '">これで</button>'
+        + '<button class="pask-skip" type="button" data-iask-skip="' + esc(q.key) + '">' + esc(q.skipLabel || '飛ばす') + '</button></div>';
+      h += '</div>';
+    }
+    /* 答えた物＝押すと 聞き直せる（その場の返しも 出す） */
+    var done = r.list.filter(function (x) { return x.done; });
+    if (done.length) {
+      h += '<div class="pask-done"><div class="pask-done-h">答えた物（押すと直せます）</div>'
+        + done.map(function (x) {
+          var now = (x.key === 'subject') ? ((S.cur.data && S.cur.data.subject) || '') : (S.cur.due_ymd || '');
+          var res = x.q.result ? x.q.result(now) : '';
+          return '<button class="pask-d" type="button" data-iask-again="' + esc(x.key) + '">'
+            + '<span class="pask-d-k">' + esc(x.key === 'subject' ? '件名' : '支払期限') + '</span>'
+            + '<span class="pask-d-v">' + esc(now || '（入れていません）') + '</span>'
+            + (res ? '<span class="pask-d-r">' + esc(res) + '</span>' : '')
+            + '</button>';
+        }).join('') + '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  /* 押した時（★取引先の聞く形とは 別のハンドラ★＝混ぜると どちらの答えか 分からなくなる） */
+  function bindInvAsk() {
+    var host = $('inv-ask'); if (!host || host.dataset.bound) return;
+    host.dataset.bound = '1';
+    host.addEventListener('click', function (ev) {
+      var t = ev.target;
+      var why = t.closest && t.closest('[data-iask-why]');
+      if (why) {
+        var c = invAskCtx(); if (!c) return;
+        var q = IASK.progress(c).list.filter(function (x) { return x.key === why.dataset.iaskWhy; })[0];
+        var qq = (q && q.q) || IASK.questions(c).filter(function (x) { return x.key === why.dataset.iaskWhy; })[0];
+        if (qq && qq.guess) {
+          uiNote('どうして そう当てたか', esc(qq.q) + '：<b>' + esc(qq.guess.value) + '</b><br>'
+            + esc(qq.guess.why) + '<br><span class="pask-note">当てただけです。直せば そのまま変わります。</span>');
+        }
+        return;
+      }
+      var chip = t.closest && t.closest('[data-iask-chip]');
+      if (chip) { var i = $('iask-t'); if (i) { i.value = chip.dataset.iaskChip; i.focus(); } return; }
+      var okb = t.closest && t.closest('[data-iask-ok]');
+      if (okb) { invAskAnswer(okb.dataset.iaskOk, ($('iask-t') && $('iask-t').value) || ''); return; }
+      var skip = t.closest && t.closest('[data-iask-skip]');
+      if (skip) { invAskAnswer(skip.dataset.iaskSkip, ''); return; }
+      var again = t.closest && t.closest('[data-iask-again]');
+      if (again) {
+        var v = S.cur; if (!v) return;
+        var okm = Object.assign({}, (v.data && v.data.askOk) || {});
+        delete okm[again.dataset.iaskAgain];
+        /* ★聞き直す＝今の中身も 空に戻す★（でないと「入っている＝済み」で また出ない） */
+        if (again.dataset.iaskAgain === 'subject') { v.data.subject = ''; } else { v.due_ymd = ''; }
+        v.data.askOk = okm;
+        fillEdit();
+        renderInvAsk();
+      }
+    });
+  }
+
+  function renderInvAsk() {
+    var card = $('inv-ask-card'), host = $('inv-ask');
+    if (!card || !host) return;
+    var c = invAskCtx();
+    var on = !!(c && !locked() && IASK.progress(c).next);
+    show(card, on);
+    host.innerHTML = on ? invAskHTML() : '';
+    bindInvAsk();
+  }
+
+  /** ★1問ごと保存★（答えた瞬間に この1通へ書く。最後まで行かないと保存されない、にしない） */
+  function invAskAnswer(key, val) {
+    var v = S.cur; if (!v) return;
+    v.data = v.data || {};
+    if (key === 'subject') { v.data.subject = String(val == null ? '' : val).trim(); }
+    else if (key === 'due') { v.due_ymd = String(val == null ? '' : val).trim(); }
+    var okm = Object.assign({}, v.data.askOk || {});
+    okm[key] = true;                                  // ★「飛ばす」も 答えたうち★（空のまま 何度も聞かない）
+    v.data.askOk = okm;
+    fillEdit();
+    renderInvAsk();
+    /* ★1問ごと保存★（最後まで行かないと保存されない、にしない）。
+       ★下書きにできない時（請求日や番号が空）は 黙って何もしない★＝
+       「保存しました」と嘘を言わない。その時は 下の「下書き保存」で残る。 */
+    if (v.issue_ymd && v.no && S.store && S.store.invoices) { saveDraft(); }
+  }
+
   function renderPtAsk() {
     var setHost = $('pt-ask-set');
     if (setHost) setHost.innerHTML = ptAskHTML('set');
@@ -2766,6 +2896,8 @@
     _fillSettings: fillSettings,
     _loadMasters: function () { return loadMasters(true); },   // テストから1回だけ読ませる
     _recalcForTest: function () { return recalc(); },          // テスト用: 数え直しだけ走らせる
+    _fillEdit: fillEdit,          // テスト用: 入力の画面を描き直す（★見られない物は 見張れない★）
+    _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える
     _renderPayForTest: function () { return renderPay(); },    // テスト用: 入金の箱だけ描き直す
     _pickSealUrl: function (url) {           // テスト用: ファイル選択の代わりに data URL を渡す
       var chk = DOC.validateSeal(url);

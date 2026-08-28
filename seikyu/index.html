@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=aa5c1d0c">
-<link rel="stylesheet" href="css/app.css?v=aa5c1d0c">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=df80aa51">
+<link rel="stylesheet" href="css/app.css?v=df80aa51">
 </head>
 <body>
 
@@ -133,6 +133,15 @@
     <div class="card" id="pt-ask-card" style="display:none">
       <div class="card-h" id="pt-ask-card-h">この相手のこと、教えてください</div>
       <div id="pt-ask-edit"></div>
+    </div>
+
+    <!-- ★この1通のことを ここで1問ずつ聞く★（司さん 2026-08-16「聞いてあげる。埋めさせない」）
+         ＝件名・支払期限を ★空欄で並べない★。まだ答えていない事が在る時だけ出て、
+           答え終われば 自分で消える。★別ウィザードは作らない★＝下の「細かく決める」と
+           ★同じ値の 2つの見え方★（聞く形／ぜんぶ見る）。 -->
+    <div class="card" id="inv-ask-card" style="display:none">
+      <div class="card-h">この請求書のこと、教えてください</div>
+      <div id="inv-ask"></div>
     </div>
 
     <div class="card">
@@ -582,35 +591,36 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=aa5c1d0c"></script>
-<script src="../lib/xlsx.full.min.js?v=aa5c1d0c"></script>
-<script src="../js/file-out.js?v=aa5c1d0c"></script>
-<script src="../js/suite-data.js?v=aa5c1d0c"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=aa5c1d0c"></script>
+<script src="../js/supa-config.js?v=df80aa51"></script>
+<script src="../lib/xlsx.full.min.js?v=df80aa51"></script>
+<script src="../js/file-out.js?v=df80aa51"></script>
+<script src="../js/suite-data.js?v=df80aa51"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=df80aa51"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-tax.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-gensen.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-carry.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-cols.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-templates.js?v=aa5c1d0c"></script>
-<script src="../lib/toroku-no.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-doc.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-partner-ask.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-name.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-paper.js?v=aa5c1d0c"></script>
-<script src="lib/seikyu-aoa.js?v=aa5c1d0c"></script>
-<script src="js/seikyu-store.js?v=aa5c1d0c"></script>
-<script src="js/seikyu-out.js?v=aa5c1d0c"></script>
-<script src="js/seikyu-app.js?v=aa5c1d0c"></script>
-<script src="../js/rakunally-login.js?v=aa5c1d0c"></script>
-<script src="js/auth.js?v=aa5c1d0c"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=df80aa51"></script>
+<script src="lib/seikyu-tax.js?v=df80aa51"></script>
+<script src="lib/seikyu-gensen.js?v=df80aa51"></script>
+<script src="lib/seikyu-carry.js?v=df80aa51"></script>
+<script src="lib/seikyu-cols.js?v=df80aa51"></script>
+<script src="lib/seikyu-templates.js?v=df80aa51"></script>
+<script src="../lib/toroku-no.js?v=df80aa51"></script>
+<script src="lib/seikyu-doc.js?v=df80aa51"></script>
+<script src="lib/seikyu-partner-ask.js?v=df80aa51"></script>
+<script src="lib/seikyu-invoice-ask.js?v=df80aa51"></script>
+<script src="lib/seikyu-name.js?v=df80aa51"></script>
+<script src="lib/seikyu-paper.js?v=df80aa51"></script>
+<script src="lib/seikyu-aoa.js?v=df80aa51"></script>
+<script src="js/seikyu-store.js?v=df80aa51"></script>
+<script src="js/seikyu-out.js?v=df80aa51"></script>
+<script src="js/seikyu-app.js?v=df80aa51"></script>
+<script src="../js/rakunally-login.js?v=df80aa51"></script>
+<script src="js/auth.js?v=df80aa51"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=aa5c1d0c"></script>
+<script src="../js/env-badge.js?v=df80aa51"></script>
 </body>
 </html>
