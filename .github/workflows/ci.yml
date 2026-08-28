@@ -207,10 +207,10 @@ jobs:
       #   ★飛んだ先から 元の画面へ戻れる★所まで 実際に開いて見る。
       # ★支給サイクルの「任意（N週ごと）」★（司さん 2026-08-28「隔週・4週ごとが入れられない」）
       #   ★締め方と同じ作り★で足した。★実際に選んで・打って・紙の字まで見る★。
-      - name: ★支給サイクルの任意 (選ぶ→N の欄が出る→注意書き→紙の字→聞く形→金額は動かない)
-        run: node kyuyo/tests/paycycle-nweeks.test.mjs
+      - name: ★支給サイクルの任意 (月ベース=日を入れる／週ベース=N週／紙の字／聞く形／金額は動かない)
+        run: node kyuyo/tests/paycycle-custom.test.mjs
       - name: ★同 わざと壊して赤になるか（任意を消す／出しっぱなし／数が空／空どうしの比較）
-        run: node kyuyo/tests/paycycle-nweeks.test.mjs --self-test
+        run: node kyuyo/tests/paycycle-custom.test.mjs --self-test
       - name: ★会社の情報は第3の場所か (請求書→給与のリンク0本・帰り道が出る・2か所持ちが無い)
         run: node seikyu/tests/kaisha-link.test.mjs
       - name: ★同 わざと戻して赤になるか（給与へのリンク／帰り道／給与の打てる欄）

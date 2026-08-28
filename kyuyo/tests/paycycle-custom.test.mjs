@@ -1,22 +1,30 @@
-/* paycycle-nweeks.test.mjs — ★支給サイクルの「任意（N週ごと）」★（司さん 2026-08-28）
+/* paycycle-custom.test.mjs — ★支給サイクルの「任意」★（司さん 2026-08-28）
  * =============================================================================
- * ★なぜ足したか★
- *   司さんが実機で触って … ★締め方には「任意N日」が在るのに 支給サイクルには 任意が無い★。
- *   「月2回だが10日と25日」「隔週」「4週ごと」が 入れられなかった。
+ * ★なぜ足したか（2回 言われた）★
+ *   1回目 … ★締め方には「任意N日」が在るのに 支給サイクルには 任意が無い★
+ *           （隔週・4週ごとが 入れられない）→ ★任意（N週ごと）★を足した。
+ *   2回目 … ★「おれみたいに週やないやつが入力できんやろが」★
+ *           ＝★週ベースの任意だけでは 足りない★。月2回でも「10日と25日」が入れられなかった。
+ *           → ★任意（月に何回・どの日）★を足し、★月2回でも 日を入れられる★ようにした。
+ *   ★教訓★ 「任意」を1つ足しただけで「入れられるようになった」と言わない。
+ *           ★その人の型で 実際に入るか★を 見る（週・月の 両方）。
+ *
  * ★作り方の決まり（指示役 2026-08-28）★
- *   ・★締め方と同じ作り★（4択＋任意／任意の時だけ N の欄を出す）＝別の作りにしない
+ *   ・★締め方と同じ考え方★（決まった選択肢＋任意／任意の時だけ 追加の欄）＝別の作りにしない
  *   ・★計算方式は変えない★（今の注意書きのとおり＝明細の表示と税区分の目安）
- *   ・★聞く形で聞く★（「何回 払いますか」→選ばせる→その場で 次の支給日を出す）
+ *   ・★聞く形で聞く★（「何回 払いますか」→選ばせる→その場で 支払う日を返す）
  *
  * ここで見る物（★字を読むだけにせず 実際に選んで押す★）
- *   ① 画面に「任意（N週ごと）」が在り、★選ぶまで N の欄は出ない★
- *   ② 選ぶと ★N の欄が出る★／戻すと ★引っ込む★（締め方と同じ動き）
- *   ③ N を入れると ★注意書きが その数で変わる★（3 → 「3週ごと」）
- *   ④ ★紙の「支給日」に （N週ごと）が出る★
- *   ⑤ 聞く形に「何回 払いますか？」が在り、★N を入れるまで 答えを返さない★
- *   ⑥ ★計算方式は変わっていない★＝月1回の時と 同じ金額（1円も動かない）
+ *   ①  任意が ★2つ★（月ベース／週ベース）在り、仲間の隣に並んでいる
+ *   ①-b 月ベース … 10,25 と打つと ★「月2回（10日・25日）」★ に言い直し、紙にも出る
+ *   ①-c 月2回でも 日を直せる（15日・末日 に縛られない）
+ *   ①-d おかしな日（0・32・重複）は ★落とす★／31は ★末日★
+ *   ①-e 日を入れるまで ★当てない★（「月2回」と勝手に決めない・答えも返さない）
+ *   ②〜⑤ 週ベース … 欄の出し入れ／注意書きが数を追う／数字以外は入らない／紙の字
+ *   ⑥  聞く形 … N や 日を入れるまで 答えを返さない
+ *   ⑦  ★計算方式は変わっていない★＝月1回と 同じ金額（1円も動かない）
  *
- * 使い方: node kyuyo/tests/paycycle-nweeks.test.mjs [--self-test]
+ * 使い方: node kyuyo/tests/paycycle-custom.test.mjs [--self-test]
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -56,16 +64,66 @@ function typeIn(id, v) { const el = $(id); el.value = v; fire(el, 'input'); }
 
 console.log('\n[paycycle-nweeks] 支給サイクルの「任意（N週ごと）」を 実際に選んで押す');
 
-T('★① 画面に「任意（N週ごと）」が在る（締め方と同じ作り）', () => {
+T('★① 任意が2つ在る（月ベース／週ベース）＝どちらの人も 入れられる', () => {
   const sel = $('c-paycycle');
   ok(sel, '支給サイクルの選ぶ所が無い');
   const vals = [...sel.options].map((o) => o.value);
-  ok(vals.indexOf('nweeks') >= 0, '「任意」が無い（在るのは ' + vals.join('/') + '）');
-  /* 締め方と 同じ形か＝どちらも「最後が任意」「任意の時だけ N の欄」 */
+  /* ★司さん 2026-08-28 実機「おれみたいに週やないやつが入力できんやろが」★
+     ＝週ベースの任意だけでは 足りない。★月ベースの任意★が 要る。 */
+  ok(vals.indexOf('nweeks') >= 0, '★週ベースの任意が無い★（在るのは ' + vals.join('/') + '）');
+  ok(vals.indexOf('nmonth') >= 0, '★月ベースの任意が無い＝週でない人が 入れられない★（在るのは ' + vals.join('/') + '）');
+  /* ★仲間の すぐ後ろに 任意★（月の仲間 → 月の任意／週の仲間 → 週の任意） */
+  ok(vals.indexOf('nmonth') === vals.indexOf('semimonthly') + 1, '月の任意が 月2回の隣に無い：' + vals.join('/'));
+  ok(vals.indexOf('nweeks') === vals.indexOf('weekly') + 1, '週の任意が 週払いの隣に無い：' + vals.join('/'));
+  /* 締め方も 任意を持っている（同じ考え方で作っている事） */
   const shime = [...$('c-shime').options].map((o) => o.value);
-  ok(shime[shime.length - 1] === 'ndays', '締め方の作りが変わっている');
-  ok(vals[vals.length - 1] === 'nweeks', '任意が最後に無い＝締め方と揃っていない');
+  ok(shime.indexOf('ndays') >= 0, '締め方の任意が 消えている');
   console.log('     支給サイクル ' + vals.join('/') + ' ／ 締め方 ' + shime.join('/'));
+});
+
+T('★①-b 月ベースの任意 … 日を入れると その日で言い直す（司さんの型）', () => {
+  pick('c-paycycle', 'nmonth');
+  ok($('c-paydays-row').style.display !== 'none', '★支給日の欄が 出ない★');
+  ok($('c-paycyclen-row').style.display === 'none', '週の欄まで 出ている');
+  typeIn('c-paydays', '10,25');
+  ok(A.payDaysOf().join(',') === '10,25', '読めた日が ' + A.payDaysOf().join(','));
+  ok(A.payCycleLabel() === '月2回（10日・25日）', '言い方が「' + A.payCycleLabel() + '」');
+  const note = $('paycycle-note').textContent;
+  ok(/10日・25日/.test(note), '注意書きに 日が出ない：「' + note.slice(0, 50) + '」');
+  ok(/（月2回）/.test(A.payDateForSlip()) && /10日・25日/.test(A.payDateForSlip()),
+    '紙に 出ない：「' + A.payDateForSlip() + '」');
+  console.log('     10,25 → ' + A.payCycleLabel() + ' ／ 紙「' + A.payDateForSlip() + '」');
+});
+
+T('★①-c 月2回でも 日を入れられる（15日・末日 以外に 直せる）', () => {
+  pick('c-paycycle', 'semimonthly');
+  ok($('c-paydays-row').style.display !== 'none', '月2回で 支給日の欄が 出ない');
+  typeIn('c-paydays', '5,20');
+  ok(A.payCycleLabel() === '月2回（5日・20日）', '言い方が「' + A.payCycleLabel() + '」');
+  console.log('     5,20 → ' + A.payCycleLabel());
+});
+
+T('★①-d おかしな日は 落とす（作り話の日を作らない）', () => {
+  pick('c-paycycle', 'nmonth');
+  typeIn('c-paydays', '0,10,10,32,25,31');
+  /* 0 と 32 は 落とす／10 の重複は 1つ／31 は 末日 */
+  ok(A.payDaysOf().join(',') === '10,25,31', '読めた日が ' + A.payDaysOf().join(','));
+  ok(A.payDaysText() === '10日・25日・末日', '言い方が「' + A.payDaysText() + '」');
+  console.log('     0,10,10,32,25,31 → ' + A.payDaysText() + '（0と32は落とし・重複は1つ・31は末日）');
+});
+
+T('★①-e 日を入れるまで 当てない（「月2回」と勝手に決めない）', () => {
+  pick('c-paycycle', 'nmonth');
+  typeIn('c-paydays', '');
+  const empty = A.payCycleLabel();                    // ★空の時の言い方を その場で取る（後で取ると 嘘になる）
+  ok(empty === '月に何回か', '★空なのに 言い切っている★「' + empty + '」');
+  ok(/支給日を入れてください/.test($('paycycle-note').textContent), '★入れてくださいと 言っていない★');
+  const q = A.ASK_Q().filter((x) => x.key === 'payCycle')[0];
+  ok(q.answer() === null, '★日が空なのに 答えを返している★');
+  typeIn('c-paydays', '10,25');
+  const filled = A.ASK_Q().filter((x) => x.key === 'payCycle')[0].answer().text;
+  ok(/毎月 10日・25日/.test(filled), 'その場の返しに 日が出ない：' + filled.slice(0, 40));
+  console.log('     空→「' + empty + '」／10,25→その場で「' + filled.replace(/<[^>]*>/g, '').slice(0, 34) + '…」');
 });
 
 T('★② 選ぶまで N の欄は出ない／選ぶと出る／戻すと引っ込む', () => {

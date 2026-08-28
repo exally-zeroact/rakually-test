@@ -333,7 +333,7 @@
                    人ごとの pref は「上書き」で、空なら この会社の県を使う。
      shahoKanyu … ★社会保険（健保・厚年）に入っている会社か★（''=まだ聞いていない / 'yes' / 'no'）
      askOk      … 7問のどれを人が「はい」と言ったか（★1問ごとに保存★するための印） */
-  function defCompany(){ return { name:'合同会社Rakunally',addr:'',close:'末日',paydayRel:'next',paydayDay:'25', payCycle:'monthly', payCycleN:'2', shimeMethod:'monthly', shimeN:'10',
+  function defCompany(){ return { name:'合同会社Rakunally',addr:'',close:'末日',paydayRel:'next',paydayDay:'25', payCycle:'monthly', payCycleN:'2', payDays:'', shimeMethod:'monthly', shimeN:'10',
       pref:'', shahoKanyu:'', askOk:{},
       holidays:[0], dailyWorkH:'8', dailyWorkM:'0', annualHolidays:'120', shakaTokutei:false,
       ruleOn:{warimashiRate:true},
@@ -395,16 +395,44 @@
   // 支給サイクルの説明(表示のみ・計算方式は月単位で不変)。日払いは丙欄へ誘導。
   function payCycleOf(){ return (state.company&&state.company.payCycle)||'monthly'; }
   function payCycleNOf(){ return num((state.company&&state.company.payCycleN))||2; }
+  /* ★月ベースの支給日★（司さん 2026-08-28「週やないやつが入力できん」）
+     「10,25」のように , で区切って いくつでも。★31＝末日★として読む（画面の注意書きと同じ）。
+     ★数だけ・1〜31・重複なし・小さい順★に そろえてから返す（人が どう打っても 同じ形になる）。 */
+  function payDaysOf(){
+    var raw=String((state.company&&state.company.payDays)||'');
+    var seen={}, out=[];
+    raw.split(/[^0-9]+/).forEach(function(t){
+      if(!t) return; var n=parseInt(t,10);
+      if(!(n>=1&&n<=31)) return;                 // ★1〜31 以外は 落とす（作り話の日を作らない）
+      if(seen[n]) return; seen[n]=1; out.push(n);
+    });
+    return out.sort(function(a,b){ return a-b; });
+  }
+  function payDayLabel(n){ return n>=31?'末日':(n+'日'); }
+  function payDaysText(){ return payDaysOf().map(payDayLabel).join('・'); }
+  /* 月ベースの任意/月2回で 支給日が要る形か */
+  function needPayDays(){ var c=payCycleOf(); return c==='nmonth'||c==='semimonthly'; }
   /* 支給サイクルの言い方（1か所で決める＝紙・画面・聞く形が ばらけない） */
   function payCycleLabel(){
     var c=payCycleOf();
-    return { monthly:'月1回', semimonthly:'月2回', weekly:'週払い', daily:'日払い',
+    if(c==='nmonth'||c==='semimonthly'){
+      var d=payDaysOf();
+      if(!d.length) return (c==='semimonthly'?'月2回':'月に何回か');   // ★まだ答えていない★＝当てない
+      return '月'+d.length+'回（'+payDaysText()+'）';
+    }
+    return { monthly:'月1回', weekly:'週払い', daily:'日払い',
       nweeks:payCycleNOf()+'週ごと' }[c] || '月1回';
   }
   function payCycleNote(){ var el=$('#paycycle-note'); if(!el)return; var c=payCycleOf();
     var row=$('#c-paycyclen-row'); if(row) row.style.display=(c==='nweeks')?'':'none';
-    var m={ monthly:'月に1回まとめて支給。', semimonthly:'月に2回に分けて支給。明細に区分を表示します。', weekly:'毎週支給。明細に「週払い」を表示します。', daily:'1日ごとに支給。<b>所得税は日額表</b>で日ごとに計算します（従業員ごとの税区分：甲＝扶養反映／乙／丙＝日雇い）。',
-      nweeks:'<b>'+payCycleNOf()+'週ごと</b>に支給。明細に「'+payCycleNOf()+'週ごと」と表示します。' };
+    var drow=$('#c-paydays-row'); if(drow) drow.style.display=needPayDays()?'':'none';
+    var dtxt=payDaysText();
+    var m={ monthly:'月に1回まとめて支給。', weekly:'毎週支給。明細に「週払い」を表示します。', daily:'1日ごとに支給。<b>所得税は日額表</b>で日ごとに計算します（従業員ごとの税区分：甲＝扶養反映／乙／丙＝日雇い）。',
+      nweeks:'<b>'+payCycleNOf()+'週ごと</b>に支給。明細に「'+payCycleNOf()+'週ごと」と表示します。',
+      semimonthly: dtxt?('月に2回（<b>'+dtxt+'</b>）に分けて支給。明細に その日を表示します。')
+        :'月に2回に分けて支給。<b>支給日を入れてください</b>（例：10,25）。',
+      nmonth: dtxt?('月に<b>'+payDaysOf().length+'回</b>（<b>'+dtxt+'</b>）支給。明細に その日を表示します。')
+        :'<b>支給日を入れてください</b>（例：10,25／末日は 31）。何日 入れても かまいません。' };
     el.innerHTML=(m[c]||'')+'<br><span style="color:#6E6E6E">※月の社会保険・所得税の計算方式は変わりません（本設定は明細の表示と税区分の目安）。任意期間で締め直す本格計算は対象外。</span>'; }
   // K2 締め方(期間分割)。会社設定 shimeMethod/shimeN。Periods libで期間を算出。
   function shimeMethodOf(){ return (state.company&&state.company.shimeMethod)||'monthly'; }
@@ -510,7 +538,7 @@
     }).catch(function(e){ return { ok:false, reason:String(e&&e.message||e) }; });
   };
 
-  function fillCompany(){ fillOrgRO(); $('#c-close').value=state.company.close||''; $('#c-payrel').value=state.company.paydayRel||'next'; $('#c-payday-day').value=state.company.paydayDay||''; var pc=$('#c-paycycle'); if(pc)pc.value=state.company.payCycle||'monthly'; var sm=$('#c-shime'); if(sm)sm.value=state.company.shimeMethod||'monthly'; var sn=$('#c-shimen'); if(sn)sn.value=state.company.shimeN||'10'; var pn=$('#c-paycyclen'); if(pn)pn.value=state.company.payCycleN||'2'; updatePaydayPreview(); payCycleNote(); shimeNote(); renderRuleChips(); renderCompanyRules(); renderDesign(); renderAsk(); }
+  function fillCompany(){ fillOrgRO(); $('#c-close').value=state.company.close||''; $('#c-payrel').value=state.company.paydayRel||'next'; $('#c-payday-day').value=state.company.paydayDay||''; var pc=$('#c-paycycle'); if(pc)pc.value=state.company.payCycle||'monthly'; var sm=$('#c-shime'); if(sm)sm.value=state.company.shimeMethod||'monthly'; var sn=$('#c-shimen'); if(sn)sn.value=state.company.shimeN||'10'; var pn=$('#c-paycyclen'); if(pn)pn.value=state.company.payCycleN||'2'; var pd=$('#c-paydays'); if(pd)pd.value=state.company.payDays||''; updatePaydayPreview(); payCycleNote(); shimeNote(); renderRuleChips(); renderCompanyRules(); renderDesign(); renderAsk(); }
   // 初回オンボーディング(4ステップ案内・×で閉じたら二度と出ない)。"すぐ分かる"を底上げ。
   // はじめかたガイドの各ステップの達成判定(freee/MF流のライブToDo)。全完了で自動的に消える。
   function onboardSteps(){
@@ -607,22 +635,31 @@
       { key:'payCycle', q:'何回 払いますか？', sub:'月1回／月2回／週払い／日払い／任意（N週ごと）',
         now:payCycleLabel(),
         input:function(){
-          var opts=[['monthly','月1回（月給・一般）'],['semimonthly','月2回'],['weekly','週払い'],
-            ['daily','日払い'],['nweeks','任意（N週ごと）']];
+          var opts=[['monthly','月1回（月給・一般）'],['semimonthly','月2回'],['nmonth','任意（月に何回・どの日）'],
+            ['weekly','週払い'],['nweeks','任意（N週ごと）'],['daily','日払い']];
           var sel='<select class="ask-in" data-ask="payCycle">'+opts.map(function(o){
             return '<option value="'+o[0]+'"'+(c.payCycle===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>';
-          if(c.payCycle!=='nweeks') return sel;
-          return '<span class="ask-row">'+sel
-            +'<input class="ask-in ask-sm num" data-ask="payCycleN" inputmode="numeric" value="'+attr(c.payCycleN)+'" placeholder="2"><i>週ごと</i></span>';
+          if(c.payCycle==='nweeks'){
+            return '<span class="ask-row">'+sel
+              +'<input class="ask-in ask-sm num" data-ask="payCycleN" inputmode="numeric" value="'+attr(c.payCycleN)+'" placeholder="2"><i>週ごと</i></span>';
+          }
+          /* ★月ベース＝どの日に払うかを その場で聞く★（司さん「週やないやつが入力できん」） */
+          if(needPayDays()){
+            return '<span class="ask-row">'+sel
+              +'<input class="ask-in" data-ask="payDays" inputmode="numeric" value="'+attr(c.payDays)+'" placeholder="10,25"><i>日（, で区切る／末日は31）</i></span>';
+          }
+          return sel;
         },
         answer:function(){
           var cyc=(c.payCycle||'monthly');
           if(cyc==='nweeks' && !num(c.payCycleN)) return null;     // ★数を入れるまで 返さない★
+          if(needPayDays() && !payDaysOf().length) return null;    // ★日を入れるまで 返さない★
           var lab=payCycleLabel();
           /* ★その場で 次の支給日を出す★（日払い/週払い/N週ごとは 日付が決まらないので そう言う） */
           var when = (cyc==='daily') ? '毎日'
             : (cyc==='weekly') ? '毎週'
             : (cyc==='nweeks') ? (num(c.payCycleN)+'週ごと')
+            : needPayDays() ? ('毎月 '+payDaysText())
             : (c.paydayDay ? ('次の支給日は <b>'+esc(payDateStr())+'</b>') : '（給料日は 次の問いで決めます）');
           return { text:'<b>'+esc(lab)+'</b>で支払います。'+(/^次の/.test(when)?when:('支払う日は '+esc(when)))+'。'
             +'<br><span style="color:#6E6E6E">※月の社会保険・所得税の計算方式は変わりません（明細の表示と税区分の目安）。</span>' };
@@ -2977,8 +3014,11 @@
   /* ---------- 印刷 / PDF ---------- */
   // 明細の支給日表示。非月給の支給サイクルは支給日欄にサイクルを表示(月給は従来どおり日付=回帰ゼロ)
   function payDateForSlip(){ var c=(state.company&&state.company.payCycle)||'monthly';
-    if(c==='daily') return '日払い'; if(c==='weekly') return '週払い'; if(c==='semimonthly') return payDateStr()+'（月2回）';
-    if(c==='nweeks') return payDateStr()+'（'+payCycleNOf()+'週ごと）'; return payDateStr(); }
+    if(c==='daily') return '日払い'; if(c==='weekly') return '週払い';
+    if(c==='nweeks') return payDateStr()+'（'+payCycleNOf()+'週ごと）';
+    /* ★月ベースの任意／月2回★＝入れてもらった日を そのまま出す（入っていなければ 今までどおり） */
+    if(needPayDays()){ var d=payDaysText(); return d?(d+'（月'+payDaysOf().length+'回）'):payDateStr(); }
+    return payDateStr(); }
   function buildPeople(emps){ return emps.map(function(e){ var r=compute(e); var k=(e.kintai||[]).filter(function(x){ if(/代休取得|振替休日/.test(x.label||'')) return num(x.value)>0; return true; }); var oi=k.findIndex(function(x){return /出勤/.test(x.label||'');}); var wt={label:'労働時間',value:workedLabel(e)}; if(oi>=0)k.splice(oi+1,0,wt); else k.unshift(wt); return { name:e.name, company:state.company.name, payDate:payDateForSlip(), kintai:k, shikyu:r.shikyu, kojo:r.kojo, net:r.net, shikyuTotal:r.shikyuTotal, kojoTotal:r.kojoTotal, warnings:empWarnings(e) }; }); }
 
   /* ── 日払い/週払い スリップ明細(日別内訳) ── */
@@ -3644,6 +3684,8 @@
     var pcy=$('#c-paycycle'); if(pcy) pcy.addEventListener('change',function(){ state.company.payCycle=this.value; payCycleNote(); renderAsk(); if(window.persistSaveDebounced)persistSaveDebounced(); });
     /* ★N週の欄★（締め方の c-shimen と 同じ作り） */
     var pcn=$('#c-paycyclen'); if(pcn) pcn.addEventListener('input',function(){ state.company.payCycleN=this.value.replace(/[^0-9]/g,''); this.value=state.company.payCycleN; payCycleNote(); renderAsk(); if(window.persistSaveDebounced)persistSaveDebounced(); });
+    /* ★支給日（10,25 のように , で区切る）★＝数と , だけ通す（打っている途中は 直さない） */
+    var pdy=$('#c-paydays'); if(pdy) pdy.addEventListener('input',function(){ var v=this.value.replace(/[^0-9,]/g,''); if(v!==this.value) this.value=v; state.company.payDays=v; payCycleNote(); renderAsk(); if(window.persistSaveDebounced)persistSaveDebounced(); });
     var shm=$('#c-shime'); if(shm) shm.addEventListener('change',function(){ state.company.shimeMethod=this.value; shimeNote(); if(state.employees)renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); });
     var shn=$('#c-shimen'); if(shn) shn.addEventListener('input',function(){ state.company.shimeN=this.value; shimeNote(); if(state.employees)renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); });
     // 会社の決まり：項目チップ
@@ -4266,7 +4308,7 @@
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf,
       /* ★2026-08-28 支給サイクルの「任意（N週ごと）」を 実際に押して確かめる為★
          （kyuyo/tests/paycycle-nweeks.test.mjs。★見られない物は 見張れない★） */
-      payDateForSlip:payDateForSlip, payCycleLabel:payCycleLabel, ASK_Q:ASK_Q }; }
+      payDateForSlip:payDateForSlip, payCycleLabel:payCycleLabel, ASK_Q:ASK_Q, payDaysOf:payDaysOf, payDaysText:payDaysText }; }
   }catch(e){}
   /* ---------- 永続化(localStorage既定・window.SUPA設定でSupabaseにも保存) ---------- */
   var PKEY='payslip_state_v1';
