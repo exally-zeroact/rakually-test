@@ -113,8 +113,15 @@ T('★⑥ その場の返しが 数と日付で出る', () => {
      ★出る所を そのまま言う★に直した。 */
   const r1 = sub.result('9月分 運転代行');
   ok(/Excelの「件名」に「9月分 運転代行」と入ります/.test(r1), '件名の返し：' + r1);
-  ok(/紙の請求書には 出ません/.test(r1), '★紙に出ない事を 言っていない★：' + r1);
+  ok(/紙には 出ません/.test(r1), '★紙に出ない事を 言っていない★：' + r1);
   ok(!/紙の頭に/.test(r1), '★まだ「紙の頭に刷ります」と言っている★：' + r1);
+  /* ★「出す」にした時は 言い方が変わる★（設定に追わせる＝言い切らない） */
+  const sub2 = ASK.questions(base({ issue: '2026-10-05', subjectOnPaper: true }))
+    .filter((q) => q.key === 'subject')[0];
+  const r2 = sub2.result('9月分 運転代行');
+  ok(/紙の宛名の下に「件名　9月分 運転代行」と刷ります/.test(r2),
+    '★「出す」にしたのに 出ないと言っている★：' + r2);
+  ok(!/出ません/.test(r2), '★「出す」なのに「出ません」と言っている★：' + r2);
   ok(/空のまま/.test(sub.result('')), '空の時の返し：' + sub.result(''));
   ok(/2026年11月30日 までに もらう約束/.test(due.result('2026-11-30')), '期限の返し：' + due.result('2026-11-30'));
   ok(/請求日から 56日後/.test(due.result('2026-11-30')), '日数が出ていない：' + due.result('2026-11-30'));
@@ -141,8 +148,20 @@ T('★⑥-b ★本当に紙に出ないのか 実物の紙で数える★（言�
     return { id: id, n: (str.match(new RegExp(MARK, 'g')) || []).length };
   });
   const out = hit.map((x) => x.id + '=' + x.n).join(' / ');
-  ok(hit.every((x) => x.n === 0), '★紙に件名が出ている★ ' + out + ' … 返しの言葉を 直すこと');
-  console.log('     紙に件名が出た回数 … ' + out + '（3様式とも0＝返しの言葉と 合っている）');
+  ok(hit.every((x) => x.n === 0), '★既定なのに 紙に件名が出ている★ ' + out);
+  /* ★出る組でも 数える★（片方だけ見て「効いている」と言わない）
+     ＝司さん 2026-08-29「件名がいる会社もあるやろうから対応させとけ」で 出せるようにした所。 */
+  const on = ids.map((id) => {
+    const h = PAPER.build({ inv: v, tax: tax, partner: { name: '○○建設株式会社', honor: '御中' },
+      org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293' },
+      template: TPL.getOrDefault(id), style: { subjectOn: true } });
+    const str = typeof h === 'string' ? h : ((h && h.html) || JSON.stringify(h));
+    return { id: id, n: (str.match(new RegExp(MARK, 'g')) || []).length };
+  });
+  const out2 = on.map((x) => x.id + '=' + x.n).join(' / ');
+  ok(on.every((x) => x.n === 1), '★「出す」にしたのに 紙に出ない（または2回出ている）★ ' + out2);
+  console.log('     紙に件名が出た回数 … 既定 ' + out + ' ／ 「出す」 ' + out2
+    + '（★出る組・出ない組の 両方で数えた★）');
 });
 
 T('★⑦ 1問ずつ進む（答えた物は もう聞かない）', () => {

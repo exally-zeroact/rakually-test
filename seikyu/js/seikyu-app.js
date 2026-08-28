@@ -2087,6 +2087,7 @@
       $('s-yen').value = (st.yenMark === false) ? 'off' : '';
       $('s-zeikomi').value = (st.zeikomiTag === false) ? 'off' : '';
       $('s-bankline').value = (st.bankOneLine === true) ? 'one' : '';
+      $('s-subject').value = (st.subjectOn === true) ? 'on' : '';
       $('s-taxnote').value = st.taxNote || '';
       /* ★率は lib が唯一の正★＝画面の見本の文にも 数字を直書きしない
          （法が変わった日に ★画面の文だけ 取り残される★のを止める） */
@@ -2298,6 +2299,8 @@
       dueFrom: function (ymd, term) { return DOC.dueDateFrom(ymd, term); },
       payTerms: DOC.PAY_TERMS,
       answered: (v.data && v.data.askOk) || {},
+      /* ★今の設定で 紙に出るか★（返しの言葉を 設定に追わせる＝言い切らない） */
+      subjectOnPaper: !!((settings().paperStyle || {}).subjectOn),
     };
   }
 
@@ -2577,6 +2580,7 @@
         if ($('s-yen').value === 'off') o.yenMark = false;
         if ($('s-zeikomi').value === 'off') o.zeikomiTag = false;
         if ($('s-bankline').value === 'one') o.bankOneLine = true;
+        if ($('s-subject').value === 'on') o.subjectOn = true;
         if (String($('s-taxnote').value || '').trim()) o.taxNote = String($('s-taxnote').value).trim();
         if (String($('s-dedhead').value || '').trim()) o.dedHead = String($('s-dedhead').value).trim();
         if (String($('s-dedsum').value || '').trim()) o.dedSum = String($('s-dedsum').value).trim();

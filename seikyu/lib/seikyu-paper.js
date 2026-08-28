@@ -119,6 +119,12 @@
     rule: 'rows',
     titleSpacing: '.32em',
     grandGo: 'ご',        // 「ご請求金額（税込）」（様式で「御」にもできる）
+    /* ★件名を紙に出すか★（司さん 2026-08-29「件名がいる会社もあるやろうから対応させとけ」）
+       ★既定は false（出さない）★＝★うちの実物45通（16社）は 件名の欄が0通★（機械で数えた）。
+       ★法律の要件でもない★（適格請求書の記載事項6つに 件名は無い／国税庁 No.6625）。
+       ⇒ ★要る会社は 設定で出す★（カスタム性の決まり＝焼き付けてよいのは法律だけ）。
+       ★世の中で多いか少ないかは まだ測っていない★＝測ったら 既定を見直す。 */
+    subjectOn: false,
   };
   function themeOf(t) { return Object.assign({}, THEME, t || {}); }
 
@@ -559,6 +565,9 @@
         + '<td class="party-to">'
         + '<div class="to-name">' + (esc(p.name) || '（取引先が未選択）') + (honorOf(p) ? '　' + esc(honorOf(p)) : '') + '</div>'
         + (p.person ? '<div class="to-sub">' + esc(p.person) + '　様</div>' : '')
+        /* ★件名★（出す会社だけ・宛名のすぐ下）。空なら 出さない（空の見出しを刷らない）。 */
+        + ((TH.subjectOn && inv.data && inv.data.subject)
+          ? '<div class="to-subject">件名　' + esc(inv.data.subject) + '</div>' : '')
         /* ★宛先の下に住所は出さない★（司さん 2026-08-16「要らんくないか？」）
            ・実物32枚とも ★0枚★（機械で数えた）
            ・適格請求書の記載事項は ★受け取る側の「名称」★ まで＝住所は要らない
@@ -1058,6 +1067,7 @@
       '.party td{vertical-align:top;padding:0;}',
       '.party-to{width:56%;min-width:80mm;}',
       '.party-from{width:44%;min-width:60mm;text-align:right;}',
+      '.to-subject{font-size:10.5pt;color:' + INK + ';display:block;line-height:1.5;margin-top:4px;}',
       '.to-name{font-size:14pt;font-weight:700;display:block;line-height:1.45;',
       'word-break:normal;overflow-wrap:break-word;}',
       '.to-sub{font-size:9.5pt;color:' + SUB + ';line-height:1.55;',
