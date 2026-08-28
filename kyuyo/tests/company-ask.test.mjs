@@ -39,8 +39,13 @@ const SAI = require_(path.join(ROOT, 'lib', 'saitei-chingin.js'));
 const KOYO = require_(path.join(ROOT, 'lib', 'koyo-hoken.js'));
 const PW = require_(path.join(ROOT, 'lib', 'payroll-warnings.js'));
 
-/* 7問の key（app.js の ASK_Q と1対1。ここが増減したら気づく） */
-const KEYS = ['name', 'pref', 'gyoshu', 'payday', 'holidays', 'daily', 'shahoKanyu'];
+/* ★6問★の key（app.js の ASK_Q と1対1。ここが増減したら気づく）
+   ★2026-08-28 'name'（会社の名前は？）を 外した★（司さん「違う所を設けてそこで設定さす／給与からも除けて」）
+     ＝会社名の持ち主は ★入口の「会社の設定」（共有データ▸会社）★＝請求書と同じ1か所。
+     ★給与で聞くと 2か所で別々に持つ★事になるので、聞かずに ★直しに行く道★を出している
+     （kyuyo/index.html「会社の情報を直す」→ ../index.html#kaisha?back=kyuyo）。
+     ★戻す条件★＝会社名を 給与だけで持つと決めた日（その時 この行と ASK_Q を まとめて戻す）。 */
+const KEYS = ['pref', 'gyoshu', 'payday', 'holidays', 'daily', 'shahoKanyu'];
 /* 7問へ上げた＝チップから消した物 */
 const MOVED = ['teikyu', 'shotei', 'annual', 'koyoGyoshu'];
 
@@ -58,8 +63,8 @@ function inputBody(src, hostVar) {
 
 if (process.argv.includes('--self-test')) {
   console.log('\n[company-ask --self-test] ★わざと戻して赤になるか★');
-  T('① 7問のどれかを消したら 数が合わなくなる（気づける）', () => {
-    const broken = KEYS.slice(0, 6);
+  T('① 6問のどれかを消したら 数が合わなくなる（気づける）', () => {
+    const broken = KEYS.slice(0, KEYS.length - 1);   // ★1つ消す★（数を直書きしない＝6問→7問に増えても効く）
     ok(broken.length !== KEYS.length, '数の突き合わせが効いていない');
   });
   T('② 最低賃金を「画面の言葉」から作ると赤（★lib を呼んで突き合わせる★）', () => {
@@ -89,7 +94,7 @@ if (process.argv.includes('--self-test')) {
 
 console.log('\n[company-ask] 会社マスタ7問（聞いてあげる。埋めさせない。）');
 
-T('① 7問が ちょうど7つ在り、どれにも「その場の返し」が在る', () => {
+T('① 6問が ちょうど6つ在り、どれにも「その場の返し」が在る', () => {
   const block = APP.slice(APP.indexOf('function ASK_Q()'), APP.indexOf('function askCounts()'));
   ok(block.length > 500, 'ASK_Q が読めていない');
   const found = KEYS.filter((k) => block.indexOf("key:'" + k + "'") >= 0);

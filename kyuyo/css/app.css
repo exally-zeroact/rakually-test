@@ -42,6 +42,11 @@ input,select,textarea{font-size:16px;}
 .frow2 label,.frow label,.flabel{font-size:11px;font-weight:700;color:#333333;}
 .flabel .hint2{font-weight:400;color:#333333;font-size:10px;margin-left:4px;}
 .finput{width:100%;min-width:0;padding:10px 12px;border:1.5px solid #d4eae0;border-radius:10px;font-size:14px;color:#333333;background:#fff;-webkit-appearance:none;appearance:none;}
+/* ★読むだけの欄★（会社名・住所＝持ち主は入口の「会社の設定」）
+   ★打てる欄と 同じ大きさ・同じ位置★にして、字だけ 薄い黒（読ませる字の決まり）。
+   ★打てそうに見せない★＝枠は点線・背景は薄く。 */
+.finput-ro{width:100%;min-width:0;box-sizing:border-box;padding:9px 12px;border:1.5px dashed #d4eae0;border-radius:10px;font-size:16px;color:#333333;background:#F7FBF9;min-height:42px;}
+
 .finput.num{font-family:'DM Mono',monospace;text-align:right;}
 select.finput{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"><path d="M1 1l5 5 5-5" stroke="%237aa08c" stroke-width="2" fill="none"/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
 /* 従業員マスタ accordion + グループ + チップ */

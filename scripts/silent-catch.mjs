@@ -162,6 +162,26 @@ function statementAt(src, at) {
   }
   return src.slice(at, i);
 }
+/* ★try/catch も 受け皿として数える★（2026-08-28 に足した）
+   前は ★`.catch(` だけ★を受け皿と見ていた。ところが
+   ★同期で投げる呼び出し（例: SuiteData.create()）には `.catch` を付けられない★ので、
+   ★正しく try/catch で受けているのに 赤★になった＝★見張りを避ける書き方を誘発する★。
+   ⇒ 呼び出しが ★try { … } catch の中に居る★なら 受け皿が在ると数える。
+   ★見る範囲は 狭く決め打ち★（前へ800字・後ろへ400字）＝
+   遠くの try を拾って ★受け皿が無いのに緑★にしない為。 */
+export function inTryCatch(src, at, stLen) {
+  const from = Math.max(0, at - 800);
+  const before = src.slice(from, at);
+  const t = before.lastIndexOf('try');
+  if (t < 0 || !/^try\s*\{/.test(before.slice(t))) return false;
+  /* try { から 呼び出しまでの間で その try が もう閉じていないか（釣り合いで見る） */
+  let bal = 0;
+  for (const ch of before.slice(t)) { if (ch === '{') bal++; else if (ch === '}') bal--; }
+  if (bal <= 0) return false;                       // すでに閉じている＝この呼び出しは try の外
+  const after = src.slice(at + stLen, at + stLen + 400);
+  return /\}\s*catch\s*\(/.test(after);
+}
+
 /* 倉庫（外）を呼ぶ所。約束を返す物だけ見る */
 const OUT_RX = /\b(?:Store|suite|SD|S\.store)\.([A-Za-z_$][\w$]*)\s*\(/g;
 const OUT_SKIP = new Set(['getUser', 'getSession']);   /* 約束を返さない・見ても意味が無い物 */
@@ -179,7 +199,7 @@ for (const f of FILES) {
     if (!isPromise) continue;
     calls.push({
       file: f, line: src.slice(0, m.index).split('\n').length, name,
-      caught: /\.catch\(/.test(st),
+      caught: /\.catch\(/.test(st) || inTryCatch(src, m.index, st.length),
     });
   }
 }

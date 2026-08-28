@@ -43,6 +43,9 @@
       if(gate && !gate.ok){ showLock(); return; } // 停止アカウント=アプリを触らせない
       hide();
       if(window.PayslipReloadCloud) window.PayslipReloadCloud().then(function(loaded){ if(!loaded && window.PayslipPersistSave) window.PayslipPersistSave(); /* 新規=今のローカルを初回アップ */ });
+      /* ★会社名・住所を「会社の設定」から読み直す★（2026-08-28）
+         ＝持ち主は入口の 共有データ▸会社。★給与は読むだけ★（読めなくても写しは消さない）。 */
+      if(window.PayslipSyncOrg) window.PayslipSyncOrg();
       showLogout();
     });
   }

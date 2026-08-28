@@ -333,11 +333,47 @@
   }
 
   /* ═══ 起動 ═══ */
+  /* ═══ ★会社の設定（第3の場所）★（司さん 2026-08-28）═══════════════════════
+     ★決めた事★
+       会社の情報（屋号・住所・電話・インボイス番号・事業）は
+       ★給与でも 請求書でもない ここ★ が持ち主。★2か所で別々に持たない★。
+     ★なぜ 新しい画面を作らなかったか★
+       ここに ★もう在る★（共有データ ▸ 会社）。★同じ物を3枚目として作らない★
+       （作る前に skill find-existing を回す決まり）。足したのは ★行き方と 帰り道★だけ。
+     ★行き方★ index.html#kaisha … 開いた時に 共有データ▸会社 を出す
+       戻り先つき … #kaisha?back=seikyu ／ #kaisha?back=kyuyo
+     ★帰り道★ 上に「← 請求書へ戻る」を出す（★飛んだ先から 元の画面へ戻れる★）。 */
+  var BACK_TO = {
+    seikyu: { label: '← 請求書へ戻る', href: 'seikyu/' },
+    kyuyo: { label: '← 給与へ戻る', href: 'kyuyo/' },
+  };
+  function openFromHash() {
+    var h = String(location.hash || '').replace(/^#/, '');
+    if (!h) return false;
+    var name = h.split('?')[0];
+    if (name !== 'kaisha') return false;
+    var q = h.indexOf('?') >= 0 ? h.slice(h.indexOf('?') + 1) : '';
+    var back = (q.split('&').map(function (kv) { return kv.split('='); })
+      .filter(function (kv) { return kv[0] === 'back'; })[0] || [])[1] || '';
+    show('scr-data'); showTab('org');
+    showBack(BACK_TO[back] || null);
+    return true;
+  }
+  function showBack(to) {
+    var el = $('kaisha-back'); if (!el) return;
+    if (!to) { el.hidden = true; el.textContent = ''; el.removeAttribute('href'); return; }
+    el.hidden = false;
+    el.textContent = to.label;
+    el.setAttribute('href', to.href);
+  }
+
   function init() {
     // ★state.today は入れない＝毎回その時の日付を使う(アプリを開きっぱなしで日が変わっても「今月」がズレない)。
     //   テストだけ state.today に固定値を入れて時刻依存を外す。
     bind();
     renderEmps(); renderPts(); renderBizChips();
+    openFromHash();
+    global.addEventListener('hashchange', openFromHash);
   }
 
   // auth.js がログイン成功後に呼ぶ（会社・人・取引先を読む）
@@ -357,6 +393,7 @@
 
   var Hub = {
     init: init, attach: attach, show: show, showTab: showTab,
+    openFromHash: openFromHash, showBack: showBack, BACK_TO: BACK_TO,
     loadAll: loadAll,
     state: state,
     _setSuiteData: function (sd) { SD = sd; },     // テスト用の差し込み口

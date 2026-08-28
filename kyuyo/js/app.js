@@ -474,7 +474,33 @@
   var A11Y_TOGGLE_SEL='.mco-hd,.emp-dtgl,.emp-sub-h,.sh-mode,.imode,.pmode,.dls,.chip,.help-i,.ef-b,.sh-seg b';
 
   /* ---------- 設定: 会社情報 ---------- */
-  function fillCompany(){ $('#c-name').value=state.company.name||''; $('#c-addr').value=state.company.addr||''; $('#c-close').value=state.company.close||''; $('#c-payrel').value=state.company.paydayRel||'next'; $('#c-payday-day').value=state.company.paydayDay||''; var pc=$('#c-paycycle'); if(pc)pc.value=state.company.payCycle||'monthly'; var sm=$('#c-shime'); if(sm)sm.value=state.company.shimeMethod||'monthly'; var sn=$('#c-shimen'); if(sn)sn.value=state.company.shimeN||'10'; updatePaydayPreview(); payCycleNote(); shimeNote(); renderRuleChips(); renderCompanyRules(); renderDesign(); renderAsk(); }
+  /* ═══ ★会社名・住所は「会社の設定」が持ち主★（司さん 2026-08-28）═════════════
+     ★給与では 直せない★（入口の 共有データ▸会社 が1か所の持ち主）。
+     ここに在るのは ★写し（キャッシュ）★＝紙に刷る時に ネットが無くても困らない為。
+     ★写しを 給与から書き換えない★＝書き換えたら また2か所持ちになる。 */
+  function fillOrgRO(){
+    var n=$('#c-name-ro'), a=$('#c-addr-ro');
+    if(n) n.textContent = state.company.name || '（まだ入っていません）';
+    if(a) a.textContent = state.company.addr || '（入っていません・任意）';
+  }
+  /* ログインの後に 1回だけ 読み直す（auth.js が呼ぶ）。
+     ★読めなかった時は 写しを消さない★＝黙って会社名が消える方が こわい。 */
+  window.PayslipSyncOrg = function(){
+    var SD = window.SuiteData, cl = window.Store && window.Store._client;
+    if(!SD || !cl) return Promise.resolve({ ok:false, reason:'共有データ層が無い' });
+    var sd;
+    try { sd = SD.create({ client: cl }); } catch(e){ return Promise.resolve({ ok:false, reason:String(e&&e.message||e) }); }
+    return Promise.resolve(sd.org.get()).then(function(o){
+      if(!o) return { ok:true, found:false };            // 未作成＝写しはそのまま
+      var ch=false;
+      if(typeof o.yago==='string' && o.yago!==state.company.name){ state.company.name=o.yago; ch=true; }
+      if(typeof o.addr==='string' && o.addr!==state.company.addr){ state.company.addr=o.addr; ch=true; }
+      if(ch){ fillOrgRO(); renderAsk(); if(window.PayslipPersistSave) window.PayslipPersistSave(); }
+      return { ok:true, found:true, changed:ch };
+    }).catch(function(e){ return { ok:false, reason:String(e&&e.message||e) }; });
+  };
+
+  function fillCompany(){ fillOrgRO(); $('#c-close').value=state.company.close||''; $('#c-payrel').value=state.company.paydayRel||'next'; $('#c-payday-day').value=state.company.paydayDay||''; var pc=$('#c-paycycle'); if(pc)pc.value=state.company.payCycle||'monthly'; var sm=$('#c-shime'); if(sm)sm.value=state.company.shimeMethod||'monthly'; var sn=$('#c-shimen'); if(sn)sn.value=state.company.shimeN||'10'; updatePaydayPreview(); payCycleNote(); shimeNote(); renderRuleChips(); renderCompanyRules(); renderDesign(); renderAsk(); }
   // 初回オンボーディング(4ステップ案内・×で閉じたら二度と出ない)。"すぐ分かる"を底上げ。
   // はじめかたガイドの各ステップの達成判定(freee/MF流のライブToDo)。全完了で自動的に消える。
   function onboardSteps(){
@@ -482,7 +508,7 @@
     var realEmp=emps.length>1 || emps.some(function(e){ return e.name && !/^(山田 太郎|日払 太郎)$/.test(String(e.name).trim()); });
     var conf=state.confirmed&&state.confirmed[state.month]; var inputDone=!!(conf&&Object.keys(conf).length);
     return [
-      { done: !!(state.company&&String(state.company.name||'').trim() && !/^合同会社Rakunally$/.test(String(state.company.name).trim())), label:'会社情報を入れる', sub:'会社名を自社に変更（初期はサンプル）', go:'company' },
+      { done: !!(state.company&&String(state.company.name||'').trim() && !/^合同会社Rakunally$/.test(String(state.company.name).trim())), label:'会社情報を入れる', sub:'設定▸会社情報 の「会社の情報を直す」から（会社の設定で1か所）', go:'company' },
       { done: realEmp, label:'従業員を追加する', sub:'サンプルの山田太郎は書き換え/削除でOK', go:'emp' },
       { done: inputDone, label:'当月を入力して確認', sub:'勤怠を入れて「今月を確定」', go:'input' },
       { done: !!state.onboardOutput, label:'明細を出力する', sub:'PDF/Web明細/Excel/振込データ', go:'print' }
@@ -537,10 +563,11 @@
   function ASK_Q(){
     var c=state.company;
     return [
-      { key:'name', q:'会社の名前は？', now:c.name||'',
-        input:function(){ return '<input class="ask-in" data-ask="name" value="'+attr(c.name)+'" placeholder="合同会社Rakunally">'; },
-        answer:function(){ return c.name?{ text:'「'+esc(c.name)+'」で紙に刷ります。' }:null; } },
-
+      /* ★「会社の名前は？」は ここから外した★（司さん 2026-08-28）
+         ＝会社名の持ち主は ★入口の「会社の設定」★（請求書と同じ1か所）。
+         ★給与で聞くと 2か所で別々に持つ★事になるので、聞かずに ★直しに行く道★を出す
+         （kyuyo/index.html の「会社の情報を直す」→ ../index.html#kaisha?back=kyuyo）。
+         ＝7問 → ★6問★（kyuyo/tests/company-ask.test.mjs が 数を見張っている）。 */
       { key:'pref', q:'どこの県ですか？', sub:'最低賃金は「事業場の所在地」で決まります',
         now:c.pref?prefNameOf(c.pref):'',
         input:function(){ return '<select class="ask-in" data-ask="pref">'+prefOptions(c.pref)+'</select>'; },
@@ -3570,7 +3597,9 @@
       });
     }
 
-    ['name','addr','close'].forEach(function(k){ var el=$('#c-'+k); if(el) el.addEventListener('input',function(){ state.company[k]=this.value; }); });
+    /* ★'name','addr' を外した★（2026-08-28）＝会社名と住所の持ち主は 入口の「会社の設定」。
+       欄そのものを 読むだけの箱にしたので、ここで拾う物も 無い。 */
+    ['close'].forEach(function(k){ var el=$('#c-'+k); if(el) el.addEventListener('input',function(){ state.company[k]=this.value; }); });
     var pr=$('#c-payrel'); if(pr) pr.addEventListener('change',function(){ state.company.paydayRel=this.value; updatePaydayPreview(); });
     var pd=$('#c-payday-day'); if(pd) pd.addEventListener('input',function(){ state.company.paydayDay=this.value.replace(/[^0-9末]/g,''); updatePaydayPreview(); });
     var pcy=$('#c-paycycle'); if(pcy) pcy.addEventListener('change',function(){ state.company.payCycle=this.value; payCycleNote(); if(window.persistSaveDebounced)persistSaveDebounced(); });

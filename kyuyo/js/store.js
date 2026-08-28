@@ -557,5 +557,11 @@
     return Promise.resolve([]);
   };
 
+  /* ★共有データ層（js/suite-data.js）に渡す為だけの口★（2026-08-28）
+     会社名・住所の持ち主は ★入口の「会社の設定」(pay_org)★になった。
+     給与は ★読むだけ★＝ここで作った client を そのまま貸す（★2つ目の client を作らない★＝
+     ログインの状態が2つに割れる）。 */
+  Store._client = sb;
+
   global.Store = Store;
 })(window);
