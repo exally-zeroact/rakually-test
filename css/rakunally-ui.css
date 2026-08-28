@@ -176,15 +176,17 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
   border: 1px solid #C8ECD8; background: #FFFFFF; color: #2E7D54;
   cursor: pointer; white-space: nowrap;
 }
-.seg-b.on { background: #52B788; border-color: #52B788; color: #FFFFFF; }
+/* ★選ばれている物は 本命と同じ緑★（2026-08-29 統一＝2つの緑を作らない） */
+.seg-b.on { background: #3D9E72; border-color: #3D9E72; color: #FFFFFF; }
 .seg-b:disabled { opacity: .5; cursor: default; }
 .mini {
   font-family: inherit; font-size: 11px; font-weight: 700;
-  padding: 4px 9px; border-radius: 8px;
-  border: 1px solid #C8ECD8; background: #FFFFFF; color: #3D6B53; cursor: pointer;
+  padding: 4px 9px; border-radius: 999px;
+  border: 1px solid #C8ECD8; background: #FFFFFF; color: #2E7D54; cursor: pointer;
 }
 /* ★選ばれている物は必ず見て分かるようにする（押したのに何も変わらない、に見せない） */
-.mini.on { background: #2E7D54; border-color: #2E7D54; color: #FFFFFF; }
+/* ★選ばれている物は 本命と同じ緑★（2026-08-29 統一＝2つの緑を作らない） */
+.mini.on { background: #3D9E72; border-color: #3D9E72; color: #FFFFFF; }
 .mini:disabled { opacity: .5; cursor: default; }
 
 /* ── 一覧の行 ───────────────────────────────────────── */
@@ -207,7 +209,8 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
   background: #FFFFFF; border-top: 1px solid #D4EAE0;
   padding-bottom: env(safe-area-inset-bottom);
 }
-.bn { flex: 1 1 0; background: none; border: none; padding: 8px 2px 9px; cursor: pointer; color: #7AA08C; font-family: inherit; }
+/* ★下の帯の字は 2色だけ★（選ばれている #2E7D54 ／ ほか #6E6E6E）＝全画面 共通（2026-08-29 統一） */
+.bn { flex: 1 1 0; background: none; border: none; padding: 8px 2px 9px; cursor: pointer; color: #6E6E6E; font-family: inherit; }
 .bn.on { color: #2E7D54; }
 .bn-i { display: block; font-size: 17px; line-height: 1.2; }
 .bn-l { display: block; font-size: 10.5px; font-weight: 700; }

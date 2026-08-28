@@ -239,6 +239,14 @@ jobs:
         run: node seikyu/tests/pask-color.test.mjs
       - name: ★同 わざと色を戻して赤になるか
         run: node seikyu/tests/pask-color.test.mjs --self-test
+      # ★Rakunally 全画面で 押す物の見た目が 揃っているか★（司さん 2026-08-29「統一感は？」）
+      #   ★色は文字列で探さない★＝本物のブラウザで 描いた色の値を読む。
+      #   直す前は ★26通り・緑3種類★だった。今は ★台帳9通り・緑1種類・角丸3つ★。
+      #   ※webkit が無い所では ★赤にせず「未測定」★（0件と混ぜない）。
+      - name: ★押す物の見た目が全画面で揃っているか (台帳9通り・緑1種類・角丸12/999/0)
+        run: node tests/button-uniform.test.mjs
+      - name: ★同 わざと崩して赤になるか（緑を混ぜる／字を灰色に戻す）
+        run: node tests/button-uniform.test.mjs --self-test
       - name: ★会社の情報は第3の場所か (請求書→給与のリンク0本・帰り道が出る・2か所持ちが無い)
         run: node seikyu/tests/kaisha-link.test.mjs
       - name: ★同 わざと戻して赤になるか（給与へのリンク／帰り道／給与の打てる欄）

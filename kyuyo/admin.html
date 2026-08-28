@@ -15,7 +15,12 @@
 <link rel="icon" type="image/png" sizes="32x32" href="../img/favicon-32.png?v=56581ebc">
 <link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png?v=e0197076">
 <style>
-  :root{ --ink:#333333; --accent:#2E7D54; --muted:#555555; --line:#d4eae0; --bg:#F0FAF4; }
+  /* ★押す物の色は Rakunally 全画面で 1組★（司さん 2026-08-29「統一感は？」）
+     --accent  … 塗る本命 #3D9E72（皮 css/rakunally-ui.css の .btn-primary と 同じ値）
+     --accent2 … 白い押す物の字 #2E7D54（皮の .btn-ghost と 同じ）
+     --line    … 押す物の枠 #C8ECD8（皮と同じ）／ふつうの罫は --line2
+     ★2つの緑を作らない★＝ここを直したら 皮も一緒に見る（tests/button-uniform.test.mjs が数える） */
+  :root{ --ink:#333333; --accent:#3D9E72; --accent2:#2E7D54; --muted:#6E6E6E; --line:#C8ECD8; --line2:#d4eae0; --bg:#F0FAF4; }
   *{box-sizing:border-box;}
   body{margin:0;font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN',sans-serif;background:var(--bg);color:var(--ink);}
   .bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;}
@@ -23,7 +28,8 @@
   .bar small{font-size:10px;letter-spacing:.18em;color:#333333;}
   .bar .sp{margin-left:auto;}
   .bar .who{font-size:12px;color:var(--muted);}
-  .bar .out{font-size:12px;color:#C0392B;text-decoration:underline;cursor:pointer;background:none;border:none;}
+  /* ★赤は「消す物」だけ★（司さん 2026-08-29 統一）。ログアウトは 取り返しがつく＝ふつうの字の色。 */
+  .bar .out{font-size:12px;color:#2E7D54;text-decoration:underline;cursor:pointer;background:none;border:none;}
   .wrap{max-width:860px;margin:0 auto;padding:16px;}
   input,button{font-family:inherit;font-size:16px;}
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 6px 24px rgba(30,60,40,.06);}
@@ -33,32 +39,32 @@
   #login p{font-size:12px;color:var(--muted);text-align:center;margin:6px 0 16px;}
   #login input{width:100%;padding:12px;margin-bottom:10px;border:1.5px solid var(--line);border-radius:10px;color:var(--ink);-webkit-appearance:none;}
   #login input:focus{outline:none;border-color:#52B788;}
-  .btn{width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;}
+  .btn{width:100%;padding:12px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;}
   .msg{font-size:12px;min-height:16px;text-align:center;margin:2px 0 8px;color:#C0392B;}
   /* 一覧 */
   .tools{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
   #q{flex:1;min-width:160px;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;color:#333333;-webkit-appearance:none;}
-  .refresh{padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--accent);font-weight:700;font-size:14px;cursor:pointer;}
+  .refresh{padding:11px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--accent2);font-weight:700;font-size:14px;cursor:pointer;}
   .stat{font-size:12px;color:var(--muted);margin:0 2px 10px;}
   .u{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff;}
   .u .em{font-weight:700;font-size:14px;word-break:break-all;}
   .u .meta{font-size:11px;color:var(--muted);margin-top:2px;}
-  .app-head{font-size:11px;font-weight:700;color:var(--accent);margin-top:12px;}
+  .app-head{font-size:11px;font-weight:700;color:var(--accent2);margin-top:12px;}
   .app{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
-  .app .name{font-size:12px;font-weight:700;min-width:76px;color:var(--accent);}
+  .app .name{font-size:12px;font-weight:700;min-width:76px;color:var(--accent2);}
   .seg{display:flex;gap:4px;flex-wrap:wrap;}
-  .seg button{padding:7px 12px;border:1.5px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;}
+  .seg button{padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;}
   .seg button.on{color:#fff;}
-  .seg button.on.trial,.seg button.on.paid,.seg button.on.free{background:var(--accent);border-color:var(--accent);}
+  .seg button.on.trial,.seg button.on.paid,.seg button.on.free{background:var(--accent);border-color:var(--accent);border-width:1px;color:#fff;}
   .seg button.on.disabled{background:#C0392B;border-color:#C0392B;}
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px;}
-  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#2E7D54;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20;}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#3D9E72;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20;}
   .toast.show{opacity:1;}
   .hide{display:none;}
   /* タブ */
   .tabs{display:flex;gap:6px;margin-bottom:14px;}
-  .tab{padding:9px 16px;border:1.5px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;}
-  .tab.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .tab{padding:9px 16px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;}
+  .tab.on{background:var(--accent);border-color:var(--accent);border-width:1px;color:#fff;}
   /* 法定データ */
   .note{font-size:12px;color:var(--muted);line-height:1.7;margin:0 2px 12px;}
   .st{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px;background:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -124,23 +130,23 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../js/supa-config.js?v=1eb31443"></script>
+  <script src="../js/supa-config.js?v=983f31f6"></script>
   <!-- 法定データlib(admin法定データ画面が中央へ投入する「あるべき値」の生成に使用) -->
-  <script src="lib/shakaihoken-hyo.js?v=1eb31443"></script>
-  <script src="lib/koyo-hoken.js?v=1eb31443"></script>
-  <script src="lib/shotokuzei-densan.js?v=1eb31443"></script>
-  <script src="lib/shotokuzei-hei.js?v=1eb31443"></script>
-  <script src="lib/shotokuzei-nichi.js?v=1eb31443"></script>
-  <script src="lib/shoyo-zei.js?v=1eb31443"></script>
-  <script src="lib/warimashi.js?v=1eb31443"></script>
-  <script src="lib/saitei-chingin.js?v=1eb31443"></script>
-  <script src="lib/nenmatsu.js?v=1eb31443"></script>
-  <script src="lib/shouhizei-ritsu.js?v=1eb31443"></script>
-  <script src="lib/statutory-rows.js?v=1eb31443"></script>
-  <script src="js/admin.js?v=1eb31443"></script>
+  <script src="lib/shakaihoken-hyo.js?v=983f31f6"></script>
+  <script src="lib/koyo-hoken.js?v=983f31f6"></script>
+  <script src="lib/shotokuzei-densan.js?v=983f31f6"></script>
+  <script src="lib/shotokuzei-hei.js?v=983f31f6"></script>
+  <script src="lib/shotokuzei-nichi.js?v=983f31f6"></script>
+  <script src="lib/shoyo-zei.js?v=983f31f6"></script>
+  <script src="lib/warimashi.js?v=983f31f6"></script>
+  <script src="lib/saitei-chingin.js?v=983f31f6"></script>
+  <script src="lib/nenmatsu.js?v=983f31f6"></script>
+  <script src="lib/shouhizei-ritsu.js?v=983f31f6"></script>
+  <script src="lib/statutory-rows.js?v=983f31f6"></script>
+  <script src="js/admin.js?v=983f31f6"></script>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=1eb31443"></script>
+<script src="../js/env-badge.js?v=983f31f6"></script>
 </body>
 </html>
