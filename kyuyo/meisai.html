@@ -25,13 +25,15 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-webkit-text-size-adjust:100%;min-height:100vh;}
 .mhead{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;height:50px;padding:0 16px;background:#fff;border-bottom:1px solid #e3ede8;}
-.mhead .logo{font-family:'DM Mono',monospace;font-size:18px;color:#52B788;}
+/* ★アプリの名前は 20px★（入口のロゴと同じ段）＝2026-08-29 統一 */
+.mhead .logo{font-family:'DM Mono',monospace;font-size:20px;color:#52B788;}
 .mhead .sub{font-size:10px;letter-spacing:.16em;color:#333333;}
 /* ★左右は 16px★（2026-08-28 そろえた＝他の画面と同じ。scripts/webkit-size.mjs が毎回 数える） */
 .wrap{max-width:760px;margin:0 auto;padding:18px 16px 60px;}
-.card{background:#fff;border:1px solid #d4eae0;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(30,80,46,.06);}
+/* ★箱は 全画面で 1組★（2026-08-29 統一） */
+.card{background:#fff;border:1px solid #C8ECD8;border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(30,80,46,.06);}
 .card h2{font-size:15px;color:#333333;margin-bottom:10px;}
-.lead{font-size:12.5px;color:#333333;line-height:1.7;}
+.lead{font-size:13px;color:#333333;line-height:1.7;}
 .finput{width:100%;padding:12px;border:1.5px solid #d4eae0;border-radius:10px;font-size:16px;color:#333333;background:#fff;-webkit-appearance:none;}
 .finput.num{font-family:'DM Mono',monospace;letter-spacing:.14em;text-align:center;}
 .lbl{font-size:11px;font-weight:700;color:#333333;margin:2px 0 5px;display:block;}
@@ -64,7 +66,7 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .nw-gt{font-size:12px;font-weight:700;color:#333333;margin:10px 0 4px;}
 .nw-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px dashed #eaf3ee;}
 .nw-q{font-size:13px;color:#333333;line-height:1.5;flex:1;}
-.nw-help{font-size:10.5px;color:#333333;margin-top:2px;line-height:1.5;}
+.nw-help{font-size:11px;color:#333333;margin-top:2px;line-height:1.5;}
 .nw-in{flex:0 0 auto;display:flex;align-items:center;gap:4px;}
 .nw-in .finput{width:auto;min-width:96px;padding:8px 10px;font-size:14px;}
 .nw-unit{font-size:11px;color:#7aa08c;}
@@ -171,18 +173,18 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 </div>
 
 <!-- ★既存Service Worker/キャッシュを削除して常に最新に(古い版が居座る問題の根絶) --><script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
-<script src="js/render.js?v=983f31f6"></script>
-<script src="lib/nencho-declaration.js?v=983f31f6"></script>
+<script src="js/render.js?v=462e325f"></script>
+<script src="lib/nencho-declaration.js?v=462e325f"></script>
 <!-- PDF保存=jsPDFで自前生成(A4ぴったり1ページ・ブラウザのフッター無し)。iOSのwebページ印刷は必ずURL/日付フッターが付き余白で2ページ化するため不使用。 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <!-- 本番はSupabase(RPC)。window.SUPA/supabase未読込ならstore.jsはlocalStorage層にフォールバック。 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=983f31f6"></script>
-<script src="js/store.js?v=983f31f6"></script>
-<script src="js/meisai.js?v=983f31f6"></script>
+<script src="../js/supa-config.js?v=462e325f"></script>
+<script src="js/store.js?v=462e325f"></script>
+<script src="js/meisai.js?v=462e325f"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=983f31f6"></script>
+<script src="../js/env-badge.js?v=462e325f"></script>
 </body>
 </html>

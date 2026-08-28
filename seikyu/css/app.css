@@ -49,7 +49,7 @@
 }
 .l-mv:disabled { opacity: .5; cursor: default; }
 .scroll-note {
-  display: block; width: 100%; min-width: 180px; font-size: 11.5px; color: #6E6E6E;
+  display: block; width: 100%; min-width: 180px; font-size: 12px; color: #6E6E6E;
   line-height: 1.8; margin: 4px 0 0;
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
@@ -69,7 +69,7 @@
 .iv-no { font-family: 'DM Mono', ui-monospace, monospace; font-size: 12px; color: #6E6E6E; white-space: nowrap; }
 .iv-name { font-size: 14px; font-weight: 700; color: #2E7D54; min-width: 0; overflow-wrap: break-word; }
 .iv-sub {
-  display: block; width: 100%; font-size: 11.5px; color: #6E6E6E;
+  display: block; width: 100%; font-size: 12px; color: #6E6E6E;
   line-height: 1.8; margin-top: 2px;
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
@@ -88,16 +88,16 @@
 .pay-l1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .pay-d { font-family: 'DM Mono', ui-monospace, monospace; font-size: 12px; color: #555555; white-space: nowrap; }
 .pay-v { font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; font-weight: 700; color: #2E7D54; white-space: nowrap; }
-.pay-w { font-size: 10.5px; color: #6E6E6E; white-space: nowrap; }
+.pay-w { font-size: 11px; color: #6E6E6E; white-space: nowrap; }
 .pay-memo {
-  display: block; width: 100%; min-width: 150px; font-size: 11.5px; color: #6E6E6E;
+  display: block; width: 100%; min-width: 150px; font-size: 12px; color: #6E6E6E;
   line-height: 1.8; margin-top: 2px;
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
 /* 「残り全部」「半分」＝金額を打たずに入れる近道（当たりは指の幅を確保する） */
 .pay-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 /* ★指で押す物なので、mini の既定（高さ約23px）より当たりを大きくする（実測40px）★ */
-.pay-quick .mini { padding: 11px 12px; font-size: 11.5px; }
+.pay-quick .mini { padding: 11px 12px; font-size: 12px; }
 
 /* ── 列の編集（★ボタンだけの行なので折り返して潰さない★）───── */
 .col-row {
@@ -114,7 +114,7 @@
   font-family: 'DM Mono', ui-monospace, monospace; font-size: 12px; color: #555555;
   min-width: 34px; text-align: right; white-space: nowrap;
 }
-.col-role { font-size: 10.5px; color: #6E6E6E; white-space: nowrap; }
+.col-role { font-size: 11px; color: #6E6E6E; white-space: nowrap; }
 .col-gap { flex: 0 0 6px; }
 
 /* ── 紙の下見 ─────────────────────────────────────────
@@ -152,7 +152,7 @@
 .guess-tag {
   display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
   background: #F0FAF4; border: 1px solid #C8ECD8; color: #333333;
-  font-size: 10.5px; font-weight: 400; white-space: nowrap;
+  font-size: 11px; font-weight: 400; white-space: nowrap;
 }
 /* 前回の中身の読み合わせ（★flexの子に文を直接置かない＝表で組む★） */
 .guess-t { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -206,13 +206,13 @@
   /* 欄の名前（表の見出しの代わり）。★文なので block＋折り返し可★ */
   .lines td::before {
     content: attr(data-label);
-    display: block; font-size: 10.5px; color: #6E6E6E; margin-bottom: 2px;
+    display: block; font-size: 11px; color: #6E6E6E; margin-bottom: 2px;
     white-space: normal; word-break: normal; overflow-wrap: break-word;
   }
   /* # は札の右上に小さく（1行ぶんの場所を取らせない） */
   .lines td.l-c-index {
     position: absolute; top: 8px; right: 74px; padding: 0;
-    font-size: 10.5px; color: #6E6E6E;
+    font-size: 11px; color: #6E6E6E;
   }
   .lines td.l-c-index::before { display: none; }
   /* 上の段＝品名（幅いっぱい） */
@@ -374,7 +374,7 @@
 }
 .tpl-shot iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: hidden; }
 .tpl-nm { font-size: 13px; font-weight: 700; color: #333333; }
-.tpl-note { font-size: 11.5px; color: #555555; line-height: 1.5; }
+.tpl-note { font-size: 12px; color: #555555; line-height: 1.5; }
 .tpl-strip { display: flex; align-items: center; gap: 10px; }
 .tpl-strip-k { font-size: 11px; color: #6E6E6E; letter-spacing: .06em; }
 .tpl-strip-v { font-size: 13px; font-weight: 700; color: #333333; flex: 1 1 auto; }

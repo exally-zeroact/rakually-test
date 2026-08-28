@@ -94,7 +94,7 @@ input, select, textarea { font-size: 16px; }
    ここが 12px だと 27px になり、★同じ器なのに アプリごとに違う★（scripts/webkit-size.mjs が毎回 数えます）。 */
 .main { padding: 16px 16px 84px; max-width: 900px; margin: 0 auto; }
 .card {
-  background: #FFFFFF; border: 1px solid #D4EAE0; border-radius: 16px;
+  background: #FFFFFF; border: 1px solid #C8ECD8; border-radius: 16px;
   padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(30,80,46,.06);
 }
 .card-h {
@@ -109,7 +109,7 @@ input, select, textarea { font-size: 16px; }
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
 .hint { font-size: 12px; color: #333333; }
-.why  { font-size: 11.5px; color: #333333; margin-top: 6px; }
+.why  { font-size: 12px; color: #333333; margin-top: 6px; }
 .warn { font-size: 12px; color: #92500A; background: #FDF3E3; border: 1px solid #F0DDBC; border-radius: 10px; padding: 8px 10px; }
 .bad  { font-size: 12px; color: #C0392B; background: #FDF0EE; border: 1px solid #F0D5D0; border-radius: 10px; padding: 8px 10px; }
 .ok   { font-size: 12px; color: #333333; background: #F0FAF4; border: 1px solid #C8ECD8; border-radius: 10px; padding: 8px 10px; }
@@ -171,7 +171,7 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
 /* 丸い切り替え（チップ／セグメント） */
 .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .seg-b {
-  font-family: inherit; font-size: 12.5px; font-weight: 700;
+  font-family: inherit; font-size: 13px; font-weight: 700;
   padding: 8px 14px; border-radius: 999px;
   border: 1px solid #C8ECD8; background: #FFFFFF; color: #2E7D54;
   cursor: pointer; white-space: nowrap;
@@ -197,11 +197,11 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
   box-shadow: 0 1px 4px rgba(30,80,46,.05);
 }
 .row:hover { background: #F0FAF4; }
-.tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .tag-on { background: #F0FAF4; color: #2E7D54; }
 .tag-off { background: #E8F6EE; color: #333333; }
 .tag-mute { background: #F0FAF4; color: #333333; }
-.empty { text-align: center; color: #333333; padding: 26px 12px; }
+.empty { text-align: center; color: #333333; padding: 26px 14px; }
 
 /* ── 下のナビ ───────────────────────────────────────── */
 .botnav {
@@ -213,7 +213,7 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
 .bn { flex: 1 1 0; background: none; border: none; padding: 8px 2px 9px; cursor: pointer; color: #6E6E6E; font-family: inherit; }
 .bn.on { color: #2E7D54; }
 .bn-i { display: block; font-size: 17px; line-height: 1.2; }
-.bn-l { display: block; font-size: 10.5px; font-weight: 700; }
+.bn-l { display: block; font-size: 11px; font-weight: 700; }
 
 /* ── かぶせる小窓 ───────────────────────────────────── */
 .ov {

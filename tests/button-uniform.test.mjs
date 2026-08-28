@@ -22,6 +22,12 @@
  *   ・★台帳に無い見た目が1つでも出たら 赤★（増やす時は 理由を書いて 台帳に足す）
  *   ・回せない時は ★赤にせず「未測定」★（0件と 未測定を 混ぜない）
  *
+ * ★押す物だけでは 足りない★（司さんの問いに 2回目で気づいた）
+ *   ★箱（カード）8通り★／★字の大きさ 25通り★も バラバラだった。
+ *   ⇒ 箱を ★3通り★（ふつう／畳んだ／空の知らせ）、字を ★8段★（10/11/12/13/14/15/16/20）に。
+ *   ★16px は 打つ欄★（iOSが勝手に拡大しない為）＝これ未満にしない。
+ *   ★絵の字（💰 ⚙ ▤ ← 等）は 段の外★＝飾りなので 大きさが違ってよい。
+ *
  * 使い方: node tests/button-uniform.test.mjs [--list] [--self-test]
  */
 import fs from 'node:fs';
@@ -130,9 +136,39 @@ async function measure(extraCss) {
           r: c.borderTopLeftRadius,
         });
       });
-      return list;
+      /* ★箱（カード）★ … 角丸・枠・内側 */
+      const boxes = [];
+      document.querySelectorAll('.card, .tile, .u, .lg-card').forEach((e) => {
+        const c = getComputedStyle(e), b2 = e.getBoundingClientRect();
+        if (b2.width < 80 || b2.height < 20) return;
+        boxes.push({
+          cls: (typeof e.className === 'string' ? e.className : '').trim().slice(0, 24),
+          k: c.borderTopLeftRadius + ' | ' + c.borderTopWidth + ' ' + c.borderTopColor
+            + ' | ' + c.paddingTop + '/' + c.paddingLeft,
+        });
+      });
+      /* ★描かれた字の大きさ★（Rangeで実測＝箱ではなく 字） */
+      const fonts = [];
+      const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let t;
+      while ((t = w.nextNode())) {
+        const v = t.nodeValue.trim();
+        if (!v) continue;
+        const p = t.parentElement; if (!p) continue;
+        const rg = document.createRange(); rg.selectNodeContents(t);
+        const bb = rg.getBoundingClientRect();
+        if (bb.width < 10 || bb.height < 4) continue;
+        /* ★絵の字は 段の外★（飾りなので 大きさが違ってよい）
+           絵文字（💰🧾）だけでなく ★記号の絵（⚙ ▤ ✎ ← →）★も 段の外。
+           ★見分け方★＝かな・漢字・英数字を 1文字も含まない 短い字（2文字まで）。 */
+        const WORD = /[0-9A-Za-z぀-ヿ一-鿿]/;
+        if (!WORD.test(v) && [...v].length <= 2) continue;
+        if (/^[\p{Extended_Pictographic}\s]+$/u.test(v)) continue;
+        fonts.push({ px: getComputedStyle(p).fontSize, t: v.slice(0, 12) });
+      }
+      return { list, boxes, fonts };
     });
-    out.push({ rel, btns: r });
+    out.push({ rel, btns: r.list, boxes: r.boxes, fonts: r.fonts });
     await ctx.close();
   }
   await b.close();
@@ -201,13 +237,69 @@ T('★③ 白い押す物の 字の色は 決めた3つだけ（ふつう＝緑�
   console.log('     白ボタンの字 … ' + [...inks].join(' / '));
 });
 
-T('★④ 角丸は 決めた3つだけ（箱12px／丸999px／帯0px）', () => {
+T('★④ 角丸は 決めた4つだけ（押す物12px／タイル16px／丸999px／帯0px）', () => {
   const rs = new Set();
   M.forEach(({ btns }) => btns.forEach((x) => rs.add(x.r)));
-  const OKR = new Set(['12px', '999px', '0px']);
+  /* ★16px は タイル★＝押す物であり 箱でもある（箱の角丸と同じにする方が そろって見える）。 */
+  const OKR = new Set(['12px', '16px', '999px', '0px']);
   const bad = [...rs].filter((r) => !OKR.has(r));
   ok(!bad.length, '★決めていない角丸 ' + bad.join(' / ') + '★');
   console.log('     角丸 … ' + [...rs].join(' / '));
+});
+
+/* ═══ ★箱と 字の大きさ★（司さん 2026-08-29「統一感は？」＝押す物だけでは 足りない）═══
+   ★測る前は 箱8通り・字25通り★だった。 */
+export const BOX_ALLOW = [
+  { k: '16px | 1px ' + EDGE + ' | 14px/14px', why: '★ふつうの箱★＝角丸16・枠 #C8ECD8 1px・内側14px（全画面 共通）' },
+  { k: '16px | 1px ' + EDGE + ' | 0px/0px', why: '★畳んだ箱（.card.more）★＝内側は 中の物が14px 持つ（皮の決まり）' },
+  { k: '16px | 1px ' + EDGE + ' | 26px/14px', why: '★空の知らせ（.empty）★＝中央に置くので 上下だけ広い' },
+];
+const BOX_K = new Set(BOX_ALLOW.map((x) => x.k));
+/* ★字の段★（10 / 11 / 12 / 13 / 15 / 16 / 20）＝★半端な段を作らない★
+   16px … ★打つ欄★（iOSが勝手に拡大しないための決まり）
+   20px … 画面の名前・ロゴ */
+export const FONT_STEPS = [
+  '10px',   // 下の帯の字
+  '11px',   // 補助（小さい説明）
+  '12px',   // 説明・注意書き
+  '13px',   // 小見出し・札
+  '14px',   // ★押す物の字★（皮の .btn-primary / .btn-ghost が 14px＝1か所で決めている）
+  '15px',   // 見出し
+  '16px',   // ★打つ欄★（iOSが勝手に拡大しないための決まり＝これ未満にしない）
+  '20px',   // 画面の名前・ロゴ
+];
+
+T('★⑤ 箱（カード）の顔は 決めた3つだけ', () => {
+  const kinds = new Map();
+  M.forEach(({ rel, boxes }) => (boxes || []).forEach((x) => {
+    if (!kinds.has(x.k)) kinds.set(x.k, { n: 0, ex: [] });
+    const e = kinds.get(x.k); e.n++;
+    if (e.ex.length < 2) e.ex.push(x.cls + '（' + rel + '）');
+  }));
+  ok(kinds.size > 0, '★箱を 1つも 測れていません★');
+  const bad = [...kinds.entries()].filter(([k]) => !BOX_K.has(k));
+  if (bad.length) {
+    throw new Error('★' + bad.length + '通り★ 台帳に無い箱\n     '
+      + bad.map(([k, v]) => k + '  ×' + v.n + '  例: ' + v.ex.join(' / ')).join('\n     '));
+  }
+  console.log('     箱 ' + [...kinds.values()].reduce((a, x) => a + x.n, 0) + '個 ／ 顔 ' + kinds.size + '通り（台帳 ' + BOX_ALLOW.length + '通り）');
+});
+
+T('★⑥ 字の大きさは 決めた段だけ（半端な段を作らない）', () => {
+  const kinds = new Map();
+  M.forEach(({ rel, fonts }) => (fonts || []).forEach((x) => {
+    if (!kinds.has(x.px)) kinds.set(x.px, { n: 0, ex: [] });
+    const e = kinds.get(x.px); e.n++;
+    if (e.ex.length < 2) e.ex.push('「' + x.t + '」（' + rel + '）');
+  }));
+  ok(kinds.size > 0, '★字を 1つも 測れていません★');
+  const bad = [...kinds.entries()].filter(([k]) => FONT_STEPS.indexOf(k) < 0);
+  if (bad.length) {
+    throw new Error('★段に無い大きさ ' + bad.length + '種類★\n     '
+      + bad.map(([k, v]) => k + '  ×' + v.n + '  例: ' + v.ex.join(' / ')).join('\n     '));
+  }
+  console.log('     字 ' + [...kinds.values()].reduce((a, x) => a + x.n, 0) + '個 ／ 段 '
+    + [...kinds.keys()].sort((a, b) => parseFloat(a) - parseFloat(b)).join(' / '));
 });
 
 /* ═══ ★自己確認：わざと崩して 赤になるか★ ═══ */

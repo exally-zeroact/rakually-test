@@ -30,7 +30,8 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 /* ── 画面切替 ── */
 .scr { display: none; padding: 16px; }
 .scr.active { display: block; }
-.scr-t { font-size: 17px; font-weight: 700; margin: 0 0 4px; color: #333333; }
+/* ★画面の名前は 20px★（全画面 共通の段）＝2026-08-29 統一 */
+.scr-t { font-size: 20px; font-weight: 700; margin: 0 0 4px; color: #333333; }
 .scr-s { font-size: 12px; color: #333333; margin: 0 0 16px; }
 
 /* ── ハブのタイル ── */
@@ -38,8 +39,8 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .tile {
   display: block; text-align: left; text-decoration: none;
-  background: #ffffff; border: 1px solid #C8ECD8; border-radius: 12px;
-  padding: 16px 14px 14px; cursor: pointer; color: #2E7D54;
+  background: #ffffff; border: 1px solid #C8ECD8; border-radius: 16px;
+  padding: 14px; cursor: pointer; color: #2E7D54;
   min-height: 132px; position: relative; width: 100%;
   box-shadow: 0 2px 8px rgba(30,60,40,.05);
 }
@@ -66,7 +67,8 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .pane.active { display: block; }
 
 /* ── カード/フォーム ── */
-.card { background: #ffffff; border: 1px solid #D4EAE0; border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+/* ★箱は 全画面で 1組★（角丸16・枠 #C8ECD8 1px・内側14px）＝2026-08-29 統一 */
+.card { background: #ffffff; border: 1px solid #C8ECD8; border-radius: 16px; padding: 14px; margin-bottom: 14px; }
 .card-t { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #333333; }
 .note { font-size: 12px; color: #333333; margin: 0 0 14px; line-height: 1.6; }
 .fld { margin-bottom: 12px; }
