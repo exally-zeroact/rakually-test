@@ -252,11 +252,13 @@
 .card .card-h,
 .card .tot,
 .more-s { padding-right: 10px; }
-/* ★畳んだ箱（details.card.more）の中は 皮が padding を上書きする★
-   （css/rakunally-ui.css の `.card.more > *:not(summary){padding:0 0 12px}` が
-     こちらより強い＝実測 2026-08-16：ここの字だけ 箱の枠まで 1.6px しか無かった）。
-   ★同じ値を ここにまとめて書く★＝直す所を1か所に保つ。 */
-.card.more > *:not(summary) { padding-right: 10px; }
+/* ★2026-08-28 ここに在った `.card.more > *:not(summary){padding-right:10px}` は 消しました★
+   ★理由★ これは ★皮の穴を こちらで塞いでいた継ぎ当て★でした。
+     皮（css/rakunally-ui.css）の `.more{padding:0}` が `.card` の padding:14px を消していて、
+     その穴を ここで 10px だけ 埋め戻していた＝★同じ物を2か所で別々に持っていた★。
+   ★皮の側を 14px に直した★ので、ここに残すと ★右だけ 10px＝左右がずれる★
+     （実測 2026-08-28 WebKit 390px：左31px／右27px）。
+   ⇒ ★余白の持ち主は 皮ひとつ★。scripts/webkit-size.mjs が 毎回 左右を数えます。 */
 /* 箱の外に出ている説明（カードの外の hint）も同じだけ内側へ */
 .main > .hint, .main > .why { padding-right: 10px; }
 

@@ -89,7 +89,10 @@ input, select, textarea { font-size: 16px; }
 .note { margin: 0 0 10px; font-size: 13px; color: #333333; }
 
 /* ── 器 ─────────────────────────────────────────────── */
-.main { padding: 12px 12px 84px; max-width: 900px; margin: 0 auto; }
+/* ★左右は 16px★（司さん 2026-08-28「余白が無くて見にくい」／指示役「給与とそろえる」）
+   ★実測で合わせた★＝給与は .main 16px + .card 14px + 枠1px ＝ ★画面の端から中身まで 31px★。
+   ここが 12px だと 27px になり、★同じ器なのに アプリごとに違う★（scripts/webkit-size.mjs が毎回 数えます）。 */
+.main { padding: 16px 16px 84px; max-width: 900px; margin: 0 auto; }
 .card {
   background: #FFFFFF; border: 1px solid #D4EAE0; border-radius: 16px;
   padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(30,80,46,.06);
@@ -249,5 +252,9 @@ input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
 .more[open] > summary::before { content: "▾ "; }
 .more[open] > summary { border-bottom: 1px solid #D4EAE0; margin-bottom: 10px; }
 .more > *:not(summary) { padding: 0 14px 12px; }
-.card.more > *:not(summary) { padding: 0 0 12px; }
-.card.more > summary { padding: 2px 0 12px; }
+/* ★左右を 0 にしない★（2026-08-28 司さんが実機で見つけた・指示役が1行に特定）
+   `.more { padding: 0 }` が ★.card の padding:14px を消して★いるので、
+   ここで ★14px を戻さないと 中身だけ 画面の端に寄る★（実測 13px ／ 他の札は 27px だった）。
+   ★見出し(summary)も 同じ14px★＝札の中で 見出しと中身が ずれない。 */
+.card.more > *:not(summary) { padding: 0 14px 12px; }
+.card.more > summary { padding: 2px 14px 12px; }
