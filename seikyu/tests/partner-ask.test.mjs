@@ -214,7 +214,7 @@ T('⑨ ★画面そのものが対話★（別ウィザードを作らない・�
   console.log('     設定＋入力の2か所で同じ描き手／ぜんぶ見るは残す／答え終われば消える');
 });
 
-T('⑩ ★読ませる字は薄い黒・色は押せる物だけ★（全アプリの決まり）', () => {
+T('⑩ ★読ませる字は薄い黒・色は押せる物だけ★（★押す物は ここでは見ない★＝pask-color が実測する）', () => {
   const css = fs.readFileSync(path.join(ROOT, 'seikyu/css/app.css'), 'utf8');
   const block = css.slice(css.indexOf('.pask {'));
   ok(block.length > 200, '聞く形の見た目が入っていない');
@@ -232,8 +232,15 @@ T('⑩ ★読ませる字は薄い黒・色は押せる物だけ★（全アプ�
      使う黒は ★#333333★（司さんの決定・代行請求が本番へ入れた値／指示役 2026-08-18 裁定）。
      ★2つの「薄い黒」を作らない★＝皮の側も同じ値にした（css/rakunally-ui.css）。 */
   const BLACK = '#333333';
-  ['.pask', '.pask-qt', '.pask-hint', '.pask-prog', '.pask-guess', '.pask-o', '.pask-c',
-    '.pask-skip', '.pask-d', '.pask-d-k', '.pask-d-v', '.pask-d-r', '.pask-fin', '.pask-note-in > div',
+  /* ★2026-08-29 ここから ボタンを外した★（司さん「なぜボタンに色をつけない？統一感は？」）
+     この一覧に ★.pask-o / .pask-c / .pask-skip★（＝押す物）を入れていたので、
+     ★ボタンにまで 薄い黒を強制していた★＝★色が付かなかった原因は この見張り★でした。
+     決まりは「★読ませる字は薄い黒・★色は押せる物だけ★★」＝
+     ★押す物は 色を持つのが 正しい★。
+     ⇒ 押す物の色は ★画面のボタン（.btn-primary / .btn-ghost）に任せる★。
+       ★本物のブラウザで 値を突き合わせる★のは seikyu/tests/pask-color.test.mjs。 */
+  ['.pask', '.pask-qt', '.pask-hint', '.pask-prog', '.pask-guess',
+    '.pask-d', '.pask-d-k', '.pask-d-v', '.pask-d-r', '.pask-fin', '.pask-note-in > div',
   ].forEach((sel) => {
     const esc2 = sel.replace(/[.>]/g, (c) => '\\' + c).replace(/ /g, '\\s*');
     const rule = (new RegExp(esc2 + '\\s*\\{([^}]*)\\}').exec(block) || [])[1] || '';

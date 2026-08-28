@@ -232,6 +232,13 @@ jobs:
         run: node seikyu/tests/paper-ask-ui.mjs
       - name: ★同 わざと壊して赤になるか（印を消す／下書きは数えない／使っている列）
         run: node seikyu/tests/paper-ask-ui.mjs --self-test
+      # ★聞く形のボタンの色は 画面のボタンと同じ★（司さん 2026-08-29「統一感は？」）
+      #   ★色は文字列で探さない★＝本物のブラウザで 描いた色の値を読んで 突き合わせる。
+      #   ※webkit が無い所では ★赤にせず「未測定」★と言って抜ける（0件と混ぜない）。
+      - name: ★請求書 聞く形のボタンの色 (画面の本命/ほかと同じ・緑は1種類・押す的20×20)
+        run: node seikyu/tests/pask-color.test.mjs
+      - name: ★同 わざと色を戻して赤になるか
+        run: node seikyu/tests/pask-color.test.mjs --self-test
       - name: ★会社の情報は第3の場所か (請求書→給与のリンク0本・帰り道が出る・2か所持ちが無い)
         run: node seikyu/tests/kaisha-link.test.mjs
       - name: ★同 わざと戻して赤になるか（給与へのリンク／帰り道／給与の打てる欄）

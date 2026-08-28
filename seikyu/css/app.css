@@ -300,32 +300,29 @@
 .pask-qt { font-size: 16px; font-weight: 700; line-height: 1.5; color: #333333; }
 .pask-hint { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: #333333; }
 .pask-guess { margin-top: 8px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: #333333; }
-.pask-why {
-  flex: 0 0 auto; border: 1px solid #2E7D54; background: #FFFFFF; color: #2E7D54;
-  border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
-}
+/* ★聞く形のボタンの色は 自分で決めない★（司さん 2026-08-29「なぜボタンに色をつけない？統一感は？」）
+   ★実測で 3つ ずれていた★（WebKit 390px・値で数えた）
+     ・選ぶボタン … 字 #333333 ＝★色なし★（アプリの「ほか」は #2E7D54）
+     ・押す物の緑 … #2E7D54（アプリの「本命」は ★#3D9E72★）＝★緑が2種類 混ざっていた★
+     ・枠         … #D4EAE0 1px（アプリは #C8ECD8 1.5px）
+   ⇒ ★色は 画面のボタン（.btn-primary / .btn-ghost）に 任せる★＝
+     HTML側で その class を一緒に付ける（css/rakunally-ui.css が唯一の持ち主）。
+   ★ここに残すのは 形と大きさだけ★（丸み・並び・押す的の高さ）。★色は1行も書かない★。
+   ★見張り★ seikyu/tests/pask-color.test.mjs が 実際に描いて 値で突き合わせる。 */
+.pask-why { flex: 0 0 auto; border-radius: 999px; padding: 3px 10px; font-size: 12px; }
 .pask-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.pask-o {
-  min-height: 40px; padding: 8px 14px; border-radius: 10px; cursor: pointer;
-  border: 1px solid #D4EAE0; background: #FFFFFF; font-size: 15px; color: #333333;
-}
-.pask-o.on { border-color: #2E7D54; background: #2E7D54; color: #FFFFFF; font-weight: 700; }
+.pask-o { min-height: 40px; padding: 8px 14px; border-radius: 10px; font-size: 15px; }
+/* ★選んだ物は 本命の色★。★btn-ghost と btn-primary を 同時に付けてはいけない★
+   （皮では .btn-ghost が 後に書いてあるので ★後勝ちで 白のまま★になる＝2026-08-29 実測で踏んだ）。
+   ⇒ HTML側で ★どちらか片方だけ★を付ける。ここは 太さだけ（色は 1行も書かない）。 */
+.pask-o.on { font-weight: 700; }
 .pask-q .finput { margin-top: 10px; font-size: 16px; }
 .pask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.pask-c {
-  border: 1px solid #D4EAE0; background: #FFFFFF;
-  border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: #333333;
-}
+.pask-c { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
 .pask-row, .pask-n { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 .pask-n .finput { flex: 1 1 auto; min-width: 0; margin-top: 0; }
-.pask-ok {
-  flex: 0 0 auto; min-height: 40px; padding: 8px 18px; border: 0; border-radius: 10px;
-  background: #2E7D54; color: #FFFFFF; font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap;
-}
-.pask-skip {
-  flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border: 1px solid #D4EAE0;
-  border-radius: 10px; background: #FFFFFF; font-size: 14px; cursor: pointer; white-space: nowrap; color: #333333;
-}
+.pask-ok { flex: 0 0 auto; min-height: 40px; padding: 8px 18px; border-radius: 10px; font-size: 15px; }
+.pask-skip { flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border-radius: 10px; font-size: 14px; }
 .pask-fin { margin: 10px 0 0; font-size: 14px; color: #333333; }
 .pask-done { margin-top: 12px; }
 .pask-done-h { font-size: 13px; margin-bottom: 6px; color: #333333; }

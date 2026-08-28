@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=603fc1ef">
-<link rel="stylesheet" href="css/app.css?v=603fc1ef">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=1eb31443">
+<link rel="stylesheet" href="css/app.css?v=1eb31443">
 </head>
 <body>
 
@@ -615,37 +615,37 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=603fc1ef"></script>
-<script src="../lib/xlsx.full.min.js?v=603fc1ef"></script>
-<script src="../js/file-out.js?v=603fc1ef"></script>
-<script src="../js/suite-data.js?v=603fc1ef"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=603fc1ef"></script>
+<script src="../js/supa-config.js?v=1eb31443"></script>
+<script src="../lib/xlsx.full.min.js?v=1eb31443"></script>
+<script src="../js/file-out.js?v=1eb31443"></script>
+<script src="../js/suite-data.js?v=1eb31443"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=1eb31443"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=603fc1ef"></script>
-<script src="lib/seikyu-tax.js?v=603fc1ef"></script>
-<script src="lib/seikyu-gensen.js?v=603fc1ef"></script>
-<script src="lib/seikyu-carry.js?v=603fc1ef"></script>
-<script src="lib/seikyu-cols.js?v=603fc1ef"></script>
-<script src="lib/seikyu-templates.js?v=603fc1ef"></script>
-<script src="../lib/toroku-no.js?v=603fc1ef"></script>
-<script src="lib/seikyu-doc.js?v=603fc1ef"></script>
-<script src="lib/seikyu-partner-ask.js?v=603fc1ef"></script>
-<script src="lib/seikyu-invoice-ask.js?v=603fc1ef"></script>
-<script src="lib/seikyu-paper-ask.js?v=603fc1ef"></script>
-<script src="lib/seikyu-name.js?v=603fc1ef"></script>
-<script src="lib/seikyu-paper.js?v=603fc1ef"></script>
-<script src="lib/seikyu-aoa.js?v=603fc1ef"></script>
-<script src="js/seikyu-store.js?v=603fc1ef"></script>
-<script src="js/seikyu-out.js?v=603fc1ef"></script>
-<script src="js/seikyu-app.js?v=603fc1ef"></script>
-<script src="../js/rakunally-login.js?v=603fc1ef"></script>
-<script src="js/auth.js?v=603fc1ef"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=1eb31443"></script>
+<script src="lib/seikyu-tax.js?v=1eb31443"></script>
+<script src="lib/seikyu-gensen.js?v=1eb31443"></script>
+<script src="lib/seikyu-carry.js?v=1eb31443"></script>
+<script src="lib/seikyu-cols.js?v=1eb31443"></script>
+<script src="lib/seikyu-templates.js?v=1eb31443"></script>
+<script src="../lib/toroku-no.js?v=1eb31443"></script>
+<script src="lib/seikyu-doc.js?v=1eb31443"></script>
+<script src="lib/seikyu-partner-ask.js?v=1eb31443"></script>
+<script src="lib/seikyu-invoice-ask.js?v=1eb31443"></script>
+<script src="lib/seikyu-paper-ask.js?v=1eb31443"></script>
+<script src="lib/seikyu-name.js?v=1eb31443"></script>
+<script src="lib/seikyu-paper.js?v=1eb31443"></script>
+<script src="lib/seikyu-aoa.js?v=1eb31443"></script>
+<script src="js/seikyu-store.js?v=1eb31443"></script>
+<script src="js/seikyu-out.js?v=1eb31443"></script>
+<script src="js/seikyu-app.js?v=1eb31443"></script>
+<script src="../js/rakunally-login.js?v=1eb31443"></script>
+<script src="js/auth.js?v=1eb31443"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=603fc1ef"></script>
+<script src="../js/env-badge.js?v=1eb31443"></script>
 </body>
 </html>

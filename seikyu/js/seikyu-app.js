@@ -2222,34 +2222,34 @@
       if (q.hint) h += '<p class="pask-hint">' + q.hint.replace(/★/g, '') + '</p>';
       if (q.guess) {
         h += '<div class="pask-guess">当てました：<b>' + esc(ptGuessLabel(q)) + '</b>'
-          + '<button class="pask-why" type="button" data-pask-why="' + esc(q.key) + '">なぜ？</button></div>';
+          + '<button class="pask-why btn-ghost" type="button" data-pask-why="' + esc(q.key) + '">なぜ？</button></div>';
       }
       if (q.kind === 'pick') {
         h += '<div class="pask-opts">' + q.options.map(function (o) {
           var on = (String(q.now) === String(o.v));
-          return '<button class="pask-o' + (on ? ' on' : '') + '" type="button" data-pask-pick="'
+          return '<button class="pask-o ' + (on ? 'on btn-primary' : 'btn-ghost') + '" type="button" data-pask-pick="'
             + esc(q.key) + '" data-v="' + esc(o.v) + '">' + esc(o.t) + '</button>';
         }).join('') + '</div>';
         if (q.key === 'payTerm' && (q.now === 'days' || q.now === 'nextDay')) {
           h += '<div class="pask-n"><input class="finput num" id="pask-n" type="text" inputmode="numeric" '
             + 'placeholder="日数" value="' + esc((d.payTerm && d.payTerm.n) || '') + '">'
-            + '<button class="pask-ok" type="button" data-pask-ok="payTerm">これで</button></div>';
+            + '<button class="pask-ok btn-primary" type="button" data-pask-ok="payTerm">これで</button></div>';
         }
       } else if (q.kind === 'yesno') {
         h += '<div class="pask-opts">'
-          + '<button class="pask-o' + (q.now === 'yes' ? ' on' : '') + '" type="button" data-pask-pick="' + esc(q.key) + '" data-v="yes">する</button>'
-          + '<button class="pask-o' + (q.now === 'no' ? ' on' : '') + '" type="button" data-pask-pick="' + esc(q.key) + '" data-v="no">しない</button>'
+          + '<button class="pask-o ' + (q.now === 'yes' ? 'on btn-primary' : 'btn-ghost') + '" type="button" data-pask-pick="' + esc(q.key) + '" data-v="yes">する</button>'
+          + '<button class="pask-o ' + (q.now === 'no' ? 'on btn-primary' : 'btn-ghost') + '" type="button" data-pask-pick="' + esc(q.key) + '" data-v="no">しない</button>'
           + '</div>';
       } else {
         var val = q.now || (q.guess ? q.guess.value : '');
         h += '<input class="finput" id="pask-t" type="text" value="' + esc(val) + '">';
         if (q.chips && q.chips.length) {
           h += '<div class="pask-chips">' + q.chips.map(function (c) {
-            return '<button class="pask-c" type="button" data-pask-chip="' + esc(c.v) + '">' + esc(c.t) + '</button>';
+            return '<button class="pask-c btn-ghost" type="button" data-pask-chip="' + esc(c.v) + '">' + esc(c.t) + '</button>';
           }).join('') + '</div>';
         }
-        h += '<div class="pask-row"><button class="pask-ok" type="button" data-pask-ok="' + esc(q.key) + '">これで</button>';
-        if (q.skipLabel) h += '<button class="pask-skip" type="button" data-pask-skip="' + esc(q.key) + '">' + esc(q.skipLabel) + '</button>';
+        h += '<div class="pask-row"><button class="pask-ok btn-primary" type="button" data-pask-ok="' + esc(q.key) + '">これで</button>';
+        if (q.skipLabel) h += '<button class="pask-skip btn-ghost" type="button" data-pask-skip="' + esc(q.key) + '">' + esc(q.skipLabel) + '</button>';
         h += '</div>';
       }
       h += '</div>';
@@ -2317,7 +2317,7 @@
       if (q.hint) h += '<p class="pask-hint">' + esc(q.hint) + '</p>';
       if (q.guess) {
         h += '<div class="pask-guess">当てました：<b>' + esc(q.guess.value) + '</b>'
-          + '<button class="pask-why" type="button" data-iask-why="' + esc(q.key) + '">なぜ？</button></div>';
+          + '<button class="pask-why btn-ghost" type="button" data-iask-why="' + esc(q.key) + '">なぜ？</button></div>';
       }
       var val = q.now || (q.guess ? q.guess.value : '');
       h += '<input class="finput" id="iask-t" type="' + (q.kind === 'date' ? 'date' : 'text') + '" value="' + esc(val) + '">';
@@ -2325,11 +2325,11 @@
       var chips = (q.chips || []).filter(function (c2) { return String(c2.v) !== String(val); });
       if (chips.length) {
         h += '<div class="pask-chips">' + chips.map(function (c2) {
-          return '<button class="pask-c" type="button" data-iask-chip="' + esc(c2.v) + '">' + esc(c2.v) + '</button>';
+          return '<button class="pask-c btn-ghost" type="button" data-iask-chip="' + esc(c2.v) + '">' + esc(c2.v) + '</button>';
         }).join('') + '</div>';
       }
-      h += '<div class="pask-row"><button class="pask-ok" type="button" data-iask-ok="' + esc(q.key) + '">これで</button>'
-        + '<button class="pask-skip" type="button" data-iask-skip="' + esc(q.key) + '">' + esc(q.skipLabel || '飛ばす') + '</button></div>';
+      h += '<div class="pask-row"><button class="pask-ok btn-primary" type="button" data-iask-ok="' + esc(q.key) + '">これで</button>'
+        + '<button class="pask-skip btn-ghost" type="button" data-iask-skip="' + esc(q.key) + '">' + esc(q.skipLabel || '飛ばす') + '</button></div>';
       h += '</div>';
     }
     /* 答えた物＝押すと 聞き直せる（その場の返しも 出す） */
@@ -2421,16 +2421,16 @@
       if (q.hint) h += '<p class="pask-hint">' + esc(q.hint) + '</p>';
       if (q.guess) {
         h += '<div class="pask-guess">当てました：<b>' + esc(String(q.guess.value)) + '</b>'
-          + '<button class="pask-why" type="button" data-paskp-why="' + esc(q.key) + '">なぜ？</button></div>';
+          + '<button class="pask-why btn-ghost" type="button" data-paskp-why="' + esc(q.key) + '">なぜ？</button></div>';
       }
       if (q.kind === 'yesno') {
         h += '<div class="pask-opts">'
-          + '<button class="pask-o" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="yes">消す</button>'
-          + '<button class="pask-o" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="no">このまま残す</button>'
+          + '<button class="pask-o btn-ghost" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="yes">消す</button>'
+          + '<button class="pask-o btn-ghost" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="no">このまま残す</button>'
           + '</div>';
       } else {
         h += '<div class="pask-opts">' + (q.options || []).map(function (o) {
-          return '<button class="pask-o" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="' + esc(o.v) + '">' + esc(o.t) + '</button>';
+          return '<button class="pask-o btn-ghost" type="button" data-paskp-pick="' + esc(q.key) + '" data-v="' + esc(o.v) + '">' + esc(o.t) + '</button>';
         }).join('') + '</div>';
       }
       h += '</div>';
