@@ -527,5 +527,89 @@ T('★端数は「引き受けられる行」までさかのぼって分けて�
   ok(r.spread.every((x) => x.line !== null), '寄せ先が無い記録が残っている');
 });
 
+/* ═══ ★税込で決まっている相手（逆算）★ ═══════════════════════════
+   ★指示役の宿題「端数＝税込逆算が 今の作りで 出せるか」★（2026-08-29 実測）
+   ★答え＝出せる。1円も ずれない★（下で 23,800通り その場で 数える）。
+   ★なぜ ここで 見張るか★＝「税込で いくら」が先に決まっている相手は 多い
+     （現場の請求は「まるめて 11,000円」で 話が付く）。
+     ここが 1円ずれると ★入金と 合わない★＝毎月 手で直す事になる。 */
+T('★税込で入れた額と 合計が 1円も ずれない（1行・18,000通り）', () => {
+  let ng = 0, n = 0;
+  const bad = [];
+  for (const rate of [STD, RED]) {
+    for (const round of ['floor', 'ceil', 'round']) {
+      for (let inc = 1; inc <= 3000; inc++) {
+        n++;
+        const r = TAX.compute({ lines: [{ name: 'x', amount: inc, rate }], taxMode: 'inclusive', rounding: round });
+        if (!r.ok || r.grandTotal !== inc) { ng++; if (bad.length < 3) bad.push(inc + '円/' + rate + '%/' + round + ' → ' + r.grandTotal); }
+      }
+    }
+  }
+  ok(ng === 0, '★' + ng + '件 ずれた★ ' + bad.join(' , '));
+  console.log('     ' + n + '通り（1〜3000円 × 2税率 × 丸め3通り）… ★ずれ 0件★');
+});
+
+T('★税率が混ざっても ずれない（2行・5,800通り）', () => {
+  let ng = 0, n = 0;
+  const bad = [];
+  for (let a = 1; a <= 200; a++) {
+    for (let b = 1; b <= 200; b += 7) {
+      n++;
+      const r = TAX.compute({ lines: [{ name: 'x', amount: a, rate: STD }, { name: 'y', amount: b, rate: RED }],
+        taxMode: 'inclusive', rounding: 'floor' });
+      if (!r.ok || r.grandTotal !== a + b) { ng++; if (bad.length < 3) bad.push(a + '+' + b + ' → ' + r.grandTotal); }
+    }
+  }
+  ok(ng === 0, '★' + ng + '件 ずれた★ ' + bad.join(' , '));
+  console.log('     ' + n + '通り（10%と8%の2行）… ★ずれ 0件★');
+});
+
+T('★税抜＋税＝税込（内訳が 合計と 合う）', () => {
+  [[9999, STD, 'floor'], [1080, RED, 'floor'], [1, STD, 'ceil'], [123456, STD, 'round']].forEach(([inc, rate, round]) => {
+    const r = TAX.compute({ lines: [{ name: 'x', amount: inc, rate }], taxMode: 'inclusive', rounding: round });
+    eq(r.subtotal + r.taxTotal, inc, inc + '円/' + rate + '%/' + round + ' の 内訳');
+  });
+  const r = TAX.compute({ lines: [{ name: 'x', amount: 9999, rate: STD }], taxMode: 'inclusive', rounding: 'floor' });
+  console.log('     9999円(10%) … 税抜 ' + r.subtotal + ' ＋ 税 ' + r.taxTotal + ' ＝ ' + r.grandTotal);
+});
+
+/* ═══ ★値引きは 税も 一緒に 減る★（国税庁の一次情報で 確かめた）═══════
+   ★出典（2026-08-29 に 国税庁のページで 確認）★
+     No.6359「値引き、返品、割戻しなどを行った場合の税額の調整
+             （売上げに係る対価の返還等）」
+     https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6359.htm
+     ★更新日 令和7年4月1日現在法令等★
+     ★根拠法令★ 消費税法38条・57条の4／消費税法施行令58条・58条の2・70条の9／
+                 消費税基本通達14-1-1〜4・14-1-6〜8
+     ＝「売上値引き…をした場合には、これらの金額に対応する ★消費税額について調整する★」
+   ⇒ ★値引き行（明細の中のマイナス）は 課税の対象を減らす＝税額も 減る★
+     （★税込の合計から引く「控除」とは 別物★＝そちらは 税が 動かない）
+   ★ここを 取り違えると 申告の税額が ずれる★ので、数で 押さえておく。 */
+T('★値引き行は 税も 一緒に 減る（消法38・No.6359）', () => {
+  const base = TAX.compute({ lines: [{ name: '運転代行', amount: 50000, rate: STD }],
+    taxMode: 'exclusive', rounding: 'floor' });
+  const cut = TAX.compute({ lines: [{ name: '運転代行', amount: 50000, rate: STD },
+    { name: '出精値引', amount: -4110, rate: STD }], taxMode: 'exclusive', rounding: 'floor' });
+  ok(base.ok && cut.ok, '計算が 通っていない');
+  eq(cut.subtotal, base.subtotal - 4110, '★値引きが 税抜を 減らしていない★');
+  ok(cut.taxTotal < base.taxTotal, '★値引きなのに 税が 減っていない（対価の返還等になっていない）★');
+  eq(base.taxTotal - cut.taxTotal, Math.floor(4110 * STD) / 100, '減った税額');
+  console.log('     50,000 − 4,110（10%）… 税 ' + base.taxTotal + ' → ' + cut.taxTotal
+    + '（' + (base.taxTotal - cut.taxTotal) + ' 減った）');
+});
+
+T('★値引きを 税抜0%（税を付けない）にすると 合計が 合わなくなる（取り違えを 数で見せる）', () => {
+  /* ★これは「やってはいけない形」を 数で残す物★
+     値引きに 税を付けない＝★税額が 調整されない★＝申告と 紙が 食い違う。 */
+  const right = TAX.compute({ lines: [{ name: 'x', amount: 50000, rate: STD }, { name: '値引', amount: -4110, rate: STD }],
+    taxMode: 'exclusive', rounding: 'floor' });
+  const wrong = TAX.compute({ lines: [{ name: 'x', amount: 50000, rate: STD }],
+    taxMode: 'exclusive', rounding: 'floor' });
+  ok(right.grandTotal !== wrong.grandTotal - 4110,
+    '★税を付けない引き算と 同じ答えになっている＝値引きが 税に 効いていない★');
+  console.log('     正しい ' + right.grandTotal + ' ／ 税を付けずに引いた場合 ' + (wrong.grandTotal - 4110)
+    + '（' + (right.grandTotal - (wrong.grandTotal - 4110)) + ' の差）');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
