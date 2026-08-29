@@ -16,6 +16,9 @@
   var DOC = global.SeikyuDoc, TAX = global.SeikyuTax, PAPER = global.SeikyuPaper;
   var NAME = global.SeikyuName, AOA = global.SeikyuAoa, OUT = global.SeikyuOut;
   var COLS = global.SeikyuCols, TPL = global.SeikyuTemplates;
+  /* ★紙の作りを「誰が決めるか」は 1か所★（写し > その1通 > ★この相手★ > 会社 > 様式）
+     司さん 2026-08-29「取引先ごとに 請求書の様式を ちゃんと設定できてる前提やけど？」 */
+  var SCOPE = global.SeikyuScope;
   var GENSEN = global.SeikyuGensen, CARRY = global.SeikyuCarry;
   /* ★登録番号は当てない。打ち間違いだけ弾く（通信なし）★ 判定は lib/toroku-no.js が持ち主 */
   var TOROKU = global.TorokuNo;
@@ -128,13 +131,33 @@
     }
     var own = v.data && v.data.cols;
     if (own && Array.isArray(own.items) && own.items.length) return COLS.normalizeSpec(own);
+    /* ★この相手だけの列★（会社の既定より 強い・無ければ 素通り＝今までどおり） */
+    var pc = SCOPE && SCOPE.partnerPaper(partnerById(v.partner_id)).cols;
+    if (pc && Array.isArray(pc.items) && pc.items.length) return COLS.normalizeSpec(pc);
     if (s.cols) return COLS.normalizeSpec(s.cols);
     return COLS.normalizeSpec(TPL.getOrDefault(v.template_id || s.template).cols);
   }
+  /** ★この相手の 紙の行数★（無ければ 会社の既定）。空欄と 0 は 別物 */
+  function rowsForPartner(pid, orgRows) {
+    var pr = SCOPE && SCOPE.partnerPaper(partnerById(pid)).paperRows;
+    return (pr === undefined || pr === null || pr === '') ? orgRows : pr;
+  }
+  /** ★この相手が 件名を紙に出すか★（相手の決めが 会社の既定より 強い） */
+  function subjectOnFor(pid) {
+    var ps = SCOPE && SCOPE.partnerPaper(partnerById(pid)).subjectOn;
+    if (ps === true || ps === false) return ps;
+    return !!((settings().paperStyle || {}).subjectOn);
+  }
+
   function themeOf(inv) {
     var v = inv || {};
-    var id = v.template_id || settings().template;
+    var id = v.template_id || templateForPartner(v.partner_id);
     return TPL.getOrDefault(id).theme;
+  }
+  /** ★この相手の様式★（無ければ 会社の既定）＝様式を決める所は ここ1つ */
+  function templateForPartner(pid) {
+    var pt = SCOPE && SCOPE.partnerPaper(partnerById(pid)).template;
+    return (pt && TPL.get(pt)) ? pt : settings().template;
   }
 
   var ROUND_LABEL = { floor: '切り捨て', ceil: '切り上げ', round: '四捨五入' };
@@ -1502,7 +1525,8 @@
     var pi = { deduct: currentDeduct(), deductLines: DOC.deductionsOf(v), rateRows: PAPER.rateRowsOf(t) };
     var st = settings();
     var own = (v.data && v.data.paperRows);
-    var rows = (own === undefined || own === null || own === '') ? st.paperRows : own;
+    var rows = (own === undefined || own === null || own === '')
+      ? rowsForPartner(v.partner_id, st.paperRows) : own;
     if (rows !== null && rows !== undefined && rows !== '') pi.paperRows = rows;
     var n = (t.lines || []).length;
     /* ★枚数は紙の lib が決めた物をそのまま使う★（画面で ceil し直さない）
@@ -1624,13 +1648,15 @@
        ★発行済みは写しの数★（あとで行数を変えても、出した紙は同じ顔のまま）。 */
     var st = settings();
     var own = (v.data && v.data.paperRows), ownD = (v.data && v.data.deductRows);
-    var rows = (own === undefined || own === null || own === '') ? st.paperRows : own;
+    var rows = (own === undefined || own === null || own === '')
+      ? rowsForPartner(v.partner_id, st.paperRows) : own;
     var dRows = (ownD === undefined || ownD === null || ownD === '') ? st.deductRows : ownD;
     return {
       inv: inv, tax: t, partner: partner, org: org, cols: colsOf(v), theme: themeOf(v),
       gensen: currentGensen(), carry: currentCarry(),
       deduct: ded, deductLines: dedLines,
-      style: st.paperStyle,
+      /* ★件名を紙に出すか★も この相手の決めが 強い（会社の既定は そのまま残る） */
+      style: Object.assign({}, st.paperStyle, { subjectOn: subjectOnFor(v.partner_id) }),
       paperRows: (rows === null ? undefined : rows),
       deductRows: (dRows === null ? undefined : dRows),
     };
@@ -1873,6 +1899,14 @@
 
   /* ═══ 列の編集（★どんな項目にも対応する所★） ═══ */
   function editCols() {
+    /* ★この相手だけの列★を 作ってあれば、取引先の画面では そちらを直す
+       （★2か所に 同じ列を持たない★＝直した先が どこか 画面に書いてある） */
+    var pid = $('s-partner') && $('s-partner').value;
+    var pOwn = pid ? SCOPE.partnerPaper(partnerById(pid)) : {};
+    if (pOwn.cols && pOwn.cols.items && pOwn.cols.items.length
+      && $('scr-set') && $('scr-set').classList.contains('active')) {
+      return pOwn.cols;
+    }
     // 編集できるのは下書きだけ。発行済みは写しの並びを見せるだけ。
     var v = S.cur;
     if (v && !locked()) {
@@ -2301,7 +2335,7 @@
       payTerms: DOC.PAY_TERMS,
       answered: (v.data && v.data.askOk) || {},
       /* ★今の設定で 紙に出るか★（返しの言葉を 設定に追わせる＝言い切らない） */
-      subjectOnPaper: !!((settings().paperStyle || {}).subjectOn),
+      subjectOnPaper: subjectOnFor(v.partner_id),
     };
   }
 
@@ -2654,6 +2688,69 @@
     d.style.display = '';
   }
 
+  /* ══ ★この相手だけの紙★（司さん 2026-08-29）════════════════════════
+     ★何も選ばなければ 会社の既定のまま★＝今までと 1ドットも 変わらない。
+     決める順番は seikyu-scope.js が 1か所で持っている（画面で 別の判定をしない）。 */
+  /* ★押した時の配線は 描く時に する★（画面の他の所と 同じやり方）
+     ＝ログインの後だけ縛る形にすると ★試験で 1回も押せない★（2026-08-29 に踏んだ）。 */
+  function bindPartnerPaper() {
+    var box2 = $('s-ptpl'); if (!box2 || box2.dataset.bound) return;
+    box2.dataset.bound = '1';
+    ['s-ptpl', 's-prows', 's-psubject'].forEach(function (id) {
+      var el = $(id); if (!el) return;
+      /* ★選んだ その場で 効かせる★（保存を押すまで 何も変わらない、にしない） */
+      var run = function () {
+        var pp = partnerById($('s-partner') && $('s-partner').value);
+        if (!pp) return;
+        pp.data = pp.data || {};
+        pp.data.paper = partnerPaperFromForm(pp.id);
+        fillPartnerPaper(pp);
+        renderColEditor();
+      };
+      el.addEventListener('change', run);
+      el.addEventListener('input', run);
+    });
+    if ($('b-pcols-own')) $('b-pcols-own').addEventListener('click', function () { partnerColsOwn(true); });
+    if ($('b-pcols-clear')) $('b-pcols-clear').addEventListener('click', function () { partnerColsOwn(false); });
+  }
+
+  function fillPartnerPaper(p) {
+    var sel = $('s-ptpl'); if (!sel) return;
+    bindPartnerPaper();
+    var pp = SCOPE.partnerPaper(p);
+    var st = settings();
+    var defLabel = (TPL.getOrDefault(st.template).label || st.template);
+    sel.innerHTML = '<option value="">会社の既定のまま（' + esc(defLabel) + '）</option>'
+      + TPL.list().map(function (t) {
+        return '<option value="' + esc(t.id) + '">' + esc(t.label) + '</option>';
+      }).join('');
+    sel.value = pp.template || '';
+    $('s-prows').value = (pp.paperRows === undefined || pp.paperRows === null || pp.paperRows === '')
+      ? '' : String(pp.paperRows);
+    $('s-psubject').value = (pp.subjectOn === true) ? 'on' : ((pp.subjectOn === false) ? 'off' : '');
+    var own = !!(pp.cols && pp.cols.items && pp.cols.items.length);
+    show($('b-pcols-own'), !own);
+    show($('b-pcols-clear'), own);
+    setText('s-pcols-hint', own
+      ? ('この相手だけの列です（' + pp.cols.items.length + '本）。下の「明細の列」で 直せます。')
+      : '今は 会社の既定の列です。');
+  }
+  /** この相手だけの列を 作る（★会社の今の列を 写してから 直す★＝白紙から作らせない） */
+  function partnerColsOwn(on) {
+    var id = $('s-partner') && $('s-partner').value;
+    var p = partnerById(id); if (!p) return;
+    p.data = p.data || {};
+    p.data.paper = Object.assign({}, p.data.paper || {});
+    if (on) {
+      var st = settings();
+      p.data.paper.cols = COLS.normalizeSpec(st.cols || TPL.getOrDefault(st.template).cols);
+    } else {
+      delete p.data.paper.cols;
+    }
+    fillPartnerPaper(p);
+    renderColEditor();
+  }
+
   function fillPartnerForm(id) {
     var p = partnerById(id);
     var d = (p && p.data) || {};
@@ -2670,8 +2767,11 @@
     $('s-ptermn').value = t.n || '';
     show($('s-ptermn'), t.kind === 'days' || t.kind === 'nextDay');
     $('s-pgensen').checked = !!d.gensen;
+    fillPartnerPaper(p);
     var on = !!p;
-    ['s-pcode', 's-phonor', 's-pperson', 's-paddr', 's-pzip', 's-ptel', 's-pinvoice', 's-pterm', 's-ptermn', 's-pgensen'].forEach(function (x) { $(x).disabled = !on; });
+    ['s-pcode', 's-phonor', 's-pperson', 's-paddr', 's-pzip', 's-ptel', 's-pinvoice', 's-pterm', 's-ptermn', 's-pgensen',
+      's-ptpl', 's-prows', 's-psubject'].forEach(function (x) { if ($(x)) $(x).disabled = !on; });
+    ['b-pcols-own', 'b-pcols-clear'].forEach(function (x) { if ($(x)) $(x).disabled = !on; });
     $('b-pt-save').disabled = !on;
   }
 
@@ -2748,6 +2848,25 @@
     });
   }
 
+  /** 画面の3つ＋列 を ひとまとめに（★空欄は 入れない＝会社の既定のまま★） */
+  function partnerPaperFromForm(id) {
+    var now = SCOPE.partnerPaper(partnerById(id));
+    var out = {};
+    var tpl = $('s-ptpl') ? $('s-ptpl').value : '';
+    if (tpl && TPL.get(tpl)) out.template = tpl;
+    var rows = $('s-prows') ? String($('s-prows').value).trim() : '';
+    if (rows !== '') {
+      var n = Number(rows);
+      if (Number.isFinite(n) && n >= 0) out.paperRows = Math.trunc(n);
+    }
+    var sj = $('s-psubject') ? $('s-psubject').value : '';
+    if (sj === 'on') out.subjectOn = true;
+    else if (sj === 'off') out.subjectOn = false;
+    /* 列は ボタンで作る物（フォームの欄ではない）＝今の物を そのまま持ち越す */
+    if (now.cols && now.cols.items && now.cols.items.length) out.cols = now.cols;
+    return out;
+  }
+
   function savePartner() {
     var id = $('s-partner').value;
     if (!id) { box('pt-err', '先に取引先を選んでください。'); return Promise.resolve(); }
@@ -2763,6 +2882,8 @@
       invoiceNo: TOROKU.check($('s-pinvoice').value).no,
       payTerm: { kind: kind, n: Math.trunc(Number($('s-ptermn').value) || 0) },
       gensen: $('s-pgensen').checked,   // ★源泉の対象かは相手が決める（この相手の既定）
+      /* ★この相手だけの紙★（空＝会社の既定のまま） */
+      paper: partnerPaperFromForm(id),
     };
     /* ★「ぜんぶ見る」で自分で入れた物も『答えた』にする★
        ＝ここで入れたのに あとから同じ事を聞かれる（＝2度 聞く）のを止める。 */
@@ -3026,6 +3147,14 @@
     _recalcForTest: function () { return recalc(); },          // テスト用: 数え直しだけ走らせる
     _fillEdit: fillEdit,          // テスト用: 入力の画面を描き直す（★見られない物は 見張れない★）
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える
+    /* テスト用: ★本物の紙★を そのまま返す（見張りが 紙の中身を数える為。
+       ★画面と同じ道を通す★＝紙だけ別の作り方をしない） */
+    _paperHtml: function () {
+      var pi = paperInput();
+      if (!pi) return '';
+      var built = PAPER.build(pi);
+      return (typeof built === 'string') ? built : ((built && built.html) || '');
+    },
     _renderPayForTest: function () { return renderPay(); },    // テスト用: 入金の箱だけ描き直す
     _pickSealUrl: function (url) {           // テスト用: ファイル選択の代わりに data URL を渡す
       var chk = DOC.validateSeal(url);

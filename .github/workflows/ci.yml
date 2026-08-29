@@ -213,6 +213,16 @@ jobs:
         run: node kyuyo/tests/paycycle-custom.test.mjs --self-test
       # ★この1通のことを「聞いてあげる」★（件名・支払期限）＝08-16の決定を請求書にも入れる
       #   ★AIは使わない（決定論）★／★当てた物は根拠を見せる★／★当てられない時は当てない★
+      # ★紙の作りは「誰が決めるか」を1か所★（写し > その1通 > ★この相手★ > 会社 > 様式）
+      #   司さん 2026-08-29「取引先ごとに 請求書の様式を ちゃんと設定できてる前提やけど？」
+      - name: ★請求書 紙の作りの決め方 (相手ごとの上書き・空欄と0は別物・出した紙は写しのまま)
+        run: node seikyu/tests/scope.test.mjs
+      - name: ★同 わざと壊して赤になるか（相手の層を抜く／0を空欄扱い／空の列を拾う）
+        run: node seikyu/tests/scope.test.mjs --self-test
+      - name: ★請求書 相手ごとの上書きを本物の紙で (相手Bの紙が1文字も変わらない・画面の欄を押す)
+        run: node seikyu/tests/scope-ui.mjs
+      - name: ★同 わざと壊して赤になるか（上書きを消す／よその相手の列が出る）
+        run: node seikyu/tests/scope-ui.mjs --self-test
       # ★締め期間は 借り物★（正本＝timeally/lib/tc-calc.js の period）
       #   ★124通り（締め日1〜31×月4種）★＋★正本と1文字ずつ比べる★（正本が無い機械では「未測定」）
       - name: ★請求書 締め期間 (締め日1〜31×月4種＝124通り／正本と1文字ずつ比べる)
