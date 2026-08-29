@@ -13,7 +13,7 @@ body {
 button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで拡大されない */
 
 /* ── 全体 ── */
-.app { max-width: 720px; margin: 0 auto; min-height: 100vh; padding-bottom: 96px; } /* 下部タブ(59px)に操作ボタンが隠れないだけの余白 */
+.app { max-width: 720px; margin: 0 auto; min-height: 100vh; } /* 下部タブ(59px)に操作ボタンが隠れないだけの余白 */
 
 /* ── ヘッダー ── */
 .hd {
@@ -28,11 +28,11 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 .hd-out { color: #C0392B; text-decoration: underline; cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
 
 /* ── 画面切替 ── */
-.scr { display: none; padding: 16px; }
+.scr { display: none; padding: 16px 16px 84px; }
 .scr.active { display: block; }
 /* ★画面の名前は 20px★（全画面 共通の段）＝2026-08-29 統一 */
 .scr-t { font-size: 20px; font-weight: 700; margin: 0 0 4px; color: #333333; }
-.scr-s { font-size: 12px; color: #333333; margin: 0 0 16px; }
+.scr-s { font-size: 12px; color: #333333; margin: 0 0 16px; line-height: 1.7; }
 
 /* ── ハブのタイル ── */
 .greet { font-size: 15px; color: #333333; margin: 4px 0 18px; }
@@ -70,7 +70,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
 /* ★箱は 全画面で 1組★（角丸16・枠 #C8ECD8 1px・内側14px）＝2026-08-29 統一 */
 .card { background: #ffffff; border: 1px solid #C8ECD8; border-radius: 16px; padding: 14px; margin-bottom: 14px; }
 .card-t { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #333333; }
-.note { font-size: 12px; color: #333333; margin: 0 0 14px; line-height: 1.6; }
+.note { font-size: 12px; color: #333333; margin: 0 0 14px; line-height: 1.7; }
 .fld { margin-bottom: 12px; }
 .fld label { display: block; font-size: 12px; color: #333333; font-weight: 700; margin-bottom: 5px; }
 .fld input, .fld select {
@@ -141,13 +141,13 @@ input, select, textarea { color: #333333; }   /* ★打った値は読ませる�
 .agg-total { display: grid; grid-template-columns: 1fr 52px 96px; gap: 8px; padding: 13px 2px; border-top: 2px solid #3D9E72; font-weight: 700; }
 
 /* ── 空状態・お知らせ ── */
-.empty { text-align: center; padding: 34px 18px; color: #6E6E6E; }
+.empty { text-align: center; padding: 34px 18px; color: #6E6E6E; line-height: 1.7; }
 .empty-ic { font-size: 34px; }
 .empty-t { font-size: 15px; font-weight: 700; color: #333333; margin: 10px 0 6px; }
 .empty-s { font-size: 12px; line-height: 1.7; }
 .warn {
   background: #FDF3E3; border: 1px solid #F0DDBC; color: #92500A;
-  border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; margin-bottom: 12px;
+  border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.7; margin-bottom: 12px;
 }
 .msg { font-size: 12px; min-height: 17px; color: #333333; margin-top: 8px; text-align: right; }
 .msg.err { color: #C0392B; }
@@ -170,7 +170,7 @@ input, select, textarea { color: #333333; }   /* ★打った値は読ませる�
 /* ── トースト ── */
 .toast {
   position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
-  background: #2E7D54; color: #fff; font-size: 13px; line-height: 1.6;
+  background: #2E7D54; color: #fff; font-size: 13px; line-height: 1.7;
   padding: 12px 18px; border-radius: 12px; max-width: 88%; z-index: 50;
   box-shadow: 0 6px 20px rgba(30,60,40,.25); display: none;
 }

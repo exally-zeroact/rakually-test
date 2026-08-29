@@ -86,7 +86,7 @@ input, select, textarea { font-size: 16px; }
 /* ★ログイン中の人は「設定」の中に出す（頭には出さない＝給与と同じ）★
    頭に置くと、狭い端末でメールが見出しを押し出す。 */
 .who { color: #333333; font-weight: 500; overflow-wrap: break-word; }
-.note { margin: 0 0 10px; font-size: 13px; color: #333333; }
+.note { margin: 0 0 10px; font-size: 13px; color: #333333; line-height: 1.7; }
 
 /* ── 器 ─────────────────────────────────────────────── */
 /* ★左右は 16px★（司さん 2026-08-28「余白が無くて見にくい」／指示役「給与とそろえる」）
@@ -105,7 +105,7 @@ input, select, textarea { font-size: 16px; }
 /* ── 文（★block・最低幅・折り返し可。ここを守らないと縦帯になる★）── */
 .hint, .warn, .bad, .ok, .why {
   display: block; width: 100%; min-width: 180px;
-  line-height: 1.8; margin: 6px 0;
+  line-height: 1.7; margin: 6px 0;
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
 .hint { font-size: 12px; color: #333333; }
@@ -116,7 +116,7 @@ input, select, textarea { font-size: 16px; }
 
 /* ── 入力 ───────────────────────────────────────────── */
 .frow { margin-bottom: 10px; min-width: 0; }
-.flabel { font-size: 12px; color: #333333; font-weight: 700; margin-bottom: 4px; }
+.flabel { font-size: 12px; color: #333333; font-weight: 700; margin-bottom: 4px; line-height: 1.7; }
 
 /* ★入/切の1行★
    flex だが、★文の側に最低幅を持たせて縮ませない★。
@@ -201,7 +201,7 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
 .tag-on { background: #F0FAF4; color: #2E7D54; }
 .tag-off { background: #E8F6EE; color: #333333; }
 .tag-mute { background: #F0FAF4; color: #333333; }
-.empty { text-align: center; color: #333333; padding: 26px 14px; }
+.empty { text-align: center; color: #333333; padding: 26px 14px; line-height: 1.7; }
 
 /* ── 下のナビ ───────────────────────────────────────── */
 .botnav {

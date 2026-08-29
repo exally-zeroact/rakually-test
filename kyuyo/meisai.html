@@ -29,19 +29,19 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .mhead .logo{font-family:'DM Mono',monospace;font-size:20px;color:#52B788;}
 .mhead .sub{font-size:10px;letter-spacing:.16em;color:#333333;}
 /* ★左右は 16px★（2026-08-28 そろえた＝他の画面と同じ。scripts/webkit-size.mjs が毎回 数える） */
-.wrap{max-width:760px;margin:0 auto;padding:18px 16px 60px;}
+.wrap{max-width:760px;margin:0 auto;padding:16px;}
 /* ★箱は 全画面で 1組★（2026-08-29 統一） */
 .card{background:#fff;border:1px solid #C8ECD8;border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(30,80,46,.06);}
 .card h2{font-size:15px;color:#333333;margin-bottom:10px;}
 .lead{font-size:13px;color:#333333;line-height:1.7;}
 .finput{width:100%;padding:12px;border:1.5px solid #d4eae0;border-radius:10px;font-size:16px;color:#333333;background:#fff;-webkit-appearance:none;}
 .finput.num{font-family:'DM Mono',monospace;letter-spacing:.14em;text-align:center;}
-.lbl{font-size:11px;font-weight:700;color:#333333;margin:2px 0 5px;display:block;}
+.lbl{font-size:11px;font-weight:700;color:#333333;margin:2px 0 5px;display:block;line-height:1.7;}
 .btn{width:100%;padding:13px;background:#3D9E72;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 3px 12px rgba(61,158,114,.3);margin-top:12px;}
 /* ★白い押す物は 全画面で 同じ★（字 #2E7D54・枠 #C8ECD8）＝2026-08-29 統一 */
 .btn.ghost{background:#fff;color:#2E7D54;border:1.5px solid #C8ECD8;box-shadow:none;}
 .err{color:#C0392B;font-size:12px;margin-top:8px;min-height:16px;}
-.consent-box{background:#F0FAF4;border:1.5px solid #C8ECD8;border-radius:10px;padding:12px;font-size:12px;color:#333333;line-height:1.75;margin:10px 0;}
+.consent-box{background:#F0FAF4;border:1.5px solid #C8ECD8;border-radius:10px;padding:12px;font-size:12px;color:#333333;line-height:1.7;margin:10px 0;}
 .dlist .drow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border:1px solid #d4eae0;border-radius:12px;background:#fff;margin-bottom:8px;cursor:pointer;}
 .dlist .drow .dl{font-size:13px;font-weight:700;color:#333333;}
 .dlist .drow .ds{font-size:11px;color:#333333;}
@@ -60,7 +60,7 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .topbar{display:flex;gap:8px;margin-bottom:10px;}
 .topbar .btn{margin-top:0;}
 .hidden{display:none;}
-.hint{font-size:11px;color:#333333;margin-top:8px;line-height:1.6;}
+.hint{font-size:11px;color:#333333;margin-top:8px;line-height:1.7;}
 /* 年末調整の申告ウィザード(app.cssのnw-*と同じ見た目) */
 .nw-group{margin:6px 0 12px;}
 .nw-gt{font-size:12px;font-weight:700;color:#333333;margin:10px 0 4px;}
@@ -173,18 +173,18 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 </div>
 
 <!-- ★既存Service Worker/キャッシュを削除して常に最新に(古い版が居座る問題の根絶) --><script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
-<script src="js/render.js?v=462e325f"></script>
-<script src="lib/nencho-declaration.js?v=462e325f"></script>
+<script src="js/render.js?v=b3e295a1"></script>
+<script src="lib/nencho-declaration.js?v=b3e295a1"></script>
 <!-- PDF保存=jsPDFで自前生成(A4ぴったり1ページ・ブラウザのフッター無し)。iOSのwebページ印刷は必ずURL/日付フッターが付き余白で2ページ化するため不使用。 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <!-- 本番はSupabase(RPC)。window.SUPA/supabase未読込ならstore.jsはlocalStorage層にフォールバック。 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=462e325f"></script>
-<script src="js/store.js?v=462e325f"></script>
-<script src="js/meisai.js?v=462e325f"></script>
+<script src="../js/supa-config.js?v=b3e295a1"></script>
+<script src="js/store.js?v=b3e295a1"></script>
+<script src="js/meisai.js?v=b3e295a1"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=462e325f"></script>
+<script src="../js/env-badge.js?v=b3e295a1"></script>
 </body>
 </html>

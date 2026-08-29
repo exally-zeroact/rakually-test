@@ -164,11 +164,40 @@ async function measure(extraCss) {
         const WORD = /[0-9A-Za-z぀-ヿ一-鿿]/;
         if (!WORD.test(v) && [...v].length <= 2) continue;
         if (/^[\p{Extended_Pictographic}\s]+$/u.test(v)) continue;
-        fonts.push({ px: getComputedStyle(p).fontSize, t: v.slice(0, 12) });
+        const cp = getComputedStyle(p);
+        /* ★行の高さ★は ★読ませる長い文（18文字以上）★だけ 数える。
+           1行で終わる札は 行の高さが 目に見えない＝数えると 嘘が混ざる。 */
+        fonts.push({ px: cp.fontSize, t: v.slice(0, 12),
+          many: [...v].length >= 18,
+          lh: cp.lineHeight === 'normal' ? 'normal'
+            : String(Math.round((parseFloat(cp.lineHeight) / parseFloat(cp.fontSize)) * 100) / 100),
+          who: p.tagName.toLowerCase() + (typeof p.className === 'string' && p.className.trim()
+            ? '.' + p.className.trim().split(/\s+/).join('.') : '') });
       }
-      return { list, boxes, fonts };
+      /* ★箱と箱の間★＝同じ親の中で 縦に並ぶ箱の 下端→次の上端（横並びは 数えない） */
+      const gaps = [];
+      document.querySelectorAll('.card, .tile, .lg-card').forEach((e) => {
+        const p = e.parentElement; if (!p) return;
+        const sib = [...p.children].filter((x) => x.matches('.card, .tile, .lg-card')
+          && x.getBoundingClientRect().height > 20);
+        const i = sib.indexOf(e);
+        if (i < 0 || i + 1 >= sib.length) return;
+        const a = e.getBoundingClientRect(), c = sib[i + 1].getBoundingClientRect();
+        if (Math.abs(a.left - c.left) > 2) return;
+        const g = Math.round(c.top - a.bottom);
+        if (g >= 0 && g < 80) gaps.push(g);
+      });
+      /* ★画面の余白★＝本文の入れ物の内側 と 下に貼りつく帯の高さ */
+      const box = document.querySelector('.main, .wrap, .scr');
+      const bc = box ? getComputedStyle(box) : null;
+      const barH = Math.round(Math.max(0, ...[...document.querySelectorAll('body *')].filter((e) => {
+        const c2 = getComputedStyle(e), r2 = e.getBoundingClientRect();
+        return c2.position === 'fixed' && r2.height > 20 && r2.bottom > innerHeight - 4;
+      }).map((e) => e.getBoundingClientRect().height)));
+      return { list, boxes, fonts, gaps, barH,
+        pad: bc ? [bc.paddingTop, bc.paddingRight, bc.paddingBottom, bc.paddingLeft].join('/') : null };
     });
-    out.push({ rel, btns: r.list, boxes: r.boxes, fonts: r.fonts });
+    out.push({ rel, btns: r.list, boxes: r.boxes, fonts: r.fonts, gaps: r.gaps, pad: r.pad, barH: r.barH });
     await ctx.close();
   }
   await b.close();
@@ -302,6 +331,69 @@ T('★⑥ 字の大きさは 決めた段だけ（半端な段を作らない）
     + [...kinds.keys()].sort((a, b) => parseFloat(a) - parseFloat(b)).join(' / '));
 });
 
+/* ═══ ★余白と 行の高さ★（司さん 2026-08-29「やること進めて」の続き）═══
+   ★測る前★… 行の高さ 13通り（同じ 12px の説明文が 1.6 / 1.7 / 1.75 / 1.8 / normal）。
+   箱と箱の間は 測ったら ★はじめから 14px 1通り★だった（直す所は 無かった）。 */
+export const LINE_H = '1.7';          // ★読ませる長い文の 行の高さ★
+export const CARD_GAP = 14;           // ★箱と箱の間★
+/* ★行の高さの 段の外★＝押す物と 見出し。
+   押す物…1行で置く物なので 行の高さを 決めない（字の大きさと 高さで そろえている）。
+   見出し…短くて 2行にならない。無理に 1.7 にすると ★間が抜けて見える★。 */
+export const LH_EXCEPT = [
+  { who: 'button', why: '★押す物★＝皮(.btn-primary/.btn-ghost)が 高さで そろえる' },
+  { who: 'h1', why: '★見出し★' }, { who: 'h2', why: '★見出し★' }, { who: 'h3', why: '★見出し★' },
+];
+/* ★入れ物の内側★＝上16／左右16／下は「下に貼りつく帯が 在るか」で 決める。
+   帯が在る画面で 下を16pxにすると ★最後の押す物が 帯に隠れる★（実機で 押せない）。 */
+export const PAD_SIDE = '16px';
+export const PAD_BOTTOM_WITH_BAR = '84px';
+export const PAD_BOTTOM_NO_BAR = '16px';
+
+T('★⑦ 読ませる長い文の 行の高さは 1通り（' + LINE_H + '）', () => {
+  const kinds = new Map();
+  M.forEach(({ rel, fonts }) => (fonts || []).filter((x) => x.many).forEach((x) => {
+    if (LH_EXCEPT.some((e) => x.who === e.who || x.who.startsWith(e.who + '.'))) return;
+    if (!kinds.has(x.lh)) kinds.set(x.lh, { n: 0, ex: [] });
+    const e = kinds.get(x.lh); e.n++;
+    if (e.ex.length < 3) e.ex.push(x.who + '「' + x.t + '」（' + rel + '）');
+  }));
+  ok(kinds.size > 0, '★長い文を 1つも 測れていません＝この検査は 空振り★');
+  const bad = [...kinds.entries()].filter(([k]) => k !== LINE_H);
+  if (bad.length) {
+    throw new Error('★行の高さが ' + (bad.length + 1) + '通り★（' + LINE_H + ' 以外）\n     '
+      + bad.map(([k, v]) => k + '  ×' + v.n + '  例: ' + v.ex.join(' / ')).join('\n     '));
+  }
+  console.log('     長い文 ' + [...kinds.values()].reduce((a, x) => a + x.n, 0) + '箇所 … 全部 ' + LINE_H
+    + '（段の外 ' + LH_EXCEPT.length + '種類＝押す物・見出し）');
+});
+
+T('★⑧ 箱と箱の間は 1通り（' + CARD_GAP + 'px）', () => {
+  const kinds = new Map();
+  M.forEach(({ rel, gaps }) => (gaps || []).forEach((g) => {
+    if (!kinds.has(g)) kinds.set(g, { n: 0, rel: new Set() });
+    kinds.get(g).n++; kinds.get(g).rel.add(rel);
+  }));
+  ok(kinds.size > 0, '★箱の並びを 1つも 測れていません＝空振り★');
+  const bad = [...kinds.entries()].filter(([g]) => g !== CARD_GAP);
+  ok(!bad.length, '★' + (bad.length + 1) + '通り★ ' + bad.map(([g, v]) => g + 'px×' + v.n
+    + '（' + [...v.rel].join(',') + '）').join(' / '));
+  console.log('     並び ' + [...kinds.values()].reduce((a, x) => a + x.n, 0) + '箇所 … 全部 ' + CARD_GAP + 'px');
+});
+
+T('★⑨ 画面の余白は 決めた通り（上下左右／帯が在る画面は 下を空ける）', () => {
+  const seen = [];
+  M.forEach(({ rel, pad, barH }) => {
+    ok(pad, '★' + rel + ' の 本文の入れ物が 見つからない＝測れていません★');
+    const [t, r, b, l] = pad.split('/');
+    const want = barH > 0 ? PAD_BOTTOM_WITH_BAR : PAD_BOTTOM_NO_BAR;
+    ok(t === PAD_SIDE, '★' + rel + ' の 上が ' + t + '（' + PAD_SIDE + ' のはず）★');
+    ok(l === PAD_SIDE && r === PAD_SIDE, '★' + rel + ' の 左右が ' + l + '/' + r + '★');
+    ok(b === want, '★' + rel + ' の 下が ' + b + '（下の帯 ' + barH + 'px なので ' + want + ' のはず）★');
+    seen.push(rel.replace('.html', '') + ' ' + pad + (barH ? '（帯' + barH + '）' : ''));
+  });
+  console.log('     ' + seen.join(' ／ '));
+});
+
 /* ═══ ★自己確認：わざと崩して 赤になるか★ ═══ */
 if (process.argv.includes('--self-test')) {
   console.log('\n[--self-test] ★わざと崩して 赤になるか★');
@@ -320,6 +412,29 @@ if (process.argv.includes('--self-test')) {
   C.forEach(({ btns }) => btns.forEach((x) => { const p = x.k.split(' | '); if (p[0] === WHITE) inks.add(p[1]); }));
   T('★自② 白ボタンの字を 灰色に戻すと 気づける', () => {
     ok(inks.has('rgb(85, 85, 85)'), '★灰色にしたのに 見つけられない＝空振り★ ' + [...inks].join(' / '));
+  });
+  const D = await measure('.hint,.note{line-height:1.9 !important}');
+  T('★自④ 行の高さを 1つだけ 変えると 気づける', () => {
+    const kinds = new Set();
+    D.forEach(({ fonts }) => (fonts || []).filter((x) => x.many).forEach((x) => {
+      if (LH_EXCEPT.some((e) => x.who === e.who || x.who.startsWith(e.who + '.'))) return;
+      kinds.add(x.lh);
+    }));
+    ok(kinds.size > 1, '★1.9 を混ぜたのに 1通りだと言っている＝空振り★ ' + [...kinds].join(' / '));
+    console.log('     わざと混ぜた … ' + [...kinds].sort().join(' / '));
+  });
+  const E = await measure('.card{margin-bottom:24px !important}');
+  T('★自⑤ 箱と箱の間を 変えると 気づける', () => {
+    const gs = new Set();
+    E.forEach(({ gaps }) => (gaps || []).forEach((g) => gs.add(g)));
+    ok(!(gs.size === 1 && gs.has(CARD_GAP)), '★間を変えたのに ' + CARD_GAP + 'px のままだと言っている＝空振り★');
+    console.log('     わざと変えた … ' + [...gs].sort((a, b) => a - b).join(' / ') + 'px');
+  });
+  const F = await measure('.main,.wrap,.scr{padding-bottom:16px !important}');
+  T('★自⑥ 帯が在る画面の 下の余白を 削ると 気づける', () => {
+    const bad = F.filter((x) => x.barH > 0 && x.pad && x.pad.split('/')[2] !== PAD_BOTTOM_WITH_BAR);
+    ok(bad.length > 0, '★削ったのに 気づいていない＝空振り★');
+    console.log('     わざと削った … ' + bad.map((x) => x.rel + ' ' + x.pad.split('/')[2]).join(' / '));
   });
   T('★自③ 直した後は また 揃っている（戻し忘れを作らない）', () => {
     const bad = [...kinds.keys()].filter((k) => !ALLOW_K.has(k));
