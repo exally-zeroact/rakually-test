@@ -184,9 +184,10 @@ const ok = (v, m) => { if (!v) throw new Error(m || 'false'); };
 
 /* ★名前の色★（司さん 2026-08-29「赤丸がおれのイメージした色やのに ロゴの方は なんで濃いん？」）
      ロゴの絵の中の字 #2E7D54 ／ 画面の頭の字 #52B788 ＝★同じ名前が 場所で 2色★だった。
-     入れ替えて 揃えた（枠・RA・字＝ミント ／ チェックだけ 濃い）。
+     揃えた（枠・RA・字＝ミント ／ チェックだけ 濃ミント #3D9E72）。
+     ★チェックを 濃い色にすると 一番 重い物になる★（司さん差し戻し「チェックにしか目がいかん」）。
      ★ここで数える理由★＝片方だけ直す事故は ★また 起きる★（CSSと絵は 別の時に 別の人が触る）。 */
-export const BRAND = { mint: '#52B788', dark: '#2E7D54' };
+export const BRAND = { mint: '#52B788', check: '#3D9E72' };
 /** 絵の帯を切って、一番多い「白でない色」を返す */
 export function topColor(absPath, y0, y1) {
   const { w, h, stride, bpp, px } = pngRGB(absPath);
@@ -310,10 +311,10 @@ if (process.argv.includes('--self-test')) {
     const scr = screenLogoColors();
     ok(scr.length >= 1, '.hd-logo を 1つも 読めていない＝空振り');
     const word = topColor(path.join(ROOT, 'docs/logo/rakunally-logo.png'), 560, 1024).color;
-    ok(word !== BRAND.dark, '★絵の中の名前が まだ 濃いまま★');
+    ok(word !== BRAND.check, '★絵の中の名前が まだ 濃いまま★');
     ok(scr.every((x) => x.color === word), '★今 揃っていない★');
     /* わざと 前の姿（絵だけ濃い）に して 気づけるか */
-    ok(BRAND.dark !== word, '★戻した色と 今の色が 同じ＝この検査は 何も見ていない★');
+    ok(BRAND.check !== word, '★戻した色と 今の色が 同じ＝この検査は 何も見ていない★');
   });
   T('⑩ ★真っ白な帯を「色が在る」と 言わない', () => {
     let threw = false;
@@ -667,14 +668,14 @@ T('★チェックの色が 溶けて消えていない（マークに 2色 在�
   const mark = topColor(LOGO_PNG, 0, 560);
   const has = (c) => (mark.all.find((a) => a[0] === c) || [null, 0])[1];
   ok(mark.color === BRAND.mint, '★マークの地が ' + mark.color + '★');
-  ok(has(BRAND.dark) > 1000, '★チェックの ' + BRAND.dark + ' が ' + has(BRAND.dark) + '点しかない＝溶けた★');
-  console.log('     マーク ' + BRAND.mint + ' ' + has(BRAND.mint) + '点 ／ ' + BRAND.dark + ' ' + has(BRAND.dark) + '点');
+  ok(has(BRAND.check) > 1000, '★チェックの ' + BRAND.check + ' が ' + has(BRAND.check) + '点しかない＝溶けた★');
+  console.log('     マーク ' + BRAND.mint + ' ' + has(BRAND.mint) + '点 ／ ' + BRAND.check + ' ' + has(BRAND.check) + '点');
 });
 T('★べた塗りは この2色だけ（新しい緑を 混ぜていない）', () => {
   const im = topColor(LOGO_PNG, 0, 1024);
   const solid = im.all.filter((a) => a[1] >= 500).map((a) => a[0]).sort();
-  ok(solid.length === 2 && solid.includes(BRAND.mint) && solid.includes(BRAND.dark),
-    '★べた塗りの色が ' + solid.join(' , ') + '（' + BRAND.mint + ' と ' + BRAND.dark + ' の2色だけのはず）★');
+  ok(solid.length === 2 && solid.includes(BRAND.mint) && solid.includes(BRAND.check),
+    '★べた塗りの色が ' + solid.join(' , ') + '（' + BRAND.mint + ' と ' + BRAND.check + ' の2色だけのはず）★');
   console.log('     べた塗り ' + solid.join(' , '));
 });
 
