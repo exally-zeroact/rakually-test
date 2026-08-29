@@ -242,6 +242,15 @@
         : v.status === 'void' ? '<span class="tag tag-mute">取り消し</span>'
           : '<span class="tag tag-off">下書き</span>';
       var g = (v.totals && v.totals.grandTotal);
+      /* ★「まだ金額を入れていない下書き」を 0円と 見せない★（司さん 2026-08-30
+         「項目だけ入れて金額入れずに保存もしとける？」＝★出来る★。だが 一覧では
+          ★0円★と出ていて ★入れ忘れと 本当の0円が 見分けられなかった★）。
+         ★数え方は DOC.rowIssuesOf 1本★＝発行の時に止める判定と 同じ物を使う
+         （2か所で 別々に数えると 片方だけ直った時に 食い違う）。 */
+      var waiting = 0;
+      if (v.status === 'draft') {
+        try { waiting = DOC.rowIssuesOf(v.lines || []).noAmount.length; } catch (e) { waiting = 0; }
+      }
       return '<button class="row" type="button" data-open="' + esc(v.id) + '">'
         + '<span class="iv-top">' + tag
         + '<span class="iv-no">' + (esc(v.no) || '（未採番）') + '</span>'
@@ -249,7 +258,11 @@
         + '<span class="iv-sub">' + esc(v.issue_ymd || '請求日なし')
         + (v.due_ymd ? '　期限 ' + esc(v.due_ymd) : '')
         + '　' + esc(payLabel(v)) + '</span>'
-        + '<span class="iv-sub"><span class="iv-amt">' + (g === undefined || g === null ? '—' : yen(g) + ' 円') + '</span></span>'
+        + '<span class="iv-sub"><span class="iv-amt">'
+        + (waiting
+          ? '金額まだ ' + waiting + '行'
+          : (g === undefined || g === null ? '—' : yen(g) + ' 円'))
+        + '</span></span>'
         + '</button>';
     }).join('');
     Array.prototype.forEach.call(host.querySelectorAll('[data-open]'), function (b) {
@@ -3147,6 +3160,8 @@
     _recalcForTest: function () { return recalc(); },          // テスト用: 数え直しだけ走らせる
     _fillEdit: fillEdit,          // テスト用: 入力の画面を描き直す（★見られない物は 見張れない★）
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える
+    _saveDraftForTest: function () { return saveDraft(); },          // テスト用: 下書き保存を そのまま走らせる
+    _renderListForTest: function () { return renderList(); },        // テスト用: 一覧を 描き直す
     /* テスト用: ★本物の紙★を そのまま返す（見張りが 紙の中身を数える為。
        ★画面と同じ道を通す★＝紙だけ別の作り方をしない） */
     _paperHtml: function () {
