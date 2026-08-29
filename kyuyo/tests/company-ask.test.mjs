@@ -1,4 +1,4 @@
-/* company-ask.test.mjs — ★会社マスタ7問（聞いてあげる。埋めさせない。）の見張り★
+/* company-ask.test.mjs — ★会社マスタ8問（聞いてあげる。埋めさせない。）の見張り★
  *
  * なぜ要るか（司さん 2026-08-16／指示役 2026-08-18）:
  *   ・★空欄を並べて人に埋めさせない★＝1問ずつ聞いて、答えたら その場で結果を返す
@@ -48,7 +48,12 @@ const PW = require_(path.join(ROOT, 'lib', 'payroll-warnings.js'));
 /* ★2026-08-28 'payCycle'（何回 払いますか？）を 足した★（司さん「隔週・4週ごとが入れられない」）
      ＝支給サイクルに ★任意（N週ごと）★を足したので、★聞く形でも 聞く★。
      ★締め方（ndays）と同じ作り★＝4択＋任意／任意の時だけ N の欄を出す。 */
-const KEYS = ['pref', 'gyoshu', 'payCycle', 'payday', 'holidays', 'daily', 'shahoKanyu'];  // ★app.js の並びと同じ順で書く★
+/* ★app.js の並びと同じ順で書く★
+   ★2026-08-29 'close'（締め日）を 先頭に足した★（司さん「できる機能を全てやってから報告しろ」）
+   ＝給与で いちばん効く設定（どの日から どの日までを1回ぶんにするか）なのに
+     ★聞く形に 入っておらず 素の欄で 埋めさせていた★（実測）。
+   ★いちばん先に聞く理由★＝締め日が決まると 支給日の言い方（当月/翌月）が 決まる。 */
+const KEYS = ['close', 'pref', 'gyoshu', 'payCycle', 'payday', 'holidays', 'daily', 'shahoKanyu'];
 /* 7問へ上げた＝チップから消した物 */
 const MOVED = ['teikyu', 'shotei', 'annual', 'koyoGyoshu'];
 
@@ -66,7 +71,7 @@ function inputBody(src, hostVar) {
 
 if (process.argv.includes('--self-test')) {
   console.log('\n[company-ask --self-test] ★わざと戻して赤になるか★');
-  T('① 7問のどれかを消したら 数が合わなくなる（気づける）', () => {
+  T('① 8問のどれかを消したら 数が合わなくなる（気づける）', () => {
     const broken = KEYS.slice(0, KEYS.length - 1);   // ★1つ消す★（数を直書きしない＝6問→7問に増えても効く）
     ok(broken.length !== KEYS.length, '数の突き合わせが効いていない');
   });
@@ -95,20 +100,20 @@ if (process.argv.includes('--self-test')) {
   process.exit(fail ? 1 : 0);
 }
 
-console.log('\n[company-ask] 会社マスタ7問（聞いてあげる。埋めさせない。）');
+console.log('\n[company-ask] 会社マスタ8問（聞いてあげる。埋めさせない。）');
 
-T('① 7問が ちょうど7つ在り、どれにも「その場の返し」が在る', () => {
+T('① 8問が ちょうど8つ在り、どれにも「その場の返し」が在る', () => {
   const block = APP.slice(APP.indexOf('function ASK_Q()'), APP.indexOf('function askCounts()'));
   ok(block.length > 500, 'ASK_Q が読めていない');
   const found = KEYS.filter((k) => block.indexOf("key:'" + k + "'") >= 0);
-  eq(found.length, KEYS.length, '7問の key（' + KEYS.filter((k) => found.indexOf(k) < 0).join(',') + ' が無い）');
+  eq(found.length, KEYS.length, '8問の key（' + KEYS.filter((k) => found.indexOf(k) < 0).join(',') + ' が無い）');
   const answers = (block.match(/answer:function\(\)/g) || []).length;
   eq(answers, KEYS.length, '「その場の返し」の数');
   /* ★聞かないと決めた物が混ざっていないか★ */
   ['rousai', '労災', 'kouotsu', '甲乙'].forEach((w) => {
     ok(block.indexOf(w) < 0, '★聞かないと決めた「' + w + '」が7問に入っている★');
   });
-  console.log('     7問: ' + KEYS.join(' / '));
+  console.log('     8問: ' + KEYS.join(' / '));
 });
 
 T('② 県 → 最低賃金 が lib の実数と1円一致（画面の言葉ではなく lib で突き合わせる）', () => {

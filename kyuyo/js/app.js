@@ -598,6 +598,12 @@
   }
 
   /* 7問の定義。★1問＝1つの値★。answer() が「その場で返す言葉」を作る。 */
+  /** 締め日の 言い方（画面と 聞く形で 2つの言い方を 持たない） */
+  function closeLabel(){
+    var cd=Number(state.company.close);
+    if(!(cd>=1&&cd<=31)) return '';
+    return cd>=31?'末日':(cd+'日');
+  }
   function ASK_Q(){
     var c=state.company;
     return [
@@ -606,6 +612,40 @@
          ★給与で聞くと 2か所で別々に持つ★事になるので、聞かずに ★直しに行く道★を出す
          （kyuyo/index.html の「会社の情報を直す」→ ../index.html#kaisha?back=kyuyo）。
          ＝7問 → ★6問★（kyuyo/tests/company-ask.test.mjs が 数を見張っている）。 */
+      /* ★締め日★（司さん 2026-08-29「できる機能を全てやってから報告しろ」）
+         ★給与で いちばん 効く設定★（どの日から どの日までを 1回ぶんにするか）なのに
+         ★聞く形に 入っていなかった★＝素の欄で 埋めさせていた（2026-08-29 実測）。
+         ★答えたら その場で「10月なら 9/21〜10/20」と 実際の日付で 返す★
+         ＝期間の計算は ★借り物 lib/kikan.js（正本＝Timeally の period）★。ここで 書き直さない。 */
+      { key:'close', q:'給料の締め日は いつですか？', sub:'「◯日から◯日まで」の 終わりの日です',
+        now:closeLabel(),
+        input:function(){
+          var opts=[['31','末日'],['20','20日'],['25','25日'],['15','15日'],['10','10日'],['other','任意（日を入れる）']];
+          var cur=String(c.close||'');
+          var isOther=state._closeOther===true
+            || (cur!=='' && opts.filter(function(o){return o[0]===cur;}).length===0);
+          var sel='<select class="ask-in" data-ask="close">'
+            +'<option value=""'+(cur===''?' selected':'')+'>選んでください</option>'
+            +opts.map(function(o){
+              var on=(o[0]==='other')?isOther:(cur===o[0]);
+              return '<option value="'+o[0]+'"'+(on?' selected':'')+'>'+o[1]+'</option>';
+            }).join('')+'</select>';
+          if(isOther){
+            sel=sel.replace('<option value="other"','<option value="other" selected')
+              .replace(/ selected>(末日|20日|25日|15日|10日)/g,'>$1');
+            sel+='<input class="ask-in ask-sm num" data-ask="closeN" inputmode="numeric" value="'+cur+'" placeholder="日">';
+          }
+          return '<span class="ask-row">'+sel+'</span>';
+        },
+        answer:function(){
+          var cd=Number(c.close); if(!(cd>=1&&cd<=31)) return null;
+          var K=(typeof window!=='undefined'&&window.Kikan)||null;
+          if(!K) return { text:(cd>=31?'末日':cd+'日')+' で締めます。' };
+          var ym=askToday().slice(0,7);
+          var p2=K.period(ym, cd);
+          return { text:(cd>=31?'末日':cd+'日')+' 締めです。'
+            +'この月なら '+K.slash(p2.from)+' 〜 '+K.slash(p2.to)+' の分に なります。' };
+        } },
       { key:'pref', q:'どこの県ですか？', sub:'最低賃金は「事業場の所在地」で決まります',
         now:c.pref?prefNameOf(c.pref):'',
         input:function(){ return '<select class="ask-in" data-ask="pref">'+prefOptions(c.pref)+'</select>'; },
@@ -3656,6 +3696,8 @@
       askImeBind(askHost);
       askHost.addEventListener('input',function(ev){
         var f=ev.target.dataset&&ev.target.dataset.ask; if(!f) return;
+        /* ★任意の日を打つ欄は 締め日そのもの★（別の名前で 持たない） */
+        if(f==='closeN'){ f='close'; }
         /* ★変換中は 一切 触らない★（触ると「株式会社」が「株式会 ゼは」になる） */
         if(askComposing()) return;
         var v=ev.target.value;
@@ -3671,7 +3713,12 @@
       });
       askHost.addEventListener('change',function(ev){
         var f=ev.target.dataset&&ev.target.dataset.ask; if(!f) return;
-        state.company[f]=ev.target.value;
+        if(f==='closeN'){ f='close'; }
+        var val=ev.target.value;
+        /* ★「任意」を選んだら 日を打つ欄を 出す★（選んだだけでは まだ 決まっていない） */
+        if(f==='close'&&val==='other'){ state.company.close=''; state._closeOther=true; askSave(); return; }
+        if(f==='close'){ state._closeOther=false; }
+        state.company[f]=val;
         askSave();
       });
     }

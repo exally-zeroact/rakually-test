@@ -108,13 +108,13 @@
   /* ══ ★対象期間（◯日〜◯日）★ ══════════════════════════════════════════
      ★締め日は 請求書のどこにも 持っていません★（給与の締めとは 別の物）。
      ⇒ ★出した紙から 当てる★。当てられない時は ★出さない★（決めつけない）。
-     期間の計算は ★正本のまま借りた seikyu-kikan.js★（timeally の period）。
+     期間の計算は ★正本のまま借りた lib/kikan.js★（timeally の period）。
      ★ここで 日付の計算を 書き直してはいけません★（2月30日のような日で 必ず 食い違う）。 */
 
   /** 締め期間の道具（画面では window、試験では require で入る） */
   function KIKAN() {
     if (typeof module === 'object' && module.exports && typeof require === 'function') {
-      try { return require('./seikyu-kikan.js'); } catch (e) { /* 画面側へ */ }
+      try { return require('../../lib/kikan.js'); } catch (e) { /* 画面側へ */ }
     }
     return (typeof window !== 'undefined' && window.SeikyuKikan) || null;
   }

@@ -195,9 +195,9 @@ T('★⑧ 同じ入力なら 同じ答え（決定論・AIを呼んでいない�
 
 /* ═══ ★対象期間（締め期間から当てる）★ ═══════════════════════════════
    ★締め日は 請求書に 持っていません★（給与の締めとは 別物）＝出した紙から 当てる。
-   期間の計算そのものは ★正本のまま借りた seikyu-kikan.js★（124通りは kikan.test.mjs が測る）。
+   期間の計算そのものは ★正本のまま借りた lib/kikan.js★（124通りは kikan.test.mjs が測る）。
    ここで見るのは ★当て方★＝「いつ当てるか」「★いつ当てないか★」。 */
-const KIK = require_(path.join(HERE, '..', 'lib', 'seikyu-kikan.js'));
+const KIK = require_(path.join(HERE, '..', '..', 'lib', 'kikan.js'));
 /* ★相手を付ける★（2026-08-29 司さんの指摘で ★相手ごと★に数える形へ変えた。
    相手の無い見本は もう 当たらない＝それが 正しい）。 */
 const withLead = (lead) => inv({ partner_id: 'p1', status: 'issued', data: { lead } });

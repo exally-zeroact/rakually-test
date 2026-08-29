@@ -47,6 +47,11 @@ const OUTSIDE = [
   'kyuyo/lib/shiharai-chosho.js',      // ★源泉の率と式（法定の唯一の正）CHOSHO.gensenA★
   'kyuyo/lib/shouhizei-ritsu.js',      // ★消費税の率（法定の唯一の正）SR.hyojun / SR.keigen★
   'lib/xlsx.full.min.js',              // Excel の読み書き
+  /* ★2026-08-29 締め期間を 共通の場所へ★（司さん「取引先ごとに様式を設定できてる前提か？」の流れ）
+     正本＝Timeally の period(ym, closeDay) を ★同じ形のまま★ 借りた物。
+     ★請求書（対象期間）も 給与（締め日）も 同じ1本を見る★＝2か所に写さない
+     （写すと 2月30日のような日で 必ず 食い違う）。見張り＝tests/kikan.test.mjs（124通り＋正本と1文字比べ）。 */
+  'lib/kikan.js',                      // ★締め期間（借り物・正本と1文字ずつ突き合わせ）★
   /* ★2026-08-18 取引先を1問ずつ聞く★（指示役）… 登録番号（T＋13桁）の打ち間違いを弾く。
      ★共有データの画面（js/hub.js）と請求書の両方が呼ぶ★ので seikyu/ の外に置いた
      ＝同じ判定を2か所に書かないため。通信は一切しない。 */

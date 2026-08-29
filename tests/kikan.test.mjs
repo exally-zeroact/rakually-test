@@ -5,20 +5,21 @@
  *   ＝★124通り★ を そのまま 測る。
  *
  * ★正本★ … C:/Users/zeroa/timeally/lib/tc-calc.js の period(ym, closeDay)
- *   seikyu/lib/seikyu-kikan.js は ★同じ形のまま★ 借りた物。
+ * ★借り先は 1つだけ★＝lib/kikan.js（請求書も 給与も ここを 見る。2か所に 写さない）
+ *   lib/kikan.js は ★同じ形のまま★ 借りた物。
  *   ⇒ ★1文字ずつ 比べる★。食い違ったら 赤（＝借り物が いつのまにか 別物になっていない）。
  *   ★正本が この機械に無い時は「未測定」★（緑と言わない）。
  *
- * 使い方: node seikyu/tests/kikan.test.mjs [--self-test]
+ * 使い方: node tests/kikan.test.mjs [--self-test]
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require_ = createRequire(path.join(ROOT, 'package.json'));
-const K = require_(path.join(ROOT, 'seikyu/lib/seikyu-kikan.js'));
+const K = require_(path.join(ROOT, 'lib/kikan.js'));
 
 let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
@@ -119,7 +120,7 @@ if (!fs.existsSync(SRC)) {
       return s.slice(i, k + 1).replace(/\r\n/g, '\n');
     };
     const a = cut(fs.readFileSync(SRC, 'utf8'));
-    const b = cut(fs.readFileSync(path.join(ROOT, 'seikyu/lib/seikyu-kikan.js'), 'utf8'));
+    const b = cut(fs.readFileSync(path.join(ROOT, 'lib/kikan.js'), 'utf8'));
     /* 行頭の字下げは 入れ物が違うので 揃えてから 比べる（★中身は 1文字も 変えない★） */
     const norm = (s) => s.split('\n').map((x) => x.replace(/^\s+/, '')).join('\n');
     ok(norm(a) === norm(b), '★正本と 食い違っています★\n     正本:\n' + a + '\n     借り物:\n' + b);
@@ -144,7 +145,7 @@ if (process.argv.includes('--self-test')) {
     ok(K.period('2026-02', 30).to !== wrong('2026-02', 30).to, '★本物も 存在しない日を返している★');
   });
   S('★正本との突き合わせが 効いている（1文字 変えたら 気づく）', () => {
-    const s = fs.readFileSync(path.join(ROOT, 'seikyu/lib/seikyu-kikan.js'), 'utf8');
+    const s = fs.readFileSync(path.join(ROOT, 'lib/kikan.js'), 'utf8');
     const broken = s.replace('var cd = Number(closeDay) || 31;', 'var cd = Number(closeDay) || 30;');
     ok(broken !== s, '作り物が 作れていない');
     ok(broken.indexOf('|| 30;') >= 0, '★変えたのに 変わっていない★');
