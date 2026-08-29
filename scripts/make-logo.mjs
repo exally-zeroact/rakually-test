@@ -10,8 +10,8 @@
  *     （別の所から拾わない）。読めなかった時は ★止まる★（別の字体で刷らない）。
  *
  * ★合わせ先（指示役が画素で実測した値）★
- *   絵 1024x1024 ／ 色 #2E7D54 ／ ★ベースライン y=677★ ／ ★文字の中心 x=508★
- *   ★マーク（RAの四角＋チェック）は 1ドットも触らない★＝y<560 は 元のまま
+ *   絵 1024x1024 ／ ★ベースライン y=677★ ／ ★文字の中心 x=508★
+ *   ★マークの形は 1ドットも触らない★＝y<560 は 元絵のまま（★色だけ 入れ替える★・下を見る）
  *   大きさ … ★R の高さ 68px★（＝文字幅495px＝★元のロゴと同じ 釣り合い★。下の CAP の説明を見る）
  *   字間 … ★-0.025em★＝画面の「20pxで -0.5px」と ★同じ見た目★（大きさが変わっても崩れない）
  *
@@ -24,6 +24,16 @@
  *   ⇒ ★司さんの決定＝Exally と 合わせる★＝★詰めない★。
  *   ★詰める仕掛けを 作ってはいけない★（2026-08-29 に作って ★字がぶつかった★＝-2px。取り消した）。
  *   ★戻す条件★＝「全アプリ DM Mono」を やめると 司さんが決めた日。
+ *
+ * ★色は 入れ替えた（司さん 2026-08-29「全部ミントでチェックだけ変えろや」）★
+ *   前 … 枠・RA・字 #2E7D54（濃い）／チェック #52B788（ミント）
+ *   今 … ★枠・RA・字 #52B788（ミント）／チェック #2E7D54（濃い）★
+ *   ★理由★＝画面の頭のロゴは 前から #52B788。同じ名前が ★場所で 2色★だった。
+ *   ★形は 1ドットも 変えていない★（塗り替えた元絵と 出来上がりを 1点ずつ 突き合わせる）。
+ *   ★白の上での 読みやすさ（実測・WCAG）★ #2E7D54=5.03 ／ #52B788=2.47。
+ *     字としての線(4.50)を 下回るのは 承知の上（★司さんの決定★）。
+ *     ★枠と RA も ミント★なので、小さい所（favicon 16px）で 薄く見える。
+ *     ★戻す条件★＝司さんが「濃い方に戻す」と 言った日。
  *
  * 使い方: node scripts/make-logo.mjs         … 刷り直す（Chrome と ネットが要る）
  *         node scripts/make-logo.mjs --check … 今の物と 同じ物が作れるか
@@ -40,8 +50,26 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const LOGO = path.join(ROOT, 'docs/logo/rakunally-logo.png');
+/* ★元絵（マークだけ）★ … 出来上がりを 元絵にすると 刷るたび 色が回ってしまうので、
+   ★塗り替える前のマーク★を 別に置く。字の帯(y>=560)は 真っ白＝旧名は 1文字も入っていない。
+   （作り方: magick rakunally-logo.png -fill white -draw 'rectangle 0,560 1023,1023' …
+     ＝★今のロゴの マークの帯と 1ドットも違わない★／改名前の元絵とも 一致：実測済み） */
+export const MARK_SRC = path.join(ROOT, 'docs/logo/rakunally-mark-src.png');
 export const WORD = 'Rakunally';
-export const INK = [46, 125, 84];          // #2E7D54
+/* ★色（司さん 2026-08-29「全部ミントでチェックだけ変えろや」）★
+     前は 枠・RA・字が #2E7D54（濃い）／チェックだけ #52B788（ミント）。
+     ★画面の頭のロゴは 前から #52B788★なので ★同じ名前が 場所で 2色★になっていた。
+     ⇒ ★入れ替える★：枠・RA・字 → ミント ／ チェック → 濃い。
+     ★2色とも 元から在るブランドの色★（css/hub.css 2行目「ミント #52B788 ／ 文字 #2E7D54」）
+     ＝★新しい色を 作っていない。入れ替えただけ★。 */
+export const WORD_INK = [82, 183, 136];    // #52B788 ミント … 枠・RA・字（＝画面の頭と同じ色）
+export const CHECK_INK = [46, 125, 84];    // #2E7D54 濃い　 … チェックだけ
+/** 元絵の色 → 新しい色。★この2本だけ★（他の色が混ざっていたら 赤にする） */
+export const SWAP = [
+  { from: [46, 125, 84], to: WORD_INK, why: '枠・RA（元は濃い）→ ミント' },
+  { from: [82, 183, 136], to: CHECK_INK, why: 'チェック（元はミント）→ 濃い' },
+];
+export const INK = WORD_INK;               // 字の色（下の「色の見分け」が使う）
 export const BASELINE = 677;               // 字の下端（実測・元のロゴと同じ）
 export const CENTER_X = 508;               // 文字の中心（実測・元のロゴと同じ）
 export const CAP = 68;                     // ★R の高さ★（指示役 2026-08-28 の判定＝B案）
@@ -58,12 +86,14 @@ const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
   '/usr/bin/google-chrome', '/usr/bin/chromium'].find((p) => fs.existsSync(p));
 
 export const sha8 = (b) => crypto.createHash('sha256').update(b).digest('hex').slice(0, 8);
+/** [46,125,84] → '#2E7D54'（色を 2か所に書かない為） */
+export const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase();
 
 /** 1色の点か（縁の混ざりを 数える為に 使う） */
 export function classify(p) {
   if (p[0] === 255 && p[1] === 255 && p[2] === 255) return 'white';
   if (p[0] === INK[0] && p[1] === INK[1] && p[2] === INK[2]) return 'ink';
-  /* ★白と #2E7D54 を混ぜた色か★（縁のなめらかさ）。混ぜ具合 t を 3色から出して ずれを見る */
+  /* ★白と 字の色を混ぜた色か★（縁のなめらかさ）。混ぜ具合 t を 3色から出して ずれを見る */
   const t = (255 - p[0]) / (255 - INK[0]);
   const g = 255 - t * (255 - INK[1]), b = 255 - t * (255 - INK[2]);
   if (t >= -0.01 && t <= 1.01 && Math.abs(p[1] - g) <= 2 && Math.abs(p[2] - b) <= 2) return 'edge';
@@ -80,7 +110,7 @@ export function renderWord(size) {
     + '<link href="' + FONT_URL + '" rel="stylesheet">'
     + '<style>html,body{margin:0;background:#fff}'
     + '#w{font-family:\'DM Mono\',ui-monospace,monospace;font-weight:500;letter-spacing:-0.025em;'
-    + 'color:#2E7D54;font-size:' + size + 'px;line-height:2;white-space:pre;display:inline-block;padding:60px}'
+    + 'color:' + hex(WORD_INK) + ';font-size:' + size + 'px;line-height:2;white-space:pre;display:inline-block;padding:60px}'
     + '#w span{display:inline-block}</style></head><body>'
     + '<div id="w">' + [...WORD].map((c) => '<span>' + c + '</span>').join('') + '</div>'
     + '<script>document.fonts.ready.then(function(){'
@@ -110,9 +140,25 @@ if (process.argv.includes('--self-test')) {
   console.log('\n[make-logo --self-test]');
   T('★色の見分けが効いている★', () => {
     ok(classify([255, 255, 255]) === 'white');
-    ok(classify([46, 125, 84]) === 'ink');
-    ok(classify([150, 190, 170]) === 'edge', '白と緑の中間を「縁」と読めていない');
+    ok(classify(WORD_INK) === 'ink', '字の色を 字と読めていない');
+    ok(classify([168, 219, 195]) === 'edge', '白と字の色の中間を「縁」と読めていない');
     ok(classify([200, 40, 40]) === 'other', '赤を通してしまう＝色の見張りが空振り');
+    ok(classify(CHECK_INK) === 'other', '★字の帯に チェックの色が 混ざっても 気づける★');
+  });
+  T('★色は 入れ替えただけ（新しい色を 作っていない）★', () => {
+    ok(SWAP.length === 2, '塗り替えの決まりは 2本だけ');
+    ok(hex(WORD_INK) === '#52B788' && hex(CHECK_INK) === '#2E7D54', '色が違う: ' + hex(WORD_INK) + '/' + hex(CHECK_INK));
+    const from = SWAP.map((x) => hex(x.from)).sort().join(','), to = SWAP.map((x) => hex(x.to)).sort().join(',');
+    ok(from === to, '★元の2色と 後の2色が 同じ組でない＝色を 増やしている★ ' + from + ' → ' + to);
+  });
+  T('★塗り替えは 縁の混ざりも 同じ割合で 移す★', () => {
+    const half = [46, 125, 84].map((v) => Math.round(255 - 0.5 * (255 - v)));
+    const r = blendT(half, [46, 125, 84]);
+    ok(r && Math.abs(r.t - 0.5) < 0.02, '半分の混ざりを 半分と 読めていない');
+    ok(!blendT([200, 40, 40], [46, 125, 84]) || blendT([200, 40, 40], [46, 125, 84]).err > 3, '赤を 混ざりと 言っている');
+  });
+  T('★元絵（マークだけ）が 在る★', () => {
+    ok(fs.existsSync(MARK_SRC), 'マークの元絵が 無い: ' + MARK_SRC);
   });
   T('★決めた数字が 指示役の実測と合っている★', () => {
     ok(BASELINE === 677 && CENTER_X === 508 && CAP === 68, '合わせ先が違う（B案＝R68px・文字幅495）');
@@ -159,7 +205,87 @@ export function readRGB(file) {
   return { w, h, bpp, at: (x, y) => [px[y * stride + x * bpp], px[y * stride + x * bpp + 1], px[y * stride + x * bpp + 2]] };
 }
 /** 墨のある列の塊＝1字ずつの箱（白い縦の切れ目で分ける） */
-export function letterBoxes(im, thr = 200) {
+/* ═══ PNGを自分で書く（塗り替えた元絵を 次の道具へ渡す為だけ。出来上がりは magick が書く） ═══ */
+export function writeRGB(file, w, h, at) {
+  const stride = w * 3, raw = Buffer.alloc(h * (stride + 1));
+  for (let y = 0; y < h; y++) {
+    raw[y * (stride + 1)] = 0;                       // フィルタ無し
+    for (let x = 0; x < w; x++) {
+      const c = at(x, y), o = y * (stride + 1) + 1 + x * 3;
+      raw[o] = c[0]; raw[o + 1] = c[1]; raw[o + 2] = c[2];
+    }
+  }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32 ? zlib.crc32(body) : crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  fs.writeFileSync(file, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
+}
+/** zlib.crc32 が無い版の Node 用（自分で表を作る） */
+function crc32(buf) {
+  let c, t = crc32.t;
+  if (!t) { t = crc32.t = []; for (let n = 0; n < 256; n++) { c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } }
+  c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = t[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/** 白と base を 混ぜた点か。混ぜ具合 t と ずれ err を返す（違えば null） */
+export function blendT(p, base) {
+  if (base[0] === 255) return null;
+  const t = (255 - p[0]) / (255 - base[0]);
+  if (t < -0.01 || t > 1.01) return null;
+  let err = 0;
+  for (const k of [1, 2]) err = Math.max(err, Math.abs((255 - t * (255 - base[k])) - p[k]));
+  return { t, err };
+}
+
+/* ★元絵のマークを 塗り替える★（司さん 2026-08-29「全部ミントでチェックだけ変えろや」）
+     ・★1点ずつ 見る★＝縁のなめらかさ（白との混ざり）も ★同じ混ぜ具合のまま★ 移す。
+       べた塗りだけ替えると ★縁に 前の色が 残って 汚くなる★。
+     ・SWAP の2色の どちらの混ざりでも ない点が 1点でも 在れば ★止まる★
+       （＝知らない色を 黙って 通さない）。 */
+export function recolorMark(outFile) {
+  const im = readRGB(MARK_SRC);
+  const cnt = { white: 0, other: 0 };
+  SWAP.forEach((s, i) => { cnt['c' + i] = 0; });
+  const bad = [];
+  const at = (x, y) => {
+    const p = im.at(x, y);
+    if (p[0] === 255 && p[1] === 255 && p[2] === 255) { cnt.white++; return p; }
+    let best = null;
+    SWAP.forEach((s, i) => {
+      const r = blendT(p, s.from);
+      if (r && r.err <= 3 && (!best || r.err < best.r.err)) best = { i, s, r };
+    });
+    if (!best) {
+      cnt.other++;
+      if (bad.length < 5) bad.push('(' + x + ',' + y + ')=' + p.join(','));
+      return p;
+    }
+    cnt['c' + best.i]++;
+    const t = best.r.t;
+    return best.s.to.map((v) => Math.round(255 - t * (255 - v)));
+  };
+  writeRGB(outFile, im.w, im.h, at);
+  if (cnt.other) throw new Error('★元絵に 知らない色が ' + cnt.other + '点★ ' + bad.join(' ')
+    + '（塗り替えの決まりは ' + SWAP.map((s) => hex(s.from) + '→' + hex(s.to)).join(' , ') + ' の2本だけ）');
+  return cnt;
+}
+
+/* ★どこから「墨」と数えるか★
+     緑の値が この線より小さい点を 墨と見る。★色を変えたら 線も動かす★＝
+     「白と 字の色の 真ん中」より濃い点＝★半分より 塗られている点★を 墨と数える。
+     （濃い #2E7D54 なら 190／ミント #52B788 なら 219。線を固定にすると
+       ★薄い色にした時に 下端が 1px ずれて 見張りが 嘘を言う★） */
+export const THR = Math.round((255 + WORD_INK[1]) / 2);
+export function letterBoxes(im, thr = THR) {
   const isInk = (x, y) => im.at(x, y)[1] < thr;
   const cols = [];
   for (let x = 0; x < im.w; x++) { let c = false; for (let y = 0; y < im.h && !c; y++) if (isInk(x, y)) c = true; cols.push(c); }
@@ -224,9 +350,15 @@ const putX = cropX + dx, putY = cropY + dy;
 console.log('  文字の墨 幅 ' + (inkX1 - inkX0 + 1) + 'px ／ 置く所 x=' + (inkX0 + dx) + '..' + (inkX1 + dx)
   + ' ／ ベースライン y=' + (base2 + dy));
 
-/* ④ 貼る（マークの帯 y<560 は 元のまま・下だけ白で消してから置く） */
+/* ④ 貼る（マークの帯は ★元絵を塗り替えた物★／下は白にしてから 字を置く） */
 const TMP = path.join(OUT, 'build.png');
-execFileSync('magick', [LOGO, '-fill', 'white', '-draw',
+const BASE = path.join(OUT, 'mark.png');
+fs.mkdirSync(OUT, { recursive: true });
+const mc = recolorMark(BASE);
+console.log('  マークを塗り替えた … '
+  + SWAP.map((s, i) => hex(s.from) + '→' + hex(s.to) + ' ' + mc['c' + i] + '点').join(' ／ ')
+  + ' ／ 白 ' + mc.white + '点');
+execFileSync('magick', [BASE, '-fill', 'white', '-draw',
   'rectangle 0,' + MARK_BOTTOM + ' 1023,1023', TMP], { timeout: 60000 });
 execFileSync('magick', [TMP, '(', p2.png, '-crop', cropW + 'x' + cropH + '+' + cropX + '+' + cropY, '+repage', ')',
   '-geometry', '+' + putX + '+' + putY, '-composite', '-alpha', 'off', '-strip',
@@ -234,11 +366,19 @@ execFileSync('magick', [TMP, '(', p2.png, '-crop', cropW + 'x' + cropH + '+' + c
 
 /* ⑤ 出す前に 自分で数える（★描いた物を見る★） */
 const made = readRGB(TMP);
-const old = readRGB(LOGO);
+/* ★合わせ先は 塗り替えた元絵★（出来上がりと 突き合わせると 何を変えても 緑になる） */
+const base = readRGB(BASE);
 let markDiff = 0;
 for (let y = 0; y < MARK_BOTTOM; y++) for (let x = 0; x < 1024; x++) {
-  const a = old.at(x, y), b = made.at(x, y);
+  const a = base.at(x, y), b = made.at(x, y);
   if (a[0] !== b[0] || a[1] !== b[1] || a[2] !== b[2]) markDiff++;
+}
+/* ★マークに 2色とも 残っているか★（チェックが 溶けて 消えていないか を 数で見る） */
+const markC = [0, 0];
+for (let y = 0; y < MARK_BOTTOM; y++) for (let x = 0; x < 1024; x++) {
+  const p = made.at(x, y);
+  if (p[0] === WORD_INK[0] && p[1] === WORD_INK[1] && p[2] === WORD_INK[2]) markC[0]++;
+  if (p[0] === CHECK_INK[0] && p[1] === CHECK_INK[1] && p[2] === CHECK_INK[2]) markC[1]++;
 }
 const cnt = { white: 0, ink: 0, edge: 0, other: 0 };
 const others = [];
@@ -254,8 +394,10 @@ const flatBots = fb.filter((b) => !DESC.has(b.ch) && !ROUND.has(b.ch)).map((b) =
 const roundBots = fb.filter((b) => ROUND.has(b.ch)).map((b) => b.bot);
 
 const NG = [];
-if (markDiff !== 0) NG.push('★マークが変わっている ' + markDiff + '点★');
-if (cnt.other !== 0) NG.push('★#2E7D54 でも白でもない色 ' + cnt.other + '点★ ' + others.join(' '));
+if (markDiff !== 0) NG.push('★マークが 塗り替えた元絵と 違う ' + markDiff + '点★');
+if (markC[0] < 1000) NG.push('★マークの ミント(' + hex(WORD_INK) + ') が ' + markC[0] + '点しかない★');
+if (markC[1] < 1000) NG.push('★チェックの ' + hex(CHECK_INK) + ' が ' + markC[1] + '点しかない＝溶けて消えた★');
+if (cnt.other !== 0) NG.push('★' + hex(WORD_INK) + ' でも白でもない色 ' + cnt.other + '点★ ' + others.join(' '));
 if (new Set(flatBots).size !== 1 || flatBots[0] !== BASELINE) NG.push('★平らな字の下端が ' + [...new Set(flatBots)].join('/') + '（' + BASELINE + 'に揃っていない）★');
 if (roundBots.some((b) => b < BASELINE || b > BASELINE + 1)) NG.push('★丸い字の下端が ' + roundBots.join('/') + '（' + BASELINE + '〜' + (BASELINE + 1) + 'でない）★');
 if (Math.abs(center - CENTER_X) > 1) NG.push('★中心が ' + center + '（' + CENTER_X + '±1 でない）★');
@@ -270,8 +412,9 @@ console.log('  ★文字の中心 x = ' + center + '★（狙い ' + CENTER_X + 
 console.log('  ★下端★ 平らな字(R k l n) = ' + [...new Set(flatBots)].join(',') + '（狙い ' + BASELINE + '）'
   + ' ／ 丸い字(a u) = ' + [...new Set(roundBots)].join(',') + '（★字体の作法で 1px 下へ出る★）'
   + ' ／ y = ' + fb.filter((b) => DESC.has(b.ch)).map((b) => b.bot).join(','));
-console.log('  ★マークの帯(y<' + MARK_BOTTOM + ')の変わった点 = ' + markDiff + '★');
-console.log('  色 … #2E7D54 ' + cnt.ink + '点 ／ 白 ' + cnt.white + '点 ／ 縁(白と混ざり) ' + cnt.edge + '点 ／ ★別の色 ' + cnt.other + '点★');
+console.log('  ★マークの帯(y<' + MARK_BOTTOM + ')が 塗り替えた元絵と 違う点 = ' + markDiff + '★');
+console.log('  ★マークの色★ ミント' + hex(WORD_INK) + ' ' + markC[0] + '点 ／ チェック' + hex(CHECK_INK) + ' ' + markC[1] + '点');
+console.log('  色 … ' + hex(WORD_INK) + ' ' + cnt.ink + '点 ／ 白 ' + cnt.white + '点 ／ 縁(白と混ざり) ' + cnt.edge + '点 ／ ★別の色 ' + cnt.other + '点★');
 if (PREVIEW) {
   /* 下書きは 大きさ比べが目的なので ★R=97 の縛りは外す★（下端と中心と色は そのまま見る） */
   fs.copyFileSync(TMP, PREVIEW);

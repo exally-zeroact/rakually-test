@@ -69,7 +69,8 @@ export function pngSize(buf) {
 
 /** ★画像の「背景でない所」の箱を実測する★（丸く切られて欠けないかを数で言うため）
  *  PNGを自分で開く（IHDR→IDATをinflate→行ごとのフィルタを戻す）。色は角のドットを背景とみなす。 */
-export function inkBox(absPath) {
+/** ★PNGを1枚まるごと開く★（inkBox と 色を数える検査が 同じ道を通る） */
+export function pngRGB(absPath) {
   const buf = fs.readFileSync(absPath);
   const { w, h, colorType } = pngSize(buf);
   if (colorType !== 2) throw new Error(absPath + ': 想定は RGB(色種2) だが ' + colorType);
@@ -102,7 +103,11 @@ export function inkBox(absPath) {
       cur[x] = v & 0xff;
     }
   }
-  const bg = [px[0], px[1], px[2]];
+  return { w, h, stride, bpp, px };
+}
+
+export function inkBox(absPath) {
+  const { w, h, stride, bpp, px } = pngRGB(absPath);  const bg = [px[0], px[1], px[2]];
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -177,6 +182,60 @@ let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
 const ok = (v, m) => { if (!v) throw new Error(m || 'false'); };
 
+/* ★名前の色★（司さん 2026-08-29「赤丸がおれのイメージした色やのに ロゴの方は なんで濃いん？」）
+     ロゴの絵の中の字 #2E7D54 ／ 画面の頭の字 #52B788 ＝★同じ名前が 場所で 2色★だった。
+     入れ替えて 揃えた（枠・RA・字＝ミント ／ チェックだけ 濃い）。
+     ★ここで数える理由★＝片方だけ直す事故は ★また 起きる★（CSSと絵は 別の時に 別の人が触る）。 */
+export const BRAND = { mint: '#52B788', dark: '#2E7D54' };
+/** 絵の帯を切って、一番多い「白でない色」を返す */
+export function topColor(absPath, y0, y1) {
+  const { w, h, stride, bpp, px } = pngRGB(absPath);
+  const hit = new Map();
+  for (let y = Math.max(0, y0); y < Math.min(h, y1); y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * stride + x * bpp;
+      if (px[i] === 255 && px[i + 1] === 255 && px[i + 2] === 255) continue;
+      const k = '#' + [px[i], px[i + 1], px[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+      hit.set(k, (hit.get(k) || 0) + 1);
+    }
+  }
+  const all = [...hit.entries()].sort((a, b) => b[1] - a[1]);
+  if (!all.length) throw new Error(absPath + ' の y=' + y0 + '..' + y1 + ' が 真っ白');
+  return { color: all[0][0], n: all[0][1], all };
+}
+/* ★名前を出している札は 3枚 在る★（1枚だけ直す事故を 防ぐ為に 名前で探さない）
+     css/hub.css .hd-logo ／ css/rakunally-ui.css .logo ／ kyuyo/css/app.css .logo
+   ★探し方★＝札の名前ではなく ★字の出し方（DM Mono・20px・字間 -0.5px）★で 探す。
+     ＝札の名前を 変えられても 見つかる（★名前で探すと 改名で 死ぬ★）。 */
+export const LOGO_FACES = 3;
+export function screenLogoColors() {
+  const out = [];
+  const walk = (rel) => {
+    const dir = path.join(ROOT, rel);
+    if (!fs.existsSync(dir)) return;
+    for (const f of fs.readdirSync(dir)) {
+      const p = path.join(dir, f);
+      if (fs.statSync(p).isDirectory()) {
+        if (f === 'node_modules' || f === '.git') continue;
+        walk(path.posix.join(rel, f)); continue;
+      }
+      if (!/[.]css$/.test(f)) continue;
+      const src = fs.readFileSync(p, 'utf8');
+      for (const m of src.matchAll(/([^{}]+)[{]([^}]*)[}]/g)) {
+        const body = m[2];
+        if (!/DM Mono/.test(body)) continue;
+        if (!/font-size:\s*20px/.test(body)) continue;
+        if (!/letter-spacing:\s*-0[.]5px/.test(body)) continue;
+        const c = /color:\s*(#[0-9A-Fa-f]{6})/.exec(body);
+        out.push({ file: path.posix.join(rel, f), sel: m[1].trim().split('\n').pop().trim(),
+          color: c ? c[1].toUpperCase() : null });
+      }
+    }
+  };
+  walk('css'); walk('kyuyo/css'); walk('seikyu/css');
+  return out;
+}
+
 /* ═══ 自己テスト：わざと戻して赤になるか ═══ */
 if (process.argv.includes('--self-test')) {
   console.log('\n[own-name --self-test] ★わざと他アプリの名前を戻して赤になるか');
@@ -246,6 +305,20 @@ if (process.argv.includes('--self-test')) {
     ok(box.w > 200 && box.w < 400, '中身の幅が ' + box.w + '＝測れていない（実測 330）');
     ok(box.w < box.size - 20 && box.h < box.size - 20, 'キャンバス全体を「中身」と言っている＝空振り');
     console.log('     実測: 中身 ' + box.w + 'x' + box.h + ' / 全 ' + box.size);
+  });
+  T('⑨ ★色の突き合わせが効いている（前の色に戻したら 赤になる）', () => {
+    const scr = screenLogoColors();
+    ok(scr.length >= 1, '.hd-logo を 1つも 読めていない＝空振り');
+    const word = topColor(path.join(ROOT, 'docs/logo/rakunally-logo.png'), 560, 1024).color;
+    ok(word !== BRAND.dark, '★絵の中の名前が まだ 濃いまま★');
+    ok(scr.every((x) => x.color === word), '★今 揃っていない★');
+    /* わざと 前の姿（絵だけ濃い）に して 気づけるか */
+    ok(BRAND.dark !== word, '★戻した色と 今の色が 同じ＝この検査は 何も見ていない★');
+  });
+  T('⑩ ★真っ白な帯を「色が在る」と 言わない', () => {
+    let threw = false;
+    try { topColor(path.join(ROOT, 'docs/logo/rakunally-mark-src.png'), 560, 1024); } catch (e) { threw = true; }
+    ok(threw, '★真っ白でも 止まらない＝空振り★');
   });
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
@@ -575,6 +648,34 @@ T('★配る物に 別の会社名の見本を書かない（見本は 合同会
   ok(/id="org-yago"[^>]*placeholder="例：合同会社Rakunally"/.test(idx),
     '★入口の会社名の置き字が 合同会社Rakunally でない★（会社名を打つ所は 入口だけ）');
   console.log('     配る物 ' + SHIP.length + '本に 別の会社名 0件 ／ app.js の見本 ' + n + '箇所');
+});
+
+/* ═══ ★名前の色は 1つ★（司さん 2026-08-29） ═══ */
+const LOGO_PNG = path.join(ROOT, 'docs/logo/rakunally-logo.png');
+T('★ロゴの絵の 名前の色 と 画面の頭の 名前の色が 同じ', () => {
+  const word = topColor(LOGO_PNG, 560, 1024);
+  const scr = screenLogoColors();
+  ok(scr.length === LOGO_FACES, '★名前を出す札が ' + scr.length + '枚（' + LOGO_FACES
+    + '枚のはず）★＝増えたか 消えた: ' + scr.map((x) => x.file + ' ' + x.sel).join(' , '));
+  ok(word.color === BRAND.mint, '★絵の中の 名前が ' + word.color + '（' + BRAND.mint + ' でない）★');
+  scr.forEach((x) => ok(x.color === word.color,
+    '★' + x.file + ' ' + x.sel + ' の 名前が ' + x.color + '／絵の中は ' + word.color + '＝2色に割れている★'));
+  console.log('     絵の中 ' + word.color + '（' + word.n + '点） ／ 画面 '
+    + scr.map((x) => x.file + ' ' + x.sel + ' ' + x.color).join(' , '));
+});
+T('★チェックの色が 溶けて消えていない（マークに 2色 在る）', () => {
+  const mark = topColor(LOGO_PNG, 0, 560);
+  const has = (c) => (mark.all.find((a) => a[0] === c) || [null, 0])[1];
+  ok(mark.color === BRAND.mint, '★マークの地が ' + mark.color + '★');
+  ok(has(BRAND.dark) > 1000, '★チェックの ' + BRAND.dark + ' が ' + has(BRAND.dark) + '点しかない＝溶けた★');
+  console.log('     マーク ' + BRAND.mint + ' ' + has(BRAND.mint) + '点 ／ ' + BRAND.dark + ' ' + has(BRAND.dark) + '点');
+});
+T('★べた塗りは この2色だけ（新しい緑を 混ぜていない）', () => {
+  const im = topColor(LOGO_PNG, 0, 1024);
+  const solid = im.all.filter((a) => a[1] >= 500).map((a) => a[0]).sort();
+  ok(solid.length === 2 && solid.includes(BRAND.mint) && solid.includes(BRAND.dark),
+    '★べた塗りの色が ' + solid.join(' , ') + '（' + BRAND.mint + ' と ' + BRAND.dark + ' の2色だけのはず）★');
+  console.log('     べた塗り ' + solid.join(' , '));
 });
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
