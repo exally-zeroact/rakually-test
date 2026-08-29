@@ -133,6 +133,14 @@ jobs:
       #   逃がす仕掛けが 生きているかを 毎回 見る。
       - name: ★改名の道具の自己確認 (URL・repo名・引用を替えない／ファイル名と読みは替える)
         run: node scripts/rename-to-rakunally.mjs --self-test
+      # ★会社のことを「聞いてあげる」★（入口＝欄11・聞く形0 だった所）
+      #   ★AIは使わない（決定論・外に出ない）★／★今 使わない物（電話）は 聞かない★
+      - name: ★入口 会社を聞く形に (聞く順・登録番号の形・当てない物・その場の返し)
+        run: node tests/kaisha-ask.test.mjs
+      - name: ★同 わざと壊して赤になるか（検査用数字を見ない作り物／電話を聞く形に戻す）
+        run: node tests/kaisha-ask.test.mjs --self-test
+      - name: ★入口 会社の聞く形を実際に押す (欄にも入る・1問ごと保存・飛ばす・自分で消える)
+        run: node tests/kaisha-ask-ui.mjs
       - name: CI coverage guard (CIから黙って外れているテストが無いか=除外は理由と戻す条件つきのみ)
         run: node tests/ci-coverage.test.mjs
 

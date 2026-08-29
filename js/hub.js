@@ -89,6 +89,85 @@
     $('org-invoice').value = o.invoiceNo || '';
     torokuNote('org-invoice', 'org-invoice-note', ORG_NOTE);
     renderBizChips();
+    renderKaishaAsk();
+  }
+
+  /* ══ ★会社のことを 聞いてあげる★（司さん 2026-08-16 の決定を 入口にも）══════
+     ★別ウィザードを作らない★＝この画面のまま 1問だけ増やす／★1問ごと保存★／
+     ★答えたら その場で 結果を返す★／答え終われば ★自分で消える★。 */
+  var KASK = (typeof window !== 'undefined' && window.KaishaAsk) || null;
+  var kaishaAnswered = {};
+  function kaishaCtx() {
+    return { org: state.org || {}, businesses: state.businesses || [], answered: kaishaAnswered };
+  }
+  function renderKaishaAsk() {
+    var card = $('kaisha-ask-card'), host = $('kaisha-ask');
+    if (!card || !host || !KASK) return;
+    var pr = KASK.progress(kaishaCtx());
+    if (!pr.next) { card.style.display = 'none'; host.innerHTML = ''; return; }
+    card.style.display = '';
+    var q = pr.next;
+    var val = q.now || '';
+    host.innerHTML = '<p class="note" id="kask-prog">' + pr.total + '問のうち ' + pr.done + '問 答えました</p>'
+      + '<div class="fld"><label for="kask-t">' + esc(q.q) + '</label>'
+      + '<input id="kask-t" type="text" value="' + esc(val) + '" placeholder="' + esc(q.placeholder || '') + '">'
+      + '<p class="note">' + esc(q.hint || '') + '</p>'
+      + '<p class="note" id="kask-live"></p></div>'
+      + ((q.chips && q.chips.length)
+        ? '<div class="chips">' + q.chips.map(function (c) {
+          return '<button class="chip-btn" type="button" data-kask-chip="' + esc(c) + '">' + esc(c) + '</button>';
+        }).join('') + '</div>' : '')
+      + '<div class="acts"><button class="b1" type="button" data-kask-ok="' + esc(q.key) + '">これで</button>'
+      + '<button class="b2" type="button" data-kask-skip="' + esc(q.key) + '">' + esc(q.skipLabel || '飛ばす') + '</button></div>'
+      + '<div class="msg" id="kask-msg"></div>';
+    bindKaishaAsk();
+    kaishaLive();
+  }
+  function kaishaLive() {
+    var pr = KASK && KASK.progress(kaishaCtx());
+    var q = pr && pr.next; if (!q || !q.live) return;
+    var el = $('kask-t'), out = $('kask-live'); if (!el || !out) return;
+    out.textContent = q.live(el.value) || '';
+  }
+  function bindKaishaAsk() {
+    var host = $('kaisha-ask'); if (!host || host.dataset.bound) return;
+    host.dataset.bound = '1';
+    host.addEventListener('input', function (ev) {
+      if (ev.target && ev.target.id === 'kask-t') kaishaLive();
+    });
+    host.addEventListener('click', function (ev) {
+      var t = ev.target;
+      var chip = t.closest && t.closest('[data-kask-chip]');
+      if (chip) { var i = $('kask-t'); if (i) { i.value = chip.getAttribute('data-kask-chip'); i.focus(); kaishaLive(); } return; }
+      var okb = t.closest && t.closest('[data-kask-ok]');
+      if (okb) { return kaishaAnswer(okb.getAttribute('data-kask-ok'), ($('kask-t') && $('kask-t').value) || ''); }
+      var sk = t.closest && t.closest('[data-kask-skip]');
+      if (sk) { return kaishaAnswer(sk.getAttribute('data-kask-skip'), ''); }
+    });
+  }
+  /** ★1問ごと保存★＋★答えたら その場で 結果を返す★ */
+  function kaishaAnswer(key, val) {
+    var pr = KASK.progress(kaishaCtx());
+    var q = (pr.list.filter(function (x) { return x.key === key; })[0] || {}).q;
+    var said = q && q.result ? q.result(val) : '';
+    kaishaAnswered[key] = true;
+    var v = String(val == null ? '' : val).trim();
+    if (key === 'business') {
+      if (v && (state.businesses || []).indexOf(v) < 0) {
+        state.businesses.push(v);
+        renderBizChips(); fillEmpBizOptions();
+        saveOrgBusinesses();
+      }
+      renderKaishaAsk();
+      if (said) msg('kask-msg', said);
+      return Promise.resolve();
+    }
+    var id = { yago: 'org-yago', addr: 'org-addr', invoiceNo: 'org-invoice' }[key];
+    if (id && $(id)) $(id).value = v;
+    var p = saveOrg();
+    renderKaishaAsk();
+    if (said) msg('kask-msg', said);
+    return p;
   }
   function renderBizChips() {
     var host = $('org-biz-chips'); if (!host) return;
@@ -397,6 +476,8 @@
     loadAll: loadAll,
     state: state,
     _setSuiteData: function (sd) { SD = sd; },     // テスト用の差し込み口
+    _fillOrg: fillOrg,                             // テスト用: 会社の画面を描き直す
+    _kaishaAnswer: function (k, v) { return kaishaAnswer(k, v); },  // テスト用: 聞く形に答える
     _toast: toast, _jpFail: jpFail,
     _modal: modal, _modalClose: modalClose
   };
