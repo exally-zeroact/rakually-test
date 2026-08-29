@@ -221,18 +221,6 @@ jobs:
         run: node kyuyo/tests/paycycle-custom.test.mjs --self-test
       # ★この1通のことを「聞いてあげる」★（件名・支払期限）＝08-16の決定を請求書にも入れる
       #   ★AIは使わない（決定論）★／★当てた物は根拠を見せる★／★当てられない時は当てない★
-      # ★動いているアプリの道具を そのまま借りる★（司さん 2026-08-30
-      #   「成功してるアプリを真似て同じ形式でやれや／毎アプリ同じことを繰り返してるやろ」）
-      #   借りたのは 代行請求書アプリの invoice-pdf.js（＋pdf-lib/fontkit/BIZ UDPGothic）。
-      #   ★1文字も変えない★＝直したくなったら 元を直して また借りる。
-      - name: ★請求書 借りたPDFの道具が 元と1バイトも違わないか（元が無い機械では未測定）
-        run: node seikyu/tests/invoice-pdf-borrow.test.mjs
-      - name: ★同 わざと壊して赤になるか（1バイト足す／抜き書きにすり替える）
-        run: node seikyu/tests/invoice-pdf-borrow.test.mjs --self-test
-      - name: ★請求書 PDFへ渡す形 (数を作らない・#を渡さない・空の金額は0円にしない・出来ない事を書き残す)
-        run: node seikyu/tests/pdf-bridge.test.mjs
-      - name: ★同 わざと壊して赤になるか（自分で足すと税が落ちる／期限の書き方が割れる）
-        run: node seikyu/tests/pdf-bridge.test.mjs --self-test
       # ★項目だけ入れて 金額は あとから★（司さん 2026-08-30）
       #   ★一覧で「0円」と見せない★＝入れ忘れと 本当の0円を 見分けられるようにした
       - name: ★請求書 項目だけで下書き保存 (品名が落ちない・あとから金額・一覧は金額まだ◯行・発行は止まる)

@@ -318,29 +318,14 @@ T('★②-c 配信するファイルの中身にも 中の言葉が1文字も無
      ★見るのは「出来ていない」と読める言葉だけ★。
      `// STEP2: …` のような ★段落の目印★ は普通の書き方なので数えない
      （それまで止めると、関係のない注記の書き換えを強いる＝直しが太る）。 */
-  /* ★借り物は 中を 直さない★（2026-08-30 司さん「成功してるアプリを真似て同じ形式でやれや」）
-     代行請求書アプリから ★1文字も変えずに★ 借りた道具。
-     ★中の注記を 書き換えたら「借り物」でなくなる★（元と1バイトずつ 突き合わせている）。
-     ⇒ ★この1本だけ 数えない★。
-     ★戻す条件★＝元（代行）が その注記を消した時／うちが この道具を やめた時。
-     ★台帳が 腐ったまま 緑になる★のを防ぐため、下で「本当に 在るか」も 見る。 */
-  const BORROWED = ['seikyu/lib/invoice-pdf.js'];
-  const WORD = /実装予定|未実装|工事中|coming\s*soon/gi;
   const hits = [];
   for (const f of files) {
-    if (BORROWED.indexOf(String(f).split(path.sep).join('/')) >= 0) continue;
     const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
-    for (const m of src.matchAll(WORD)) {
+    for (const m of src.matchAll(/実装予定|未実装|工事中|coming\s*soon/gi)) {
       hits.push(f + ':' + src.slice(0, m.index).split('\n').length + ' ' + m[0]);
     }
   }
-  BORROWED.forEach((rel) => {
-    const p2 = path.join(ROOT, rel);
-    if (!fs.existsSync(p2)) throw new Error('★逃がした ' + rel + ' が 無い（台帳が腐っている）★');
-    if (!/実装予定|未実装|工事中|coming\s*soon/i.test(fs.readFileSync(p2, 'utf8'))) {
-      throw new Error('★' + rel + ' に もう 中の言葉が 無い＝逃がす理由が 消えた（台帳から外す）★');
-    }
-  });
+
   if (hits.length) throw new Error('★' + hits.length + '件★（注記の中でも書き写さない）\n     ' + hits.slice(0, 8).join('\n     '));
 });
 

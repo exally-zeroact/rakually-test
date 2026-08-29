@@ -44,15 +44,6 @@ const EXCEPTIONS = {
       + 'うちが呼ばなければ通らない。★呼ばないことは下の C/D の検査が守る。',
     restoreWhen: 'ライブラリを差し替える時。',
   },
-  'seikyu/lib/invoice-pdf.js': {
-    rules: ['blob', 'octet'],
-    reason: '★代行請求書アプリ（本番で回っている）から 1文字も変えずに借りたPDFの道具★'
-      + '（司さん 2026-08-30「成功してるアプリを真似て同じ形式でやれや」）。'
-      + '中に自前の save()（Blobで落とす）が入っているが ★うちは 呼ばない★＝'
-      + '出来たバイト列は ★FileOut.deliver（渡し口 1本）★へ渡す。'
-      + '★呼んでいない事は 下の「借り物の save を 呼んでいない」で 毎回 数える★。',
-    restoreWhen: '元（代行）が save を外した時／うちが この道具を やめた時。',
-  },
   /* ★lib/xlsx-io.js の例外は 2026-08-17 に消した★
      ＝グリッド(book.html)の書き出し部品なので Rakunally には持って来ていない。
        ★持っていない物の例外を残すと、例外表が腐ったまま緑になる★（この検査自身が実在を見ている）。
@@ -176,18 +167,6 @@ T('検査が空振りしていない（配信物を実際に読めている）',
 console.log('\n── 実測 ──');
 console.log('  配信物: ' + shipped.length + '本（.html/.js）/ 違反 ' + total(v) + '件 / 例外(理由つき) ' + Object.keys(EXCEPTIONS).length + '件');
 
-/* ★借り物の中の 2本目の渡し口を 呼んでいないか★（例外を 置いた分だけ ここで 縛る）
-   ＝借りた道具の save() を 1回でも 呼んだら ★渡し口が 2本になる★（片方だけ iPhoneで壊れる）。 */
-T('★D-2 借り物のPDFの save() を 1回も 呼んでいない（渡し口は FileOut 1本）', () => {
-  const hits = [];
-  Object.keys(files).forEach((rel) => {
-    if (rel === 'seikyu/lib/invoice-pdf.js') return;          // 借り物の中は 見ない（呼ぶ側だけ見る）
-    if (/InvoicePDF\s*\.\s*save\s*\(/.test(files[rel])) hits.push(rel);
-  });
-  if (Object.keys(files).length <= 50) throw new Error('★配信物を 読めていない＝空振り★');
-  if (hits.length) throw new Error('★借り物の save() を 呼んでいる: ' + hits.join(' , ') + '★（FileOut.deliver へ渡す）');
-  console.log('     借り物の save() を 呼んでいる所 … 0件');
-});
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
