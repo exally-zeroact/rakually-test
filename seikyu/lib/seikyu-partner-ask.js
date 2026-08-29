@@ -41,9 +41,17 @@
       .sort(function (a, b) { return (b.n - a.n) || (a.i - b.i); });
   }
 
-  /* ═══ ①敬称 ═══ */
-  function honorGuess(name, others) {
+  /* ═══ ①敬称 ═══
+     ★担当者が居る時は 会社行に 敬称を付けない★（御中＋様＝二重敬称）。
+     作法そのものは seikyu-doc.js の addresseeOf が 1か所で持つ＝ここは「何を選ばせるか」だけ。 */
+  function honorGuess(name, others, person) {
     var nm = s(name);
+    var pn = s(person);
+    if (pn) {
+      return { value: '（なし）', kind: 'person',
+        why: '担当者「' + pn + '」あてに 出すので、会社名には 敬称を付けません'
+          + '（紙には「' + pn + '　様」と 出ます）。御中 と 様 を 一緒に付けるのは 二重敬称です。' };
+    }
     var hit = null;
     for (var i = 0; i < CORP.length; i++) { if (nm.indexOf(CORP[i]) >= 0) { hit = CORP[i]; break; } }
     var counts = {};
@@ -166,7 +174,7 @@
     list.push({
       key: 'honor', q: '「' + (s(d.name) || 'この相手') + '」の あとに付けるのは？', kind: 'pick',
       options: HONORS.map(function (h) { return { v: h, t: h }; }),
-      now: honorOf(d), guess: honorGuess(d.name, others), done: !!ok.honor,
+      now: honorOf(d), guess: honorGuess(d.name, others, d.person), done: !!ok.honor,
       hint: '紙のあて名の1行目に出ます。',
       result: function (v) {
         var h = (v === '（なし）') ? '' : s(v);

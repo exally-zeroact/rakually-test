@@ -563,8 +563,15 @@
         + '<div class="meta">' + meta + '</div>'
         + '<table class="party"><tbody><tr>'
         + '<td class="party-to">'
-        + '<div class="to-name">' + (esc(p.name) || '（取引先が未選択）') + (honorOf(p) ? '　' + esc(honorOf(p)) : '') + '</div>'
-        + (p.person ? '<div class="to-sub">' + esc(p.person) + '　様</div>' : '')
+        /* ★あて名の作法は DOC が 1か所で持つ★（紙と 聞く形で 別の作法を持たない）
+           ★担当者が居る時は 会社行に 御中を付けない★＝二重敬称（御中＋様）を作らない */
+        + (function () {
+          var ad = DOC.addresseeOf(p);
+          return '<div class="to-name">' + (esc(ad.line1) || '（取引先が未選択）')
+            + (ad.honor1 ? '　' + esc(ad.honor1) : '') + '</div>'
+            + (ad.line2 ? '<div class="to-sub">' + esc(ad.line2)
+              + (ad.honor2 ? '　' + esc(ad.honor2) : '') + '</div>' : '');
+        }())
         /* ★件名★（出す会社だけ・宛名のすぐ下）。空なら 出さない（空の見出しを刷らない）。 */
         + ((TH.subjectOn && inv.data && inv.data.subject)
           ? '<div class="to-subject">件名　' + esc(inv.data.subject) + '</div>' : '')

@@ -683,6 +683,34 @@
     };
   }
 
+  /* ── ★あて名の敬称★（司さん・指示役 ④の残り「敬称の自動判定」）──────────────
+     ★日本の紙の作法★
+       会社だけに出す        … 「○○株式会社　御中」
+       担当者あてに出す      … 「○○株式会社」＋改行＋「山田　様」
+                               ★御中 と 様 を 一緒に付けない★（二重敬称＝間違い）
+       人に出す（屋号なし）  … 「山田　様」
+     ★直す前は 併記していた★（seikyu-paper.js が 会社行に御中、下の行に 様 を 出していた）。
+     ★1か所で決める★＝紙も 聞く形も この関数を通す（2か所で 別の作法を持たない）。 */
+  function addresseeOf(p) {
+    var q = p || {};
+    var name = String(q.name == null ? '' : q.name).trim();
+    var person = String(q.person == null ? '' : q.person).trim();
+    var h = String((q.honor || q.keisho) || '').trim();
+    if (h === '（なし）' || h === '(なし)' || h === 'なし') h = '';
+    if (person) {
+      /* ★担当者が居る＝その人あて★。会社名は 敬称なしで 置く（社名は 名乗りであって あて先ではない） */
+      return {
+        line1: name, honor1: '',
+        line2: person, honor2: '様',
+        why: '担当者「' + person + '」あてなので、会社名には 敬称を付けません'
+          + '（御中 と 様 を 一緒に付けるのは 二重敬称です）。',
+      };
+    }
+    return { line1: name, honor1: h, line2: '', honor2: '', why: h
+      ? ('会社あてなので「' + h + '」を 付けます。')
+      : '敬称は 付けません（「（なし）」を選んでいます）。' };
+  }
+
   return {
     DOC_TYPES: DOC_TYPES, STATUSES: STATUSES, FROZEN_FIELDS: FROZEN_FIELDS,
     DOC_KINDS: DOC_KINDS, DOC_LABEL: DOC_LABEL, docLabel: docLabel,
@@ -692,6 +720,7 @@
     rowIssuesOf: rowIssuesOf,
     deductionsOf: deductionsOf, deductTotalOf: deductTotalOf, validateDeductions: validateDeductions,
     MAX_DEDUCTIONS: MAX_DEDUCTIONS, periodLabelOf: periodLabelOf, prevMonthOf: prevMonthOf,
+    addresseeOf: addresseeOf,
     NUMBER_FORMATS: NUMBER_FORMATS, PAY_TERMS: PAY_TERMS, PAY_STATE_LABEL: PAY_STATE_LABEL,
     PAY_METHODS: PAY_METHODS, receiptAmountOf: receiptAmountOf, validateReceipt: validateReceipt,
     formatNo: formatNo, nextNo: nextNo, bumpNo: bumpNo, validateNumbering: validateNumbering,

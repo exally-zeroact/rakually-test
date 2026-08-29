@@ -346,5 +346,35 @@ if (process.argv.includes('--self-test')) {
   if (sf) process.exit(1);
 }
 
+/* ═══ ★敬称の自動判定★（司さん・指示役 ④の残り）═══════════════════
+   ★日本の紙の作法★＝御中 と 様 を 一緒に付けない（二重敬称）。
+   作法そのものは seikyu-doc.js の addresseeOf が 1か所で持つ（紙と ここで 別々に持たない）。 */
+const DOC2 = require_(path.join(HERE, '..', 'lib', 'seikyu-doc.js'));
+
+T('★⑫ 担当者が居たら 会社行に 敬称を付けない（御中＋様＝二重敬称）', () => {
+  const g = ASK.honorGuess('○○建設株式会社', [], '山田');
+  ok(g, '当てていない');
+  eq(g.value, '（なし）', '★担当者が居るのに 御中を当てている★');
+  ok(/二重敬称/.test(g.why), '★理由を 言っていない★「' + g.why + '」');
+  console.log('     ' + g.why);
+});
+
+T('★⑬ 担当者が居なければ 今まで通り（会社名＝御中／人＝様）', () => {
+  eq(ASK.honorGuess('○○建設株式会社', []).value, '御中', '会社に 御中を 当てていない');
+  eq(ASK.honorGuess('山田太郎', []).value, '様', '人に 様を 当てていない');
+});
+
+T('★⑭ あて名の作法が 1か所（紙も 聞く形も 同じ関数を 通す）', () => {
+  const a = DOC2.addresseeOf({ name: '○○建設株式会社', honor: '御中', person: '山田' });
+  eq(a.honor1, '', '★会社行に 敬称が 残っている★');
+  eq(a.line2 + '　' + a.honor2, '山田　様', '担当者の行');
+  const b = DOC2.addresseeOf({ name: '○○建設株式会社', honor: '御中' });
+  eq(b.honor1, '御中', '会社だけの時');
+  eq(b.line2, '', '担当者の行が 出ている');
+  const c = DOC2.addresseeOf({ name: '山田太郎', honor: '（なし）' });
+  eq(c.honor1, '', '「（なし）」を 敬称として 出している');
+  console.log('     担当者あり → ' + a.line1 + ' ／ ' + a.line2 + '　' + a.honor2);
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
