@@ -213,6 +213,12 @@ jobs:
         run: node kyuyo/tests/paycycle-custom.test.mjs --self-test
       # ★この1通のことを「聞いてあげる」★（件名・支払期限）＝08-16の決定を請求書にも入れる
       #   ★AIは使わない（決定論）★／★当てた物は根拠を見せる★／★当てられない時は当てない★
+      # ★締め期間は 借り物★（正本＝timeally/lib/tc-calc.js の period）
+      #   ★124通り（締め日1〜31×月4種）★＋★正本と1文字ずつ比べる★（正本が無い機械では「未測定」）
+      - name: ★請求書 締め期間 (締め日1〜31×月4種＝124通り／正本と1文字ずつ比べる)
+        run: node seikyu/tests/kikan.test.mjs
+      - name: ★同 わざと壊して赤になるか（4通りだけ測る形／末日に寄せない作り物）
+        run: node seikyu/tests/kikan.test.mjs --self-test
       - name: ★請求書 この1通を聞く形に (件名を前回から・月を置き換え・期限は取引先の型から)
         run: node seikyu/tests/invoice-ask.test.mjs
       - name: ★同 わざと壊して赤になるか（月の置き換え／日数／根拠／札の並び）

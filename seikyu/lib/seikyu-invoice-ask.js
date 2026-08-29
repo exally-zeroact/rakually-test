@@ -105,6 +105,90 @@
     return null;                       // ★当てない★（空欄のまま出す）
   }
 
+  /* ══ ★対象期間（◯日〜◯日）★ ══════════════════════════════════════════
+     ★締め日は 請求書のどこにも 持っていません★（給与の締めとは 別の物）。
+     ⇒ ★出した紙から 当てる★。当てられない時は ★出さない★（決めつけない）。
+     期間の計算は ★正本のまま借りた seikyu-kikan.js★（timeally の period）。
+     ★ここで 日付の計算を 書き直してはいけません★（2月30日のような日で 必ず 食い違う）。 */
+
+  /** 締め期間の道具（画面では window、試験では require で入る） */
+  function KIKAN() {
+    if (typeof module === 'object' && module.exports && typeof require === 'function') {
+      try { return require('./seikyu-kikan.js'); } catch (e) { /* 画面側へ */ }
+    }
+    return (typeof window !== 'undefined' && window.SeikyuKikan) || null;
+  }
+
+  /** 紙の頭の1行から 期間を読む（'2025/8/21 〜 2025/9/20' など。読めなければ null） */
+  function rangeOf(text) {
+    var t = s(text);
+    if (!t) return null;
+    var re = /(\d{4})\s*[/\-年]\s*(\d{1,2})\s*[/\-月]\s*(\d{1,2})\s*日?\s*[〜~ー–—]\s*(\d{4})\s*[/\-年]\s*(\d{1,2})\s*[/\-月]\s*(\d{1,2})\s*日?/;
+    var m = re.exec(t);
+    if (!m) return null;
+    var a = { y: +m[1], m: +m[2], d: +m[3] }, b = { y: +m[4], m: +m[5], d: +m[6] };
+    if (!(a.m >= 1 && a.m <= 12 && b.m >= 1 && b.m <= 12)) return null;
+    if (!(a.d >= 1 && a.d <= 31 && b.d >= 1 && b.d <= 31)) return null;
+    return { from: a, to: b };
+  }
+
+  /** 期間の終わりの日 → 締め日（★末日で終わっていたら 末日締め＝31★） */
+  function closeDayOfRange(r) {
+    var K = KIKAN();
+    if (!r || !K) return null;
+    var last = K.daysInMonth(r.to.y, r.to.m);
+    return (last && r.to.d === last) ? 31 : r.to.d;
+  }
+
+  /** 請求日と締め日から「締まったばかりの月」を出す（★請求日が 締め日より前なら 前の月★） */
+  function closedMonth(issueYmd, closeDay) {
+    var K = KIKAN(), t = ymd(issueYmd);
+    if (!K || !t) return null;
+    var y = t.y, m = t.m;
+    var eff = (Number(closeDay) >= 31) ? K.daysInMonth(y, m) : Number(closeDay);
+    if (t.d < eff) { m -= 1; if (m === 0) { m = 12; y -= 1; } }
+    return y + '-' + pad2(m);
+  }
+
+  /** 出した紙から 締め日を当てる（★2通 以上 揃って はじめて 言う★＝件名と同じ決まり） */
+  function closeDayGuess(ctx) {
+    var c = ctx || {}, counts = {}, seen = 0, look = [];
+    if (c.prev) look.push(c.prev);
+    (c.others || []).forEach(function (v) { look.push(v); });
+    look.forEach(function (v) {
+      var r = rangeOf(dataOf(v).lead);
+      if (!r) return;
+      var cd = closeDayOfRange(r);
+      if (cd == null) return;
+      seen++;
+      counts[cd] = (counts[cd] || 0) + 1;
+    });
+    var top = topOf(counts);
+    if (!top || top.n < 2) return null;                 // ★当てない★
+    return { closeDay: Number(top.value), n: top.n, seen: seen };
+  }
+
+  /** 対象期間を 当てる（紙の頭の1行に そのまま入る文字） */
+  function periodGuess(ctx) {
+    var c = ctx || {}, K = KIKAN();
+    if (!K) return null;
+    var g = closeDayGuess(c);
+    if (!g) return null;                                // ★出した紙に 期間が無い＝当てない★
+    var ym = closedMonth(c.issue, g.closeDay);
+    if (!ym) return null;                               // ★請求日が読めない＝当てない★
+    var p = K.period(ym, g.closeDay);
+    var start = g.closeDay >= 31 ? 1 : g.closeDay + 1;
+    var endWord = g.closeDay >= 31 ? '末日' : (g.closeDay + '日');
+    return {
+      value: K.rangeLabel(p),
+      why: '出した紙 ' + g.n + '通が ' + start + '日〜' + endWord + ' でした（締め日 ' + endWord + '）。'
+        + '請求日から、締まったばかりの ' + (+ym.slice(5, 7)) + '月ぶんを 出しました。',
+      from: 'range',
+      closeDay: g.closeDay,
+      period: p,
+    };
+  }
+
   /** よく使う件名を 多い順に（押すだけで入る札） */
   function subjectChips(ctx, max) {
     var counts = {};
@@ -204,6 +288,26 @@
           + (days === null ? '' : '（請求日から ' + days + '日後）');
       },
     });
+
+    /* ★対象期間★（司さん・指示役 ④の残り「対象期間を 締め期間から当てる」）
+       ★出した紙に 期間が2通 以上 無ければ この問いは 出しません★
+       ＝★締め日を 知らないのに 聞くと、答えられない欄が 増えるだけ★。 */
+    var pg = periodGuess(c);
+    if (pg) {
+      out.push({
+        key: 'period', kind: 'text',
+        q: '対象期間は これで合っていますか？',
+        hint: '紙の宛名の下に 1行で出ます（「◯年◯月分」の代わり）。空のままなら 請求日の前月が出ます。',
+        now: s(d.lead),
+        guess: pg,
+        skipLabel: '期間は 出さない',
+        result: function (val) {
+          var v = s(val);
+          if (!v) return '対象期間は 出しません（空のままなら「' + monthWord(c.issue) + '」と出ます）。';
+          return '紙の宛名の下に「' + v + '」と刷ります。';
+        },
+      });
+    }
     return out;
   }
 
@@ -226,6 +330,7 @@
         /* ★人が答えていなくても 中身が入っていれば 済み★（前から使っている1通を 聞き直さない） */
         if (q.key === 'subject') done = !!s(d.subject);
         if (q.key === 'due') done = !!s((ctx.inv || {}).due_ymd);
+        if (q.key === 'period') done = !!s(d.lead);
       }
       return { key: q.key, q: q, done: done };
     });
@@ -236,6 +341,8 @@
   return {
     questions: questions, progress: progress,
     subjectGuess: subjectGuess, subjectChips: subjectChips, dueGuess: dueGuess,
+    periodGuess: periodGuess, closeDayGuess: closeDayGuess,
+    _rangeOf: rangeOf, _closeDayOfRange: closeDayOfRange, _closedMonth: closedMonth,
     shiftMonth: shiftMonth, monthWord: monthWord, daysBetween: daysBetween,
     _ymd: ymd, _jp: jp,
   };

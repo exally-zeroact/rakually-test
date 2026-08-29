@@ -2379,7 +2379,9 @@
         var okm = Object.assign({}, (v.data && v.data.askOk) || {});
         delete okm[again.dataset.iaskAgain];
         /* ★聞き直す＝今の中身も 空に戻す★（でないと「入っている＝済み」で また出ない） */
-        if (again.dataset.iaskAgain === 'subject') { v.data.subject = ''; } else { v.due_ymd = ''; }
+        if (again.dataset.iaskAgain === 'subject') { v.data.subject = ''; }
+        else if (again.dataset.iaskAgain === 'period') { v.data.lead = ''; }
+        else { v.due_ymd = ''; }
         v.data.askOk = okm;
         fillEdit();
         renderInvAsk();
@@ -2521,6 +2523,9 @@
     v.data = v.data || {};
     if (key === 'subject') { v.data.subject = String(val == null ? '' : val).trim(); }
     else if (key === 'due') { v.due_ymd = String(val == null ? '' : val).trim(); }
+    /* ★対象期間は 紙の頭の1行(lead)そのもの★＝★値の持ち主を 2つにしない★
+       （聞く形と 編集画面の「◯年◯月分」の欄が 同じ物を 指す） */
+    else if (key === 'period') { v.data.lead = String(val == null ? '' : val).trim(); }
     var okm = Object.assign({}, v.data.askOk || {});
     okm[key] = true;                                  // ★「飛ばす」も 答えたうち★（空のまま 何度も聞かない）
     v.data.askOk = okm;

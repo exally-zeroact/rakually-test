@@ -163,6 +163,56 @@ T('★⑦ 発行済み（触れない1通）では 出さない', () => {
   console.log('     発行済み → 出ない');
 });
 
+/* ★対象期間★（司さん・指示役 ④の残り）＝★実際に 押して 入る所まで 見る★
+   （lib が緑でも 画面につながっていなければ 客には 何も起きない） */
+function withRanges() {
+  reset();
+  /* 出した紙 2通に 期間が入っている状態（★2通 揃わないと 当てない★決まり） */
+  S.list = S.list.concat([
+    { id: 'v8', partner_id: 'p1', no: 'A-0007', issue_ymd: '2026-08-05', status: 'issued',
+      data: { lead: '対象期間 2026/6/21 〜 2026/7/20' }, lines: [], totals: {} },
+    { id: 'v9', partner_id: 'p1', no: 'A-0008', issue_ymd: '2026-09-05', status: 'issued',
+      data: { lead: '対象期間 2026/7/21 〜 2026/8/20' }, lines: [], totals: {} },
+  ]);
+  A._fillEdit();
+}
+
+T('★⑨ 対象期間は 出した紙から 当てて 聞く（材料が無い時は 聞かない）', () => {
+  reset();
+  ok(!/対象期間/.test(txt()), '★材料が無いのに 聞いている★：' + txt().slice(0, 60));
+  withRanges();
+  click('[data-iask-ok="subject"]');
+  click('[data-iask-ok="due"]');
+  ok(/対象期間は これで合っていますか？/.test(txt()), '★当てられるのに 聞いていない★：' + txt().slice(0, 80));
+  /* ★請求日 10/05 は 締め日20より前★＝まだ 10/20 は締まっていない。
+     ⇒ 締まったばかりは ★8/21〜9/20★（ここを 10月ぶんにすると 出していない月を 請求する）。 */
+  ok(/2026\/8\/21 〜 2026\/9\/20/.test(txt()), '★当てた期間が 出ていない★：' + txt().slice(0, 120));
+  console.log('     ' + txt().slice(txt().indexOf('対象期間'), txt().indexOf('対象期間') + 60) + '…');
+});
+
+T('★⑩ 「これで」を押すと 紙の頭の1行に そのまま入る（値の持ち主は 1つ）', () => {
+  withRanges();
+  click('[data-iask-ok="subject"]');
+  click('[data-iask-ok="due"]');
+  click('[data-iask-ok="period"]');
+  eq(S.cur.data.lead, '2026/8/21 〜 2026/9/20', '★押しても 入っていない★');
+  ok(S.cur.data.askOk && S.cur.data.askOk.period, '答えた印が 付いていない');
+  /* ★同じ物を 2か所に持たない★＝編集画面の欄も 同じ値になっている */
+  eq($('e-lead') ? $('e-lead').value : '(欄が無い)', '2026/8/21 〜 2026/9/20',
+    '★聞く形と 編集画面の欄が 別の値★');
+  console.log('     紙の頭「' + S.cur.data.lead + '」／編集画面の欄も 同じ');
+});
+
+T('★⑪ 「期間は 出さない」を押しても もう聞かない（空のまま 何度も聞かない）', () => {
+  withRanges();
+  click('[data-iask-ok="subject"]');
+  click('[data-iask-ok="due"]');
+  click('[data-iask-skip="period"]');
+  eq(S.cur.data.lead, '', '飛ばしたのに 何か入っている');
+  ok(S.cur.data.askOk.period, '飛ばした印が 付いていない');
+  ok(!/対象期間は これで合っていますか？/.test(txt()), '★飛ばしたのに まだ同じ事を聞いている★');
+});
+
 T('★⑧ ここまで JSの落ちが0', () => {
   ok(!errs.length, errs.join(' / '));
 });
