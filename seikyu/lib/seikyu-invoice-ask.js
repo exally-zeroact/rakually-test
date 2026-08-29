@@ -150,12 +150,25 @@
     return y + '-' + pad2(m);
   }
 
-  /** 出した紙から 締め日を当てる（★2通 以上 揃って はじめて 言う★＝件名と同じ決まり） */
+  /** 出した紙から 締め日を当てる
+   *  ★★相手ごとに 数える★★（司さん 2026-08-29
+   *    「複数種類の請求書を作成する会社に対しては？ おれの場合でも そのパターンは 八木工業だけやし
+   *      代行や 空調系は また違うやろ」）
+   *  ★前は 会社ぜんぶの紙を 数えていた★＝実測で、代行の相手（末日締め）に出す1通に
+   *    八木工業の「21日〜20日」が 出た。★1社の中で 締めは 1つではない★。
+   *  ⇒ ★同じ相手の紙だけ★を 見る。よその相手の型は ★1通も 混ぜない★。
+   *  ★その相手の中で 締め日が 割れていたら 当てない★
+   *    ＝同じ相手にも 種類ちがい（代行と空調 など）を 出している事が在る。
+   *      多い方に 寄せると ★少ない方の請求書が 静かに 間違う★（黙って小さくなるのと 同じ形）。
+   */
   function closeDayGuess(ctx) {
     var c = ctx || {}, counts = {}, seen = 0, look = [];
+    var pid = s((c.inv && c.inv.partner_id) || (c.prev && c.prev.partner_id));
+    if (!pid) return null;                              // ★相手が決まっていない＝当てない★
     if (c.prev) look.push(c.prev);
     (c.others || []).forEach(function (v) { look.push(v); });
     look.forEach(function (v) {
+      if (s(v && v.partner_id) !== pid) return;         // ★よその相手は 数えない★
       var r = rangeOf(dataOf(v).lead);
       if (!r) return;
       var cd = closeDayOfRange(r);
@@ -163,9 +176,11 @@
       seen++;
       counts[cd] = (counts[cd] || 0) + 1;
     });
+    var kinds = Object.keys(counts);
+    if (kinds.length > 1) return null;                  // ★同じ相手の中で 割れている＝当てない★
     var top = topOf(counts);
-    if (!top || top.n < 2) return null;                 // ★当てない★
-    return { closeDay: Number(top.value), n: top.n, seen: seen };
+    if (!top || top.n < 2) return null;                 // ★2通 揃って はじめて 言う★
+    return { closeDay: Number(top.value), n: top.n, seen: seen, partnerId: pid };
   }
 
   /** 対象期間を 当てる（紙の頭の1行に そのまま入る文字） */
@@ -181,7 +196,8 @@
     var endWord = g.closeDay >= 31 ? '末日' : (g.closeDay + '日');
     return {
       value: K.rangeLabel(p),
-      why: '出した紙 ' + g.n + '通が ' + start + '日〜' + endWord + ' でした（締め日 ' + endWord + '）。'
+      /* ★根拠は「この相手の紙」と 言い切る★（会社ぜんぶの紙では ない事を 読む人に分からせる） */
+      why: 'この相手に 出した紙 ' + g.n + '通が ' + start + '日〜' + endWord + ' でした（締め日 ' + endWord + '）。'
         + '請求日から、締まったばかりの ' + (+ym.slice(5, 7)) + '月ぶんを 出しました。',
       from: 'range',
       closeDay: g.closeDay,

@@ -213,6 +213,28 @@ T('★⑪ 「期間は 出さない」を押しても もう聞かない（空�
   ok(!/対象期間は これで合っていますか？/.test(txt()), '★飛ばしたのに まだ同じ事を聞いている★');
 });
 
+T('★⑫ ★相手ごとに 違う期間を出す★（司さん「八木工業だけやし 代行や空調系は また違う」）', () => {
+  withRanges();
+  /* 2人目の相手＝★末日締め★（八木の 21〜20 とは 別の型） */
+  S.partners = S.partners.concat([{ id: 'p2', data: { name: '△△空調株式会社', honor: '御中' } }]);
+  S.list = S.list.concat([
+    { id: 'w1', partner_id: 'p2', no: 'B-0001', issue_ymd: '2026-08-31', status: 'issued',
+      data: { lead: '対象期間 2026/8/1 〜 2026/8/31' }, lines: [], totals: {} },
+    { id: 'w2', partner_id: 'p2', no: 'B-0002', issue_ymd: '2026-09-30', status: 'issued',
+      data: { lead: '対象期間 2026/9/1 〜 2026/9/30' }, lines: [], totals: {} },
+  ]);
+  /* 同じ会社のまま ★相手だけ 2人目に する★ */
+  S.cur.partner_id = 'p2';
+  S.cur.data = {};
+  A._fillEdit();
+  click('[data-iask-ok="subject"]');
+  click('[data-iask-ok="due"]');
+  ok(/2026\/9\/1 〜 2026\/9\/30/.test(txt()),
+    '★2人目の相手に 1人目の型（21日〜20日）が 出ている★：' + txt().slice(0, 140));
+  ok(!/9\/21/.test(txt()), '★よその相手の型が 混ざっている★');
+  console.log('     相手p1（21〜20）→ 2026/8/21 〜 2026/9/20 ／ 相手p2（末日締め）→ 2026/9/1 〜 2026/9/30');
+});
+
 T('★⑧ ここまで JSの落ちが0', () => {
   ok(!errs.length, errs.join(' / '));
 });

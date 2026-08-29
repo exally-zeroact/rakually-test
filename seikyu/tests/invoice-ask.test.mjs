@@ -198,10 +198,13 @@ T('★⑧ 同じ入力なら 同じ答え（決定論・AIを呼んでいない�
    期間の計算そのものは ★正本のまま借りた seikyu-kikan.js★（124通りは kikan.test.mjs が測る）。
    ここで見るのは ★当て方★＝「いつ当てるか」「★いつ当てないか★」。 */
 const KIK = require_(path.join(HERE, '..', 'lib', 'seikyu-kikan.js'));
-const withLead = (lead) => inv({ status: 'issued', data: { lead } });
+/* ★相手を付ける★（2026-08-29 司さんの指摘で ★相手ごと★に数える形へ変えた。
+   相手の無い見本は もう 当たらない＝それが 正しい）。 */
+const withLead = (lead) => inv({ partner_id: 'p1', status: 'issued', data: { lead } });
+const baseP = (o) => base(Object.assign({ inv: inv({ partner_id: 'p1' }) }, o));
 
 T('★⑨ 出した紙 2通から 締め日を当てる（21日〜20日 → 締め日20）', () => {
-  const c = base({ others: [withLead('対象期間 2025/6/21 〜 2025/7/20'), withLead('対象期間 2025/7/21 〜 2025/8/20')] });
+  const c = baseP({ others: [withLead('対象期間 2025/6/21 〜 2025/7/20'), withLead('対象期間 2025/7/21 〜 2025/8/20')] });
   const g = ASK.closeDayGuess(c);
   ok(g, '★2通 揃っているのに 当てていない★');
   eq(g.closeDay, 20, '締め日');
@@ -210,41 +213,41 @@ T('★⑨ 出した紙 2通から 締め日を当てる（21日〜20日 → 締�
 });
 
 T('★⑩ 1通しか無い時は 当てない（決めつけない）', () => {
-  const c = base({ others: [withLead('対象期間 2025/6/21 〜 2025/7/20')] });
+  const c = baseP({ others: [withLead('対象期間 2025/6/21 〜 2025/7/20')] });
   eq(ASK.closeDayGuess(c), null, '1通で 当てている');
   eq(ASK.periodGuess(c), null, '1通で 期間を出している');
 });
 
 T('★⑪ 請求日から「締まったばかりの月」を出す（請求日が 締め日より前なら 前の月）', () => {
   const others = [withLead('2025/6/21 〜 2025/7/20'), withLead('2025/7/21 〜 2025/8/20')];
-  const a = ASK.periodGuess(base({ issue: '2025-09-25', others }));
+  const a = ASK.periodGuess(baseP({ issue: '2025-09-25', others }));
   eq(a.value, '2025/8/21 〜 2025/9/20', '締め日より後に出した時');
-  const b = ASK.periodGuess(base({ issue: '2025-09-15', others }));
+  const b = ASK.periodGuess(baseP({ issue: '2025-09-15', others }));
   eq(b.value, '2025/7/21 〜 2025/8/20', '★締め日より前に出した時（まだ 締まっていない）★');
   console.log('     9/25発行 → ' + a.value + ' ／ 9/15発行 → ' + b.value);
 });
 
 T('★⑫ 末日締めは「◯/1 〜 ◯/末日」（2月を 実物で確かめる）', () => {
   const others = [withLead('2025/12/1 〜 2025/12/31'), withLead('2026/1/1 〜 2026/1/31')];
-  eq(ASK.closeDayGuess(base({ others })).closeDay, 31, '末日締めを 31 と読めていない');
-  const p = ASK.periodGuess(base({ issue: '2026-03-05', others }));
+  eq(ASK.closeDayGuess(baseP({ others })).closeDay, 31, '末日締めを 31 と読めていない');
+  const p = ASK.periodGuess(baseP({ issue: '2026-03-05', others }));
   eq(p.value, '2026/2/1 〜 2026/2/28', '★平年2月の末日★');
-  const q = ASK.periodGuess(base({ issue: '2024-03-05', others }));
+  const q = ASK.periodGuess(baseP({ issue: '2024-03-05', others }));
   eq(q.value, '2024/2/1 〜 2024/2/29', '★うるう年2月の末日★');
   console.log('     平年 ' + p.value + ' ／ うるう年 ' + q.value);
 });
 
 T('★⑬ 読めない紙・読めない請求日では 当てない', () => {
-  eq(ASK.closeDayGuess(base({ others: [withLead('毎月ぶん'), withLead('いつもの')] })), null, '言葉から 数を作っている');
+  eq(ASK.closeDayGuess(baseP({ others: [withLead('毎月ぶん'), withLead('いつもの')] })), null, '言葉から 数を作っている');
   const others = [withLead('2025/6/21 〜 2025/7/20'), withLead('2025/7/21 〜 2025/8/20')];
-  eq(ASK.periodGuess(base({ issue: 'めちゃくちゃ', others })), null, '★読めない請求日で 期間を作っている★');
+  eq(ASK.periodGuess(baseP({ issue: 'めちゃくちゃ', others })), null, '★読めない請求日で 期間を作っている★');
 });
 
 T('★⑭ 当てられた時だけ 問いが増える（答えられない欄を 増やさない）', () => {
-  const none = ASK.questions(base({})).map((q) => q.key);
+  const none = ASK.questions(baseP({})).map((q) => q.key);
   ok(none.indexOf('period') < 0, '★材料が無いのに 対象期間を 聞いている★ ' + none.join(','));
   const others = [withLead('2025/6/21 〜 2025/7/20'), withLead('2025/7/21 〜 2025/8/20')];
-  const qs = ASK.questions(base({ issue: '2025-09-25', others }));
+  const qs = ASK.questions(baseP({ issue: '2025-09-25', others }));
   const q = qs.filter((x) => x.key === 'period')[0];
   ok(q, '★当てられるのに 聞いていない★ ' + qs.map((x) => x.key).join(','));
   ok(/締め日/.test(q.guess.why), '★根拠に 締め日が 無い★「' + q.guess.why + '」');
@@ -253,9 +256,50 @@ T('★⑭ 当てられた時だけ 問いが増える（答えられない欄を
   console.log('     根拠: ' + q.guess.why);
 });
 
+/* ★★相手ごとに 数える★★（司さん 2026-08-29
+     「複数種類の請求書を作成する会社に対しては？ おれの場合でも そのパターンは 八木工業だけやし
+       代行や 空調系は また違うやろ」）
+   ★実測で 出た欠陥★＝会社ぜんぶの紙を数えていたので、代行の相手（末日締め）に出す1通に
+     八木工業の「21日〜20日」が 出た。 */
+const ivp = (pid, lead) => inv({ partner_id: pid, status: 'issued', data: { lead } });
+const MIXED = [
+  ivp('yagi', '2026/6/21 〜 2026/7/20'), ivp('yagi', '2026/7/21 〜 2026/8/20'), ivp('yagi', '2026/8/21 〜 2026/9/20'),
+  ivp('daiko', '2026/8/1 〜 2026/8/31'), ivp('daiko', '2026/9/1 〜 2026/9/30'),
+  ivp('kucho', '2026/9/11 〜 2026/10/10'),
+];
+const forP = (pid) => base({ inv: inv({ partner_id: pid }), issue: '2026-10-25', others: MIXED });
+
+T('★⑯ 相手ごとに 締めが違う会社で、相手ごとの答えを出す（よその型を 混ぜない）', () => {
+  eq(ASK.periodGuess(forP('yagi')).value, '2026/9/21 〜 2026/10/20', '★八木（21〜20）★');
+  eq(ASK.periodGuess(forP('daiko')).value, '2026/9/1 〜 2026/9/30', '★代行（末日締め）に 八木の型が 出ている★');
+  eq(ASK.periodGuess(forP('kucho')), null, '★1通しか無い相手に 当てている★');
+  console.log('     八木 ' + ASK.periodGuess(forP('yagi')).value
+    + ' ／ 代行 ' + ASK.periodGuess(forP('daiko')).value + ' ／ 空調（1通だけ）★当てない★');
+});
+
+T('★⑰ 根拠に「この相手の紙」と書く（会社ぜんぶの紙では ない）', () => {
+  const w = ASK.periodGuess(forP('daiko')).why;
+  ok(/この相手に 出した紙/.test(w), '★どの紙を数えたか 言っていない★「' + w + '」');
+  ok(/末日/.test(w), '★末日締めを そう言っていない★「' + w + '」');
+  console.log('     ' + w);
+});
+
+T('★⑱ 同じ相手の中で 締めが割れていたら 当てない（種類ちがいを 多い方に寄せない）', () => {
+  const mix = [ivp('mix', '2026/8/1 〜 2026/8/31'), ivp('mix', '2026/8/21 〜 2026/9/20'),
+    ivp('mix', '2026/7/21 〜 2026/8/20')];
+  const c = base({ inv: inv({ partner_id: 'mix' }), issue: '2026-10-25', others: mix });
+  eq(ASK.closeDayGuess(c), null, '★2対1で 多い方に 寄せている＝少ない方が 静かに間違う★');
+  eq(ASK.periodGuess(c), null, '割れているのに 期間を出している');
+});
+
+T('★⑲ 相手が決まっていない時は 当てない', () => {
+  eq(ASK.closeDayGuess(base({ inv: inv({}), issue: '2026-10-25', others: MIXED })), null,
+    '★相手が空なのに 当てている★');
+});
+
 T('★⑮ 期間の計算を 自分で書いていない（借り物を そのまま 通している）', () => {
   const others = [withLead('2025/12/1 〜 2025/12/31'), withLead('2026/1/1 〜 2026/1/31')];
-  const g = ASK.periodGuess(base({ issue: '2026-03-05', others }));
+  const g = ASK.periodGuess(baseP({ issue: '2026-03-05', others }));
   eq(g.value, KIK.rangeLabel(KIK.period('2026-02', 31)), '★借り物と 違う答えを 出している★');
 });
 
