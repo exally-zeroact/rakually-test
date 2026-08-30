@@ -4,12 +4,14 @@
  *   ＝それまでは ★大きさ（mm）しか 変えられなかった★。場所は CSSに焼き付けていた。
  *
  * ★出来る事★
- *   ・場所 … 社名に重ねる（既定・角印の作法）／社名の左に置く（字に重ねない）
+ *   ・場所 … 社名に重ねる（既定）／★社名の末尾に かける★（代行請求と同じ深さ＝印の55%が外へ）
  *   ・そこから 横・縦に mm で ずらす（＋は 右／下）
+ *   ★「社名の左に置く」は 消した★（司さん 2026-08-30「左に置くは違うやろが」）
+ *     ＝角印を 社名の左に置く紙は 実在しない。★実在しない置き方を 選ばせない★。
  *
  * ★守らせる事★
  *   ① 既定は 今までと 同じ（社名に重ねる）＝黙って 見た目を 変えない
- *   ② 「左に置く」なら 自社の字が ★1文字も 隠れない★
+ *   ② 「末尾に かける」なら 印が 右へ出て ★隠れる字が 減る★（TELや登録番号が 読める）
  *   ③ ずらしたぶん だけ 動く（動いていない、を許さない）
  *   ④ ★どう動かしても 紙から 出ない★（±10mm＝紙の余白と同じ蓋。越える指定は 蓋に収める）
  *   ⑤ 設定の下見と 紙は ★同じ決め方（PAPER.sealStyle）★＝2つの正を作らない
@@ -109,31 +111,37 @@ async function paper(org) {
 }
 
 const base = await paper({});
-const left = await paper({ sealPos: 'left' });
+const edge = await paper({ sealPos: 'edge' });
 const dx = await paper({ sealDx: -5 });
 const dy = await paper({ sealDy: 3 });
 const over = await paper({ sealDx: 99, sealDy: -99 });
-const edge = [
+const ends = [
   await paper({ sealDx: 10 }), await paper({ sealDx: -10 }),
   await paper({ sealDy: 10 }), await paper({ sealDy: -10 }),
   await paper({ sealSizeMm: 40, sealDx: 10, sealDy: -10 }),
-  await paper({ sealPos: 'left', sealSizeMm: 40, sealDx: -10, sealDy: 10 }),
+  await paper({ sealPos: 'edge', sealSizeMm: 40, sealDx: 10, sealDy: 10 }),
+  await paper({ sealPos: 'edge', sealDx: 10 }),
 ];
-console.log('     既定 x=' + base.x + ' y=' + base.y + ' ／ 左 x=' + left.x
+console.log('     既定 x=' + base.x + '（隠れた字 ' + base.hidden.length + '）'
+  + ' ／ 末尾にかける x=' + edge.x + '（隠れた字 ' + edge.hidden.length + '）'
   + ' ／ 横-5mm x=' + dx.x + ' ／ 縦+3mm y=' + dy.y);
 
 T('★① 既定は 今までと同じ（社名の右端に 重ねる）', base.x > 600 && base.hidden.length > 0,
   'x=' + base.x + ' 隠れた字 ' + base.hidden.length);
-T('★② 「左に置く」と 自社の字が 1文字も 隠れない',
-  left.hidden.length === 0 && left.x < base.x, '隠れた字「' + left.hidden + '」 x=' + left.x);
+T('★② 「末尾に かける」と 印が 右へ出て 隠れる字が 減る',
+  edge.x > base.x && edge.hidden.length < base.hidden.length,
+  'x=' + edge.x + '（既定 ' + base.x + '）隠れた字 ' + edge.hidden.length + '（既定 ' + base.hidden.length + '）');
+T('★②-2 「末尾に かける」深さは 代行と同じ（印の55%が 名前の外へ）',
+  Math.abs((edge.x - base.x) - Math.round(64 * 0.55)) <= 2,
+  '外へ出た ' + (edge.x - base.x) + 'px（印64pxの55%＝35pxのはず）');
 T('★③ 横にずらすと そのぶん 動く（-5mm ≒ -19px）',
   Math.abs((base.x - dx.x) - 19) <= 2, '動いた ' + (base.x - dx.x) + 'px');
 T('★④ 縦にずらすと そのぶん 動く（+3mm ≒ +11px）',
   Math.abs((dy.y - base.y) - 11) <= 2, '動いた ' + (dy.y - base.y) + 'px');
 T('★⑤ 蓋を越える指定は 蓋に収める（99mm → 10mm）',
-  !over.out && over.x === edge[0].x, 'x=' + over.x + ' / 10mmのとき ' + edge[0].x);
-T('★⑥ どう動かしても 紙から 出ない（端・大きい印・左置き ぜんぶ）',
-  edge.every((r) => !r.out), '紙から出た組み合わせが ' + edge.filter((r) => r.out).length + '件');
+  !over.out && over.x === ends[0].x, 'x=' + over.x + ' / 10mmのとき ' + ends[0].x);
+T('★⑥ どう動かしても 紙から 出ない（端・大きい印・末尾かけ ぜんぶ）',
+  ends.every((r) => !r.out), '紙から出た組み合わせが ' + ends.filter((r) => r.out).length + '件');
 T('★⑦ 印は ちゃんと 出ている（測れていない を 緑にしない）',
   base.w > 50 && base.all > 30, '印の幅 ' + base.w + ' 自社の字 ' + base.all);
 
@@ -166,9 +174,9 @@ const ui = await pg.evaluate(async (seal) => {
   out.opts = [...(doc.getElementById('seal-pos') || { options: [] }).options].map((o) => o.value);
   out.base = sealOf();
   const sel = doc.getElementById('seal-pos');
-  sel.value = 'left';
+  sel.value = 'edge';
   sel.dispatchEvent(new Event('change', { bubbles: true }));
-  out.left = sealOf();
+  out.edge = sealOf();
   sel.value = 'on';
   sel.dispatchEvent(new Event('change', { bubbles: true }));
   const dxEl = doc.getElementById('seal-dx');
@@ -178,7 +186,7 @@ const ui = await pg.evaluate(async (seal) => {
   /* 保存すると 倉庫へ その値が行くか（倉庫は 偽物にして 受け取った物を 見る） */
   let saved = null;
   A._state.store = { org: { save: (p) => { saved = p; return Promise.resolve({ ok: true }); } } };
-  doc.getElementById('seal-pos').value = 'left';
+  doc.getElementById('seal-pos').value = 'edge';
   doc.getElementById('seal-dy').value = '2.5';
   await A._saveSealForTest();
   out.saved = saved;
@@ -187,15 +195,15 @@ const ui = await pg.evaluate(async (seal) => {
 await b.close();
 srv.close();
 
-console.log('     画面の下見 … 既定 x=' + ui.base + ' ／ 左 x=' + ui.left + ' ／ 横-5mm x=' + ui.dx);
+console.log('     画面の下見 … 既定 x=' + ui.base + ' ／ 末尾にかける x=' + ui.edge + ' ／ 横-5mm x=' + ui.dx);
 console.log('     保存した物 … ' + JSON.stringify(ui.saved));
-T('★⑩ 設定に 場所を選ぶ所が 在る（2通り）',
-  ui.hasPos && ui.opts.join(',') === 'on,left', '出た選択肢: ' + ui.opts.join(','));
+T('★⑩ 設定に 場所を選ぶ所が 在る（2通り・★左に置く は 出さない★）',
+  ui.hasPos && ui.opts.join(',') === 'on,edge', '出た選択肢: ' + ui.opts.join(','));
 T('★⑪ 選ぶと 下見が その場で 動く（紙を出さないと分からない を 作らない）',
-  ui.left !== null && ui.base !== null && ui.left < ui.base, '既定 ' + ui.base + ' / 左 ' + ui.left);
+  ui.edge !== null && ui.base !== null && ui.edge > ui.base, '既定 ' + ui.base + ' / 末尾 ' + ui.edge);
 T('★⑫ ずらすと 下見も 動く', ui.dx !== null && ui.dx < ui.base, '既定 ' + ui.base + ' / -5mm ' + ui.dx);
 T('★⑬ 保存すると 場所とずれが 倉庫へ 行く',
-  !!ui.saved && ui.saved.sealPos === 'left' && ui.saved.sealDy === 2.5,
+  !!ui.saved && ui.saved.sealPos === 'edge' && ui.saved.sealDy === 2.5,
   '保存した物: ' + JSON.stringify(ui.saved));
 
 if (SELF) {
@@ -203,6 +211,8 @@ if (SELF) {
   const s = PAPER.sealStyle({ sealSizeMm: 17, sealDx: 99 });
   const m = /right:(-?[\d.]+)mm/.exec(s);
   if (!m || Number(m[1]) !== -10) { console.log('  NG ★蓋が 効いていない（' + s + '）★'); process.exit(1); }
+  const big = PAPER.sealStyle({ sealSizeMm: 40, sealPos: 'edge' });
+  if (!/right:-10mm/.test(big)) { console.log('  NG ★大きい印の はみ出しが 頭打ちに なっていない（' + big + '）★'); process.exit(1); }
   console.log('  ok  99mm と言われても -10mm に収めている＝⑤⑥が 効いている形');
   const d = DOC.sealNudgeMm(99);
   if (d !== DOC.SEAL_NUDGE_MAX) { console.log('  NG ★決まりの側の蓋が 効いていない★'); process.exit(1); }

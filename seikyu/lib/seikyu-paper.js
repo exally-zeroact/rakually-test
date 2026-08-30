@@ -213,10 +213,15 @@
     return Math.max(10, Math.min(40, Math.round(n)));
   }
   /* ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」）
-     ・既定 'on' … 社名に重ねる（角印の作法）
-     ・'left'    … 社名の左に置く（自社は右揃えなので 左は空いている＝字に1文字も重ならない）
-     ・dx/dy     … そこから 横・縦に mm でずらす（＋は 右／下）
+     ・'on'   … 社名に そっくり重ねる（既定）
+     ・'edge' … ★社名の末尾に かける★＝印の55%が 名前の外へ出る
+                （代行請求 invoice-pdf.js:766 と同じ深さ。★角印は 社名に かけて押す物★）
+     ・dx/dy  … そこから 横・縦に mm でずらす（＋は 右／下）
+     ★右へ出せるのは 紙の余白（10mm）まで★＝それ以上は 印が 紙から出る。
+       ＝はみ出し量（55%）＋ずらし（dx）を 足して 10mm で 頭打ちにする。
      ★決め方は seikyu-doc（sealPos / sealNudgeMm）が唯一の正★＝ここは そのまま置くだけ。 */
+  var PAPER_MARGIN_MM = 10;         // .sheet の padding と 同じ（ここを越えると 紙の外）
+  var EDGE_OUT = 0.55;              // 名前の外へ出す割合（代行 = 1 - 0.45）
   function sealNudge(v) {
     var n = Number(v);
     if (!Number.isFinite(n)) return 0;
@@ -227,11 +232,11 @@
   function sealStyle(g) {
     var mm = sealMm(g.sealSizeMm);
     var dx = sealNudge(g.sealDx), dy = sealNudge(g.sealDy);
-    var pos = (g.sealPos === 'left') ? 'left' : 'on';
-    var side = (pos === 'left')
-      ? 'left:' + dx + 'mm;right:auto;'
-      : 'right:' + (-dx) + 'mm;left:auto;';
-    return 'width:' + mm + 'mm;height:' + mm + 'mm;' + side
+    var out = (g.sealPos === 'edge') ? mm * EDGE_OUT : 0;
+    /* ★紙から出さない★＝右へのはみ出しは 余白（10mm）まで（大きい印でも 頭打ち） */
+    var right = Math.min(PAPER_MARGIN_MM, out + dx);
+    return 'width:' + mm + 'mm;height:' + mm + 'mm;'
+      + 'right:' + (-Math.round(right * 10) / 10) + 'mm;left:auto;'
       + 'top:calc(50% + ' + dy + 'mm);';
   }
 
