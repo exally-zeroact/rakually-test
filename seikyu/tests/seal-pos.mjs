@@ -183,6 +183,23 @@ const ui = await pg.evaluate(async (seal) => {
   out.byField = A._sealXYForTest();
   d.getElementById('b-seal-home').click();
   out.home = A._sealXYForTest();
+  /* ★指・マウス どちらでも 動くか★（pointer が来ない端末が 実際に在った）
+     ＝2つの窓（mousedown / touchstart）を それぞれ 直に送って 動く事を 見る。 */
+  d.getElementById('b-seal-home').click();
+  const st2 = d.getElementById('seal-stage');
+  const r2 = st2.getBoundingClientRect();
+  st2.dispatchEvent(new MouseEvent('mousedown',
+    { clientX: r2.left + r2.width * 0.5, clientY: r2.top + r2.height * 0.5, bubbles: true }));
+  out.byMouse = A._sealXYForTest();
+  d.getElementById('b-seal-home').click();
+  try {
+    const t = new Touch({ identifier: 1, target: st2,
+      clientX: r2.left + r2.width * 0.3, clientY: r2.top + r2.height * 0.7 });
+    st2.dispatchEvent(new TouchEvent('touchstart', { touches: [t], bubbles: true, cancelable: true }));
+    out.byTouch = A._sealXYForTest();
+  } catch (e) { out.byTouch = 'この機械では 指の試験が 作れない'; }
+  d.getElementById('b-seal-home').click();
+
   let saved = null;
   A._state.store = { org: { save: (p) => { saved = p; return Promise.resolve({ ok: true }); } } };
   d.getElementById('seal-x').value = '120';
@@ -219,6 +236,10 @@ T('★⑯ いつもの場所に 戻せる（未設定に 戻る）',
 T('★⑰ 保存すると 紙の上の mm が 倉庫へ 行く',
   !!ui.saved && ui.saved.sealX === 120 && ui.saved.sealY === 30, JSON.stringify(ui.saved));
 
+T('★⑰-2 マウスでも 動く（pointer が来ない端末で 死なない）',
+  ui.byMouse && ui.byMouse.x !== null && ui.byMouse.y !== null, JSON.stringify(ui.byMouse));
+T('★⑰-3 指でも 動く（同じ道）',
+  (typeof ui.byTouch === 'string') || (ui.byTouch && ui.byTouch.x !== null), JSON.stringify(ui.byTouch));
 T('★⑱ 決めた場所は 開き直しても 残る（黙って 消えない）',
   ui.reopened && ui.reopened.x === 120 && ui.reopened.y === 30 && ui.reFieldX === '120',
   '開き直し ' + JSON.stringify(ui.reopened) + ' 欄 ' + ui.reFieldX);

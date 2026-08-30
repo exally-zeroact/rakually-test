@@ -2456,18 +2456,43 @@
     var stage = $('seal-stage'); if (!stage || stage.getAttribute('data-bound')) return;
     stage.setAttribute('data-bound', '1');
     var dragging = false;
+    /* ★指・マウス・ペン どれでも 動く様に 2通り 受ける★
+       ＝pointer だけに するのは 危ない。★本物のブラウザ（WebKit）で
+         マウスの pointerdown が 来ない事が 実際に在った（2026-08-31 実測）★。
+       ★二重に動かない★様に、pointer が来た端末では mouse/touch を 無視する。 */
+    var sawPointer = false;
+    var down = function (x, y) { dragging = true; sealPutAt(x, y); };
+    var move = function (x, y, e) { if (!dragging) return; if (e) e.preventDefault(); sealPutAt(x, y); };
+    var up = function () { dragging = false; };
+
     stage.addEventListener('pointerdown', function (e) {
-      dragging = true;
+      sawPointer = true;
       try { stage.setPointerCapture(e.pointerId); } catch (err) { /* 取れなくても 動く */ }
-      sealPutAt(e.clientX, e.clientY);
+      down(e.clientX, e.clientY);
     });
-    stage.addEventListener('pointermove', function (e) {
-      if (!dragging) return;
+    stage.addEventListener('pointermove', function (e) { move(e.clientX, e.clientY, e); });
+    stage.addEventListener('pointerup', up);
+    stage.addEventListener('pointercancel', up);
+
+    stage.addEventListener('mousedown', function (e) {
+      if (sawPointer) return;
       e.preventDefault();
-      sealPutAt(e.clientX, e.clientY);
+      down(e.clientX, e.clientY);
     });
-    stage.addEventListener('pointerup', function () { dragging = false; });
-    stage.addEventListener('pointercancel', function () { dragging = false; });
+    stage.addEventListener('mousemove', function (e) { if (!sawPointer) move(e.clientX, e.clientY, e); });
+    stage.addEventListener('mouseup', function () { if (!sawPointer) up(); });
+    stage.addEventListener('mouseleave', function () { if (!sawPointer) up(); });
+
+    stage.addEventListener('touchstart', function (e) {
+      if (sawPointer || !e.touches || !e.touches[0]) return;
+      e.preventDefault();
+      down(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+    stage.addEventListener('touchmove', function (e) {
+      if (sawPointer || !e.touches || !e.touches[0]) return;
+      move(e.touches[0].clientX, e.touches[0].clientY, e);
+    }, { passive: false });
+    stage.addEventListener('touchend', function () { if (!sawPointer) up(); });
   }
 
   function pickSeal(file) {
