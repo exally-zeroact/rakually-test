@@ -258,6 +258,7 @@
         yago: od.yago || '', addr: od.addr || '', tel: od.tel || '',
         invoiceNo: od.invoiceNo || '', bank: od.bank || '',
         sealDataUrl: od.sealDataUrl || '', sealSizeMm: sealSizeMm(od.sealSizeMm), logoDataUrl: od.logoDataUrl || '',
+        sealPos: sealPos(od.sealPos), sealDx: sealNudgeMm(od.sealDx), sealDy: sealNudgeMm(od.sealDy),
       },
       totals: { subtotal: t.subtotal || 0, taxTotal: t.taxTotal || 0, grandTotal: t.grandTotal || 0 },
       byRate: t.byRate || [],
@@ -298,6 +299,31 @@
   /* 倉庫の1行に画像を入れるので上限を決める。★超えたら黙って縮めずに赤で返す★
      （黙って縮めると「押したはずの印が薄い/欠ける」になり、押した本人が気づけない） */
   var SEAL_MAX_BYTES = 300 * 1024;
+
+  /* ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」）
+     ・既定は ★社名に重ねる★＝角印の作法（代行請求 invoice-pdf.js:760 と同じ）
+     ・重ねたくない会社も在る（字が1文字も隠れない形）＝★社名の左に置く★も選べる
+     ・そこから ★横・縦に mm で ずらせる★
+       ★動かせる幅は ±10mm★＝紙の余白（上下左右 10mm）と 同じ。
+       ★これ以上 動かせると 印が 紙から出る★（実測：右へ30mmで 印の右端が 紙より 20mm外）。
+       ＝★出せない所へは 動かせないようにする★（出してから「切れています」と言わない）
+     ★決め方は ここが唯一の正★（紙も 画面も この関数を通す） */
+  var SEAL_POS = [
+    { v: 'on', t: '社名に重ねる（角印の作法）' },
+    { v: 'left', t: '社名の左に置く（字に重ねない）' },
+  ];
+  var SEAL_NUDGE_MAX = 10;          // 紙の余白と同じ＝この幅なら どう動かしても 紙から出ない
+  function sealPos(v) {
+    var t = String(v == null ? '' : v);
+    for (var i = 0; i < SEAL_POS.length; i++) if (SEAL_POS[i].v === t) return t;
+    return 'on';
+  }
+  function sealNudgeMm(v) {
+    var n = Number(v);
+    if (!Number.isFinite(n)) return 0;
+    n = Math.round(n * 10) / 10;                      // 0.1mm きざみ
+    return Math.max(-SEAL_NUDGE_MAX, Math.min(SEAL_NUDGE_MAX, n));
+  }
 
   function sealSizeMm(v) {
     var n = Number(v);
@@ -773,6 +799,7 @@
     billedOf: billedOf, payableOf: payableOf,
     snapshotOf: snapshotOf, partnerNameOf: partnerNameOf,
     validateSeal: validateSeal, sealSizeMm: sealSizeMm,
+    sealPos: sealPos, sealNudgeMm: sealNudgeMm, SEAL_POS: SEAL_POS, SEAL_NUDGE_MAX: SEAL_NUDGE_MAX,
     SEAL_DEFAULT_MM: SEAL_DEFAULT_MM, SEAL_MIN_MM: SEAL_MIN_MM, SEAL_MAX_MM: SEAL_MAX_MM, SEAL_MAX_BYTES: SEAL_MAX_BYTES,
     paymentStateOf: paymentStateOf,
     validateInvoice: validateInvoice, convertQuoteToInvoice: convertQuoteToInvoice,

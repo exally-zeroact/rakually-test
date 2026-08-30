@@ -2348,11 +2348,58 @@
     else { pv.removeAttribute('src'); show(pv, false); show($('seal-none'), true); }
     /* ★当てた大きさが在る時は それを出す★（保存前の下見の間だけ） */
     $('seal-mm').value = DOC.sealSizeMm(sealGuess ? sealGuess.mm : d.sealSizeMm);
+    /* ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」） */
+    var sp = $('seal-pos');
+    if (sp) {
+      var cur = DOC.sealPos(d.sealPos);
+      sp.innerHTML = DOC.SEAL_POS.map(function (x) {
+        return '<option value="' + esc(x.v) + '"' + (x.v === cur ? ' selected' : '') + '>'
+          + esc(x.t) + '</option>';
+      }).join('');
+      sp.value = cur;
+    }
+    if ($('seal-dx')) $('seal-dx').value = DOC.sealNudgeMm(d.sealDx);
+    if ($('seal-dy')) $('seal-dy').value = DOC.sealNudgeMm(d.sealDy);
+    drawSealDemo();
     setText('seal-why', (sealGuess ? sealGuess.why + '（違う時は 上の数を 直してください）' : '')
       + '大きさは ' + DOC.SEAL_MIN_MM + '〜' + DOC.SEAL_MAX_MM + 'mm の間だけ（既定 '
       + DOC.SEAL_DEFAULT_MM + 'mm）。画像は ' + Math.round(DOC.SEAL_MAX_BYTES / 1024) + 'KB まで。'
       + '発行した時の印は写しに残るので、あとで印を替えても出した紙は変わりません。');
     $('b-seal-clear').disabled = !(d.sealDataUrl || sealPending);
+  }
+
+  /** ★印の場所を その場で見せる★（紙を出さないと分からない、を作らない）
+   *  ★紙と同じ並び★＝自社の4行を 右揃えで置き、印を 同じ決め方（PAPER.sealStyle）で 重ねる。
+   *  ★ここで 場所を 決め直さない★＝紙と 2つの正が 生まれる。 */
+  function drawSealDemo() {
+    var host = $('seal-demo'); if (!host) return;
+    var d = S.org || {};
+    var url = sealPending || d.sealDataUrl || '';
+    if (!url) { host.innerHTML = ''; show(host, false); return; }
+    show(host, true);
+    var g = {
+      sealDataUrl: url,
+      sealSizeMm: DOC.sealSizeMm($('seal-mm') ? $('seal-mm').value : d.sealSizeMm),
+      sealPos: DOC.sealPos($('seal-pos') ? $('seal-pos').value : d.sealPos),
+      sealDx: DOC.sealNudgeMm($('seal-dx') ? $('seal-dx').value : d.sealDx),
+      sealDy: DOC.sealNudgeMm($('seal-dy') ? $('seal-dy').value : d.sealDy),
+    };
+    /* 下見は 画面の幅（mmではない）なので、紙と同じ ★比★ で縮める。
+       紙の自社の箱＝80mm ぶん。下見の箱の幅を それに見立てる。 */
+    /* ★画面に出ていない時 clientWidth は 0★＝0で割ると 印が 0点になって 動かなく見える
+       （2026-08-30 実際に そうなった）。★測れない時は 決め打ちの幅で 描く★。 */
+    var box = host.clientWidth || Math.round(host.getBoundingClientRect().width) || 320;
+    var per = box / 80;                       // 1mm あたりの点
+    var st = PAPER.sealStyle(g).replace(/([-\d.]+)mm/g, function (m0, n) {
+      return (Number(n) * per).toFixed(1) + 'px';
+    }).replace('calc(50% + ', 'calc(50% + ');
+    host.innerHTML = '<div class="sd-in">'
+      + '<div class="sd-name">' + (esc(d.yago) || '（自社情報が未入力）')
+      + '<img class="sd-seal" style="' + st + '" src="' + esc(url) + '" alt=""></div>'
+      + (d.addr ? '<div class="sd-sub">' + esc(d.addr) + '</div>' : '<div class="sd-sub">（住所）</div>')
+      + (d.tel ? '<div class="sd-sub">TEL ' + esc(d.tel) + '</div>' : '<div class="sd-sub">TEL （電話）</div>')
+      + (d.invoiceNo ? '<div class="sd-sub">登録番号 ' + esc(d.invoiceNo) + '</div>' : '')
+      + '</div>';
   }
 
   function pickSeal(file) {
@@ -2412,7 +2459,10 @@
   function saveSeal() {
     var mm = DOC.sealSizeMm($('seal-mm').value);
     sealGuess = null;                     // 保存したら「当てた値」ではなく「決まった値」
-    var patch = { sealSizeMm: mm };
+    var patch = { sealSizeMm: mm,
+      sealPos: DOC.sealPos($('seal-pos') ? $('seal-pos').value : ''),
+      sealDx: DOC.sealNudgeMm($('seal-dx') ? $('seal-dx').value : 0),
+      sealDy: DOC.sealNudgeMm($('seal-dy') ? $('seal-dy').value : 0) };
     if (sealPending) {
       var chk = DOC.validateSeal(sealPending);
       if (!chk.ok) { box('seal-err', chk.reason); return Promise.resolve(); }
@@ -3445,6 +3495,11 @@
     if ($('rep-month')) $('rep-month').onchange = function () {
       repMonth = $('rep-month').value; renderReport();
     };
+    /* ★動かしたら その場で 下見が変わる★（押さないと分からない、を作らない） */
+    ['seal-mm', 'seal-dx', 'seal-dy'].forEach(function (id) {
+      var el = $(id); if (el) el.oninput = function () { drawSealDemo(); };
+    });
+    if ($('seal-pos')) $('seal-pos').onchange = function () { drawSealDemo(); };
     $('b-seal-save').onclick = function () { return saveSeal(); };
     $('b-seal-clear').onclick = function () { return clearSeal(); };
     $('seal-file').onchange = function (e) { pickSeal(e.target.files && e.target.files[0]); };
@@ -3543,6 +3598,8 @@
        倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
     _bindForTest: function () { return bind(); },
     _paperBtnsForTest: function () { return PAPER_BTNS.slice(); },   // テスト用: 門を掛ける相手の一覧
+    _sealDemoForTest: function () { return drawSealDemo(); },   // テスト用: 下見を描き直す
+    _saveSealForTest: function () { return saveSeal(); },       // テスト用: 保存を そのまま走らせる
     _pickSealUrl: function (url) {           // テスト用: ファイル選択の代わりに data URL を渡す
       var chk = DOC.validateSeal(url);
       if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; sealGuess = null; fillSeal(); return chk; }

@@ -209,8 +209,30 @@
   /* 角印の大きさ（mm）。10〜40に収める＝紙からはみ出す印を作らない */
   function sealMm(v) {
     var n = Number(v);
-    if (!Number.isFinite(n)) return 21;
+    if (!Number.isFinite(n)) return 17;
     return Math.max(10, Math.min(40, Math.round(n)));
+  }
+  /* ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」）
+     ・既定 'on' … 社名に重ねる（角印の作法）
+     ・'left'    … 社名の左に置く（自社は右揃えなので 左は空いている＝字に1文字も重ならない）
+     ・dx/dy     … そこから 横・縦に mm でずらす（＋は 右／下）
+     ★決め方は seikyu-doc（sealPos / sealNudgeMm）が唯一の正★＝ここは そのまま置くだけ。 */
+  function sealNudge(v) {
+    var n = Number(v);
+    if (!Number.isFinite(n)) return 0;
+    /* ★±10mm＝紙の余白と同じ★（これ以上は 印が 紙から出る＝実測ずみ）
+       ★決め方は seikyu-doc.sealNudgeMm が唯一の正★。ここは 紙の側の 同じ蓋。 */
+    return Math.max(-10, Math.min(10, Math.round(n * 10) / 10));
+  }
+  function sealStyle(g) {
+    var mm = sealMm(g.sealSizeMm);
+    var dx = sealNudge(g.sealDx), dy = sealNudge(g.sealDy);
+    var pos = (g.sealPos === 'left') ? 'left' : 'on';
+    var side = (pos === 'left')
+      ? 'left:' + dx + 'mm;right:auto;'
+      : 'right:' + (-dx) + 'mm;left:auto;';
+    return 'width:' + mm + 'mm;height:' + mm + 'mm;' + side
+      + 'top:calc(50% + ' + dy + 'mm);';
   }
 
   function hasRole(items, role) {
@@ -597,8 +619,8 @@
            ★見本＝代行請求 invoice-pdf.js:760「判子（社名＝1行目の右端に"重ねて"押す＝角印標準）」★
            うちの自社情報は 右揃えなので、社名の右端＝この箱の右端。そこへ 重ねる。 */
         + '<div class="from-name">' + (esc(g.yago) || '（自社情報が未入力）')
-        + (g.sealDataUrl ? '<img class="seal" style="width:' + sealMm(g.sealSizeMm) + 'mm;height:'
-          + sealMm(g.sealSizeMm) + 'mm" src="' + esc(g.sealDataUrl) + '" alt="">' : '')
+        + (g.sealDataUrl ? '<img class="seal" style="' + sealStyle(g) + '" src="'
+          + esc(g.sealDataUrl) + '" alt="">' : '')
         + '</div>'
         + (g.addr ? '<div class="from-sub">' + esc(g.addr) + '</div>' : '')
         + (g.tel ? '<div class="from-sub">TEL ' + esc(g.tel) + '</div>' : '')
@@ -1107,8 +1129,10 @@
       '.from-name{position:relative;}',
       /* ★ほんの少し 透かす★（代行請求 invoice-pdf.js:775 と同じ opacity .95）
          ＝重なった字が 完全には 消えない（判子は 上に押す物だが 下の字も 読めるのが 実物） */
-      '.seal{position:absolute;right:0;top:50%;transform:translateY(-50%);opacity:.95;'
-        + 'object-fit:contain;opacity:.95;pointer-events:none;}',
+      /* ★場所（right/left/top）は 1つ1つの紙で 決める★＝ここには 書かない
+         （会社ごとに 変えられる物を CSSに焼き付けない） */
+      '.seal{position:absolute;transform:translateY(-50%);opacity:.95;'
+        + 'object-fit:contain;pointer-events:none;}',
       '.pageno{font-size:9.5pt;color:' + SUB + ';margin:0 0 2.4mm;}',
       '.lead-greet{margin:0 0 1.6mm;}',
 
@@ -1340,7 +1364,7 @@
   return {
     build: build, css: css, esc: esc, yen: yen, comma: comma,
     dateStr: dateStr, jpDate: jpDate, honorOf: honorOf, taxLabel: taxLabel,
-    paginate: paginate, sealMm: sealMm, TEMPLATE_ID: TEMPLATE_ID,
+    paginate: paginate, sealMm: sealMm, sealStyle: sealStyle, TEMPLATE_ID: TEMPLATE_ID,
     /* ★振込先の分け方は紙も Excel も同じ物を呼ぶ★ */
     bankLines: bankLines,
     ROWS_FIRST: ROWS_FIRST, ROWS_REST: ROWS_REST,

@@ -696,8 +696,11 @@ T('★角印（会社の印）が紙に出る／入れていなければ出さ�
 T('★角印の大きさは 10〜40mm に収める（紙からはみ出す印を作らない）', () => {
   eq(PAPER.sealMm(999), 40);
   eq(PAPER.sealMm(1), 10);
-  eq(PAPER.sealMm(), 21, '既定が21mmでない');
-  eq(PAPER.sealMm('abc'), 21, '数でない値が通っている');
+  /* ★既定は 17mm★（司さん 2026-08-30 実物の角印で 測り直した）
+     ＝実寸21mmの角印は 紙には その8割で押す（代行請求 invoice-pdf.js:762 と同じ基準）。
+     21mmで押すと 自社の63文字のうち 28文字が 印に潰れていた（実測）。 */
+  eq(PAPER.sealMm(), 17, '既定が17mmでない');
+  eq(PAPER.sealMm('abc'), 17, '数でない値が通っている');
   const h = PAPER.build(sample({ org: Object.assign({}, S1.org, { sealDataUrl: 'data:image/png;base64,iVBORw0KGgo=', sealSizeMm: 999 }) })).html;
   ok(/width:40mm/.test(h), '上限に収まっていない');
 });

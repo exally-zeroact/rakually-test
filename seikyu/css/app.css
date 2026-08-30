@@ -432,3 +432,14 @@
 .q-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .q-row .finput { flex: 1 1 0; min-width: 0; }
 .q-t { font-size: 13px; color: #6E6E6E; flex: 0 0 auto; }
+
+/* ── ★印の場所の下見★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」）
+   ＝紙を出さないと分からない、を作らない。自社の4行と 印だけを 紙と同じ並びで出す。 */
+.seal-demo {
+  margin-top: 10px; padding: 10px 12px; border: 1px solid #D4EAE0; background: #FFFFFF;
+  border-radius: 8px; overflow: hidden;
+}
+.seal-demo .sd-in { position: relative; text-align: right; }
+.seal-demo .sd-name { position: relative; font-size: 13px; font-weight: 700; color: #333333; line-height: 1.45; }
+.seal-demo .sd-sub { font-size: 11px; color: #6E6E6E; line-height: 1.45; }
+.seal-demo .sd-seal { position: absolute; transform: translateY(-50%); opacity: .95; object-fit: contain; }
