@@ -346,6 +346,12 @@
     return duplicateCur();
   }
 
+  /* ★探す条件★（画面から読むだけ。数え方は 何も触らない） */
+  function findQuery() {
+    return { text: ($('q-text') || {}).value, from: ($('q-from') || {}).value,
+      to: ($('q-to') || {}).value, min: ($('q-min') || {}).value, max: ($('q-max') || {}).value };
+  }
+
   function renderList() {
     renderRecurring();
     renderReport();
@@ -354,6 +360,17 @@
       if (S.fil === 'live') return v.status !== 'void';   // ★既定は取り消し以外（出した紙が上に来る）
       return S.fil === 'all' || v.status === S.fil;
     });
+    /* ★探す★（相手・番号・件名／請求日の範囲／金額の範囲。決まりは seikyu-find が唯一の正）
+       ★何件から 何件に 絞ったかを 必ず出す★＝「消えた」と 思わせない。 */
+    var FIND = global.SeikyuFind, before = rows.length, q = findQuery();
+    if (FIND && !FIND.isEmpty(q)) {
+      rows = FIND.filter(rows, q, { partnerName: partnerName });
+      setText('q-hint', before + '通のうち ' + rows.length + '通が 当てはまりました。'
+        + (rows.length ? '' : '（言葉を減らすか、範囲を広げてみてください）'));
+      var fb = $('find-box'); if (fb) fb.open = true;
+    } else {
+      setText('q-hint', '');
+    }
     if (!rows.length) {
       host.innerHTML = '<div class="card"><div class="empty">'
         + (S.invoices.length ? 'この絞り込みに当てはまる請求書はありません。' : 'まだ請求書がありません。「＋ 新しい請求書」から出せます。')
@@ -3388,6 +3405,17 @@
     $('pay-method').onchange = drawPayButton;
 
     /* ★集計する月を 変える★（選んだ月は 覚えておく＝押すたびに 戻らない） */
+    /* ★探す★＝打つたびに 絞る（押させない）。★やめる は 1押しで 元に戻す★ */
+    ['q-text', 'q-from', 'q-to', 'q-min', 'q-max'].forEach(function (id) {
+      var el = $(id); if (!el) return;
+      el.oninput = function () { renderList(); };
+    });
+    if ($('b-q-clear')) $('b-q-clear').onclick = function () {
+      ['q-text', 'q-from', 'q-to', 'q-min', 'q-max'].forEach(function (id) {
+        var el = $(id); if (el) el.value = '';
+      });
+      renderList();
+    };
     if ($('rep-month')) $('rep-month').onchange = function () {
       repMonth = $('rep-month').value; renderReport();
     };
