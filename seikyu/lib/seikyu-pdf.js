@@ -134,12 +134,18 @@
         out.texts.push({
           s: lines[j] !== undefined ? lines[j] : v.trim(),
           x: rr.left - base.left,
+          /* ★右端も 持つ★（司さん 2026-08-30「なんでここが揃ってないんど／右揃えか左揃えかやろが」）
+             ★紙は きっちり右揃え（右端が 全部 同じ）★なのに、写す時に ★左端で置いていた★。
+             画面の字体と PDFの字体は 幅が 違うので、左端で置くと ★右端が ばらける★。
+             ⇒ 右揃えの字は ★右端から 置く★（幅は PDFの字体で 測り直す）。 */
+          xr: rr.right - base.left,
           /* ★字の下端（ベースラインの近く）★ pdf-lib は 左下から 置くので 下端で持つ */
           y: rr.bottom - base.top,
           w: rr.width, h: rr.height,
           size: parseFloat(pc.fontSize) || 12,
           color: pc.color,
           bold: (parseInt(pc.fontWeight, 10) || 400) >= 600,
+          align: alignOf(pc, p),
           descent: descentOf(pc),
         });
       }
@@ -163,6 +169,23 @@
     }
     if (cur) out.push(cur);
     return out.map(function (s) { return s.replace(/^\s+|\s+$/g, ''); });
+  }
+
+  /** 揃え方（start/end は 書く向きから 決める＝日本語は 左→右） */
+  function alignOf(pc, el) {
+    var t = String(pc.textAlign || '').toLowerCase();
+    if (t === 'start') t = 'left';
+    if (t === 'end') t = 'right';
+    if (t === 'right' || t === 'center') return t;
+    /* ★表のセルは 親の揃え方が 効く★（td に書かず tr/col で 決めている紙が 在る） */
+    var td = el && el.closest ? el.closest('td,th') : null;
+    if (td) {
+      var tc = td.ownerDocument.defaultView.getComputedStyle(td).textAlign;
+      var t2 = String(tc || '').toLowerCase();
+      if (t2 === 'end') t2 = 'right';
+      if (t2 === 'right' || t2 === 'center') return t2;
+    }
+    return 'left';
   }
 
   /** 字の下に出る分（y をベースラインへ戻す為の目安） */
@@ -247,8 +270,13 @@
     });
   }
 
+  /* ★実際に 置いた所★（見張りが 数で 確かめる為に 取っておく） */
+  var _placed = [];
+  function lastPlaced() { return _placed.slice(); }
+
   function draw(a, pages) {
     var PDFLib = a.PDFLib, rgb = PDFLib.rgb;
+    _placed = [];
     return PDFLib.PDFDocument.create().then(function (doc) {
       doc.registerFontkit(a.fontkit);
       /* ★字は 全部 埋め込む★（相手の端末に 無くても 化けない） */
@@ -278,9 +306,17 @@
           pg.texts.forEach(function (t) {
             var s = sanitize(t.s, font);
             if (!s) return;
-            var at = { x: t.x * K, y: PT_H - (t.y - t.descent) * K,
-              size: t.size * K, font: font, color: rgbOf(t.color, rgb) };
+            /* ★揃え方のとおりに 置く★（左端で置くと 右揃えが ばらける） */
+            var size = t.size * K;
+            var wpt = font.widthOfTextAtSize(s, size);
+            var x = t.x * K;
+            if (t.align === 'right') x = t.xr * K - wpt;
+            else if (t.align === 'center') x = (t.x + t.xr) / 2 * K - wpt / 2;
+            var at = { x: x, y: PT_H - (t.y - t.descent) * K,
+              size: size, font: font, color: rgbOf(t.color, rgb) };
             page.drawText(s, at);
+            _placed.push({ s: s, align: t.align, x: at.x, right: at.x + wpt,
+              wantRight: t.xr * K, wantLeft: t.x * K, size: at.size });
             /* ★太字＝少しずらして もう1度★（代行と同じやり方）
                ★取り出すと その字だけ 二重に見える★が、★紙は 正しい★。
                字体を もう1つ 埋めると PDFが 倍（5.9MB）になるので こちらを 取る。 */
@@ -311,7 +347,7 @@
   }
   function lastMissing() { return (_missing || []).slice(); }
 
-  return { build: build, lastMissing: lastMissing,
+  return { build: build, lastMissing: lastMissing, lastPlaced: lastPlaced,
     PX_W: PX_W, PX_H: PX_H, PT_W: PT_W, PT_H: PT_H, K: K, ASSETS: ASSETS,
     _readPage: readPage, _splitByLine: splitByLine, _rgbOf: rgbOf, _alphaOf: alphaOf };
 });

@@ -25,6 +25,8 @@ on:
       - 'css/**'
       - 'index.html'
       - 'scripts/webkit-size.mjs'
+      - 'seikyu/lib/seikyu-pdf.js'
+      - 'seikyu/lib/seikyu-paper.js'
       - '.github/workflows/webkit.yml'
   workflow_dispatch:
 
@@ -53,3 +55,10 @@ jobs:
         run: node seikyu/tests/pask-color.test.mjs
       - name: ★同 わざと色を戻して赤になるか
         run: node seikyu/tests/pask-color.test.mjs --self-test
+      # ★自作PDF★（司さん 2026-08-30「自作PDFのやり方しか指示してないわ」）
+      #   ★本物のブラウザで 本物の紙から PDFを作って 数で見る★（chromium が要る）。
+      #   司さんの指摘「なんでここが揃ってないんど／右揃えか左揃えかやろが」を 数で 押さえた物。
+      - name: Install Chromium (自作PDFを 本物のブラウザで 作る為)
+        run: npx playwright install --with-deps chromium
+      - name: ★自作PDF 紙の揃え方を そのまま写しているか (右端/左端が紙と同じ・自社4行の右端が揃う・化け0)
+        run: node seikyu/tests/pdf-align.mjs
