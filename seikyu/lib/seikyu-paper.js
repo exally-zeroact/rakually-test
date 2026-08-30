@@ -212,32 +212,31 @@
     if (!Number.isFinite(n)) return 17;
     return Math.max(10, Math.min(40, Math.round(n)));
   }
-  /* ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」）
-     ・'on'   … 社名に そっくり重ねる（既定）
-     ・'edge' … ★社名の末尾に かける★＝印の55%が 名前の外へ出る
-                （代行請求 invoice-pdf.js:766 と同じ深さ。★角印は 社名に かけて押す物★）
-     ・dx/dy  … そこから 横・縦に mm でずらす（＋は 右／下）
-     ★右へ出せるのは 紙の余白（10mm）まで★＝それ以上は 印が 紙から出る。
-       ＝はみ出し量（55%）＋ずらし（dx）を 足して 10mm で 頭打ちにする。
-     ★決め方は seikyu-doc（sealPos / sealNudgeMm）が唯一の正★＝ここは そのまま置くだけ。 */
-  var PAPER_MARGIN_MM = 10;         // .sheet の padding と 同じ（ここを越えると 紙の外）
-  var EDGE_OUT = 0.55;              // 名前の外へ出す割合（代行 = 1 - 0.45）
-  function sealNudge(v) {
-    var n = Number(v);
-    if (!Number.isFinite(n)) return 0;
-    /* ★±10mm＝紙の余白と同じ★（これ以上は 印が 紙から出る＝実測ずみ）
-       ★決め方は seikyu-doc.sealNudgeMm が唯一の正★。ここは 紙の側の 同じ蓋。 */
-    return Math.max(-10, Math.min(10, Math.round(n * 10) / 10));
+  /* ★印の場所は 紙の上のどこでもよい★
+     （司さん 2026-08-31「そこも違うかないか？ 場所は自由に変えれんのか？」）
+     ・sealX / sealY が 入っていれば ★紙の左上から その mm の所★に 押す
+     ・入っていなければ ★今までの場所★（社名に重ねる）＝黙って 見た目を 変えない
+     ★紙から出ない★のは seikyu-doc.sealXY が 収めている（ここは 置くだけ）。
+     ★どの紙にも 同じ所に押す★（2枚以上でも 場所は 動かない）。 */
+  var PAPER_W_MM = 210, PAPER_H_MM = 297;
+  function sealFree(g) {
+    var x = (g && g.sealX), y = (g && g.sealY);
+    if (typeof x !== 'number' || typeof y !== 'number') return null;
+    /* ★紙から出さない蓋は 紙の側にも 置く★（2026-08-31 実測で 抜けていた）
+       ＝決まり（seikyu-doc.sealXY）を 通らずに 紙を作る道が 在る（試験・別の呼び方）。
+         ★片方だけの蓋は 蓋ではない★＝999mm と渡されたら 紙の外へ出ていた。 */
+    var mm = sealMm(g.sealSizeMm);
+    var cl = function (v, max) { return Math.max(0, Math.min(max - mm, v)); };
+    return { x: cl(x, PAPER_W_MM), y: cl(y, PAPER_H_MM) };
   }
   function sealStyle(g) {
     var mm = sealMm(g.sealSizeMm);
-    var dx = sealNudge(g.sealDx), dy = sealNudge(g.sealDy);
-    var out = (g.sealPos === 'edge') ? mm * EDGE_OUT : 0;
-    /* ★紙から出さない★＝右へのはみ出しは 余白（10mm）まで（大きい印でも 頭打ち） */
-    var right = Math.min(PAPER_MARGIN_MM, out + dx);
-    return 'width:' + mm + 'mm;height:' + mm + 'mm;'
-      + 'right:' + (-Math.round(right * 10) / 10) + 'mm;left:auto;'
-      + 'top:calc(50% + ' + dy + 'mm);';
+    var f = sealFree(g);
+    var size = 'width:' + mm + 'mm;height:' + mm + 'mm;';
+    /* ★自由な場所★＝紙（.sheet）の左上から。紙の余白の中でも外でも 置ける。 */
+    if (f) return size + 'left:' + f.x + 'mm;top:' + f.y + 'mm;right:auto;bottom:auto;';
+    /* ★今までの場所★＝社名の行の右端に 重ねる（縦は 行の真ん中） */
+    return size + 'right:0;top:50%;';
   }
 
   function hasRole(items, role) {
@@ -624,8 +623,8 @@
            ★見本＝代行請求 invoice-pdf.js:760「判子（社名＝1行目の右端に"重ねて"押す＝角印標準）」★
            うちの自社情報は 右揃えなので、社名の右端＝この箱の右端。そこへ 重ねる。 */
         + '<div class="from-name">' + (esc(g.yago) || '（自社情報が未入力）')
-        + (g.sealDataUrl ? '<img class="seal" style="' + sealStyle(g) + '" src="'
-          + esc(g.sealDataUrl) + '" alt="">' : '')
+        + (g.sealDataUrl ? '<img class="seal' + (sealFree(g) ? ' seal-free' : '')
+          + '" style="' + sealStyle(g) + '" src="' + esc(g.sealDataUrl) + '" alt="">' : '')
         + '</div>'
         + (g.addr ? '<div class="from-sub">' + esc(g.addr) + '</div>' : '')
         + (g.tel ? '<div class="from-sub">TEL ' + esc(g.tel) + '</div>' : '')
@@ -943,7 +942,7 @@
         html: '<!DOCTYPE html>\n<html lang="ja"><head><meta charset="UTF-8">'
           + '<meta name="viewport" content="width=device-width, initial-scale=1">'
           + '<title>' + esc(docTitle) + '</title>'
-          + '<style>' + css(TH) + '</style></head><body>' + rcHtml + '</body></html>',
+          + '<style>' + css(TH, !!sealFree(g)) + '</style></head><body>' + rcHtml + '</body></html>',
         title: docTitle, templateId: inv.template_id || TEMPLATE_ID,
         cols: spec, colWidths: colW, pages: 1, docKind: 'receipt',
       };
@@ -1065,7 +1064,7 @@
       + '<!DOCTYPE html>\n<html lang="ja"><head><meta charset="UTF-8">'
       + '<meta name="viewport" content="width=device-width, initial-scale=1">'
       + '<title>' + esc(docTitle) + '</title>'
-      + '<style>' + css(TH) + '</style></head><body>'
+      + '<style>' + css(TH, !!sealFree(g)) + '</style></head><body>'
       + sheets
       + '</body></html>';
 
@@ -1078,7 +1077,11 @@
   /* ── 紙の見た目 ────────────────────────────────────────────
      ★文が入る所に flex/grid を使わない★（1文字ずつ縦に割れる事故を作らない）。
      ★枠で囲まない★（御請求金額・振込先・備考）＝うちの紙の作法。 */
-  function css(t) {
+  /* ★印を「紙のどこでも」置ける様にする為の 1点だけの違い★
+     ・既定 … 社名の行を 基準にする（.from-name が position:relative）
+     ・自由 … ★紙（.sheet）を 基準にする★＝社名の行を 基準にしない
+     ＝どちらか一方だけが 基準になる（2つ在ると 印が 思った所へ行かない）。 */
+  function css(t, free) {
     var TH = themeOf(t);
     var INK = TH.ink, SUB = TH.sub, LINE = TH.line, ACCENT = TH.accent;
     var rowsOnly = TH.rule !== 'all';
@@ -1092,7 +1095,7 @@
       '-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
       /* ★1ページ＝A4の紙そのもの★（中身が少なくても紙の大きさは変わらない）
          ＝2枚目が「1枚目の途中」から始まらない。見本＝代行請求 invoice-pdf.js（addPage([A4]）。 */
-      '.sheet{width:210mm;min-width:210mm;height:297mm;margin:0 auto;padding:10mm 10mm;',
+      '.sheet{position:relative;width:210mm;min-width:210mm;height:297mm;margin:0 auto;padding:10mm 10mm;',
       'position:relative;overflow:hidden;background:#FFFFFF;}',
       /* 上の中身は上から積み、足元は紙の下端に貼る（★表の2行で作る＝flex を使わない★） */
       '.pg{width:100%;height:100%;border-collapse:collapse;table-layout:fixed;}',
@@ -1131,13 +1134,16 @@
       /* ★角印は薄く重ねる（下の文字を隠し切らない）★
          大きさは会社が決める（10〜40mm・既定21mm）。文字の上に少しかかってよい。 */
       /* ★角印＝社名の右端に 重ねる★（ぶら下げない）。社名の行を 基準にする。 */
-      '.from-name{position:relative;}',
+      (free ? '.from-name{}' : '.from-name{position:relative;}'),
       /* ★ほんの少し 透かす★（代行請求 invoice-pdf.js:775 と同じ opacity .95）
          ＝重なった字が 完全には 消えない（判子は 上に押す物だが 下の字も 読めるのが 実物） */
-      /* ★場所（right/left/top）は 1つ1つの紙で 決める★＝ここには 書かない
-         （会社ごとに 変えられる物を CSSに焼き付けない） */
+      /* ★場所（left/top/right）は 1つ1つの紙で 決める★＝ここには 書かない
+         （会社ごとに 変えられる物を CSSに焼き付けない）
+         ★既定★ … 社名の行の中で 右端に 重ねる（縦は 行の真ん中＝translateY で 半分 上げる）
+         ★自由★ … 紙（.sheet）の左上からの mm＝行の真ん中に 合わせない（ずらさない） */
       '.seal{position:absolute;transform:translateY(-50%);opacity:.95;'
         + 'object-fit:contain;pointer-events:none;}',
+      '.seal-free{transform:none;}',
       '.pageno{font-size:9.5pt;color:' + SUB + ';margin:0 0 2.4mm;}',
       '.lead-greet{margin:0 0 1.6mm;}',
 

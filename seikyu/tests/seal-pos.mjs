@@ -1,21 +1,19 @@
-/* seal-pos.mjs — ★判子の場所を 変えられるか★
+/* seal-pos.mjs — ★判子を 紙の どこにでも 置けるか★
  * ============================================================================
- * ★司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」★
- *   ＝それまでは ★大きさ（mm）しか 変えられなかった★。場所は CSSに焼き付けていた。
- *
- * ★出来る事★
- *   ・場所 … 社名に重ねる（既定）／★社名の末尾に かける★（代行請求と同じ深さ＝印の55%が外へ）
- *   ・そこから 横・縦に mm で ずらす（＋は 右／下）
- *   ★「社名の左に置く」は 消した★（司さん 2026-08-30「左に置くは違うやろが」）
- *     ＝角印を 社名の左に置く紙は 実在しない。★実在しない置き方を 選ばせない★。
+ * ★司さん 2026-08-31「そこも違うかないか？ 場所は自由に変えれんのか？」★
+ *   ＝2026-08-30 に私が作った「決まった置き方から 選ばせる」形が 間違いだった。
+ *     ・'left'（社名の左に置く） … 実在しない置き方（8/30「左に置くは違うやろが」）
+ *     ・'on'/'edge' の2択        … ★うちが決めた所しか 選べない＝「変えられる」ではない★
+ *   ⇒ ★紙の左上からの mm で どこにでも置く★（紙の絵の上で つまんで動かす）
  *
  * ★守らせる事★
- *   ① 既定は 今までと 同じ（社名に重ねる）＝黙って 見た目を 変えない
- *   ② 「末尾に かける」なら 印が 右へ出て ★隠れる字が 減る★（TELや登録番号が 読める）
- *   ③ ずらしたぶん だけ 動く（動いていない、を許さない）
- *   ④ ★どう動かしても 紙から 出ない★（±10mm＝紙の余白と同じ蓋。越える指定は 蓋に収める）
- *   ⑤ 設定の下見と 紙は ★同じ決め方（PAPER.sealStyle）★＝2つの正を作らない
- *   ⑥ 実UIで 選ぶ→下見が変わる／保存すると 倉庫へ その値が行く
+ *   ① 未設定なら ★今までの場所★（社名に重ねる）＝黙って 見た目を 変えない
+ *   ② 紙の どこにでも 置ける（指した所に 行く）
+ *   ③ ★紙から 出ない★（紙の外を指されても 収める。大きい印でも）
+ *   ④ 2枚以上の紙でも ★どの紙も 同じ所★に 押す
+ *   ⑤ 実UIで ★紙の絵を 押すと そこへ動く★／mmの欄でも 動く／いつもの場所に 戻せる
+ *   ⑥ 保存すると 倉庫へ その mm が 行く
+ *   ★決まった置き方（left/on/edge）が 戻っていない事★も 見る
  *
  * ★印影は その場で描く★（司さんの実物は repo に入れない＝配信で 誰でも落とせてしまう）
  *
@@ -48,7 +46,7 @@ const srv = http.createServer((rq, rs) => {
 await new Promise((r) => srv.listen(0, r));
 const port = srv.address().port;
 
-console.log('\n[seal-pos] 判子の場所を 変えられるか（本物のブラウザで 紙を組んで 測る）');
+console.log('\n[seal-pos] 判子を 紙の どこにでも 置けるか（本物のブラウザで 紙を組んで 測る）');
 
 const b = await webkit.launch();
 const mk = await (await b.newContext({ viewport: { width: 300, height: 300 } })).newPage();
@@ -64,13 +62,17 @@ const SEAL = await mk.evaluate(() => {
 });
 await mk.close();
 
-const LINES = [{ name: '運転代行 8月分', qty: '1', unit: '式', price: '30000', rate: 10 }];
-const TAX = X.compute({ lines: LINES, taxMode: 'exclusive', rounding: 'floor' });
-async function paper(org) {
+const MM = 794 / 210;                       // 1mm あたりの点（A4を794pxで組んでいる）
+function lines(n) {
+  return Array.from({ length: n }, (_, i) => ({ name: '品目' + (i + 1), qty: '1', unit: '式', price: '1000', rate: 10 }));
+}
+async function paper(org, n) {
+  const ls = lines(n || 1);
+  const tax = X.compute({ lines: ls, taxMode: 'exclusive', rounding: 'floor' });
   const bt = PAPER.build({
     inv: { no: '202608-001', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
-      lines: LINES, totals: { grandTotal: TAX.grandTotal }, data: {} },
-    tax: TAX, partner: { name: '八木工業株式会社', honor: '御中' },
+      lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
+    tax, partner: { name: '八木工業株式会社', honor: '御中' },
     org: Object.assign({ yago: '合同会社ZEROact', addr: '今治市本町7-3-40 00コーポ1号',
       tel: '090-5716-1946', invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 4160657',
       sealDataUrl: SEAL, sealSizeMm: 17 }, org),
@@ -78,116 +80,107 @@ async function paper(org) {
   });
   const pg = await (await b.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
   await pg.setContent((typeof bt === 'string') ? bt : bt.html, { waitUntil: 'load' });
-  await pg.waitForTimeout(200);
+  await pg.waitForTimeout(180);
   const r = await pg.evaluate(() => {
-    const s = document.querySelector('.seal'), n = document.querySelector('.from-name');
-    if (!s || !n) return { err: '印か社名が 無い' };
-    const a = s.getBoundingClientRect();
-    const hid = []; let all = 0;
-    const walk = (el) => {
-      for (const c of el.childNodes) {
-        if (c.nodeType === 3) {
-          const t = c.textContent;
-          for (let i = 0; i < t.length; i++) {
-            if (!t[i].trim()) continue;
-            const rg = document.createRange(); rg.setStart(c, i); rg.setEnd(c, i + 1);
-            const g = rg.getBoundingClientRect(); if (!g.width) continue;
-            all++;
-            const ox = Math.min(a.right, g.right) - Math.max(a.left, g.left);
-            const oy = Math.min(a.bottom, g.bottom) - Math.max(a.top, g.top);
-            if (ox > g.width * 0.4 && oy > g.height * 0.4) hid.push(t[i]);
-          }
-        } else if (c.nodeType === 1 && c !== s) walk(c);
-      }
-    };
-    walk(n.parentElement);
-    const sh = document.querySelector('.sheet').getBoundingClientRect();
-    return { x: Math.round(a.left), y: Math.round(a.top), w: Math.round(a.width),
-      out: (a.left < sh.left - 0.5 || a.right > sh.right + 0.5 || a.top < sh.top - 0.5 || a.bottom > sh.bottom + 0.5),
-      all, hidden: hid.join('') };
+    const seals = [...document.querySelectorAll('.seal')];
+    const sheets = [...document.querySelectorAll('.sheet')];
+    if (!seals.length) return { err: '印が 無い', seals: [] };
+    const out = seals.map((s, i) => {
+      const a = s.getBoundingClientRect();
+      const sh = sheets[Math.min(i, sheets.length - 1)].getBoundingClientRect();
+      return {
+        x: Math.round((a.left - sh.left) * 100) / 100,
+        y: Math.round((a.top - sh.top) * 100) / 100,
+        w: Math.round(a.width),
+        out: (a.left < sh.left - 0.5 || a.right > sh.right + 0.5
+          || a.top < sh.top - 0.5 || a.bottom > sh.bottom + 0.5),
+      };
+    });
+    return { seals: out, sheets: sheets.length };
   });
   await pg.close();
   return r;
 }
 
 const base = await paper({});
-const edge = await paper({ sealPos: 'edge' });
-const dx = await paper({ sealDx: -5 });
-const dy = await paper({ sealDy: 3 });
-const over = await paper({ sealDx: 99, sealDy: -99 });
-const ends = [
-  await paper({ sealDx: 10 }), await paper({ sealDx: -10 }),
-  await paper({ sealDy: 10 }), await paper({ sealDy: -10 }),
-  await paper({ sealSizeMm: 40, sealDx: 10, sealDy: -10 }),
-  await paper({ sealPos: 'edge', sealSizeMm: 40, sealDx: 10, sealDy: 10 }),
-  await paper({ sealPos: 'edge', sealDx: 10 }),
-];
-console.log('     既定 x=' + base.x + '（隠れた字 ' + base.hidden.length + '）'
-  + ' ／ 末尾にかける x=' + edge.x + '（隠れた字 ' + edge.hidden.length + '）'
-  + ' ／ 横-5mm x=' + dx.x + ' ／ 縦+3mm y=' + dy.y);
+const put = await paper({ sealX: 150, sealY: 40 });
+const corner = await paper({ sealX: 0, sealY: 0 });
+const mid = await paper({ sealX: 96, sealY: 140 });
+const outX = await paper({ sealX: 999, sealY: 999 });
+const bigOut = await paper({ sealSizeMm: 40, sealX: 999, sealY: 999 });
+const two = await paper({ sealX: 20, sealY: 250 }, 40);
 
-T('★① 既定は 今までと同じ（社名の右端に 重ねる）', base.x > 600 && base.hidden.length > 0,
-  'x=' + base.x + ' 隠れた字 ' + base.hidden.length);
-T('★② 「末尾に かける」と 印が 右へ出て 隠れる字が 減る',
-  edge.x > base.x && edge.hidden.length < base.hidden.length,
-  'x=' + edge.x + '（既定 ' + base.x + '）隠れた字 ' + edge.hidden.length + '（既定 ' + base.hidden.length + '）');
-T('★②-2 「末尾に かける」深さは 代行と同じ（印の55%が 名前の外へ）',
-  Math.abs((edge.x - base.x) - Math.round(64 * 0.55)) <= 2,
-  '外へ出た ' + (edge.x - base.x) + 'px（印64pxの55%＝35pxのはず）');
-T('★③ 横にずらすと そのぶん 動く（-5mm ≒ -19px）',
-  Math.abs((base.x - dx.x) - 19) <= 2, '動いた ' + (base.x - dx.x) + 'px');
-T('★④ 縦にずらすと そのぶん 動く（+3mm ≒ +11px）',
-  Math.abs((dy.y - base.y) - 11) <= 2, '動いた ' + (dy.y - base.y) + 'px');
-T('★⑤ 蓋を越える指定は 蓋に収める（99mm → 10mm）',
-  !over.out && over.x === ends[0].x, 'x=' + over.x + ' / 10mmのとき ' + ends[0].x);
-T('★⑥ どう動かしても 紙から 出ない（端・大きい印・末尾かけ ぜんぶ）',
-  ends.every((r) => !r.out), '紙から出た組み合わせが ' + ends.filter((r) => r.out).length + '件');
-T('★⑦ 印は ちゃんと 出ている（測れていない を 緑にしない）',
-  base.w > 50 && base.all > 30, '印の幅 ' + base.w + ' 自社の字 ' + base.all);
+console.log('     既定 x=' + base.seals[0].x + 'px ／ 150,40mm → '
+  + Math.round(put.seals[0].x / MM) + ',' + Math.round(put.seals[0].y / MM) + 'mm'
+  + ' ／ 紙の外を指定 → ' + Math.round(outX.seals[0].x / MM) + ',' + Math.round(outX.seals[0].y / MM) + 'mm');
 
-/* ★決め方は1つ★（紙も 設定の下見も 同じ関数を通る） */
+T('★① 未設定なら 今までの場所（社名に重ねる・紙の右上のあたり）',
+  base.seals[0].x > 600 && base.seals[0].y < 200 && !base.seals[0].out,
+  'x=' + base.seals[0].x + ' y=' + base.seals[0].y);
+T('★② 指した所に 行く（紙の左から150mm・上から40mm）',
+  Math.abs(put.seals[0].x - 150 * MM) < 2 && Math.abs(put.seals[0].y - 40 * MM) < 2,
+  'x=' + put.seals[0].x + '（' + Math.round(150 * MM) + 'のはず）y=' + put.seals[0].y);
+T('★③ 紙の左上（0,0）にも 置ける（余白の外でも 置ける）',
+  Math.abs(corner.seals[0].x) < 2 && Math.abs(corner.seals[0].y) < 2 && !corner.seals[0].out,
+  'x=' + corner.seals[0].x + ' y=' + corner.seals[0].y);
+T('★④ 紙の真ん中にも 置ける',
+  Math.abs(mid.seals[0].x - 96 * MM) < 2 && Math.abs(mid.seals[0].y - 140 * MM) < 2,
+  'x=' + mid.seals[0].x + ' y=' + mid.seals[0].y);
+T('★⑤ 紙の外を指定されても 紙から 出ない（17mmの印）',
+  !outX.seals[0].out && Math.abs(outX.seals[0].x - (210 - 17) * MM) < 2,
+  'x=' + outX.seals[0].x + ' 出た:' + outX.seals[0].out);
+T('★⑥ 大きい印（40mm）でも 紙から 出ない',
+  !bigOut.seals[0].out && Math.abs(bigOut.seals[0].x - (210 - 40) * MM) < 2,
+  'x=' + bigOut.seals[0].x + ' 出た:' + bigOut.seals[0].out);
+T('★⑦ 2枚の紙でも どの紙も 同じ所に 押す',
+  two.sheets === 2 && two.seals.length === 2
+  /* 紙2枚は 縦に並ぶので、2枚目の左上は ★1点未満の端数★でずれる（297mm=1122.52px）。
+     ここで見たいのは「同じ所か」なので ★1.5点まで★を 同じとする。 */
+  && Math.abs(two.seals[0].x - two.seals[1].x) < 1.5 && Math.abs(two.seals[0].y - two.seals[1].y) < 1.5,
+  '紙' + two.sheets + '枚 印' + two.seals.length + '個 ' + JSON.stringify(two.seals));
+
 const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');
-T('★⑧ 設定の下見も 紙と 同じ決め方を 通る（2つの正を 作らない）',
-  /PAPER\.sealStyle\(/.test(app), '★画面が 場所を 自分で 決め直している★');
-T('★⑨ 場所の決まりは seikyu-doc が 唯一の正（画面で 蓋を 決め直さない）',
-  /DOC\.sealPos\(/.test(app) && /DOC\.sealNudgeMm\(/.test(app), '★画面が 自分で 蓋をしている★');
+const docSrc = fs.readFileSync(path.join(ROOT, 'seikyu/lib/seikyu-doc.js'), 'utf8');
+T('★⑧ 蓋（紙から出さない）は seikyu-doc が 唯一の正（画面で 決め直さない）',
+  /DOC\.sealXY\(/.test(app) && /function sealXY/.test(docSrc), '★画面が 自分で 蓋をしている★');
+T('★⑨ 決まった置き方（left/on/edge）は 戻っていない',
+  !/SEAL_POS/.test(docSrc) && !/sealPos/.test(app), '★消したはずの 置き方が 戻っている★');
 
 /* ★実UIで 押す★ */
-const pg = await (await b.newContext({ viewport: { width: 390, height: 800 } })).newPage();
+const pg = await (await b.newContext({ viewport: { width: 390, height: 900 } })).newPage();
 await pg.goto('http://localhost:' + port + '/seikyu/index.html', { waitUntil: 'domcontentloaded' });
 await pg.waitForTimeout(600);
 const ui = await pg.evaluate(async (seal) => {
-  const A = window.SeikyuApp, doc = document, out = {};
-  doc.getElementById('app').hidden = false;
+  const A = window.SeikyuApp, d = document, out = {};
+  d.getElementById('app').hidden = false;
   A._state.org = { yago: '合同会社ZEROact', addr: '今治市本町7-3-40', sealDataUrl: seal, sealSizeMm: 17 };
   A._go('scr-set');
   A._fillSettings();
-  /* ★選ぶ所に 手を紐づける★（bind は attach の中＝倉庫の無い試験からは 呼べない）
-     ＝これを忘れると「動かない」ではなく「押せていない」を 見てしまう（2026-08-30 実際に そうなった） */
   A._bindForTest();
-  const demo = doc.getElementById('seal-demo');
-  const sealOf = () => {
-    const el = demo.querySelector('.sd-seal');
-    return el ? Math.round(el.getBoundingClientRect().left) : null;
-  };
-  out.hasPos = !!doc.getElementById('seal-pos');
-  out.opts = [...(doc.getElementById('seal-pos') || { options: [] }).options].map((o) => o.value);
-  out.base = sealOf();
-  const sel = doc.getElementById('seal-pos');
-  sel.value = 'edge';
-  sel.dispatchEvent(new Event('change', { bubbles: true }));
-  out.edge = sealOf();
-  sel.value = 'on';
-  sel.dispatchEvent(new Event('change', { bubbles: true }));
-  const dxEl = doc.getElementById('seal-dx');
-  dxEl.value = '-5';
-  dxEl.dispatchEvent(new Event('input', { bubbles: true }));
-  out.dx = sealOf();
-  /* 保存すると 倉庫へ その値が行くか（倉庫は 偽物にして 受け取った物を 見る） */
+  const box = d.getElementById('seal-pos-box');
+  if (box) box.open = true;
+  A._sealStageForTest();
+  const stage = d.getElementById('seal-stage');
+  out.hasStage = !!stage;
+  out.before = A._sealXYForTest();
+  const r = stage.getBoundingClientRect();
+  out.stageSize = [Math.round(r.width), Math.round(r.height)];
+  A._sealPutAtForTest(r.left + r.width * 0.8, r.top + r.height * 0.9);
+  out.tapped = A._sealXYForTest();
+  out.fieldX = d.getElementById('seal-x').value;
+  out.fieldY = d.getElementById('seal-y').value;
+  const img = d.getElementById('seal-drag');
+  out.imgShown = !!(img && img.getAttribute('src'));
+  const fx = d.getElementById('seal-x');
+  fx.value = '10';
+  fx.dispatchEvent(new Event('input', { bubbles: true }));
+  out.byField = A._sealXYForTest();
+  d.getElementById('b-seal-home').click();
+  out.home = A._sealXYForTest();
   let saved = null;
   A._state.store = { org: { save: (p) => { saved = p; return Promise.resolve({ ok: true }); } } };
-  doc.getElementById('seal-pos').value = 'edge';
-  doc.getElementById('seal-dy').value = '2.5';
+  d.getElementById('seal-x').value = '120';
+  d.getElementById('seal-y').value = '30';
   await A._saveSealForTest();
   out.saved = saved;
   return out;
@@ -195,28 +188,32 @@ const ui = await pg.evaluate(async (seal) => {
 await b.close();
 srv.close();
 
-console.log('     画面の下見 … 既定 x=' + ui.base + ' ／ 末尾にかける x=' + ui.edge + ' ／ 横-5mm x=' + ui.dx);
+console.log('     画面 … 絵の大きさ ' + ui.stageSize.join('×') + 'px ／ 押す前 ' + JSON.stringify(ui.before)
+  + ' → 押した所 ' + JSON.stringify(ui.tapped) + ' → 欄で ' + JSON.stringify(ui.byField)
+  + ' → 戻す ' + JSON.stringify(ui.home));
 console.log('     保存した物 … ' + JSON.stringify(ui.saved));
-T('★⑩ 設定に 場所を選ぶ所が 在る（2通り・★左に置く は 出さない★）',
-  ui.hasPos && ui.opts.join(',') === 'on,edge', '出た選択肢: ' + ui.opts.join(','));
-T('★⑪ 選ぶと 下見が その場で 動く（紙を出さないと分からない を 作らない）',
-  ui.edge !== null && ui.base !== null && ui.edge > ui.base, '既定 ' + ui.base + ' / 末尾 ' + ui.edge);
-T('★⑫ ずらすと 下見も 動く', ui.dx !== null && ui.dx < ui.base, '既定 ' + ui.base + ' / -5mm ' + ui.dx);
-T('★⑬ 保存すると 場所とずれが 倉庫へ 行く',
-  !!ui.saved && ui.saved.sealPos === 'edge' && ui.saved.sealDy === 2.5,
-  '保存した物: ' + JSON.stringify(ui.saved));
+T('★⑩ 設定に 紙の絵が 在る（作り物ではなく 本物の紙）', ui.hasStage, '★紙の絵が 無い★');
+T('★⑪ 押す前は 未設定（＝いつもの場所）',
+  ui.before && ui.before.x === null && ui.before.y === null, JSON.stringify(ui.before));
+T('★⑫ 紙の絵を 押すと その辺へ 行く（右下を押したら 右下）',
+  ui.tapped && ui.tapped.x > 140 && ui.tapped.y > 240, JSON.stringify(ui.tapped));
+T('★⑬ 押した mm が 欄にも 出る（数で 直せる）',
+  String(ui.fieldX) === String(ui.tapped.x) && String(ui.fieldY) === String(ui.tapped.y),
+  '欄 ' + ui.fieldX + ',' + ui.fieldY + ' ／ 中 ' + ui.tapped.x + ',' + ui.tapped.y);
+T('★⑭ つまむ印が 絵の上に 出ている', ui.imgShown, '★つまむ物が 出ていない★');
+T('★⑮ mmの欄でも 動く', ui.byField && ui.byField.x === 10, JSON.stringify(ui.byField));
+T('★⑯ いつもの場所に 戻せる（未設定に 戻る）',
+  ui.home && ui.home.x === null && ui.home.y === null, JSON.stringify(ui.home));
+T('★⑰ 保存すると 紙の上の mm が 倉庫へ 行く',
+  !!ui.saved && ui.saved.sealX === 120 && ui.saved.sealY === 30, JSON.stringify(ui.saved));
 
 if (SELF) {
   console.log('\n★自己確認★ 蓋を外すと 紙から 出るか');
-  const s = PAPER.sealStyle({ sealSizeMm: 17, sealDx: 99 });
-  const m = /right:(-?[\d.]+)mm/.exec(s);
-  if (!m || Number(m[1]) !== -10) { console.log('  NG ★蓋が 効いていない（' + s + '）★'); process.exit(1); }
-  const big = PAPER.sealStyle({ sealSizeMm: 40, sealPos: 'edge' });
-  if (!/right:-10mm/.test(big)) { console.log('  NG ★大きい印の はみ出しが 頭打ちに なっていない（' + big + '）★'); process.exit(1); }
-  console.log('  ok  99mm と言われても -10mm に収めている＝⑤⑥が 効いている形');
-  const d = DOC.sealNudgeMm(99);
-  if (d !== DOC.SEAL_NUDGE_MAX) { console.log('  NG ★決まりの側の蓋が 効いていない★'); process.exit(1); }
-  console.log('  ok  決まりの側も ' + d + 'mm に収める');
+  const s1 = DOC.sealXY(999, 17, 'x');
+  if (s1 !== 210 - 17) { console.log('  NG ★蓋が 効いていない（' + s1 + '）★'); process.exit(1); }
+  const s2 = DOC.sealXY(-99, 17, 'y');
+  if (s2 !== 0) { console.log('  NG ★下の蓋が 効いていない（' + s2 + '）★'); process.exit(1); }
+  console.log('  ok  999mm → ' + s1 + 'mm ／ -99mm → ' + s2 + 'mm に収める＝⑤⑥が 効いている形');
 }
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

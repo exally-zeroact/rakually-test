@@ -258,7 +258,7 @@
         yago: od.yago || '', addr: od.addr || '', tel: od.tel || '',
         invoiceNo: od.invoiceNo || '', bank: od.bank || '',
         sealDataUrl: od.sealDataUrl || '', sealSizeMm: sealSizeMm(od.sealSizeMm), logoDataUrl: od.logoDataUrl || '',
-        sealPos: sealPos(od.sealPos), sealDx: sealNudgeMm(od.sealDx), sealDy: sealNudgeMm(od.sealDy),
+        sealX: sealXY(od.sealX, od.sealSizeMm, 'x'), sealY: sealXY(od.sealY, od.sealSizeMm, 'y'),
       },
       totals: { subtotal: t.subtotal || 0, taxTotal: t.taxTotal || 0, grandTotal: t.grandTotal || 0 },
       byRate: t.byRate || [],
@@ -300,39 +300,32 @@
      （黙って縮めると「押したはずの印が薄い/欠ける」になり、押した本人が気づけない） */
   var SEAL_MAX_BYTES = 300 * 1024;
 
-  /* ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」）
-     ・既定は ★社名に重ねる★＝角印の作法（代行請求 invoice-pdf.js:760 と同じ）
-     ・重ねたくない会社も在る（字が1文字も隠れない形）＝★社名の左に置く★も選べる
-     ・そこから ★横・縦に mm で ずらせる★
-       ★動かせる幅は ±10mm★＝紙の余白（上下左右 10mm）と 同じ。
-       ★これ以上 動かせると 印が 紙から出る★（実測：右へ30mmで 印の右端が 紙より 20mm外）。
-       ＝★出せない所へは 動かせないようにする★（出してから「切れています」と言わない）
-     ★決め方は ここが唯一の正★（紙も 画面も この関数を通す） */
-  /* ★「社名の左に置く」は 消した★（司さん 2026-08-30「左に置くは違うやろが」）
-     ＝角印を 社名の左に置く紙は 実在しない。★実在しない置き方を 選ばせない★。
-     残したのは ★どちらも 実物に在る 押し方★の2つだけ:
-       on   … 社名に そっくり重ねる（今までの既定）
-       edge … ★社名の末尾に かける★＝印の45%だけ 名前にかかり 55%は 名前の外へ出る
-              （代行請求 invoice-pdf.js:766「hankoX = nameRight - hs*0.45 …社名末尾に重なる」）
-     どちらも「重ねる」＝角印は 社名に かけて押す物。深さが 違うだけ。 */
-  var SEAL_POS = [
-    { v: 'on', t: '社名に重ねる' },
-    /* ★客に見せる字に 別の製品の名前を 出さない★（screen-words が赤にする）
-       ＝どこから借りた基準かは この上のコメントに 残してある。 */
-    { v: 'edge', t: '社名の末尾に かける（浅く重ねる）' },
-  ];
-  var SEAL_NUDGE_MAX = 10;          // 紙の余白と同じ＝この幅なら どう動かしても 紙から出ない
-  function sealPos(v) {
-    var t = String(v == null ? '' : v);
-    for (var i = 0; i < SEAL_POS.length; i++) if (SEAL_POS[i].v === t) return t;
-    return 'on';
-  }
-  function sealNudgeMm(v) {
+  /* ★印の場所は 紙の上のどこでもよい★
+     （司さん 2026-08-31「そこも違うかないか？ 場所は自由に変えれんのか？」）
+     ★決まった置き方を 2つ3つ 用意して 選ばせるのが 間違いだった★
+       ＝会社ごとに 押す所は 違う（社名に重ねる／その少し右／右下 など）。
+         うちが 決めた所しか 選べないなら「変えられる」とは言わない。
+     ⇒ ★紙の左上からの mm で 自由に置く★（指で つまんで動かす道も 画面に付ける）
+     ・未設定（null）＝★今までの場所★（社名に重ねる）＝黙って 見た目を 変えない
+     ・値が入ったら その通り。★紙から出ない所までに 収める★（A4 210×297mm − 印の大きさ）
+     ★この関数が 唯一の正★（紙も 画面も ここを通る） */
+  var PAPER_W_MM = 210, PAPER_H_MM = 297;
+  /** 紙の上の位置（mm）。null＝未設定（今までの場所）。印の大きさぶん 内側に収める。 */
+  function sealXY(v, sizeMm, axis) {
+    if (v === '' || v === null || v === undefined) return null;
     var n = Number(v);
-    if (!Number.isFinite(n)) return 0;
-    n = Math.round(n * 10) / 10;                      // 0.1mm きざみ
-    return Math.max(-SEAL_NUDGE_MAX, Math.min(SEAL_NUDGE_MAX, n));
+    if (!Number.isFinite(n)) return null;
+    var mm = sealSizeMm(sizeMm);
+    var max = ((axis === 'y') ? PAPER_H_MM : PAPER_W_MM) - mm;
+    n = Math.round(n * 10) / 10;
+    return Math.max(0, Math.min(max, n));
   }
+
+  /* ★下は 2026-08-30 に作った「決まった置き方」＝司さんに 2度 違うと言われた物★
+     ★残さない★（実在しない置き方／うちが決めた所しか選べない形）。
+     ここに書き残すのは ★同じ物を もう一度 作らない為★。
+     ・'left'（社名の左に置く） … 2026-08-30「左に置くは違うやろが」
+     ・'on'/'edge' の2択        … 2026-08-31「場所は自由に変えれんのか？」 */
 
   function sealSizeMm(v) {
     var n = Number(v);
@@ -808,7 +801,7 @@
     billedOf: billedOf, payableOf: payableOf,
     snapshotOf: snapshotOf, partnerNameOf: partnerNameOf,
     validateSeal: validateSeal, sealSizeMm: sealSizeMm,
-    sealPos: sealPos, sealNudgeMm: sealNudgeMm, SEAL_POS: SEAL_POS, SEAL_NUDGE_MAX: SEAL_NUDGE_MAX,
+    sealXY: sealXY, PAPER_W_MM: PAPER_W_MM, PAPER_H_MM: PAPER_H_MM,
     SEAL_DEFAULT_MM: SEAL_DEFAULT_MM, SEAL_MIN_MM: SEAL_MIN_MM, SEAL_MAX_MM: SEAL_MAX_MM, SEAL_MAX_BYTES: SEAL_MAX_BYTES,
     paymentStateOf: paymentStateOf,
     validateInvoice: validateInvoice, convertQuoteToInvoice: convertQuoteToInvoice,

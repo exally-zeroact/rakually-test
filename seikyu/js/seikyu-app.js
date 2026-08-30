@@ -2348,19 +2348,11 @@
     else { pv.removeAttribute('src'); show(pv, false); show($('seal-none'), true); }
     /* ★当てた大きさが在る時は それを出す★（保存前の下見の間だけ） */
     $('seal-mm').value = DOC.sealSizeMm(sealGuess ? sealGuess.mm : d.sealSizeMm);
-    /* ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」） */
-    var sp = $('seal-pos');
-    if (sp) {
-      var cur = DOC.sealPos(d.sealPos);
-      sp.innerHTML = DOC.SEAL_POS.map(function (x) {
-        return '<option value="' + esc(x.v) + '"' + (x.v === cur ? ' selected' : '') + '>'
-          + esc(x.t) + '</option>';
-      }).join('');
-      sp.value = cur;
-    }
-    if ($('seal-dx')) $('seal-dx').value = DOC.sealNudgeMm(d.sealDx);
-    if ($('seal-dy')) $('seal-dy').value = DOC.sealNudgeMm(d.sealDy);
-    drawSealDemo();
+    /* ★印の場所★（司さん 2026-08-31「場所は自由に変えれんのか？」）
+       ＝紙の左上からの mm。空＝いつもの場所（社名に重ねる）。 */
+    if ($('seal-x')) $('seal-x').value = (sealXY.x === null ? '' : sealXY.x);
+    if ($('seal-y')) $('seal-y').value = (sealXY.y === null ? '' : sealXY.y);
+    drawSealStage();
     setText('seal-why', (sealGuess ? sealGuess.why + '（違う時は 上の数を 直してください）' : '')
       + '大きさは ' + DOC.SEAL_MIN_MM + '〜' + DOC.SEAL_MAX_MM + 'mm の間だけ（既定 '
       + DOC.SEAL_DEFAULT_MM + 'mm）。画像は ' + Math.round(DOC.SEAL_MAX_BYTES / 1024) + 'KB まで。'
@@ -2368,38 +2360,102 @@
     $('b-seal-clear').disabled = !(d.sealDataUrl || sealPending);
   }
 
-  /** ★印の場所を その場で見せる★（紙を出さないと分からない、を作らない）
-   *  ★紙と同じ並び★＝自社の4行を 右揃えで置き、印を 同じ決め方（PAPER.sealStyle）で 重ねる。
-   *  ★ここで 場所を 決め直さない★＝紙と 2つの正が 生まれる。 */
-  function drawSealDemo() {
-    var host = $('seal-demo'); if (!host) return;
+  /* ═══ ★印の場所を 紙の上で 決める★ ═══
+     （司さん 2026-08-31「そこも違うかないか？ 場所は自由に変えれんのか？」）
+     ★決まった置き方を 選ばせるのを やめた★＝本物の紙の絵の上で ★つまんで動かす★。
+     ・場所は 紙の左上からの mm（seikyu-doc.sealXY が 唯一の正＝紙から出ない所に 収める）
+     ・空（未設定）＝いつもの場所（社名に重ねる）＝黙って 見た目を 変えない
+     ・★紙の絵は 本物★（PAPER.build で作った紙を そのまま縮める。作り物の絵を置かない） */
+  var sealXY = { x: null, y: null };
+
+  function sealXYRead() {
+    var d = S.org || {};
+    var mm = DOC.sealSizeMm($('seal-mm') ? $('seal-mm').value : d.sealSizeMm);
+    return {
+      x: DOC.sealXY($('seal-x') ? $('seal-x').value : d.sealX, mm, 'x'),
+      y: DOC.sealXY($('seal-y') ? $('seal-y').value : d.sealY, mm, 'y'),
+    };
+  }
+  /** 紙の絵を 描き直す（印は 絵の上に 別に置く＝つまめる様に） */
+  function drawSealStage() {
+    var stage = $('seal-stage'), fr = $('seal-paper'), img = $('seal-drag');
+    if (!stage || !fr || !img) return;
     var d = S.org || {};
     var url = sealPending || d.sealDataUrl || '';
-    if (!url) { host.innerHTML = ''; show(host, false); return; }
-    show(host, true);
-    var g = {
-      sealDataUrl: url,
-      sealSizeMm: DOC.sealSizeMm($('seal-mm') ? $('seal-mm').value : d.sealSizeMm),
-      sealPos: DOC.sealPos($('seal-pos') ? $('seal-pos').value : d.sealPos),
-      sealDx: DOC.sealNudgeMm($('seal-dx') ? $('seal-dx').value : d.sealDx),
-      sealDy: DOC.sealNudgeMm($('seal-dy') ? $('seal-dy').value : d.sealDy),
-    };
-    /* 下見は 画面の幅（mmではない）なので、紙と同じ ★比★ で縮める。
-       紙の自社の箱＝80mm ぶん。下見の箱の幅を それに見立てる。 */
-    /* ★画面に出ていない時 clientWidth は 0★＝0で割ると 印が 0点になって 動かなく見える
-       （2026-08-30 実際に そうなった）。★測れない時は 決め打ちの幅で 描く★。 */
-    var box = host.clientWidth || Math.round(host.getBoundingClientRect().width) || 320;
-    var per = box / 80;                       // 1mm あたりの点
-    var st = PAPER.sealStyle(g).replace(/([-\d.]+)mm/g, function (m0, n) {
-      return (Number(n) * per).toFixed(1) + 'px';
-    }).replace('calc(50% + ', 'calc(50% + ');
-    host.innerHTML = '<div class="sd-in">'
-      + '<div class="sd-name">' + (esc(d.yago) || '（自社情報が未入力）')
-      + '<img class="sd-seal" style="' + st + '" src="' + esc(url) + '" alt=""></div>'
-      + (d.addr ? '<div class="sd-sub">' + esc(d.addr) + '</div>' : '<div class="sd-sub">（住所）</div>')
-      + (d.tel ? '<div class="sd-sub">TEL ' + esc(d.tel) + '</div>' : '<div class="sd-sub">TEL （電話）</div>')
-      + (d.invoiceNo ? '<div class="sd-sub">登録番号 ' + esc(d.invoiceNo) + '</div>' : '')
-      + '</div>';
+    show(stage, !!url);
+    if ($('b-seal-home')) show($('b-seal-home'), !!url);
+    if (!url) { setText('seal-pos-why', ''); return; }
+    var mm = DOC.sealSizeMm($('seal-mm') ? $('seal-mm').value : d.sealSizeMm);
+    var free = (sealXY.x !== null && sealXY.y !== null);
+    /* ★紙は 印なしで描く★＝つまむ印は 絵の上に 置く（二重に出さない）。
+       ★未設定の時だけ 紙に 印を入れる★＝いつもの場所が そのまま 見える。 */
+    var org = Object.assign({}, d, { bank: settings().bank },
+      sealPending ? { sealDataUrl: sealPending } : {},
+      free ? { sealDataUrl: '' } : {});
+    var html = sealPaperHtml(org);
+    if (fr.getAttribute('data-h') !== String(html.length)) {
+      fr.setAttribute('data-h', String(html.length));
+      fr.srcdoc = html;
+    }
+    show(img, free);
+    if (!free) {
+      setText('seal-pos-why', 'いつもの場所（社名に重ねる）です。紙の絵を 押すか、'
+        + '下の欄に mm を入れると、そこへ動かせます。');
+      img.removeAttribute('src');
+      return;
+    }
+    img.src = url;
+    var w = stage.clientWidth || 300, h = stage.clientHeight || Math.round(w * 297 / 210);
+    var px = w / DOC.PAPER_W_MM, py = h / DOC.PAPER_H_MM;
+    img.style.width = (mm * px) + 'px';
+    img.style.height = (mm * py) + 'px';
+    img.style.left = (sealXY.x * px) + 'px';
+    img.style.top = (sealXY.y * py) + 'px';
+    setText('seal-pos-why', '紙の左から ' + sealXY.x + 'mm ／ 上から ' + sealXY.y + 'mm に押します。'
+      + 'つまんで動かすか、下の欄で 細かく決められます。');
+  }
+  /** 紙の絵（本物の紙を そのまま縮めた物）。中身がまだ無い時は 見本の中身で描く。 */
+  function sealPaperHtml(org) {
+    var pi = paperInput();
+    if (pi) return fitInFrame(PAPER.build(Object.assign({}, pi, { org: org })).html);
+    var ln = [{ name: '（見本）', qty: '1', unit: '式', price: '30000', rate: 10 }];
+    var t = TAX.compute({ lines: ln, taxMode: 'exclusive', rounding: 'floor' });
+    return fitInFrame(PAPER.build({
+      inv: { no: '（見本）', issue_ymd: todayYmd(), kind: 'invoice', lines: ln,
+        totals: { grandTotal: t.grandTotal }, data: {} },
+      tax: t, partner: { name: '（取引先）', honor: '御中' }, org: org,
+      template: TPL.getOrDefault(settings().template),
+    }).html);
+  }
+  /** 紙の絵の中の 点 → 紙の mm（印の真ん中を その点に 合わせる） */
+  function sealPutAt(clientX, clientY) {
+    var stage = $('seal-stage'); if (!stage) return;
+    var r = stage.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var mm = DOC.sealSizeMm($('seal-mm') ? $('seal-mm').value : (S.org || {}).sealSizeMm);
+    var x = ((clientX - r.left) / r.width) * DOC.PAPER_W_MM - mm / 2;
+    var y = ((clientY - r.top) / r.height) * DOC.PAPER_H_MM - mm / 2;
+    sealXY = { x: DOC.sealXY(x, mm, 'x'), y: DOC.sealXY(y, mm, 'y') };
+    if ($('seal-x')) $('seal-x').value = sealXY.x;
+    if ($('seal-y')) $('seal-y').value = sealXY.y;
+    drawSealStage();
+  }
+  function bindSealStage() {
+    var stage = $('seal-stage'); if (!stage || stage.getAttribute('data-bound')) return;
+    stage.setAttribute('data-bound', '1');
+    var dragging = false;
+    stage.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      try { stage.setPointerCapture(e.pointerId); } catch (err) { /* 取れなくても 動く */ }
+      sealPutAt(e.clientX, e.clientY);
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      sealPutAt(e.clientX, e.clientY);
+    });
+    stage.addEventListener('pointerup', function () { dragging = false; });
+    stage.addEventListener('pointercancel', function () { dragging = false; });
   }
 
   function pickSeal(file) {
@@ -2459,10 +2515,8 @@
   function saveSeal() {
     var mm = DOC.sealSizeMm($('seal-mm').value);
     sealGuess = null;                     // 保存したら「当てた値」ではなく「決まった値」
-    var patch = { sealSizeMm: mm,
-      sealPos: DOC.sealPos($('seal-pos') ? $('seal-pos').value : ''),
-      sealDx: DOC.sealNudgeMm($('seal-dx') ? $('seal-dx').value : 0),
-      sealDy: DOC.sealNudgeMm($('seal-dy') ? $('seal-dy').value : 0) };
+    var xy = sealXYRead();
+    var patch = { sealSizeMm: mm, sealX: xy.x, sealY: xy.y };
     if (sealPending) {
       var chk = DOC.validateSeal(sealPending);
       if (!chk.ok) { box('seal-err', chk.reason); return Promise.resolve(); }
@@ -3495,11 +3549,18 @@
     if ($('rep-month')) $('rep-month').onchange = function () {
       repMonth = $('rep-month').value; renderReport();
     };
-    /* ★動かしたら その場で 下見が変わる★（押さないと分からない、を作らない） */
-    ['seal-mm', 'seal-dx', 'seal-dy'].forEach(function (id) {
-      var el = $(id); if (el) el.oninput = function () { drawSealDemo(); };
+    /* ★動かしたら その場で 絵が変わる★（押さないと分からない、を作らない） */
+    ['seal-mm', 'seal-x', 'seal-y'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.oninput = function () { sealXY = sealXYRead(); drawSealStage(); };
     });
-    if ($('seal-pos')) $('seal-pos').onchange = function () { drawSealDemo(); };
+    bindSealStage();
+    if ($('b-seal-home')) $('b-seal-home').onclick = function () {
+      sealXY = { x: null, y: null };
+      if ($('seal-x')) $('seal-x').value = '';
+      if ($('seal-y')) $('seal-y').value = '';
+      drawSealStage();
+    };
     $('b-seal-save').onclick = function () { return saveSeal(); };
     $('b-seal-clear').onclick = function () { return clearSeal(); };
     $('seal-file').onchange = function (e) { pickSeal(e.target.files && e.target.files[0]); };
@@ -3598,7 +3659,9 @@
        倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
     _bindForTest: function () { return bind(); },
     _paperBtnsForTest: function () { return PAPER_BTNS.slice(); },   // テスト用: 門を掛ける相手の一覧
-    _sealDemoForTest: function () { return drawSealDemo(); },   // テスト用: 下見を描き直す
+    _sealStageForTest: function () { bindSealStage(); return drawSealStage(); },
+    _sealPutAtForTest: function (x, y) { return sealPutAt(x, y); },
+    _sealXYForTest: function () { return sealXY; },
     _saveSealForTest: function () { return saveSeal(); },       // テスト用: 保存を そのまま走らせる
     _pickSealUrl: function (url) {           // テスト用: ファイル選択の代わりに data URL を渡す
       var chk = DOC.validateSeal(url);
