@@ -906,6 +906,28 @@
       },
     });
   }
+  /** ★領収書を 自作PDFで★（紙は 今の紙のまま／落とし口は 1本／出せない時は 黙らない） */
+  function doReceiptPdf(rcId, name) {
+    /* ★止めた理由は receiptPaperInput が もう出している★＝ここで上書きしない
+       （2か所で言うと 後の方の 当たりさわりのない字が 本当の理由を 消す） */
+    var pi = receiptPaperInput(rcId);
+    if (!pi) return;
+    var PDF = global.SeikyuPdf;
+    if (!PDF) { box('pay-err', 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
+    var built = PAPER.build(Object.assign({}, pi, { title: name }));
+    box('pay-ok', '領収書のPDFを作っています…（字を紙に埋め込むので 少し待ちます）');
+    PDF.build(built.html, { base: '../' }).then(function (bytes) {
+      var miss = PDF.lastMissing ? PDF.lastMissing() : [];
+      return OUT.pdf(bytes, name).then(function () {
+        box('pay-ok', '領収書 ' + pi.receipt.no + ' のPDFを作りました。'
+          + (miss.length ? '★この字は 字体に無いので 〓 で出しました：' + miss.join('') + '★' : ''));
+      });
+    }).catch(function (e) {
+      box('pay-err', '領収書のPDFが作れませんでした（' + (e && e.message) + '）。'
+        + '「領収書」なら 印刷から 出せます。');
+    });
+  }
+
   function receiptFileName(rcId) {
     var v = S.cur, rc = receiptById(rcId);
     if (!rc) return null;
@@ -1026,11 +1048,25 @@
           /* ★この1回ぶんの領収書★（棚は増やさない＝この行がそのまま1枚になる）
              返金の行には出さない（受け取っていない物の領収書を作らせない）。 */
           + (neg ? '' : '<button class="mini" type="button" data-rcp="' + esc(r.id) + '">領収書</button>')
+          /* ★領収書も 自作PDFで 出せる★（司さん 2026-08-30）
+             ＝印刷だけだと ★iPhoneで 紙の下に URLと日付が 付く★ */
+          + (neg ? '' : '<button class="mini" type="button" data-rcpdf="' + esc(r.id) + '">領収書PDF</button>')
           + '<button class="l-del" type="button" data-rc="' + esc(r.id) + '" aria-label="この入金の記録を消す">×</button>'
           + '</div>';
       }).join('');
       Array.prototype.forEach.call(host.querySelectorAll('[data-rc]'), function (b) {
         b.onclick = function () { return removeReceipt(b.getAttribute('data-rc')); };
+      });
+      /* ★領収書を 自作PDFで★（名前を先に決めさせるのは 下と同じ） */
+      Array.prototype.forEach.call(host.querySelectorAll('[data-rcpdf]'), function (b) {
+        b.onclick = function () {
+          var id = b.getAttribute('data-rcpdf');
+          var chk = DOC.canReceipt(receiptById(id), S.cur);
+          if (!chk.ok) { box('pay-err', chk.reason); return; }
+          var n = receiptFileName(id);
+          if (!n) { box('pay-err', '中身がまだ整っていないので、領収書が出せません。'); return; }
+          askNameWith(n, 'pdf', function (name) { doReceiptPdf(id, name); });
+        };
       });
       /* ★落とす前に「中身から作った名前」を出して直させる★（うちの決まり・全アプリ共通） */
       Array.prototype.forEach.call(host.querySelectorAll('[data-rcp]'), function (b) {
@@ -3197,6 +3233,9 @@
       return (typeof built === 'string') ? built : ((built && built.html) || '');
     },
     _renderPayForTest: function () { return renderPay(); },    // テスト用: 入金の箱だけ描き直す
+    /* テスト用: ★ボタンに 手を紐づける所だけ★ 走らせる（attach は倉庫に つなぎに行くので
+       倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
+    _bindForTest: function () { return bind(); },
     _pickSealUrl: function (url) {           // テスト用: ファイル選択の代わりに data URL を渡す
       var chk = DOC.validateSeal(url);
       if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; fillSeal(); return chk; }
