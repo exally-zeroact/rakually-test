@@ -67,8 +67,9 @@
      ★数字の右端が表ごとに違う位置★に来ていた。ここで1つに決める。 */
   var EDGE = '1.2mm';
   var ROW_H = '6.3mm';
-  /* ★自社の塊を 何mm 下げるか★（1か所で決める＝紙も 見張りも この数を見る） */
-  var FROM_DROP_MM = 12;
+  /* ★あて名の下と「◯月分」の間の余白（mm）★＝★元の紙と同じ数★（実測 15.3mm）
+     ここを 0にしてしまい 司さんに 差し戻された（2026-08-31）。★言われていない所は 変えない★ */
+  var MID_PAD_MM = 15.3;
   var ROW_PAD = '0.9mm 1.2mm';
   var ROW_LH = '1.35';
   /* ★A4 1枚に載る行数★（★実測して決めた数★）
@@ -87,12 +88,15 @@
        → 16/6（締めに控除の行）→ 20/10（紙の頭を詰めた）→ 22/12（A4固定＋足元を下端に）
        → 21/11（振込先の名義を次の行に）→ 21/10（箱に字の余白）
        → 19/9（頭の並びを どの紙も同じにした＝挨拶と ページ番号が明細の上に来た）
-       → 18/8（振込先の高さを 3行ぶんで固定＝名義が長い会社でも 行数が変わらない）
-       → ★20/10（自社の塊を「ご請求金額」と 同じ段に入れて 下をそろえた／2026-08-31）★
-         ＝自社(19.4mm)が あて名(7.2mm)の段の高さを 決めていたのを やめたので
-           ★頭が 12.2mm 低くなり 明細が 2行 増えた★
-         ・1行ずつ 総当たりで 測り直した … 20行=余り0px／21行で +3px はみ出し
-                                        控除あり 10行=余り0px／11行で +16px
+       → ★18/8（振込先の高さを 3行ぶんで固定＝名義が長い会社でも 行数が変わらない）★
+       ★2026-08-31 自社の塊を「ご請求金額」と 下そろえにした日★
+         ・一度 20/10 に上げたが ★上げた理由は 私が 余白を詰めたから★で、
+           司さんに 差し戻された（「赤丸合わせろ ってゆうただけ」）。
+         ・余白を 元に戻したので ★数も 元のまま 18/8★（表の始まりは 79.9mm で 元と同じ）
+         ・測り直し（★元と同じ engine＝Chromium★）… 18行=余り0px／19行で +1px はみ出し
+           控除あり 8行=余り0px／9行で +14px
+         ★WebKitで測ると 19行に見えた★＝engine が違うと 数も違う。
+           ★台帳の数を 直す時は 元と同じ engine で 測る★（物差しを 先に そろえる）
          ・1枚物 … 控除あり ★9行★／控除なし ★19行★（実測・余り0px）
          ・複数ページの最後の紙は もう少し入るが、★1枚物に合わせる★（毎月おなじ顔）
 
@@ -100,8 +104,8 @@
        黒田空調/ENEOS ＝ 30行 ／ ★八木（控除あり）＝ 3行★（控除枠は4行）
        実物が30行 入るのは頭が小さいから。うちは 21行まで来た（差は
        「ご請求金額を大きく」「振込先を枠で囲う」＝★うちが決めて残した所★）。 */
-  var PAPER_ROWS = 20;        // 控除を出さない紙（★実測＝物理の上限★）
-  var PAPER_ROWS_DED = 10;    // 控除を出す紙（★実測＝物理の上限★）
+  var PAPER_ROWS = 18;        // 控除を出さない紙（★実測＝物理の上限★）
+  var PAPER_ROWS_DED = 8;    // 控除を出す紙（★実測＝物理の上限★）
   var DEDUCT_ROWS = 4;        // 控除の枠 ★会社が変えられる★（実物 八木＝E17:H20＝4行）
   var ROWS_FIRST = 12;
   var ROWS_REST = 24;
@@ -745,7 +749,10 @@
         var hasDedB = showDeduct && (deduct === null || Number(deduct) !== 0);
         if (hasDedB) {
           var netB = (deduct === null) ? null : (tax.grandTotal - deduct);
-          rows.push(['sums-minus', textOf(TH.dedSum) || '控除', (deduct === null) ? '（未確認）' : '-' + yen(deduct)]);
+          /* ★控除に マイナスを付けない★（司さん 2026-08-31
+             「控除で引くもの分かっとんのに マイナス表記にすんなや」）
+             ＝「控除」と書いてある行の額は 引く物と 分かる。★源泉は 言われていないので そのまま★ */
+          rows.push(['sums-minus', textOf(TH.dedSum) || '控除', (deduct === null) ? '（未確認）' : yen(deduct)]);
           rows.push(['', textOf(TH.finalLabel) || '合計', (netB === null ? '（未確認）' : yen(netB))]);
         }
         if (gen && gen.on) {
@@ -764,7 +771,7 @@
       var hasRealDeduct = showDeduct && (deduct === null || Number(deduct) !== 0);
       if (hasRealDeduct) {
         var billedNet = (deduct === null) ? null : (tax.grandTotal - deduct);
-        rows.push(['sums-minus', '控除', (deduct === null) ? '（未確認）' : '-' + yen(deduct)]);
+        rows.push(['sums-minus', '控除', (deduct === null) ? '（未確認）' : yen(deduct)]);
         rows.push(['', '請求額', (billedNet === null ? '（未確認）' : yen(billedNet))]);
       }
       if (gen && gen.on) {
@@ -860,7 +867,7 @@
       var rows = deductLines.map(function (d) {
         var dv = Number(d && d.amount);
         return '<tr><th>' + (esc(d && d.name) || '控除') + '</th><td>'
-          + (Number.isFinite(dv) ? '-' + yen(dv) : '（未確認）') + '</td></tr>';
+          + (Number.isFinite(dv) ? yen(dv) : '（未確認）') + '</td></tr>';
       }).join('');
       var blanks = Math.max(0, dedRows - used);
       for (var i = 0; i < blanks; i++) rows += '<tr class="r-blank"><th>&nbsp;</th><td>&nbsp;</td></tr>';
@@ -875,7 +882,7 @@
         + '<table class="ded"><tbody>'
         + '<tr class="ded-hd"><th>内容</th><td>金額</td></tr>'
         + rows + '</tbody></table>'
-        + blockSum(dSum, (deduct === null) ? '（未確認）' : (deduct ? '-' + yen(deduct) : yen(0)))
+        + blockSum(dSum, (deduct === null) ? '（未確認）' : yen(deduct))
         + '</div>';
     }
 
@@ -1151,7 +1158,7 @@
 
       /* 宛名（左）／自社（右）。★表の2列＝幅が足りなくても文が縦に割れない★
          ★下線は引かない（うちの紙は引いていない）★ */
-      '.party{width:100%;border-collapse:collapse;margin:0 0 7mm;table-layout:fixed;}',
+      '.party{width:100%;border-collapse:collapse;margin:0 0 4mm;table-layout:fixed;}',
       '.party td{vertical-align:top;padding:0;}',
       '.party-to{width:56%;min-width:80mm;}',
       /* ★自社の塊は 下寄せ★＝「ご請求金額」の下と そろう（司さん 2026-08-31）
@@ -1161,7 +1168,11 @@
       /* ★下寄せは「.party td」より 強く書く★
          （.party td{vertical-align:top} の方が 強くて 効かなかった＝2026-08-31 実測） */
       '.party td.party-from{vertical-align:bottom;}',
-      '.party-mid{vertical-align:top;}',
+      /* ★あて名の下〜「◯月分」の間の 余白は 元のまま★（司さん 2026-08-31
+         「赤丸合わせろってゆうただけで 赤線の所の余白詰めろなんかゆうたか？ いらんことすんなや」）
+         ＝表の中に入れた時に この15.3mmが 消えていた。★言われていない所は 変えない★。 */
+      /* ★.party td{padding:0} の方が 強い★ので td を付けて 書く（2026-08-31 実測で 効かなかった） */
+      '.party td.party-mid{vertical-align:top;padding-top:' + MID_PAD_MM + 'mm;}',
       /* ★中の最後の物の 下の余白を 0にする★＝箱の下端＝字の下端になり、
          右の自社と ★字どうしで そろう★（余白ぶんは 表の下の余白へ 移す） */
       '.party-mid > *:last-child{margin-bottom:0;}',
@@ -1419,7 +1430,7 @@
     build: build, css: css, esc: esc, yen: yen, comma: comma,
     dateStr: dateStr, jpDate: jpDate, honorOf: honorOf, taxLabel: taxLabel,
     paginate: paginate, sealMm: sealMm, sealStyle: sealStyle, TEMPLATE_ID: TEMPLATE_ID,
-    FROM_DROP_MM: FROM_DROP_MM,
+    MID_PAD_MM: MID_PAD_MM,
     /* ★振込先の分け方は紙も Excel も同じ物を呼ぶ★ */
     bankLines: bankLines,
     ROWS_FIRST: ROWS_FIRST, ROWS_REST: ROWS_REST,

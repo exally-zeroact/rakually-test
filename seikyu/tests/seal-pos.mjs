@@ -151,8 +151,8 @@ T('★⑨-2 印の大きさの既定は 決まりの側と 紙の側で 同じ',
    ・請求日/No./期限 のすぐ下に 社名＋印＋住所＋TEL＋登録番号 が 詰まっていた
      （実測：印の上端が 上の行に ★1.2mm★ まで 迫っていた）
    ・★同じ表の中に入れて 縦を下寄せ★にした（固定の mm で下げるのは 繰越などで 合わなくなる）
-   ・自社(19.4mm)が あて名(7.2mm)の段の高さを 決めていたのを やめたので
-     ★頭が 12.2mm 低くなり 明細が 2行 増えた（18/8 → 20/10・総当たりで測り直した）★ */
+   ・★頭の余白（あて名の下〜◯月分の上 15.3mm）も 行数(18/8)も 元のまま★
+    ＝一度 詰めてしまい 差し戻された（「いらんことすんなや」）。動かすのは 自社の縦位置だけ。 */
 const head = await (async () => {
   const pg2 = await (await b.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
   const ls = [{ name: '運転代行 8月分', qty: '1', unit: '式', price: '30000', rate: 10 }];
@@ -209,9 +209,14 @@ T('★⑨-3 自社の塊を 下げた（上の行と 10mm以上 離れた）',
 T('★⑨-4 自社の下と ご請求金額の下が そろっている',
   Math.abs(head.from.b - head.grand.b) < 0.5,
   '自社の下 ' + head.from.b + 'mm ／ 金額の下 ' + head.grand.b + 'mm');
-T('★⑨-4b 頭が低くなったぶん 明細が増えている（減っていない）',
-  PAPER.PAPER_ROWS === 20 && PAPER.PAPER_ROWS_DED === 10,
-  '1枚に載る行数 ' + PAPER.PAPER_ROWS + '/' + PAPER.PAPER_ROWS_DED + '（20/10のはず）');
+/* ★頭の余白も 行数も 元のまま★（司さん 2026-08-31
+   「赤丸合わせろってゆうただけで 赤線の所の余白詰めろなんかゆうたか？ いらんことすんなや」）
+   ＝動かしてよいのは ★自社の塊の 縦の位置だけ★。 */
+T('★⑨-4b 表の始まりは 元のまま（頭の余白を 詰めていない）',
+  Math.abs(head.table.t - 79.8) < 0.5, '表の始まり ' + head.table.t + 'mm（79.8のはず）');
+T('★⑨-4c 1枚に載る行数も 元のまま（18/8）',
+  PAPER.PAPER_ROWS === 18 && PAPER.PAPER_ROWS_DED === 8,
+  '1枚に載る行数 ' + PAPER.PAPER_ROWS + '/' + PAPER.PAPER_ROWS_DED + '（18/8のはず）');
 T('★⑨-5 下げた自社の塊が ほかの字と 重なっていない', head.hit === 0, head.hit + '文字 重なった');
 
 const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');
