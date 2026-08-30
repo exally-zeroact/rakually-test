@@ -67,6 +67,8 @@
      ★数字の右端が表ごとに違う位置★に来ていた。ここで1つに決める。 */
   var EDGE = '1.2mm';
   var ROW_H = '6.3mm';
+  /* ★自社の塊を 何mm 下げるか★（1か所で決める＝紙も 見張りも この数を見る） */
+  var FROM_DROP_MM = 12;
   var ROW_PAD = '0.9mm 1.2mm';
   var ROW_LH = '1.35';
   /* ★A4 1枚に載る行数★（★実測して決めた数★）
@@ -616,20 +618,23 @@
            ・適格請求書の記載事項は ★受け取る側の「名称」★ まで＝住所は要らない
            ★データは消していない★（取引先マスタの住所はそのまま。必要になれば戻せる） */
         + '</td>'
-        + '<td class="party-from">'
+        + '<td class="party-from"><div class="from-box">'
         /* ★角印は 社名の1行目の右端に 重ねて押す＝角印標準★
            （司さん 2026-08-30「なんで角印の場所がそこなんど 請求書アプリ見てこい」）
            ★直す前★は 登録番号の下に ぶら下げていた＝ハンコが 宙に浮いていた。
            ★見本＝代行請求 invoice-pdf.js:760「判子（社名＝1行目の右端に"重ねて"押す＝角印標準）」★
            うちの自社情報は 右揃えなので、社名の右端＝この箱の右端。そこへ 重ねる。 */
+        /* ★自由な場所の印は ここに入れない★＝紙（.sheet）に 直に貼る。
+           ここへ入れると ★自社の箱が 基準になり★、紙の左上からの mm が 狂う
+           （2026-08-31 実測：自社の塊を 下げた日に そうなった）。 */
         + '<div class="from-name">' + (esc(g.yago) || '（自社情報が未入力）')
-        + (g.sealDataUrl ? '<img class="seal' + (sealFree(g) ? ' seal-free' : '')
-          + '" style="' + sealStyle(g) + '" src="' + esc(g.sealDataUrl) + '" alt="">' : '')
+        + ((g.sealDataUrl && !sealFree(g))
+          ? '<img class="seal" style="' + sealStyle(g) + '" src="' + esc(g.sealDataUrl) + '" alt="">' : '')
         + '</div>'
         + (g.addr ? '<div class="from-sub">' + esc(g.addr) + '</div>' : '')
         + (g.tel ? '<div class="from-sub">TEL ' + esc(g.tel) + '</div>' : '')
         + (g.invoiceNo ? '<div class="from-sub">登録番号 ' + esc(g.invoiceNo) + '</div>' : '')
-        + '</td></tr></tbody></table>'
+        + '</div></td></tr></tbody></table>'
         /* ★何枚のうちの何枚目か★（司さん 2026-08-16「複数ページになったらどうするんど」）
            「2ページ目」だけだと ★全部で何枚か分からない＝1枚 抜けても気づけない★。
            見本＝代行請求 invoice-pdf.js:748 も ★"1 / 3" を出している★。 */
@@ -937,7 +942,7 @@
     }
 
     if (isReceipt) {
-      var rcHtml = '<div class="sheet">' + headBlock(0) + grandBlock() + receiptBody() + '</div>';
+      var rcHtml = '<div class="sheet">' + freeSealHtml() + headBlock(0) + grandBlock() + receiptBody() + '</div>';
       return {
         html: '<!DOCTYPE html>\n<html lang="ja"><head><meta charset="UTF-8">'
           + '<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -946,6 +951,13 @@
         title: docTitle, templateId: inv.template_id || TEMPLATE_ID,
         cols: spec, colWidths: colW, pages: 1, docKind: 'receipt',
       };
+    }
+
+    /** 紙に 直に貼る 印（自由な場所を決めた時だけ） */
+    function freeSealHtml() {
+      if (!g.sealDataUrl || !sealFree(g)) return '';
+      return '<img class="seal seal-free" style="' + sealStyle(g) + '" src="'
+        + esc(g.sealDataUrl) + '" alt="">';
     }
 
     /* ── 紙を組む ── */
@@ -1054,7 +1066,7 @@
          中身が少なくても ★紙の大きさは A4 固定★。足元（自社情報）は下端から測った位置に置く。
          うちは 中身なりの高さだったので、2枚目が ★1枚目の途中から★ 始まって見えた。
          ＝★上の中身は上から積み・足元は紙の下端に貼る★（表の2行で作る＝flex は使わない）。 */
-      return '<div class="sheet"><table class="pg"><tbody>'
+      return '<div class="sheet">' + freeSealHtml() + '<table class="pg"><tbody>'
         + '<tr class="pg-b"><td>' + body + '</td></tr>'
         + '<tr class="pg-f"><td>' + foot + '</td></tr>'
         + '</tbody></table></div>';
@@ -1122,6 +1134,12 @@
       '.party td{vertical-align:top;padding:0;}',
       '.party-to{width:56%;min-width:80mm;}',
       '.party-from{width:44%;min-width:60mm;text-align:right;}',
+      /* ★自社の塊を 下へ ずらす★（司さん 2026-08-31「赤の塊を青に持ってきて ごちゃごちゃさすな」）
+         ＝請求日/No./期限 のすぐ下に 社名＋印＋住所＋TEL＋登録番号 が 詰まっていて、
+           ★印が 上の行に 1.2mm まで 迫っていた★（実測）。
+         ★position:relative で ずらす★＝★流れの高さは 1mmも 変わらない★
+           （padding で下げると 表が下がり ★1枚に載る行数が 減る★＝18/8 の実測値が狂う）。 */
+      '.from-box{position:relative;top:' + FROM_DROP_MM + 'mm;}',
       '.to-subject{font-size:10.5pt;color:' + INK + ';display:block;line-height:1.5;margin-top:4px;}',
       '.to-name{font-size:14pt;font-weight:700;display:block;line-height:1.45;',
       'word-break:normal;overflow-wrap:break-word;}',
@@ -1376,6 +1394,7 @@
     build: build, css: css, esc: esc, yen: yen, comma: comma,
     dateStr: dateStr, jpDate: jpDate, honorOf: honorOf, taxLabel: taxLabel,
     paginate: paginate, sealMm: sealMm, sealStyle: sealStyle, TEMPLATE_ID: TEMPLATE_ID,
+    FROM_DROP_MM: FROM_DROP_MM,
     /* ★振込先の分け方は紙も Excel も同じ物を呼ぶ★ */
     bankLines: bankLines,
     ROWS_FIRST: ROWS_FIRST, ROWS_REST: ROWS_REST,

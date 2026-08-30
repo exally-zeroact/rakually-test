@@ -145,6 +145,68 @@ T('★⑨-2 印の大きさの既定は 決まりの側と 紙の側で 同じ',
   DOC.sealSizeMm() === PAPER.sealMm() && PAPER.sealMm() === 17,
   '決まり ' + DOC.sealSizeMm() + 'mm ／ 紙 ' + PAPER.sealMm() + 'mm');
 
+/* ═══ ★自社の塊を 下げた★（司さん 2026-08-31「赤の塊を青に持ってきて ごちゃごちゃさすな」）═══
+   ・請求日/No./期限 のすぐ下に 社名＋印＋住所＋TEL＋登録番号 が 詰まっていた
+     （実測：印の上端が 上の行に ★1.2mm★ まで 迫っていた）
+   ・下の空いている所へ 12mm 下げた
+   ★流れの高さは 1mmも 変えない★＝下げ方は position:relative
+     （padding で下げると 表が下がり ★1枚に載る行数（18/8）が 減る★） */
+const head = await (async () => {
+  const pg2 = await (await b.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
+  const ls = [{ name: '運転代行 8月分', qty: '1', unit: '式', price: '30000', rate: 10 }];
+  const tax = X.compute({ lines: ls, taxMode: 'exclusive', rounding: 'floor' });
+  const bt = PAPER.build({
+    inv: { no: 'A-1', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
+      lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
+    tax, partner: { name: '八木工業株式会社', honor: '御中' },
+    org: { yago: '合同会社ZEROact', addr: '今治市本町7-3-40 00コーポ1号', tel: '090-5716-1946',
+      invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 4160657', sealDataUrl: SEAL, sealSizeMm: 17 },
+    template: TPL.getOrDefault('std1'),
+  });
+  await pg2.setContent((typeof bt === 'string') ? bt : bt.html, { waitUntil: 'load' });
+  await pg2.waitForTimeout(200);
+  const r = await pg2.evaluate(() => {
+    const mm = 794 / 210;
+    const sh = document.querySelector('.sheet').getBoundingClientRect();
+    const at = (sel) => {
+      const e = document.querySelector(sel); if (!e) return null;
+      const q = e.getBoundingClientRect();
+      return { t: +((q.top - sh.top) / mm).toFixed(1), b: +((q.bottom - sh.top) / mm).toFixed(1) };
+    };
+    /* ★ほかの字と 重なっていないか★ を 1文字ずつ 数える */
+    const fb = document.querySelector('.from-box').getBoundingClientRect();
+    const sl = document.querySelector('.seal');
+    const sr = sl ? sl.getBoundingClientRect() : fb;
+    const area = { left: Math.min(fb.left, sr.left), right: Math.max(fb.right, sr.right),
+      top: Math.min(fb.top, sr.top), bottom: Math.max(fb.bottom, sr.bottom) };
+    const inFrom = (n) => { for (let e = n.parentElement; e; e = e.parentElement) {
+      if (e.classList && e.classList.contains('from-box')) return true; } return false; };
+    let hit = 0;
+    const walk = (el) => { for (const c of el.childNodes) {
+      if (c.nodeType === 3) { if (inFrom(c)) continue; const t = c.textContent;
+        for (let i = 0; i < t.length; i++) { if (!t[i].trim()) continue;
+          const rg = document.createRange(); rg.setStart(c, i); rg.setEnd(c, i + 1);
+          const q = rg.getBoundingClientRect(); if (!q.width) continue;
+          const ox = Math.min(area.right, q.right) - Math.max(area.left, q.left);
+          const oy = Math.min(area.bottom, q.bottom) - Math.max(area.top, q.top);
+          if (ox > q.width * 0.3 && oy > q.height * 0.3) hit++;
+        } } else if (c.nodeType === 1 && !(c.classList && c.classList.contains('from-box'))) walk(c);
+    } };
+    walk(document.querySelector('.sheet'));
+    return { meta: at('.meta'), from: at('.from-box'), seal: at('.seal'),
+      table: at('.lines') || at('table.items'), hit };
+  });
+  await pg2.close();
+  return r;
+})();
+console.log('     紙の頭 … 上の行 〜' + head.meta.b + 'mm ／ 印 ' + head.seal.t + 'mm から ／ 自社 '
+  + head.from.t + '〜' + head.from.b + 'mm ／ 表 ' + head.table.t + 'mm から');
+T('★⑨-3 自社の塊を 下げた（上の行と 10mm以上 離れた）',
+  head.seal.t - head.meta.b >= 10, '間が ' + (head.seal.t - head.meta.b).toFixed(1) + 'mm');
+T('★⑨-4 下げても 表の始まる所は 変わらない（1枚に載る行数を 減らさない）',
+  Math.abs(head.table.t - 79.8) < 0.5, '表の始まり ' + head.table.t + 'mm（79.8のはず）');
+T('★⑨-5 下げた自社の塊が ほかの字と 重なっていない', head.hit === 0, head.hit + '文字 重なった');
+
 const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');
 const docSrc = fs.readFileSync(path.join(ROOT, 'seikyu/lib/seikyu-doc.js'), 'utf8');
 T('★⑧ 蓋（紙から出さない）は seikyu-doc が 唯一の正（画面で 決め直さない）',
