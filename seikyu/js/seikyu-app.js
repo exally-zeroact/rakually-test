@@ -306,7 +306,48 @@
       + (unk ? '<p class="hint">入金が読めていないので、入金と残りは出していません（0円ではありません）。</p>' : '');
   }
 
+  /* ═══ ★毎月の請求（今月まだの相手）★ ═══
+     ・見つけ方は seikyu-recurring.js が唯一の正（ここでは数えない）
+     ・★勝手に作らない★＝出すのは「まだですよ」の1行と 押す物だけ
+     ・押したら ★前回の紙を 複製する★（複製の決まりは seikyu-doc.duplicateDoc） */
+  function renderRecurring() {
+    var host = $('rec-box'); if (!host) return;
+    var RC = global.SeikyuRecurring;
+    var isInv = (S.kind || 'invoice') === 'invoice';
+    if (!RC || !isInv) { host.innerHTML = ''; return; }
+    var due = RC.dueList({ invoices: S.invoices || [], partners: S.partners || [],
+      ym: RC.ymOf(todayYmd()) });
+    if (!due.length) { host.innerHTML = ''; return; }
+    var ym = RC.ymOf(todayYmd());
+    var lb = ym.slice(0, 4) + '年' + Number(ym.slice(5, 7)) + '月';
+    host.innerHTML = '<div class="card rec-card">'
+      + '<p class="rec-h">毎月 出している相手で、' + esc(lb) + 'ぶんが まだの人がいます。</p>'
+      + due.map(function (d) {
+        return '<div class="rec-row"><span class="rec-n">' + esc(d.name)
+          + '<span class="rec-k">' + esc(d.lastYm.slice(0, 4)) + '年'
+          + Number(d.lastYm.slice(5, 7)) + '月まで ' + d.run + 'か月つづけて 出しています'
+          + (d.lastTotal ? '（前回 ' + yen(d.lastTotal) + ' 円）' : '') + '</span></span>'
+          + '<button class="mini" type="button" data-rec="' + esc(d.lastId) + '">前回と同じ内容で作る</button>'
+          + '</div>';
+      }).join('')
+      + '<p class="hint">押すと 前回の中身を 写した下書きが 出来ます（番号と請求日は 取り直します）。'
+      + 'この画面が 勝手に 請求書を 作る事は ありません。</p>'
+      + '</div>';
+    Array.prototype.forEach.call(host.querySelectorAll('[data-rec]'), function (b) {
+      b.onclick = function () { return recurFrom(b.getAttribute('data-rec')); };
+    });
+  }
+  /** 前回の紙から 今月ぶんを 作る（＝複製と 同じ道を通る） */
+  function recurFrom(id) {
+    var src = null, list = S.invoices || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) src = list[i];
+    if (!src) { box('list-err', 'もとの請求書が 見つかりません。「読み直す」を押してください。'); return Promise.resolve(); }
+    S.cur = src;
+    return duplicateCur();
+  }
+
   function renderList() {
+    renderRecurring();
     renderReport();
     var host = $('list-body'); if (!host) return;
     var rows = S.invoices.filter(function (v) {
