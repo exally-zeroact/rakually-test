@@ -1446,9 +1446,13 @@
     if (!v.issue_ymd) return { ok: false, why: '請求日を入れると 紙が出せます。' };
     return { ok: true };
   }
+  /* ★紙から作る物は ぜんぶ ここに書く★（1つでも 書き忘れると
+     ★出せない中身なのに 押せる★＝押した後で 赤い字を出す形に 戻ってしまう）。
+     ★b-pdf（自作PDF）は 2026-08-30 に足した時 ここに書き忘れていた★ */
+  var PAPER_BTNS = ['b-preview', 'b-print', 'b-pdf', 'b-xlsx'];
   function applyPaperGate() {
     var g = paperGate();
-    ['b-preview', 'b-print', 'b-xlsx'].forEach(function (id) {
+    PAPER_BTNS.forEach(function (id) {
       var b = $(id); if (b) b.disabled = !g.ok;
     });
     var p = $('paper-gate');
@@ -3239,6 +3243,7 @@
     /* テスト用: ★ボタンに 手を紐づける所だけ★ 走らせる（attach は倉庫に つなぎに行くので
        倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
     _bindForTest: function () { return bind(); },
+    _paperBtnsForTest: function () { return PAPER_BTNS.slice(); },   // テスト用: 門を掛ける相手の一覧
     _pickSealUrl: function (url) {           // テスト用: ファイル選択の代わりに data URL を渡す
       var chk = DOC.validateSeal(url);
       if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; fillSeal(); return chk; }

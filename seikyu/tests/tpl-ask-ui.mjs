@@ -257,7 +257,18 @@ const TPL_N = (function () {
     doc.getElementById('e-partner').value = '';
     win.SeikyuApp._recalcForTest();
     await sleep(200);
-    ok(doc.getElementById('b-print').disabled, '★相手が無いのに 印刷が押せる★');
+    /* ★1つだけ見て「門は効いている」と言わない★＝★紙から作る物 ぜんぶ★を見る
+       （2026-08-30 実際に b-pdf だけ 門から漏れていた） */
+    const btns = win.SeikyuApp._paperBtnsForTest();
+    ok(btns.length >= 4, '★門を掛ける相手が ' + btns.length + '個＝数えられていない★');
+    const open = btns.filter((id) => { const b = doc.getElementById(id); return b && !b.disabled; });
+    ok(!open.length, '★相手が無いのに まだ押せる★ ' + open.join(' / '));
+    /* ★画面に在る「紙から作る物」が 一覧から漏れていないか★（漏れたら 門が掛からない） */
+    const inBox = [...doc.getElementById('out-box').querySelectorAll('button')]
+      .map((b) => b.id).filter((id) => id && id !== 'b-save');
+    const miss = inBox.filter((id) => btns.indexOf(id) < 0);
+    ok(!miss.length, '★門の一覧から 漏れている出し口★ ' + miss.join(' / '));
+    console.log('     門を掛けた ' + btns.join(' / ') + '（' + inBox.length + '個ぜんぶ）');
     const g = doc.getElementById('paper-gate');
     ok(g && g.style.display !== 'none' && /だれに/.test(g.textContent || ''),
       '★押せない理由が出ていない★ 出た字: ' + (g ? g.textContent : 'なし'));
