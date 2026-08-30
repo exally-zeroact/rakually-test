@@ -142,6 +142,9 @@ const CASES = [
   { name: '見積書', tpl: 'std1', n: 3, kind: 'quote' },
   /* ★領収書も 自作PDFで 出るか★（司さん 2026-08-30「知り合いに使ってもらう」）
      印刷だけだと ★iPhoneで 紙の下に URLと日付が 付く★。 */
+  /* ★納品書★（司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前に」）
+     ＝同じ1通を 納品書の顔で出す（棚は増やさない）。振込先と支払期限は 出さない。 */
+  { name: '納品書', tpl: 'std1', n: 3, docKind: 'delivery' },
   { name: '領収書', tpl: 'std1', n: 1,
     receipt: { no: 'A-1-1', ymd: '2026-11-20', amount: 1100, method: '振込',
       note: '運転代行 10月分', taxTotal: 100, taxSeparate: true } },
@@ -171,7 +174,7 @@ for (const c of CASES) {
     org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 1234567' },
     template: TPL.getOrDefault(c.tpl),
     deduct: c.deduct || 0, deductLines: c.deduct ? [{ name: '弁当代', amount: c.deduct }] : [],
-    docKind: c.receipt ? 'receipt' : undefined, receipt: c.receipt || undefined,
+    docKind: c.receipt ? 'receipt' : (c.docKind || undefined), receipt: c.receipt || undefined,
   });
   const h = (typeof bt === 'string') ? bt : (bt.html || '');
   const sheets = (h.match(/class="sheet"/g) || []).length;

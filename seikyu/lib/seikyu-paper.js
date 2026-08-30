@@ -399,22 +399,31 @@
     if (COLS.validate(spec.items).length) spec = COLS.normalizeSpec(DEFAULT_COLS);
     var colW = COLS.widthsOf(spec.items, spec.widths);
 
-    /* ★紙の種類は3つ★ 請求書／見積書／★領収書★
-       領収書は doc_type ではない（棚を増やさない）＝入金1行から出す紙なので、
-       ★呼ぶ側が docKind:'receipt' と receipt:{…} を渡す★。 */
+    /* ★紙の種類は4つ★ 請求書／見積書／★領収書★／★納品書★
+       領収書と納品書は doc_type ではない（★棚を増やさない★）＝
+       ・領収書 … 入金1行から出す紙（呼ぶ側が docKind:'receipt' と receipt:{…} を渡す）
+       ・納品書 … ★同じ1通を「品物を納めた証」として出す紙★（docKind:'delivery'）
+         ★司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前にしてな」★
+         ＝Misoca も freee も「見積→納品→請求→領収」を1押しで出せる。うちに 納品書だけ 無かった。
+         ★納品書は 支払いの依頼ではない★ので ★お振込先と お支払期限を 出さない★
+         （出すと「これで払え」の紙になり、後から出す請求書と 二重請求に見える）。 */
     var rc = o.receipt || null;
     var kind = o.docKind || (inv.doc_type === 'quote' ? 'quote' : 'invoice');
     if (kind === 'receipt' && !rc) kind = 'invoice';        // 中身が無いのに領収書の顔をしない
     var isQuote = (kind === 'quote');
     var isReceipt = (kind === 'receipt');
-    var heading = isReceipt ? '領　収　書' : isQuote ? '見　積　書' : '請　求　書';
+    var isDelivery = (kind === 'delivery');
+    var heading = isReceipt ? '領　収　書' : isDelivery ? '納　品　書'
+      : isQuote ? '見　積　書' : '請　求　書';
     /* 金額のラベルは様式が持つ（ご／御）。★どちらでもよい＝縛らない★ */
     var go = TH.grandGo || 'ご';
     /* ★「（税込）」を付けるか★（会社が選べる・焼き付けない／既定は付ける）
        ★根拠★ 国税庁の記載事項は「税抜価額 又は 税込価額」＝どちらでもよい。
        ★どちらの額かが 読む人に分かる★ので 既定は「付ける」。 */
     var zk = (TH.zeikomiTag === false) ? '' : '（税込）';
-    var grandLabel = isReceipt ? ('領収金額' + zk) : go + (isQuote ? ('見積金額' + zk) : ('請求金額' + zk));
+    var grandLabel = isReceipt ? ('領収金額' + zk)
+      : isDelivery ? ('納品金額' + zk)          // ★「ご請求」と書かない＝払えの紙ではない★
+        : go + (isQuote ? ('見積金額' + zk) : ('請求金額' + zk));
     var noLabel = 'No.　';
     var headNo = isReceipt ? String((rc && rc.no) || '') : (inv.no || '');
     var docTitle = (o.title || (heading.replace(/　/g, '') + (headNo ? ' ' + headNo : '')));
@@ -553,11 +562,12 @@
          ★番号は空でも欄を出す（「（未採番）」と書く）＝取れなかったを空欄にしない★ */
       /* 領収書は ★入金日★ が日付・★領収番号（請求番号＋枝番）★ が番号 */
       var ds = dateStr(isReceipt ? (rc && rc.ymd) : inv.issue_ymd, era);
-      var dLabel = isReceipt ? '領収日　' : isQuote ? '見積日　' : '請求日　';
+      var dLabel = isReceipt ? '領収日　' : isDelivery ? '納品日　' : isQuote ? '見積日　' : '請求日　';
       var meta = '<div class="meta-l">' + dLabel + (ds || '（未入力）') + '</div>';
       meta += '<div class="meta-l">' + esc(noLabel) + (esc(headNo) || '（未採番）') + '</div>';
       // ★もう受け取った紙に「お支払期限」を出さない★
-      if (!isReceipt && inv.due_ymd) meta += '<div class="meta-l">お支払期限　' + dateStr(inv.due_ymd, era) + '</div>';
+      /* ★納品書に お支払期限を 出さない★（支払いの依頼ではない） */
+      if (!isReceipt && !isDelivery && inv.due_ymd) meta += '<div class="meta-l">お支払期限　' + dateStr(inv.due_ymd, era) + '</div>';
 
       return '<h1 class="ttl">' + heading + '</h1>'
         + '<div class="meta">' + meta + '</div>'
@@ -842,7 +852,8 @@
     }
     function footerBlock() {
       var left = '';
-      var bank = textOf(g.bank);
+      /* ★納品書には お振込先を 出さない★（払えの紙ではない＝二重請求に見える） */
+      var bank = isDelivery ? '' : textOf(g.bank);
       /* ★⑧ 客が一番 使う情報＝ここへ振り込む★（司さん 2026-08-16）
          枠で囲って薄く塗る（★白黒コピーでも枠は残る濃さ★）。 */
       if (bank) left += '<div class="note note-bank"><div class="note-h">お振込先</div>'

@@ -261,6 +261,18 @@ await T('★⑬ 「PDFを開く（送る）」は 落とさずに 別の窓で �
   eq(madeType, 'application/pdf', '★渡した中身の種類が PDFでない★');
   ok(/共有|送/.test(txt('edit-ok')), '★どうやって送るかを 言っていない★：' + txt('edit-ok'));
   console.log('     ' + txt('edit-ok'));
+  /* ★納品書も 同じ道で出る★（司さん 2026-08-30「競合が当たり前にしてる事は…」）
+     ＝Misoca も freee も 見積→納品→請求→領収 を1押しで出せる。 */
+  const dv = $('b-delivery');
+  ok(dv, '★納品書のボタンが 無い★');
+  opened = null; dv.disabled = false;
+  dv.click();
+  await new Promise((r) => setTimeout(r, 60));
+  $('fn-ok').click();
+  await new Promise((r) => setTimeout(r, 200));
+  ok(opened === 'blob:test-pdf', '★納品書が 開いていない★（' + opened + '）');
+  ok(/納品書/.test(txt('edit-ok')), '★納品書と 言っていない★：' + txt('edit-ok'));
+  console.log('     ' + txt('edit-ok'));
 });
 
 await T('★⑭ ここまで JSの落ちが 0（初めての人が 踏む道で 落ちない）', () => {

@@ -768,7 +768,7 @@
       /* ★PDFを 見出しに書く★（司さん 2026-08-30「知り合いに使ってもらう」）
          中に「PDFで保存」が在るのに 見出しに無いと、★開くまで PDFが出せると分からない★。
          ここは この畳みの決まり（中に在る物だけを 見出しに書く）を そのまま守る。 */
-      can.push('下見', 'PDF', '送る', '印刷', 'Excel');
+      can.push('下見', 'PDF', '送る', '印刷', '納品書', 'Excel');
       if (v.id && (v.lines || []).length) can.push('複製');
       if (DOC.canVoid(v)) can.push('取り消し');
       if (DOC.canDelete(v) && v.id) can.push('削除');
@@ -1567,7 +1567,7 @@
   /* ★紙から作る物は ぜんぶ ここに書く★（1つでも 書き忘れると
      ★出せない中身なのに 押せる★＝押した後で 赤い字を出す形に 戻ってしまう）。
      ★b-pdf（自作PDF）は 2026-08-30 に足した時 ここに書き忘れていた★ */
-  var PAPER_BTNS = ['b-preview', 'b-print', 'b-pdf', 'b-pdfopen', 'b-xlsx'];
+  var PAPER_BTNS = ['b-preview', 'b-print', 'b-pdf', 'b-pdfopen', 'b-delivery', 'b-xlsx'];
   function applyPaperGate() {
     var g = paperGate();
     PAPER_BTNS.forEach(function (id) {
@@ -1906,24 +1906,27 @@
      ・★出せない時は 黙らない★（なぜ出せないかを 1行 出す） */
   /** ★PDFを 落とす／開く★（作り方は 1つ。最後の1歩だけ 違う）
    *  how = 'save'（落とす）／'open'（iPhoneのビューアで開く→共有からメール） */
-  function doPdf(name, how) {
+  function doPdf(name, how, docKind) {
     var pi = paperInput();
     if (!pi) { box('edit-err', '中身がまだ整っていないので、PDFが作れません。上の赤い印を直してください。'); return; }
     var PDF = global.SeikyuPdf;
     if (!PDF) { box('edit-err', 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
-    var built = PAPER.build(Object.assign({}, pi, { title: name }));
+    /* ★納品書は 同じ1通を 別の顔で出すだけ★（棚は増やさない） */
+    var built = PAPER.build(Object.assign({}, pi, { title: name },
+      docKind ? { docKind: docKind } : {}));
     var open = (how === 'open');
-    box('edit-ok', 'PDFを作っています…（字を紙に埋め込むので 少し待ちます）');
+    var kindName = docKind === 'delivery' ? '納品書' : 'PDF';
+    box('edit-ok', kindName + 'を作っています…（字を紙に埋め込むので 少し待ちます）');
     PDF.build(built.html, { base: '../' }).then(function (bytes) {
       var bad = PDF.lastBadImages ? PDF.lastBadImages() : [];
       var miss = PDF.lastMissing ? PDF.lastMissing() : [];
       return (open ? OUT.pdfOpen(bytes, name) : OUT.pdf(bytes, name)).then(function (r) {
         box('edit-ok', (open
           ? ((r && r.fellBack)
-            ? 'この端末では 新しい窓が開けなかったので、PDFを 落としました。'
+            ? 'この端末では 新しい窓が開けなかったので、' + kindName + 'を 落としました。'
               + '（ブラウザの ポップアップの設定を 見てください）'
-            : 'PDFを 別の窓で 開きました。その画面の 共有ボタンから メールなどで 送れます。')
-          : 'PDFを作りました。')
+            : kindName + 'を 別の窓で 開きました。その画面の 共有ボタンから メールなどで 送れます。')
+          : kindName + 'を作りました。')
           + (miss.length ? 'この字は 字体に無いので 〓 で出しました：' + miss.join('') : '')
           + (bad.length ? '出せなかった絵が ' + bad.length + '件 あります' : ''));
       });
@@ -3272,6 +3275,10 @@
     if ($('b-pdf')) $('b-pdf').onclick = function () { askName('pdf', function (n) { doPdf(n, 'save'); }); };
     /* ★開く★＝iPhoneのビューアへ渡す（そこの共有ボタンで メールに乗る） */
     if ($('b-pdfopen')) $('b-pdfopen').onclick = function () { askName('pdf', function (n) { doPdf(n, 'open'); }); };
+    /* ★納品書★＝同じ1通を 納品書の顔で PDFにして 開く（送るところまで 同じ道） */
+    if ($('b-delivery')) $('b-delivery').onclick = function () {
+      askName('pdf', function (n) { doPdf(n, 'open', 'delivery'); });
+    };
     $('b-issue').onclick = function () { return issue(); };
 
     /* ★入金★ 打つたびに「押せる/押せない」を塗り直す（黙って無反応にしない） */
