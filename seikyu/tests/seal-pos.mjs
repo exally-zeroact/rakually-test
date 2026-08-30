@@ -219,6 +219,53 @@ T('★⑨-4c 1枚に載る行数も 元のまま（18/8）',
   '1枚に載る行数 ' + PAPER.PAPER_ROWS + '/' + PAPER.PAPER_ROWS_DED + '（18/8のはず）');
 T('★⑨-5 下げた自社の塊が ほかの字と 重なっていない', head.hit === 0, head.hit + '文字 重なった');
 
+/* ★自社の行数が 減っても 下は そろうか★
+   （司さん 2026-08-31「インボイスや電話番号がなくても 下で合わせれるんか？」）
+   ＝登録番号なし／TELなし／社名だけ／住所が折り返す … どれでも 金額の下と そろう事。 */
+const kake = await (async () => {
+  const FULL = { yago: '合同会社ZEROact', addr: '今治市本町7-3-40 00コーポ1号', tel: '090-5716-1946',
+    invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 4160657' };
+  const cases = [
+    ['ぜんぶ在る', {}], ['登録番号なし', { invoiceNo: '' }], ['TELなし', { tel: '' }],
+    ['TELも登録番号もなし', { tel: '', invoiceNo: '' }],
+    ['社名だけ', { addr: '', tel: '', invoiceNo: '' }],
+    ['住所が長い', { addr: '愛媛県今治市本町七丁目三番四十号 ゼロアクトコーポレーションビル1号室' }],
+  ];
+  const out = [];
+  for (const [nm, ov] of cases) {
+    const ls = [{ name: '運転代行 8月分', qty: '1', unit: '式', price: '30000', rate: 10 }];
+    const tax = X.compute({ lines: ls, taxMode: 'exclusive', rounding: 'floor' });
+    const bt = PAPER.build({
+      inv: { no: 'A-1', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
+        lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
+      tax, partner: { name: '八木工業株式会社', honor: '御中' },
+      org: Object.assign({}, FULL, ov, { sealDataUrl: SEAL, sealSizeMm: 17 }),
+      template: TPL.getOrDefault('std1'),
+    });
+    const pg2 = await (await b.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
+    await pg2.setContent((typeof bt === 'string') ? bt : bt.html, { waitUntil: 'load' });
+    await pg2.waitForTimeout(150);
+    const r = await pg2.evaluate(() => {
+      const mm = 794 / 210, sh = document.querySelector('.sheet').getBoundingClientRect();
+      const at = (sel) => { const e = document.querySelector(sel); if (!e) return null;
+        const q = e.getBoundingClientRect();
+        return { t: +((q.top - sh.top) / mm).toFixed(1), b: +((q.bottom - sh.top) / mm).toFixed(1) }; };
+      return { from: at('.from-box'), grand: at('.grand'),
+        lines: document.querySelectorAll('.from-box .from-name, .from-box .from-sub').length };
+    });
+    await pg2.close();
+    out.push({ nm, d: Math.abs(r.from.b - r.grand.b), lines: r.lines, b: r.from.b });
+  }
+  return out;
+})();
+console.log('     行数が減っても … ' + kake.map((x) => x.nm + '(' + x.lines + '行 差'
+  + x.d.toFixed(1) + 'mm)').join(' ／ '));
+T('★⑨-6 自社の行数が 減っても（登録番号なし・TELなし・社名だけ）下は そろう',
+  kake.every((x) => x.d < 0.3), kake.filter((x) => x.d >= 0.3).map((x) => x.nm + ' ' + x.d).join(' / '));
+T('★⑨-7 行が減った時に 数えられている（空振りで 緑にしない）',
+  kake.some((x) => x.lines === 1) && kake.some((x) => x.lines === 4),
+  '数えた行数: ' + kake.map((x) => x.lines).join(','));
+
 const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');
 const docSrc = fs.readFileSync(path.join(ROOT, 'seikyu/lib/seikyu-doc.js'), 'utf8');
 T('★⑧ 蓋（紙から出さない）は seikyu-doc が 唯一の正（画面で 決め直さない）',
