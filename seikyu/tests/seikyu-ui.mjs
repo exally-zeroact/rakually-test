@@ -339,6 +339,28 @@ T('2-a. ★出すボタンは1つだけ大きく・ほかは畳む（7個 横並
   eq(shown($('b-pay-add')), false, '★下書きなのに「入金を記録」が出ている（まだ請求していない）★');
 });
 
+/* ★畳みの見出しは「中に本当に在る物」で書く★（2026-08-11 実機・2026-08-30 再発）
+   ★開くまで 何が出来るか 分からない★のを 止める為の決まり。
+   ★中に在るのに 見出しに無い★＝この見張りが 赤になる。
+   （2026-08-30 実際に赤になった：PDFで保存を足したのに 見出しが「下書き・下見・印刷・Excel」のままだった） */
+T('2-a. ★畳みの見出しに 中の出し口が ぜんぶ 書いてある（PDFを含む）', () => {
+  const sum = ($('out-sum').textContent || '');
+  /* 見出しの言葉 ← 中の押す物（id と 見出しの言葉の対応表。★増やしたら ここに1行★） */
+  const WORD = { 'b-save': '下書き', 'b-preview': '下見', 'b-pdf': 'PDF', 'b-print': '印刷', 'b-xlsx': 'Excel' };
+  const shown = (el) => { for (let e = el; e && e !== doc.body; e = e.parentElement) { if (e.style && e.style.display === 'none') return false; } return true; };
+  const inside = [...$('out-box').querySelectorAll('button')].filter((b) => shown(b) && b.id);
+  const miss = [], unknown = [];
+  inside.forEach((b) => {
+    const w = WORD[b.id];
+    if (!w) { unknown.push(b.id + '（' + (b.textContent || '').trim() + '）'); return; }
+    if (sum.indexOf(w) < 0) miss.push(w + '（' + b.id + '）');
+  });
+  ok(!unknown.length, '★対応表に無い出し口が 増えている＝見出しに書けているか 分からない★ ' + unknown.join(' / '));
+  ok(!miss.length, '★中に在るのに 見出しに書いていない★ ' + miss.join(' / ') + ' … 見出し「' + sum + '」');
+  ok(inside.length >= 4, '★中の出し口が ' + inside.length + '個＝数えられていない（空振り）★');
+  console.log('     見出し「' + sum + '」 ／ 中の出し口 ' + inside.length + '個 ぜんぶ 書いてある');
+});
+
 T('2-a. ★タブの順と動詞を給与にそろえた（設定→入力→一覧・「作る」ではなく「入力」）', () => {
   const tabs = [...doc.querySelectorAll('.bn')].map((b) => b.getAttribute('data-scr') + ':' + b.querySelector('.bn-l').textContent);
   eq(tabs.join(' '), 'scr-set:設定 scr-edit:入力 scr-list:一覧', 'タブの順か言葉が給与と違う');

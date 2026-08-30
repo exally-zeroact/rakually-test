@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=a0a74e5c">
-<link rel="stylesheet" href="css/app.css?v=a0a74e5c">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=d6fe0c58">
+<link rel="stylesheet" href="css/app.css?v=d6fe0c58">
 </head>
 <body>
 
@@ -273,7 +273,7 @@
       </div>
       <p class="why" id="act-why"></p>
       <details class="more" id="out-box">
-        <summary class="more-s" id="out-sum">ほかの出し方（下書き・下見・印刷・Excel）</summary>
+        <summary class="more-s" id="out-sum">ほかの出し方（下書き・下見・PDF・印刷・Excel）</summary>
         <div class="btn-row">
           <button class="btn-ghost" type="button" id="b-save">下書きを保存</button>
           <button class="btn-ghost" type="button" id="b-preview">中身を見る</button>
@@ -652,40 +652,40 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=a0a74e5c"></script>
-<script src="../lib/xlsx.full.min.js?v=a0a74e5c"></script>
-<script src="../js/file-out.js?v=a0a74e5c"></script>
-<script src="../js/suite-data.js?v=a0a74e5c"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=a0a74e5c"></script>
+<script src="../js/supa-config.js?v=d6fe0c58"></script>
+<script src="../lib/xlsx.full.min.js?v=d6fe0c58"></script>
+<script src="../js/file-out.js?v=d6fe0c58"></script>
+<script src="../js/suite-data.js?v=d6fe0c58"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=d6fe0c58"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-tax.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-gensen.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-carry.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-cols.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-templates.js?v=a0a74e5c"></script>
-<script src="../lib/toroku-no.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-doc.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-partner-ask.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-pdf.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-scope.js?v=a0a74e5c"></script>
-<script src="../lib/kikan.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-invoice-ask.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-paper-ask.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-name.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-paper.js?v=a0a74e5c"></script>
-<script src="lib/seikyu-aoa.js?v=a0a74e5c"></script>
-<script src="js/seikyu-store.js?v=a0a74e5c"></script>
-<script src="js/seikyu-out.js?v=a0a74e5c"></script>
-<script src="js/seikyu-app.js?v=a0a74e5c"></script>
-<script src="../js/rakunally-login.js?v=a0a74e5c"></script>
-<script src="js/auth.js?v=a0a74e5c"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-tax.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-gensen.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-carry.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-cols.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-templates.js?v=d6fe0c58"></script>
+<script src="../lib/toroku-no.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-doc.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-partner-ask.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-pdf.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-scope.js?v=d6fe0c58"></script>
+<script src="../lib/kikan.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-invoice-ask.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-paper-ask.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-name.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-paper.js?v=d6fe0c58"></script>
+<script src="lib/seikyu-aoa.js?v=d6fe0c58"></script>
+<script src="js/seikyu-store.js?v=d6fe0c58"></script>
+<script src="js/seikyu-out.js?v=d6fe0c58"></script>
+<script src="js/seikyu-app.js?v=d6fe0c58"></script>
+<script src="../js/rakunally-login.js?v=d6fe0c58"></script>
+<script src="js/auth.js?v=d6fe0c58"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=a0a74e5c"></script>
+<script src="../js/env-badge.js?v=d6fe0c58"></script>
 </body>
 </html>
