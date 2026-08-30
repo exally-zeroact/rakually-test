@@ -130,5 +130,69 @@ T('★④ 字が 1つも 化けていない', () => {
   console.log('     異体字 髙﨑邉 ㈱№℡㊞ … 7つとも 出ている');
 });
 
+/* ═══ ★様式ぜんぶ・複数ページでも 出るか★ ═══════════════════════
+   ★1様式・1枚でしか 確かめずに ボタンを出す★のが 一番 危ない
+   （出してから「うちの様式では 出ません」が 分かる）。 */
+const CASES = [
+  { name: 'std1 / 3行', tpl: 'std1', n: 3 },
+  { name: 'std1 / 3行＋控除', tpl: 'std1', n: 3, deduct: 11340 },
+  { name: 'std1 / 40行（2枚）', tpl: 'std1', n: 40, pages: 2 },
+  { name: 'elegant / 6行', tpl: 'elegant', n: 6 },
+  { name: 'koujo / 6行', tpl: 'koujo', n: 6 },
+  { name: '見積書', tpl: 'std1', n: 3, kind: 'quote' },
+];
+
+const srv2 = http.createServer((rq, rs) => {
+  const u = decodeURIComponent(rq.url.split('?')[0]);
+  const p = path.join(ROOT, u);
+  if (!fs.existsSync(p) || fs.statSync(p).isDirectory()) { rs.writeHead(404); rs.end(); return; }
+  rs.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
+  rs.end(fs.readFileSync(p));
+});
+await new Promise((r) => srv2.listen(0, r));
+const port2 = srv2.address().port;
+const b2 = await chromium.launch();
+const pg2 = await (await b2.newContext({ viewport: { width: 900, height: 1300 } })).newPage();
+await pg2.goto('http://localhost:' + port2 + '/seikyu/index.html', { waitUntil: 'domcontentloaded' });
+await pg2.addScriptTag({ url: '/seikyu/lib/seikyu-pdf.js' });
+const results = [];
+for (const c of CASES) {
+  const ls = Array.from({ length: c.n }, (_, i) => ({ name: '品目' + (i + 1), qty: '1', unit: '式', price: '1000', rate: 10 }));
+  const tx = X.compute({ lines: ls, taxMode: 'exclusive', rounding: 'floor' });
+  const bt = PAPER.build({
+    inv: { no: 'A-1', issue_ymd: '2026-10-05', due_ymd: '2026-11-30', kind: c.kind || 'invoice',
+      lines: ls, totals: { grandTotal: tx.grandTotal }, data: {} },
+    tax: tx, partner: { name: '八木工業株式会社', honor: '御中' },
+    org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 1234567' },
+    template: TPL.getOrDefault(c.tpl),
+    deduct: c.deduct || 0, deductLines: c.deduct ? [{ name: '弁当代', amount: c.deduct }] : [],
+  });
+  const h = (typeof bt === 'string') ? bt : (bt.html || '');
+  const sheets = (h.match(/class="sheet"/g) || []).length;
+  const out = await pg2.evaluate(async (hh) => {
+    try {
+      const bytes = await window.SeikyuPdf.build(hh, { base: '../' });
+      return { ok: true, size: bytes.length, placed: window.SeikyuPdf.lastPlaced().length,
+        missing: window.SeikyuPdf.lastMissing().length };
+    } catch (e) { return { ok: false, msg: String(e && e.message) }; }
+  }, h);
+  results.push(Object.assign({ name: c.name, sheets: sheets, wantPages: c.pages || 1 }, out));
+}
+await b2.close();
+srv2.close();
+
+T('★⑤ 様式ぜんぶ・控除あり・複数ページ・見積書でも PDFが 出る', () => {
+  const bad = results.filter((x) => !x.ok);
+  ok(!bad.length, '★作れない物★ ' + bad.map((x) => x.name + '（' + x.msg + '）').join(' / '));
+  results.forEach((x) => {
+    ok(x.size > 100000, '★' + x.name + ' が 小さすぎる（' + x.size + 'B）★');
+    ok(x.placed > 20, '★' + x.name + ' の字が ' + x.placed + '個★');
+    ok(!x.missing, '★' + x.name + ' で 字が 化けた★');
+    ok(x.sheets === x.wantPages, '★' + x.name + ' の紙が ' + x.sheets + '枚（' + x.wantPages + '枚のはず）★');
+  });
+  results.forEach((x) => console.log('     ' + x.name.padEnd(20) + ' 紙' + x.sheets + '枚 ／ 字'
+    + String(x.placed).padStart(3) + '個 ／ 化け' + x.missing));
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
