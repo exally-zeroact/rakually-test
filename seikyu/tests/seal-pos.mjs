@@ -145,12 +145,14 @@ T('★⑨-2 印の大きさの既定は 決まりの側と 紙の側で 同じ',
   DOC.sealSizeMm() === PAPER.sealMm() && PAPER.sealMm() === 17,
   '決まり ' + DOC.sealSizeMm() + 'mm ／ 紙 ' + PAPER.sealMm() + 'mm');
 
-/* ═══ ★自社の塊を 下げた★（司さん 2026-08-31「赤の塊を青に持ってきて ごちゃごちゃさすな」）═══
+/* ═══ ★自社の塊は「ご請求金額」と 下をそろえる★ ═══
+   （司さん 2026-08-31「赤の塊を青に持ってきて ごちゃごちゃさすな」
+                      「バランス考えたら 下同士で合わせるやろがぼけ」）
    ・請求日/No./期限 のすぐ下に 社名＋印＋住所＋TEL＋登録番号 が 詰まっていた
      （実測：印の上端が 上の行に ★1.2mm★ まで 迫っていた）
-   ・下の空いている所へ 12mm 下げた
-   ★流れの高さは 1mmも 変えない★＝下げ方は position:relative
-     （padding で下げると 表が下がり ★1枚に載る行数（18/8）が 減る★） */
+   ・★同じ表の中に入れて 縦を下寄せ★にした（固定の mm で下げるのは 繰越などで 合わなくなる）
+   ・自社(19.4mm)が あて名(7.2mm)の段の高さを 決めていたのを やめたので
+     ★頭が 12.2mm 低くなり 明細が 2行 増えた（18/8 → 20/10・総当たりで測り直した）★ */
 const head = await (async () => {
   const pg2 = await (await b.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
   const ls = [{ name: '運転代行 8月分', qty: '1', unit: '式', price: '30000', rate: 10 }];
@@ -194,17 +196,22 @@ const head = await (async () => {
     } };
     walk(document.querySelector('.sheet'));
     return { meta: at('.meta'), from: at('.from-box'), seal: at('.seal'),
-      table: at('.lines') || at('table.items'), hit };
+      grand: at('.grand'), table: at('.lines') || at('table.items'), hit };
   });
   await pg2.close();
   return r;
 })();
 console.log('     紙の頭 … 上の行 〜' + head.meta.b + 'mm ／ 印 ' + head.seal.t + 'mm から ／ 自社 '
-  + head.from.t + '〜' + head.from.b + 'mm ／ 表 ' + head.table.t + 'mm から');
+  + head.from.t + '〜' + head.from.b + 'mm ／ 金額の下 ' + head.grand.b + 'mm ／ 表 '
+  + head.table.t + 'mm から');
 T('★⑨-3 自社の塊を 下げた（上の行と 10mm以上 離れた）',
   head.seal.t - head.meta.b >= 10, '間が ' + (head.seal.t - head.meta.b).toFixed(1) + 'mm');
-T('★⑨-4 下げても 表の始まる所は 変わらない（1枚に載る行数を 減らさない）',
-  Math.abs(head.table.t - 79.8) < 0.5, '表の始まり ' + head.table.t + 'mm（79.8のはず）');
+T('★⑨-4 自社の下と ご請求金額の下が そろっている',
+  Math.abs(head.from.b - head.grand.b) < 0.5,
+  '自社の下 ' + head.from.b + 'mm ／ 金額の下 ' + head.grand.b + 'mm');
+T('★⑨-4b 頭が低くなったぶん 明細が増えている（減っていない）',
+  PAPER.PAPER_ROWS === 20 && PAPER.PAPER_ROWS_DED === 10,
+  '1枚に載る行数 ' + PAPER.PAPER_ROWS + '/' + PAPER.PAPER_ROWS_DED + '（20/10のはず）');
 T('★⑨-5 下げた自社の塊が ほかの字と 重なっていない', head.hit === 0, head.hit + '文字 重なった');
 
 const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');

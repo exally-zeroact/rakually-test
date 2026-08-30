@@ -87,7 +87,12 @@
        → 16/6（締めに控除の行）→ 20/10（紙の頭を詰めた）→ 22/12（A4固定＋足元を下端に）
        → 21/11（振込先の名義を次の行に）→ 21/10（箱に字の余白）
        → 19/9（頭の並びを どの紙も同じにした＝挨拶と ページ番号が明細の上に来た）
-       → ★18/8（振込先の高さを 3行ぶんで固定＝名義が長い会社でも 行数が変わらない）★
+       → 18/8（振込先の高さを 3行ぶんで固定＝名義が長い会社でも 行数が変わらない）
+       → ★20/10（自社の塊を「ご請求金額」と 同じ段に入れて 下をそろえた／2026-08-31）★
+         ＝自社(19.4mm)が あて名(7.2mm)の段の高さを 決めていたのを やめたので
+           ★頭が 12.2mm 低くなり 明細が 2行 増えた★
+         ・1行ずつ 総当たりで 測り直した … 20行=余り0px／21行で +3px はみ出し
+                                        控除あり 10行=余り0px／11行で +16px
          ・1枚物 … 控除あり ★9行★／控除なし ★19行★（実測・余り0px）
          ・複数ページの最後の紙は もう少し入るが、★1枚物に合わせる★（毎月おなじ顔）
 
@@ -95,8 +100,8 @@
        黒田空調/ENEOS ＝ 30行 ／ ★八木（控除あり）＝ 3行★（控除枠は4行）
        実物が30行 入るのは頭が小さいから。うちは 21行まで来た（差は
        「ご請求金額を大きく」「振込先を枠で囲う」＝★うちが決めて残した所★）。 */
-  var PAPER_ROWS = 18;        // 控除を出さない紙（★実測＝物理の上限★）
-  var PAPER_ROWS_DED = 8;    // 控除を出す紙（★実測＝物理の上限★）
+  var PAPER_ROWS = 20;        // 控除を出さない紙（★実測＝物理の上限★）
+  var PAPER_ROWS_DED = 10;    // 控除を出す紙（★実測＝物理の上限★）
   var DEDUCT_ROWS = 4;        // 控除の枠 ★会社が変えられる★（実物 八木＝E17:H20＝4行）
   var ROWS_FIRST = 12;
   var ROWS_REST = 24;
@@ -585,7 +590,15 @@
     }
 
     /* ── 頭（宛名・自社・日付） ★ラベルの後ろは全角スペース★ ── */
-    function headBlock(pageIdx) {
+    /* ★自社の塊は「ご請求金額」と 下をそろえる★
+       （司さん 2026-08-31「バランス考えたら この赤丸の高さを 下同士で合わせるやろがぼけ」
+                        「代行請求書と一緒で 下にせんのか」）
+       ★やり方＝同じ表の中に入れて 縦を「下寄せ」にする★（rowspan＝2段ぶんの高さを持たせる）
+         ・固定の mm で 下げるのは ★合わない紙が出る★（繰越が入ると 金額が1行 伸びる）
+         ・表で組めば ★中身が伸びても 下は いつも そろう★
+       ★頭は 低くなる★＝自社(19.4mm)が あて名(7.2mm)の高さを 決めていたのを やめるので、
+         明細に使える高さが 増える（★行数は 測り直す★）。 */
+    function headBlock(pageIdx, midHtml) {
       /* 並びは 請求日 → No. → お支払期限。
          ★番号は空でも欄を出す（「（未採番）」と書く）＝取れなかったを空欄にしない★ */
       /* 領収書は ★入金日★ が日付・★領収番号（請求番号＋枝番）★ が番号 */
@@ -618,7 +631,7 @@
            ・適格請求書の記載事項は ★受け取る側の「名称」★ まで＝住所は要らない
            ★データは消していない★（取引先マスタの住所はそのまま。必要になれば戻せる） */
         + '</td>'
-        + '<td class="party-from"><div class="from-box">'
+        + '<td class="party-from" rowspan="2"><div class="from-box">'
         /* ★角印は 社名の1行目の右端に 重ねて押す＝角印標準★
            （司さん 2026-08-30「なんで角印の場所がそこなんど 請求書アプリ見てこい」）
            ★直す前★は 登録番号の下に ぶら下げていた＝ハンコが 宙に浮いていた。
@@ -634,7 +647,9 @@
         + (g.addr ? '<div class="from-sub">' + esc(g.addr) + '</div>' : '')
         + (g.tel ? '<div class="from-sub">TEL ' + esc(g.tel) + '</div>' : '')
         + (g.invoiceNo ? '<div class="from-sub">登録番号 ' + esc(g.invoiceNo) + '</div>' : '')
-        + '</div></td></tr></tbody></table>'
+        + '</div></td></tr>'
+        + '<tr><td class="party-mid">' + (midHtml || '') + '</td></tr>'
+        + '</tbody></table>'
         /* ★何枚のうちの何枚目か★（司さん 2026-08-16「複数ページになったらどうするんど」）
            「2ページ目」だけだと ★全部で何枚か分からない＝1枚 抜けても気づけない★。
            見本＝代行請求 invoice-pdf.js:748 も ★"1 / 3" を出している★。 */
@@ -942,7 +957,7 @@
     }
 
     if (isReceipt) {
-      var rcHtml = '<div class="sheet">' + freeSealHtml() + headBlock(0) + grandBlock() + receiptBody() + '</div>';
+      var rcHtml = '<div class="sheet">' + freeSealHtml() + headBlock(0, '') + grandBlock() + receiptBody() + '</div>';
       return {
         html: '<!DOCTYPE html>\n<html lang="ja"><head><meta charset="UTF-8">'
           + '<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -964,8 +979,17 @@
     var sheets = pages.map(function (pageLines, idx) {
       var last = (idx === pages.length - 1);
       var offset = pages.slice(0, idx).reduce(function (a, x) { return a + x.length; }, 0);
+      /* ★◯月分・挨拶・ご請求金額・繰越★は 自社の塊と 同じ表の中に入れる（下をそろえる為） */
+      /* ★繰越は 表の中に 入れない★＝入れると 自社の塊が 繰越の下端まで 落ちる
+         （実測 2026-08-31：87.3〜106.7mm＝明細のすぐ上まで 下がった）。
+         ★そろえたいのは「ご請求金額」の下★なので、繰越は 表の外＝金額のすぐ下に 出す。 */
+      var showMoney = ((idx === 0 && !multi) || (last && multi));
+      var mid = ''
+        + (idx === 0 ? periodBlock() : '')
+        + (showMoney ? greetBlock() + grandBlock() : '');
       var body = ''
-        + headBlock(idx)
+        + headBlock(idx, mid)
+        + (showMoney ? carryBlock() : '')
         /* ★繰越は1ページ目の金額のすぐ下★（前回の残りを含む額なので、金額の根拠として先に見せる）
            ここに並べないと carryBlock() は作られるだけで紙に載らない
            （2026-08-11：関数はあるのに1度も呼ばれていなかった＝lib緑でも紙に出ない） */
@@ -983,9 +1007,6 @@
              ご請求金額（税込）             ← 1枚物は1枚目／複数ページは ★最後の紙★
              ◯ / ◯ ページ                  ← ★いつも明細のすぐ上★
              （明細） */
-        + (idx === 0 ? periodBlock() : '')
-        + ((((idx === 0 && !multi) || (last && multi)))
-          ? greetBlock() + grandBlock() + carryBlock() : '')
         + pagenoBlock(idx)
         /* ★2カラム★ 左＝①ご請求の内訳（明細）／右＝②差し引く＋③締め
              ★2段組みは表で作る★（flex だと文が1文字ずつ縦に割れる＝前科あり）。
@@ -1130,16 +1151,20 @@
 
       /* 宛名（左）／自社（右）。★表の2列＝幅が足りなくても文が縦に割れない★
          ★下線は引かない（うちの紙は引いていない）★ */
-      '.party{width:100%;border-collapse:collapse;margin:0 0 3mm;table-layout:fixed;}',
+      '.party{width:100%;border-collapse:collapse;margin:0 0 7mm;table-layout:fixed;}',
       '.party td{vertical-align:top;padding:0;}',
       '.party-to{width:56%;min-width:80mm;}',
+      /* ★自社の塊は 下寄せ★＝「ご請求金額」の下と そろう（司さん 2026-08-31）
+         ・2段ぶん（rowspan=2）の高さを持ち、その ★下端★に 中身を置く
+         ・繰越などで 金額の側が 伸びても ★下は いつも そろう★ */
       '.party-from{width:44%;min-width:60mm;text-align:right;}',
-      /* ★自社の塊を 下へ ずらす★（司さん 2026-08-31「赤の塊を青に持ってきて ごちゃごちゃさすな」）
-         ＝請求日/No./期限 のすぐ下に 社名＋印＋住所＋TEL＋登録番号 が 詰まっていて、
-           ★印が 上の行に 1.2mm まで 迫っていた★（実測）。
-         ★position:relative で ずらす★＝★流れの高さは 1mmも 変わらない★
-           （padding で下げると 表が下がり ★1枚に載る行数が 減る★＝18/8 の実測値が狂う）。 */
-      '.from-box{position:relative;top:' + FROM_DROP_MM + 'mm;}',
+      /* ★下寄せは「.party td」より 強く書く★
+         （.party td{vertical-align:top} の方が 強くて 効かなかった＝2026-08-31 実測） */
+      '.party td.party-from{vertical-align:bottom;}',
+      '.party-mid{vertical-align:top;}',
+      /* ★中の最後の物の 下の余白を 0にする★＝箱の下端＝字の下端になり、
+         右の自社と ★字どうしで そろう★（余白ぶんは 表の下の余白へ 移す） */
+      '.party-mid > *:last-child{margin-bottom:0;}',
       '.to-subject{font-size:10.5pt;color:' + INK + ';display:block;line-height:1.5;margin-top:4px;}',
       '.to-name{font-size:14pt;font-weight:700;display:block;line-height:1.45;',
       'word-break:normal;overflow-wrap:break-word;}',
