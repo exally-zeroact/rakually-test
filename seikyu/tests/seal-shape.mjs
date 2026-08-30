@@ -150,12 +150,12 @@ const line = (k) => {
 };
 Object.keys(got).forEach((k) => console.log('     ' + line(k)));
 
-T('★角印（白地）を 四角い印と見る・21mm', got.kakuW.shape === 'kaku' && got.kakuW.mm === 21, JSON.stringify(got.kakuW));
-T('★角印（白抜き済み）でも 同じ答え', got.kakuT.shape === 'kaku' && got.kakuT.mm === 21, JSON.stringify(got.kakuT));
-T('★丸い印（白地）を 個人の印と見る・15mm', got.maruW.shape === 'maru' && got.maruW.mm === 15, JSON.stringify(got.maruW));
-T('★丸い印（白抜き済み）でも 同じ答え', got.maruT.shape === 'maru' && got.maruT.mm === 15, JSON.stringify(got.maruT));
+T('★角印（白地）を 四角い印と見る・17mm（実寸21mmの8割）', got.kakuW.shape === 'kaku' && got.kakuW.mm === 17, JSON.stringify(got.kakuW));
+T('★角印（白抜き済み）でも 同じ答え', got.kakuT.shape === 'kaku' && got.kakuT.mm === 17, JSON.stringify(got.kakuT));
+T('★丸い印（白地）を 個人の印と見る・12mm（実寸15mmの8割）', got.maruW.shape === 'maru' && got.maruW.mm === 12, JSON.stringify(got.maruW));
+T('★丸い印（白抜き済み）でも 同じ答え', got.maruT.shape === 'maru' && got.maruT.mm === 12, JSON.stringify(got.maruT));
 T('★まわりに余白がある角印でも 四角と見る（余白を外して測る）', got.kakuPad.shape === 'kaku', JSON.stringify(got.kakuPad));
-T('★白紙は 当てない（分からないと言う・既定21mm）', got.empty.shape === 'unknown' && got.empty.mm === 21, JSON.stringify(got.empty));
+T('★白紙は 当てない（分からないと言う・既定17mm）', got.empty.shape === 'unknown' && got.empty.mm === 17, JSON.stringify(got.empty));
 T('★角と丸で 四隅の値が はっきり離れている（まぐれで通っていない）',
   (got.kakuW.measured.corner - got.maruW.measured.corner) > 0.15,
   '角 ' + got.kakuW.measured.corner + ' / 丸 ' + got.maruW.measured.corner);
@@ -170,8 +170,8 @@ T('★数でない物は ぜんぶ「分からない」（null を 0にしない
 
 console.log('     画面のmm欄 … はじめ ' + ui.before + ' → 丸い印 ' + ui.maru + ' → 角印 ' + ui.kaku);
 console.log('     当てた理由（丸）… ' + ui.maruWhy);
-T('★画面で 丸い印を選ぶと mmが 15に変わる', ui.maru === '15', 'mm欄が ' + ui.maru);
-T('★画面で 角印を選ぶと mmが 21に変わる', ui.kaku === '21', 'mm欄が ' + ui.kaku);
+T('★画面で 丸い印を選ぶと mmが 12に変わる', ui.maru === '12', 'mm欄が ' + ui.maru);
+T('★画面で 角印を選ぶと mmが 17に変わる', ui.kaku === '17', 'mm欄が ' + ui.kaku);
 T('★なぜ その大きさかを 画面に出している', /丸い印|四角い印/.test(ui.maruWhy || ''), '理由が出ていない: ' + ui.maruWhy);
 
 console.log('     写真 900点 → ' + prep.w + '×' + prep.h + '点 ／ 透けた点 ' + prep.clearPct

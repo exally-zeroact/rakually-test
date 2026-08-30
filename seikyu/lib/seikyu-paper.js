@@ -1105,7 +1105,9 @@
          大きさは会社が決める（10〜40mm・既定21mm）。文字の上に少しかかってよい。 */
       /* ★角印＝社名の右端に 重ねる★（ぶら下げない）。社名の行を 基準にする。 */
       '.from-name{position:relative;}',
-      '.seal{position:absolute;right:0;top:50%;transform:translateY(-50%);'
+      /* ★ほんの少し 透かす★（代行請求 invoice-pdf.js:775 と同じ opacity .95）
+         ＝重なった字が 完全には 消えない（判子は 上に押す物だが 下の字も 読めるのが 実物） */
+      '.seal{position:absolute;right:0;top:50%;transform:translateY(-50%);opacity:.95;'
         + 'object-fit:contain;opacity:.95;pointer-events:none;}',
       '.pageno{font-size:9.5pt;color:' + SUB + ';margin:0 0 2.4mm;}',
       '.lead-greet{margin:0 0 1.6mm;}',
