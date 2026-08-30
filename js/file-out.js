@@ -19,7 +19,21 @@
  *   ③ ★渡し口はこの1箇所だけ。★ 他の場所で Blob を作らない・writeFile を呼ばない
  *      （tests/ios-unsupported.test.mjs が破りを赤にする）
  *
+ * ★2026-08-30 追記（司さん「代行請求書のアプリでは PDFで送る あと 赤丸のところから
+ *   メールなど選べるけど これではダメなのか？」）
+ *   ★ダメではない。こちらに その道が 無かった★。
+ *   代行請求アプリ(daikou-seikyu.html:7099)には ★2つの口★が在る:
+ *     ① InvoicePDF.save()      … <a download> で ふつうに落とす（＝こちらの deliver と同じ）
+ *     ② window.open(blobURL)   … ★PDFを その場で開く★
+ *        → iPhone自身の ビューアが出る → ★共有ボタンから メール/メッセージ/AirDrop★
+ *   ＝「送る」は うちが作る物ではなく ★iPhoneが 元から持っている★。
+ *     落とすだけでは そこへ行けない（ファイルアプリまで 人が探しに行く事になる）。
+ *   ⇒ ★openInViewer を ここに足す★。★Blobを作るのは この1箇所のまま★。
+ *   （2026-08-04 に やめた navigator.share とは 別物。あれは「開く」為に使ったのが 間違いだった。
+ *     ここは ★開く★＝iPhoneのビューアに渡すだけで、送る先は 人が選ぶ）
+ *
  * 【利用】window.FileOut.deliver(bytes, 'name.xlsx') → Promise<{how:'download'}>
+ *        window.FileOut.openInViewer(bytes, 'name.pdf') → Promise<{how:'open'}>
  */
 (function (global) {
   'use strict';
@@ -85,6 +99,28 @@
     return Promise.resolve(anchorDownload(blob, filename));
   }
 
+  /* ★PDFを その場で開く★（＝iPhoneのビューアに渡す。そこの共有ボタンで メールに乗る）
+     ・代行請求アプリと同じ形（window.open(blobURL, '_blank')）
+     ・★開けなかった時は 黙らない★（ポップアップを止められている端末が在る）
+       ＝落とす方へ 自分で切り替えて、切り替えた事を 呼ぶ側に返す
+     ・取り消しは60秒後＝ビューアが読み終わる前に 消さない（代行と同じ間） */
+  function openInViewer(data, filename, opts) {
+    opts = opts || {};
+    var mime = opts.type || mimeOf(filename);
+    if (!mime) return Promise.reject(new Error('ファイルの種類が分かりません（' + filename + '）。'));
+    var blob = toBlob(data, mime);
+    if (!blob) return Promise.reject(new Error('この環境ではファイルを作れません'));
+    var url = URL.createObjectURL(blob);
+    var w = null;
+    try { w = global.open(url, '_blank', 'noopener'); } catch (e) { w = null; }
+    if (!w) {
+      URL.revokeObjectURL(url);
+      return Promise.resolve(Object.assign(anchorDownload(blob, filename), { fellBack: true }));
+    }
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    return Promise.resolve({ how: 'open', type: blob.type, filename: filename });
+  }
+
   /* ファイル名の日時（YYYYMMDD_HHmm）。★毎回違う名前＝古いダウンロードと見分けがつく。
      代行請求アプリと同じ形。使うかどうかは呼ぶ側が決める。 */
   function stamp(d) {
@@ -93,5 +129,6 @@
     return d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '_' + z(d.getHours()) + z(d.getMinutes());
   }
 
-  global.FileOut = { deliver: deliver, mimeOf: mimeOf, MIME: MIME, stamp: stamp, extOf: extOf };
+  global.FileOut = { deliver: deliver, openInViewer: openInViewer,
+    mimeOf: mimeOf, MIME: MIME, stamp: stamp, extOf: extOf };
 })(typeof window !== 'undefined' ? window : globalThis);

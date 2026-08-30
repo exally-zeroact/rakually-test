@@ -346,7 +346,8 @@ T('2-a. ★出すボタンは1つだけ大きく・ほかは畳む（7個 横並
 T('2-a. ★畳みの見出しに 中の出し口が ぜんぶ 書いてある（PDFを含む）', () => {
   const sum = ($('out-sum').textContent || '');
   /* 見出しの言葉 ← 中の押す物（id と 見出しの言葉の対応表。★増やしたら ここに1行★） */
-  const WORD = { 'b-save': '下書き', 'b-preview': '下見', 'b-pdf': 'PDF', 'b-print': '印刷', 'b-xlsx': 'Excel' };
+  const WORD = { 'b-save': '下書き', 'b-preview': '下見', 'b-pdf': 'PDF', 'b-pdfopen': '送る',
+    'b-print': '印刷', 'b-xlsx': 'Excel' };
   const shown = (el) => { for (let e = el; e && e !== doc.body; e = e.parentElement) { if (e.style && e.style.display === 'none') return false; } return true; };
   const inside = [...$('out-box').querySelectorAll('button')].filter((b) => shown(b) && b.id);
   const miss = [], unknown = [];

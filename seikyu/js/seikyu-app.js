@@ -698,7 +698,7 @@
       /* ★PDFを 見出しに書く★（司さん 2026-08-30「知り合いに使ってもらう」）
          中に「PDFで保存」が在るのに 見出しに無いと、★開くまで PDFが出せると分からない★。
          ここは この畳みの決まり（中に在る物だけを 見出しに書く）を そのまま守る。 */
-      can.push('下見', 'PDF', '印刷', 'Excel');
+      can.push('下見', 'PDF', '送る', '印刷', 'Excel');
       if (DOC.canVoid(v)) can.push('取り消し');
       if (DOC.canDelete(v) && v.id) can.push('削除');
       setText('out-sum', (ro ? 'この請求書に出来る事' : 'ほかの出し方') + '（' + can.join('・') + '）');
@@ -910,7 +910,7 @@
     });
   }
   /** ★領収書を 自作PDFで★（紙は 今の紙のまま／落とし口は 1本／出せない時は 黙らない） */
-  function doReceiptPdf(rcId, name) {
+  function doReceiptPdf(rcId, name, how) {
     /* ★止めた理由は receiptPaperInput が もう出している★＝ここで上書きしない
        （2か所で言うと 後の方の 当たりさわりのない字が 本当の理由を 消す） */
     var pi = receiptPaperInput(rcId);
@@ -918,12 +918,18 @@
     var PDF = global.SeikyuPdf;
     if (!PDF) { box('pay-err', 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
     var built = PAPER.build(Object.assign({}, pi, { title: name }));
+    var open = (how === 'open');
     box('pay-ok', '領収書のPDFを作っています…（字を紙に埋め込むので 少し待ちます）');
     PDF.build(built.html, { base: '../' }).then(function (bytes) {
       var miss = PDF.lastMissing ? PDF.lastMissing() : [];
-      return OUT.pdf(bytes, name).then(function () {
-        box('pay-ok', '領収書 ' + pi.receipt.no + ' のPDFを作りました。'
-          + (miss.length ? '★この字は 字体に無いので 〓 で出しました：' + miss.join('') + '★' : ''));
+      return (open ? OUT.pdfOpen(bytes, name) : OUT.pdf(bytes, name)).then(function (r) {
+        box('pay-ok', (open
+          ? ((r && r.fellBack)
+            ? '新しい窓が開けなかったので、領収書 ' + pi.receipt.no + ' のPDFを 落としました。'
+            : '領収書 ' + pi.receipt.no + ' のPDFを 別の窓で 開きました。'
+              + 'その画面の 共有ボタンから メールなどで 送れます。')
+          : '領収書 ' + pi.receipt.no + ' のPDFを作りました。')
+          + (miss.length ? 'この字は 字体に無いので 〓 で出しました：' + miss.join('') : ''));
       });
     }).catch(function (e) {
       box('pay-err', '領収書のPDFが作れませんでした（' + (e && e.message) + '）。'
@@ -1054,13 +1060,26 @@
           /* ★領収書も 自作PDFで 出せる★（司さん 2026-08-30）
              ＝印刷だけだと ★iPhoneで 紙の下に URLと日付が 付く★ */
           + (neg ? '' : '<button class="mini" type="button" data-rcpdf="' + esc(r.id) + '">領収書PDF</button>')
+          /* ★送る★＝PDFを その場で開く → iPhoneの共有ボタンから メールに乗る（代行と同じ道） */
+          + (neg ? '' : '<button class="mini" type="button" data-rcsend="' + esc(r.id) + '">送る</button>')
           + '<button class="l-del" type="button" data-rc="' + esc(r.id) + '" aria-label="この入金の記録を消す">×</button>'
           + '</div>';
       }).join('');
       Array.prototype.forEach.call(host.querySelectorAll('[data-rc]'), function (b) {
         b.onclick = function () { return removeReceipt(b.getAttribute('data-rc')); };
       });
-      /* ★領収書を 自作PDFで★（名前を先に決めさせるのは 下と同じ） */
+      /* ★領収書を 自作PDFで★（落とす＝data-rcpdf ／ 開いて送る＝data-rcsend）
+         名前を先に決めさせるのは 下と同じ。中身は 同じ1本（doReceiptPdf）。 */
+      Array.prototype.forEach.call(host.querySelectorAll('[data-rcsend]'), function (b) {
+        b.onclick = function () {
+          var id = b.getAttribute('data-rcsend');
+          var chk = DOC.canReceipt(receiptById(id), S.cur);
+          if (!chk.ok) { box('pay-err', chk.reason); return; }
+          var n = receiptFileName(id);
+          if (!n) { box('pay-err', '中身がまだ整っていないので、領収書が出せません。'); return; }
+          askNameWith(n, 'pdf', function (name) { doReceiptPdf(id, name, 'open'); });
+        };
+      });
       Array.prototype.forEach.call(host.querySelectorAll('[data-rcpdf]'), function (b) {
         b.onclick = function () {
           var id = b.getAttribute('data-rcpdf');
@@ -1449,7 +1468,7 @@
   /* ★紙から作る物は ぜんぶ ここに書く★（1つでも 書き忘れると
      ★出せない中身なのに 押せる★＝押した後で 赤い字を出す形に 戻ってしまう）。
      ★b-pdf（自作PDF）は 2026-08-30 に足した時 ここに書き忘れていた★ */
-  var PAPER_BTNS = ['b-preview', 'b-print', 'b-pdf', 'b-xlsx'];
+  var PAPER_BTNS = ['b-preview', 'b-print', 'b-pdf', 'b-pdfopen', 'b-xlsx'];
   function applyPaperGate() {
     var g = paperGate();
     PAPER_BTNS.forEach(function (id) {
@@ -1786,20 +1805,28 @@
      ・紙の形は ★今の紙のまま★（同じ PAPER.build を通す）
      ・落とすのは ★渡し口1本（FileOut.deliver）★＝ここで 自前に 落とさない
      ・★出せない時は 黙らない★（なぜ出せないかを 1行 出す） */
-  function doPdf(name) {
+  /** ★PDFを 落とす／開く★（作り方は 1つ。最後の1歩だけ 違う）
+   *  how = 'save'（落とす）／'open'（iPhoneのビューアで開く→共有からメール） */
+  function doPdf(name, how) {
     var pi = paperInput();
     if (!pi) { box('edit-err', '中身がまだ整っていないので、PDFが作れません。上の赤い印を直してください。'); return; }
     var PDF = global.SeikyuPdf;
     if (!PDF) { box('edit-err', 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
     var built = PAPER.build(Object.assign({}, pi, { title: name }));
+    var open = (how === 'open');
     box('edit-ok', 'PDFを作っています…（字を紙に埋め込むので 少し待ちます）');
     PDF.build(built.html, { base: '../' }).then(function (bytes) {
       var bad = PDF.lastBadImages ? PDF.lastBadImages() : [];
       var miss = PDF.lastMissing ? PDF.lastMissing() : [];
-      return OUT.pdf(bytes, name).then(function () {
-        box('edit-ok', 'PDFを作りました。'
-          + (miss.length ? '★この字は 字体に無いので 〓 で出しました：' + miss.join('') + '★' : '')
-          + (bad.length ? '★出せなかった絵が ' + bad.length + '件 あります★' : ''));
+      return (open ? OUT.pdfOpen(bytes, name) : OUT.pdf(bytes, name)).then(function (r) {
+        box('edit-ok', (open
+          ? ((r && r.fellBack)
+            ? 'この端末では 新しい窓が開けなかったので、PDFを 落としました。'
+              + '（ブラウザの ポップアップの設定を 見てください）'
+            : 'PDFを 別の窓で 開きました。その画面の 共有ボタンから メールなどで 送れます。')
+          : 'PDFを作りました。')
+          + (miss.length ? 'この字は 字体に無いので 〓 で出しました：' + miss.join('') : '')
+          + (bad.length ? '出せなかった絵が ' + bad.length + '件 あります' : ''));
       });
     }).catch(function (e) {
       box('edit-err', 'PDFが作れませんでした（' + (e && e.message) + '）。'
@@ -2106,6 +2133,10 @@
      ★決まりは seikyu-doc.js（使える種類・上限・大きさ）★。ここは画面の配線だけ。
      ★画像は data URL で持つ＝Blob を作らない（落とす口は js/file-out.js の1本だけ）★ */
   var sealPending = null;   // 選んだばかりでまだ保存していない画像
+  /* ★入れた判子の形から 当てた大きさ★（司さん 2026-08-30
+     「個人の苗字の判子の大きさと 角印の判子の大きさも 自動で選別してるか？」）
+     ＝★当てて見せるだけ★。人が その場で 直せる（うちの決まり「聞いてあげる。埋めさせない」）。 */
+  var sealGuess = null;
 
   function fillSeal() {
     var d = S.org || {};
@@ -2113,8 +2144,10 @@
     var pv = $('seal-pv');
     if (url) { pv.src = url; show(pv, true); show($('seal-none'), false); }
     else { pv.removeAttribute('src'); show(pv, false); show($('seal-none'), true); }
-    $('seal-mm').value = DOC.sealSizeMm(d.sealSizeMm);
-    setText('seal-why', '大きさは ' + DOC.SEAL_MIN_MM + '〜' + DOC.SEAL_MAX_MM + 'mm の間だけ（既定 '
+    /* ★当てた大きさが在る時は それを出す★（保存前の下見の間だけ） */
+    $('seal-mm').value = DOC.sealSizeMm(sealGuess ? sealGuess.mm : d.sealSizeMm);
+    setText('seal-why', (sealGuess ? sealGuess.why + '（違う時は 上の数を 直してください）' : '')
+      + '大きさは ' + DOC.SEAL_MIN_MM + '〜' + DOC.SEAL_MAX_MM + 'mm の間だけ（既定 '
       + DOC.SEAL_DEFAULT_MM + 'mm）。画像は ' + Math.round(DOC.SEAL_MAX_BYTES / 1024) + 'KB まで。'
       + '発行した時の印は写しに残るので、あとで印を替えても出した紙は変わりません。');
     $('b-seal-clear').disabled = !(d.sealDataUrl || sealPending);
@@ -2129,8 +2162,20 @@
       var chk = DOC.validateSeal(url);
       if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; fillSeal(); return; }
       sealPending = url;
+      sealGuess = null;
       fillSeal();
       box('seal-ok', '下見に出しました。「保存」を押すと紙に出ます。');
+      /* ★形を見て 大きさを当てる★（角印21mm／個人の丸い印15mm）。
+         ★当てられない時は 既定のまま★＝当てられない物を 当てたことにしない。
+         絵を読むのに 少し時間が要るので、待たせずに 下見は先に出す。 */
+      var SEAL = global.SeikyuSeal;
+      if (SEAL) {
+        SEAL.guessFromUrl(url).then(function (g) {
+          if (sealPending !== url) return;          // 途中で別の画像に替えられていたら 捨てる
+          sealGuess = g;
+          fillSeal();
+        }).catch(function () { /* 測れなくても 下見は出ている＝既定のまま */ });
+      }
     };
     fr.onerror = function () { box('seal-err', 'この画像は読めませんでした。別の画像でお試しください。'); };
     fr.readAsDataURL(file);
@@ -2138,6 +2183,7 @@
 
   function saveSeal() {
     var mm = DOC.sealSizeMm($('seal-mm').value);
+    sealGuess = null;                     // 保存したら「当てた値」ではなく「決まった値」
     var patch = { sealSizeMm: mm };
     if (sealPending) {
       var chk = DOC.validateSeal(sealPending);
@@ -2157,6 +2203,7 @@
   function clearSeal() {
     if (!global.confirm('角印を消しますか？\n（これから出す紙に印が付かなくなります。すでに出した紙は変わりません）')) return Promise.resolve();
     sealPending = null;
+    sealGuess = null;
     return S.store.org.save({ sealDataUrl: '' }).then(function (r) {
       if (!r.ok) { box('seal-err', '消せませんでした（' + r.reason + '）'); return; }
       S.org = r.data;
@@ -3123,7 +3170,9 @@
     $('fn-cancel').onclick = fnClose;
 
     $('b-save').onclick = function () { return saveDraft(); };
-    if ($('b-pdf')) $('b-pdf').onclick = function () { askName('pdf', doPdf); };
+    if ($('b-pdf')) $('b-pdf').onclick = function () { askName('pdf', function (n) { doPdf(n, 'save'); }); };
+    /* ★開く★＝iPhoneのビューアへ渡す（そこの共有ボタンで メールに乗る） */
+    if ($('b-pdfopen')) $('b-pdfopen').onclick = function () { askName('pdf', function (n) { doPdf(n, 'open'); }); };
     $('b-issue').onclick = function () { return issue(); };
 
     /* ★入金★ 打つたびに「押せる/押せない」を塗り直す（黙って無反応にしない） */
@@ -3246,8 +3295,17 @@
     _paperBtnsForTest: function () { return PAPER_BTNS.slice(); },   // テスト用: 門を掛ける相手の一覧
     _pickSealUrl: function (url) {           // テスト用: ファイル選択の代わりに data URL を渡す
       var chk = DOC.validateSeal(url);
-      if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; fillSeal(); return chk; }
-      sealPending = url; fillSeal(); return chk;
+      if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; sealGuess = null; fillSeal(); return chk; }
+      sealPending = url; sealGuess = null; fillSeal();
+      var SEAL = global.SeikyuSeal;
+      if (!SEAL) return chk;
+      /* ★当て終わるのを 待てる形で返す★（見張りが「当てた後」を見られるように） */
+      return Object.assign({}, chk, {
+        guessed: SEAL.guessFromUrl(url).then(function (g) {
+          if (sealPending !== url) return null;
+          sealGuess = g; fillSeal(); return g;
+        }),
+      });
     },
   };
 })(window);

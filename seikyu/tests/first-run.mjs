@@ -218,9 +218,52 @@ await T('★⑫ 入金を付けると「領収書PDF」が 出て、押すと PD
   eq(built, 1, '★押しても PDFを 作りに 行っていない★');
   ok(saved && String(saved).slice(-4) === '.pdf', '★落とす名前が pdfではない★：' + saved);
   console.log('     領収書PDF → ' + saved);
+  /* ★領収書も 送れる★（開いて iPhoneの共有ボタンへ渡す） */
+  const send = doc.querySelector('[data-rcsend]');
+  ok(send, '★領収書の「送る」が 無い★');
+  let opened = null;
+  win.URL.createObjectURL = () => 'blob:rc-pdf';
+  win.URL.revokeObjectURL = () => {};
+  win.open = (u) => { opened = u; return { focus() {} }; };
+  send.click();
+  await new Promise((r) => setTimeout(r, 60));
+  $('fn-ok').click();
+  await new Promise((r) => setTimeout(r, 200));
+  ok(opened === 'blob:rc-pdf', '★領収書の「送る」で 別の窓が 開いていない★（' + opened + '）');
+  ok(/共有|送/.test(txt('pay-ok')), '★どうやって送るかを 言っていない★：' + txt('pay-ok'));
+  console.log('     領収書を送る → ' + txt('pay-ok').slice(0, 46));
 });
 
-await T('★⑬ ここまで JSの落ちが 0（初めての人が 踏む道で 落ちない）', () => {
+/* ★送る道★（司さん 2026-08-30「代行では 赤丸のところから メールなど選べる」）
+   ＝うちも ★PDFを その場で開く★口を付けた。開けば iPhone自身のビューアが出て、
+     その共有ボタンから メール/メッセージ/AirDrop に乗る。
+   ここで見るのは ★落とすのではなく 開いたか★（窓に渡した中身がPDFか）だけ。 */
+await T('★⑬ 「PDFを開く（送る）」は 落とさずに 別の窓で 開く', async () => {
+  A._go('scr-edit');
+  const btn = $('b-pdfopen');
+  ok(btn, '★「PDFを開く（送る）」のボタンが 無い★');
+  let opened = null, saved = null, madeType = null;
+  win.SeikyuPdf = { build: () => Promise.resolve(new Uint8Array([37, 80, 68, 70])),
+    lastMissing: () => [], lastPlaced: () => [], lastBadImages: () => [] };
+  win.URL.createObjectURL = (b) => { madeType = b && b.type; return 'blob:test-pdf'; };
+  win.URL.revokeObjectURL = () => {};
+  win.open = (u) => { opened = u; return { focus() {} }; };
+  win.FileOut = Object.assign({}, win.FileOut, { deliver: (b, n) => { saved = n; return Promise.resolve({ ok: true }); } });
+  btn.disabled = false;
+  A._bindForTest();
+  btn.click();
+  await new Promise((r) => setTimeout(r, 60));
+  ok($('fn-ov').classList.contains('open'), '★名前を聞く窓が 開いていない★');
+  $('fn-ok').click();
+  await new Promise((r) => setTimeout(r, 200));
+  ok(opened === 'blob:test-pdf', '★別の窓で 開いていない★（開いた先: ' + opened + '）');
+  ok(!saved, '★開くはずが 落としている★（' + saved + '）');
+  eq(madeType, 'application/pdf', '★渡した中身の種類が PDFでない★');
+  ok(/共有|送/.test(txt('edit-ok')), '★どうやって送るかを 言っていない★：' + txt('edit-ok'));
+  console.log('     ' + txt('edit-ok'));
+});
+
+await T('★⑭ ここまで JSの落ちが 0（初めての人が 踏む道で 落ちない）', () => {
   ok(!errs.length, errs.join(' / '));
 });
 

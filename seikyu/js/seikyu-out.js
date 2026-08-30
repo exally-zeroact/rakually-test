@@ -79,6 +79,12 @@
   function pdf(bytes, filename) {
     return global.FileOut.deliver(bytes, filename);
   }
+  /* ★PDFを その場で開く★＝iPhoneのビューアに渡す。そこの共有ボタンで メールに乗る。
+     （司さん 2026-08-30「代行では メールなど選べる」＝代行と同じ道を こちらにも付けた） */
+  function pdfOpen(bytes, filename) {
+    return global.FileOut.openInViewer(bytes, filename);
+  }
 
-  global.SeikyuOut = { print: print, preview: preview, excel: excel, openPaper: openPaper, pdf: pdf };
+  global.SeikyuOut = { print: print, preview: preview, excel: excel, openPaper: openPaper,
+    pdf: pdf, pdfOpen: pdfOpen };
 })(typeof window !== 'undefined' ? window : globalThis);

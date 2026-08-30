@@ -68,3 +68,8 @@ jobs:
       #   （紙の中の位置は 上の pdf-align.mjs が chromium で 測っている）。
       - name: ★自作PDFが iPhoneの中身(WebKit)でも 出るか (請求書/領収書・先頭%PDF-・化け0・20秒以内)
         run: node seikyu/tests/pdf-webkit.mjs
+      # ★判子の大きさを 形で選り分ける★（司さん 2026-08-30
+      #   「個人の苗字の判子の大きさと 角印の判子の大きさも 自動で選別してるか？」）
+      #   ★印影を その場で描いて 測る★（絵は repo に置かない＝形が命なので 形を作って試す）
+      - name: ★判子が 角印(21mm)か 個人の丸い印(15mm)かを 見分ける (四隅の墨で判定・実UIのmm欄まで)
+        run: node seikyu/tests/seal-shape.mjs
