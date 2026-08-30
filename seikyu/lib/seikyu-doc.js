@@ -683,6 +683,50 @@
     };
   }
 
+  /* ── ★複製して作る（この紙と 同じ物を もう1通）★ ─────────────────────
+     ★司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前にしてな」★
+       請求書ソフトは どこも「前の1通をコピーして 次を作る」を 持っている
+       （毎月 同じ相手に 似た内容を 出すのが 商売の普通の形）。うちだけ 無かった。
+
+     ★写す物★     … 相手・明細（自由な列の中身ごと）・様式・列・税の入れ方・丸め
+                     件名・備考・支払い条件・源泉・控除・前書き・和暦
+     ★写さない物★ … id・番号（新しく取り直す）・請求日／期限（新しく決める）
+                     状態（下書きに戻す）・発行時の写し・合計（数え直す）
+                     ★入金は 元の紙の物★＝複製に 付いてこない（付けたら 二重に数える）
+     ★同じ紙が 2通 出ないように★ … 番号は 空にして返す（呼ぶ側が 採番し直す）。 */
+  function duplicateDoc(v) {
+    var src = v || {};
+    var d = src.data || {};
+    var data = {};
+    /* data は 自由枠＝★知っている物だけ 白紙から積む、では 落ちる★。
+       まるごと写して、★持ち越してはいけない物だけ 消す★（新しい項目が 増えても 落ちない）。 */
+    try { data = JSON.parse(JSON.stringify(d)); } catch (e) { data = {}; }
+    delete data.askOk;              // 「この内容でよいか」の答え＝新しい紙では もう一度
+    delete data.tplAsked;           // 様式を聞いたか＝様式そのものは 下で写す
+    data.noMode = 'auto';           // ★手打ちの番号を 継がない★
+    /* ★どの紙から写したか★は data（自由枠）に置く。
+       ★棚に列を足さない★＝倉庫は quote_from しか受け取らない作りで、
+       知らない列を渡すと ★黙って落ちる★（司さんの一言が要る所には 触らない）。 */
+    if (src.id) data.copyFrom = src.id;
+    var lines = (src.lines || []).map(function (ln) {
+      var o = Object.assign({}, ln);
+      if (ln && ln.extra) o.extra = Object.assign({}, ln.extra);
+      return o;
+    });
+    return {
+      doc_type: src.doc_type || 'invoice',
+      status: 'draft',
+      no: '',
+      partner_id: src.partner_id || '',
+      issue_ymd: '', due_ymd: '',
+      tax_mode: src.tax_mode, rounding: src.rounding,
+      lines: lines,
+      totals: {}, snapshot: {},
+      data: data,
+      template_id: src.template_id || '',
+    };
+  }
+
   /* ── ★あて名の敬称★（司さん・指示役 ④の残り「敬称の自動判定」）──────────────
      ★日本の紙の作法★
        会社だけに出す        … 「○○株式会社　御中」
@@ -732,5 +776,6 @@
     SEAL_DEFAULT_MM: SEAL_DEFAULT_MM, SEAL_MIN_MM: SEAL_MIN_MM, SEAL_MAX_MM: SEAL_MAX_MM, SEAL_MAX_BYTES: SEAL_MAX_BYTES,
     paymentStateOf: paymentStateOf,
     validateInvoice: validateInvoice, convertQuoteToInvoice: convertQuoteToInvoice,
+    duplicateDoc: duplicateDoc,
   };
 });

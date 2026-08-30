@@ -744,9 +744,17 @@
     var host = $('danger-row');
     if (host) {
       var html = '';
+      /* ★複製★（司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前に」）
+         ＝毎月 同じ相手に 似た内容を出すのが 商売の普通の形。どの1通からでも 写せる。
+         ★中身が空の紙からは 写さない★（写す物が無い＝押せる意味が無い） */
+      if (v.id && (v.lines || []).length) {
+        html += '<button class="btn-ghost" type="button" id="b-copy">この'
+          + esc(DOC.docLabel(v.doc_type || 'invoice')) + 'を複製</button>';
+      }
       if (DOC.canVoid(v)) html += '<button class="btn-ghost" type="button" id="b-void">この請求書を取り消す</button>';
       if (DOC.canDelete(v) && v.id) html += '<button class="bdel" type="button" id="b-delete">下書きを削除</button>';
       host.innerHTML = html;
+      var bc = $('b-copy'); if (bc) bc.onclick = function () { return duplicateCur(); };
       var bv = $('b-void'); if (bv) bv.onclick = function () { return voidIt(); };
       var bd = $('b-delete'); if (bd) bd.onclick = function () { return removeDraft(); };
       show($('out-box'), ro ? !!html : true);
@@ -761,6 +769,7 @@
          中に「PDFで保存」が在るのに 見出しに無いと、★開くまで PDFが出せると分からない★。
          ここは この畳みの決まり（中に在る物だけを 見出しに書く）を そのまま守る。 */
       can.push('下見', 'PDF', '送る', '印刷', 'Excel');
+      if (v.id && (v.lines || []).length) can.push('複製');
       if (DOC.canVoid(v)) can.push('取り消し');
       if (DOC.canDelete(v) && v.id) can.push('削除');
       setText('out-sum', (ro ? 'この請求書に出来る事' : 'ほかの出し方') + '（' + can.join('・') + '）');
@@ -930,6 +939,34 @@
       goScreen('scr-edit');
       box('edit-ok', DOC.docLabel('quote') + ' ' + (q.no || '') + ' の中身をそのまま写しました。'
         + '請求日と番号は新しく取り直しています。中身を確かめて「発行する」を押してください。');
+    });
+  }
+
+  /** ★この紙と同じ物を もう1通★（写す物・写さない物の決まりは seikyu-doc.duplicateDoc が唯一の正）
+   *  ★入金は 付いてこない★（元の紙の物＝付けたら 二重に数える）。 */
+  function duplicateCur() {
+    var src = S.cur;
+    if (!src || !src.id || !(src.lines || []).length) {
+      box('edit-err', 'この紙には 写す中身がありません。'); return Promise.resolve();
+    }
+    var from = src.no || '';
+    var draft = DOC.duplicateDoc(src);
+    draft.issue_ymd = todayYmd();
+    S.docType = draft.doc_type;
+    drawKind();
+    S.cur = Object.assign(blankInvoice({ docType: draft.doc_type }), draft);
+    S.cur.data = Object.assign({}, draft.data || {});
+    S.guessDone = true;               // 中身は もう写してある＝「前回と同じで作りますか」は出さない
+    S.dirty = true;
+    return loadList().then(function () {
+      fillEdit();
+      return autoNumber();
+    }).then(function () {
+      goScreen('scr-edit');
+      box('edit-ok', (from ? from + ' ' : '') + 'の中身を そのまま写しました。'
+        + '番号と請求日は 新しく取り直しています。'
+        + '入金は 写していません（元の紙のままです）。'
+        + '中身を直してから「発行する」を押してください。');
     });
   }
 
@@ -3356,6 +3393,7 @@
       return (typeof built === 'string') ? built : ((built && built.html) || '');
     },
     _renderPayForTest: function () { return renderPay(); },    // テスト用: 入金の箱だけ描き直す
+    _duplicateForTest: function () { return duplicateCur(); }, // テスト用: 複製を そのまま走らせる
     /* テスト用: ★ボタンに 手を紐づける所だけ★ 走らせる（attach は倉庫に つなぎに行くので
        倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
     _bindForTest: function () { return bind(); },
