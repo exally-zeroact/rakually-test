@@ -2367,20 +2367,46 @@
       sealGuess = null;
       fillSeal();
       box('seal-ok', '下見に出しました。「保存」を押すと紙に出ます。');
-      /* ★形を見て 大きさを当てる★（角印21mm／個人の丸い印15mm）。
-         ★当てられない時は 既定のまま★＝当てられない物を 当てたことにしない。
-         絵を読むのに 少し時間が要るので、待たせずに 下見は先に出す。 */
-      var SEAL = global.SeikyuSeal;
-      if (SEAL) {
-        SEAL.guessFromUrl(url).then(function (g) {
-          if (sealPending !== url) return;          // 途中で別の画像に替えられていたら 捨てる
-          sealGuess = g;
-          fillSeal();
-        }).catch(function () { /* 測れなくても 下見は出ている＝既定のまま */ });
-      }
+      applySealTools(url);
     };
     fr.onerror = function () { box('seal-err', 'この画像は読めませんでした。別の画像でお試しください。'); };
     fr.readAsDataURL(file);
+  }
+
+  /** ★入れた判子を そろえて、形から 大きさを当てる★（司さん 2026-08-30「ハンコの情報あるんやけんやれや」）
+   *  ① 白抜き・余白切り・大きすぎたら縮める（道具は 借りた hanko.js）
+   *  ② その結果で 角印か 丸い印かを 見分けて mm を入れる
+   *  ★やった事は ぜんぶ 画面で言う（黙って いじらない）★
+   *  ★絵を読むのに 少し時間が要るので、下見は 先に出してある★ */
+  function applySealTools(url) {
+    var SEAL = global.SeikyuSeal;
+    if (!SEAL) return Promise.resolve();
+    /* ★返す★＝呼ぶ側（と 見張り）が「終わったか」を 待てる（待てない物は 測れない） */
+    return SEAL.prepare(url).then(function (r) {
+      if (sealPending !== url) return null;         // 途中で 別の画像に替えられていたら 捨てる
+      var next = (r && r.dataUrl) || url;
+      var did = (r && r.did) || [];
+      if (next !== url) {
+        /* ★そろえた物が 上限を超える事が ある★（写真をPNGにすると 太る）
+           ＝その時は ★元の画像のまま★にして、なぜ そのままかを 言う（黙って通さない）。 */
+        var chk = DOC.validateSeal(next);
+        if (!chk.ok) {
+          box('seal-ok', '判子をそろえてみましたが、' + chk.reason
+            + '。入れた画像を そのまま使います。');
+          next = url;
+          did = [];
+        } else {
+          sealPending = next;
+          fillSeal();
+        }
+      }
+      if (did.length) box('seal-ok', did.join('／') + '。「保存」を押すと紙に出ます。');
+      return SEAL.guessFromUrl(next).then(function (g) {
+        if (sealPending !== next && sealPending !== url) return;
+        sealGuess = g;
+        fillSeal();
+      });
+    }).catch(function () { /* そろえられなくても 下見は出ている＝入れた画像のまま */ });
   }
 
   function saveSeal() {
@@ -3523,12 +3549,9 @@
       sealPending = url; sealGuess = null; fillSeal();
       var SEAL = global.SeikyuSeal;
       if (!SEAL) return chk;
-      /* ★当て終わるのを 待てる形で返す★（見張りが「当てた後」を見られるように） */
+      /* ★そろえて 当て終わるのを 待てる形で返す★（見張りが「その後」を見られるように） */
       return Object.assign({}, chk, {
-        guessed: SEAL.guessFromUrl(url).then(function (g) {
-          if (sealPending !== url) return null;
-          sealGuess = g; fillSeal(); return g;
-        }),
+        guessed: Promise.resolve(applySealTools(url)).then(function () { return sealGuess; }),
       });
     },
   };

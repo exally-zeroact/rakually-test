@@ -42,6 +42,8 @@ const OUTSIDE = [
   'js/env-badge.js',                   // ★テスト環境の帯★（本番と取り違えない）
   'js/rakunally-login.js',                // ★ログイン画面の共通部品（唯一の正）★
   'js/file-out.js',                    // ★落とす口＝FileOut.deliver（全出力の窓口）★
+  'js/hanko.js',                       // ★判子の白抜き★＝代行請求/Exally から 1文字も変えずに借りた道具
+                                       //   （同じさは tests/hanko-same.test.mjs が 機械で照らす）
   'js/suite-data.js',                  // 共有マスタ（会社・取引先）の読み書き
   'js/supa-config.js',                 // 倉庫の向き先（★配信ごとに違う＝写さない物★）
   'kyuyo/lib/shiharai-chosho.js',      // ★源泉の率と式（法定の唯一の正）CHOSHO.gensenA★

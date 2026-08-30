@@ -96,6 +96,51 @@ const ui = await pg.evaluate(async (imgs) => {
   return out;
 }, made);
 
+/* ★白い紙に押した判子（＝写真）を そろえられるか★
+   司さん 2026-08-30「ハンコの情報あるんやけんやれや」＝代行/Exally の hanko.js を借りた。
+   ①白い所が 透ける ②まわりの余白が 切れる ③大きすぎたら 縮む ④やった事を 言う */
+const prep = await pg.evaluate(async () => {
+  /* 白い紙の まん中に 小さく押した 角印（＝スマホで撮った時の 形） */
+  const S = 900, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d');
+  x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, S, S);
+  x.strokeStyle = '#C8102E'; x.fillStyle = '#C8102E'; x.lineWidth = 10;
+  x.strokeRect(350, 350, 200, 200);
+  x.font = 'bold 66px serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  ['株', '式', '会', '社'].forEach((ch, i) =>
+    x.fillText(ch, 400 + (i % 2) * 90, 400 + Math.floor(i / 2) * 90));
+  const photo = c.toDataURL('image/png');
+  const before = await window.SeikyuSeal.measure(photo);
+  const r = await window.SeikyuSeal.prepare(photo);
+  const after = await window.SeikyuSeal.measure(r.dataUrl);
+  /* 白抜きが 効いたか＝出来た絵の かどが 透けているか を 直に見る */
+  const img = document.createElement('img');
+  await new Promise((ok, ng) => { img.onload = ok; img.onerror = ng; img.src = r.dataUrl; });
+  const cc = document.createElement('canvas');
+  cc.width = img.naturalWidth; cc.height = img.naturalHeight;
+  const xx = cc.getContext('2d');
+  xx.drawImage(img, 0, 0);
+  /* ★切った後の かどは 枠の線そのもの★（＝墨で 正しい）。
+     白抜きが効いたかは ①切る前の紙の かど ②出来た絵に 透けた点が 在るか で見る。 */
+  const pre = document.createElement('img');
+  const w1 = await window.HankoTool.process(photo, { mode: 'auto' });
+  await new Promise((ok, ng) => { pre.onload = ok; pre.onerror = ng; pre.src = w1.dataURL; });
+  const pc = document.createElement('canvas');
+  pc.width = pre.naturalWidth; pc.height = pre.naturalHeight;
+  const px = pc.getContext('2d');
+  px.drawImage(pre, 0, 0);
+  const paperCorner = px.getImageData(0, 0, 1, 1).data[3];
+  const d2 = xx.getImageData(0, 0, cc.width, cc.height).data;
+  let clear = 0;
+  for (let i = 3; i < d2.length; i += 4) if (d2[i] < 64) clear++;
+  return { did: r.did, w: r.w, h: r.h, paperCorner: paperCorner,
+    clearPct: Math.round((clear / (cc.width * cc.height)) * 100),
+    beforeBox: [before.boxW, before.boxH], afterBox: [after.boxW, after.boxH],
+    srcW: 900, hasTool: !!window.HankoTool,
+    guessed: (await window.SeikyuSeal.guessFromUrl(r.dataUrl)).shape };
+}, null);
+
 await b.close(); srv.close();
 
 const line = (k) => {
@@ -128,6 +173,15 @@ console.log('     当てた理由（丸）… ' + ui.maruWhy);
 T('★画面で 丸い印を選ぶと mmが 15に変わる', ui.maru === '15', 'mm欄が ' + ui.maru);
 T('★画面で 角印を選ぶと mmが 21に変わる', ui.kaku === '21', 'mm欄が ' + ui.kaku);
 T('★なぜ その大きさかを 画面に出している', /丸い印|四角い印/.test(ui.maruWhy || ''), '理由が出ていない: ' + ui.maruWhy);
+
+console.log('     写真 900点 → ' + prep.w + '×' + prep.h + '点 ／ 透けた点 ' + prep.clearPct
+  + '% ／ やった事: ' + (prep.did.join(' / ') || 'なし'));
+T('★白抜きの道具（hanko.js）が 読めている', prep.hasTool, '★HankoTool が 居ない＝借りた道具が 読まれていない★');
+T('★白い紙が 透けた（切る前の 紙のかどが alpha 0）', prep.paperCorner === 0, 'かどの alpha が ' + prep.paperCorner);
+T('★出来た絵にも 透けた所が 在る（枠の外側の白が 残っていない）', prep.clearPct >= 5, '透けた点 ' + prep.clearPct + '%');
+T('★まわりの余白が 切れた（900点 → 印影の大きさへ）', prep.w < 300 && prep.w > 100, '出来た幅 ' + prep.w);
+T('★やった事を 言っている（黙って いじらない）', prep.did.length >= 2, 'did: ' + prep.did.join('/'));
+T('★そろえた後でも 角印と 分かる', prep.guessed === 'kaku', '見分け: ' + prep.guessed);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

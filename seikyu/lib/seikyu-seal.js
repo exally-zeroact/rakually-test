@@ -134,7 +134,89 @@
     });
   }
 
+  /* ── ★入れた判子を 紙に押せる形に そろえる★ ────────────────────────────
+     ★司さん 2026-08-30「ハンコの情報あるんやけんやれや」★
+       ＝代行請求／Exally には ★hanko.js（白抜きの道具）★が 前から在った。
+         うちだけ 持っていなかった＝★白い紙に押した判子を そのまま入れると
+         白い四角が 社名の上に かぶさる★。
+       ★借りてよいのは 道具★（うちの決まり）＝hanko.js は ★1文字も変えずに★ 写した
+         （見張り tests/hanko-same.test.mjs が 中身の同じさを 機械で照らす）。
+
+     ここでやる3つ（★どれも やったら 画面で言う。黙ってやらない★）:
+       ① 白抜き   … 白〜薄い背景を 透かす（HankoTool.process の auto）
+       ② 余白を切る … 印影の外側の空きを 落とす（写真は 余白だらけ＝小さく見える）
+       ③ 縮める   … 長辺が MAX_PX を超える時だけ（倉庫は 1行に入れるので 上限が在る）
+     ★勝手に「小さくして通す」はしない★＝上限を超えたままなら 上限の話は 呼ぶ側が 赤で返す。 */
+  var MAX_PX = 600;
+
+  function toPng(img, box, scale) {
+    var c = global.document.createElement('canvas');
+    c.width = Math.max(1, Math.round(box.w * scale));
+    c.height = Math.max(1, Math.round(box.h * scale));
+    var x = c.getContext('2d');
+    x.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, c.width, c.height);
+    return c.toDataURL('image/png');
+  }
+
+  /** 透けていない所（＝印影）の 四角を返す。無ければ null */
+  function inkBox(img) {
+    var W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+    if (!W || !H) return null;
+    var c = global.document.createElement('canvas');
+    c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    var d = ctx.getImageData(0, 0, W, H).data;
+    var x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var i = (y * W + x) * 4;
+        if (d[i + 3] < 64) continue;
+        if (Math.min(d[i], d[i + 1], d[i + 2]) >= 220) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    if (x1 < 0) return null;
+    return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, W: W, H: H };
+  }
+
+  /** 判子を そろえる。返り = Promise<{dataUrl, did:[…], w, h}>（did＝やった事の言葉） */
+  function prepare(dataUrl, opts) {
+    var o = opts || {};
+    var max = o.maxPx || MAX_PX;
+    var HK = global.HankoTool;
+    var did = [];
+    var step1 = HK
+      /* ★返ってくる名前は dataURL（URLが大文字）★＝借りた道具の書き方に こちらが合わせる。
+         ★道具は 1文字も変えない★ので、間違えたら ここが 直す所（2026-08-30 実際に間違えた）。 */
+      ? HK.process(dataUrl, { mode: 'auto' }).then(function (r) {
+        var u = r && (r.dataURL || r.dataUrl);
+        if (u && u !== dataUrl) did.push('白い背景を 透かしました');
+        return u || dataUrl;
+      }).catch(function () { return dataUrl; })
+      : Promise.resolve(dataUrl);
+
+    return step1.then(function (url) {
+      return loadImage(url).then(function (img) {
+        var box = inkBox(img);
+        if (!box) return { dataUrl: url, did: did, w: img.naturalWidth || img.width, h: img.naturalHeight || img.height };
+        var margin = (box.w * box.h) / (box.W * box.H);
+        var trimmed = (box.w !== box.W || box.h !== box.H);
+        /* ★切るのは「余白が はっきり在る時」だけ★＝1〜2点の誤差で 毎回 切り直さない */
+        if (trimmed && margin < 0.98) did.push('まわりの余白を 切りました');
+        else { box = { x: 0, y: 0, w: box.W, h: box.H, W: box.W, H: box.H }; }
+        var scale = 1, long = Math.max(box.w, box.h);
+        if (long > max) { scale = max / long; did.push('大きすぎたので ' + max + '点に 縮めました'); }
+        var out = (did.length || scale !== 1) ? toPng(img, box, scale) : url;
+        return { dataUrl: out, did: did,
+          w: Math.round(box.w * scale), h: Math.round(box.h * scale) };
+      });
+    }).catch(function () { return { dataUrl: dataUrl, did: [], w: 0, h: 0 }; });
+  }
+
   var API = { guess: guess, measure: measure, guessFromUrl: guessFromUrl,
+    prepare: prepare, inkBox: inkBox, MAX_PX: MAX_PX,
     MM_KAKU: MM_KAKU, MM_MARU: MM_MARU, KAKU_MIN: KAKU_MIN, MARU_MAX: MARU_MAX, CORNER: CORNER };
   global.SeikyuSeal = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
