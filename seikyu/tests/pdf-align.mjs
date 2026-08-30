@@ -194,5 +194,68 @@ T('★⑤ 様式ぜんぶ・控除あり・複数ページ・見積書でも PDF
     + String(x.placed).padStart(3) + '個 ／ 化け' + x.missing));
 });
 
+/* ═══ ★角印の場所★（司さん 2026-08-30「なんで角印の場所がそこなんど 請求書アプリ見てこい」）═══
+   ★角印標準＝社名の1行目の右端に 重ねて押す★
+   （見本＝代行請求 invoice-pdf.js:760「判子（社名＝1行目の右端に"重ねて"押す＝角印標準）」）
+   ★直す前★は 登録番号の下に ぶら下げていた＝ハンコが 宙に浮いていた。 */
+const srv3 = http.createServer((rq, rs) => {
+  const u = decodeURIComponent(rq.url.split('?')[0]);
+  const p = path.join(ROOT, u);
+  if (!fs.existsSync(p) || fs.statSync(p).isDirectory()) { rs.writeHead(404); rs.end(); return; }
+  rs.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
+  rs.end(fs.readFileSync(p));
+});
+await new Promise((r) => srv3.listen(0, r));
+const port3 = srv3.address().port;
+const sealUrl = 'data:image/png;base64,' + fs.readFileSync(path.join(ROOT, 'img/favicon-32.png')).toString('base64');
+const ls3 = [{ name: '運転代行 10月分', qty: '1', unit: '式', price: '30000', rate: 10 }];
+const tx3 = X.compute({ lines: ls3, taxMode: 'exclusive', rounding: 'floor' });
+const bt3 = PAPER.build({
+  inv: { no: 'A-1', issue_ymd: '2026-10-05', due_ymd: '2026-11-30', kind: 'invoice',
+    lines: ls3, totals: { grandTotal: tx3.grandTotal }, data: {} },
+  tax: tx3, partner: { name: '八木工業株式会社', honor: '御中' },
+  org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293',
+    bank: '伊予銀行 今治支店 普通 1234567', sealDataUrl: sealUrl, sealSizeMm: 18 },
+  template: TPL.getOrDefault('std1'),
+});
+const h3 = (typeof bt3 === 'string') ? bt3 : (bt3.html || '');
+const b3 = await chromium.launch();
+const pgm = await (await b3.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
+await pgm.setContent(h3, { waitUntil: 'load' });
+const seal = await pgm.evaluate(() => {
+  const im = document.querySelector('img.seal'), nm = document.querySelector('.from-name');
+  if (!im || !nm) return null;
+  const a = im.getBoundingClientRect(), b = nm.getBoundingClientRect();
+  return { s: { l: a.left, r: a.right, t: a.top, b: a.bottom },
+    n: { l: b.left, r: b.right, t: b.top, b: b.bottom } };
+});
+const pg3 = await (await b3.newContext({ viewport: { width: 900, height: 1300 } })).newPage();
+await pg3.goto('http://localhost:' + port3 + '/seikyu/index.html', { waitUntil: 'domcontentloaded' });
+await pg3.addScriptTag({ url: '/seikyu/lib/seikyu-pdf.js' });
+const withSeal = await pg3.evaluate(async (h) => {
+  const bytes = await window.SeikyuPdf.build(h, { base: '../' });
+  return { size: bytes.length, bad: window.SeikyuPdf.lastBadImages() };
+}, h3);
+await b3.close();
+srv3.close();
+
+T('★⑥ 角印は 社名の1行目に 重ねて押す（ぶら下げない）', () => {
+  ok(seal, '★紙に 角印が 出ていない★');
+  const over = Math.min(seal.s.r, seal.n.r) - Math.max(seal.s.l, seal.n.l);
+  const overY = Math.min(seal.s.b, seal.n.b) - Math.max(seal.s.t, seal.n.t);
+  ok(over > 10, '★社名の行と 横に 重なっていない（' + over.toFixed(0) + 'px）★');
+  ok(overY > 10, '★社名の行と 縦に 重なっていない（' + overY.toFixed(0) + 'px）＝ぶら下がっている★');
+  ok(Math.abs(seal.s.r - seal.n.r) <= 1, '★角印の右端が 社名の右端と 揃っていない★');
+  console.log('     社名 ' + seal.n.l.toFixed(0) + '〜' + seal.n.r.toFixed(0)
+    + ' ／ 角印 ' + seal.s.l.toFixed(0) + '〜' + seal.s.r.toFixed(0)
+    + ' ／ 重なり 横' + over.toFixed(0) + 'px 縦' + overY.toFixed(0) + 'px');
+});
+
+T('★⑦ 角印が PDFにも 入る（絵を 落とさない）', () => {
+  ok(!withSeal.bad.length, '★出せなかった絵★ ' + withSeal.bad.join(' / '));
+  ok(withSeal.size > 100000, '★PDFが 小さすぎる★');
+  console.log('     角印つき ' + (withSeal.size / 1024 / 1024).toFixed(2) + 'MB ／ 出せなかった絵 0件');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

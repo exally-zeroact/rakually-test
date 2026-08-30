@@ -66,21 +66,15 @@ const NOT_WIRED = {
     wireWhen: '③自社Excel に着手する時（指示役の号令待ち）。その時に index.html から読み込む。',
     owner: '指示役（着手の号令）',
   },
-  /* ★自作PDF★（司さん 2026-08-30「自作PDFのやり方しか指示してないわ」）
-     ★紙の形は 今の紙のまま★＝seikyu-paper.js が作る紙を ★そのまま 座標で 写す★。
-     ★まだ ボタンを 出していない★＝司さんに 絵を見せて「これでよい」を もらってから 繋ぐ
-     （見た目に効く物は 見せてから／出来ていない物のボタンを 見せない）。 */
-  'seikyu/lib/seikyu-pdf.js': {
-    reason: '自作PDF（今の紙を そのまま写す）。本物のPDFを作って 中身と絵で 確かめ済み。'
-      + 'ボタンを出すかは 司さんが 絵を見てから。',
-    wireWhen: '司さんが 絵を見て「これでよい」と言った時（入力の画面に「PDFで保存」を出す）。',
-    owner: '司さん（絵を見ての一言）',
-  },
 };
 
 /* ★window.○○ で繋がっている物★＝require が無くても「呼ばれる側」が要る。
    ここに書いた名前は ★どこかのファイルが必ず作っている★事を確かめる。 */
-const GLOBALS_FROM_NET = ['SUPA', 'XLSX'];   // CDN と別読みの物（ファイルでは作らない）
+/* CDN と 別読みの物（画面の <script> では 作らない）
+   ★PDFLib / fontkit★ … 自作PDF（seikyu-pdf.js）が ★押した時だけ★ vendor/ から 読む。
+     ★最初から読むと 画面が 重くなる★（2つで 1.3MB）ので わざと 遅らせている。
+     ★実在は こちら★ vendor/pdf-lib.min.js ／ vendor/fontkit.umd.min.js（下で 在る事も 見る）。 */
+const GLOBALS_FROM_NET = ['SUPA', 'XLSX', 'PDFLib', 'fontkit'];
 
 console.log('\n[請求書 呼ばれる側の見張り]');
 const r = count('seikyu/index.html', ROOT);
@@ -208,6 +202,18 @@ if (process.argv.includes('--self-test')) {
 
   try { fs.rmdirSync(tmp); } catch { /* 中に何か残っていたら消さない */ }
 }
+
+T('★押した時だけ読む物が 本当に 在る（名前だけ 逃がしていない）', () => {
+  ['vendor/pdf-lib.min.js', 'vendor/fontkit.umd.min.js', 'vendor/fonts/BIZUDPGothic-Regular.ttf']
+    .forEach(function (rel) {
+      const p2 = path.join(ROOT, rel);
+      ok(fs.existsSync(p2), '★' + rel + ' が 無い（押しても PDFが 作れない）★');
+      ok(fs.statSync(p2).size > 10000, '★' + rel + ' が 小さすぎる★');
+    });
+  const src = fs.readFileSync(path.join(ROOT, 'seikyu/lib/seikyu-pdf.js'), 'utf8');
+  ok(/vendor\/pdf-lib\.min\.js/.test(src), '★読む先が 書かれていない★');
+  console.log('     押した時に読む物 3本 … 実在');
+});
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

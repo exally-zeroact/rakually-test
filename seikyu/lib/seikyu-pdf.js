@@ -112,6 +112,20 @@
       });
     }
 
+    /* ①-b ★絵（角印・ロゴ）★＝落とすと ★ハンコの無い紙★が 客へ行く
+       （2026-08-30 実測：絵を 写していなかった＝角印が 消えていた） */
+    var imgs = pageEl.querySelectorAll('img');
+    for (var m = 0; m < imgs.length; m++) {
+      var im = imgs[m];
+      var ir = im.getBoundingClientRect();
+      if (ir.width < 1 || ir.height < 1) continue;
+      var src = String(im.getAttribute('src') || '');
+      if (!/^data:image\//.test(src)) continue;      // ★外へ取りに行く絵は 出さない★
+      out.images = out.images || [];
+      out.images.push({ src: src, x: ir.left - base.left, y: ir.top - base.top,
+        w: ir.width, h: ir.height });
+    }
+
     /* ② 字（★Range で 1行ずつ 測る★＝折り返しも そのまま写る） */
     var walker = doc.createTreeWalker(pageEl, win.NodeFilter.SHOW_TEXT, null);
     var n;
@@ -288,7 +302,29 @@
            「pdf-libのサブセッタは 大きいフォントで 字を落とすバグがある」
          ⇒ ★subset は 使わない★。重さ（約2.9MB）は その代金。
          ★太字は 代行と同じ「少しずらして 2度 描く」★（字体を もう1つ 埋めると 倍になる）。 */
-      return doc.embedFont(a.fontBytes, { subset: false }).then(function (font) {
+      /* ★絵を 先に 埋める★（PNG と JPEG だけ。他は 出さずに 数える） */
+      var srcs = [];
+      pages.forEach(function (p2) {
+        (p2.images || []).forEach(function (g) { if (srcs.indexOf(g.src) < 0) srcs.push(g.src); });
+      });
+      _embedded = {};
+      _badImages = [];
+      var embedAll = srcs.reduce(function (chain, src) {
+        return chain.then(function () {
+          var bin = dataUrlBytes(src);
+          if (!bin) { _badImages.push(src.slice(0, 30)); return null; }
+          var isPng = /^data:image\/png/i.test(src);
+          var isJpg = /^data:image\/jpe?g/i.test(src);
+          if (!isPng && !isJpg) { _badImages.push(src.slice(0, 30)); return null; }
+          return (isPng ? doc.embedPng(bin) : doc.embedJpg(bin)).then(function (im) {
+            _embedded[src] = im;
+          }, function () { _badImages.push(src.slice(0, 30)); });
+        });
+      }, Promise.resolve());
+
+      return embedAll.then(function () {
+        return doc.embedFont(a.fontBytes, { subset: false });
+      }).then(function (font) {
         pages.forEach(function (pg) {
           var page = doc.addPage([PT_W, PT_H]);
           /* 塗り → 線 → 字 の順（後から置いた物が 上） */
@@ -302,6 +338,13 @@
                 end: { x: b.x2 * K, y: PT_H - b.y2 * K },
                 thickness: Math.max(0.3, b.w * K), color: rgbOf(b.color, rgb) });
             }
+          });
+          /* ★絵は 字より 先に★（ハンコの上に 字が 乗る紙が 在る） */
+          (pg.images || []).forEach(function (g) {
+            var got = _embedded[g.src];
+            if (!got) return;
+            page.drawImage(got, { x: g.x * K, y: PT_H - (g.y + g.h) * K,
+              width: g.w * K, height: g.h * K });
           });
           pg.texts.forEach(function (t) {
             var s = sanitize(t.s, font);
@@ -328,6 +371,24 @@
     });
   }
 
+  /** data URL → バイト列（★外へ 取りに行かない★） */
+  function dataUrlBytes(src) {
+    var i = String(src).indexOf(',');
+    if (i < 0) return null;
+    var head = src.slice(0, i);
+    if (head.indexOf('base64') < 0) return null;
+    try {
+      var bin = atob(src.slice(i + 1));
+      var out = new Uint8Array(bin.length);
+      for (var k = 0; k < bin.length; k++) out[k] = bin.charCodeAt(k);
+      return out;
+    } catch (e) { return null; }
+  }
+  var _embedded = {};
+  var _badImages = [];
+  /** 出せなかった絵（★黙って 落とさない★＝呼ぶ側が 数えられる） */
+  function lastBadImages() { return _badImages.slice(); }
+
   /** 字体が 持っていない字は ★〓★（黙って 消さない） */
   var _missing = [];
   function sanitize(s, font) {
@@ -348,6 +409,7 @@
   function lastMissing() { return (_missing || []).slice(); }
 
   return { build: build, lastMissing: lastMissing, lastPlaced: lastPlaced,
+    lastBadImages: lastBadImages,
     PX_W: PX_W, PX_H: PX_H, PT_W: PT_W, PT_H: PT_H, K: K, ASSETS: ASSETS,
     _readPage: readPage, _splitByLine: splitByLine, _rgbOf: rgbOf, _alphaOf: alphaOf };
 });

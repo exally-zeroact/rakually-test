@@ -581,11 +581,18 @@
            ★データは消していない★（取引先マスタの住所はそのまま。必要になれば戻せる） */
         + '</td>'
         + '<td class="party-from">'
-        + '<div class="from-name">' + (esc(g.yago) || '（自社情報が未入力）') + '</div>'
+        /* ★角印は 社名の1行目の右端に 重ねて押す＝角印標準★
+           （司さん 2026-08-30「なんで角印の場所がそこなんど 請求書アプリ見てこい」）
+           ★直す前★は 登録番号の下に ぶら下げていた＝ハンコが 宙に浮いていた。
+           ★見本＝代行請求 invoice-pdf.js:760「判子（社名＝1行目の右端に"重ねて"押す＝角印標準）」★
+           うちの自社情報は 右揃えなので、社名の右端＝この箱の右端。そこへ 重ねる。 */
+        + '<div class="from-name">' + (esc(g.yago) || '（自社情報が未入力）')
+        + (g.sealDataUrl ? '<img class="seal" style="width:' + sealMm(g.sealSizeMm) + 'mm;height:'
+          + sealMm(g.sealSizeMm) + 'mm" src="' + esc(g.sealDataUrl) + '" alt="">' : '')
+        + '</div>'
         + (g.addr ? '<div class="from-sub">' + esc(g.addr) + '</div>' : '')
         + (g.tel ? '<div class="from-sub">TEL ' + esc(g.tel) + '</div>' : '')
         + (g.invoiceNo ? '<div class="from-sub">登録番号 ' + esc(g.invoiceNo) + '</div>' : '')
-        + (g.sealDataUrl ? '<img class="seal" style="width:' + sealMm(g.sealSizeMm) + 'mm;height:' + sealMm(g.sealSizeMm) + 'mm" src="' + esc(g.sealDataUrl) + '" alt="会社の印">' : '')
         + '</td></tr></tbody></table>'
         /* ★何枚のうちの何枚目か★（司さん 2026-08-16「複数ページになったらどうするんど」）
            「2ページ目」だけだと ★全部で何枚か分からない＝1枚 抜けても気づけない★。
@@ -1085,7 +1092,10 @@
       'word-break:normal;overflow-wrap:break-word;}',
       /* ★角印は薄く重ねる（下の文字を隠し切らない）★
          大きさは会社が決める（10〜40mm・既定21mm）。文字の上に少しかかってよい。 */
-      '.seal{display:inline-block;object-fit:contain;margin-top:2mm;opacity:.95;}',
+      /* ★角印＝社名の右端に 重ねる★（ぶら下げない）。社名の行を 基準にする。 */
+      '.from-name{position:relative;}',
+      '.seal{position:absolute;right:0;top:50%;transform:translateY(-50%);'
+        + 'object-fit:contain;opacity:.95;pointer-events:none;}',
       '.pageno{font-size:9.5pt;color:' + SUB + ';margin:0 0 2.4mm;}',
       '.lead-greet{margin:0 0 1.6mm;}',
 

@@ -1739,6 +1739,31 @@
     else box('edit-ok', '紙だけの新しい窓を開きました。PDFにする時は、送信先を「PDFに保存」にしてください。');
   }
 
+  /* ★自作PDF★（司さん 2026-08-30「自作PDFのやり方しか指示してないわ」）
+     ・紙の形は ★今の紙のまま★（同じ PAPER.build を通す）
+     ・落とすのは ★渡し口1本（FileOut.deliver）★＝ここで 自前に 落とさない
+     ・★出せない時は 黙らない★（なぜ出せないかを 1行 出す） */
+  function doPdf(name) {
+    var pi = paperInput();
+    if (!pi) { box('edit-err', '中身がまだ整っていないので、PDFが作れません。上の赤い印を直してください。'); return; }
+    var PDF = global.SeikyuPdf;
+    if (!PDF) { box('edit-err', 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
+    var built = PAPER.build(Object.assign({}, pi, { title: name }));
+    box('edit-ok', 'PDFを作っています…（字を紙に埋め込むので 少し待ちます）');
+    PDF.build(built.html, { base: '../' }).then(function (bytes) {
+      var bad = PDF.lastBadImages ? PDF.lastBadImages() : [];
+      var miss = PDF.lastMissing ? PDF.lastMissing() : [];
+      return OUT.pdf(bytes, name).then(function () {
+        box('edit-ok', 'PDFを作りました。'
+          + (miss.length ? '★この字は 字体に無いので 〓 で出しました：' + miss.join('') + '★' : '')
+          + (bad.length ? '★出せなかった絵が ' + bad.length + '件 あります★' : ''));
+      });
+    }).catch(function (e) {
+      box('edit-err', 'PDFが作れませんでした（' + (e && e.message) + '）。'
+        + '「印刷 / PDF保存」なら 今すぐ出せます。');
+    });
+  }
+
   function doExcel(name) {
     var pi = paperInput(); if (!pi) return;
     var sheet = AOA.build(pi);
@@ -3055,6 +3080,7 @@
     $('fn-cancel').onclick = fnClose;
 
     $('b-save').onclick = function () { return saveDraft(); };
+    if ($('b-pdf')) $('b-pdf').onclick = function () { askName('pdf', doPdf); };
     $('b-issue').onclick = function () { return issue(); };
 
     /* ★入金★ 打つたびに「押せる/押せない」を塗り直す（黙って無反応にしない） */

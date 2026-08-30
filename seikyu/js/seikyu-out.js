@@ -74,5 +74,11 @@
     return global.FileOut.deliver(bytes, filename);
   }
 
-  global.SeikyuOut = { print: print, preview: preview, excel: excel, openPaper: openPaper };
+  /** ★自作PDFを 落とす★（司さん 2026-08-30）
+      ★落とし口は 1本★＝ここも FileOut.deliver を 通す（自前で Blob を作らない）。 */
+  function pdf(bytes, filename) {
+    return global.FileOut.deliver(bytes, filename);
+  }
+
+  global.SeikyuOut = { print: print, preview: preview, excel: excel, openPaper: openPaper, pdf: pdf };
 })(typeof window !== 'undefined' ? window : globalThis);
