@@ -225,6 +225,26 @@
     return lb;
   }
 
+  /* ═══ ★よく使う品目★ ═══
+     ・数え方は seikyu-items.learn が唯一の正（ここでは数えない）
+     ・★出す物が無い時は 候補の箱ごと 出さない★（空の候補は「壊れている」に見える） */
+  var itemsCache = null, itemsKey = '';
+  function itemList() {
+    var IT = global.SeikyuItems; if (!IT) return [];
+    var list = S.invoices || [];
+    var key = list.length + ':' + (S.kind || 'invoice');
+    if (itemsCache && itemsKey === key) return itemsCache;
+    itemsKey = key;
+    itemsCache = IT.learn(list, { kind: S.kind || 'invoice' });
+    return itemsCache;
+  }
+  function drawItemList() {
+    var host = $('items-dl'); if (!host) return;
+    host.innerHTML = itemList().map(function (it) {
+      return '<option value="' + esc(it.name) + '"></option>';
+    }).join('');
+  }
+
   /* ═══ ★集計★（司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前に」）═══
      ・数え方は seikyu-report.js（その中も seikyu-doc.paymentStateOf を呼ぶ）＝★ここでは1つも数え直さない★
      ・★入金が読めていない時は「未確認」と書く★（0円と書かない）
@@ -1311,7 +1331,10 @@
             + (tx === null ? '—' : yen(tx)) + '</td>';
         }
         var val, mode = '', extra = '';
-        if (r === 'name') { val = ln.name; extra = ' placeholder="品名"'; }
+        /* ★よく使う品目★（司さん 2026-08-30「競合が当たり前にしてる事は…」）
+           ＝過去の紙から覚えた品名を 候補に出す。選ぶと 単位・単価・税率が 入る。
+           ★登録させない★＝もう出した紙に 答えが書いてある（うちの「聞いてあげる」の形）。 */
+        if (r === 'name') { val = ln.name; extra = ' placeholder="品名" list="items-dl"'; }
         else if (r === 'unit') { val = ln.unit; extra = ' placeholder="式"'; }
         else if (r === 'qty') { val = ln.qty; mode = ' inputmode="decimal"'; }
         else if (r === 'price') { val = ln.price; mode = ' inputmode="decimal"'; }
@@ -1336,6 +1359,8 @@
         + '<td class="l-x"><button class="l-del" type="button" data-del="' + i + '" aria-label="この行を消す">×</button></td></tr>';
     }).join('');
 
+    drawItemList();
+
     Array.prototype.forEach.call(host.querySelectorAll('input,select'), function (el) {
       el.oninput = el.onchange = function () {
         var tr = el.closest('tr'), i = +tr.getAttribute('data-i');
@@ -1353,6 +1378,23 @@
         S.dirty = true;
         recalc();
       };
+    });
+    /* ★品名が決まった時だけ★ 埋める（1文字打つたびに 動かさない＝打っている最中に 邪魔しない）。
+       ★人が打った物は 1文字も 上書きしない★（決まりは seikyu-items.fill が唯一の正）。 */
+    Array.prototype.forEach.call(host.querySelectorAll('[data-f="name"]'), function (el) {
+      el.addEventListener('change', function () {
+        var IT = global.SeikyuItems; if (!IT) return;
+        var tr = el.closest('tr'), i = +tr.getAttribute('data-i');
+        var item = IT.find(itemList(), el.value);
+        if (!item) return;
+        var r = IT.fill(S.cur.lines[i], item);
+        if (!r.filled.length) return;
+        S.cur.lines[i] = r.line;
+        S.dirty = true;
+        renderLines(); recalc(); lockInputs();
+        box('edit-ok', '前に出した「' + item.name + '」から ' + r.filled.join('・')
+          + ' を入れました（違うときは そのまま直せます）。');
+      });
     });
     Array.prototype.forEach.call(host.querySelectorAll('[data-del]'), function (b) {
       b.onclick = function () {
@@ -3400,6 +3442,7 @@
       return (typeof built === 'string') ? built : ((built && built.html) || '');
     },
     _renderPayForTest: function () { return renderPay(); },    // テスト用: 入金の箱だけ描き直す
+    _itemsForTest: function () { itemsCache = null; return itemList(); },  // テスト用: 覚えた品目
     _duplicateForTest: function () { return duplicateCur(); }, // テスト用: 複製を そのまま走らせる
     /* テスト用: ★ボタンに 手を紐づける所だけ★ 走らせる（attach は倉庫に つなぎに行くので
        倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
