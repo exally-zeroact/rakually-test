@@ -400,7 +400,7 @@ T('★大きすぎる画像は黙って縮めずに赤で返す（何KBかを言
   ok(D.validateSeal(justUnder).ok, '上限のすぐ下が通らない');
 });
 
-T('★角印の大きさは 10〜40mm（既定21mm）', () => {
+T('★角印の大きさは 10〜40mm（既定17mm＝紙の側と同じ数）', () => {
   eq(D.sealSizeMm(), D.SEAL_DEFAULT_MM);
   eq(D.sealSizeMm(0), D.SEAL_MIN_MM);
   eq(D.sealSizeMm(999), D.SEAL_MAX_MM);

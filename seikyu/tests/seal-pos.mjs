@@ -139,6 +139,12 @@ T('★⑦ 2枚の紙でも どの紙も 同じ所に 押す',
   && Math.abs(two.seals[0].x - two.seals[1].x) < 1.5 && Math.abs(two.seals[0].y - two.seals[1].y) < 1.5,
   '紙' + two.sheets + '枚 印' + two.seals.length + '個 ' + JSON.stringify(two.seals));
 
+/* ★既定の数は 1つ★（決まりの側 と 紙の側 が 同じ数を 言う）
+   2026-08-31 実測で 食い違っていた＝画面は「既定21mm」・紙は 17mmで押していた。 */
+T('★⑨-2 印の大きさの既定は 決まりの側と 紙の側で 同じ',
+  DOC.sealSizeMm() === PAPER.sealMm() && PAPER.sealMm() === 17,
+  '決まり ' + DOC.sealSizeMm() + 'mm ／ 紙 ' + PAPER.sealMm() + 'mm');
+
 const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');
 const docSrc = fs.readFileSync(path.join(ROOT, 'seikyu/lib/seikyu-doc.js'), 'utf8');
 T('★⑧ 蓋（紙から出さない）は seikyu-doc が 唯一の正（画面で 決め直さない）',
@@ -183,6 +189,12 @@ const ui = await pg.evaluate(async (seal) => {
   d.getElementById('seal-y').value = '30';
   await A._saveSealForTest();
   out.saved = saved;
+  /* ★決めた場所が 開き直しても 残るか★
+     （2026-08-31 実測で 消えていた＝画面は 倉庫の値を 読んでいなかった） */
+  A._state.org = Object.assign({}, A._state.org, { sealX: saved.sealX, sealY: saved.sealY });
+  A._fillSettings();
+  out.reopened = A._sealXYForTest();
+  out.reFieldX = d.getElementById('seal-x').value;
   return out;
 }, SEAL);
 await b.close();
@@ -206,6 +218,10 @@ T('★⑯ いつもの場所に 戻せる（未設定に 戻る）',
   ui.home && ui.home.x === null && ui.home.y === null, JSON.stringify(ui.home));
 T('★⑰ 保存すると 紙の上の mm が 倉庫へ 行く',
   !!ui.saved && ui.saved.sealX === 120 && ui.saved.sealY === 30, JSON.stringify(ui.saved));
+
+T('★⑱ 決めた場所は 開き直しても 残る（黙って 消えない）',
+  ui.reopened && ui.reopened.x === 120 && ui.reopened.y === 30 && ui.reFieldX === '120',
+  '開き直し ' + JSON.stringify(ui.reopened) + ' 欄 ' + ui.reFieldX);
 
 if (SELF) {
   console.log('\n★自己確認★ 蓋を外すと 紙から 出るか');

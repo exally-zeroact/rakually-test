@@ -2349,7 +2349,16 @@
     /* ★当てた大きさが在る時は それを出す★（保存前の下見の間だけ） */
     $('seal-mm').value = DOC.sealSizeMm(sealGuess ? sealGuess.mm : d.sealSizeMm);
     /* ★印の場所★（司さん 2026-08-31「場所は自由に変えれんのか？」）
-       ＝紙の左上からの mm。空＝いつもの場所（社名に重ねる）。 */
+       ＝紙の左上からの mm。★空＝いつもの場所（社名に重ねる）＝これが 既定★。
+       ★倉庫に 決めた場所が 在れば それを 画面へ戻す★
+         （2026-08-31 実測で 抜けていた＝一度 決めた場所が 開き直すと 消え、
+           そのまま保存すると ★決めた場所が 黙って 消えた★） */
+    if (!sealTouched) {
+      sealXY = {
+        x: DOC.sealXY(d.sealX, d.sealSizeMm, 'x'),
+        y: DOC.sealXY(d.sealY, d.sealSizeMm, 'y'),
+      };
+    }
     if ($('seal-x')) $('seal-x').value = (sealXY.x === null ? '' : sealXY.x);
     if ($('seal-y')) $('seal-y').value = (sealXY.y === null ? '' : sealXY.y);
     drawSealStage();
@@ -2367,6 +2376,8 @@
      ・空（未設定）＝いつもの場所（社名に重ねる）＝黙って 見た目を 変えない
      ・★紙の絵は 本物★（PAPER.build で作った紙を そのまま縮める。作り物の絵を置かない） */
   var sealXY = { x: null, y: null };
+  /* ★人が 触ったか★＝触った後は 倉庫の値で 上書きしない（打ちかけを 消さない） */
+  var sealTouched = false;
 
   function sealXYRead() {
     var d = S.org || {};
@@ -2436,6 +2447,7 @@
     var x = ((clientX - r.left) / r.width) * DOC.PAPER_W_MM - mm / 2;
     var y = ((clientY - r.top) / r.height) * DOC.PAPER_H_MM - mm / 2;
     sealXY = { x: DOC.sealXY(x, mm, 'x'), y: DOC.sealXY(y, mm, 'y') };
+    sealTouched = true;
     if ($('seal-x')) $('seal-x').value = sealXY.x;
     if ($('seal-y')) $('seal-y').value = sealXY.y;
     drawSealStage();
@@ -2516,6 +2528,7 @@
     var mm = DOC.sealSizeMm($('seal-mm').value);
     sealGuess = null;                     // 保存したら「当てた値」ではなく「決まった値」
     var xy = sealXYRead();
+    sealTouched = false;                  // 保存したら 倉庫の値が 正になる
     var patch = { sealSizeMm: mm, sealX: xy.x, sealY: xy.y };
     if (sealPending) {
       var chk = DOC.validateSeal(sealPending);
@@ -3552,10 +3565,11 @@
     /* ★動かしたら その場で 絵が変わる★（押さないと分からない、を作らない） */
     ['seal-mm', 'seal-x', 'seal-y'].forEach(function (id) {
       var el = $(id);
-      if (el) el.oninput = function () { sealXY = sealXYRead(); drawSealStage(); };
+      if (el) el.oninput = function () { sealTouched = true; sealXY = sealXYRead(); drawSealStage(); };
     });
     bindSealStage();
     if ($('b-seal-home')) $('b-seal-home').onclick = function () {
+      sealTouched = true;
       sealXY = { x: null, y: null };
       if ($('seal-x')) $('seal-x').value = '';
       if ($('seal-y')) $('seal-y').value = '';
