@@ -62,3 +62,9 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: ★自作PDF 紙の揃え方を そのまま写しているか (右端/左端が紙と同じ・自社4行の右端が揃う・化け0)
         run: node seikyu/tests/pdf-align.mjs
+      # ★お客はiPhone＝中身はWebKit★（司さん 2026-08-30「知り合いに使ってもらう」）
+      #   ★測っていない engine で「出る」と言わない★＝chromiumで出た だけでは 足りない。
+      #   ここは「出る・本当にPDF・字が入る・化け0・待たされない」だけを見る
+      #   （紙の中の位置は 上の pdf-align.mjs が chromium で 測っている）。
+      - name: ★自作PDFが iPhoneの中身(WebKit)でも 出るか (請求書/領収書・先頭%PDF-・化け0・20秒以内)
+        run: node seikyu/tests/pdf-webkit.mjs
