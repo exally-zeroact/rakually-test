@@ -225,7 +225,69 @@
     return lb;
   }
 
+  /* ═══ ★集計★（司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前に」）═══
+     ・数え方は seikyu-report.js（その中も seikyu-doc.paymentStateOf を呼ぶ）＝★ここでは1つも数え直さない★
+     ・★入金が読めていない時は「未確認」と書く★（0円と書かない）
+     ・★見積の時は 集計を出さない★（見積は 請求ではない） */
+  var repMonth = null;                       // null＝まだ人が選んでいない（＝いちばん新しい月）
+
+  function reportOf(month) {
+    var REP = global.SeikyuReport;
+    if (!REP) return null;
+    return REP.summarize({ invoices: S.invoices || [], receipts: S.receipts,
+      partners: S.partners || [], month: month, kind: S.kind || 'invoice', doc: DOC });
+  }
+  function renderReport() {
+    var REP = global.SeikyuReport, sumEl = $('rep-sum'), box = $('rep-box');
+    if (!sumEl || !box || !REP) return;
+    var isInv = (S.kind || 'invoice') === 'invoice';
+    show(sumEl, isInv); show(box, isInv);
+    if (!isInv) return;
+
+    var months = REP.monthsOf((S.invoices || []).filter(function (v) {
+      return (v.doc_type || 'invoice') === 'invoice' && v.status === 'issued';
+    }));
+    var sel = $('rep-month');
+    if (repMonth === null || (repMonth && months.indexOf(repMonth) < 0)) repMonth = months[0] || '';
+    sel.innerHTML = '<option value="">ぜんぶ</option>'
+      + months.map(function (m) {
+        return '<option value="' + esc(m) + '"' + (m === repMonth ? ' selected' : '') + '>'
+          + esc(m.slice(0, 4) + '年' + String(Number(m.slice(5, 7))) + '月') + '</option>';
+      }).join('');
+    sel.value = repMonth;
+
+    var s2 = reportOf(repMonth);
+    var lb = repMonth ? (repMonth.slice(0, 4) + '年' + Number(repMonth.slice(5, 7)) + '月') : 'ぜんぶ';
+    var unk = (s2.totals.paid === null);
+    if (!s2.seen) {
+      sumEl.innerHTML = '<span class="rep-c">' + esc(lb) + ' … 出した請求書は まだありません</span>';
+      $('rep-body').innerHTML = '<p class="hint">この月に 発行した請求書がありません。'
+        + '（下書きと 取り消した紙は 数えません）</p>';
+      return;
+    }
+    var cell = function (t, v) { return '<span class="rep-c"><span class="rep-l">' + t
+      + '</span><span class="rep-v">' + v + '</span></span>'; };
+    sumEl.innerHTML = '<span class="rep-c"><span class="rep-l">' + esc(lb) + '</span>'
+      + '<span class="rep-v">' + s2.totals.count + '通</span></span>'
+      + cell('請求', yen(s2.totals.total) + ' 円')
+      + cell('入金', unk ? '（未確認）' : yen(s2.totals.paid) + ' 円')
+      + cell('残り', unk ? '（未確認）' : yen(s2.totals.remain) + ' 円');
+
+    $('rep-body').innerHTML = s2.rows.map(function (r) {
+      var tag = unk ? '' : '<span class="tag ' + (r.state === 'paid' ? 'tag-on'
+        : r.state === 'unpaid' ? 'tag-off' : 'tag-mute') + '">'
+        + (DOC.PAY_STATE_LABEL[r.state] || '') + '</span>';
+      return '<div class="rep-row"><span class="rep-n">' + tag + esc(r.name)
+        + '<span class="rep-k">' + r.count + '通</span></span>'
+        + '<span class="rep-a">' + yen(r.total) + ' 円'
+        + (unk ? '' : '<span class="rep-k">入金 ' + yen(r.paid) + ' ／ 残り ' + yen(r.remain) + '</span>')
+        + '</span></div>';
+    }).join('')
+      + (unk ? '<p class="hint">入金が読めていないので、入金と残りは出していません（0円ではありません）。</p>' : '');
+  }
+
   function renderList() {
+    renderReport();
     var host = $('list-body'); if (!host) return;
     var rows = S.invoices.filter(function (v) {
       if (S.fil === 'live') return v.status !== 'void';   // ★既定は取り消し以外（出した紙が上に来る）
@@ -3198,6 +3260,10 @@
     });
     $('pay-method').onchange = drawPayButton;
 
+    /* ★集計する月を 変える★（選んだ月は 覚えておく＝押すたびに 戻らない） */
+    if ($('rep-month')) $('rep-month').onchange = function () {
+      repMonth = $('rep-month').value; renderReport();
+    };
     $('b-seal-save').onclick = function () { return saveSeal(); };
     $('b-seal-clear').onclick = function () { return clearSeal(); };
     $('seal-file').onchange = function (e) { pickSeal(e.target.files && e.target.files[0]); };
@@ -3280,6 +3346,7 @@
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える
     _saveDraftForTest: function () { return saveDraft(); },          // テスト用: 下書き保存を そのまま走らせる
     _renderListForTest: function () { return renderList(); },        // テスト用: 一覧を 描き直す
+    _reportForTest: function (m) { return reportOf(m); },            // テスト用: 集計の数だけ取る
     /* テスト用: ★本物の紙★を そのまま返す（見張りが 紙の中身を数える為。
        ★画面と同じ道を通す★＝紙だけ別の作り方をしない） */
     _paperHtml: function () {

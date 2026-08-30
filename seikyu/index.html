@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=8df9f609">
-<link rel="stylesheet" href="css/app.css?v=8df9f609">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=2325119f">
+<link rel="stylesheet" href="css/app.css?v=2325119f">
 </head>
 <body>
 
@@ -52,6 +52,18 @@
         <button class="btn-primary" type="button" id="b-new">＋ 新しい請求書</button>
         <button class="btn-ghost" type="button" id="b-reload">読み直す</button>
       </div>
+      <!-- ★集計★（司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前に」）
+           ＝請求書ソフトは どこも 月ごとの集計を持っている。うちだけ 無かった。
+           測り方は 代行請求(renderReport)から借りた＝請求／入金／残り の3つ＋取引先ごと。
+           ★1行は いつも見える。細かい表は 畳む★（画面を 数字で埋めない） -->
+      <div class="rep-sum" id="rep-sum"></div>
+      <details class="more" id="rep-box">
+        <summary class="more-s" id="rep-sum-s">集計（月ごと・取引先ごとに いくら請求／入金／残り）</summary>
+        <div class="fil-row">
+          <select class="finput" id="rep-month" aria-label="集計する月"></select>
+        </div>
+        <div id="rep-body"></div>
+      </details>
       <p class="hint" id="list-hint">発行した請求書は、あとから中身を直せません（取り消して作り直します）。番号は同じ物を二度使いません。</p>
       <div class="bad" id="list-err" style="display:none"></div>
     </div>
@@ -656,42 +668,44 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=8df9f609"></script>
-<script src="../lib/xlsx.full.min.js?v=8df9f609"></script>
-<script src="../js/file-out.js?v=8df9f609"></script>
-<script src="../js/suite-data.js?v=8df9f609"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=8df9f609"></script>
+<script src="../js/supa-config.js?v=2325119f"></script>
+<script src="../lib/xlsx.full.min.js?v=2325119f"></script>
+<script src="../js/file-out.js?v=2325119f"></script>
+<script src="../js/suite-data.js?v=2325119f"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=2325119f"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=8df9f609"></script>
-<script src="lib/seikyu-tax.js?v=8df9f609"></script>
-<script src="lib/seikyu-gensen.js?v=8df9f609"></script>
-<script src="lib/seikyu-carry.js?v=8df9f609"></script>
-<script src="lib/seikyu-cols.js?v=8df9f609"></script>
-<script src="lib/seikyu-templates.js?v=8df9f609"></script>
-<script src="../lib/toroku-no.js?v=8df9f609"></script>
-<script src="lib/seikyu-doc.js?v=8df9f609"></script>
-<script src="lib/seikyu-partner-ask.js?v=8df9f609"></script>
-<script src="lib/seikyu-pdf.js?v=8df9f609"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=2325119f"></script>
+<script src="lib/seikyu-tax.js?v=2325119f"></script>
+<script src="lib/seikyu-gensen.js?v=2325119f"></script>
+<script src="lib/seikyu-carry.js?v=2325119f"></script>
+<script src="lib/seikyu-cols.js?v=2325119f"></script>
+<script src="lib/seikyu-templates.js?v=2325119f"></script>
+<script src="../lib/toroku-no.js?v=2325119f"></script>
+<script src="lib/seikyu-doc.js?v=2325119f"></script>
+<script src="lib/seikyu-partner-ask.js?v=2325119f"></script>
+<script src="lib/seikyu-pdf.js?v=2325119f"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
-<script src="lib/seikyu-seal.js?v=8df9f609"></script>
-<script src="lib/seikyu-scope.js?v=8df9f609"></script>
-<script src="../lib/kikan.js?v=8df9f609"></script>
-<script src="lib/seikyu-invoice-ask.js?v=8df9f609"></script>
-<script src="lib/seikyu-paper-ask.js?v=8df9f609"></script>
-<script src="lib/seikyu-name.js?v=8df9f609"></script>
-<script src="lib/seikyu-paper.js?v=8df9f609"></script>
-<script src="lib/seikyu-aoa.js?v=8df9f609"></script>
-<script src="js/seikyu-store.js?v=8df9f609"></script>
-<script src="js/seikyu-out.js?v=8df9f609"></script>
-<script src="js/seikyu-app.js?v=8df9f609"></script>
-<script src="../js/rakunally-login.js?v=8df9f609"></script>
-<script src="js/auth.js?v=8df9f609"></script>
+<script src="lib/seikyu-seal.js?v=2325119f"></script>
+<!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
+<script src="lib/seikyu-report.js?v=2325119f"></script>
+<script src="lib/seikyu-scope.js?v=2325119f"></script>
+<script src="../lib/kikan.js?v=2325119f"></script>
+<script src="lib/seikyu-invoice-ask.js?v=2325119f"></script>
+<script src="lib/seikyu-paper-ask.js?v=2325119f"></script>
+<script src="lib/seikyu-name.js?v=2325119f"></script>
+<script src="lib/seikyu-paper.js?v=2325119f"></script>
+<script src="lib/seikyu-aoa.js?v=2325119f"></script>
+<script src="js/seikyu-store.js?v=2325119f"></script>
+<script src="js/seikyu-out.js?v=2325119f"></script>
+<script src="js/seikyu-app.js?v=2325119f"></script>
+<script src="../js/rakunally-login.js?v=2325119f"></script>
+<script src="js/auth.js?v=2325119f"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=8df9f609"></script>
+<script src="../js/env-badge.js?v=2325119f"></script>
 </body>
 </html>

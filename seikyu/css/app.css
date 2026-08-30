@@ -390,3 +390,25 @@
 }
 .tpl-pick.on .tpl-badge { display: flex; }
 .tpl-pick.on { box-shadow: 0 0 0 1.5px #2E7D54 inset; }
+
+/* ── ★集計★（月ごと・取引先ごとに いくら請求／入金／残り）────────────
+   司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前にしてな」
+   ＝請求書ソフトは どこも 集計を持っている。うちだけ 無かった。
+   ★注意書き/数字を flex の子に 文のまま置かない★（狭い端末で1文字ずつ縦に割れる前科）
+     ＝1つ1つを 箱（.rep-c）に入れて、箱ごと 折り返させる。 */
+.rep-sum {
+  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline;
+  margin: 2px 0 10px;
+}
+.rep-c { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.rep-l { font-size: 12px; color: #6E6E6E; }
+.rep-v { font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; font-weight: 700; color: #2E7D54; }
+.rep-row {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px;
+  padding: 8px 0; border-bottom: 1px solid #E8F6EE;
+}
+.rep-row:last-child { border-bottom: 0; }
+.rep-n { font-size: 14px; color: #333333; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rep-a { font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px; font-weight: 700; color: #333333; text-align: right; }
+.rep-k { font-family: inherit; font-size: 12px; font-weight: 400; color: #6E6E6E; display: block; }
+.fil-row { margin: 4px 0 8px; }
