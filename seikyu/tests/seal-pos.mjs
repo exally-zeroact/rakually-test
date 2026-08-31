@@ -195,15 +195,22 @@ const head = await (async () => {
         } } else if (c.nodeType === 1 && !(c.classList && c.classList.contains('from-box'))) walk(c);
     } };
     walk(document.querySelector('.sheet'));
+    /* ★頭の余白★＝あて名の段の下と「◯月分」の上の間（＝CSSの padding-top そのもの）。
+       ★表の始まり(mm)は 機械で 変わる★（字の作りが違う＝Windows 79.8 / CI 78.6）ので
+       ★機械で変わらない この余白★で 見る（司さんが 詰めるな と言った所は ここ）。 */
+    const mid = document.querySelector('.party-mid');
+    const midPad = mid ? (mid.firstElementChild
+      ? +((mid.firstElementChild.getBoundingClientRect().top - mid.getBoundingClientRect().top) / mm).toFixed(1)
+      : null) : null;
     return { meta: at('.meta'), from: at('.from-box'), seal: at('.seal'),
-      grand: at('.grand'), table: at('.lines') || at('table.items'), hit };
+      grand: at('.grand'), table: at('.lines') || at('table.items'), midPad, hit };
   });
   await pg2.close();
   return r;
 })();
 console.log('     紙の頭 … 上の行 〜' + head.meta.b + 'mm ／ 印 ' + head.seal.t + 'mm から ／ 自社 '
   + head.from.t + '〜' + head.from.b + 'mm ／ 金額の下 ' + head.grand.b + 'mm ／ 表 '
-  + head.table.t + 'mm から');
+  + head.table.t + 'mm から ／ 頭の余白 ' + head.midPad + 'mm');
 T('★⑨-3 自社の塊を 下げた（上の行と 10mm以上 離れた）',
   head.seal.t - head.meta.b >= 10, '間が ' + (head.seal.t - head.meta.b).toFixed(1) + 'mm');
 T('★⑨-4 自社の下と ご請求金額の下が そろっている',
@@ -212,8 +219,9 @@ T('★⑨-4 自社の下と ご請求金額の下が そろっている',
 /* ★頭の余白も 行数も 元のまま★（司さん 2026-08-31
    「赤丸合わせろってゆうただけで 赤線の所の余白詰めろなんかゆうたか？ いらんことすんなや」）
    ＝動かしてよいのは ★自社の塊の 縦の位置だけ★。 */
-T('★⑨-4b 表の始まりは 元のまま（頭の余白を 詰めていない）',
-  Math.abs(head.table.t - 79.8) < 0.5, '表の始まり ' + head.table.t + 'mm（79.8のはず）');
+T('★⑨-4b 頭の余白を 詰めていない（あて名の下〜◯月分の上 = 元のまま）',
+  head.midPad !== null && Math.abs(head.midPad - PAPER.MID_PAD_MM) < 0.3,
+  '余白 ' + head.midPad + 'mm（' + PAPER.MID_PAD_MM + 'mm のはず）');
 T('★⑨-4c 1枚に載る行数も 元のまま（18/8）',
   PAPER.PAPER_ROWS === 18 && PAPER.PAPER_ROWS_DED === 8,
   '1枚に載る行数 ' + PAPER.PAPER_ROWS + '/' + PAPER.PAPER_ROWS_DED + '（18/8のはず）');
