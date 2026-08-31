@@ -16,7 +16,24 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require_=createRequire(import.meta.url);
-const { webkit }=require_(path.join(ROOT,'node_modules/playwright/index.js'));
+/* ★playwright が 借りられない機械では「未測定」で 終わる★（0件＝合格 とは 書かない）
+   ＝運ぶ道具は「運び先で 走るか」を 実際に走らせて 見る。ここで 落ちると
+     ★この見張りごと 本番に 運ばれない★（2026-08-31 実測：3本 落ちていた）。 */
+let PW = null;
+for (const cand of [path.join(ROOT, 'node_modules/playwright/index.js'),
+  'C:/Users/zeroa/Exally-test/node_modules/playwright/index.js']) {
+  if (!fs.existsSync(cand)) continue;
+  try {
+    const m = require_(cand);
+    if (m && m.webkit) { PW = m; break; }
+  } catch (e) { /* 次の借り先 */ }
+}
+if (!PW) {
+  console.log('[pdf-webkit] ★未測定★ … playwright が 借りられません');
+  console.log('  ★これは「問題なし」では ありません★。★測るには★ npm install && npx playwright install webkit');
+  process.exit(0);
+}
+const { webkit } = PW;
 const PAPER=require_(path.join(ROOT,'seikyu/lib/seikyu-paper.js'));
 const TPL=require_(path.join(ROOT,'seikyu/lib/seikyu-templates.js'));
 const X=require_(path.join(ROOT,'seikyu/lib/seikyu-tax.js'));

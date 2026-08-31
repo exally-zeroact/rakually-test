@@ -47,7 +47,12 @@ const ENTRIES = ['seikyu/index.html', 'index.html'];
    ★見張りが「作ったが呼ばれていない台帳」として見ている★ので、置いていくと 台帳が空になって
    見張りが空振りする（2026-08-26 実測）。 */
 const GUARDS = ['seikyu', 'tests', 'scripts', '.github', 'package.json', 'tests-no-ci.json',
-  'vercel.json', '.gitattributes', '.gitignore', 'CLAUDE.md', 'sw.js', 'docs', 'supabase'];
+  'vercel.json', '.gitattributes', '.gitignore', 'CLAUDE.md', 'sw.js', 'docs', 'supabase',
+  /* ★押した時だけ読む物★＝自作PDFの道具と 字体（pdf-lib / fontkit / BIZ UDPGothic）。
+     ★数える道具（dep-count）は 見つけられない★＝押した時に 読むので 参照が 書いていない。
+     2026-08-31 実測：これが 抜けていて 本番で ★PDFが1枚も作れない★所だった
+     （seikyu/tests/dep-guard の「押した時だけ読む物」が 赤で 捕まえた）。 */
+  'vendor'];
 
 /* ★運び先に無いファイルを見に行く試験は 運ばない★（名前と 見に行った先を 全部 書き残す）
    ＝置いていくと「登録していない試験が在る」で見張りが赤くなり、
@@ -171,6 +176,15 @@ function count(root) {
     if (box.indexOf(e) < 0 && all.inside.indexOf(e) < 0 && all.outside.indexOf(e) < 0) box.push(e);
   });
   return all;
+}
+
+/* ★入口の js からも 給与への行き先を 外す★（請求書だけ出すので kyuyo/ は無い）
+   ＝タイルだけ外しても ★「← 給与へ戻る」の帰り道★が 残っていて 行き止まりになる
+   （2026-08-31 実測：運び先の screen-words が「画面に出る字に 給与」で 赤になって 捕まえた）。 */
+export function hubJsWithoutKyuyo(src) {
+  const re = new RegExp('\\n\\s*kyuyo:\\s*\\{[^}]*\\},?');
+  if (!re.test(src)) return { src: src, removed: 0 };
+  return { src: src.replace(re, ''), removed: 1 };
 }
 
 /* ★入口から 給与のタイルを外す★（請求書だけ出すので kyuyo/ は無い） */
@@ -311,6 +325,14 @@ function ship(to, dry) {
   if (!r.removed) { console.error('★入口から 給与のタイルを外せませんでした（作りが変わった）★'); return 1; }
   fs.writeFileSync(hub, r.html, 'utf8');
   console.log('★入口を作り替えた★ … 給与のタイルを 1個 外した');
+  /* ★入口の js からも 帰り道を 外す★（行き止まりを 作らない） */
+  const hubJs = path.join(to, 'js', 'hub.js');
+  if (fs.existsSync(hubJs)) {
+    const j = hubJsWithoutKyuyo(fs.readFileSync(hubJs, 'utf8'));
+    if (!j.removed) { console.error('★入口の js から 給与の帰り道を 外せませんでした（作りが変わった）★'); return 1; }
+    fs.writeFileSync(hubJs, j.src, 'utf8');
+    console.log('★入口の js も 作り替えた★ … 「← 給与へ戻る」を 1個 外した');
+  }
 
   /* ★運び先で走れない試験は 置いていかない★（名前と 見に行った先を 全部 出す）
      ＝自己診断では ここは飛ばす（全試験を2回 走らせると CI が重くなる）。
@@ -320,9 +342,28 @@ function ship(to, dry) {
   console.log('★運び先に無い物を見に行く試験を ' + dead.length + '本 外した★（元では毎回 走る）');
   dead.forEach((d) => console.log('    外した試験: ' + d.file + '  → 見に行く先 ' + d.gone.join(' , ')));
 
-  /* ★CIを 作り替える★ */
-  const ciPath = path.join(to, '.github/workflows/ci.yml');
+  /* ★CIを 作り替える★
+     ★ci.yml だけでは 足りない★＝2026-08-31 実測：webkit.yml を そのまま運んだせいで
+       置いていった試験（button-uniform / pdf-webkit / seal-shape / seal-pos）を 指し続け、
+       ★本番のCIが Cannot find module で 赤★になった。
+     ⇒ ★.github/workflows の yml を ぜんぶ 同じやり方で 作り替える★ */
   const exists = (f) => fs.existsSync(path.join(to, f));
+  const wfDir = path.join(to, '.github/workflows');
+  const others = fs.existsSync(wfDir)
+    ? fs.readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f) && f !== 'ci.yml') : [];
+  others.forEach((f) => {
+    const fp = path.join(wfDir, f);
+    const r2 = ciForShipped(fs.readFileSync(fp, 'utf8'), exists);
+    if (r2.mixed.length) {
+      console.error('★' + f + ' の1つのステップで 在る物と無い物が 混ざっています★');
+      r2.mixed.forEach((m) => console.error('  ・' + m.name + ' … 無い＝' + m.gone.join(' , ')));
+      throw new Error('mixed in ' + f);
+    }
+    fs.writeFileSync(fp, ciHeaderNote(r2.yml, r2.dropped), 'utf8');
+    console.log('★' + f + ' も 作り替えた★ … 外したステップ ' + r2.dropped.length + '件'
+      + (r2.dropped.length ? '（' + r2.dropped.map((d) => d.name).join(' ／ ') + '）' : ''));
+  });
+  const ciPath = path.join(to, '.github/workflows/ci.yml');
   const ci = ciForShipped(fs.readFileSync(ciPath, 'utf8'), exists);
   if (ci.mixed.length) {
     console.error('★1つのステップの中で 在る物と無い物が混ざっています（勝手に直しません）★');
@@ -411,6 +452,15 @@ console.log('\n★自己診断★');
   const hub = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const r = hubWithoutKyuyo(hub);
   must(1, r.removed, '★入口から 給与のタイルを外せる★');
+  /* ★入口の js からも 帰り道を 外せるか★（2026-08-31 本番で 行き止まりになりかけた） */
+  {
+    const src0 = fs.readFileSync(path.join(ROOT, 'js', 'hub.js'), 'utf8');
+    const j = hubJsWithoutKyuyo(src0);
+    must(1, j.removed, '★入口の js から 給与の帰り道を 外せる★');
+    must(false, /給与へ戻る/.test(j.src), '外したあと 給与の帰り道が 残っていない');
+    must(true, /請求書へ戻る/.test(j.src), '★請求書の帰り道は 残っている★');
+    must(0, hubJsWithoutKyuyo(j.src).removed, '★もう無い時は 0を返す（黙って通さない）★');
+  }
   must(false, /id="tile-payslip"/.test(r.html), '外したあと 給与のタイルが残っていない');
   must(true, /id="tile-seikyu"/.test(r.html), '★請求書のタイルは 残っている★');
   must(false, /href="kyuyo\/"/.test(r.html), '★kyuyo\/ への行き先が 1つも残っていない★');
@@ -463,6 +513,12 @@ console.log('\n★自己診断★');
     must(0, code, '★運んで 前と後が 同じ数になる★');
     must(true, fs.existsSync(path.join(tmp, 'kyuyo/lib/shouhizei-ritsu.js')),
       '★法定の2本（消費税）も 一緒に運ばれている★');
+    /* ★押した時だけ読む物★（自作PDFの道具と字体）＝数える道具では 見つからない */
+    ['vendor/pdf-lib.min.js', 'vendor/fontkit.umd.min.js', 'vendor/fonts/BIZUDPGothic-Regular.ttf']
+      .forEach((f) => must(true, fs.existsSync(path.join(tmp, f)),
+        '★' + f + ' が 運ばれていない（押しても PDFが 作れない）★'));
+    must(false, /給与へ戻る/.test(fs.readFileSync(path.join(tmp, 'js', 'hub.js'), 'utf8')),
+      '★運んだ入口の js に 給与の帰り道が 残っている（行き止まり）★');
     must(true, fs.existsSync(path.join(tmp, 'kyuyo/lib/shiharai-chosho.js')),
       '★法定の2本（支払調書）も 一緒に運ばれている★');
     must(false, fs.existsSync(path.join(tmp, 'kyuyo/index.html')),
