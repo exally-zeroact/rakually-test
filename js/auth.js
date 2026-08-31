@@ -109,11 +109,28 @@
     }).catch(function (e) { msg(jpErr(e && e.message), true); });
   }
 
+  /* ★パスワードの再設定の最中は 中へ入れない★（司さん 2026-08-31
+       「再設定でメール送ったら 開いた瞬間は 新しいパスワードを打つ画面になるけど
+         打とうとしたら この画面に入って パスワード設定できん」）
+     ★なぜ そうなっていたか★
+       メールの合図（recovery）は ★その場で セッションを作る★。
+       だから getSession() が「入っている」と答え、afterLogin → hide() で
+       ★再設定の画面ごと 消していた★（打つ前に 消える）。
+     ⇒ ★再設定の最中は セッションが在っても ログインの画面（＝再設定の欄）を 出したまま★。
+       決め終われば login 側が ok() を呼ぶので、そこで 中へ入る。 */
+  function inRecovery() {
+    try { return !!(LOGIN && LOGIN.isRecovery && LOGIN.isRecovery()); } catch (e) { return false; }
+  }
+
   // 起動時: セッションがあればそのまま、無ければログイン画面
   sb.auth.getSession().then(function (r) {
     var s = r && r.data && r.data.session;
+    if (inRecovery()) { show(); return; }            /* ★再設定が終わるまで 中へ入れない★ */
     if (s) afterLogin((s.user && s.user.email) || ''); else show();
   }).catch(function () { show(); });
-  sb.auth.onAuthStateChange(function (_e, s) { if (!s) show(); });
+  sb.auth.onAuthStateChange(function (_e, s) {
+    if (!s) { show(); return; }
+    if (inRecovery()) show();                        /* 再設定の最中に 入られない様に */
+  });
 
 })(window);
