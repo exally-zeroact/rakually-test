@@ -254,9 +254,21 @@ function ciHeaderNote(yml, dropped) {
   return yml.slice(0, i) + lines.join('\n') + yml.slice(i);
 }
 
+/* ★運び先の物を 上書きしてはいけないファイル★
+   ＝倉庫の向き先（url / key / env）は ★配信ごとに違う★。
+   ★2026-08-31 実測：この道具は「書き換えません」と言いながら 本番の js/supa-config.js を
+     テストの値（env:'test'・DB-test）で 上書きしていた★。
+   ＝そのまま出していたら ★本番の請求書が テストの倉庫を見て、テスト帯まで出る★ 所だった。 */
+const KEEP_AT_DEST = ['js/supa-config.js'];
+let keptFiles = [];
+
 function copyOne(rel, to) {
   const src = path.join(ROOT, rel);
   const dst = path.join(to, rel);
+  if (KEEP_AT_DEST.indexOf(rel.split(path.sep).join('/')) >= 0) {
+    if (fs.existsSync(dst)) { keptFiles.push(rel); return; }   // 運び先の物を そのまま残す
+    throw new Error('★運び先に ' + rel + ' が 無い★（倉庫の向き先は 指示役が入れる物）');
+  }
   fs.mkdirSync(path.dirname(dst), { recursive: true });
   fs.copyFileSync(src, dst);
 }
@@ -365,12 +377,32 @@ function ship(to, dry) {
     return 1;
   }
   console.log('\n★前と後で 同じ数（' + need.length + '本）／見つからない参照 0件★');
-  console.log('★次にやる事★ … 運び先で js/supa-config.js を 指示役の値に入れ替える（私は書きません）');
+  console.log('★運び先の物を 残したファイル★ … '
+    + (keptFiles.length ? keptFiles.join(' , ') : '★0件（＝上書きしている＝危ない）★'));
+  console.log('★次にやる事★ … 運び先の js/supa-config.js は 触っていません（指示役の値のまま）');
   return 0;
 }
 
 if (process.argv.includes('--self-test')) {
-  console.log('\n★自己診断★');
+    /* ★運び先の supa-config を 上書きしないか★（2026-08-31 実際に 上書きしていた） */
+  {
+    const t3 = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-keep-'));
+    fs.mkdirSync(path.join(t3, 'js'), { recursive: true });
+    fs.writeFileSync(path.join(t3, 'js', 'supa-config.js'), '// 本番の物\nwindow.SUPA={env:\'prod\'};\n', 'utf8');
+    keptFiles = [];
+    copyOne(path.join('js', 'supa-config.js'), t3);
+    const after = fs.readFileSync(path.join(t3, 'js', 'supa-config.js'), 'utf8');
+    const ok = /env:'prod'/.test(after) && keptFiles.length === 1;
+    console.log('  ' + (ok ? '✓' : '✗') + ' ★運び先の js/supa-config.js を 上書きしない★');
+    if (!ok) { console.error('  ★上書きしている＝本番が テストの倉庫を見る★'); process.exit(1); }
+    /* 運び先に 無い時は 止まる（黙って テストの値を 置かない） */
+    const t4 = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-keep2-'));
+    let threw = false;
+    try { copyOne(path.join('js', 'supa-config.js'), t4); } catch (e) { threw = true; }
+    console.log('  ' + (threw ? '✓' : '✗') + ' ★運び先に 向き先が 無い時は 止まる★');
+    if (!threw) process.exit(1);
+  }
+console.log('\n★自己診断★');
   let ng = 0;
   const must = (want, got, why) => {
     if (want !== got) { console.error('  ✗ ' + why + '（欲しい ' + want + ' / 出た ' + got + '）'); ng++; }
@@ -421,6 +453,10 @@ if (process.argv.includes('--self-test')) {
   /* ★数える所が 本当に効くか★＝運んでみて 前と後が同じ数になる */
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-'));
   try {
+    /* ★運び先には 倉庫の向き先が すでに在る★（本番も そう）＝ここでも 先に置く。
+       置かずに運ぼうとすると 止まる＝それが 正しい（上の自己診断で 確かめている）。 */
+    fs.mkdirSync(path.join(tmp, 'js'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, 'js', 'supa-config.js'), path.join(tmp, 'js', 'supa-config.js'));
     process.env.SHIP_FAST = '1';
     const code = ship(tmp, false);
     delete process.env.SHIP_FAST;
