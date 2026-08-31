@@ -52,6 +52,17 @@ const PAGE_INSET_EXCEPT = {
 const EMPTY_OK = {
   'div.card.ask-card': '★聞く形の札★＝会社/従業員の7問を JS が作って入れる（kyuyo/js/app.js）。'
     + '★中身の余白は 開いた後に scripts/input-size.mjs が Chrome で測っている★。',
+  /* ★紙の下見の札★（司さん 2026-08-31「見せてあげて 変えて見せな分からん」／
+     「代行のように 請求書／集計を作って 見せ方も一緒に」）
+     ＝中身は iframe（★本物の紙★）1枚なので、字も欄も 無い＝ここでは 測れない。
+     ★紙の中は 別の見張りが 実測している★
+       seikyu/tests/pdf-align.mjs（字の位置・化け）／seal-pos.mjs（印の位置・紙から出ない）
+       ／seikyu-paper.test.mjs（紙の中の辻褄）。
+     ★戻す条件★＝この札に 字や欄を 足したら この行を 消す（また 測れる様になる）。 */
+  'div.card.set-pv-card': '★設定の紙の下見★＝中身は iframe（本物の紙）1枚。'
+    + '紙の中は pdf-align / seal-pos / seikyu-paper が 実測している。',
+  'div.card.bill-pv-card': '★請求/集計の紙の下見★＝中身は iframe（本物の紙）1枚。'
+    + '下の1行（何番の紙か）は 選んでから 出る。紙の中は 上と同じ見張りが 実測している。',
 };
 /* ★閉じている物を 全部 開けてから測る★
    ★.hidden を入れていなかった★ので、kyuyo/meisai.html の ★札8個が 3幅とも 測れていなかった★

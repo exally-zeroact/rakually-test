@@ -467,3 +467,14 @@
   border: 1px solid #D4EAE0; background: #FFFFFF; overflow: hidden;
 }
 .set-pv-f { width: 100%; height: 100%; border: 0; pointer-events: none; }
+
+
+/* ── ★請求 / 集計★（司さん 2026-08-31「代行のように 請求書／集計を作って 見せ方も一緒に」）
+   月と相手を選ぶ → その紙が すぐ出る → PDF／印刷／Excel。 */
+.bill-pick { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
+.bill-pick .finput { flex: 1 1 140px; min-width: 0; }
+.bill-pv {
+  width: 100%; aspect-ratio: 210 / 297; background: #FFFFFF;
+  border: 1px solid #D4EAE0; overflow: hidden;
+}
+.bill-pv-f { width: 100%; height: 100%; border: 0; pointer-events: none; }

@@ -364,7 +364,11 @@ T('2-a. ★畳みの見出しに 中の出し口が ぜんぶ 書いてある（
 
 T('2-a. ★タブの順と動詞を給与にそろえた（設定→入力→一覧・「作る」ではなく「入力」）', () => {
   const tabs = [...doc.querySelectorAll('.bn')].map((b) => b.getAttribute('data-scr') + ':' + b.querySelector('.bn-l').textContent);
-  eq(tabs.join(' '), 'scr-set:設定 scr-edit:入力 scr-list:一覧', 'タブの順か言葉が給与と違う');
+  /* ★請求/集計 を 足した★（司さん 2026-08-31「代行請求書アプリのように 請求書／集計を作って
+     見せ方も一緒にしろ／なにがどこにあるとか ごちゃごちゃで分かりにくい」）
+     ＝月と相手を選ぶ → その紙が すぐ出る → PDF／印刷／Excel。★給与と同じ3つ＋1つ★ */
+  eq(tabs.join(' '), 'scr-set:設定 scr-edit:入力 scr-list:一覧 scr-bill:請求/集計',
+    'タブの順か言葉が違う');
   ok(!/作る/.test([...doc.querySelectorAll('.bn')].map((b) => b.textContent).join('')), 'タブに「作る」が残っている（給与は「入力」）');
   // 開いた時に出ているのは入力（初めての人がそのまま1通 出せる）
   ok(/<section class="screen active" id="scr-edit">/.test(html), '開いた時の画面が入力でない');
