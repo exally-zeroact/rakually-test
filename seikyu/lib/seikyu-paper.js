@@ -240,14 +240,35 @@
     var cl = function (v, max) { return Math.max(0, Math.min(max - mm, v)); };
     return { x: cl(x, PAPER_W_MM), y: cl(y, PAPER_H_MM) };
   }
+  /* ★印が 自社の塊より 下へ はみ出す量（mm）★
+     ＝印は 社名の行の 真ん中に 重ねるので、★社名の下に 行が少ないほど 下へ はみ出す★。
+     （司さん 2026-08-31「分かったんなら 最初からやれや」＝1行だけの会社で
+       印が 明細の表に 1.6mm かかっていた・実測）
+     字の大きさは この紙の CSS と 同じ数を 使う（2つの正を 作らない）:
+       社名 11pt × 行送り1.45 ／ 住所・TEL・登録番号 9pt × 行送り1.45 ／ 1pt = 0.3528mm */
+  var PT_MM = 0.3528;
+  var NAME_LH_MM = 11 * 1.45 * PT_MM;      // 社名の行の高さ
+  var SUB_LH_MM = 9 * 1.45 * PT_MM;        // その下の行の高さ
+  function sealOverflowMm(g) {
+    var mm = sealMm(g.sealSizeMm);
+    var lines = 1
+      + (textOf(g.addr) ? 1 : 0)
+      + (textOf(g.tel) ? 1 : 0)
+      + (textOf(g.invoiceNo) ? 1 : 0);
+    /* 印の下端 − 社名の行の下端 − 社名より下に在る行の高さ */
+    var over = (mm / 2 - NAME_LH_MM / 2) - (lines - 1) * SUB_LH_MM;
+    return Math.max(0, Math.round(over * 10) / 10);
+  }
   function sealStyle(g) {
     var mm = sealMm(g.sealSizeMm);
     var f = sealFree(g);
     var size = 'width:' + mm + 'mm;height:' + mm + 'mm;';
     /* ★自由な場所★＝紙（.sheet）の左上から。紙の余白の中でも外でも 置ける。 */
     if (f) return size + 'left:' + f.x + 'mm;top:' + f.y + 'mm;right:auto;bottom:auto;';
-    /* ★今までの場所★＝社名の行の右端に 重ねる（縦は 行の真ん中） */
-    return size + 'right:0;top:50%;';
+    /* ★今までの場所★＝社名の行の右端に 重ねる（縦は 行の真ん中）。
+       ★はみ出す時だけ その分 上へ★＝明細の表に かからない（4行の会社では 0mm＝今までのまま）。 */
+    var up = sealOverflowMm(g);
+    return size + 'right:0;top:50%;' + (up ? 'margin-top:-' + up + 'mm;' : '');
   }
 
   function hasRole(items, role) {
@@ -1429,7 +1450,8 @@
   return {
     build: build, css: css, esc: esc, yen: yen, comma: comma,
     dateStr: dateStr, jpDate: jpDate, honorOf: honorOf, taxLabel: taxLabel,
-    paginate: paginate, sealMm: sealMm, sealStyle: sealStyle, TEMPLATE_ID: TEMPLATE_ID,
+    paginate: paginate, sealMm: sealMm, sealStyle: sealStyle, sealOverflowMm: sealOverflowMm,
+    TEMPLATE_ID: TEMPLATE_ID,
     MID_PAD_MM: MID_PAD_MM,
     /* ★振込先の分け方は紙も Excel も同じ物を呼ぶ★ */
     bankLines: bankLines,

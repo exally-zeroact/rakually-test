@@ -231,6 +231,10 @@ const kake = await (async () => {
     ['社名だけ', { addr: '', tel: '', invoiceNo: '' }],
     ['住所が長い', { addr: '愛媛県今治市本町七丁目三番四十号 ゼロアクトコーポレーションビル1号室' }],
   ];
+  /* ★印が 明細の表に かからない事★も 同じ回で 見る（司さん 2026-08-31
+     「分かったんなら 最初からやれや」＝1行だけの会社で 印が 表に 1.6mm かかっていた） */
+  cases.push(['社名だけ＋40mmの印', { addr: '', tel: '', invoiceNo: '', sealSizeMm: 40 }]);
+  cases.push(['社名だけ＋10mmの印', { addr: '', tel: '', invoiceNo: '', sealSizeMm: 10 }]);
   const out = [];
   for (const [nm, ov] of cases) {
     const ls = [{ name: '運転代行 8月分', qty: '1', unit: '式', price: '30000', rate: 10 }];
@@ -239,7 +243,7 @@ const kake = await (async () => {
       inv: { no: 'A-1', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
         lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
       tax, partner: { name: '八木工業株式会社', honor: '御中' },
-      org: Object.assign({}, FULL, ov, { sealDataUrl: SEAL, sealSizeMm: 17 }),
+      org: Object.assign({}, FULL, { sealDataUrl: SEAL, sealSizeMm: 17 }, ov),
       template: TPL.getOrDefault('std1'),
     });
     const pg2 = await (await b.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
@@ -250,11 +254,13 @@ const kake = await (async () => {
       const at = (sel) => { const e = document.querySelector(sel); if (!e) return null;
         const q = e.getBoundingClientRect();
         return { t: +((q.top - sh.top) / mm).toFixed(1), b: +((q.bottom - sh.top) / mm).toFixed(1) }; };
-      return { from: at('.from-box'), grand: at('.grand'),
+      return { from: at('.from-box'), grand: at('.grand'), seal: at('.seal'),
+        table: at('.lines') || at('table.items'),
         lines: document.querySelectorAll('.from-box .from-name, .from-box .from-sub').length };
     });
     await pg2.close();
-    out.push({ nm, d: Math.abs(r.from.b - r.grand.b), lines: r.lines, b: r.from.b });
+    out.push({ nm, d: Math.abs(r.from.b - r.grand.b), lines: r.lines, b: r.from.b,
+      sealB: r.seal ? r.seal.b : null, tableT: r.table ? r.table.t : null });
   }
   return out;
 })();
@@ -262,6 +268,10 @@ console.log('     行数が減っても … ' + kake.map((x) => x.nm + '(' + x.l
   + x.d.toFixed(1) + 'mm)').join(' ／ '));
 T('★⑨-6 自社の行数が 減っても（登録番号なし・TELなし・社名だけ）下は そろう',
   kake.every((x) => x.d < 0.3), kake.filter((x) => x.d >= 0.3).map((x) => x.nm + ' ' + x.d).join(' / '));
+T('★⑨-6b 印が 明細の表に かからない（自社が1行でも・印が40mmでも）',
+  kake.every((x) => x.sealB === null || x.tableT === null || x.sealB <= x.tableT + 0.05),
+  kake.filter((x) => x.sealB > x.tableT + 0.05).map((x) => x.nm + ' 印の下' + x.sealB
+    + 'mm ／ 表' + x.tableT + 'mm').join(' / '));
 T('★⑨-7 行が減った時に 数えられている（空振りで 緑にしない）',
   kake.some((x) => x.lines === 1) && kake.some((x) => x.lines === 4),
   '数えた行数: ' + kake.map((x) => x.lines).join(','));
