@@ -786,11 +786,20 @@
     })).html);
     /* ★作り物の見本を置かない★（司さん 2026-08-18 代行請求で同じ事を言われている:
        「他のアプリは実際の見せとんのに なんでこれだけ意味わからんやり方なんど」）
-       ⇒ 紙が作れない時は ★何をすれば出るか★ を書く（代行請求と同じ言い方）。 */
-    return '<!doctype html><meta charset="utf-8"><body style="margin:0;font:12px sans-serif;'
-      + 'color:#555555;display:flex;align-items:center;justify-content:center;height:100%;'
-      + 'text-align:center;padding:8px;box-sizing:border-box">'
-      + '明細を1件 入れると<br>ここに実際の紙が出ます</body>';
+       ⇒ 作りかけの1通が 無い時は ★見本の中身で 本物の紙を組む★（字で言い訳しない）。
+       ★設定から選ぶ時は 作りかけの1通が 無いのが ふつう★なので、
+       ここで「明細を1件 入れると…」と書くと ★3枚とも 同じ字の板★になり 選べない
+       （2026-08-31 実際に そうなった）。 */
+    var ln = [{ name: '（見本）品名', qty: '1', unit: '式', price: '30000', rate: 10 }];
+    var t = TAX.compute({ lines: ln, taxMode: 'exclusive', rounding: 'floor' });
+    return fitInFrame(PAPER.build({
+      inv: { no: '（見本）', issue_ymd: todayYmd(), kind: 'invoice', lines: ln,
+        totals: { grandTotal: t.grandTotal }, data: {}, template_id: id },
+      tax: t, partner: { name: '（取引先）', honor: '御中' },
+      org: Object.assign({}, S.org || {}, { bank: settings().bank }),
+      template: TPL.getOrDefault(id), templateId: id,
+      cols: COLS.normalizeSpec(TPL.getOrDefault(id).cols),
+    }).html);
   }
 
   function renderTplAsk() {
@@ -2319,8 +2328,42 @@
 
   /* ═══ 様式（テンプレ）を選ぶ ═══
      ★変わるのは見た目だけ。金額は1円も動かない（seikyu-templates.js が守る）★ */
+  /** ★様式は 絵で選ぶ★（司さん 2026-08-31「テンプレ選ぶ所も分かりにくい」
+   *  ＝字だけの札では ★何が違うか 分からない★。入力の見本と ★同じ物★を 設定にも出す。
+   *  ★見本は 本物の紙★（作り物の絵を置かない）。 */
+  function renderTplPicks(host, current, onPick) {
+    host.innerHTML = '';
+    TPL.list().forEach(function (t) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tpl-pick' + (t.id === current ? ' on' : '');
+      b.setAttribute('data-tpl', t.id);
+      var bg = document.createElement('div'); bg.className = 'tpl-badge'; bg.textContent = '✓';
+      b.appendChild(bg);
+      var shot = document.createElement('div'); shot.className = 'tpl-shot';
+      var f = document.createElement('iframe');
+      f.setAttribute('title', t.label + ' の見本');
+      f.setAttribute('tabindex', '-1');
+      f.style.width = '100%'; f.style.height = '100%';
+      f.srcdoc = tplSampleHtml(t.id);
+      shot.appendChild(f);
+      var nm = document.createElement('div'); nm.className = 'tpl-nm'; nm.textContent = t.label;
+      var no = document.createElement('div'); no.className = 'tpl-note'; no.textContent = t.note || '';
+      b.appendChild(shot); b.appendChild(nm); b.appendChild(no);
+      b.onclick = function () { onPick(t.id); };
+      host.appendChild(b);
+    });
+  }
+
   function renderTplSeg(hostId, noteId, current, onPick, disabled) {
     var host = $(hostId); if (!host) return;
+    /* ★設定の様式は 絵で選ぶ★（押せない時＝発行済みは 今まで通り 字の札のまま） */
+    if (hostId === 's-tpl' && !disabled) {
+      host.className = 'tpl-list';
+      renderTplPicks(host, current, onPick);
+      if (noteId) setText(noteId, '');            /* 説明は 札の中に 書いてある＝2回 言わない */
+      return;
+    }
     host.innerHTML = TPL.list().map(function (t) {
       return '<button class="seg-b' + (t.id === current ? ' on' : '') + '" type="button" data-tpl="'
         + esc(t.id) + '"' + (disabled ? ' disabled' : '') + '>' + esc(t.label) + '</button>';
