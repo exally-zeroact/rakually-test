@@ -42,6 +42,11 @@ const OUTSIDE = [
   'js/env-badge.js',                   // ★テスト環境の帯★（本番と取り違えない）
   'js/rakunally-login.js',                // ★ログイン画面の共通部品（唯一の正）★
   'js/file-out.js',                    // ★落とす口＝FileOut.deliver（全出力の窓口）★
+  /* ★自社のExcelを そのまま使う★（司さん 2026-08-31「ユーザーが自社のテンプレ持ってくる機能は？」）
+     ＝seikyu/lib/seikyu-book.js が この2本を 使う（zipを開く／セルに書く）。
+     ★2026-08-12 に作ってあったのに 画面から呼ばれていなかった★物を 繋いだ日に 台帳へ足した。 */
+  'lib/zip-surgeon.js',                // xlsx（zip）を 開いて 直して 閉じる
+  'lib/xlsx-edit.js',                  // セルに 値を 書く（数式は 触らない）
   'js/hanko.js',                       // ★判子の白抜き★＝代行請求/Exally から 1文字も変えずに借りた道具
                                        //   （同じさは tests/hanko-same.test.mjs が 機械で照らす）
   'js/suite-data.js',                  // 共有マスタ（会社・取引先）の読み書き
@@ -197,9 +202,20 @@ if (process.argv.includes('--self-test')) {
   });
 
   S('★未配線ファイルを台帳から外したら捕まる', () => {
-    const r2 = count('seikyu/index.html', ROOT);
-    const yami = r2.notReached.filter((f) => !({}[f]));      // 空の台帳で数える
-    ok(yami.length > 0, '★台帳が空でも通ってしまう＝何も見ていない★');
+    /* ★わざと 誰も呼ばない物を 置いて 試す★
+       前は「今 未配線の物が 1つは在る」に もたれていたが、
+       ★2026-08-31 に 最後の1つ（seikyu-book.js）を 画面へ繋いだので 0本になり、
+         この自己確認が「何も見ていない」と 赤になった★。
+       ＝★見張りが 効くかは その場で作って 確かめる★（在る物に もたれない）。 */
+    const dummy = path.join(ROOT, 'seikyu/lib/__mihairi-test__.js');
+    fs.writeFileSync(dummy, '/* この試験が その場で作って すぐ消す物 */\n', 'utf8');
+    try {
+      const r2 = count('seikyu/index.html', ROOT);
+      const yami = r2.notReached.filter((f) => !({}[f]));    // 空の台帳で数える
+      ok(yami.length > 0, '★台帳が空でも通ってしまう＝何も見ていない★');
+      ok(yami.some((f) => f.indexOf('__mihairi-test__') >= 0),
+        '★置いた物を 見つけられていない★（見つけた物: ' + yami.join(' , ') + '）');
+    } finally { fs.unlinkSync(dummy); }
   });
 
   try { fs.rmdirSync(tmp); } catch { /* 中に何か残っていたら消さない */ }

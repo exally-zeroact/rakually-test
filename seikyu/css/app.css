@@ -478,3 +478,23 @@
   border: 1px solid #D4EAE0; overflow: hidden;
 }
 .bill-pv-f { width: 100%; height: 100%; border: 0; pointer-events: none; }
+
+
+/* ── ★自社のExcelを そのまま使う★（司さん 2026-08-31「ユーザーが自社のテンプレ持ってくる機能は？」）
+   読んだ中身を そのまま 表で見せる＝★当てた場所を 人が 目で確かめられる★ */
+.book-grid { overflow-x: auto; margin: 8px 0; }
+.book-grid table { border-collapse: collapse; font-size: 11px; }
+.book-grid th, .book-grid td {
+  border: 1px solid #E8F6EE; padding: 2px 5px; white-space: nowrap;
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; color: #333333;
+}
+.book-grid th { background: #F0FAF4; color: #6E6E6E; font-weight: 400; }
+.book-grid td.hit { background: #E4F1EA; font-weight: 700; }
+.book-slot { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 0; border-bottom: 1px solid #E8F6EE; }
+.book-slot:last-child { border-bottom: 0; }
+.book-slot .bs-l { font-size: 13px; color: #333333; min-width: 8em; }
+.book-slot .bs-v { font-size: 12px; color: #6E6E6E; }
+.book-slot .bs-no { color: #92500A; }
+
+/* ★元のファイルに マスが無い所★＝ここには 書けない（薄い斜線で そう見せる） */
+.book-grid td.none { background: repeating-linear-gradient(45deg, #FFFFFF, #FFFFFF 4px, #F0FAF4 4px, #F0FAF4 8px); }

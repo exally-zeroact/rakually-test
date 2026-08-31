@@ -2175,6 +2175,19 @@
 
   function doExcel(name) {
     var pi = paperInput(); if (!pi) return;
+    /* ★自社のExcelを 覚えていれば そちらに 入れて出す★（覚えていなければ 今まで通り） */
+    var b = bookExcel(name);
+    if (b) {
+      box('edit-ok', '自社の Excel に 入れています…');
+      b.then(function (out) {
+        box('edit-ok', '自社の Excel に 入れて 出しました（書いたセル ' + out.wrote.length + '個'
+          + (out.skipped.length ? '／入れられなかった ' + out.skipped.length + '個' : '') + '）。');
+      }).catch(function (e) {
+        box('edit-err', '自社の Excel に 入れられませんでした（' + (e && e.message) + '）。'
+          + '設定の「自社の請求書（Excel）を使う」で 読み直してください。');
+      });
+      return;
+    }
     var sheet = AOA.build(pi);
     OUT.excel(sheet, name)
       .then(function () { box('edit-ok', name + ' を保存しました。'); })
@@ -2668,6 +2681,162 @@
       move(e.touches[0].clientX, e.touches[0].clientY, e);
     }, { passive: false });
     stage.addEventListener('touchend', function () { if (!sawPointer) up(); });
+  }
+
+  /* ═══ ★自社の Excel を そのまま使う★ ═══
+     （司さん 2026-08-31「ユーザーが自社のテンプレ持ってくる機能は？」）
+     ・seikyu-book.js は 2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★
+     ・流れ … ①読む（1バイトも書かない）②中身を そのまま表で見せる
+              ③どのセルに何を入れるかを 当てて 見せる（当てられない物は そう言う）
+              ④「この形で使う」で 会社の物として 覚える
+              ⑤ Excelに書き出す時 その Excel に 値を入れて出す（紙・PDFは 今まで通り）
+     ★当てた結果は 必ず 人に見せてから 使う★（lib の決まり④をそのまま守る） */
+  var bookPending = null;        // 読んだばかりで まだ「使う」を押していない物
+
+  function bookLib() { return global.SeikyuBook; }
+  function bookSaved() {
+    var d = S.org || {};
+    return (d.bookXlsx && d.bookPlan) ? { b64: d.bookXlsx, plan: d.bookPlan, name: d.bookName || '' } : null;
+  }
+  function b64ToBytes(b64) {
+    var bin = global.atob(String(b64 || ''));
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function bytesToB64(bytes) {
+    var s2 = '', b = bytes, step = 0x8000;
+    for (var i = 0; i < b.length; i += step) {
+      s2 += String.fromCharCode.apply(null, b.subarray(i, i + step));
+    }
+    return global.btoa(s2);
+  }
+  /** 読んだ中身を そのまま 表で見せる（当てたセルは 色を変える） */
+  function drawBookGrid(info, plan) {
+    var host = $('book-info'); if (!host) return;
+    var B = bookLib();
+    var g = B.previewGrid(info, null, { maxCols: 10, maxRows: 24 });
+    if (!g || !g.ok) { host.innerHTML = '<p class="hint">中身が 読めませんでした。</p>'; return; }
+    var hit = {};
+    Object.keys((plan && plan.slots) || {}).forEach(function (k) {
+      var sl = plan.slots[k]; if (sl && sl.addr) hit[sl.addr] = 1;
+    });
+    /* ★返ってくる形に こちらが 合わせる★＝head（左上は空）／rows[].cells[]
+       （2026-08-31 実測：g.cols という物は 無かった＝表の見出しが 出ていなかった） */
+    var head = '<tr>' + g.head.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr>';
+    var body = g.rows.map(function (r) {
+      return '<tr><th>' + esc(String(r.row)) + '</th>'
+        + r.cells.map(function (c) {
+          /* ★元のファイルに マスが無い所は そう見せる★＝そこには 書けない（lib の決まり） */
+          return '<td' + (hit[c.addr] ? ' class="hit"' : (c.exists ? '' : ' class="none"'))
+            + '>' + esc(c.text || '') + '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+    host.innerHTML = '<p class="hint">読んだ物 … '
+      + esc(info.sheets.map(function (x) { return x.name; }).join(' / '))
+      + '　' + g.rows.length + '行 × ' + Math.max(0, g.head.length - 1) + '列（先頭だけ出しています）'
+      + '　数式 ' + (info.formulaCount === null ? '（読めませんでした）' : info.formulaCount + '本')
+      + '</p><div class="book-grid"><table><tbody>' + head + body + '</tbody></table></div>';
+  }
+  /** どこに 何を入れるかを 見せる（当てられない物は「当てられません」と言う） */
+  function drawBookSlots(plan) {
+    var host = $('book-slots'); if (!host) return;
+    var B = bookLib();
+    host.innerHTML = B.SLOTS.map(function (sl) {
+      var got = (plan.slots || {})[sl.key];
+      if (!got || !got.addr) {
+        return '<div class="book-slot"><span class="bs-l">' + esc(sl.label) + '</span>'
+          + '<span class="bs-v bs-no">当てられません（この Excel には 見つかりませんでした）</span></div>';
+      }
+      return '<div class="book-slot"><span class="bs-l">' + esc(sl.label) + '</span>'
+        + '<span class="bs-v">' + esc(got.addr) + '　今は「' + esc(String(got.now || '')) + '」</span></div>';
+    }).join('');
+  }
+  function pickBook(file) {
+    box('book-err', ''); box('book-ok', '');
+    var B = bookLib();
+    if (!B) { box('book-err', 'Excelを読む部品が 読めていません。画面を開き直してください。'); return; }
+    if (!file) return;
+    if (file.size > B.MAX_BYTES) {
+      box('book-err', 'このファイルは 大きすぎます（' + Math.round(file.size / 1024) + 'KB）。'
+        + Math.round(B.MAX_BYTES / 1024 / 1024) + 'MB までです。');
+      return;
+    }
+    var fr = new FileReader();
+    fr.onload = function () {
+      var bytes = new Uint8Array(fr.result);
+      Promise.resolve(B.inspect(bytes)).then(function (info) {
+        if (!info || !info.ok) {
+          box('book-err', 'この Excel は 読めませんでした（' + ((info && info.reason) || '理由が分かりません') + '）。');
+          show($('book-acts'), false);
+          return;
+        }
+        var plan = B.guessSlots(info);
+        bookPending = { bytes: bytes, info: info, plan: plan, name: file.name };
+        drawBookGrid(info, plan);
+        drawBookSlots(plan);
+        show($('book-acts'), true);
+        box('book-ok', '読みました。上の表で 当てた場所（色の付いたセル）を 確かめてください。');
+      }).catch(function (e) {
+        box('book-err', 'この Excel は 読めませんでした（' + (e && e.message) + '）。');
+      });
+    };
+    fr.onerror = function () { box('book-err', 'ファイルが 読めませんでした。'); };
+    fr.readAsArrayBuffer(file);
+  }
+  function useBook() {
+    if (!bookPending) { box('book-err', 'まだ Excel を読んでいません。'); return Promise.resolve(); }
+    var b64 = bytesToB64(bookPending.bytes);
+    return S.store.org.save({
+      bookXlsx: b64, bookPlan: bookPending.plan, bookName: bookPending.name,
+    }).then(function (r) {
+      if (!r.ok) { box('book-err', '覚えられませんでした（' + r.reason + '）'); return; }
+      S.org = Object.assign({}, S.org, { bookXlsx: b64, bookPlan: bookPending.plan, bookName: bookPending.name });
+      box('book-ok', 'この Excel を 会社の形として 覚えました。'
+        + '「Excelに書き出し」を押すと、この Excel に 値を入れて 出します。');
+    });
+  }
+  function clearBook() {
+    bookPending = null;
+    show($('book-acts'), false);
+    $('book-info').innerHTML = ''; $('book-slots').innerHTML = '';
+    return S.store.org.save({ bookXlsx: '', bookPlan: null, bookName: '' }).then(function (r) {
+      if (!r.ok) { box('book-err', '消せませんでした（' + r.reason + '）'); return; }
+      S.org = Object.assign({}, S.org, { bookXlsx: '', bookPlan: null, bookName: '' });
+      box('book-ok', 'Rakunallyの紙に 戻しました。');
+    });
+  }
+  /** 覚えた Excel に 値を入れて 出す（覚えていなければ null＝今まで通り） */
+  function bookExcel(name) {
+    var B = bookLib(), saved = bookSaved();
+    if (!B || !saved) return null;
+    var pi = paperInput(); if (!pi) return null;
+    var inv = pi.inv || {}, tax = pi.tax || {}, p = pi.partner || {};
+    var vals = {
+      partnerName: String(p.name || ''),
+      issueYmd: String(inv.issue_ymd || ''),
+      no: String(inv.no || ''),
+      subject: String((inv.data && inv.data.subject) || ''),
+      dueYmd: String(inv.due_ymd || ''),
+      subtotal: Number(tax.subtotal || 0),
+      taxTotal: Number(tax.taxTotal || 0),
+      grandTotal: Number(tax.grandTotal || 0),
+    };
+    var bytes = b64ToBytes(saved.b64);
+    /* ★読み直してから 書く★＝fill は「入れる先のマスが 元のファイルに在るか」を
+       ★srcInfo で 確かめてから★ 書く作り。渡さないと ★全部のマスが「無い」と見えて 断られる★
+       （2026-08-31 実測：私が null を渡していて 1マスも 書けなかった）。 */
+    return Promise.resolve(B.inspect(bytes)).then(function (info) {
+      if (!info || !info.ok) throw new Error((info && info.reason) || '読めませんでした');
+      var lineCols = B.guessLineCols(info, saved.plan);
+      var lineMap = lineCols ? B.lineCells(lineCols, inv.lines || [], tax.lines || []) : null;
+      return B.fill(bytes, saved.plan, vals, lineMap, info);
+    }).then(function (out) {
+      if (!out || !out.ok) throw new Error((out && out.reason) || '書けませんでした');
+      return OUT.pdf(out.bytes, name.replace(/\.[A-Za-z0-9]+$/, '') + '.xlsx').then(function () {
+        return out;
+      });
+    });
   }
 
   function pickSeal(file) {
@@ -3807,6 +3976,12 @@
     if ($('b-bill-pdf')) $('b-bill-pdf').onclick = function () { billDo('pdf'); };
     if ($('b-bill-print')) $('b-bill-print').onclick = function () { billDo('print'); };
     if ($('b-bill-xlsx')) $('b-bill-xlsx').onclick = function () { billDo('xlsx'); };
+    /* ★自社のExcel★ 読む・使う・やめる */
+    if ($('book-file')) $('book-file').onchange = function (e) {
+      pickBook(e.target.files && e.target.files[0]);
+    };
+    if ($('b-book-use')) $('b-book-use').onclick = function () { return useBook(); };
+    if ($('b-book-clear')) $('b-book-clear').onclick = function () { return clearBook(); };
     $('b-seal-save').onclick = function () { return saveSeal(); };
     $('b-seal-clear').onclick = function () { return clearSeal(); };
     $('seal-file').onchange = function (e) { pickSeal(e.target.files && e.target.files[0]); };
@@ -3910,6 +4085,18 @@
        倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
     _bindForTest: function () { return bind(); },
     _paperBtnsForTest: function () { return PAPER_BTNS.slice(); },   // テスト用: 門を掛ける相手の一覧
+    _pickBookForTest: function (bytes, nm) {                 // テスト用: 読む所だけ 走らせる
+      var B = bookLib(); if (!B) return Promise.resolve(null);
+      return Promise.resolve(B.inspect(bytes)).then(function (info) {
+        if (!info || !info.ok) return { ok: false, reason: info && info.reason };
+        var plan = B.guessSlots(info);
+        bookPending = { bytes: bytes, info: info, plan: plan, name: nm || 'x.xlsx' };
+        drawBookGrid(info, plan); drawBookSlots(plan); show($('book-acts'), true);
+        return { ok: true, plan: plan };
+      });
+    },
+    _useBookForTest: function () { return useBook(); },
+    _bookSavedForTest: function () { return bookSaved(); },
     _sealStageForTest: function () { bindSealStage(); return drawSealStage(); },
     _sealPutAtForTest: function (x, y) { return sealPutAt(x, y); },
     _sealXYForTest: function () { return sealXY; },
