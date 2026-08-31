@@ -2230,6 +2230,7 @@
   }
 
   function renderColEditor() {
+    drawSetPaper();                       /* ★列を触ったら 紙も 変える★ */
     var host = $('col-list'); if (!host) return;
     var spec = COLS.normalizeSpec(editCols());
     var w = COLS.widthsOf(spec.items, spec.widths);
@@ -2362,6 +2363,7 @@
     if ($('seal-x')) $('seal-x').value = (sealXY.x === null ? '' : sealXY.x);
     if ($('seal-y')) $('seal-y').value = (sealXY.y === null ? '' : sealXY.y);
     drawSealStage();
+    drawSetPaper();
     setText('seal-why', (sealGuess ? sealGuess.why + '（違う時は 上の数を 直してください）' : '')
       + '大きさは ' + DOC.SEAL_MIN_MM + '〜' + DOC.SEAL_MAX_MM + 'mm の間だけ（既定 '
       + DOC.SEAL_DEFAULT_MM + 'mm）。画像は ' + Math.round(DOC.SEAL_MAX_BYTES / 1024) + 'KB まで。'
@@ -2426,17 +2428,19 @@
       + 'つまんで動かすか、下の欄で 細かく決められます。');
   }
   /** 紙の絵（本物の紙を そのまま縮めた物）。中身がまだ無い時は 見本の中身で描く。 */
-  function sealPaperHtml(org) {
+  function sealPaperHtml(org, extra) {
+    var ex = extra || {};
     var pi = paperInput();
-    if (pi) return fitInFrame(PAPER.build(Object.assign({}, pi, { org: org })).html);
+    if (pi) return fitInFrame(PAPER.build(Object.assign({}, pi, { org: org }, ex)).html);
     var ln = [{ name: '（見本）', qty: '1', unit: '式', price: '30000', rate: 10 }];
     var t = TAX.compute({ lines: ln, taxMode: 'exclusive', rounding: 'floor' });
-    return fitInFrame(PAPER.build({
+    return fitInFrame(PAPER.build(Object.assign({
       inv: { no: '（見本）', issue_ymd: todayYmd(), kind: 'invoice', lines: ln,
         totals: { grandTotal: t.grandTotal }, data: {} },
       tax: t, partner: { name: '（取引先）', honor: '御中' }, org: org,
       template: TPL.getOrDefault(settings().template),
-    }).html);
+      cols: COLS.normalizeSpec(editCols()),
+    }, ex)).html);
   }
   /** 紙の絵の中の 点 → 紙の mm（印の真ん中を その点に 合わせる） */
   function sealPutAt(clientX, clientY) {
@@ -2599,6 +2603,26 @@
     }).join('');
   }
 
+  /** ★設定の紙の下見★（司さん 2026-08-31「見せてあげて 変えて見せな分からん」）
+   *  ・今の設定（様式・行数・列・印）で ★本物の紙★を組んで そのまま小さくする
+   *  ・作りかけの1通が在れば その中身で、無ければ 見本の中身で 描く
+   *  ・★触るたびに 呼ぶ★（設定を開いた時／様式を選んだ時／列を触った時／印を触った時） */
+  function drawSetPaper() {
+    var fr = $('set-paper'); if (!fr) return;
+    /* ★打ちかけの行数も そのまま出す★＝保存しないと 見えない、を 作らない */
+    var rw = rowsSetting($('s-rows') ? $('s-rows').value : '');
+    var dw = rowsSetting($('s-dedrows') ? $('s-dedrows').value : '');
+    var ex = {};
+    if (rw !== null && rw !== undefined) ex.paperRows = rw;
+    if (dw !== null && dw !== undefined) ex.deductRows = dw;
+    ex.cols = COLS.normalizeSpec(editCols());
+    var html = sealPaperHtml(Object.assign({}, S.org || {}, { bank: settings().bank },
+      sealPending ? { sealDataUrl: sealPending } : {}), ex);
+    if (fr.getAttribute('data-h') === String(html.length)) return;   // 同じ物は 描き直さない
+    fr.setAttribute('data-h', String(html.length));
+    fr.srcdoc = html;
+  }
+
   function fillSettings() {
     var s = settings();
     drawOrgView();
@@ -2678,6 +2702,7 @@
     }
     if (r === 0) txt += ' 明細の枠 0 ＝ 枠を作らず、打った行の数だけ刷ります。';
     setText('s-rows-note', txt);
+    drawSetPaper();                         /* ★行数を打ったら 紙も 変える★ */
   }
 
   function settingsHint() {

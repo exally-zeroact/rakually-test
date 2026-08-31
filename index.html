@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/hub.css?v=5e44cf70">
+<link rel="stylesheet" href="css/hub.css?v=f831710a">
 
 </head>
 <body>
@@ -85,7 +85,7 @@
         <p class="note">請求書や明細に出る、自分の会社の情報です。空欄のままでも先に進めます。</p>
         <div class="fld"><label for="org-yago">屋号・会社名</label><input id="org-yago" type="text" placeholder="例：合同会社Rakunally"></div>
         <div class="fld"><label for="org-addr">住所</label><input id="org-addr" type="text" placeholder="例：愛媛県今治市○○町1-2-3"></div>
-        <div class="fld"><label for="org-tel">電話番号</label><input id="org-tel" type="tel" placeholder="例：0898-00-0000"></div>
+        <div class="fld"><label for="org-tel">電話番号</label><input id="org-tel" type="text" inputmode="text" placeholder="例：0898-00-0000"></div>
         <div class="fld"><label for="org-invoice">インボイス登録番号</label><input id="org-invoice" type="text" placeholder="T のあと 13桁"><p class="note" id="org-invoice-note">請求書の紙に そのまま刷られます。</p></div>
         <div class="acts">
           <button class="b1" type="button" id="org-save">保存</button>
@@ -172,16 +172,16 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supa-config.js?v=5e44cf70"></script>
-<script src="lib/access.js?v=5e44cf70"></script>
-<script src="lib/toroku-no.js?v=5e44cf70"></script>
-<script src="js/suite-data.js?v=5e44cf70"></script>
-<script src="lib/kaisha-ask.js?v=5e44cf70"></script>
-<script src="js/hub.js?v=5e44cf70"></script>
-<script src="js/rakunally-login.js?v=5e44cf70"></script>
-<script src="js/auth.js?v=5e44cf70"></script>
+<script src="js/supa-config.js?v=f831710a"></script>
+<script src="lib/access.js?v=f831710a"></script>
+<script src="lib/toroku-no.js?v=f831710a"></script>
+<script src="js/suite-data.js?v=f831710a"></script>
+<script src="lib/kaisha-ask.js?v=f831710a"></script>
+<script src="js/hub.js?v=f831710a"></script>
+<script src="js/rakunally-login.js?v=f831710a"></script>
+<script src="js/auth.js?v=f831710a"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="js/env-badge.js?v=5e44cf70"></script>
+<script src="js/env-badge.js?v=f831710a"></script>
 </body>
 </html>

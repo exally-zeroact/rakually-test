@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=5e44cf70">
-<link rel="stylesheet" href="css/app.css?v=5e44cf70">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=f831710a">
+<link rel="stylesheet" href="css/app.css?v=f831710a">
 </head>
 <body>
 
@@ -352,6 +352,14 @@
 
   <!-- ═══ ③ 設定 ═══ -->
   <section class="screen" id="scr-set">
+    <!-- ★触るたびに 紙が変わるのを その場で見せる★（司さん 2026-08-31
+         「詳細決めたりテンプレ決めるところに 見せてあげて タイムラインで変えて見せな分からんやろが」）
+         ＝様式・行数・列・印を いじると ここの紙が すぐ変わる。★本物の紙★（作り物の絵ではない）。 -->
+    <div class="card set-pv-card">
+      <div class="card-h">今の設定で こう出ます</div>
+      <div class="set-pv"><iframe class="set-pv-f" id="set-paper" title="紙の下見" tabindex="-1"></iframe></div>
+      <p class="hint" id="set-pv-note">下で 様式・行数・列・印を変えると、この紙が すぐ変わります。</p>
+    </div>
     <div class="card">
       <div class="card-h">紙の様式</div>
       <p class="hint">紙の見た目だけが変わります（金額は1円も変わりません）。</p>
@@ -564,7 +572,7 @@
           </div>
           <div class="frow">
             <div class="flabel">電話番号</div>
-            <input class="finput" id="s-ptel" type="tel" placeholder="例：0898-00-0000">
+            <input class="finput" id="s-ptel" type="text" inputmode="text" placeholder="例：0898-00-0000">
           </div>
         </div>
         <p class="hint">郵便番号と電話番号は 紙にも Excel にも出ません（連絡用の控えです）。だから聞きません。</p>
@@ -732,53 +740,53 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supa-config.js?v=5e44cf70"></script>
-<script src="../lib/xlsx.full.min.js?v=5e44cf70"></script>
-<script src="../js/file-out.js?v=5e44cf70"></script>
-<script src="../js/suite-data.js?v=5e44cf70"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=5e44cf70"></script>
+<script src="../js/supa-config.js?v=f831710a"></script>
+<script src="../lib/xlsx.full.min.js?v=f831710a"></script>
+<script src="../js/file-out.js?v=f831710a"></script>
+<script src="../js/suite-data.js?v=f831710a"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=f831710a"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=5e44cf70"></script>
-<script src="lib/seikyu-tax.js?v=5e44cf70"></script>
-<script src="lib/seikyu-gensen.js?v=5e44cf70"></script>
-<script src="lib/seikyu-carry.js?v=5e44cf70"></script>
-<script src="lib/seikyu-cols.js?v=5e44cf70"></script>
-<script src="lib/seikyu-templates.js?v=5e44cf70"></script>
-<script src="../lib/toroku-no.js?v=5e44cf70"></script>
-<script src="lib/seikyu-doc.js?v=5e44cf70"></script>
-<script src="lib/seikyu-partner-ask.js?v=5e44cf70"></script>
-<script src="lib/seikyu-pdf.js?v=5e44cf70"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=f831710a"></script>
+<script src="lib/seikyu-tax.js?v=f831710a"></script>
+<script src="lib/seikyu-gensen.js?v=f831710a"></script>
+<script src="lib/seikyu-carry.js?v=f831710a"></script>
+<script src="lib/seikyu-cols.js?v=f831710a"></script>
+<script src="lib/seikyu-templates.js?v=f831710a"></script>
+<script src="../lib/toroku-no.js?v=f831710a"></script>
+<script src="lib/seikyu-doc.js?v=f831710a"></script>
+<script src="lib/seikyu-partner-ask.js?v=f831710a"></script>
+<script src="lib/seikyu-pdf.js?v=f831710a"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=5e44cf70"></script>
-<script src="lib/seikyu-seal.js?v=5e44cf70"></script>
+<script src="../js/hanko.js?v=f831710a"></script>
+<script src="lib/seikyu-seal.js?v=f831710a"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=5e44cf70"></script>
+<script src="lib/seikyu-report.js?v=f831710a"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=5e44cf70"></script>
+<script src="lib/seikyu-items.js?v=f831710a"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=5e44cf70"></script>
+<script src="lib/seikyu-recurring.js?v=f831710a"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=5e44cf70"></script>
-<script src="lib/seikyu-scope.js?v=5e44cf70"></script>
-<script src="../lib/kikan.js?v=5e44cf70"></script>
-<script src="lib/seikyu-invoice-ask.js?v=5e44cf70"></script>
-<script src="lib/seikyu-paper-ask.js?v=5e44cf70"></script>
-<script src="lib/seikyu-name.js?v=5e44cf70"></script>
-<script src="lib/seikyu-paper.js?v=5e44cf70"></script>
-<script src="lib/seikyu-aoa.js?v=5e44cf70"></script>
-<script src="js/seikyu-store.js?v=5e44cf70"></script>
-<script src="js/seikyu-out.js?v=5e44cf70"></script>
-<script src="js/seikyu-app.js?v=5e44cf70"></script>
-<script src="../js/rakunally-login.js?v=5e44cf70"></script>
-<script src="js/auth.js?v=5e44cf70"></script>
+<script src="lib/seikyu-find.js?v=f831710a"></script>
+<script src="lib/seikyu-scope.js?v=f831710a"></script>
+<script src="../lib/kikan.js?v=f831710a"></script>
+<script src="lib/seikyu-invoice-ask.js?v=f831710a"></script>
+<script src="lib/seikyu-paper-ask.js?v=f831710a"></script>
+<script src="lib/seikyu-name.js?v=f831710a"></script>
+<script src="lib/seikyu-paper.js?v=f831710a"></script>
+<script src="lib/seikyu-aoa.js?v=f831710a"></script>
+<script src="js/seikyu-store.js?v=f831710a"></script>
+<script src="js/seikyu-out.js?v=f831710a"></script>
+<script src="js/seikyu-app.js?v=f831710a"></script>
+<script src="../js/rakunally-login.js?v=f831710a"></script>
+<script src="js/auth.js?v=f831710a"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=5e44cf70"></script>
+<script src="../js/env-badge.js?v=f831710a"></script>
 </body>
 </html>
