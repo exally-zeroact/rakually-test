@@ -63,6 +63,17 @@
  *           ○ require(f) / import(x) のように 変数を渡して読み込んでいる（＝一覧を順に走らせる形）
  *           ✕ git など ★別のexe★ を叩くだけ ／ ✕ ★自分自身★ を叩くだけ（自己診断）
  *
+ *  ★見張り自身の 6つめの嘘（2026-09-02 Rakunally で実測）★
+ *    (f) ★`npx playwright install` を「試験を走らせている」と読んでいた★
+ *        Rakunally の CI に在るのは ★道具を入れる install だけ★で、`playwright test` は 1行も無い。
+ *        なのに playwright の ★既定の拾う範囲（どこの .test.mjs でも拾う書き方）★ を当てていたので、
+ *        ★repo中の *.test.mjs が 全部「走っている」★に見えていた。
+ *        ⇒ ci.yml から hanko-same を外しても ★緑のまま★＝★見張りが 見張りをやめていた★。
+ *        直し … RUNS_TESTS ＝「試験を走らせる書き方」の時だけ 拾う範囲を当てる
+ *               （playwright は `test` の時だけ。install / --version は 当てない）
+ *        ★直した後で 実測★ … 登録していない試験 0本のまま（＝この repo は 元から 全部 名前で登録済み）／
+ *        わざと ci.yml から外すと ★赤1件★になる事を 確かめた。
+ *
  *  ★出す形（2026-08-22）★ … ★1つの数にしない★
  *    「11件 直すまで進めない」と1つで出したので、★本物の赤1件と 道具の誤検知10件が 同じ顔★になり、
  *    受け取った側が「試験が11本 死んでいる」と読み違えた。⇒ 3行に分けて出す。
@@ -250,12 +261,26 @@ function findConfig(root, names) {
 }
 
 /* 走らせ役ごとに「拾う範囲」を出す。unreadable が付いたら ★赤（未測定）★ */
+/* ★その走らせ役が「試験を走らせている」書き方か★
+   playwright は `install`（道具を入れる）と `test`（試験を走らせる）で 意味が違う。
+   ★install だけなら 拾う範囲は 無い★（あると見ると 登録していない試験が 緑になる）。 */
+const RUNS_TESTS = {
+  vitest: /\bvitest\b(?!\s+(?:install|--version))/,
+  playwright: /\bplaywright\s+test\b/,
+  jest: /\bjest\b(?!\s+(?:install|--version))/,
+};
 function pickRanges(root, scriptsText) {
   const ranges = [];     /* {name, dir, include:[], exclude:[]} */
   const unreadable = [];
 
   const one = (name, cfgNames, keyInc, keyDir, def) => {
-    if (!new RegExp('\\b' + name + '\\b').test(scriptsText)) return;
+    /* ★「名前が命令に出てくる」と「試験を走らせている」は 別物★（2026-09-02 実測）
+       Rakunally の CI にある playwright は `npx playwright install`＝★道具を入れているだけ★で、
+       `playwright test` は 1行も無い。なのに playwright の「既定の拾う範囲」を当てていたため、
+       ★repo中の *.test.mjs を 全部「走っている」と 誤っていた＝嘘の緑★。
+       （ci.yml から hanko-same を外しても 緑のままだった。これは 見張り自身の6つめの嘘）
+       ⇒ ★試験を走らせる書き方の時だけ★ 拾う範囲を 当てる。 */
+    if (!RUNS_TESTS[name].test(scriptsText)) return;
     const cfg = findConfig(root, cfgNames);
     if (!cfg) { ranges.push({ name: name + '（既定）', dir: '', include: def, exclude: [] }); return; }
     let src;
@@ -787,6 +812,22 @@ if (process.argv.includes('--self-test')) {
       + 'const F=[' + Q + './a.test.js' + Q + ',' + Q + './b.test.js' + Q + ',' + Q + './yobareru.mjs' + Q + '];' + NL
       + 'F.forEach(function(f){ execFileSync(' + Q + 'node' + Q + ',[f]); });' + NL);
     must(1, R(tmp, '⑮ vitest は 依存に在るだけ＝使っていない'), '★字が在るだけで 既定の拾う範囲を当てない');
+
+    /* ★install（道具を入れる）は 試験を走らせていない★（2026-09-02 Rakunally で実測）
+       CI に `npx playwright install` しか無いのに playwright の既定の拾う範囲を当てていたため、
+       ★repo中の *.test.mjs を 全部「走っている」と 誤って緑にしていた★。
+       ⇒ ci.yml から 試験を1本 外しても 緑のまま＝★見張りが 見張りをやめていた★。 */
+    /* ★前の場面の残りを 消してから 置く★（残り物で 数が変わると 何を測ったか 分からない） */
+    fs.rmSync(path.join(tmp, 'tests'), { recursive: true, force: true });
+    W('tests/hitotsu.test.js', 'export const a = 1;' + NL);
+    W('package.json', JSON.stringify({ scripts: { e2e: 'npx playwright install --with-deps webkit' } }));
+    must(1, R(tmp, '⑮-2 playwright install だけ＝試験は走っていない'),
+      '★install を「試験を走らせている」と 読まない');
+    W('package.json', JSON.stringify({ scripts: { e2e: 'npx playwright test' } }));
+    W('playwright.config.js', 'export default { testMatch: ' + Q + '**/*.test.js' + Q + ' };' + NL);
+    must(0, R(tmp, '⑮-3 playwright test なら 拾う範囲を 当てる'),
+      '★test なら これまで通り 拾う範囲を 読む');
+    fs.rmSync(path.join(tmp, 'playwright.config.js'), { force: true });
 
     /* ★測った所と 走らせた場所が 違ったら赤★（指示役が14repoで踏んだ穴） */
 
