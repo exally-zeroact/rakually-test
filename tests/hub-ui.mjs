@@ -109,7 +109,15 @@ doc.getElementById('app').hidden = false;   // 以降はログイン済みとし
    どちらの repo かは 名札(js/supa-config.js の env)で決める。
    ★読み方は 1か所★＝scripts/repo-env.mjs（覚書に書いた env:'prod' に釣られない）。 */
 const ENV = repoEnv(ROOT);
-const WANT_TILES = ENV === 'prod' ? 2 : 3;
+/* ★「給与が 在るか」は 名札(env)ではなく ★実物★で 決める★（2026-09-03）
+   司さん 2026-09-03「渡せる状態にやって／★URLは1本かして★」＝
+   ★本番にも 給与を 入れて 1つのURL・1つのログインで 両方 使える形にした★。
+   前は「本番＝給与は無い」と 名札だけで 決めていたので、
+   ★入れた瞬間に この見張りが 逆さになる★（在る物を「出すな」と言う）。
+   ⇒ ★kyuyo/index.html が 在れば タイルを 出す／無ければ 出さない★＝
+     ★出来ていない物のボタンを 見せない★（決まりは そのまま・見方だけ 実物に 合わせた）。 */
+const HAS_KYUYO = fs.existsSync(path.join(ROOT, 'kyuyo/index.html'));
+const WANT_TILES = HAS_KYUYO ? 3 : 2;
 T('1. 入口が出る・タイルの数が この repo の通り(' + WANT_TILES + 'つ)', () => {
   ok(ENV === 'test' || ENV === 'prod', '名札(env)が test でも prod でもない: ' + JSON.stringify(ENV));
   ok(doc.getElementById('scr-hub').classList.contains('active'), '入口が表示されていない');
@@ -122,12 +130,12 @@ T('1. 入口が出る・タイルの数が この repo の通り(' + WANT_TILES 
 //   (https://exally-zeroact.github.io/exally-staging/)なので、'/kyuyo/' と書くと
 //   github.io の直下を指してしまい 404 になる。相対なら本番(ルート配信)でも同じ場所を指す＝両方で正しい。
 //   機械での見張りは tests/no-absolute-paths.test.mjs（配信物全体）。ここは意味(同一オリジン)を見る。
-T('1. ★給与タイル … ' + (ENV === 'prod'
-  ? '本番には給与が無いので ★1つも出さない★（押した人を行き止まりにしない）'
-  : '同一オリジンの kyuyo/ へ繋がる(別サイトへ飛ばさない・相対)'), () => {
+T('1. ★給与タイル … ' + (HAS_KYUYO
+  ? '同一オリジンの kyuyo/ へ繋がる(別サイトへ飛ばさない・相対)'
+  : 'この配信に 給与が 無いので ★1つも出さない★（押した人を行き止まりにしない）'), () => {
   const a = doc.getElementById('tile-payslip');
-  if (ENV === 'prod') {
-    ok(!a, '★本番に 給与タイルが出ている（kyuyo/ は無いので404になる）★');
+  if (!HAS_KYUYO) {
+    ok(!a, '★給与の画面が 無いのに 給与タイルが 出ている（押すと 404）★');
     ok(doc.getElementById('scr-hub').innerHTML.indexOf('kyuyo/') < 0,
       '★入口に kyuyo/ への行き先が残っている★');
     return;

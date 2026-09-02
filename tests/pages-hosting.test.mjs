@@ -37,6 +37,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+/* ★環境の読み方は 1か所★＝scripts/repo-env.mjs（repo名では 決めない） */
+import { repoEnv } from '../scripts/repo-env.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -44,6 +46,8 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROD_SUPA_RE = /(?:https:\/\/|db\.)tnfwipbgfgjaymlszeid\.supabase\.co/;
 // DB-test（＝staging が向くべき倉庫）
 const DBTEST_REF = 'khawdrnvssdenumbiwfg';
+/* ★この repo が どちらか★（repo名では 決めない＝scripts/repo-env.mjs が 1か所の正） */
+const ENV_FOR_CHECK = (repoEnv(ROOT) === 'prod') ? 'prod' : 'test';
 
 /* ★例外★ ここに載っていない違反は全部赤。載せるには「理由」と「戻す条件」が要る。
    （tests/ci-coverage.test.mjs と同じやり方＝外すこと自体は認めるが、必ず一覧に出す） */
@@ -134,14 +138,26 @@ export function findViolations(vfs, exceptions = EXCEPTIONS) {
     if (isScannableJs(f) && !excused) {
       for (const m of src.match(ABS_CALL_RE) || []) v.absCall.push(f + ' … ' + m);
     }
-    if (!excused && PROD_SUPA_RE.test(src)) v.prodSupa.push(f);
+    /* ★本番の倉庫のURLは 接続設定 1本だけ★（本番でも テスト線でも 同じ＝ばら撒かない） */
+    if (!excused && f !== 'js/supa-config.js' && PROD_SUPA_RE.test(src)) v.prodSupa.push(f);
   }
 
-  // 接続先が DB-test であること
+  /* ★接続先は「その repo の 正しい倉庫」か★（2026-09-03）
+     前は ★いつも DB-test を向いている事★を 求めていた＝★本番へ 運んだ途端に 必ず 赤★。
+     ★本番に 給与も 入れて URLを1本にする（司さん 2026-09-03）★ので、
+     ★同じ見張りを 両方で 走らせる★＝環境で 見る物を 変える。
+     ★test … DB-test を向く／prod … 本番の倉庫を向く★。
+     ★「向いていてはいけない方」を 向いていたら 赤★＝どちらの側でも 事故は 止まる。 */
   const conf = vfs['js/supa-config.js'];
+  const env = ENV_FOR_CHECK;
   if (typeof conf === 'string') {
     const url = (conf.slice(conf.indexOf('window.SUPA')).match(/url:\s*'([^']+)'/) || [])[1] || '';
-    if (!url.includes(DBTEST_REF)) v.dbtest.push('js/supa-config.js が DB-test を向いていない: ' + url);
+    if (env === 'prod') {
+      if (url.includes(DBTEST_REF)) v.dbtest.push('★本番なのに DB-test を向いている★: ' + url);
+      else if (!PROD_SUPA_RE.test(url)) v.dbtest.push('本番の倉庫を向いていない: ' + url);
+    } else if (!url.includes(DBTEST_REF)) {
+      v.dbtest.push('js/supa-config.js が DB-test を向いていない: ' + url);
+    }
   } else v.dbtest.push('js/supa-config.js が無い');
 
   return v;
@@ -188,7 +204,15 @@ if (process.argv.includes('--self-test')) {
     ['④ serviceWorker.register(\'/sw.js\') に戻す', (m) => { m['kyuyo/admin.html'] = m['kyuyo/admin.html'].replace("register('../sw.js')", "register('/sw.js')"); }, 'absCall'],
     ['⑤ 配信JSに本番SupabaseのURLを混ぜる', (m) => { m['js/hub.js'] += "\nvar X='https://tnfwipbgfgjaymlszeid.supabase.co';\n"; }, 'prodSupa'],
     // ⑥（入口の写しが古くなる）は 2026-08-17 に消した＝入口が index.html の1枚だけになったため
-    ['⑥ 接続設定を本番倉庫に向ける', (m) => { m['js/supa-config.js'] = m['js/supa-config.js'].replace(/url:\s*'[^']+'/, "url: 'https://tnfwipbgfgjaymlszeid.supabase.co'"); }, 'dbtest'],
+    /* ★壊し方は 環境で 逆になる★（2026-09-03）
+       テスト線 … 本番の倉庫へ 向けたら 赤 ／ ★本番 … DB-test へ 向けたら 赤★
+       ＝「向いていてはいけない方」を 向けて 赤になるかを 見る（★同じ見張りが 両方で 効く★）。 */
+    ['⑥ 接続設定を「向いてはいけない倉庫」に向ける', (m) => {
+      const bad = (ENV_FOR_CHECK === 'prod')
+        ? 'https://' + DBTEST_REF + '.supabase.co'
+        : 'https://tnfwipbgfgjaymlszeid.supabase.co';
+      m['js/supa-config.js'] = m['js/supa-config.js'].replace(/url:\s*'[^']+'/, "url: '" + bad + "'");
+    }, 'dbtest'],
   ];
   T('壊していない状態では違反ゼロ（＝空振りしていない）', () => {
     const v = findViolations(base);

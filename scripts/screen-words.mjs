@@ -74,9 +74,16 @@ const BAD = [
    ＝どれも ★本番には無い画面の名前★。ソースを見て「残りは覚書」と言っていたが、
      ★覚書を取り除いてから数えたら 客の字だった★。だから ★repo ごとに 機械で数える★。 */
 const BAD_PROD = [
-  { w: '給与', why: '本番(rakually)には 給与の画面が無い＝無い物の名前を客に見せない', allow: [] },
+  { w: '給与', why: 'この配信に 給与の画面が 無い＝無い物の名前を 客に見せない', allow: [] },
 ];
-const WATCH = repoEnv(ROOT) === 'prod' ? BAD.concat(BAD_PROD) : BAD;
+/* ★「無い物の名前」かどうかは ★実物を見て★ 決める★（2026-09-03）
+   前は ★repo が 本番なら いつも 給与を 禁止★ にしていた。
+   ★司さん 2026-09-03「渡せる状態にやって／URLは1本かして」＝本番に 給与を 入れる★ので、
+   ★入った瞬間に この見張りが 嘘になる★（在る物の名前を「見せるな」と言う）。
+   ⇒ ★kyuyo/index.html が 在るかどうかで 決める★＝repo の名前でも env でも なく ★物★を見る。
+   （[[feedback_repo_name_is_not_the_environment]] と 同じ考え＝★名札ではなく 実物★） */
+const HAS_KYUYO = fs.existsSync(path.join(ROOT, 'kyuyo/index.html'));
+const WATCH = (repoEnv(ROOT) === 'prod' && !HAS_KYUYO) ? BAD.concat(BAD_PROD) : BAD;
 
 /* ★業者の名前★（2026-08-21 実スクショで見つけた「保存先: Supabase（クラウド）」）
    ただし Store.mode==='supabase' のような ★中の合図★ まで赤にすると 直しようがない。

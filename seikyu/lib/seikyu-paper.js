@@ -1118,7 +1118,15 @@
           /* ★税込で打つ紙は「（税込）」と書く★
              ＝締めの「明細の合計」は税抜なので、★同じ言葉で違う数★にしない。 */
           if (inclusive) footLabel += '（税込）';
-          var foot = itemsFootHtml(pageLines, footLabel, pageSub, pageTax);
+          /* ★1枚物の紙は 表の中に 合計行を 出さない★（指示役の裁定 2026-09-02＝案B）
+             ★同じ「明細の合計」が 表の最終行と 締めの2か所に 出ていた★（絵で 見つかった）。
+             ★実物45枚（16社）では「明細の合計」は 0回★＝実物の足元は 小計／消費税／合計 の3行だけで、
+             ★表の中に 合計行を 持たない★（機械で 読んだ）。
+             ★数字は 1つも 消えない★＝列の縦計と 同じ額を 締めが 持っている（この試験で 数を見る）。
+             ★複数ページは そのまま★＝各ページの「このページの小計」は ★実物にも 在る形★
+             （ENEOS 25.12＝2ページの紙は ページごとに 足元が 出ていた）。 */
+          var dropFoot = (last && !multi);
+          var foot = dropFoot ? '' : itemsFootHtml(pageLines, footLabel, pageSub, pageTax);
           /* ★明細の上に「件名」の行を出さない★（司さん 2026-08-16）
              紙の頭に「2026年6月分」と書いてあるのに、その下に「7月分 工事代金」と出ていて
              ★同じ紙に2つの「◯月分」★が並んでいた（しかも 前月と当月でズレて見える）。
@@ -1133,7 +1141,10 @@
             + '<table class="items"><thead><tr>' + headHtml + '</tr></thead>'
             + '<tbody>' + rowsHtmlOf(pageLines, offset, frameOfPage(idx, last)) + '</tbody>' + foot + '</table>'
             /* 金額の列も消費税の列も無い様式だけ、昔どおり表の外に出す（置き場所が無いため） */
-            + (foot ? '' : (last ? blockSum('明細の合計', yen(tax.subtotal)) : blockSum('このページの小計', yen(pageSub))))
+            /* ★金額の列が 無い様式だけ 表の外に 出す★（置き場所が 無い為）。
+               ★出さないと 決めた時（案B）は こちらも 出さない★＝
+               ここを 直し忘れて ★表の外に 同じ言葉が 出た★（2026-09-03 実測・控除ありの紙で 2回のまま）。 */
+            + ((foot || dropFoot) ? '' : (last ? blockSum('明細の合計', yen(tax.subtotal)) : blockSum('このページの小計', yen(pageSub))))
             + '</div>';
           var rightBlk = last ? deductBlock() : '';
           if (layout === 'col1') {

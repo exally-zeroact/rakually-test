@@ -1249,10 +1249,14 @@ T('★★紙に「差し引く」と書かない（給料明細と同じ「控�
 });
 
 /* ★② 合計行は「列の真下」★（司さん 2026-08-15：何の合計か分からなかった） */
-T('★★表の中の合計行が 金額の列と消費税の列の真下に来る★★', () => {
-  const r = framed(3);
+/* ★2026-09-03（指示役の裁定＝案B）★ 1枚物の紙は ★表の中に 合計行を 出さない★
+   （同じ「明細の合計」が 表の最終行と 締めの 2か所に 出ていた／実物45枚では ★0回★の言葉）。
+   ⇒ この検査の 用（★合計が 列の真下に 来る＝縦が ずれない★）は そのままで、
+     ★合計行が 在る紙＝複数ページ★ で 見る。 */
+T('★★表の中の合計行が 金額の列と消費税の列の真下に来る（複数ページの紙）★★', () => {
+  const r = framed(40);
   const foot = (/<tfoot>([\s\S]*?)<\/tfoot>/.exec(r.html) || [])[1] || '';
-  ok(foot, '★表の中に合計行が無い（表の外に出したままだと列とずれる）★');
+  ok(foot, '★表の中に合計行が無い（複数ページの紙には 在るはず）★');
   const head = [...(/<thead><tr>([\s\S]*?)<\/tr><\/thead>/.exec(r.html) || ['', ''])[1]
     .matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => m[1].replace(/<[^>]+>/g, '').trim());
   const cells = [...foot.matchAll(/<(th|td)([^>]*)>([\s\S]*?)<\/(?:th|td)>/g)]
@@ -1263,17 +1267,27 @@ T('★★表の中の合計行が 金額の列と消費税の列の真下に来�
   eq(col, head.length, '★合計行の桁数が 見出しの列数と違う（縦がずれる）★ ' + col + ' vs ' + head.length);
   const iAmount = head.indexOf('金額'), iTax = head.indexOf('消費税');
   ok(iAmount >= 0 && iTax >= 0, '見本の様式に 金額／消費税 の列が無い');
-  const S = sumsOfPaper(r.html);
-  const tx = S[Object.keys(S).find((k) => /^消費税/.test(k))];
-  eq(at[iAmount], S['明細の合計'].toLocaleString('ja-JP'), '★金額の列の真下が 金額の合計でない★: ' + JSON.stringify(at));
-  eq(at[iTax], tx.toLocaleString('ja-JP'), '★消費税の列の真下が 消費税の合計でない★: ' + JSON.stringify(at));
-  eq(at[0], '明細の合計', '★何の合計か 書いていない★');
+  /* ★複数ページの紙では 表の合計行は「そのページの分」★（司さん 2026-08-16
+     「そのページの合計やないと なぜ？ってなる」）＝★そのページの列を 足した数★と 見比べる。
+     ★紙ぜんぶの合計は 締めが 持つ★（1枚物は 締めだけ＝案B）。 */
+  /* ★1枚目の 明細の表★ を そのまま 取る（sheet で切ると 途中のタグから 始まって 空になる＝1回 踏んだ） */
+  const tbl1 = (/<table class="items">([\s\S]*?)<\/table>/.exec(r.html) || [])[1] || '';
+  const body1 = (/<tbody>([\s\S]*?)<\/tbody>/.exec(tbl1) || [])[1] || '';
+  const colSum1 = (ix) => [...body1.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].reduce((a, tr) => {
+    if (/r-blank/.test(tr[0])) return a;
+    const c = [...tr[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((m) => m[1].replace(/<[^>]+>/g, '').trim());
+    return a + (Number(String(c[ix] || '').replace(/[^\d-]/g, '')) || 0);
+  }, 0);
+  eq(at[iAmount], colSum1(iAmount).toLocaleString('ja-JP'), '★金額の列の真下が その列の和でない★: ' + JSON.stringify(at));
+  eq(at[iTax], colSum1(iTax).toLocaleString('ja-JP'), '★消費税の列の真下が その列の和でない★: ' + JSON.stringify(at));
+  eq(at[0], 'このページの小計', '★何の合計か 書いていない★');
   /* ★合計行に見出しの地色を引き継がない★（th なので放っておくと左半分だけ塗られる） */
   const css = PAPER.css();
   const sumRule = (/\.items tfoot \.r-sum th,\.items tfoot \.r-sum td\{([^}]*)\}/.exec(css) || [])[1] || '';
   ok(/background:transparent/.test(sumRule), '★合計行に見出しの地色が乗っている★: ' + sumRule);
   // ★列を足しても崩れない★（知らない列を足す）
-  const withCol = framed(3, { cols: { items: ['#', '品名・内容', '行き先', '数量', '単位', '単価', '金額', '消費税'] } });
+  /* ★合計行が 在る紙で 見る★＝1枚物には 表の合計行が 無い（案B・2026-09-03） */
+  const withCol = framed(40, { cols: { items: ['#', '品名・内容', '行き先', '数量', '単位', '単価', '金額', '消費税'] } });
   const f2 = (/<tfoot>([\s\S]*?)<\/tfoot>/.exec(withCol.html) || [])[1] || '';
   const c2 = [...f2.matchAll(/<(th|td)([^>]*)>([\s\S]*?)<\/(?:th|td)>/g)]
     .reduce((a, m) => a + Number((/colspan="(\d+)"/.exec(m[2]) || [])[1] || 1), 0);
@@ -1317,15 +1331,23 @@ T('★★それぞれのブロックの下に そのブロックの合計が出�
   ok(/明細の合計/.test(flat), '★左ブロックの合計が無い★');
   ok(/控除計/.test(flat), '★右ブロックの合計が無い★');
   ok(/請求額/.test(flat), '締めの請求額が無い');
-  // ★順番★ 明細の合計 → 控除計 → 請求額
-  ok(flat.indexOf('明細の合計') < flat.indexOf('控除計'), '明細の合計より先に控除計が出ている');
+  /* ★2026-09-03（指示役の裁定＝案B）★ 1枚物の紙は ★表の中に 合計行を 出さない★
+     （同じ「明細の合計」が 2回 出ていた／実物45枚では ★0回★の言葉）。
+     ⇒ 1枚物では 「明細の合計」は ★締めにだけ★ 在る＝控除計の 後に 来る。
+       ★順番の用（払う額までの筋道）は 締めの中で 見る★（下の「締めの筋道」の試験が 本体）。 */
   ok(flat.indexOf('控除計') < flat.indexOf('請求額'), '控除計より先に請求額が出ている');
+  const sumsFlat = ((/<table class="sums">([\s\S]*?)<\/table>/.exec(framed(3).html) || [])[1] || '')
+    .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  ok(sumsFlat.indexOf('明細の合計') < sumsFlat.indexOf('請求額'), '★締めの中で 明細の合計より先に 請求額が出ている★');
   /* ★「ブロックの合計」と「払う額までの筋道」は役目が違う★（司さん 2026-08-15）
      ・表の中の合計行（列の真下）＝そのブロックの足し算
      ・締めの1本の筋道（明細の合計→消費税→合計→控除→請求額）＝払う額の出し方
      給料明細も「控除合計」と「差引支給額の計算」の両方が在る。★2回 出るのは決めごと。★ */
   eq((flat.match(/控除計/g) || []).length, 1, '控除計が2か所に出ている（ブロックの合計は1つ）');
-  eq((flat.match(/明細の合計/g) || []).length, 2, '★表の中の合計行と 締めの筋道で 2回 出る決め★');
+  /* ★2026-09-03★ 前は「表の中と 締めで ★2回 出る決め★」だったが、
+     ★絵で見ると 同じ言葉が 2回 並んで 読みにくい★（指示役）／★実物45枚では 0回★。
+     ⇒ 案B＝1枚物は ★締めに 1回だけ★（数字は 1つも 消えていない＝seikyu/tests/sums-once.test.mjs が 数で見る）。 */
+  eq((flat.match(/明細の合計/g) || []).length, 1, '★1枚物は 締めに 1回だけ（案B）★');
 });
 
 T('★★紙の中で一番 大きい金額は1つだけ＝客が払う額★★', () => {
@@ -1358,14 +1380,16 @@ T('★★1カラム版が出る（上から ①明細 → ②差し引く → �
   const one = framed(3, { layout: 'col1' }).html;
   ok(!/<table class="cols2">/.test(one), '★1カラムなのに2カラムの表で組んでいる★');
   const flat = one.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  ok(flat.indexOf('明細の合計') < flat.indexOf('控除計'), '1カラムの順番が違う（①→②）');
+  /* ★2026-09-03（案B）★ 1枚物は 表の中に 合計行が 無い＝「明細の合計」は 締めにだけ。
+     ⇒ 順番の用（①明細 → ②差し引く → ③締め）は ★ブロックの見出しで 見る★
+       （「控除計」＝②の合計 → 「請求額」＝③の締め）。 */
   ok(flat.indexOf('控除計') < flat.indexOf('請求額'), '1カラムの順番が違う（②→③）');
   // ★2カラムと同じ順番★（探す場所が変わらない）
   const two = framed(3, { layout: 'col2' }).html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  const orderOf = (t) => ['明細の合計', '控除計', '請求額'].map((k) => t.indexOf(k));
+  const orderOf = (t) => ['控除計', '請求額'].map((k) => t.indexOf(k));
   const a1 = orderOf(flat), a2 = orderOf(two);
-  ok(a1[0] < a1[1] && a1[1] < a1[2], '1カラムの順番が崩れている');
-  ok(a2[0] < a2[1] && a2[1] < a2[2], '2カラムの順番が崩れている');
+  ok(a1[0] < a1[1], "1カラムの順番が崩れている");
+  ok(a2[0] < a2[1], "2カラムの順番が崩れている");
   // 数は同じ（形が変わっても金額は1円も動かない）
   const money = (t) => (t.match(/¥[\d,]+/g) || []).join(',');
   eq(money(flat), money(two), '★形を変えたら金額が動いた★');
@@ -1518,16 +1542,38 @@ T('★★税込でも税抜でも、列を足した数と 合計行が1円も違
               at[col] = m[2].replace(/<[^>]+>/g, '').trim();
               col += Number((/colspan="(\d+)"/.exec(m[1]) || [])[1] || 1);
             }
-            if (yen(at[iA]) !== colSum(iA)) ngFoot.push(tag + ' ' + (i + 1) + '枚目 金額 ' + at[iA] + ' vs 列の和 ' + colSum(iA));
-            if (yen(at[iT]) !== colSum(iT)) ngFoot.push(tag + ' ' + (i + 1) + '枚目 消費税 ' + at[iT] + ' vs 列の和 ' + colSum(iT));
+            /* ★2026-09-03（指示役の裁定＝案B）★
+               ★1枚物の紙は 表の中に 合計行を 出さない★（同じ「明細の合計」が 2回 出ていた）。
+               ⇒ ★見る場所を 締めに 変える★＝★刷った列を 足した数が 紙のどこかと 1円も違わない★
+                 という ★この試験の 用は そのまま★（司さん「検算は 描いた文字を1行ずつ足せ」）。
+                   税抜で打つ紙 … 列の金額和＝締めの「明細の合計」／列の消費税和＝締めの「消費税」
+                   税込で打つ紙 … 列の金額和＝締めの「合計」（列に 刷るのが 税込の額だから）
+               ★表の中に 合計行が 在る紙（複数ページ）は 今までどおり そこと 見比べる★ */
+            const hasFoot = /<tfoot>/.test(tbl);
+            if (hasFoot) {
+              if (yen(at[iA]) !== colSum(iA)) ngFoot.push(tag + ' ' + (i + 1) + '枚目 金額 ' + at[iA] + ' vs 列の和 ' + colSum(iA));
+              if (yen(at[iT]) !== colSum(iT)) ngFoot.push(tag + ' ' + (i + 1) + '枚目 消費税 ' + at[iT] + ' vs 列の和 ' + colSum(iT));
+            } else {
+              const S2 = sumsOfPaper(b.html);
+              const wantA = (taxMode === 'inclusive') ? S2['合計'] : S2['明細の合計'];
+              const taxKey = Object.keys(S2).filter((k) => /消費税/.test(k))[0];
+              const wantT = taxKey ? S2[taxKey] : undefined;
+              if (typeof wantA !== 'number' || wantA !== colSum(iA)) {
+                ngFoot.push(tag + ' ' + (i + 1) + '枚目 ★締めの額 ' + wantA + ' vs 列の和 ' + colSum(iA) + '★');
+              }
+              if (typeof wantT !== 'number' || wantT !== colSum(iT)) {
+                ngFoot.push(tag + ' ' + (i + 1) + '枚目 ★締めの消費税 ' + wantT + ' vs 列の和 ' + colSum(iT) + '★');
+              }
+            }
           });
           /* ★同じ言葉で違う数を出さない★（表は税込・締めは税抜） */
           const label = (/<th class="c-col c-left c-sumlabel"[^>]*>([\s\S]*?)<\/th>/.exec(b.html) || [])[1] || '';
           const S = sumsOfPaper(b.html);
+          const hasTableSum = !!label;   /* ★1枚物は 表の中に 合計行が 無い（案B）＝言葉の検査は しない★ */
           if (taxMode === 'inclusive') {
-            if (!/（税込）/.test(label)) ngLabel.push(tag + ' 表の合計に（税込）が無い: ' + label);
+            if (hasTableSum && !/（税込）/.test(label)) ngLabel.push(tag + ' 表の合計に（税込）が無い: ' + label);
             if (!Object.keys(S).some((k) => /明細の合計（税抜）/.test(k))) ngLabel.push(tag + ' 締めに（税抜）が無い');
-          } else if (/（税込）|（税抜）/.test(label)) {
+          } else if (hasTableSum && /（税込）|（税抜）/.test(label)) {
             ngLabel.push(tag + ' 税抜の紙に（税込/税抜）を書いている: ' + label);
           }
         }
