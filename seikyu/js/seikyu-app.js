@@ -2991,6 +2991,38 @@
         var rs = (TAX.rates ? TAX.rates() : []) || [];
         var top = rs.length ? Math.max.apply(null, rs.map(Number)) : null;
         $('s-taxnote').placeholder = top ? ('例：消費税は' + top + '%となっております。') : '例：消費税について ひとこと';
+        /* ★聞いてあげる。埋めさせない★（司さん 2026-08-16／08-28 ④の指摘）
+           空の欄に 打たせず ★札を 押すだけ★にする。打ちたい人は 下の欄に そのまま 打てる。
+           ★実物45枚（16社）は 45枚とも この一言が 在った★
+             「消費税は◯%と なっております。」35枚 ／「…と します。」11枚（ENEOS 25.3 は 両方）
+           ★率は lib から 作る★＝法が変わっても 札の字が 取り残されない。 */
+        var host = $('s-taxnote-ask');
+        if (host) {
+          var cand = [];
+          var now = String($('s-taxnote').value || '').trim();
+          if (now) cand.push({ v: now, t: '今の文：' + now });
+          if (top) {
+            ['消費税は' + top + '%となっております。', '消費税は' + top + '%とします。'].forEach(function (x) {
+              if (x !== now) cand.push({ v: x, t: x });
+            });
+          }
+          cand.push({ v: '', t: '出さない' });
+          host.innerHTML = cand.map(function (c) {
+            return '<button class="pask-c btn-ghost" type="button" data-taxnote="' + esc(c.v) + '">'
+              + esc(c.t) + '</button>';
+          }).join('');
+          if (!host.dataset.bound) {
+            host.dataset.bound = '1';
+            host.addEventListener('click', function (ev) {
+              var b = ev.target && ev.target.closest && ev.target.closest('[data-taxnote]');
+              if (!b) return;
+              $('s-taxnote').value = b.getAttribute('data-taxnote') || '';
+              /* ★押した その場で 効かせる★（保存を押すまで 何も変わらない、にしない） */
+              $('s-taxnote').dispatchEvent(new Event('input', { bubbles: true }));
+              $('s-taxnote').dispatchEvent(new Event('change', { bubbles: true }));
+            });
+          }
+        }
       })();
       $('s-dedhead').value = st.dedHead || '';
       $('s-dedsum').value = st.dedSum || '';

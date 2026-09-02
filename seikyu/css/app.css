@@ -340,6 +340,11 @@
 .pt-all > summary { cursor: pointer; font-size: 14px; color: #2E7D54; font-weight: 700; padding: 4px 0; }
 .hint.bad-t { color: #C0392B; }
 
+/* ★見出しの横の 小さい注記★（2026-09-02 実測＝この class に CSS が 1行も 無く、
+   ★「消費税の一言空なら 出しません」と 字が くっついて 出ていた★・2か所とも）。
+   ★色は :root の変数か 決めた薄い黒★／★字は 12px★（他の注記と 同じ形）。 */
+.hint2 { margin-left: 8px; font-size: 12px; font-weight: 400; color: #333333; }
+
 /* ★知らせの出口は1つ★（alert は使わない） */
 .pask-note-box {
   position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 90;
