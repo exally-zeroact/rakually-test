@@ -141,8 +141,14 @@ T('★② 直に launch( を 呼んでいる物が 無い（未測定を 生の�
 T('★③ 借りている物は 共通部品を 読んでいる', noHelper.length === 0, noHelper.join(' / '));
 T('★④ 共通部品の 借り先は 4か所（機械によって 1本だけ 測れる を 無くす）', lenders === 4,
   '今 ' + lenders + 'か所');
-T('★⑤ 週1の回だけ 赤にする目印が webkit.yml に 在る', /MEASURE_REQUIRED:\s*'1'/.test(yml),
-  'webkit.yml に MEASURE_REQUIRED が 無い');
+/* ★目印は job に 1回だけ★（指示役の承認 2026-09-02）
+   ＝step ごとに 書くと ★写し忘れが 1回で 事故になる★
+     （08-28「テスト用の帯を HTMLに直書きして 本番で 手で消す」で 決めた形と 同じ）。 */
+const marks = (yml.match(/MEASURE_REQUIRED/g) || []).length;
+const atJob = yml.indexOf('MEASURE_REQUIRED') >= 0
+  && yml.indexOf('MEASURE_REQUIRED') < yml.indexOf(String.fromCharCode(10) + '    steps:');
+T('★⑤ 週1の回だけ 赤にする目印が webkit.yml の job に ★1回だけ★ 在る（stepごとに 書かない）',
+  marks === 1 && atJob, '目印 ' + marks + '回／job の中か ' + atJob);
 T('★⑥ 空振りしていない（0件で 緑にしない）', users.length >= 7 && files.length > 50,
   '共通部品を読む物 ' + users.length + '本 ／ 見た本数 ' + files.length + '本');
 
