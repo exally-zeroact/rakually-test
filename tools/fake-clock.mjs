@@ -42,7 +42,13 @@
 import { createRequire } from 'node:module';
 
 const iso = process.env.FAKE_NOW || process.env.DK_FAKE_NOW || '';
-const SELF = process.argv.includes('--self-test');
+/* ★自分が 入口の時だけ 自分の確かめをする★
+ *   ここを `process.argv.includes('--self-test')` にしていたら、
+ *   ★この repo の 見張り全部（--self-test が 決まり）を 乗っ取っていた★。
+ *   2026-09-02 実測 … 総なめ167本のうち ★74本が 見張りではなく この道具の確かめを走らせていた★
+ *   （FAKE_NOW=2026-10-01 なら 0 で終わる＝★見張りを1本も走らせずに 緑に見えた★）。 */
+const ENTRY = String(process.argv[1] || '').split(String.fromCharCode(92)).join('/');
+const SELF = /fake-clock\.mjs$/i.test(ENTRY) && process.argv.includes('--self-test');
 const FIXED = new Date((iso || '2026-10-01') + (/T/.test(iso) ? '' : 'T09:00:00+09:00')).getTime();
 
 /* ── ① node の中 ────────────────────────────────────────── */
@@ -149,9 +155,12 @@ if (iso) {
 /* ── ★自分が 効いているかの確かめ★（空振りしていたら ここで赤） ───────── */
 if (SELF) {
   const require2 = createRequire(process.cwd() + '/package.json');
-  const want = '2026-10-01';
+  /* ★狙いの日は FAKE_NOW から作る★（ここに '2026-10-01' と 直に書いていた＝
+     ★この道具自身が「試験に日付を直に書くな」を破っていた★。
+     その為 FAKE_NOW=2026-09-30 では ★進んでいるのに『進んでいない』と 赤★になった） */
   const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
     + '-' + String(d.getDate()).padStart(2, '0');
+  const want = ymd(new RealDate(FIXED));
   let ng = 0;
   const say = (nm, got) => {
     const ok = got === want;
@@ -205,6 +214,39 @@ if (SELF) {
       + (moved ? '（＝進めた時の ' + want + ' は 本物の時計では ありません）'
         : '  ★本物の時計でも 同じ日＝この確かめは 空振りです★'));
   } catch (e) { console.log('  🟡 ④ … ★未測定★（' + (e && e.message) + '）'); }
+
+  /* ★⑤ 他人の --self-test を 乗っ取らない★
+        この repo の 見張りは ★全部 `--self-test` を 決まりにしている★。
+        入口を見ずに argv だけで 判定していたので、
+        ★見張りの代わりに この道具の確かめが 走り、見張りは1本も走らなかった★（2026-09-02 実測 74本）。
+        ⇒ ★子を 実際に 走らせて「その子の字が 出る」事を 見る★（言葉で「直した」と言わない） */
+  try {
+    const os2 = require2('os'); const fsx = require2('fs'); const pathx = require2('path');
+    const { execFileSync } = require2('child_process');
+    const dir = fsx.mkdtempSync(pathx.join(os2.tmpdir(), 'fakeclock-'));
+    const tmp = pathx.join(dir, 'niseno-mihari.mjs');
+    fsx.writeFileSync(tmp, 'const d=new Date();'
+      + 'console.log("MIHARI_GA_HASHITTA " + d.getFullYear() + "-"'
+      + ' + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"));', 'utf8');
+    /* ★時間切れを 付ける★＝乗っ取っている時は 子が また 自分の確かめを走らせ、
+       その子が また 子を…と ★終わらなくなる★（2026-09-02 実測＝壊した写しで 2分で 打ち切り）。
+       ★終わらない＝緑ではない★ ので 下で 赤に数える。 */
+    const got = String(execFileSync(process.execPath, [tmp, '--self-test'],
+      { encoding: 'utf8', timeout: 60000 })).trim();
+    const ran = got.indexOf('MIHARI_GA_HASHITTA') === 0;
+    const sameday = got.indexOf(want) > 0;
+    const ok = ran && sameday;
+    if (!ok) ng++;
+    console.log('  ' + (ok ? '✓' : '✗') + ' ⑤ 他人の --self-test を 乗っ取らない … '
+      + (ran ? ('その子の字が 出た（' + got.split(' ')[1] + '）') : ('★乗っ取った★ … ' + got.split(String.fromCharCode(10))[0]))
+      + (ran && !sameday ? '  ★但し 時計が 進んでいない★' : ''));
+    try { fsx.rmSync(dir, { recursive: true, force: true }); } catch (e) { /* 消せなくても 測定は済んでいる */ }
+  } catch (e) {
+    const timeout = !!(e && (e.killed || /ETIMEDOUT|timed out/i.test(String(e.message))));
+    if (timeout) { ng++; console.log('  ✗ ⑤ 他人の --self-test を 乗っ取らない … '
+      + '★子が 終わりません＝乗っ取っています★（その子が また 自分の確かめを 走らせている）'); }
+    else { console.log('  🟡 ⑤ … ★未測定★（' + (e && e.message) + '）'); }
+  }
 
   console.log(ng ? '\n★' + ng + '層 進んでいません＝この道具は 空振りしています★'
     : '\n★測れた層は 全部 進んでいます（未測定と出た層は 0件ではありません）★');
