@@ -3012,7 +3012,7 @@
           var cur = String($('s-taxnote').value || '');
           host.innerHTML = cand.map(function (c) {
             var on = (c.v === cur);
-            return '<button class="pask-c btn-ghost' + (on ? ' on' : '') + '" type="button"'
+            return '<button class="pask-c btn-ghost' + (on ? ' chip-on' : '') + '" type="button"'
               + ' aria-pressed="' + (on ? 'true' : 'false') + '"'
               + ' data-taxnote="' + esc(c.v) + '">' + esc(c.t) + '</button>';
           }).join('');
@@ -3029,7 +3029,7 @@
               var v2 = String($('s-taxnote').value || '');
               Array.prototype.forEach.call(host.querySelectorAll('[data-taxnote]'), function (x) {
                 var on2 = (x.getAttribute('data-taxnote') || '') === v2;
-                x.classList.toggle('on', on2);
+                x.classList.toggle('chip-on', on2);
                 x.setAttribute('aria-pressed', on2 ? 'true' : 'false');
               });
             });

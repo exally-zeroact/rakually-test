@@ -97,11 +97,11 @@ for (const w of [375, 390, 430]) {
   const c = await pg.evaluate(() => {
     const host = document.getElementById('s-taxnote-ask');
     const cs = Array.from(host.querySelectorAll('[data-taxnote]'));
-    const before = cs.filter((x) => x.classList.contains('on')).length;
+    const before = cs.filter((x) => x.classList.contains('chip-on')).length;
     cs[0].click();
-    const on1 = cs.filter((x) => x.classList.contains('on')).map((x) => x.getAttribute('data-taxnote'));
+    const on1 = cs.filter((x) => x.classList.contains('chip-on')).map((x) => x.getAttribute('data-taxnote'));
     cs[cs.length - 1].click();      /* 出さない */
-    const on2 = cs.filter((x) => x.classList.contains('on')).map((x) => x.getAttribute('data-taxnote'));
+    const on2 = cs.filter((x) => x.classList.contains('chip-on')).map((x) => x.getAttribute('data-taxnote'));
     return { n: cs.length, before: before, on1: on1, on2: on2 };
   });
   seen.chips += c.n;
