@@ -72,33 +72,10 @@ const OPEN_ALL = '<style>.screen{display:block!important}details>*{display:block
   + '.hide{display:block!important}.hidden{display:block!important}.acc-body{display:block!important}</style>';
 
 /* ★playwright は 別の repo に入っている物を借りる★（rakually-test には入れない＝重い依存を足さない） */
-/* ★借り先★（この repo には入れない＝重い依存を足さない） */
-const LENDERS = [
-  /* ★この repo の物★（2026-08-28 案A＝devDependency に入れた） */
-  path.join(ROOT, 'node_modules/playwright/index.js'),
-  /* 手元に無い時だけ 借りる（司さんのPCで すぐ回せるように） */
-  'C:/Users/zeroa/Exally-test/node_modules/playwright/index.js',
-  'C:/Users/zeroa/Daikou-app/node_modules/playwright/index.js',
-  'C:/Users/zeroa/Daikou-app-test/node_modules/playwright/index.js',
-];
-function unmeasured(why) {
-  console.log('[webkit] ★未測定★ … ' + why);
-  console.log('  ★これは「問題なし」ではありません★。Chrome で測る scripts/input-size.mjs は 毎回 走っています。');
-  console.log('  ★測るには★ npm install && npx playwright install webkit');
-  console.log('  ★決めた1行★ この見張りは ★週1（月曜朝）と 見た目に関わる所を触った時★ に');
-  console.log('              .github/workflows/webkit.yml で ★本当に測ります★（毎回のCIには置きません）。');
-  process.exit(0);
-}
-let webkit = null;
-for (const pw of LENDERS) {
-  if (!fs.existsSync(pw)) continue;
-  try {
-    const m = await import(pathToFileURL(pw).href);
-    webkit = m.webkit || (m.default && m.default.webkit) || null;
-    if (webkit) break;
-  } catch (e) { /* 次の借り先を見る */ }
-}
-if (!webkit) unmeasured('playwright(webkit) を 借りられる場所が 見つかりません');
+import { borrow, launch as pwLaunch } from './_borrow-playwright.mjs';
+/* ★借り先と 未測定の言い方は 1か所に★（指示役の裁定 2026-09-02）
+   … scripts/_borrow-playwright.mjs（借り先4か所・週1の回だけ 赤） */
+const webkit = await borrow('webkit', 'webkit');
 
 function screens(root) {
   const out = fs.readdirSync(root).filter((f) => /\.html$/i.test(f));
@@ -124,7 +101,7 @@ function pageOf(rel) {
 }
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'wk-'));
-const b = await webkit.launch();
+const b = await pwLaunch('webkit', webkit);
 const rows = [];
 for (const rel of screens(ROOT)) {
   const f = path.join(TMP, rel.replace(/[^\w]+/g, '_') + '.html');

@@ -25,26 +25,9 @@ const NAME = 'pask-color';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..', '..');
 
-/* ★playwright(webkit) を 借りる★（scripts/webkit-size.mjs と同じ借り先） */
-const LENDERS = [
-  path.join(ROOT, 'node_modules/playwright/index.js'),
-  'C:/Users/zeroa/Exally-test/node_modules/playwright/index.js',
-  'C:/Users/zeroa/Daikou-app/node_modules/playwright/index.js',
-];
-let webkit = null;
-for (const pw of LENDERS) {
-  if (!fs.existsSync(pw)) continue;
-  try {
-    const m = await import(pathToFileURL(pw).href);
-    webkit = m.webkit || (m.default && m.default.webkit) || null;
-    if (webkit) break;
-  } catch (e) { /* 次の借り先 */ }
-}
-if (!webkit) {
-  console.log('[pask-color] ★未測定★ … playwright(webkit) が 借りられません');
-  console.log('  ★これは「問題なし」ではありません★。★測るには★ npm install && npx playwright install webkit');
-  process.exit(0);
-}
+import { borrow, launch as pwLaunch } from '../../scripts/_borrow-playwright.mjs';
+/* ★借り先と 未測定の言い方は 1か所に★ … scripts/_borrow-playwright.mjs */
+const webkit = await borrow('pask-color', 'webkit');
 
 let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
@@ -83,17 +66,8 @@ async function measure(extraCss) {
   const f = path.join(TMP, 'p.html');
   fs.writeFileSync(f, pageHtml(extraCss), 'utf8');
   /* ★ここで止まってはいけない★（2026-08-29 CIで赤を出した）
-     ★部品(playwright)が入っていても ブラウザ本体が無い★事が在る（CIの走る所が それ）。
-     ★測れない＝未測定★であって ★問題なし でも 赤 でもない★。はっきり言って 抜ける。 */
-  let b;
-  try { b = await webkit.launch(); }
-  catch (e) {
-    console.log('[' + NAME + '] ★未測定★ … ブラウザ本体が 入っていません（'
-      + String(e && e.message).slice(0, 70) + '）');
-    console.log("  ★これは「問題なし」ではありません★。★測るには★ npx playwright install webkit");
-    console.log("  ★この検査は .github/workflows/webkit.yml（週1＋見た目を触った時）で 本当に走ります★");
-    process.exit(0);
-  }
+     ★言い方と 終わり値は scripts/_borrow-playwright.mjs が 1か所で 持つ★ */
+  const b = await pwLaunch(NAME, webkit);
   const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const pg = await ctx.newPage();
   await pg.goto(pathToFileURL(f).href, { waitUntil: 'load' });

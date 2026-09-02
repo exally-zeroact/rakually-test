@@ -247,6 +247,15 @@ jobs:
         run: node tests/cdn-pin.test.mjs
       - name: ★同 悪い書き方を 本当に 赤にできるか（preconnect・CSPは拾わない）
         run: node tests/cdn-pin.test.mjs --self-test
+      # ★playwright の 借り方は 1か所★（指示役の裁定 2026-09-02）
+      #   借り先リストを 7本が 別々に 持っていた（4か所／3か所／2か所）＝
+      #   ★同じ機械で 1本だけ 測れて 他は 未測定（緑）★ が 起きる。
+      #   さらに ★launch() を try で 包んでいない★物が 4本＝★生の例外で 落ちる★。
+      #   ⇒ 借り方も 未測定の言い方も 終わり値も scripts/_borrow-playwright.mjs が 1か所で 持つ。
+      - name: ★playwrightの借り方は1か所（自前の借り先0・直のlaunch0・借り先4か所・週1の目印）
+        run: node tests/pw-borrow.test.mjs
+      - name: ★同 わざと壊すと 赤になるか（注記の中の物は 拾わない・台帳はtryまで見る）
+        run: node tests/pw-borrow.test.mjs --self-test
       # ★探す★（司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前にしてな」）
       #   請求書ソフトは どこも一覧を探せる。国税庁 電子帳簿保存法の検索要件も 同じ形
       #   （①年月日・金額・取引先 ②範囲 ③2つ以上の組み合わせ）。

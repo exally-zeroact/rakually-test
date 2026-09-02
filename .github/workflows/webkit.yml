@@ -33,6 +33,11 @@ on:
 jobs:
   webkit:
     runs-on: ubuntu-latest
+    # ★ここは「測る為に 用意した場所」＝道具が 無いのは 用意の失敗＝赤★（指示役の裁定 2026-09-02）
+    #   手元・毎回のCI では 同じ試験が ★未測定・緑（声は 出す）★ になる。
+    #   判定は scripts/_borrow-playwright.mjs が 1か所で 持つ（★yml に 書き足さない★）。
+    env:
+      MEASURE_REQUIRED: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

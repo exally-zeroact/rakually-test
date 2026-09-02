@@ -23,21 +23,9 @@ import { createRequire } from 'node:module';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require_ = createRequire(import.meta.url);
 
-let chromium = null;
-for (const p of [path.join(ROOT, 'node_modules/playwright/index.js'),
-  'C:/Users/zeroa/Exally-test/node_modules/playwright/index.js']) {
-  if (!fs.existsSync(p)) continue;
-  try {
-    const m = await import(pathToFileURL(p).href);
-    chromium = m.chromium || (m.default && m.default.chromium);
-    if (chromium) break;
-  } catch (e) { /* 次の借り先 */ }
-}
-if (!chromium) {
-  console.log('[pdf-align] ★未測定★ … playwright が 借りられません');
-  console.log('  ★これは「問題なし」では ありません★。★測るには★ npm install && npx playwright install chromium');
-  process.exit(0);
-}
+import { borrow, launch as pwLaunch } from '../../scripts/_borrow-playwright.mjs';
+/* ★借り先と 未測定の言い方は 1か所に★ … scripts/_borrow-playwright.mjs */
+const chromium = await borrow('pdf-align', 'chromium');
 
 let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
@@ -77,7 +65,7 @@ const html = (typeof built === 'string') ? built : (built.html || '');
 
 console.log('\n[pdf-align] 自作PDFが 紙の揃え方を そのまま 写しているか');
 
-const b = await chromium.launch();
+const b = await pwLaunch('pdf-align', chromium, undefined, 'chromium');
 const pg = await (await b.newContext({ viewport: { width: 900, height: 1300 } })).newPage();
 await pg.goto('http://localhost:' + port + '/seikyu/index.html', { waitUntil: 'domcontentloaded' });
 await pg.addScriptTag({ url: '/seikyu/lib/seikyu-pdf.js' });
@@ -159,7 +147,7 @@ const srv2 = http.createServer((rq, rs) => {
 });
 await new Promise((r) => srv2.listen(0, r));
 const port2 = srv2.address().port;
-const b2 = await chromium.launch();
+const b2 = await pwLaunch('pdf-align', chromium, undefined, 'chromium');
 const pg2 = await (await b2.newContext({ viewport: { width: 900, height: 1300 } })).newPage();
 await pg2.goto('http://localhost:' + port2 + '/seikyu/index.html', { waitUntil: 'domcontentloaded' });
 await pg2.addScriptTag({ url: '/seikyu/lib/seikyu-pdf.js' });
@@ -228,7 +216,7 @@ const bt3 = PAPER.build({
   template: TPL.getOrDefault('std1'),
 });
 const h3 = (typeof bt3 === 'string') ? bt3 : (bt3.html || '');
-const b3 = await chromium.launch();
+const b3 = await pwLaunch('pdf-align', chromium, undefined, 'chromium');
 const pgm = await (await b3.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
 await pgm.setContent(h3, { waitUntil: 'load' });
 const seal = await pgm.evaluate(() => {

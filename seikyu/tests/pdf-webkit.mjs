@@ -19,21 +19,9 @@ const require_=createRequire(import.meta.url);
 /* ★playwright が 借りられない機械では「未測定」で 終わる★（0件＝合格 とは 書かない）
    ＝運ぶ道具は「運び先で 走るか」を 実際に走らせて 見る。ここで 落ちると
      ★この見張りごと 本番に 運ばれない★（2026-08-31 実測：3本 落ちていた）。 */
-let PW = null;
-for (const cand of [path.join(ROOT, 'node_modules/playwright/index.js'),
-  'C:/Users/zeroa/Exally-test/node_modules/playwright/index.js']) {
-  if (!fs.existsSync(cand)) continue;
-  try {
-    const m = require_(cand);
-    if (m && m.webkit) { PW = m; break; }
-  } catch (e) { /* 次の借り先 */ }
-}
-if (!PW) {
-  console.log('[pdf-webkit] ★未測定★ … playwright が 借りられません');
-  console.log('  ★これは「問題なし」では ありません★。★測るには★ npm install && npx playwright install webkit');
-  process.exit(0);
-}
-const { webkit } = PW;
+import { borrow, launch as pwLaunch } from '../../scripts/_borrow-playwright.mjs';
+/* ★借り先と 未測定の言い方は 1か所に★ … scripts/_borrow-playwright.mjs */
+const webkit = await borrow('pdf-webkit', 'webkit');
 const PAPER=require_(path.join(ROOT,'seikyu/lib/seikyu-paper.js'));
 const TPL=require_(path.join(ROOT,'seikyu/lib/seikyu-templates.js'));
 const X=require_(path.join(ROOT,'seikyu/lib/seikyu-tax.js'));
@@ -51,7 +39,7 @@ const mk=(extra)=>{const bt=PAPER.build(Object.assign({
   template:TPL.getOrDefault('std1')},extra||{}));
   return (typeof bt==='string')?bt:(bt.html||'');};
 const cases=[['請求書',mk()],['領収書',mk({docKind:'receipt',receipt:{no:'202608-001-1',ymd:'2026-11-20',amount:33000,method:'振込',note:'運転代行 10月分',taxTotal:3000,taxSeparate:true}})]];
-const b=await webkit.launch();
+const b=await pwLaunch('pdf-webkit', webkit);
 const pg=await (await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:3})).newPage();
 const bad=[]; pg.on('pageerror',e=>bad.push(String(e&&e.message)));
 await pg.goto('http://localhost:'+port+'/seikyu/index.html',{waitUntil:'domcontentloaded'});

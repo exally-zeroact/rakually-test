@@ -38,24 +38,9 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 const NAME = 'button-uniform';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const LENDERS = [
-  path.join(ROOT, 'node_modules/playwright/index.js'),
-  'C:/Users/zeroa/Exally-test/node_modules/playwright/index.js',
-];
-let webkit = null;
-for (const pw of LENDERS) {
-  if (!fs.existsSync(pw)) continue;
-  try {
-    const m = await import(pathToFileURL(pw).href);
-    webkit = m.webkit || (m.default && m.default.webkit) || null;
-    if (webkit) break;
-  } catch (e) { /* 次 */ }
-}
-if (!webkit) {
-  console.log('[button-uniform] ★未測定★ … playwright(webkit) が 借りられません');
-  console.log('  ★これは「問題なし」ではありません★。★測るには★ npm install && npx playwright install webkit');
-  process.exit(0);
-}
+import { borrow, launch as pwLaunch } from '../scripts/_borrow-playwright.mjs';
+/* ★借り先と 未測定の言い方は 1か所に★ … scripts/_borrow-playwright.mjs */
+const webkit = await borrow('button-uniform', 'webkit');
 
 const SCREENS = ['index.html', 'kyuyo/index.html', 'kyuyo/admin.html', 'kyuyo/meisai.html', 'seikyu/index.html'];
 const OPEN = '<style>.screen{display:block!important}.scr{display:block!important}details>*{display:block!important}'
@@ -106,17 +91,9 @@ function pageOf(rel, extraCss) {
 async function measure(extraCss) {
   const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'btnu-'));
   /* ★ここで止まってはいけない★（2026-08-29 CIで赤を出した）
-     ★部品(playwright)が入っていても ブラウザ本体が無い★事が在る（CIの走る所が それ）。
-     ★測れない＝未測定★であって ★問題なし でも 赤 でもない★。はっきり言って 抜ける。 */
-  let b;
-  try { b = await webkit.launch(); }
-  catch (e) {
-    console.log('[' + NAME + '] ★未測定★ … ブラウザ本体が 入っていません（'
-      + String(e && e.message).slice(0, 70) + '）');
-    console.log("  ★これは「問題なし」ではありません★。★測るには★ npx playwright install webkit");
-    console.log("  ★この検査は .github/workflows/webkit.yml（週1＋見た目を触った時）で 本当に走ります★");
-    process.exit(0);
-  }
+     ★部品(playwright)が入っていても ブラウザ本体が無い★事が在る。
+     ★言い方と 終わり値は scripts/_borrow-playwright.mjs が 1か所で 持つ★ */
+  const b = await pwLaunch(NAME, webkit);
   const out = [];
   for (const rel of SCREENS) {
     const f = path.join(TMP, rel.replace(/[^\w]+/g, '_') + '.html');
