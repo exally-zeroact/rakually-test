@@ -57,7 +57,30 @@ win.addEventListener('unhandledrejection', (e) => errs.push('未処理:' + ((e.r
     tables: {
       pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中' }, deleted_at: null }],
-      pay_invoices: [], pay_receipts: [],
+      /* ★行を 入れて 測る★（2026-09-02）
+         前は pay_invoices: [] ＝★空の倉庫★で 測っていたので、⑩一覧は いつも 0行で
+         ★「行が出た時の姿は 未測定」と 書き続けていた★（見ていない物を 見たと 書かない為の正しい札だが、
+         ★入れれば 測れる★のに 入れていなかった＝未測定を 減らせる所）。
+         ★偽データ自体も 嘘をつく★ので、下の⑩で ★倉庫に入れた物と 画面に出た物を 突き合わせる★。 */
+      pay_invoices: [
+        { id: 'iv_1', account_id: 'u1', partner_id: 'pt_a', doc_type: 'invoice', no: 'A-0001',
+          status: 'issued', issue_ymd: '2026-08-05', due_ymd: '2026-08-31',
+          lines: [{ name: '室外機オーバーホール', qty: '1', unit: '式', price: '30000', amount: '30000', rate: 10 }],
+          totals: { grandTotal: 33000 }, data: {}, deleted_at: null },
+        { id: 'iv_2', account_id: 'u1', partner_id: 'pt_a', doc_type: 'invoice', no: 'A-0002',
+          status: 'issued', issue_ymd: '2026-08-25', due_ymd: '2026-09-30',
+          lines: [{ name: 'エアコン取替', qty: '2', unit: '台', price: '12000', amount: '24000', rate: 10 }],
+          totals: { grandTotal: 26400 }, data: {}, deleted_at: null },
+        { id: 'iv_3', account_id: 'u1', partner_id: 'pt_a', doc_type: 'invoice', no: '',
+          status: 'draft', issue_ymd: '2026-09-01', due_ymd: '',
+          lines: [{ name: '点検', qty: '1', unit: '式', price: '5000', amount: '5000', rate: 10 }],
+          totals: { grandTotal: 5500 }, data: {}, deleted_at: null },
+        { id: 'iv_4', account_id: 'u1', partner_id: 'pt_a', doc_type: 'invoice', no: 'A-0003',
+          status: 'void', issue_ymd: '2026-07-05', due_ymd: '2026-07-31',
+          lines: [{ name: '取り消した分', qty: '1', unit: '式', price: '1000', amount: '1000', rate: 10 }],
+          totals: { grandTotal: 1100 }, data: {}, deleted_at: null },
+      ],
+      pay_receipts: [],
       pay_companies: [{ account_id: 'u1', data: {}, updated_at: '2026-08-01T00:00:00Z' }],
     },
     pk: { pay_org: 'account_id', pay_companies: 'account_id' },
@@ -205,11 +228,30 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
 
 /* ── ⑩ 一覧・集計 ── */
 {
-  const rows = doc.querySelectorAll('#list-body tr, .inv-row, [data-inv]').length;
-  N.一覧の行 = rows;
-  stage.push({ 段: '⑩ 一覧で見る', 状態: '半分',
-    数: '一覧の行 ' + rows + '行（偽の倉庫が空＝行が出ない）' });
-  if (!rows) note.push('★一覧は ここでは0行（倉庫が空）＝行が出た時の姿は 未測定★');
+  /* ★描かれた行を 数える★（選ばれた行数ではなく 画面に 出た物）
+     ★倉庫に入れた物と 突き合わせる★＝偽データが 嘘をついていないかを 見る。 */
+  /* ★物差しが 間違っていた（2026-09-02 実測）★
+     ここは `#list-body tr, .inv-row, [data-inv]` を 数えていたが、
+     一覧は ★<button class="row" data-open="…"> で 描かれている★＝
+     ★行が 何通 在っても 永久に 0行★と出る物差しだった（倉庫を空にしていた事も 重なっていた）。
+     ＝[[feedback_doubt_your_own_ruler_first]]／★描かれた物を 数える★ */
+  const drawn = () => Array.from(doc.querySelectorAll('#list-body [data-open]'));
+  const rows = drawn();
+  N.一覧の行 = rows.length;
+  const txt = rows.map((r) => (r.textContent || '').replace(/\s+/g, ' ')).join(' ／ ');
+  const inStore = 4, live = 3;   /* 倉庫に入れた通数／取り消し以外 */
+  const hasName = /A株式会社/.test(txt);
+  const hasMoney = /33,000|26,400/.test(txt);
+  const hasVoid = /A-0003/.test(txt);
+  stage.push({ 段: '⑩ 一覧で見る', 状態: (rows.length === live && hasName && hasMoney) ? '出来ている' : '半分',
+    数: '一覧の行 ' + rows.length + '行（倉庫 ' + inStore + '通・取り消し以外 ' + live + '通）'
+      + '／相手の名前 ' + (hasName ? '出る' : '★出ない★')
+      + '／金額 ' + (hasMoney ? '出る' : '★出ない★')
+      + '／取り消しは 既定で ' + (hasVoid ? '★出る（既定が おかしい）★' : '出ない') });
+  if (!rows.length) note.push('★一覧は 0行＝行が出た時の姿は 未測定★');
+  else if (rows.length !== live || !hasName || !hasMoney) {
+    note.push('★一覧に 入れた物が そのまま 出ていない（倉庫 ' + live + '通／画面 ' + rows.length + '行）★');
+  }
 }
 
 /* ── 深く見る（給与と同じ6つ） ── */
