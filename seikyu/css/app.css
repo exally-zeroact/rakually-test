@@ -319,6 +319,20 @@
 .pask-q .finput { margin-top: 10px; font-size: 16px; }
 .pask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pask-c { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+/* ★選んである札が 絵で 分かる★（指示役 2026-09-02 の保留＝
+   「3つの札が 全部 同じ見た目＝押した後に これが効いている が 見えない」）。
+   ★見た目は 既に在る物を 借りる★＝様式を選ぶ札（.tpl-pick.on）と 同じ 緑の縁。 */
+.pask-c.on { box-shadow: 0 0 0 1.5px #2E7D54 inset; font-weight: 700; }
+
+/* ★口座の札は 1口座＝1行（1つの箱）★（指示役 2026-09-02 差し戻し＝
+   「3つの口座が 1つの塊に 見える／どこまでが1つの口座か 読めない」）。
+   ★横に並べない★＝折り返しても 次の口座と 混ざらない。★375px でも 見る★。
+   ★文を flex の箱に 入れない★（1文字ずつ 縦に割れる前科3回）＝
+   チェックは 左に 置き、字は そのまま 折り返す（padding で 段差を作る）。 */
+.pbank { display: block; position: relative; padding: 8px 10px 8px 32px; margin: 0 0 6px;
+  border: 1px solid #E8F6EE; border-radius: 10px; font-size: 13px; line-height: 1.7; color: #333333; }
+.pbank > input[type="checkbox"] { position: absolute; left: 9px; top: 10px; width: 16px; height: 16px; margin: 0; }
+.pbank:last-child { margin-bottom: 0; }
 .pask-row, .pask-n { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 .pask-n .finput { flex: 1 1 auto; min-width: 0; margin-top: 0; }
 .pask-ok { flex: 0 0 auto; min-height: 40px; padding: 8px 18px; border-radius: 10px; font-size: 15px; }

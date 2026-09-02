@@ -3007,9 +3007,14 @@
             });
           }
           cand.push({ v: '', t: '出さない' });
+          /* ★選んである札が 絵で 分かる★（指示役 2026-09-02）＝押した後に「これが効いている」を見せる。
+             見た目は 様式の札（.tpl-pick.on）と 同じ 緑の縁を 借りる（新しい見た目を 作らない）。 */
+          var cur = String($('s-taxnote').value || '');
           host.innerHTML = cand.map(function (c) {
-            return '<button class="pask-c btn-ghost" type="button" data-taxnote="' + esc(c.v) + '">'
-              + esc(c.t) + '</button>';
+            var on = (c.v === cur);
+            return '<button class="pask-c btn-ghost' + (on ? ' on' : '') + '" type="button"'
+              + ' aria-pressed="' + (on ? 'true' : 'false') + '"'
+              + ' data-taxnote="' + esc(c.v) + '">' + esc(c.t) + '</button>';
           }).join('');
           if (!host.dataset.bound) {
             host.dataset.bound = '1';
@@ -3020,6 +3025,13 @@
               /* ★押した その場で 効かせる★（保存を押すまで 何も変わらない、にしない） */
               $('s-taxnote').dispatchEvent(new Event('input', { bubbles: true }));
               $('s-taxnote').dispatchEvent(new Event('change', { bubbles: true }));
+              /* ★選んだ札を その場で 光らせる★（★状態は 欄が 唯一の正★＝札は それを 見て 描き直すだけ） */
+              var v2 = String($('s-taxnote').value || '');
+              Array.prototype.forEach.call(host.querySelectorAll('[data-taxnote]'), function (x) {
+                var on2 = (x.getAttribute('data-taxnote') || '') === v2;
+                x.classList.toggle('on', on2);
+                x.setAttribute('aria-pressed', on2 ? 'true' : 'false');
+              });
             });
           }
         }
