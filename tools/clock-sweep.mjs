@@ -16,7 +16,11 @@
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 
-const yml = fs.readFileSync('.github/workflows/ci.yml', 'utf8');
+/* ★どの workflow を 走らせるか★（既定 ci.yml）
+ *   ★ci.yml だけ見ると 画面の試験(webkit.yml)が 丸ごと 抜ける＝★0件ではなく 未測定★★
+ *   例 YML=.github/workflows/webkit.yml SKIP="playwright install|npm install" */
+const YML = process.env.YML || '.github/workflows/ci.yml';
+const yml = fs.readFileSync(YML, 'utf8');
 const all = [...yml.matchAll(/^\s*run:\s*(.+)$/gm)].map((m) => m[1].trim())
   .filter((c) => !/^npm install/.test(c));
 const from = Number(process.env.FROM || 1);
@@ -33,12 +37,18 @@ for (let i = from; i <= Math.min(to, all.length); i++) {
   let out = '';
   try { out = String(execSync(c, { stdio: 'pipe', encoding: 'utf8', timeout: 300000 }) || ''); }
   catch (e) { red.push('#' + i + ' ' + c); out = ((e.stdout || '') + (e.stderr || '')); }
-  if (/未測定/.test(out)) mihakari.push('#' + i + ' ' + c);
+  /* ★字で拾っている事を 隠さない★＝拾った行を そのまま 見せる。
+     実測 2026-09-02 … 11本のうち 5本は ★『未測定 0件』と書いてある行★＝中身は 0だった */
+  if (/未測定/.test(out)) {
+    const hit = out.split('\n').filter((l) => /未測定/.test(l)).slice(0, 2)
+      .map((l) => l.trim()).join(' ／ ');
+    mihakari.push('#' + i + ' ' + c + '\n        拾った行 … ' + hit);
+  }
   result[c] = red[red.length - 1] === '#' + i + ' ' + c ? '赤'
     : (/未測定/.test(out) ? '未測定' : '緑');
 }
-console.log('\n[clock-sweep] 時計 ' + (process.env.FAKE_NOW || process.env.DK_FAKE_NOW || '★本物★')
-  + '  （ci.yml #' + from + '〜#' + Math.min(to, all.length) + '／全 ' + all.length + '本）');
+console.log('\n[clock-sweep] ' + YML + ' ／ 時計 ' + (process.env.FAKE_NOW || process.env.DK_FAKE_NOW || '★本物★')
+  + '  （' + YML.split('/').pop() + ' #' + from + '〜#' + Math.min(to, all.length) + '／全 ' + all.length + '本）');
 console.log('  走らせた ' + n + '本 ／ ★赤 ' + red.length + '本★ ／ ★未測定と出た ' + mihakari.length + '本★'
   + (skipped.length ? ' ／ ★外した ' + skipped.length + '本★' : ''));
 red.forEach((x) => console.log('  ★赤★ ' + x));
