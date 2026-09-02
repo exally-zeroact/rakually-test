@@ -110,35 +110,37 @@ T('★② 丸ごと 消えた字 0個（overflow:hidden で 黙って 切れな�
 T('★③ 空振りしていない（0通りで 緑にしない）', () => ok(cases.length === 36, '通り数 ' + cases.length));
 
 if (SELF) {
-  console.log('\n[bank-paper] ★自己確認★（★わざと 壊すと 赤になるか★）');
-  /* ★口座の数を 行数に効かせない★＝直す前の作りに 戻して 測る（本物の紙で） */
+  /* ★自己確認は 環境に 左右されない形で 見る★（2026-09-02 CIで 1回 赤を出して 学んだ）
+     初めは「直す前の形にすると はみ出す」を 見ていたが、
+     ★CIの機械には 日本語のフォントが 無く 字が 小さく 収まる★ので
+     手元では はみ出し／CIでは はみ出さない＝★環境で 揺れる自己確認★だった。
+     （しかも 直した後は 枠に 蓋が 掛かるので ★そもそも 壊せない★＝見ていない物を 見たと 書く形だった）
+     ⇒ 見る物を 変えた＝★口座の数で 明細の枠が 本当に 減っているか★（値で 数える・font に 依らない）。
+        直しを 外すと 3口座と6口座で 枠が 同じ本数になる＝★赤★。 */
+  console.log('');
+  console.log('[bank-paper] ★自己確認★（★口座の数で 枠が 減るか＝直した所を 通っているか★）');
   const b2 = await pwLaunch('bank-paper', webkit);
   const pg2 = await (await b2.newContext({ viewport: { width: 1000, height: 1500 } })).newPage();
-  const save = PAPER.maxRowsOf;
-  const html = (() => {
-    /* 直す前と同じ＝口座の数を 渡さない紙を 手で 組む */
-    const lines = [{ name: 'エアコン取替', qty: '1', unit: '式', price: '15000', rate: 10 }];
-    const tax = TAX.compute({ lines, taxMode: 'exclusive', rounding: 'floor' });
-    const built = PAPER.build({
-      inv: { no: 'A-0001', issue_ymd: '2026-09-02', kind: 'invoice', lines,
-        totals: { grandTotal: tax.grandTotal }, data: { paperRows: PAPER.PAPER_ROWS } },
-      tax,
-      partner: { name: 'ENEOSグローブエナジー株式会社', honor: '御中' },
-      org: { yago: '合同会社ZEROact', addr: '今治市本町7-3-40', tel: '090-5716-1946',
-        invoiceNo: 'T3500003003293', bank: accounts(6).join('\n') },
-      template: TPL.getOrDefault('std1'),
-    });
-    return (typeof built === 'string') ? built : (built.html || '');
-  })();
-  await pg2.setContent(html, { waitUntil: 'load' });
-  const m2 = await pg2.evaluate(MEASURE);
+  const rowsOf = async (bankN, ded) => {
+    await pg2.setContent(paperHtml(bankN, 1, ded, ded ? 'ded1' : 'std1'), { waitUntil: 'load' });
+    return await pg2.evaluate(() => document.querySelectorAll('.items tbody tr').length);
+  };
+  const r3 = await rowsOf(3, false), r6 = await rowsOf(6, false);
+  const d3 = await rowsOf(3, true), d6 = await rowsOf(6, true);
   await b2.close();
-  const caught = m2.over.length > 0;
-  console.log('  ' + (caught ? '✓' : '✗') + ' 口座6個で 行数を 減らさない紙（＝直す前の形）は ★はみ出す★ … '
-    + m2.over.length + '個' + (caught ? '' : '  ★この試験は 何も 見ていない★'));
-  if (!caught) { console.log('\n★自己確認 1件 おかしい★'); process.exit(1); }
-  console.log('  ★思った通り（直した所を 通っている）★');
-  if (save !== PAPER.maxRowsOf) { console.log('★道具を 戻せていない★'); process.exit(1); }
+  let ng = 0;
+  const say = (nm, got, want) => {
+    const good = got === want;
+    if (!good) ng++;
+    console.log('  ' + (good ? '✓' : '✗') + ' ' + nm + ' … ' + got
+      + (good ? '' : '（' + want + ' のはず）★思っていたのと 違う★'));
+  };
+  console.log('     描かれた枠 … 口座3=' + r3 + '行 ／ 口座6=' + r6 + '行 ／ 控除あり 口座3=' + d3 + '行 ／ 口座6=' + d6 + '行');
+  say('口座3→6 で 枠が 3行 減る（減らないと 字が 切れる）', r3 - r6, 3);
+  say('控除の紙は 保険1行ぶん 多く 減る', d3 - d6, 4);
+  say('★0行では ない（空振りしていない）', r3 > 0 && d3 > 0, true);
+  if (ng) { console.log(''); console.log('★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
+  console.log('  ★3通り ぜんぶ 思った通り★');
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
