@@ -186,9 +186,11 @@
     /* ★振込先の分け方は 紙と同じ物を呼ぶ★（司さん 2026-08-16「全共通にしとんか？」）
        ＝1行目 銀行/支店/種別/口座番号、★2行目 名義★。
        Excel でも同じ形にする（紙だけ直すと、Excel を見た人には違う紙に見える）。 */
-    if (g.bank) {
+    /* ★相手ごとに 出す口座を 決めるのも 紙と同じ物を呼ぶ★（2026-09-02＝banksFor が唯一の正）
+       ここを 呼ばないと ★紙は 2口座・Excel は 3口座★ という食い違いが 出る。 */
+    var bl = PAPER.banksFor(g, p).lines;
+    if (bl.length) {
       push([]);
-      var bl = PAPER.bankLines(g.bank);
       bl.forEach(function (line, i) { push([i === 0 ? 'お振込先' : '', line]); });
     }
     if (inv.data && inv.data.memo) { push([]); push(['備考', inv.data.memo]); }

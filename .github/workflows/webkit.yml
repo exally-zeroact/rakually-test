@@ -84,3 +84,9 @@ jobs:
         run: node seikyu/tests/seal-pos.mjs
       - name: ★同 紙から出さない蓋が効いているか
         run: node seikyu/tests/seal-pos.mjs --self-test
+      # ★紙は 本物のブラウザで 測る★（2026-09-02・口座1〜6 × 明細1/10/20行 × 控除なし/あり＝36通り）
+      #   直す前は ★6口座で 口座番号が 丸ごと 消えていた★（.sheet は overflow:hidden＝黙って 切れる）
+      - name: ★口座を何個出しても 紙から 字が消えない（36通り 実測）
+        run: node seikyu/tests/bank-paper.mjs
+      - name: ★同 わざと直す前の形にすると はみ出すか（自己確認）
+        run: node seikyu/tests/bank-paper.mjs --self-test

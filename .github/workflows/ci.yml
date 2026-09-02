@@ -256,6 +256,12 @@ jobs:
         run: node tests/pw-borrow.test.mjs
       - name: ★同 わざと壊すと 赤になるか（注記の中の物は 拾わない・台帳はtryまで見る）
         run: node tests/pw-borrow.test.mjs --self-test
+      # ★この相手に出す口座★（2026-09-02・実物45枚を 機械で読んだ＝相手ごとに 1〜6行で 違った）
+      #   会社の設定に 1つしか 持てず、★6口座では 紙から 字が 切れて 消えていた★（overflow:hidden）。
+      - name: ★相手ごとの口座（既定は全部・消えた口座は言う・3つ超で行が減る）
+        run: node seikyu/tests/bank-select.test.mjs && node seikyu/tests/bank-select.test.mjs --self-test
+      - name: ★口座の札を 実UIで押す（打たせない・0個で全部に戻る・別ウィザードなし）
+        run: node seikyu/tests/bank-ui.mjs
       # ★探す★（司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前にしてな」）
       #   請求書ソフトは どこも一覧を探せる。国税庁 電子帳簿保存法の検索要件も 同じ形
       #   （①年月日・金額・取引先 ②範囲 ③2つ以上の組み合わせ）。

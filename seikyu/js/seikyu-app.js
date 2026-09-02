@@ -3577,6 +3577,55 @@
     if ($('b-pcols-clear')) $('b-pcols-clear').addEventListener('click', function () { partnerColsOwn(false); });
   }
 
+  /* ★この相手に出す口座★（2026-09-02・実物45枚＝相手ごとに 1〜6行で 違っていた）
+     ★聞いてあげる。埋めさせない★＝打たせない。会社の設定に在る口座を そのまま 出して 選ばせるだけ。
+     ・何も触らなければ ★全部★（＝今までと 同じ紙）
+     ・1つも 選ばないは ★全部に 戻す★（紙から 振込先が 消える方が 危ない）
+     ・★会社から 消えた口座を 選んだままの時は そう言う★（黙って 減らさない） */
+  function renderPartnerBanks(p) {
+    var host = $('s-pbanks'); if (!host) return;
+    var all = PAPER.bankLines(settings().bank || '');
+    var pick = PAPER.banksFor({ bank: settings().bank || '' }, SCOPE.partnerPaper(p));
+    var chosen = SCOPE.partnerPaper(p).banks;
+    if (!all.length) {
+      host.innerHTML = '';
+      setText('s-pbanks-why', '会社の設定に 口座が まだ ありません。'
+        + '「会社の設定」の お振込先に 入れると、ここで 相手ごとに 選べます。');
+      return;
+    }
+    host.innerHTML = all.map(function (line, i) {
+      var on = !Array.isArray(chosen) || !chosen.length
+        || pick.lines.indexOf(line) >= 0;
+      return '<label class="pbank"><input type="checkbox" data-bank="' + i + '"'
+        + (on ? ' checked' : '') + '> <span>' + esc(line) + '</span></label>';
+    }).join('');
+    Array.prototype.forEach.call(host.querySelectorAll('input[data-bank]'), function (cb) {
+      cb.addEventListener('change', function () {
+        var pp = partnerById($('s-partner') && $('s-partner').value);
+        if (!pp) return;
+        pp.data = pp.data || {};
+        pp.data.paper = partnerPaperFromForm(pp.id);
+        fillPartnerPaper(pp);
+        renderColEditor();
+      });
+    });
+    var n = pick.lines.length;
+    var why = (!Array.isArray(chosen) || !chosen.length)
+      ? '今は 会社の口座を 全部（' + all.length + '）出します。'
+      : ('この相手には ' + n + '／' + all.length + ' を 出します。');
+    if (pick.missing.length) {
+      why += '★会社の設定から 消えた口座が ' + pick.missing.length + ' あります（出しません）：'
+        + pick.missing.join(' ／ ') + '★';
+    }
+    why += ' 1つも 選ばないと 全部 出します（紙から 振込先が 消えないように）。';
+    if (n > PAPER.BANK_ROWS_FREE) {
+      why += ' ★口座が ' + n + ' なので 明細に使える行が '
+        + (PAPER.maxRowsOf(false, 0, 0, PAPER.BANK_ROWS_FREE) - PAPER.maxRowsOf(false, 0, 0, n))
+        + ' 減ります（紙から 字が 切れないように）。★';
+    }
+    setText('s-pbanks-why', why);
+  }
+
   function fillPartnerPaper(p) {
     var sel = $('s-ptpl'); if (!sel) return;
     bindPartnerPaper();
@@ -3597,6 +3646,7 @@
     setText('s-pcols-hint', own
       ? ('この相手だけの列です（' + pp.cols.items.length + '本）。下の「明細の列」で 直せます。')
       : '今は 会社の既定の列です。');
+    renderPartnerBanks(p);
   }
   /** この相手だけの列を 作る（★会社の今の列を 写してから 直す★＝白紙から作らせない） */
   function partnerColsOwn(on) {
@@ -3727,6 +3777,18 @@
     else if (sj === 'off') out.subjectOn = false;
     /* 列は ボタンで作る物（フォームの欄ではない）＝今の物を そのまま持ち越す */
     if (now.cols && now.cols.items && now.cols.items.length) out.cols = now.cols;
+    /* ★口座★ … 全部にチェックが入っている時は ★入れない★（＝会社の既定のまま＝全部）。
+       1つも 選んでいない時も 入れない（全部に 戻す）。＝空欄を 相手に 持たせない。 */
+    var host = $('s-pbanks');
+    if (host) {
+      var all = PAPER.bankLines(settings().bank || '');
+      var on = [];
+      Array.prototype.forEach.call(host.querySelectorAll('input[data-bank]'), function (cb) {
+        var i = Number(cb.getAttribute('data-bank'));
+        if (cb.checked && all[i] !== undefined) on.push(all[i]);
+      });
+      if (on.length && on.length < all.length) out.banks = on;
+    }
     return out;
   }
 
@@ -4058,6 +4120,8 @@
     _go: goScreen,
     _new: newInvoice,
     _fillSettings: fillSettings,
+    /* テスト用: ★相手ごとの紙の設定を 画面から 作る★（口座の札を 押した結果が 入るか を 見る為） */
+    _partnerPaperFromForm: function (id) { return partnerPaperFromForm(id); },
     _loadMasters: function () { return loadMasters(true); },   // テストから1回だけ読ませる
     _recalcForTest: function () { return recalc(); },          // テスト用: 数え直しだけ走らせる
     _fillEdit: fillEdit,          // テスト用: 入力の画面を描き直す（★見られない物は 見張れない★）

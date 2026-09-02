@@ -343,7 +343,7 @@
     o = o || {};
     var given = (o.paperRows !== undefined ? o.paperRows : (inv && inv.data && inv.data.paperRows));
     var ded = (o.showDeductResolved !== undefined) ? !!o.showDeductResolved : showDeductOf(inv, o);
-    var max = maxRowsOf(ded, o.rateRows, o.dedLines);
+    var max = maxRowsOf(ded, o.rateRows, o.dedLines, o.bankRows);
     var n = Math.max(0, Math.trunc(Number(given) || max));
     /* ★物理の上限で頭打ち★＝紙は A4 固定なので、これ以上は載せると切れる。
        ★黙って切らない★＝ここで止めて、残りは2枚目に送る。画面はその事を人に言う。 */
@@ -358,18 +358,34 @@
        ★法が変われば率は増える★（率の一覧は kyuyo/lib が唯一の正）。
        実測：区分6＋明細12行で ★52px はみ出した＝黙って切れた★ので、ここで止める。 */
   var RATE_ROWS_FREE = 3;     // ここまでは（内訳）が振込先より低い＝行数に影響しない
+  /* ★口座は 3つまでは 行数に響かない★（.note-bb の min-height 83px＝2行ぶんを 先に取ってある）
+     2026-09-02 実測 … 3口座で 紙の下端から 37.8px 内側／4口座で 7.3px 内側／★6口座で 63.1px はみ出し★ */
+  var BANK_ROWS_FREE = 3;
   /* ★控除の件数が枠（DEDUCT_ROWS）を超えたら その分 明細に使える行が減る★
      （司さん 2026-08-16「控除項目が増えたら ちゃんと行が増えるようにもやれよ」）
      ＝控除の箱は 件数ぶん伸びるので、伸びた分だけ 明細の枠を減らして はみ出させない。 */
-  function maxRowsOf(showDeduct, rateRows, dedLines) {
+  function maxRowsOf(showDeduct, rateRows, dedLines, bankRows) {
     var base = showDeduct ? PAPER_ROWS_DED : PAPER_ROWS;
     var n = Math.max(0, Math.trunc(Number(rateRows) || 0));
     var d = Math.max(0, Math.trunc(Number(dedLines) || 0));
+    /* ★口座が 3つを 超えたら 1つごとに 明細を1行 減らす★（2026-09-02 実測）
+       実物45枚に ★4口座1枚・6口座1枚★ が在り、6口座では
+       ★口座番号が 紙から はみ出して 丸ごと 消えた★（.sheet は overflow:hidden＝黙って切れる）。
+       実測（Chromiumで 描いて 測った）… 3口座=はみ出し0個／4口座=0個／★6口座=15個・字が1個 消えた★
+       ＝区分（rateRows）と 同じ形にする（振込先の箱と 内訳の箱は 同じ足元に 並ぶ）。
+       ★渡さない時（古い呼び方）は 0扱い＝今までと 1行も 変わらない★ */
+    var bk = Math.max(0, Math.trunc(Number(bankRows) || 0));
     /* 控除の枠を超えた件数ぶん 明細を減らす。★超えた時は +1行 の保険★
        （実測：ちょうど引くだけだと −2px 超えた紙が出た） */
     var over = 0;
     if (showDeduct && d > DEDUCT_ROWS) over = (d - DEDUCT_ROWS) + 1;
-    return Math.max(1, base - Math.max(0, n - RATE_ROWS_FREE) - over);
+    /* ★控除の紙で 口座が多い時は もう1行 保険★（2026-09-02 実測）
+       ちょうど引くだけだと ★口座6・控除あり・明細1行で 2.3px はみ出した★
+       （控除の箱と 振込先の箱が 同じ足元に 並ぶので 少しだけ 足りない）。
+       ＝控除の件数が枠を超えた時の「+1行の保険」と 同じ形。 */
+    var bankOver = Math.max(0, bk - BANK_ROWS_FREE);
+    if (showDeduct && bankOver) bankOver += 1;
+    return Math.max(1, base - Math.max(0, n - RATE_ROWS_FREE) - over - bankOver);
   }
   /* 紙に出る区分の数（税率ごと＋非課税＋対象外）＝（内訳）の行数 */
   function rateRowsOf(tax) {
@@ -435,6 +451,32 @@
     return m ? [m[1].trim(), m[2].trim()] : [t];
   }
 
+  /* ★相手ごとに 出す口座を 決める（唯一の正）★（2026-09-02・実物45枚から）
+     ・相手が 何も選んでいなければ ★会社の口座 全部★（＝今までと 同じ）
+     ・選んでいれば ★その口座だけ★。★並びは 会社の設定の順★（相手が 並べ替えない）
+     ・★会社から 消えた口座は 出さない★＋★消えた物を missing で 返す★（黙って 減らさない）
+     ・★1つも 残らない時は 全部に 戻す★（★紙から 振込先が 消える方が 危ない★）
+     返す物 … { lines: [出す口座], missing: [会社から 消えていた物], all: [会社の口座] } */
+  function banksFor(org, partner) {
+    var all = bankLines((org && org.bank) || '');
+    /* ★どこに 書いてあっても 読む★＝相手の設定は data.paper に入る（SCOPE.partnerPaper と同じ場所）。
+       画面は p.data を そのまま 渡す／控え(snapshot)も 同じ形。★1か所で 吸収する★ */
+    var pp = partner || {};
+    var want = null;
+    if (Array.isArray(pp.banks)) want = pp.banks;
+    else if (pp.paper && Array.isArray(pp.paper.banks)) want = pp.paper.banks;
+    else if (pp.data && pp.data.paper && Array.isArray(pp.data.paper.banks)) want = pp.data.paper.banks;
+    if (!want || !want.length) return { lines: all, missing: [], all: all };
+    var norm = function (x) { return String(x == null ? '' : x).replace(/\s+/g, ' ').trim(); };
+    var pool = all.map(norm);
+    var missing = want.filter(function (w) { return pool.indexOf(norm(w)) < 0; });
+    var picked = all.filter(function (a) {
+      return want.some(function (w) { return norm(w) === norm(a); });
+    });
+    if (!picked.length) return { lines: all, missing: missing, all: all };
+    return { lines: picked, missing: missing, all: all };
+  }
+
   /* ═══ 紙 ═══
    * build({ inv, tax, partner, org, cols, theme, era, page })
    *   era … 'reiwa' で和暦。既定は西暦（代行請求の既定 dateEra:'seireki' と同じ）
@@ -445,6 +487,14 @@
     var tax = o.tax || {};
     var p = o.partner || {};
     var g = o.org || {};
+    /* ★相手ごとに 出す口座を 決める（唯一の正＝banksFor）★（2026-09-02・実物45枚から）
+       会社の設定は「口座の一覧」／相手は「その中から 見せる物」を 選ぶだけ。
+       ★選んでいなければ 全部＝今までと 1文字も 変わらない★ */
+    var bankPick = banksFor(g, p);
+    var NLx = String.fromCharCode(10);
+    if (bankPick.lines.join(NLx) !== textOf(g.bank)) {
+      g = Object.assign({}, g, { bank: bankPick.lines.join(NLx) });
+    }
     /* ★紙の書き方は 会社が選べる★（2026-08-28 指示役「カスタム性」）
        ★順番★ … ①その1通が持つ物（inv.data.style）→②会社が決めた物（o.style）→③様式の既定（theme）
        ★焼き付けてよいのは 法律だけ★＝ここに来る物は 全部 見た目と言い方の話。 */
@@ -522,8 +572,11 @@
        ここを見ないと ★列を足した数と その真下の数が食い違う紙★が出る（実測 204通り）。 */
     var inclusive = (inv.tax_mode === 'inclusive');
     /* ★枠の本数は 控除の枠を出すかで変わる★（出すと明細に使える高さが減る） */
+    /* ★口座の数も 行数に効く★（3つを超えたら 1つごとに 明細を1行 減らす）
+       ＝入れないと ★6口座で 口座番号が 紙から切れて 黙って 消える★（2026-09-02 実測） */
     var planInput = { paperRows: frameRowsGiven, showDeductResolved: showDeduct,
-      rateRows: rateRowsOf(tax), dedLines: deductLines.length, lineCount: lines.length };
+      rateRows: rateRowsOf(tax), dedLines: deductLines.length, lineCount: lines.length,
+      bankRows: bankPick.lines.length };
     frameRows = frameRowsOf(inv, planInput);
     var gen = o.gensen || null;     // ★源泉徴収（引く紙だけ）★
     var carry = o.carry || null;    // ★繰越（前回の残り）★
@@ -1454,7 +1507,7 @@
     TEMPLATE_ID: TEMPLATE_ID,
     MID_PAD_MM: MID_PAD_MM,
     /* ★振込先の分け方は紙も Excel も同じ物を呼ぶ★ */
-    bankLines: bankLines,
+    bankLines: bankLines, banksFor: banksFor, BANK_ROWS_FREE: BANK_ROWS_FREE,
     ROWS_FIRST: ROWS_FIRST, ROWS_REST: ROWS_REST,
     /* ★画面が「2枚になります」を出すために呼ぶ（自前で数えない）★ */
     showDeductOf: showDeductOf, frameRowsOf: frameRowsOf, pagesOf: pagesOf,
