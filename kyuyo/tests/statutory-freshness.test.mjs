@@ -157,6 +157,18 @@ T('中央の行と lib の行が1対1（増えても減っても気づける）'
   }
 });
 
+T('★最賃の 行の 年は lib（NENDO_YEAR）から 来ている（打ち込みでない）', () => {
+  /* ★なぜ（2026-09-04 実測で 穴が 見つかった）★
+   *   ★lib の NENDO_YEAR だけ 2026 に 進めても この見張りは 緑のまま だった★。
+   *   行の年が statutory-rows.js に ★2025 と 打ち込んで あった★ため、
+   *   lib が 年度を 跨いでも 行の名前が 動かず、中央との 1対1 が 崩れなかった。
+   *   ⇒★偽の lib を 1つ 通して、行の年が ついて来るか★を 見る（中央は 触らない）。 */
+  const nise = Object.assign({}, libs, { SAI: Object.assign({}, libs.SAI, { NENDO_YEAR: 2099 }) });
+  const r = SR.buildStatutoryRows(nise).filter(x => x.kind === 'saitei_chingin');
+  if (r.length !== 1) throw new Error('最賃の行が ' + r.length + '件（1件のはず）');
+  if (r[0].year !== 2099) throw new Error('★lib を 2099 にしても 行は ' + r[0].year + ' のまま★＝年が 打ち込みで、lib の 年度替えを 中央との 1対1 で 拾えない');
+});
+
 T('検査が空振りしていない（行を実際に作れている）', () => {
   if (rows.length < 10) throw new Error('行が少なすぎます: ' + rows.length);
   if (!SM.keys().length) throw new Error('中央の写しが空です（scripts/pull-statutory.mjs を走らせてください）');

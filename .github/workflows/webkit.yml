@@ -28,6 +28,25 @@ on:
       - 'seikyu/lib/seikyu-pdf.js'
       - 'seikyu/lib/seikyu-paper.js'
       - '.github/workflows/webkit.yml'
+  # ★PR でも 走らせる★（2026-09-04 指示役／Exally 実測）
+  #   ★schedule と push(main) だけだと ★入れた後で 初めて 赤に なる★★
+  #   ＝直すのが「本番／テスト線に 入れた 後」に なる。PR の 中で 転べば ★本番の 外★で 直せる。
+  #   ★paths は push 側と ★同じ★★（増やさない・減らさない）
+  #     ＝関係ない PR では 走らない＝★ブラウザを 落とす 重さを 増やさない★。
+  #   ★この見張りは repo の 中を 測るだけ★（外のサイトを 叩かない）＝毎PRでも 迷惑を かけない。
+  pull_request:
+    paths:
+      - 'seikyu/**'
+      - 'kyuyo/css/**'
+      - 'kyuyo/index.html'
+      - 'kyuyo/admin.html'
+      - 'kyuyo/meisai.html'
+      - 'css/**'
+      - 'index.html'
+      - 'scripts/webkit-size.mjs'
+      - 'seikyu/lib/seikyu-pdf.js'
+      - 'seikyu/lib/seikyu-paper.js'
+      - '.github/workflows/webkit.yml'
   workflow_dispatch:
 
 jobs:

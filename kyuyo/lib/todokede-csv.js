@@ -269,6 +269,18 @@
     kigou = kigou.split('').map(function (c) { return Z2H[c] || c; }).join('');
     return { gunshiku: m[1], kigou: kigou };
   }
+  /* ★大きさの 上限★（2026-09-04 指示役の裁定＝甲）
+     一次情報が ★1つの ページの 中で 割れている★（操作説明書 第三部 18ページ・原文）:
+       「＜電子申請の届書ファイルサイズが ★4.5MB以上★の場合＞…★電子申請が行えない★」
+       「…届書ファイルを ★4.5MB以下★のファイルサイズとなるように分割し」
+     ⇒★ちょうど 4.5MB は「行えない」でも「分割後の 合格」でも ある★＝★誰にも 決められない（未測定）★
+     ⇒★両方の 読みが 揃って 許すのは「未満」だけ★＝★4.5MB 以上で 止める★
+     ★MB の 数え方も 原文に 無い★（1024×1024＝4,718,592 か 1,000,000×4.5＝4,500,000 か）
+     ⇒★小さい方で 止める＝早く 止まる＝安全側★。
+     ★実物は 1人 約300バイト＝1万人でも 約3MB★＝★今は 起きない★
+       （★起きない物に 2段目（近づいたら 知らせる 画面）は 作らない★＝指示役の裁定 丙）。 */
+  var MAX_BYTES = 4500000;
+  function tooBig(n2) { return Number(n2) >= MAX_BYTES; }
   var FILE_NAME = 'SHFD0006.CSV';
   var SEP_KANRI = '[kanri]';
   var SEP_DATA = '[data]';
@@ -317,6 +329,8 @@
     rows.forEach(function (r) { out.push(r); });
     var f = build(out);
     f.name = FILE_NAME;
+    /* ★4.5MB 以上は 出さない★（電子申請が 行えない＝出しても 無駄に なる） */
+    f.tooBig = tooBig(f.bytes.length);
     return f;
   }
 
@@ -325,6 +339,7 @@
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,
     nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,
     KEN_CODE: KEN_CODE, splitSeiriKigou: splitSeiriKigou,
+    MAX_BYTES: MAX_BYTES, tooBig: tooBig,
     _resetSjisMap: _resetSjisMap,
     sjisMap: sjisMap, inJis: inJis, badChars: badChars, toSjis: toSjis,
     joinLine: joinLine, build: build, CRLF: CRLF,

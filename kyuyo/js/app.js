@@ -2611,14 +2611,29 @@
         + '<br>・<b>カナ</b>で 出す … 「ﾀｶﾀﾞ ﾛｸﾛｳ」（姓と名の 間は 半角スペース1つ）'
         + '<br><b>どちらにするかは お客さまが 決めてください</b>（アプリが 勝手に 置き換えません）。'
         + '設定 ▸ 従業員マスタ の 氏名を 直してから もう一度 押してください。</p>' : '';
+    /* ★数は 文字で 書かない＝部品を 数えて 差し込む★（2026-09-04 指示役の 差し戻し）
+       前は「★下の 4つは★…」と 書いてあったのに ★欄は 5個★＝★1つ 足した 日に 嘘に なった★。
+       しかも ★納入告知書に 載るのは 前の 2つだけ★（整理記号・事業所番号）で、
+       郵便番号・電話番号・事業主氏名は ★会社の物★＝★出どころも 違った★。
+       ⇒★出どころ別に 箱を 分け、数は それぞれ 数えて 出す★（★画面の 嘘が 手順書に 写る★のを 止める）。 */
+    var TOI_NOUNYU = [
+      ['seiriKigou','01-ｹｲﾄ','事業所整理記号<span class="hint2">納入告知書の「事業所整理記号」（例 01-ｹｲﾄ）</span>'],
+      ['jigyoshoNo','123','事業所番号<span class="hint2">同じ紙の「事業所番号」</span>']
+    ];
+    var TOI_KAISHA = [
+      ['zip','100-0000','郵便番号<span class="hint2">会社の 郵便番号</span>'],
+      ['tel','03-1234-5678','電話番号<span class="hint2">市外局番から</span>'],
+      ['nushi','健保　良一','事業主氏名<span class="hint2">姓と名の 間は 全角スペース1つ</span>']
+    ];
+    var kazu=function(n2){ return ['0','1','2','3','4','5','6','7','8','9','10'][n2]||String(n2); };
+    var haku=function(list){ return list.map(function(t){ return fi(t[0],t[1],t[2]); }).join(''); };
     return '<div class="card" style="margin-top:10px"><div class="card-h">電子申請用の CSV（年金事務所へ）</div>'
-      +'<p class="hint" style="margin:0 0 8px">下の 4つは <b>「納入告知書（納付書・領収証書）」</b>に 書いてあります。'
-      +'一度 入れると 次から 聞きません。<b>所在地・会社名・都道府県は もう 分かっている</b>ので 聞きません。</p>'
-      +fi('seiriKigou','01-ｹｲﾄ','事業所整理記号<span class="hint2">納入告知書の「事業所整理記号」（例 01-ｹｲﾄ）</span>')
-      +fi('jigyoshoNo','123','事業所番号<span class="hint2">同じ紙の「事業所番号」</span>')
-      +fi('zip','100-0000','郵便番号<span class="hint2">会社の 郵便番号</span>')
-      +fi('tel','03-1234-5678','電話番号<span class="hint2">市外局番から</span>')
-      +fi('nushi','健保　良一','事業主氏名<span class="hint2">姓と名の 間は 全角スペース1つ</span>')
+      +'<p class="hint" style="margin:0 0 8px">一度 入れると 次から 聞きません。'
+      +'<b>所在地・会社名・都道府県は もう 分かっている</b>ので 聞きません。</p>'
+      +'<div class="sec-lb" style="margin-top:0">'+kazu(TOI_NOUNYU.length)+'つ … <b>「納入告知書（納付書・領収証書）」</b>に 書いてあります</div>'
+      +haku(TOI_NOUNYU)
+      +'<div class="sec-lb">'+kazu(TOI_KAISHA.length)+'つ … 会社の 物を 入れてください</div>'
+      +haku(TOI_KAISHA)
       +(tomeru.length
         ? ('<div class="cr-warn" style="margin:8px 0 0">⚠ <b>まだ 出せません</b><br>'+tomeru.map(esc).join('<br>')+nigemichi+'</div>')
         : '<p class="hint" style="margin:8px 0 0">ファイル名は <b>SHFD0006.CSV</b>（電子申請の 決まり）。'
@@ -3818,6 +3833,14 @@
         var f2=TodokedeCsv.santeiCsv({ jimusho:santeiCsvInput(rw[0], yr2).jimusho,
           baitai:{ tsuban:TodokedeCsv.nextTsuban(tsu), ymd:new Date().toISOString().slice(0,10) }, rows:rows2 });
         if(!f2.bytes.length){ uiAlert('出せる人がいませんでした（1バイトも作っていません）。'); return; }
+        /* ★4.5MB 以上は 出さない★（2026-09-04 指示役の裁定＝甲）
+           一次情報が ★同じ ページの 中で 割れている★ので ★両方の 読みが 揃って 許す「未満」だけ★ 通す。
+           ★お客さまに 見せる 字は 厳しい側の 原文どおり★＝「ちょうど 4.5MB は 出せます」とは 書かない。 */
+        if(f2.tooBig){
+          uiAlert('このファイルは 4.5MB 以上になるため、電子申請できません。'
+            +String.fromCharCode(10)+'人数を分けて 出してください（日本年金機構の決まりです）。');
+          return;
+        }
         dlBytes(f2.bytes, f2.name, 'text/csv');
         state.company.baitaiTsuban=TodokedeCsv.nextTsuban(tsu);   /* ★落とした時にだけ 上げる★ */
         persistSaveDebounced();
