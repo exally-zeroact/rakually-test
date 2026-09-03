@@ -496,6 +496,12 @@ jobs:
         run: node kyuyo/tests/shubetsu-code.test.mjs && node kyuyo/tests/shubetsu-code.test.mjs --self-test
       - name: ★賞与も振込に出せる（賞与の支給日が日付として読めた時だけ・自由文は消さない）
         run: node kyuyo/tests/shoyo-furikomi.test.mjs && node kyuyo/tests/shoyo-furikomi.test.mjs --self-test
+      - name: ★算定基礎届は公式様式(2225)の欄で出す（個人番号は持たない・現物は⑫へ）
+        run: node kyuyo/tests/santei-yoshiki.test.mjs && node kyuyo/tests/santei-yoshiki.test.mjs --self-test
+      - name: ★届書CSVの土台（元号5/7/9・Shift_JISはJIS X 0208で判定・CRLF・0バイト）
+        run: node kyuyo/tests/todokede-csv.test.mjs && node kyuyo/tests/todokede-csv.test.mjs --self-test
+      - name: ★会社の都道府県は後から直せる（2026-09-03＝直す道が無く案内が行けない先を指していた）
+        run: node kyuyo/tests/kaisha-ken.test.mjs && node kyuyo/tests/kaisha-ken.test.mjs --self-test
       - name: Payroll pagination (1000件超が黙って欠落しない)
         run: node kyuyo/tests/pagination.test.mjs
       - name: Payroll meisai store (Web明細 公開一覧/削除時リンク失効)

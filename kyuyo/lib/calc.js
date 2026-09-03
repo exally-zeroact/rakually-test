@@ -36,7 +36,16 @@
   // emp = { shikyu:[{label,value,hikazei,nonTaxLimit?}], birthYmd, payYm, fuyou, healthRate, employRate, residentTax, extraKojo:[{label,value}] }
   function computePayslip(emp) {
     emp = emp || {};
-    var shikyu = (emp.shikyu || []).map(function (it) { return { label: it.label, value: num(it.value), hikazei: isHikazei(it), nonTaxLimit: it.nonTaxLimit }; });
+    /* ★現物の印（genbutsu）を 持ち越す★（2026-09-03＝算定基礎届の ⑫）
+       ★ここで 落とすと 紙に 届かない★＝『届く前に 消えていないか』を まず 見る（うちの決まり）。
+       ★計算には 一切 使わない★＝金額は 1円も 変わらない（分けて 数えるだけ）。 */
+    var shikyu = (emp.shikyu || []).map(function (it) {
+      var o = { label: it.label, value: num(it.value), hikazei: isHikazei(it), nonTaxLimit: it.nonTaxLimit };
+      /* ★印が 付いている時だけ 欄を 作る★＝凍結した 見本（ops-golden-parity）と ★1バイトも 変えない★為
+         （2026-09-03＝いつも false を 足して 見本が 赤に なった／★県の 札の 時と 同じ 型★）。 */
+      if (it.genbutsu === true) o.genbutsu = true;
+      return o;
+    });
     var payTotal = shikyu.reduce(function (a, x) { return a + x.value; }, 0); // 全支給(支給合計・課税Aの元)
     // 社保/雇用保険の基礎: 通勤含む全支給。ただし実費弁償(出張/旅費/宿泊/日当)の"非課税"分は報酬でない=除外(P0修正)。
     //  通勤手当は報酬なので含む(JIHIBENSHO_REに入れない)。課税の日当(hikazei=false)は報酬=含む。標準報酬(hyojunBase)明示時はそちら優先。

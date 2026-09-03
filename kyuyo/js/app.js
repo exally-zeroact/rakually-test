@@ -551,7 +551,11 @@
     }).catch(function(e){ return { ok:false, reason:String(e&&e.message||e) }; });
   };
 
-  function fillCompany(){ fillOrgRO(); $('#c-close').value=state.company.close||''; $('#c-payrel').value=state.company.paydayRel||'next'; $('#c-payday-day').value=state.company.paydayDay||''; var pc=$('#c-paycycle'); if(pc)pc.value=state.company.payCycle||'monthly'; var sm=$('#c-shime'); if(sm)sm.value=state.company.shimeMethod||'monthly'; var sn=$('#c-shimen'); if(sn)sn.value=state.company.shimeN||'10'; var pn=$('#c-paycyclen'); if(pn)pn.value=state.company.payCycleN||'2'; var pd=$('#c-paydays'); if(pd)pd.value=state.company.payDays||''; updatePaydayPreview(); payCycleNote(); shimeNote(); renderRuleChips(); renderCompanyRules(); renderDesign(); renderAsk(); }
+  function fillCompany(){ fillOrgRO();
+    /* ★会社の 県★（2026-09-03）＝★人のマスタと 同じ 一覧（prefOptions）★を 使う＝新しい 見た目を 作らない。
+       ★値は state.company.pref 1か所★＝最初の 問い（ASK_Q）と 同じ物を 見る（2か所に 持たない）。 */
+    var _kp=$('#c-pref'); if(_kp){ _kp.innerHTML=prefOptions(state.company.pref||''); }
+    $('#c-close').value=state.company.close||''; $('#c-payrel').value=state.company.paydayRel||'next'; $('#c-payday-day').value=state.company.paydayDay||''; var pc=$('#c-paycycle'); if(pc)pc.value=state.company.payCycle||'monthly'; var sm=$('#c-shime'); if(sm)sm.value=state.company.shimeMethod||'monthly'; var sn=$('#c-shimen'); if(sn)sn.value=state.company.shimeN||'10'; var pn=$('#c-paycyclen'); if(pn)pn.value=state.company.payCycleN||'2'; var pd=$('#c-paydays'); if(pd)pd.value=state.company.payDays||''; updatePaydayPreview(); payCycleNote(); shimeNote(); renderRuleChips(); renderCompanyRules(); renderDesign(); renderAsk(); }
   // 初回オンボーディング(4ステップ案内・×で閉じたら二度と出ない)。"すぐ分かる"を底上げ。
   // はじめかたガイドの各ステップの達成判定(freee/MF流のライブToDo)。全完了で自動的に消える。
   function onboardSteps(){
@@ -1625,6 +1629,11 @@
         var isNT = (it.hikazei===true) || (it.hikazei==null && labelAuto);
         var ttl = labelAuto ? 'この名称は通常 非課税（外せます。課税の日当・出張手当ならチェックを外す）' : 'チェックで所得税の非課税にする(社保は対象)';
         hz = '<label class="row-hz" title="'+ttl+'" style="font-size:10px;color:'+(isNT?'#3D9E72':'#6E6E6E')+';font-weight:'+(isNT?'700':'400')+';white-space:nowrap;display:inline-flex;align-items:center;gap:2px"><input type="checkbox" class="ck" data-g="shikyu" data-ri="'+ri+'"'+(isNT?' checked':'')+'>非課税</label>';
+        /* ★現物の印★（2026-09-03 指示役の裁定＝D-3-1）＝算定基礎届の ⑫「現物によるものの額」用。
+           ★既定は 通貨★＝印を 付けない限り 今までどおり ⑪通貨に 入る（★今の 数字は 1円も 動かない★）。
+           ★非課税の 印とは 別の 軸★＝社宅や 食事は 現物だが 課税の物も 在る（混ぜない）。 */
+        var isGB = (it.genbutsu===true);
+        hz += '<label class="row-gb" title="社宅・食事など ★現物で 渡した物★（算定基礎届の ⑫に 入ります／お金で 渡した物は 付けない）" style="font-size:10px;color:'+(isGB?'#7A5B00':'#6E6E6E')+';font-weight:'+(isGB?'700':'400')+';white-space:nowrap;display:inline-flex;align-items:center;gap:2px;margin-left:6px"><input type="checkbox" class="ck-gb" data-g="shikyu" data-ri="'+ri+'"'+(isGB?' checked':'')+'>現物</label>';
       }
       return '<div class="row" style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input class="finput" data-g="'+g+'" data-ri="'+ri+'" data-f="label" value="'+attr(it.label)+'" style="flex:1.3" placeholder="項目"><input class="finput num" data-g="'+g+'" data-ri="'+ri+'" data-f="value" value="'+attr(it.value)+'" style="flex:1" placeholder="'+(g==='kintai'?'値':'金額')+'">'+hz+'<button class="b-del m-del" data-g="'+g+'" data-ri="'+ri+'" aria-label="この項目を削除">×</button></div>';
     }).join('');
@@ -2499,12 +2508,22 @@
     +'<button class="seg-b'+(v==='shikaku'?' on':'')+'" data-cho="shikaku">資格取得・喪失</button>'
     +'<button class="seg-b'+(v==='chosho'?' on':'')+'" data-cho="chosho">支払調書</button></div>'; }
   // 算定基礎届: 確定済みの4〜6月明細(総支給・支払基礎日数)から各人の標準報酬を決定して一覧化(年金機構提出の素)。
-  var SANTEI_COLS=['被保険者整理番号','氏名','生年月日','従前(健保)','従前(厚年)','4月 日数','4月 報酬','5月 日数','5月 報酬','6月 日数','6月 報酬','総計','平均額','決定 標準報酬(健保)','等級(健保)','決定 標準報酬(厚年)','等級(厚年)','備考'];
+  /* ★様式の 欄で 出す★（2026-09-03 指示役の裁定＝D-3-1）
+     一次情報＝日本年金機構「被保険者報酬月額算定基礎届（兼）70歳以上被用者算定基礎届」★様式コード 2225★
+       https://www.nenkin.go.jp/shinsei/kounen/tekiyo/hoshu/20141225.files/225.pdf
+     欄は ①〜⑱。★うちの 列名を 様式の 言い方に 寄せる★＝紙と 並べた時に 迷わない。
+     ★⑪通貨／⑫現物／⑬合計★は 月ごとに 3つ 並べる（様式も 月ごとに この3つ）。
+     ★⑰個人番号は 持たない（司さん案件・裁定＝甲）★＝★列は 出すが 中身は 空★＋下に 案内を 出す。 */
+  var SANTEI_COLS=['①被保険者整理番号','②被保険者氏名','③生年月日','⑤従前の標準報酬月額(健保)','⑤従前(厚年)','⑥従前改定月','⑦昇（降）給','⑧遡及支払額',
+    '4月 ⑩日数','4月 ⑪通貨','4月 ⑫現物','4月 ⑬合計','5月 ⑩日数','5月 ⑪通貨','5月 ⑫現物','5月 ⑬合計','6月 ⑩日数','6月 ⑪通貨','6月 ⑫現物','6月 ⑬合計',
+    '⑭総計','⑮平均額','⑯修正平均額','決定 標準報酬(健保)','等級(健保)','決定 標準報酬(厚年)','等級(厚年)','⑰個人番号［基礎年金番号］','⑱備考'];
   function santeiRows(recs, year, emps){
     var SHH=(typeof SHAKAIHOKEN_HYO!=='undefined')?SHAKAIHOKEN_HYO:(window&&window.SHAKAIHOKEN_HYO);
-    var byEmp={}; (recs||[]).forEach(function(r){ var m=parseInt(String(r.ym).slice(5,7),10); if(m<4||m>6)return; var d=r.data||{}; (byEmp[r.employee_id]||(byEmp[r.employee_id]={}))[m]={ days:num(d.paymentDays), pay:num(d.shikyuTotal) }; });
+    var byEmp={}; (recs||[]).forEach(function(r){ var m=parseInt(String(r.ym).slice(5,7),10); if(m<4||m>6)return; var d=r.data||{}; (byEmp[r.employee_id]||(byEmp[r.employee_id]={}))[m]={ days:num(d.paymentDays), pay:num(d.shikyuTotal),
+      /* ★⑫現物★＝印を 付けた 支給項目の 合計（★印が 無ければ 0＝今までと 同じ★）。⑪通貨＝⑬合計−⑫現物。 */
+      genbutsu:num(d.genbutsuTotal) }; });
     return (emps||[]).filter(function(e){ return isActiveInMonth(e, year+'-07'); }).map(function(e){ // 算定基礎日=7/1の被保険者(退職済/退職日が7月前=除外)。退職判定は在籍単一ソースに統一
-      var mo=byEmp[e.id]||{}, months=[4,5,6].map(function(m){ return mo[m]||{days:0,pay:0}; }), rule=santeiRule(e);
+      var mo=byEmp[e.id]||{}, months=[4,5,6].map(function(m){ var x=mo[m]||{days:0,pay:0,genbutsu:0}; x.genbutsu=num(x.genbutsu); x.tsuka=num(x.pay)-x.genbutsu; return x; }), rule=santeiRule(e);
       var row=santeiKisoRow(months, rule.primary, rule.fallback);
       var sb=shahoBasisOf(e), prevHoshu=(sb&&sb.hoshu>0)?sb.hoshu:0;
       var prevP=(SHH&&prevHoshu)?SHH.gradeOf(prevHoshu).hyojun:0, prevH=(SHH&&prevHoshu)?SHH.gradeOfHealth(prevHoshu).hyojun:0;
@@ -2514,21 +2533,98 @@
     });
   }
   function isOver70(e, ym){ if(!e.birthYmd)return false; var b=/^(\d{4})-(\d{2})/.exec(e.birthYmd), t=/^(\d{4})-(\d{2})/.exec(ym); if(!b||!t)return false; return (parseInt(t[1])-parseInt(b[1]))-((parseInt(t[2])<parseInt(b[2]))?1:0) >= 70; }
+  /* ★1行の 中身は ここ 1か所で 作る★（2026-09-03）＝Excel と 画面の 表で 別々に 書くと ★必ず ズレる★。
+     並びは SANTEI_COLS と ★同じ順★（列名と 中身が 1本の 一覧から 出る）。
+     ★⑰個人番号は いつも 空★（持たない＝裁定 甲）／★⑯修正平均額は 今は 出さない（空）★。 */
+  function santeiCells(x, opt){
+    opt = opt || {}; var m = x.months, r = x.r;
+    var n = function (v) { return v ? (opt.yen ? yen(v) : v) : ''; };
+    var mo = function (i) { return [ (m[i].days || ''), n(m[i].tsuka), n(m[i].genbutsu), n(m[i].pay) ]; };
+    return ['', x.name, x.birthYmd, n(x.prevH), n(x.prevP), (x.henkoTsuki || ''), (x.shokyu || ''), n(x.sokyu)]
+      .concat(mo(0)).concat(mo(1)).concat(mo(2))
+      .concat([ n(r.soukei), n(r.heikin), '', n(r.decHealth), (r.decHealthGrade || ''), n(r.decPension), (r.decPensionGrade || ''), '', x.note ]);
+  }
   function santeiAoa(rows, year){
-    var aoa=[SANTEI_COLS]; rows.forEach(function(x){ var m=x.months, r=x.r;
-      aoa.push(['', x.name, x.birthYmd, x.prevH||'', x.prevP||'', m[0].days||'', m[0].pay||'', m[1].days||'', m[1].pay||'', m[2].days||'', m[2].pay||'', r.soukei||'', r.heikin||'', r.decHealth||'', r.decHealthGrade||'', r.decPension||'', r.decPensionGrade||'', x.note]); });
+    var aoa=[SANTEI_COLS]; rows.forEach(function(x){ aoa.push(santeiCells(x, { yen:false })); });
     return aoa;
   }
   function santeiHTML(rows, year){
-    var note='<p class="hint" style="margin:0 0 10px">確定済みの<b>'+year+'年4〜6月</b>の明細（総支給・支払基礎日数）から標準報酬を決定（'+year+'年9月〜適用）。<span class="help-i" data-help="santeikiso">💡</span>被保険者整理番号は年金機構の番号を各自入力。横スクロール可。<button class="btn-ghost" data-choxlsx="santei" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel</button></p>';
+    /* ★空欄を 黙って 出さない★（2026-09-03 指示役の裁定＝D-3-1）
+       ★⑰個人番号は うちが 持たない★（★持たない物は 漏れない★／マイナンバーを 持つと 保管・持ち出し・
+       消し方の 決まりが 丸ごと 付いてくる＝★今日 決める 話では ない★・将来の 電子申請の 時に 司さんの決め）。
+       ⇒★何も 言わずに 空だと「アプリの 抜け」に 見える★ので ★紙に そう 書く★。
+       ★様式に「⑰個人番号［基礎年金番号］」と 在る★＝基礎年金番号でも よい事も 添える。 */
+    var note='<p class="hint" style="margin:0 0 10px">確定済みの<b>'+year+'年4〜6月</b>の明細（総支給・支払基礎日数）から標準報酬を決定（'+year+'年9月〜適用）。'
+      +'<br><b>⑰個人番号［基礎年金番号］は このアプリでは お預かりしません</b>（大切な番号なので 持たない作りです）。'
+      +'<b>提出前に 手で お書きください</b>（基礎年金番号でも かまいません）。'
+      +'<br>⑥従前改定月・⑧遡及支払額は 分かる方だけ 入れてください（空のままでも 出せます）。</p>';
     var withData=rows.filter(function(x){return x.hasData;});
     if(!withData.length) return note+'<div class="card"><p class="hint">4〜6月の確定済み明細がありません。各月を「今月を確定」で保存してください。</p></div>';
     var head='<tr>'+SANTEI_COLS.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr>';
-    var body=withData.map(function(x){ var m=x.months, r=x.r;
-      var cells=['', x.name, x.birthYmd, x.prevH?yen(x.prevH):'', x.prevP?yen(x.prevP):'', (m[0].days||''), (m[0].pay?yen(m[0].pay):''), (m[1].days||''), (m[1].pay?yen(m[1].pay):''), (m[2].days||''), (m[2].pay?yen(m[2].pay):''), yen(r.soukei), yen(r.heikin), yen(r.decHealth), r.decHealthGrade, yen(r.decPension), r.decPensionGrade, x.note];
+    var body=withData.map(function(x){
+      var cells=santeiCells(x, { yen:true });   /* ★列名と 中身は 同じ 1本から★（2026-09-03） */
       return '<tr>'+cells.map(function(c,i){ return '<td class="'+(i>=3&&i<=16?'num':'')+'">'+esc(String(c))+'</td>'; }).join('')+'</tr>';
     }).join('');
-    return note+'<div class="card"><div class="card-h">算定基礎届（'+year+'年4〜6月）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
+    /* ★丸めた事を 紙にも 出す★（2026-09-03 指示役）＝CSV だけ 9999999 に して 表が 12,000,000 のままだと
+       見比べた人が 混乱する。★CSV と 紙で 同じ 文★を 使う（TodokedeCsv.santeiWarn）。 */
+    var maru=[];
+    if(window.TodokedeCsv){ withData.forEach(function(x){ maru=maru.concat(TodokedeCsv.santeiWarn(santeiCsvInput(x, year))); }); }
+    var maruHtml=maru.length? ('<div class="cr-warn" style="margin:0 0 10px">⚠ '+maru.map(esc).join('<br>')+'</div>') : '';
+    return note+maruHtml+'<div class="card"><div class="card-h">算定基礎届（'+year+'年4〜6月）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'
+      +santeiCsvBox(withData, year);
+  }
+  /* ★電子申請（CSV）★（2026-09-03 指示役の裁定＝作るのは「ファイルを 落とす所まで」）
+     ・★聞くのは 4問だけ★（12項目ぶん）＝★どこに 書いてあるかを 一緒に 出す＝探させない★
+     ・★もう 在る 3項目（所在地・名称・県）は 聞かない★
+     ・値は ★会社に 1つ★（state.company）＝倉庫にも 乗る＝端末を 替えても 続く */
+  function santeiCsvInput(x, year){
+    var c=state.company||{}, e=x.emp||{}, m=x.months||[];
+    var sk=(window.TodokedeCsv&&TodokedeCsv.splitSeiriKigou)?TodokedeCsv.splitSeiriKigou(c.seiriKigou):null;
+    return {
+      jimusho:{ todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
+        gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
+        zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+        address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
+        tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
+      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
+      tekiyoYm: year+'-09',
+      zenzen:{ health:x.prevH||0, pension:x.prevP||0, kaiteiYmd:e.zenzenKaiteiYmd||'' },
+      months: m.map(function(mm){ return { days:mm.days||0, tsuka:(mm.pay||0)-(mm.genbutsu||0), genbutsu:mm.genbutsu||0 }; })
+    };
+  }
+  /* ★4問（どこに 書いてあるかを 添える）＋ 落とすボタン＋ 止まり方★ */
+  function santeiCsvBox(rows, year){
+    if(!window.TodokedeCsv) return '';
+    var c=state.company||{};
+    /* ★見出しは HTML を そのまま 使う★（2026-09-03＝esc して 「<span…>」が 字で 出ていた／絵で 気づいた） */
+    var fi=function(k,ph,hint){ return '<div class="frow"><div class="flabel">'+hint+'</div>'
+      +'<input class="finput" data-fc="'+k+'" value="'+attr(c[k]||'')+'" placeholder="'+esc(ph)+'"></div>'; };
+    /* ★止める理由を 先に 数える★（出せない字・カンマ・未入力） */
+    var tomeru=[];
+    if(!c.seiriKigou) tomeru.push('事業所整理記号が まだです');
+    if(!c.jigyoshoNo) tomeru.push('事業所番号が まだです');
+    if(!(window.TodokedeCsv.KEN_CODE[c.pref])) tomeru.push('会社の 都道府県が まだです（設定 ▸ 会社情報）');
+    rows.forEach(function(x){ tomeru=tomeru.concat(TodokedeCsv.santeiWarn(santeiCsvInput(x, year)).filter(function(w){ return /使えません/.test(w); })); });
+    var nigemichi = tomeru.some(function(t){ return /使えません/.test(t); })
+      ? '<p class="hint" style="margin:6px 0 0">日本年金機構の 決まりでは <b>2つの 逃げ道</b>が 認められています（例：髙田 六郎）。'
+        + '<br>・<b>代替え文字</b>で 出す … 「高田　六郎」（似た 字に する）'
+        + '<br>・<b>カナ</b>で 出す … 「ﾀｶﾀﾞ ﾛｸﾛｳ」（姓と名の 間は 半角スペース1つ）'
+        + '<br><b>どちらにするかは お客さまが 決めてください</b>（アプリが 勝手に 置き換えません）。'
+        + '設定 ▸ 従業員マスタ の 氏名を 直してから もう一度 押してください。</p>' : '';
+    return '<div class="card" style="margin-top:10px"><div class="card-h">電子申請用の CSV（年金事務所へ）</div>'
+      +'<p class="hint" style="margin:0 0 8px">下の 4つは <b>「納入告知書（納付書・領収証書）」</b>に 書いてあります。'
+      +'一度 入れると 次から 聞きません。<b>所在地・会社名・都道府県は もう 分かっている</b>ので 聞きません。</p>'
+      +fi('seiriKigou','01-ｹｲﾄ','事業所整理記号<span class="hint2">納入告知書の「事業所整理記号」（例 01-ｹｲﾄ）</span>')
+      +fi('jigyoshoNo','123','事業所番号<span class="hint2">同じ紙の「事業所番号」</span>')
+      +fi('zip','100-0000','郵便番号<span class="hint2">会社の 郵便番号</span>')
+      +fi('tel','03-1234-5678','電話番号<span class="hint2">市外局番から</span>')
+      +fi('nushi','健保　良一','事業主氏名<span class="hint2">姓と名の 間は 全角スペース1つ</span>')
+      +(tomeru.length
+        ? ('<div class="cr-warn" style="margin:8px 0 0">⚠ <b>まだ 出せません</b><br>'+tomeru.map(esc).join('<br>')+nigemichi+'</div>')
+        : '<p class="hint" style="margin:8px 0 0">ファイル名は <b>SHFD0006.CSV</b>（電子申請の 決まり）。'
+          +'この ファイルを e-Gov で 出します（送るのは お客さまです）。</p>')
+      +'<div style="margin-top:10px"><button class="btn-primary" id="b-santei-csv"'+(tomeru.length?' disabled':'')+'>'
+      +(tomeru.length?'CSVを作る（'+tomeru.length+'件 直してから）':'CSVを作る（'+rows.length+'人・SHFD0006.CSV）')+'</button></div></div>';
   }
   function renderSantei(sub){ var host=$('#view-cho'); var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
     if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
@@ -3710,6 +3806,23 @@
         return; }
       /* ★丙＝支給日の 入れる所まで 連れて行く★（2026-09-03）。穴①と 同じ「押せる案内」。 */
       /* ★賞与の 支給日へ 連れて行く★（2026-09-03）＝穴①と 同じ「押せる案内」。 */
+      /* ★電子申請用の CSV を 作って 落とす★（2026-09-03）
+         ★媒体通番は「落とした時」に 上げる★（作り直す たびに 飛ばさない）／★1件も 作れない時は 上げない★ */
+      if(e.target.closest('#b-santei-csv')){
+        var yr2=parseInt(String(state.month||'').slice(0,4),10)||2026;
+        var rw=(state._santeiRows||[]).filter(function(x){return x.hasData;});
+        if(!rw.length||!window.TodokedeCsv){ uiAlert('4〜6月の確定済み明細がありません。'); return; }
+        var co2=state.company||{};
+        var rows2=rw.map(function(x){ return TodokedeCsv.santeiRow(santeiCsvInput(x, yr2)); });
+        var tsu=Number(co2.baitaiTsuban||0);
+        var f2=TodokedeCsv.santeiCsv({ jimusho:santeiCsvInput(rw[0], yr2).jimusho,
+          baitai:{ tsuban:TodokedeCsv.nextTsuban(tsu), ymd:new Date().toISOString().slice(0,10) }, rows:rows2 });
+        if(!f2.bytes.length){ uiAlert('出せる人がいませんでした（1バイトも作っていません）。'); return; }
+        dlBytes(f2.bytes, f2.name, 'text/csv');
+        state.company.baitaiTsuban=TodokedeCsv.nextTsuban(tsu);   /* ★落とした時にだけ 上げる★ */
+        persistSaveDebounced();
+        return;
+      }
       if(e.target.closest('[data-fix-bonus-payday]')){
         state.printMode='bonus';
         showScreen('scr-input');
@@ -3859,6 +3972,13 @@
     /* ★N週の欄★（締め方の c-shimen と 同じ作り） */
     var pcn=$('#c-paycyclen'); if(pcn) pcn.addEventListener('input',function(){ state.company.payCycleN=this.value.replace(/[^0-9]/g,''); this.value=state.company.payCycleN; payCycleNote(); renderAsk(); if(window.persistSaveDebounced)persistSaveDebounced(); });
     /* ★支給日（10,25 のように , で区切る）★＝数と , だけ通す（打っている途中は 直さない） */
+    /* ★入れたら その場で 追いつく★（穴②と 同じ考え＝丸ごと 描き直さない） */
+    var kp=$('#c-pref');
+    if(kp) kp.addEventListener('change',function(){
+      state.company.pref=this.value; persistSaveDebounced();
+      renderAsk();                       /* 問いの 進み具合も その場で */
+      var cho=$('#view-cho'); if(cho && cho.offsetParent) renderChoView();   /* ★名前は renderChoView★（renderCho は 無い＝実物で 確かめた） */
+    });
     var pdy=$('#c-paydays'); if(pdy) pdy.addEventListener('input',function(){ var v=this.value.replace(/[^0-9,]/g,''); if(v!==this.value) this.value=v; state.company.payDays=v; payCycleNote(); renderAsk(); if(window.persistSaveDebounced)persistSaveDebounced(); });
     var shm=$('#c-shime'); if(shm) shm.addEventListener('change',function(){ state.company.shimeMethod=this.value; shimeNote(); if(state.employees)renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); });
     var shn=$('#c-shimen'); if(shn) shn.addEventListener('input',function(){ state.company.shimeN=this.value; shimeNote(); if(state.employees)renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); });
@@ -4112,7 +4232,8 @@
       if(e.target.classList.contains('cm-f')){ emp[e.target.dataset.cmf]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
       if(e.target.classList.contains('wi-f')){ if(!emp.warimashi)emp.warimashi={}; emp.warimashi[e.target.dataset.wk]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
       if(e.target.classList.contains('wi-df')){ if(!emp.warimashi)emp.warimashi={}; if(!emp.warimashi.detail)emp.warimashi.detail={}; var wd=e.target.dataset.wd; emp.warimashi.detail[wd]=emp.warimashi.detail[wd]||{h:'',m:''}; emp.warimashi.detail[wd][e.target.dataset.dp]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
-      var g=e.target.dataset.g, ri=+e.target.dataset.ri, f=e.target.dataset.f; if(e.target.classList.contains('ck')){emp[g][ri].hikazei=e.target.checked;refreshCard(ci);return;} if(g&&!isNaN(ri)&&f){emp[g][ri][f]=e.target.value;refreshCard(ci);} });
+      var g=e.target.dataset.g, ri=+e.target.dataset.ri, f=e.target.dataset.f; if(e.target.classList.contains('ck-gb')){emp[g][ri].genbutsu=e.target.checked;refreshCard(ci);return;}   /* ★現物の印★（2026-09-03） */
+      if(e.target.classList.contains('ck')){emp[g][ri].hikazei=e.target.checked;refreshCard(ci);return;} if(g&&!isNaN(ri)&&f){emp[g][ri][f]=e.target.value;refreshCard(ci);} });
 
     // 一覧/集計
     $$('.seg-b[data-view]').forEach(function(b){ b.addEventListener('click',function(){ $$('.seg-b[data-view]').forEach(function(x){x.classList.toggle('on',x===b);}); var v=b.dataset.view; state.listView=v; $('#view-list').style.display=v==='list'?'':'none'; $('#view-sum').style.display=v==='sum'?'':'none'; var vc=$('#view-cho'); if(vc)vc.style.display=v==='cho'?'':'none'; var vn=$('#view-nen'); if(vn)vn.style.display=v==='nen'?'':'none'; renderListActive(); }); });
@@ -4209,6 +4330,11 @@
         /* ★寄せ方を変えたら その場で日付を出し直す★（選んで初めて分かる、を作らない） */
         if(el.getAttribute('data-fc')==='paydayShift'){ renderFuri(); } } }
       fb.addEventListener('input', setFc); fb.addEventListener('change', setFc);
+      /* ★data-fc は 振込の画面にだけ 繋がっていた★（2026-09-03 実測＝算定基礎の 4問が 保存されず
+         「入れたのに まだ 出せません」のままだった）。★帳票の 画面にも 同じ 受け口を 付ける★
+         ＝★同じ 仕組みを 使い回す（2つ目を 作らない）★。 */
+      var choHost=$('#view-cho');
+      if(choHost){ choHost.addEventListener('input', setFc); choHost.addEventListener('change', setFc); }
       /* ★この月だけ変える★＝月ごとに持つ（翌月に持ち越さない）。空にしたら「当てた日」に戻る。 */
       function setOvr(ev){
         var el=ev.target; if(!el || el.id!=='furi-date-ovr') return;
@@ -4458,7 +4584,10 @@
       var wm=warimashiMins(e.warimashi);
       var work={ days:kintaiVal(e,/出勤/), workMin:workedMin(e), otMin:wm.otMin, nightMin:wm.nightMin, holidayMin:wm.holidayMin };
       var si=r.si||{};
-      Store.savePayslip(ym, e.id, { name:e.name, shikyuTotal:r.shikyuTotal, paymentDays:days, kojoTotal:r.kojoTotal, net:r.net, kazei:r.kazei, siTotal:si.total||0,
+      /* ★現物の額を 月ごとに 残す★（2026-09-03＝算定基礎届の ⑫「現物によるものの額」）。
+         ★印が 付いた 支給項目だけ★を 足す＝★印が 無ければ 0＝今までと 同じ★。 */
+      var genbutsuTotal=(r.shikyu||[]).reduce(function(a2,x){ return a2 + (x && x.genbutsu ? num(x.value) : 0); },0);
+      Store.savePayslip(ym, e.id, { name:e.name, shikyuTotal:r.shikyuTotal, genbutsuTotal:genbutsuTotal, paymentDays:days, kojoTotal:r.kojoTotal, net:r.net, kazei:r.kazei, siTotal:si.total||0,
         confirmed:!!(conf&&conf[e.id]), // ★確定フラグ=賃金台帳/年調は確定済みだけ集計(未確定の下書き月を混入させない)。旧データ(無し)は後方互換で集計対象
         shikyu:r.shikyu, kojo:r.kojo, hyojun:r.hyojun, dept:(e.dept||''), tax:num(r.incomeTax), jumin:num(r.residentTax),
         si:{ health:num(si.health), kaigo:num(si.kaigo), pension:num(si.pension), employ:num(si.employ) }, work:work })
