@@ -92,5 +92,8 @@ jobs:
         run: node seikyu/tests/bank-paper.mjs --self-test
       # ★聞く形の札が 読めるか★（指示役の判定 2026-09-02＝口座の札が「1つの塊」に見えて 差し戻し）
       #   ★これは 数字には 1つも 出ない★ので 描いた物を 375/390/430 で 測る。
-      - name: ★口座は1つずつ別の箱・選んだ札だけが光る（375/390/430で実測）
-        run: node seikyu/tests/ask-look-webkit.mjs
+      # ★この1本だけ 記録係ごしに 走らせる★（2026-09-03＝1回だけ 赤／単発は緑／2回 回して 再現せず）
+      #   ★「たまに赤」は まず 記録係★（赤の中身は 次の回で 上書きされる）＝tools/aka-kiroku.mjs
+      #   ★止め方は 変えていない★＝赤は そのまま 赤で 止まる（握りつぶさない）
+      - name: ★口座は1つずつ別の箱・選んだ札だけが光る（375/390/430で実測／赤は中身を残す）
+        run: node tools/aka-kiroku.mjs -- node seikyu/tests/ask-look-webkit.mjs

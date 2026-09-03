@@ -7,7 +7,10 @@
  *   トレーラー: 区分8(1)+合計件数(6N)+合計金額(12N)+ダミー(101)=120  / エンド: 区分9(1)+ダミー(119)=120
  * 【出力】.text=120桁×行(改行は下の NEWLINES) / .bytes=Shift-JIS(Uint8Array)。実銀行に上げるのはbytes(Shift-JIS)。
  * 【★改行コード】★銀行ごとに違う＝1つに固定してはいけない★。既定は CRLF(=今まで通っている形)。
- *   変わるのは会社の設定で選んだ時だけ。一次情報の対応表は docs/zengin-newline-banks.md。
+ *   変わるのは会社の設定で選んだ時だけ。一次情報の対応表は ★kyuyo/docs/zengin-newline-banks.md★。
+ *   ★2026-09-03 に 道を 書き足した★ … 前は `docs/…` とだけ 書いてあり、★repo の 根の docs/ を 見て
+ *   「無い」と 早合点した★（実際は ★kyuyo/docs/ に 在る★）。★短い道は 読む人を 迷わせる★ので
+ *   ★kyuyo/ から 書く★。銀行ごとの 決まりは 記憶 `feedback_zengin_newline_per_bank_dont_fix` にも 在る。
  * 【利用】ブラウザ window.Zengin / Node require('./zengin.js')
  */
 (function (root, factory) {
@@ -53,10 +56,25 @@
   var YOKIN = { '普通': 1, '当座': 2, '貯蓄': 4, 'その他': 9, '1': 1, '2': 2, '4': 4, '9': 9 };
   function yokinCode(v) { return YOKIN[String(v == null ? '' : v).trim()] || 1; }
 
-  // ヘッダー(120)。c=委託者{code,name,torikumiMMDD,bankNo,bankName,branchNo,branchName,yokin,account}
+  /* ★種別コード（ヘッダの 2〜3文字目）★＝一次情報（2026-09-03 に PDF を 開いて 原文で 確認）
+       ・大分銀行「全銀フォーマットについて」… ★21：総合／11または71：給与／12または72：賞与★
+         https://www.oitabank.co.jp/business/businessdirect/pdf/zengin_format.pdf
+       ・三井住友銀行「給与／賞与振込（全銀形式）」… ★１１：給与振込、１２：賞与振込★
+         https://www.smbc.co.jp/hojin/eb/web21/pdf/file-layout_02.pdf
+     ★「22」は 存在しない★（記憶で 22 と 思い込みかけ、一次情報で 訂正した）。
+     ★71/72 も 認められているが 11/12 を 使う★＝★SMBC は 11/12 しか 書いていない＝広く 通る方★。
+     ★既定は '21'（総合振込）★＝★今 動いている 会社の 出力を 1バイトも 変えない★。
+     どちらの 契約かは ★会社ごと★なので 会社の 設定から 渡す（アプリが 決めない）。 */
+  var SHUBETSU_OK = { '21': '総合振込', '11': '給与振込', '12': '賞与振込' };
+  var SHUBETSU_DEFAULT = '21';
+  function shubetsuOf(v) {
+    var s = String(v == null ? '' : v).trim();
+    return SHUBETSU_OK[s] ? s : SHUBETSU_DEFAULT;   /* ★知らない値は 銀行へ 出さない★ */
+  }
+  // ヘッダー(120)。c=委託者{code,name,torikumiMMDD,bankNo,bankName,branchNo,branchName,yokin,account,shubetsu}
   function header(c) {
     c = c || {};
-    var r = '1' + '21' + '0'
+    var r = '1' + shubetsuOf(c.shubetsu) + '0'
       + padN(c.code, 10) + padC(c.name, 40) + padN(c.torikumiMMDD, 4)
       + padN(c.bankNo, 4) + padC(c.bankName, 15) + padN(c.branchNo, 3) + padC(c.branchName, 15)
       + padN(yokinCode(c.yokin), 1) + padN(c.account, 7) + space(17);
@@ -103,7 +121,7 @@
    *   ★目標は「全銀行を網羅」ではなく「今いる客の銀行が全部ある」。★
    * ★confirmed:false（未確認）は「公式仕様に改行の記載を確認できていない」という意味。
    *   ★未確認は改行を動かさない＝既定(CR+LF)のまま。「未確認」は「変える理由が無い」ということ。★
-   * 出典の全文引用は docs/zengin-newline-banks.md（この表と機械で突き合わせている）。 */
+   * 出典の全文引用は ★kyuyo/docs/zengin-newline-banks.md★（この表と機械で突き合わせている）。 */
   var BANKS = [
     // ── 地方銀行・信用金庫・JA（ここから埋める） ──
     { key: 'iyo', name: '伊予銀行', newline: 'CRLF', confirmed: true, source: 'https://www.iyobank.co.jp/business/pdf/ieb_manual.pdf' },
@@ -221,6 +239,7 @@
   }
 
   return {
+    shubetsuOf: shubetsuOf, SHUBETSU_OK: SHUBETSU_OK,
     build: build, checkTorikumi: checkTorikumi, checkCommitter: checkCommitter, checkName: checkName, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
     toHankaku: toHankaku, padN: padN, padC: padC, yokinCode: yokinCode, toShiftJisBytes: toShiftJisBytes,
     newlineKey: newlineKey, resolveNewlineKey: resolveNewlineKey, bankOf: bankOf,

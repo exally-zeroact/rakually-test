@@ -237,14 +237,43 @@
     var shahoY = SHH && SHH.shahoYearOf ? SHH.shahoYearOf(ym) : null;
     var koyoY = KoyoHoken && KoyoHoken.employYearOfYm ? KoyoHoken.employYearOfYm(ym) : null;
     var saiY = SAI && SAI.saiteiNendoOf ? SAI.saiteiNendoOf(ym) : null;
-    var pref = (employees && employees[0] && employees[0].pref) || 'tokyo';
+    /* ★丙（2026-09-03 指示役の裁定・即 承認）★
+       前は ★`employees[0].pref || 'tokyo'` ＝ 1人目の県で 全員ぶんの 記録を 作っていた★。
+       ・人の 並び順が 変わるだけで 記録が 変わる／★誰も 気づけない★
+       ・県が 違う人が 混ざると ★使っていない 率が 記録に 残る★（provenance＝出典の 記録なのに 嘘に なる）
+       ⇒★使った 県を 全部 記録する★（prefs）。1つに 絞れる時だけ 今までの pref/jugyoin も 埋める。 */
+    var prefList = [];
+    (employees || []).forEach(function (e) {
+      var p = String((e && e.pref) || '');
+      if (prefList.indexOf(p) < 0) prefList.push(p);
+    });
+    if (!prefList.length) prefList = [''];
+    var pref = prefList.length === 1 ? (prefList[0] || '') : '';
     var snap = { ym: ym };
-    if (SHH && SHH.getKenko) { var k = SHH.getKenko(pref, ym); snap.kenko = Object.assign({ pref: pref, nendo: k.nendo, jugyoin: k.jugyoin, stale: !!k.stale }, originOf('shakaihoken', shahoY, src)); }
+    if (SHH && SHH.getKenko) {
+      /* ★使った県を 全部★（代用したかも 県ごとに 残す＝あとで「なぜ この額か」が 言える） */
+      var prefs = prefList.map(function (p) {
+        var kk = SHH.getKenko(p, ym);
+        return { pref: p, name: kk.name, jugyoin: kk.jugyoin, daiyo: !!kk.daiyo, riyu: kk.riyu || null };
+      });
+      var k = SHH.getKenko(pref, ym);
+      snap.kenko = Object.assign({
+        pref: (prefList.length === 1 ? pref : null),        // ★2つ以上なら 1つに 決めない★
+        prefs: prefs,
+        nendo: k.nendo,
+        jugyoin: (prefList.length === 1 ? k.jugyoin : null), // ★同上（1つの数字に 丸めない）★
+        daiyo: prefs.some(function (x) { return x.daiyo; }),
+        stale: !!k.stale
+      }, originOf('shakaihoken', shahoY, src));
+    }
     if (SHH && SHH.getKaigo) { var g = SHH.getKaigo(ym); snap.kaigo = Object.assign({ total: g.total, jugyoin: g.jugyoin, stale: !!g.stale }, originOf('shakaihoken', shahoY, src)); }
     if (SHH && SHH.getShienkin) snap.shienkin = Object.assign({ jugyoin: SHH.getShienkin(ym) }, originOf('shakaihoken', shahoY, src));
     if (SHH && SHH.KOSEI_NENKIN_RITSU_JUGYOIN != null) snap.kosei = Object.assign({ jugyoin: SHH.KOSEI_NENKIN_RITSU_JUGYOIN }, originOf('shakaihoken', shahoY, src));
     if (KoyoHoken && KoyoHoken.employRate) snap.koyo = { gyoshu: (ctx.company || {}).gyoshu || 'ippan', rate: KoyoHoken.employRate((ctx.company || {}).gyoshu, KoyoHoken.employYearOfYm(ym)), fy: KoyoHoken.employYearOfYm(ym) }; snap.koyo = Object.assign(snap.koyo, originOf('koyo', koyoY, src));
-    if (SAI && SAI.getChingin) snap.saitei = Object.assign({ pref: pref, chingin: SAI.getChingin(pref), nendo: SAI.NENDO, stale: SAI.saiteiStale ? SAI.saiteiStale(ym) : false }, originOf('saitei_chingin', saiY, src));
+    /* 最賃も 同じ＝★県ごと★（1人目の県で 全員を 判定しない） */
+    if (SAI && SAI.getChingin) snap.saitei = Object.assign({ pref: (prefList.length === 1 ? pref : null),
+      prefs: prefList.map(function (p) { return { pref: p, chingin: SAI.getChingin(p) }; }),
+      chingin: (prefList.length === 1 ? SAI.getChingin(pref) : null), nendo: SAI.NENDO, stale: SAI.saiteiStale ? SAI.saiteiStale(ym) : false }, originOf('saitei_chingin', saiY, src));
     return snap;
   }
 
@@ -254,8 +283,14 @@
     var oi = k.findIndex(function (x) { return /出勤/.test(x.label || ''); });
     var wt = { label: '労働時間', value: PM.workedLabel(e) };
     if (oi >= 0) k.splice(oi + 1, 0, wt); else k.unshift(wt);
-    return { name: e.name, company: (ctx.company || {}).name, payDate: PM.payDateStr(ctx), kintai: k,
+    var p = { name: e.name, company: (ctx.company || {}).name, payDate: PM.payDateStr(ctx), kintai: k,
       shikyu: r.shikyu, kojo: r.kojo, net: r.net, shikyuTotal: r.shikyuTotal, kojoTotal: r.kojoTotal, warnings: warnTexts };
+    /* ★app.js の buildPeople と 同じ物を 返す★＝片方だけに 足すと ops-app-parity が 赤に なる
+       （2026-09-03 実際に 赤で 捕まった＝★呼ぶ物と 呼ばれる物は 一緒に★）。
+       ★札が 無い時は 欄を 作らない★＝凍結した 見本（ops-golden-parity）と 1バイトも 変えない為。 */
+    var kari = (PW && PW.kariKeisanNote) ? PW.kariKeisanNote(e, ctx.month) : '';
+    if (kari) p.kari = kari;
+    return p;
   }
 
   function monthLabelOf(ym) {

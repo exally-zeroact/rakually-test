@@ -30,6 +30,14 @@ const EXCLUDED = {
       + 'その時に js/rakunally-login.js を item C 版へ差し替え、このテストをCIへ戻す。',
     owner: '司さん（SMTP設定）＋ 実装セッション',
   },
+  'kyuyo/tests/load-before-delete-live.mjs': {
+    reason: '★DB-test の 倉庫へ 実接続して「まっさらな端末で 何回 開いたら 従業員が 減るか」を 数える道具★。'
+      + '鍵（テスト用の ログイン）と ブラウザが 要り、CIには 鍵が 無い。'
+      + '★同じ中身を 倉庫なしで 見る 見張りは CIに 在る★＝kyuyo/tests/load-before-delete.test.mjs（作りを見る）と '
+      + 'kyuyo/tests/cloud-sync.mjs の P0-race①②③（読み込みを 遅らせる/落として 数える）。',
+    restoreWhen: 'CI に DB-test の鍵を置いた日。その時 webkit の仕事へ 入れる。',
+    owner: '司さん（鍵を CI に置く判断）＋ 給与セッション',
+  },
 };
 
 // テストではない道具（実行されなくてよい物）。ここも理由つきで明示する。
@@ -111,9 +119,9 @@ T('★除外リストの各項目に「理由」と「戻す条件」が書か�
     if (!fs.existsSync(path.join(ROOT, f))) throw new Error(f + ': 除外リストにあるがファイルが無い（消したなら除外リストからも消す）');
   }
 });
-T('★除外は1本だけ（増えていたら、ここが赤になって気づける）', function () {
+T('★除外は2本だけ（増えていたら、ここが赤になって気づける）', function () {
   const n = Object.keys(EXCLUDED).length;
-  if (n !== 1) throw new Error(`除外が ${n} 本あります。増やすなら、この本数もここで更新して意図を示すこと: ` + Object.keys(EXCLUDED).join(', '));
+  if (n !== 2) throw new Error(`除外が ${n} 本あります。増やすなら、この本数もここで更新して意図を示すこと: ` + Object.keys(EXCLUDED).join(', '));
 });
 T('検査が空振りしていない（テストファイルを実際に数えている）', function () {
   if (covered.length < 50) throw new Error('CIが回しているテストが少なすぎます: ' + covered.length);

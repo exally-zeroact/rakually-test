@@ -52,7 +52,11 @@ const GUARDS = ['seikyu', 'tests', 'scripts', '.github', 'package.json', 'tests-
      ★数える道具（dep-count）は 見つけられない★＝押した時に 読むので 参照が 書いていない。
      2026-08-31 実測：これが 抜けていて 本番で ★PDFが1枚も作れない★所だった
      （seikyu/tests/dep-guard の「押した時だけ読む物」が 赤で 捕まえた）。 */
-  'vendor'];
+  'vendor',
+  /* ★webkit.yml が 呼ぶ 記録係★（tools/aka-kiroku.mjs）。
+     ★呼ぶ物と 呼ばれる物は 一緒に 運ぶ★＝置いていくと 運び先の CIが
+     「Cannot find module」で 赤に なる（2026-08-31 に 同じ型で 実際に 起きた）。 */
+  'tools'];
 
 /* ★運び先に無いファイルを見に行く試験は 運ばない★（名前と 見に行った先を 全部 書き残す）
    ＝置いていくと「登録していない試験が在る」で見張りが赤くなり、

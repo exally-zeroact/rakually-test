@@ -25,7 +25,14 @@ function makeMock(opts) {
     if (opts.dbFormat) return storedUA; // upsertで更新された保存値を返す
     return (typeof opts.companyUpdatedAt === 'function') ? opts.companyUpdatedAt() : opts.companyUpdatedAt;
   }
-  function query(kind) {
+  // ★loadDelay/loadFail = ★読み込みだけ★ 遅らせる/落とす(cols に data が入る物)。
+  //  2026-09-03のP0(読み込みより先に 保存が走って 倉庫が消えた)を ★倉庫なしで★ 再現する為。
+  function query(kind, cols) {
+    const yomi = cols != null && String(cols).indexOf('data') >= 0;
+    const dly = (yomi && opts.loadDelay) ? opts.loadDelay : 0;
+    const koware = !!(yomi && opts.loadFail);
+    const wait = (v) => koware ? Promise.reject(new Error('読み込み失敗'))
+      : (dly ? new Promise(r => setTimeout(() => r(v), dly)) : Promise.resolve(v));
     const _cua = curCompanyUA();
     let res;
     if (kind === 'ledger') { // K4: pay_ledger。count:'exact'(切れ検知)を模擬
@@ -45,7 +52,7 @@ function makeMock(opts) {
       if (!Array.isArray(res.data)) return res; // 単一行(maybeSingle系)はそのまま
       return { data: res.data.slice(_lo, _lo + 1000), count: (res.count != null ? res.count : res.data.length), error: res.error };
     }
-    const q = { eq: () => q, is: () => q, gte: () => q, lte: () => q, order: () => q, range: (a) => { _lo = a; return q; }, maybeSingle: () => Promise.resolve(res), then: (f, r) => Promise.resolve(paged()).then(f, r) };
+    const q = { eq: () => q, is: () => q, gte: () => q, lte: () => q, order: () => q, range: (a) => { _lo = a; return q; }, maybeSingle: () => wait(res), then: (f, r) => wait(paged()).then(f, r) };
     return q;
   }
   function from(table) {
@@ -60,7 +67,7 @@ function makeMock(opts) {
         p.select = () => ({ single: () => Promise.resolve(res), maybeSingle: () => Promise.resolve(res), then: (f, r) => Promise.resolve(res).then(f, r) });
         return p;
       },
-      select: (cols, sopts) => { calls.selects.push({ table, cols, opts: sopts || {} }); return query(table === 'pay_ledger' ? 'ledger' : table === 'pay_companies' ? 'companyData' : cols === 'id' ? 'empIds' : 'emps'); },
+      select: (cols, sopts) => { calls.selects.push({ table, cols, opts: sopts || {} }); return query(table === 'pay_ledger' ? 'ledger' : table === 'pay_companies' ? 'companyData' : cols === 'id' ? 'empIds' : 'emps', cols); },
       delete: () => ({ in: (col, ids) => { calls.deletes.push(ids); return Promise.resolve({ error: null }); } }),
     };
   }
@@ -116,6 +123,49 @@ runs.push(T('P0-2b: 同期後(load済)は手元に無いempを差分削除する
 }));
 
 // P1-4: 保存失敗は {ok:false} を返す(「保存済」と嘘をつかない)
+// ── ★2026-09-03 P0: 開いただけで 倉庫の従業員が 消えた(実測 6/10)★ ──────────────
+//  正体= 新しい端末で ★保存が 読み込みより 先に 成功★→cloudSynced=true→次の保存で 差分削除。
+//  直し= ①消してよいかは ★読めたか(cloudLoaded)★ で決める ②読み込みが 済むまで 保存を 保留。
+//  ここは ★倉庫なしで CIで 毎回 回る★ 形の 見張り(実物で 数えるのは kyuyo/tests/load-before-delete-live.mjs)。
+runs.push(T('★P0-race①: 読み込みが遅くて 保存が先でも クラウドの従業員を 消さない', async function () {
+  const mock = makeMock({ loadDelay: 120, serverEmpIds: ['e1', 'e2', 'e3'], serverEmps: [{ data: { id: 'e1' } }, { data: { id: 'e2' } }, { data: { id: 'e3' } }], companyData: { company: {} }, companyUpdatedAt: null });
+  const Store = loadStore(mock);
+  // ★実物の 順番を そのまま 写す★=1本目が ★済んでから★ 2本目(実測 186ms あいだが 空いた)。
+  //  同時に 走らせると 昔の形でも 緑に なる(2026-09-03 わざと戻して 確かめた)＝再現に ならない。
+  // ★読めたら 手元の一覧も 入れ替わる★(app.js の applyCloudState)ので そこまで 写す。
+  //  写さないと「読めた後の 保存が 古い一覧で 消す」= ★実物では 起きない★ 赤に なる。
+  let ima = SNAP;
+  if (Store.setSnapshotFn) Store.setSnapshotFn(function () { return ima; });
+  const load = Store.cloudLoadState().then(function (st) {   // 読み込みは 遅い(まだ 返らない)
+    if (st && st.employees) ima = Object.assign({}, SNAP, { employees: st.employees });
+    return st;
+  });
+  await Store.cloudSaveState(ima);              // ★1本目の 自動保存(手元は e1,e2 だけ)が 成功
+  await Store.cloudSaveState(ima);              // ★2本目 ← 昔は ここで e3 が 消えた
+  await load;
+  ok(mock.__calls.deletes.length === 0, '読み込み待ちの間に delete を呼ばない: ' + JSON.stringify(mock.__calls.deletes));
+}));
+
+runs.push(T('★P0-race②: 保留した保存は 読み込みの後に ★1回だけ★ 出る', async function () {
+  const mock = makeMock({ loadDelay: 120, serverEmpIds: ['e1'], serverEmps: [{ data: { id: 'e1' } }], companyData: { company: {} }, companyUpdatedAt: null });
+  const Store = loadStore(mock);
+  Store.setSnapshotFn(function(){ return SNAP; });   // app.js と同じ=出す時に 新しい中身を もらう
+  const load = Store.cloudLoadState();
+  const s1 = Store.cloudSaveState(SNAP), s2 = Store.cloudSaveState(SNAP), s3 = Store.cloudSaveState(SNAP);
+  await Promise.all([load, s1, s2, s3]);
+  ok(mock.__calls.companyUpsert.length === 1, '3本 頼んでも 保存は 1回: ' + mock.__calls.companyUpsert.length + '回');
+}));
+
+runs.push(T('★P0-race③: 読み込みが 失敗した端末は 1人も 消さない', async function () {
+  const mock = makeMock({ loadFail: true, serverEmpIds: ['e1', 'e2', 'e3'] });
+  const Store = loadStore(mock);
+  await Store.cloudLoadState().catch(function () { });   // 読めない(圏外・倉庫が死んでいる)
+  // ★2本 続けて 出す★=1本目が 書けた事で「知っている」と 取り違えると 2本目で 消す(昔の形)。
+  await Store.cloudSaveState(SNAP);
+  await Store.cloudSaveState(SNAP);
+  ok(mock.__calls.deletes.length === 0, '読めていないのに delete を呼んだ: ' + JSON.stringify(mock.__calls.deletes));
+}));
+
 runs.push(T('P1-4: 書込失敗時は ok:false を返す', async function () {
   const mock = makeMock({ failUpsert: true });
   const Store = loadStore(mock);

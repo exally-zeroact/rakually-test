@@ -839,7 +839,10 @@
       }
       /* ★税込で打つ紙は ここが「税抜」★＝表の中の「（税込）」と同じ言葉にしない。
          同じ「明細の合計」で 62,000 と 56,364 が並ぶと、必ず「なぜ？」になる。 */
-      rows.push(['', allPfx + '明細の合計' + (inclusive ? '（税抜）' : ''), yen(tax.subtotal)]);
+      /* ★言葉は 実物に 合わせる★（2026-09-03 指示役の裁定＝C）
+         ★実物45枚（16社）で「明細の合計」は 0回★／足元は ★小計 → 消費税 → 合計★（機械で 読んだ数）。
+         ★数は 1円も 変えない★＝ここは 今までどおり tax.subtotal（税抜）。 */
+      rows.push(['', allPfx + '小計' + (inclusive ? '（税抜）' : ''), yen(tax.subtotal)]);
       rows.push(['', allPfx + taxLabel(tax, inv.tax_mode), yen(tax.taxTotal)]);
       rows.push(['sums-mid', '合計', yen(tax.grandTotal)]);
       var hasRealDeduct = showDeduct && (deduct === null || Number(deduct) !== 0);
@@ -1114,7 +1117,7 @@
                  列を足すと 62,000 ／ その真下に 56,364
                という紙が出る（★実測 2026-08-17・936通り中 204通り★）。
                1枚物だけ tax.subtotal を使っていたので、★1枚物ほど狂っていた★。 */
-          var footLabel = (last && !multi) ? '明細の合計' : 'このページの小計';
+          var footLabel = (last && !multi) ? '小計' : 'このページの小計';   /* ★実物に 合わせた（2026-09-03）★ */
           /* ★税込で打つ紙は「（税込）」と書く★
              ＝締めの「明細の合計」は税抜なので、★同じ言葉で違う数★にしない。 */
           if (inclusive) footLabel += '（税込）';
@@ -1144,7 +1147,7 @@
             /* ★金額の列が 無い様式だけ 表の外に 出す★（置き場所が 無い為）。
                ★出さないと 決めた時（案B）は こちらも 出さない★＝
                ここを 直し忘れて ★表の外に 同じ言葉が 出た★（2026-09-03 実測・控除ありの紙で 2回のまま）。 */
-            + ((foot || dropFoot) ? '' : (last ? blockSum('明細の合計', yen(tax.subtotal)) : blockSum('このページの小計', yen(pageSub))))
+            + ((foot || dropFoot) ? '' : (last ? blockSum('小計', yen(tax.subtotal)) : blockSum('このページの小計', yen(pageSub))))
             + '</div>';
           var rightBlk = last ? deductBlock() : '';
           if (layout === 'col1') {

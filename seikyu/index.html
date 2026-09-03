@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=2a05e653">
-<link rel="stylesheet" href="css/app.css?v=2a05e653">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=10803b8e">
+<link rel="stylesheet" href="css/app.css?v=10803b8e">
 </head>
 <body>
 
@@ -488,7 +488,7 @@
           <div class="frow">
             <div class="flabel">締めの並び</div>
             <select class="finput" id="s-sumsorder">
-              <option value="">明細の合計 → 消費税 → 合計（既定）</option>
+              <option value="">小計 → 消費税 → 合計（既定）</option>
               <option value="B">消費税 → 小計（税込）</option>
             </select>
           </div>
@@ -797,58 +797,58 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="../js/supa-config.js?v=2a05e653"></script>
-<script src="../lib/xlsx.full.min.js?v=2a05e653"></script>
-<script src="../js/file-out.js?v=2a05e653"></script>
-<script src="../js/suite-data.js?v=2a05e653"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=2a05e653"></script>
+<script src="../js/supa-config.js?v=10803b8e"></script>
+<script src="../lib/xlsx.full.min.js?v=10803b8e"></script>
+<script src="../js/file-out.js?v=10803b8e"></script>
+<script src="../js/suite-data.js?v=10803b8e"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=10803b8e"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=2a05e653"></script>
-<script src="lib/seikyu-tax.js?v=2a05e653"></script>
-<script src="lib/seikyu-gensen.js?v=2a05e653"></script>
-<script src="lib/seikyu-carry.js?v=2a05e653"></script>
-<script src="lib/seikyu-cols.js?v=2a05e653"></script>
-<script src="lib/seikyu-templates.js?v=2a05e653"></script>
-<script src="../lib/toroku-no.js?v=2a05e653"></script>
-<script src="lib/seikyu-doc.js?v=2a05e653"></script>
-<script src="lib/seikyu-partner-ask.js?v=2a05e653"></script>
-<script src="lib/seikyu-pdf.js?v=2a05e653"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=10803b8e"></script>
+<script src="lib/seikyu-tax.js?v=10803b8e"></script>
+<script src="lib/seikyu-gensen.js?v=10803b8e"></script>
+<script src="lib/seikyu-carry.js?v=10803b8e"></script>
+<script src="lib/seikyu-cols.js?v=10803b8e"></script>
+<script src="lib/seikyu-templates.js?v=10803b8e"></script>
+<script src="../lib/toroku-no.js?v=10803b8e"></script>
+<script src="lib/seikyu-doc.js?v=10803b8e"></script>
+<script src="lib/seikyu-partner-ask.js?v=10803b8e"></script>
+<script src="lib/seikyu-pdf.js?v=10803b8e"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=2a05e653"></script>
-<script src="lib/seikyu-seal.js?v=2a05e653"></script>
+<script src="../js/hanko.js?v=10803b8e"></script>
+<script src="lib/seikyu-seal.js?v=10803b8e"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=2a05e653"></script>
+<script src="lib/seikyu-report.js?v=10803b8e"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=2a05e653"></script>
+<script src="lib/seikyu-items.js?v=10803b8e"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=2a05e653"></script>
+<script src="lib/seikyu-recurring.js?v=10803b8e"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=2a05e653"></script>
+<script src="lib/seikyu-find.js?v=10803b8e"></script>
 <!-- ★自社のExcelを そのまま使う★（読む・当てる・書く）
      ＝2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★（司さん 2026-08-31） -->
-<script src="../lib/zip-surgeon.js?v=2a05e653"></script>
-<script src="../lib/xlsx-edit.js?v=2a05e653"></script>
-<script src="lib/seikyu-book.js?v=2a05e653"></script>
-<script src="lib/seikyu-scope.js?v=2a05e653"></script>
-<script src="../lib/kikan.js?v=2a05e653"></script>
-<script src="lib/seikyu-invoice-ask.js?v=2a05e653"></script>
-<script src="lib/seikyu-paper-ask.js?v=2a05e653"></script>
-<script src="lib/seikyu-name.js?v=2a05e653"></script>
-<script src="lib/seikyu-paper.js?v=2a05e653"></script>
-<script src="lib/seikyu-aoa.js?v=2a05e653"></script>
-<script src="js/seikyu-store.js?v=2a05e653"></script>
-<script src="js/seikyu-out.js?v=2a05e653"></script>
-<script src="js/seikyu-app.js?v=2a05e653"></script>
-<script src="../js/rakunally-login.js?v=2a05e653"></script>
-<script src="js/auth.js?v=2a05e653"></script>
+<script src="../lib/zip-surgeon.js?v=10803b8e"></script>
+<script src="../lib/xlsx-edit.js?v=10803b8e"></script>
+<script src="lib/seikyu-book.js?v=10803b8e"></script>
+<script src="lib/seikyu-scope.js?v=10803b8e"></script>
+<script src="../lib/kikan.js?v=10803b8e"></script>
+<script src="lib/seikyu-invoice-ask.js?v=10803b8e"></script>
+<script src="lib/seikyu-paper-ask.js?v=10803b8e"></script>
+<script src="lib/seikyu-name.js?v=10803b8e"></script>
+<script src="lib/seikyu-paper.js?v=10803b8e"></script>
+<script src="lib/seikyu-aoa.js?v=10803b8e"></script>
+<script src="js/seikyu-store.js?v=10803b8e"></script>
+<script src="js/seikyu-out.js?v=10803b8e"></script>
+<script src="js/seikyu-app.js?v=10803b8e"></script>
+<script src="../js/rakunally-login.js?v=10803b8e"></script>
+<script src="js/auth.js?v=10803b8e"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=2a05e653"></script>
+<script src="../js/env-badge.js?v=10803b8e"></script>
 </body>
 </html>

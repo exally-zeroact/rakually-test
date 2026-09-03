@@ -136,10 +136,42 @@
     // ★このセッションでクラウドと同期できたか(読めた or 書けた)。差分削除はこれがtrueの時だけ許可
     //  =クラウド読込に失敗した古い/空の端末が、本番の従業員を物理削除するのを防ぐ(データ消失対策)。
     var cloudSynced = false;
+    // ★cloudLoaded=「クラウドを ★読めた★」だけ true。差分削除(下)は これが true の時だけ許可。
+    //  ★cloudSynced(=書けた)では 消してはいけない★: 2026-09-03 実測で、新しい端末が
+    //  「読み込みより先に 自動保存が成功→cloudSynced=true→次の保存で 差分削除」で
+    //  ★倉庫の従業員が 消えた(6回/10回)★。書けた事は「倉庫の中身を知っている」証拠にならない。
+    var cloudLoaded = false;
+    // ★saveHold=初回の読み込みが 走っている間、保存を 保留する約束。済んでから ★1回だけ★ 出す。
+    //  出す時の中身は ★その時点の新しい状態★(snapshotFn)を取り直す=古い一覧での上書きを防ぐ。
+    var saveHold = null, heldOnce = null;
+    // ★読み込みが 失敗した理由は 黙って 捨てない★（保留を 解く時に 覚える＝画面が 聞ける）
+    var lastLoadErr = null;
+    Store.lastLoadError = function(){ return lastLoadErr; };
+    Store.setSnapshotFn = function(fn){ Store._snapFn = fn; };
     // ★楽観ロック用: 最後に把握した pay_companies(設定=全置換で最も危険)の updated_at。
     //  読込時・自分の保存成功時に更新。保存前にクラウドの現在値と違えば「別端末が後から更新」=conflictで上書きしない。
     var lastCompanyUpdatedAt = null;
     Store.cloudSaveState = function(state){
+      // ★②初回の読み込みが 走っている間は 保存しない★=済んでから 1回だけ 出す(中身は取り直す)
+      if(saveHold){
+        if(!heldOnce){
+          heldOnce = saveHold.then(function(){ return null; }, function(e){
+            lastLoadErr = (e && e.message) || '読み込み失敗';   // ★空で 握りつぶさない★
+            return null;
+          }).then(function(){
+            heldOnce = null;
+            var fresh = (typeof Store._snapFn==='function') ? Store._snapFn() : null;
+            if(fresh) return realSave(fresh);
+            // ★新しい中身が もらえない時★: 読めた後なら 手元の状態は もう 入れ替わっている＝
+            //  ★保留していた 古い一覧で 上書きしない★(それが 一番 危ない)。読めていない時だけ 出す。
+            return cloudLoaded ? { ok:false, reason:'held-skipped' } : realSave(state);
+          });
+        }
+        return heldOnce;
+      }
+      return realSave(state);
+    };
+    function realSave(state){
       return curUid().then(function(uid){ if(!uid) return { ok:false, reason:'no-user' }; var now=new Date().toISOString();
         // ★employees以外の全スナップショット項目を保存(確定印/年末調整/賞与/カスタム給テンプレ/onboard等も載せる=端末替えで消えない)
         var settings={}; for(var k in state){ if(Object.prototype.hasOwnProperty.call(state,k) && k!=='employees') settings[k]=state[k]; }
@@ -168,8 +200,9 @@
           sb.from('pay_companies').upsert({ account_id:uid, data:settings, updated_at:now }).select('updated_at').single(),
           emps.length? sb.from('pay_employees').upsert(emps) : Promise.resolve({ error:null })
         ];
-        // ★差分削除は「同期済み(cloudSynced)かつ手元に従業員が居る」時だけ=空/古い端末が本番を消さない
-        if(cloudSynced && emps.length>0){
+        // ★差分削除は「★読み込めた(cloudLoaded)★かつ手元に従業員が居る」時だけ=空/古い端末が本番を消さない
+        //  (2026-09-03 変更: cloudSynced=書けた→cloudLoaded=読めた。理由は上の宣言部)
+        if(cloudLoaded && emps.length>0){
           ops.push(fetchAllQ(function(a,b){ return sb.from('pay_employees').select('id',{count:'exact'}).eq('account_id',uid).range(a,b); }).then(function(r){ var ex=(r.data||[]).map(function(x){return x.id;}); var rm=ex.filter(function(id){ return ids.indexOf(id)<0; }); return rm.length? sb.from('pay_employees').delete().in('id',rm) : { error:null }; }));
         }
         return Promise.all(ops).then(function(res){
@@ -181,19 +214,28 @@
         }).catch(function(e){ return { ok:false, reason:(e&&e.message)||'exception' }; });
         }
       });
-    };
+    }
     Store.cloudLoadState = function(){
-      return curUid().then(function(uid){ if(!uid) return null;
+      var p = curUid().then(function(uid){ if(!uid) return null;
         return Promise.all([
           sb.from('pay_companies').select('data,updated_at').eq('account_id',uid).maybeSingle(),
           fetchAllQ(function(a,b){ return sb.from('pay_employees').select('data,sort',{count:'exact'}).eq('account_id',uid).order('sort',{ascending:true}).range(a,b); })
         ]).then(function(res){
           var co=res[0].data && res[0].data.data; var emps=(res[1].data||[]).map(function(r){ return r.data; });
-          cloudSynced=true; // クラウドと通信できた=同期済み(空でも=新規アカウントとして差分削除を許可)
+          cloudSynced=true; cloudLoaded=true; // ★読めた★=差分削除を許可(空でも=新規アカウント)=同期済み(空でも=新規アカウントとして差分削除を許可)
           lastCompanyUpdatedAt=(res[0].data && res[0].data.updated_at)||null; // ★競合検知の基準=読込時のクラウドupdated_at
           if(!co && !emps.length) return null; var s=co||{}; s.employees=emps; return s;
         });
       });
+      // ★読み込みが 終わる(成功でも 失敗でも)まで 保存を 待たせる★。★必ず 解く★=永久に待たない。
+      //  失敗した時は cloudLoaded=false のまま⇒保存はするが ★消しはしない★(安全側)。
+      // ★解くのは 呼んだ側が 受け取る約束の 中でやる★:
+      //  別チェーン(p.then(…))で 解くと、await cloudLoadState() の ★直後の保存が まだ保留★に
+      //  なり、読み込み済みなのに 保存が 飛ぶ(2026-09-03 回帰テスト4本が 赤で 見つかった)。
+      var done = p.then(function(v){ if(saveHold===done) saveHold=null; return v; },
+                        function(e){ if(saveHold===done) saveHold=null; throw e; });
+      saveHold = done;
+      return done;
     };
     // ── アカウントのプラン状態(exally_entitlements): 司さんが 使える/停止 を制御する層 ──
     // ★Exally共通テーブル: 1人×1アプリ=1行(account_id,app,plan)。請求書/給料明細/今後のアプリを1箇所で管理。

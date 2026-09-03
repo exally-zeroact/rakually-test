@@ -331,8 +331,26 @@
      ★銀行が休みの日は 法律で決まっている★＝bank-holidays.js（銀行法15条1項・施行令5条1項）。
 
      返り … {y,m,d,moved,from,reason,shift} ／ 寄せられない時は null（呼んだ側が止める） */
+  /* ★支給日が「読める」か★（2026-09-03 指示役の裁定＝乙）
+     ★読める★ … 半角の 1〜31 ／「末」を含む字（末日）
+     ★読めない★ … 空・0・99・文字・★全角数字★・負・小数・空白だけ
+     なぜ ここまで 厳しくするか（実測）:
+       ・空/0/文字/★全角「１０」★ は `parseInt(dd,10) || 25` で ★黙って 25日★に なっていた
+         ＝★お客が 10日と 入れたのに 23日に 振り込む★（全角は parseInt が 読めない）
+       ・99 は 月末に 丸まっていた＝★画面の 案内に 無い★（案内は「末日は 31」）＝事故
+     ⇒★紙（payDateObj）の 今までの 動きは 変えない★。★銀行へ 出す 道だけ 止める★
+       （紙は 人が 読んで 気づける／振込は 気づかず 送金される）。 */
+  function payDayReadable(ctx) {
+    var dd = String((C(ctx).paydayDay == null) ? '' : C(ctx).paydayDay).trim();
+    if (/末/.test(dd)) return true;
+    if (!/^[0-9]{1,2}$/.test(dd)) return false;       /* ★全角・文字・空・小数・負は ここで 落ちる★ */
+    var n = parseInt(dd, 10);
+    return n >= 1 && n <= 31;
+  }
   function furikomiShiftOf(ctx) { return C(ctx).paydayShift === 'next' ? 'next' : 'prev'; }
   function furikomiDateObj(ctx) {
+    /* ★読めない 支給日では 何も 返さない★＝呼んだ側（画面・全銀）が 止まる（2026-09-03 裁定 乙） */
+    if (!payDayReadable(ctx)) return null;
     var o = payDateObj(ctx);
     var B = BH();
     if (!B) return null;                       /* ★部品が無ければ 黙って何かを返さない★ */
@@ -342,6 +360,37 @@
     r.shift = which;
     return r;
   }
+  /* ★賞与の 振込指定日★（2026-09-03 指示役の裁定＝甲）
+     ─────────────────────────────────────────────
+     賞与は ★計算も 紙も 確定も 在る★のに ★振込だけ 月次しか 見ていなかった★。
+     賞与の 支給日は ★自由文★（欄は ただの 文字・置き字「例 12月10日」・形の 検査なし）＝
+     ★D-1 で 潰した「読めない 日付で お金を 動かす」と 同じ形★。
+     ⇒★日付として 読める時だけ★ 振込に 使う（読めなければ null＝呼んだ側が 止まる）。
+       ★今 入っている 自由文は 1文字も 消さない★（画面と 紙は そのまま＝県の 時と 同じ 逃し方）。
+       ★銀行が 休みの日の 寄せ方は 月次と 同じ★（会社の paydayShift を そのまま 使う＝別の 決め方を 作らない）。 */
+  function bonusDateObj(ctx) {
+    var b = (ctx && ctx.bonus) || {};
+    var v = String(b.payDay == null ? '' : b.payDay).trim();
+    var m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(v);
+    if (!m) return null;                                  /* ★自由文・全角・空は ここで 落ちる★ */
+    var y = +m[1], mo = +m[2], d = +m[3];
+    if (mo < 1 || mo > 12 || d < 1) return null;
+    var last = new Date(y, mo, 0).getDate();
+    if (d > last) return null;                            /* 2026-13-40 のような 値 */
+    var B = BH(); if (!B) return null;
+    var which = furikomiShiftOf(ctx);
+    var r = B.shift(y, mo, d, which);
+    if (!r) return null;
+    r.shift = which;
+    return r;
+  }
+  /* ★賞与の 取組日（全銀 4桁）★ … 読めない時は 空（＝1バイトも 作らない） */
+  function bonusMMDD(ctx) {
+    var o = bonusDateObj(ctx);
+    var B = BH();
+    return (o && B) ? B.mmdd(o) : '';
+  }
+
   /* ★全銀の取組日（MMDD 4桁）★ … 出せない時は 空（呼んだ側が「作らせない」） */
   function furikomiMMDD(ctx) {
     var o = furikomiDateObj(ctx);
@@ -351,7 +400,7 @@
 
   return {
     num: num,
-    furikomiDateObj: furikomiDateObj, furikomiMMDD: furikomiMMDD, furikomiShiftOf: furikomiShiftOf,
+    furikomiDateObj: furikomiDateObj, furikomiMMDD: furikomiMMDD, furikomiShiftOf: furikomiShiftOf, payDayReadable: payDayReadable, bonusDateObj: bonusDateObj, bonusMMDD: bonusMMDD,
     defPayRule: defPayRule, ensurePayRule: ensurePayRule, payRuleCtx: payRuleCtx, payRuleResult: payRuleResult,
     employRateOf: employRateOf, prefRate: prefRate,
     carCommuteNonTax: carCommuteNonTax, carCommuteNonTaxInfo: carCommuteNonTaxInfo, COMMUTE_CAR_SOURCE: COMMUTE_CAR_SOURCE, commuteLimit: commuteLimit, syncCommute: syncCommute,

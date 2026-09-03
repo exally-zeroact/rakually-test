@@ -65,7 +65,15 @@
   function kinHTML(kintai){ return kinBuild(kintai, kinCols(kintai.length,12), 56); }
   function metaHTML(p){ return '<div class="meta">支給日　'+esc(p.payDate||'')+'<br>'+esc(p.company||'')+'</div>'; }
   // 上部=会社名/氏名(左)と差引支給額/¥(中央)の2カラム(全テンプレ共通デフォルト)
-  function heroHTML(p){ return '<div class="hero hero2"><div class="hg-l"><div class="h-co">'+esc(p.company||'')+'</div><div class="h-nm">'+esc(p.name||'')+'<span class="dono">殿</span></div></div><div class="hg-r"><div class="h-lab">差 引 支 給 額</div><div class="h-val">'+YEN+fmt(p.net)+'</div></div></div>'; }
+  /* ★仮計算の札（2026-09-03）★＝県が 未選択のまま 紙を 出せてしまう（実測）。
+     ★出るのを 止めない・でも 黙って 出さない★。★heroHTML は 4つの版が 全部 呼ぶ 1か所★なので
+     ここに 1行 入れれば ★どの 版の 紙にも 出る★（版ごとに 書くと 必ず 1つ 抜ける）。 */
+  /* ★大きさは 勘で 決めない★＝紙の 実物を 測って 合わせた（2026-09-03・A4幅794pxで 実測）:
+     氏名 14.5px ／ 会社名 11px ／ 見出し 12px ／ 明細の行 10.5px ／ ★一番 小さい 支給日 9.5px★。
+     8px は ★紙で 一番 小さい 字より さらに 小さかった★ ので 9.5px（＝支給日と 同じ）に 揃えた。
+     色は 白黒/FAXで 消えないよう 一段 濃く（#6B4E00）。 */
+  function kariHTML(p){ return p && p.kari ? '<div class="h-kari" style="font-size:9.5px;color:#6B4E00;margin-top:2px;line-height:1.35">※ '+esc(p.kari)+'</div>' : ''; }
+  function heroHTML(p){ return '<div class="hero hero2"><div class="hg-l"><div class="h-co">'+esc(p.company||'')+'</div><div class="h-nm">'+esc(p.name||'')+'<span class="dono">殿</span></div>'+kariHTML(p)+'</div><div class="hg-r"><div class="h-lab">差 引 支 給 額</div><div class="h-val">'+YEN+fmt(p.net)+'</div></div></div>'; }
   // 表題=左寄せ・支給日=右(同じ行)+全幅の細線(全テンプレ共通)
   function topHead(p){ var ttl=P.kind==='bonus'?'賞 与 支 給 明 細 書':'給 与 支 給 明 細 書'; return '<div class="tophd"><div class="mh"><div class="mh-title">'+ttl+'</div><div class="mh-month">'+esc(P.month||'令 和 八 年 六 月 分')+'</div></div><div class="iss-date">支給日　'+esc(p.payDate||'')+'</div></div><div class="mh-rule"></div>'; }
   // 勤怠セクション(賞与明細では描かない)

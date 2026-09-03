@@ -268,6 +268,8 @@ jobs:
       # ★紙に「明細の合計」は 1回だけ★（指示役の裁定 2026-09-02＝案B／実物45枚では 0回の言葉）
       - name: ★紙の「明細の合計」は1回だけ・数は消えていない・複数ページはページ小計
         run: node seikyu/tests/sums-once.test.mjs && node seikyu/tests/sums-once.test.mjs --self-test
+      - name: ★紙の足元は「小計／消費税／合計」（2026-09-03＝実物45枚に「明細の合計」は0回）
+        run: node seikyu/tests/shokei-kotoba.test.mjs && node seikyu/tests/shokei-kotoba.test.mjs --self-test
       # ★探す★（司さん 2026-08-30「競合が当たり前にしてる事は こちらも当たり前にしてな」）
       #   請求書ソフトは どこも一覧を探せる。国税庁 電子帳簿保存法の検索要件も 同じ形
       #   （①年月日・金額・取引先 ②範囲 ③2つ以上の組み合わせ）。
@@ -480,6 +482,20 @@ jobs:
         run: node kyuyo/tests/ui-smoke.mjs
       - name: Payroll cloud sync (保存層・Supabaseモック)
         run: node kyuyo/tests/cloud-sync.mjs
+      - name: ★読めるまで消さない・読めるまで保存しない（2026-09-03 P0＝開いただけで従業員が消えた 6/10）
+        run: node kyuyo/tests/load-before-delete.test.mjs && node kyuyo/tests/load-before-delete.test.mjs --self-test
+      - name: ★県が無い時の代用を1つに揃える（2026-09-03＝同じ状態で3つの違う額が出ていた）
+        run: node kyuyo/tests/pref-daiyo.test.mjs && node kyuyo/tests/pref-daiyo.test.mjs --self-test
+      - name: ★直したら警告もついてくる（2026-09-03 穴②＝県を直しても警告が出たままだった）
+        run: node kyuyo/tests/warn-follows-fix.test.mjs && node kyuyo/tests/warn-follows-fix.test.mjs --self-test
+      - name: ★案内は押せるまで作る（2026-09-03 穴①＝文で言うだけでその人へ連れて行かなかった）
+        run: node kyuyo/tests/warn-is-tappable.test.mjs && node kyuyo/tests/warn-is-tappable.test.mjs --self-test
+      - name: ★支給日が読めない時は銀行へ出さない（2026-09-03＝空/全角でも黙って25日で振込が作れた）
+        run: node kyuyo/tests/furikomi-shikyubi.test.mjs && node kyuyo/tests/furikomi-shikyubi.test.mjs --self-test
+      - name: ★全銀の種別コードは会社の契約で（一次情報 21:総合/11:給与/12:賞与・22は無い／既定は21のまま）
+        run: node kyuyo/tests/shubetsu-code.test.mjs && node kyuyo/tests/shubetsu-code.test.mjs --self-test
+      - name: ★賞与も振込に出せる（賞与の支給日が日付として読めた時だけ・自由文は消さない）
+        run: node kyuyo/tests/shoyo-furikomi.test.mjs && node kyuyo/tests/shoyo-furikomi.test.mjs --self-test
       - name: Payroll pagination (1000件超が黙って欠落しない)
         run: node kyuyo/tests/pagination.test.mjs
       - name: Payroll meisai store (Web明細 公開一覧/削除時リンク失効)

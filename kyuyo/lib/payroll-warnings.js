@@ -258,14 +258,46 @@
     return { missing: missing, missingCount: missing.length, tokyoCount: tokyo, total: list.length };
   }
   // 未選択が1人でもいれば黄色。0人なら空文字（＝何も出さない）。
+  /* ★文は ここ 1か所★（画面の 警告も 確認の 札も 同じ 言い方にする＝2か所に 書かない） */
+  var PREF_MISSING_TEXT = '都道府県が未選択です。健康保険料率が県ごとに違うため、選ぶまで正しい額になりません（最低賃金の判定もできません）。設定 ▸ 従業員マスタ で選んでください。';
+  function prefMissingText() { return PREF_MISSING_TEXT; }
+  /* ★案内は「押せる」まで 作る★（2026-09-03 穴①）
+     前は 文で「設定 ▸ 従業員マスタ で選んでください」と 言うだけ＝★人が 自分で 探す★だった。
+     同じアプリの ★最低賃金割れの 警告は もう 押せる★（data-fix-emp）ので ★その型を そのまま 借りる★。
+     ★指すのは id★＝並び替え・絞り込みで ずれない（番号で 指すと 別人に 飛ぶ）。 */
   function prefMissingWarn(emps, ctx) {
     var s = prefStats(emps, ctx);
     if (!s.missingCount) return '';
+    /* ★本文は 今までどおり★＝①誰か（2人までは 名前・3人以上は「ほか◯名」で ★1行に 収める★）
+       ②理由 ③★どこで 直すか（設定 ▸ 従業員マスタ）★。
+       ★押せる所を 足しても この3つを 消さない★（2026-09-03＝一度 消して 既存の 見張り2本が 赤に なった）。 */
     var nm = s.missing.map(function (x) { return esc(x.name); });
     var who = nm.length <= 2 ? nm.join('・') : (nm[0] + 'ほか' + (nm.length - 1) + '名');
+    /* ★押せる所★は 最大3人まで（それ以上 並べると 帯が 伸びて 読まれない）。
+       4人目からは「ほか◯名」を 押すと ★先頭の 未選択者★へ 行く（そこで 直せば 次が 出る）。 */
+    var MAX = 3;
+    var tap = s.missing.slice(0, MAX).map(function (x) {
+      return '<b class="mw-fix" data-fix-emp-id="' + esc(x.id) + '">' + esc(x.name || '（無名）') + ' の県を選ぶ ▸</b>';
+    });
+    if (s.missingCount > MAX) {
+      tap.push('<b class="mw-fix" data-fix-emp-id="' + esc(s.missing[MAX].id) + '">ほか' + (s.missingCount - MAX) + '名 ▸</b>');
+    }
     return '<div class="cr-warn" style="margin:0 0 10px">⚠ <b>都道府県が未選択</b>です（' + who + '）。'
       + '健康保険料率が県ごとに違うため、<b>選ぶまで正しい額になりません</b>（最低賃金の判定もできません）。'
-      + '設定 ▸ 従業員マスタ で選んでください。</div>';
+      + '設定 ▸ 従業員マスタ で選んでください。'
+      + '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px 14px">' + tap.join('') + '</div></div>';
+  }
+  /* ★仮計算の札★（2026-09-03 指示役の裁定3）
+     県が 未選択のままでも ★一覧/集計・明細の紙・帳票の 3本には 数字が 出る★（実測）。
+     出るのを 止めない＝★でも 黙って 出さない★。★文は ここ 1か所★で 作り、画面も 紙も 同じ言い方にする。
+     ★何の率で 計算したかを 必ず 名乗る★（getKenko の daiyo/riyu を そのまま 使う）。 */
+  function kariKeisanNote(emp, ym) {
+    var S = SHH(); if (!S || !S.getKenko) return '';
+    var p = String((emp && emp.pref) || '');
+    if (p) return '';                                   // ★県が 在れば 札は 出さない★
+    var k = S.getKenko(p, ym);
+    if (!k || !k.daiyo) return '';
+    return '県が未選択のため、健康保険料は' + (k.name || '東京都') + 'の率で仮に計算しています';
   }
   // 「東京のままの人が何人いるか」を知らせるだけの1行（黄色にしない・書き換えない）。0人なら空。
   function prefTokyoNote(emps, ctx) {
@@ -360,7 +392,7 @@
     laborLimitItems: laborLimitItems, laborLimitWarn: laborLimitWarn, laborLimitText: laborLimitText,
     shahoOffWarn: shahoOffWarn, fullTimeWeeklyH: fullTimeWeeklyH, shoteiMonthlyWage: shoteiMonthlyWage, shahoKanyuWarn: shahoKanyuWarn,
     statutoryStaleWarn: statutoryStaleWarn, empWarnings: empWarnings, prorateNote: prorateNote,
-    prefStats: prefStats, prefMissingWarn: prefMissingWarn, prefTokyoNote: prefTokyoNote,
+    prefStats: prefStats, prefMissingWarn: prefMissingWarn, prefMissingText: prefMissingText, prefTokyoNote: prefTokyoNote, kariKeisanNote: kariKeisanNote,
     collect: collect, collectCompany: collectCompany,
   };
 });

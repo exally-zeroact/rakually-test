@@ -12,6 +12,11 @@
  *
  * 使い方: node seikyu/tests/koujo-paper.test.mjs [--self-test]
  */
+/* ★2026-09-03 言葉を 決め直した（指示役の裁定＝C）★
+   ★実物45枚（16社）で「明細の合計」は 0回★／足元は ★小計 → 消費税 → 合計★（機械で 読んだ数）。
+   ⇒ この試験が 見ているのは ★「足元の 行が 1回だけ 出る」事★であって 言葉そのものでは ない。
+   ★言葉を 小計に 置き換えた／数の 見方は 1文字も 変えていない★。 */
+
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -229,8 +234,12 @@ const sumsOf = (html) => [...String(html).matchAll(/<table class="sums">([\s\S]*
 T('★選べる① 締めの並び（型A＝既定／型B）★', () => {
   const A = sumsOf(build().html);
   const B = sumsOf(build({}, { style: { sumsOrder: 'B', yenMark: false } }).html);
-  ok(/明細の合計/.test(A), '既定（型A）に 明細の合計が無い: ' + A);
-  ok(!/明細の合計/.test(B), '★型Bなのに 税抜の行が出ている★: ' + B);
+  /* ★2026-09-03★ 型Aの 足元の 言葉を「明細の合計」→★小計★に した（実物45枚に 合わせた）。
+     ところが ★型Bでは 前から「小計」が ★税込★を 指している★（実物7通・lib の注記が 警告していた）。
+     ⇒★言葉で 見ると 型Bの 検査が 壊れる★ので、★見たい 事＝「型Bに 税抜の行が 無い」を 数で 見る★。
+     （★言葉で 探すな・物（数）で 見ろ★＝うちの決まり） */
+  ok(/小計 ¥?197,600/.test(A), '★型Aの 小計（税抜）が 実物と違う★: ' + A);   /* ★型Aは ¥ が 付く（実測）★ */
+  ok(!/197,600/.test(B), '★型Bなのに 税抜の額（197,600）が 出ている★: ' + B);
   ok(/小計 217,360/.test(B), '★型Bの 小計（税込）が実物と違う★: ' + B);
   ok(/合計 199,886/.test(B), '★型Bの 合計が実物と違う★: ' + B);
   console.log('     型A … ' + A);

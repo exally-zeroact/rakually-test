@@ -297,6 +297,19 @@
   }
   function prefMissingWarn(){ return PW().prefMissingWarn(activeEmployees(), ctxOf()); }
   function prefTokyoNote(){ return PW().prefTokyoNote(state.employees||[]); }
+  // ★仮計算の札★＝文は lib 1か所（画面も 紙も 同じ 言い方にする・2026-09-03 指示役の裁定3）
+  function kariNote(e){ return PW().kariKeisanNote(e, state.month); }
+  // ★警告の 箱だけ 描き直す★（丸ごと renderEmpMaster しない＝札が 閉じる・場所が 飛ぶ）
+  function refreshEmpWarn(){ var el=$('#emp-warn'); if(el) el.innerHTML=prefMissingWarn()+prefTokyoNote(); }
+  // 画面用＝対象月に 居る人の うち 県が 空の人が 1人でも 居れば 1行 出す（0人なら 空）
+  function kariWarn(){
+    var who=activeEmployees().filter(function(e){ return !!kariNote(e); });
+    if(!who.length) return '';
+    var nm=who.map(function(e){ return e.name||'（無名）'; });
+    return '<div class="cr-warn" style="margin:0 0 10px">※ <b>仮の計算です</b>（'
+      +(nm.length<=2?nm.join('・'):(nm[0]+'ほか'+(nm.length-1)+'名'))+'）。'+esc(kariNote(who[0]))
+      +'。設定 ▸ 従業員マスタ で県を選ぶと 正しい額になります。</div>';
+  }
   // 対象月に在籍している人（＝この月の計算に乗る人）だけを見る
   function activeEmployees(){ return (state.employees||[]).filter(function(e){ return isActiveInMonth(e,state.month) && !e.retired; }); }
   function prefMissingIds(){ return PW().prefStats(activeEmployees(), ctxOf()).missing.map(function(x){return x.id;}); }
@@ -1562,7 +1575,11 @@
     state.employees.forEach(function(e,i){ if(!empMatchesFilter(e)) return; var g=e.dept||'未分類'; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(i); });
     /* ★都道府県：未選択は黄色（直す場所がここなので、ここに出す）。
        東京のままの人数は数えて出すだけ＝★勝手に書き換えない★（初期値のままかもしれない、を知らせる）。 */
-    var html=prefMissingWarn()+prefTokyoNote();
+    /* ★警告は 名前の付いた 箱に 入れる★（2026-09-03 穴②）
+       前は 裸で 置いていた為、県を 直しても ★画面を 描き直すまで 警告が 出たまま★だった
+       （実測＝空にした 直後は 0個・描き直すと 1個・直しても 1個のまま・もう一度 描き直して 0個）。
+       ⇒★この箱だけ 描き直す★＝★開いていた 札を 閉じない・入力中の 場所を 飛ばさない★。 */
+    var html='<div id="emp-warn">'+prefMissingWarn()+prefTokyoNote()+'</div>';
     html+='<div class="emp-filter">'+FILTERS.map(function(f){ return '<b class="ef-b'+(filt===f[0]?' on':'')+'" data-empfilter="'+f[0]+'">'+f[1]+'<span class="ef-n">'+f[2]+'</span></b>'; }).join('')+'</div>';
     html+=itemSuggestHTML(); // カスタム項目名の候補(過去に使った名前＋定番)
     html+=empProfileStripHTML();
@@ -2233,7 +2250,9 @@
     var head='<div class="card" style="padding:12px;margin-bottom:10px">'
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">'
       +'<label style="font-size:12px;color:#2E7D54;font-weight:700">賞与支給月 <input type="hidden" data-ym class="finput finput-sm" data-bn="payYm" value="'+attr(ym)+'"></label>'
-      +'<label style="font-size:12px;color:#2E7D54;font-weight:700">支給日 <input class="finput finput-sm" data-bn="payDay" value="'+attr(b.payDay)+'" placeholder="例 12月10日" style="width:110px"></label>'
+      /* ★置き字を 日付の 形に★（2026-09-03）＝銀行に 送るには 年-月-日 が 要る。
+         ★入っている 自由文は 消さない★（読めた時だけ 振込に 使う・紙は 今までどおり）。 */
+      +'<label style="font-size:12px;color:#2E7D54;font-weight:700">支給日 <input class="finput finput-sm" data-bn="payDay" value="'+attr(b.payDay)+'" placeholder="例 2026-12-10" style="width:130px"></label>'
       +'</div>'
       +'<div class="hint" style="margin:8px 0 0">賞与の所得税は<b>前月（'+esc(pm)+'）の給与から社会保険料を引いた額</b>と扶養人数で税率が決まります（国税庁 算出率表）。<span class="help-i" data-help="bonusPrev">💡</span> 前月を計算・保存していれば自動、無ければ各行で手入力してください。</div>'
       +'<div class="hint" style="margin:4px 0 0;color:#92500A">⚠ 健康保険は<b>年度累計573万円</b>まで（厚年は1回150万円まで）。年内2回目以降の賞与は、各行の<b>「本年度の既往賞与（標準賞与額）累計」</b>を入れると累計573万で自動調整します。</div>'
@@ -2340,7 +2359,7 @@
   function renderListActive(){ var v=state.listView||'list'; if(v==='sum')renderSumView(); else if(v==='cho')renderChoView(); else if(v==='nen')renderNenView(); else renderListView(); }
   function renderListView(){
     var host=$('#view-list'); if(!host) return; loadPrev(); loadOtHistory();
-    host.innerHTML=statutoryStaleWarn()+state.employees.filter(function(e){return isActiveInMonth(e,state.month);}).map(function(e){
+    host.innerHTML=statutoryStaleWarn()+kariWarn()+state.employees.filter(function(e){return isActiveInMonth(e,state.month);}).map(function(e){
       var r=compute(e), open=state.open['L'+e.id];
       var pay=r.shikyu.map(function(s){return '<div class="dl"><span>'+esc(s.label)+'</span><span class="v">'+yen(s.value)+'</span></div>';}).join('');
       var ded=r.kojo.map(function(k){return '<div class="dl"><span>'+esc(k.label)+'</span><span class="v">'+yen(k.value)+'</span></div>';}).join('');
@@ -2367,7 +2386,7 @@
     var warnCard = warnList.length ? ('<div class="card" style="border-color:#F4D8A8;background:#fffdf7"><div class="card-h" style="color:#92500A">⚠ 要確認（'+warnList.length+'名）</div>'
       + warnList.map(function(x){ return '<div class="pay-row"><span><b>'+esc(x.name)+'</b></span><span style="font-size:11.5px;color:#92500A;text-align:right">'+x.w.map(esc).join('<br>')+'</span></div>'; }).join('')
       + '<p class="hint" style="margin-top:6px">この一覧・Excel（給与集計）にのみ表示。従業員へ渡す明細には出しません。</p></div>') : '';
-    $('#view-sum').innerHTML=warnCard+'<div class="card"><div class="card-h">月次集計（'+mlabel+'）</div>'
+    $('#view-sum').innerHTML=kariWarn()+warnCard+'<div class="card"><div class="card-h">月次集計（'+mlabel+'）</div>'
       +'<table class="sumtab"><thead><tr><th>従業員</th><th>支給合計</th><th>控除合計</th><th>差引支給</th></tr></thead>'
       +'<tbody>'+body+'<tr class="total"><td>全員合計（'+rows.length+'名）</td><td class="num">'+yen(t.s)+'</td><td class="num">'+yen(t.k)+'</td><td class="num">'+yen(t.n)+'</td></tr></tbody></table>'
       +'</div>'
@@ -2468,7 +2487,7 @@
   }
   function renderChinginDaicho(sub){ var host=$('#view-cho'); var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
     if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
-    Store.getPayslipsByYm(year+'-01', year+'-12').then(function(recs){ recs=confirmedRecs(recs).filter(function(r){return r.data.kind!=='bonus';}); host.innerHTML=sub+chinginDaichoHTML(CD().buildLedger(recs, year, state.employees), year); }) // 賃金台帳(月次)は賞与除外
+    Store.getPayslipsByYm(year+'-01', year+'-12').then(function(recs){ recs=confirmedRecs(recs).filter(function(r){return r.data.kind!=='bonus';}); host.innerHTML=sub+kariWarn()+chinginDaichoHTML(CD().buildLedger(recs, year, state.employees), year); }) // 賃金台帳(月次)は賞与除外
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
   function choSub(v){ return '<div class="seg" style="margin-bottom:10px;flex-wrap:wrap">'
     +'<button class="seg-b'+(v==='shakai'?' on':'')+'" data-cho="shakai">社保一覧</button>'
@@ -3059,7 +3078,11 @@
     /* ★月ベースの任意／月2回★＝入れてもらった日を そのまま出す（入っていなければ 今までどおり） */
     if(needPayDays()){ var d=payDaysText(); return d?(d+'（月'+payDaysOf().length+'回）'):payDateStr(); }
     return payDateStr(); }
-  function buildPeople(emps){ return emps.map(function(e){ var r=compute(e); var k=(e.kintai||[]).filter(function(x){ if(/代休取得|振替休日/.test(x.label||'')) return num(x.value)>0; return true; }); var oi=k.findIndex(function(x){return /出勤/.test(x.label||'');}); var wt={label:'労働時間',value:workedLabel(e)}; if(oi>=0)k.splice(oi+1,0,wt); else k.unshift(wt); return { name:e.name, company:state.company.name, payDate:payDateForSlip(), kintai:k, shikyu:r.shikyu, kojo:r.kojo, net:r.net, shikyuTotal:r.shikyuTotal, kojoTotal:r.kojoTotal, warnings:empWarnings(e) }; }); }
+  function buildPeople(emps){ return emps.map(function(e){ var r=compute(e); var k=(e.kintai||[]).filter(function(x){ if(/代休取得|振替休日/.test(x.label||'')) return num(x.value)>0; return true; }); var oi=k.findIndex(function(x){return /出勤/.test(x.label||'');}); var wt={label:'労働時間',value:workedLabel(e)}; if(oi>=0)k.splice(oi+1,0,wt); else k.unshift(wt); var _p={ name:e.name, company:state.company.name, payDate:payDateForSlip(), kintai:k, shikyu:r.shikyu, kojo:r.kojo, net:r.net, shikyuTotal:r.shikyuTotal, kojoTotal:r.kojoTotal, warnings:empWarnings(e),
+      /* ★県が 未選択の人は 紙にも 仮計算だと 書く★（黙って 東京の率で 出さない・2026-09-03）
+         ★札が 無い時は 欄そのものを 作らない★＝凍結した 見本（ops-golden-parity）と 1バイトも 変えない為。 */
+      };
+    var _kari=kariNote(e); if(_kari) _p.kari=_kari; return _p; }); }
 
   /* ── 日払い/週払い スリップ明細(日別内訳) ── */
   function HEI(){ return (typeof ShotokuzeiHei!=='undefined')?ShotokuzeiHei:(window&&window.ShotokuzeiHei); }
@@ -3319,22 +3342,38 @@
        前は ★押せて、押してから 中で止まっていた★。★出来ていない物のボタンを見せるな★。
        ★止める所は lib にも残す★（最後の砦＝Zengin.build の checkCommitter） */
     var cm=(typeof Zengin!=='undefined'&&Zengin.checkCommitter)?Zengin.checkCommitter(committer||{}):'';
+    /* ★取組日が 出せない時も 押させない★（2026-09-03＝★絵を 開いて 見つけた★）
+       賞与の 支給日が 自由文の 時、対象者が 居ると ★ボタンが 押せて 見えていた★
+       （押すと 中で 止まる＝★出来ていない物の ボタンを 見せるな★に 反する）。 */
+    var noDate=!/^[0-9]{4}$/.test(String(furiMMDDFor(furiMode())||''));
     return {
-      zengin:{ enabled:ready.length>0 && !cm, count:ready.length,
+      zengin:{ enabled:ready.length>0 && !cm && !noDate, count:ready.length,
         /* ★理由は 手前の物から言う★＝①人がいない ②振込先が無い ③委託者情報が無い。
            （★奥の設定より先に 手前を言う★＝埋める順番を伝える） */
-        reason: ready.length ? (cm || '') : (listed.length ? '振込先(銀行・支店・口座)が入っていません' : '対象月に振込む人がいません'),
+        reason: noDate ? (furiMode()==='bonus' ? '賞与の支給日が 年-月-日 の形ではありません' : 'この月の振込指定日を決められません')
+          : (ready.length ? (cm || '') : (listed.length ? '振込先(銀行・支店・口座)が入っていません' : '対象月に振込む人がいません')),
         // ★短い理由＝ボタンの中に入れる用。押せない理由を下まで読ませない。
-        short: ready.length ? (cm ? '委託者情報なし' : '') : (listed.length ? '振込先なし' : '対象者なし') },
+        short: noDate ? '振込指定日なし' : (ready.length ? (cm ? '委託者情報なし' : '') : (listed.length ? '振込先なし' : '対象者なし')) },
       xlsx:{ enabled:listed.length>0, count:listed.length,
         reason: listed.length ? '' : '対象月に振込む人がいません',
         short: listed.length ? '' : '対象者なし' }
     };
   }
   // ── 総合振込データ(全銀ファイル + 振込一覧Excel) ──
-  function buildTransfers(){
-    return state.employees.filter(function(e){ return isActiveInMonth(e,state.month) && !e.retired; }).map(function(e){
-      var net=0; try{ net=compute(e).net; }catch(_){}
+  /* ★賞与も 振込に 出す★（2026-09-03 指示役の裁定＝甲）
+     ＝★同じ道を 使う★（人の 絞り方と 口座の 見方は 月次と 同じ／金額と 対象月だけ 差し替える）。
+     ★新しい 仕組みを 作らない★＝ready の 決め方も 全銀の 組み立ても そのまま。 */
+  function furiMode(){ return (state.printMode==='bonus') ? 'bonus' : 'monthly'; }
+  function buildTransfers(mode){
+    mode = mode || furiMode();
+    var bonus = (mode==='bonus');
+    var ym = bonus ? bonusYmOf() : state.month;
+    return state.employees.filter(function(e){
+      if(!isActiveInMonth(e,ym) || e.retired) return false;
+      /* ★賞与は「賞与を もらう人」だけ★（金額が 入っていない人は 振込に 出さない） */
+      return bonus ? (num(bonusEntry(e).amount)>0) : true;
+    }).map(function(e){
+      var net=0; try{ net = bonus ? computeBonus(e).net : compute(e).net; }catch(_){}
       /* ★受取人名が 銀行に出せる字になるか まで見る★（2026-08-28 実際に動かして見つけた）
          カナが空だと ★漢字の氏名で代わりを埋めていた★ので、全銀に直す時に
          ★全部スペース＝名前の無い振込★になっていた。★出せない物は ready にしない★。 */
@@ -3406,14 +3445,57 @@
     return { ymd:o.y+'-'+p(o.m)+'-'+p(o.d), by:'当てた', moved:o.moved, reason:o.reason, shift:o.shift };
   }
   function furiMMDD(ym){ var d=furiDateOf(ym); return d?d.ymd.slice(5,7)+d.ymd.slice(8,10):''; }
+  /* ★モード別の 取組日★＝月次は 会社の 支給日から／賞与は ★賞与の 支給日★から（読めた時だけ）。
+     ★門番は D-1 と 同じ考え★＝読めなければ 空＝★1バイトも 作らない★。 */
+  function furiMMDDFor(mode){
+    if(mode==='bonus') return PM().bonusMMDD({ bonus:state.bonus, company:state.company });
+    return furiMMDD(state.month);
+  }
+  /* ★全銀の 種別コード★（一次情報 2026-09-03＝21:総合／11:給与／12:賞与・★22は 無い★）
+     ★どちらの 契約かは 会社ごと★＝設定から。★既定は 総合振込（21）＝今のまま★。 */
+  function furiShubetsuFor(mode){
+    var keiyaku=String((state.company&&state.company.furiKeiyaku)||'sogo');
+    if(keiyaku!=='kyuyo') return '21';                 /* 総合振込＝月次も 賞与も 21 */
+    return (mode==='bonus') ? '12' : '11';             /* 給与振込の 契約＝給与11／賞与12 */
+  }
+  /* ★賞与の 振込指定日の 箱★（2026-09-03）＝★D-1 と 同じ 見え方★に 揃える。
+     賞与の 支給日は ★自由文★なので、★日付として 読めた時だけ★ 使う。
+     ★元の 文字は 1文字も 消さない★（画面にも そのまま 出す）。 */
+  function furiDateBoxBonus(){
+    var b=state.bonus||{}, raw=String(b.payDay||'').trim();
+    var o=PM().bonusDateObj({ bonus:b, company:state.company });
+    var w=['日','月','火','水','木','金','土'];
+    if(!o){
+      return '<div class="frow"><div class="flabel">振込指定日<span class="hint2">賞与</span></div>'
+        +'<div class="cr-warn" style="margin:0">賞与の振込指定日を決められませんでした。'
+        +(raw?('いま入っているのは「'+esc(raw)+'」です。'):'賞与の「支給日」が空です。')
+        +'銀行に送るには <b>2026-12-10</b> の形（年-月-日）が要ります。'
+        +'<div style="margin-top:6px"><b class="mw-fix" data-fix-bonus-payday>賞与の 支給日を 入れる ▸</b></div></div></div>';
+    }
+    var p2=function(n){return (n<10?'0':'')+n;};
+    var dt=new Date(o.y,o.m-1,o.d);
+    var head=o.y+'年'+o.m+'月'+o.d+'日（'+w[dt.getDay()]+'）';
+    var why='賞与の支給日「'+esc(raw)+'」から出しました。'
+      +(o.moved?(esc(o.reason)+'で銀行が休みなので '+(o.shift==='next'?'次':'前')+'の営業日にしています。'):'');
+    return '<div class="frow"><div class="flabel">振込指定日<span class="hint2">賞与</span></div>'
+      +'<div><div class="bx-val" style="font-weight:700;white-space:nowrap;font-size:16px">'+esc(head)+'</div>'
+      +'<p class="hint" style="margin:2px 0 6px">'+why+'</p></div></div>';
+  }
   function furiDateBox(){
     var c=state.company||{};
+    var mode=furiMode();
+    if(mode==='bonus'){ return furiDateBoxBonus(); }
     var d=furiDateOf(state.month);
     var w=['日','月','火','水','木','金','土'];
     if(!d){
+      /* ★丙（2026-09-03 指示役の裁定）＝★聞く★★
+         文で「入れてください」と 言うだけだと ★人が 自分で 探す★。
+         穴①で 作った ★押せる案内★と 同じ形に して、★支給日の 入れる所★まで 連れて行く。
+         （★出るのを 止めない／当てずっぽうの 日付は 出さない★＝銀行へ 行く データだから） */
       return '<div class="frow"><div class="flabel">振込指定日</div>'
         +'<div class="cr-warn" style="margin:0">この月の振込指定日を決められませんでした。'
-        +'会社の「支給日」を入れてください。</div></div>';
+        +'会社の「支給日」が 空か、数字として 読めません（★全角の数字は 読めません★）。'
+        +'<div style="margin-top:6px"><b class="mw-fix" data-fix-payday>会社の 支給日を 入れる ▸</b></div></div></div>';
     }
     var dt=new Date(Number(d.ymd.slice(0,4)),Number(d.ymd.slice(5,7))-1,Number(d.ymd.slice(8,10)));
     var head=d.ymd.slice(0,4)+'年'+Number(d.ymd.slice(5,7))+'月'+Number(d.ymd.slice(8,10))+'日（'+w[dt.getDay()]+'）';
@@ -3444,11 +3526,24 @@
   }
   function renderFuri(){
     var box=$('#furi-box'); if(!box) return;
-    if((state.printMode||'monthly')==='bonus'){ box.innerHTML='<p class="hint" style="margin:0">総合振込データは「月次給与」で作成します。</p>'; return; }
+    /* ★賞与も 作れるように した★（2026-09-03 裁定＝甲）＝前は ここで「月次給与で作成します」と 断っていた */
     var c=state.company, tr=buildTransfers();
     var ready=tr.filter(function(t){return t.ready;}), notReady=tr.filter(function(t){return !t.ready && t.amount>0;});
     function fi(k,ph,extra){ return '<input class="finput" data-fc="'+k+'" value="'+attr(c[k])+'" placeholder="'+ph+'" '+(extra||'')+'>'; }
-    var committer='<div class="sec-lb" style="margin-top:0">委託者情報（自社・銀行から通知される値）</div>'
+    /* ★銀行との 契約を 聞く★（2026-09-03 指示役の裁定＝甲’）
+       全銀の 種別コードは ★21：総合振込／11：給与振込／12：賞与振込★（一次情報・PDF 2本で 確認）。
+       ★どちらの 契約かは 会社ごと★＝アプリが 決められない ⇒★聞く（既定は 今のまま＝総合振込）★。
+       ★専門用語を そのまま 出さない★＝「種別コード」ではなく「銀行とは どちらの 契約ですか？」。
+       ★71/72 も 規定には 在るが 使わない★＝SMBC の 資料は 11/12 しか 書いていない＝★広く 通る方★。 */
+    var keiyakuNow=String((c.furiKeiyaku||'sogo'));
+    var keiyaku='<div class="sec-lb" style="margin-top:0">銀行とは どちらの 契約ですか？</div>'
+      +'<div class="frow"><select class="finput" data-fc="furiKeiyaku">'
+      +'<option value="sogo"'+(keiyakuNow!=='kyuyo'?' selected':'')+'>総合振込（ふつうはこちら）</option>'
+      +'<option value="kyuyo"'+(keiyakuNow==='kyuyo'?' selected':'')+'>給与振込・賞与振込の契約をしている</option>'
+      +'</select>'
+      +'<p class="hint" style="margin:4px 0 0">分からなければ そのままで大丈夫です。'
+      +'銀行に「給与振込」の契約をしている会社だけ 下を選んでください（ファイルの中の 種別が 変わります）。</p></div>';
+    var committer=keiyaku+'<div class="sec-lb" style="margin-top:0">委託者情報（自社・銀行から通知される値）</div>'
       +'<div class="frow2"><div class="frow"><div class="flabel">委託者コード<span class="hint2">10桁</span></div>'+fi('furiCode','0000000000','inputmode="numeric" maxlength="10"')+'</div>'
         +'<div class="frow"><div class="flabel">委託者名（半角ｶﾅ）</div>'+fi('furiName','ｶ)ｾﾞﾛｱｸﾄ','maxlength="40"')+'</div></div>'
       +'<div class="frow2"><div class="frow"><div class="flabel">自社 銀行名</div>'+fi('furiBankName','ﾐｽﾞﾎ')+'</div>'
@@ -3462,8 +3557,13 @@
     var needBasics=!(String(c.furiCode||'').trim() && String(c.furiBankNo||'').trim()
       && String(c.furiBranchNo||'').trim() && String(c.furiAccount||'').trim());
     var lead=needBasics?'<div class="cr-warn" style="margin:0 0 10px">まず下の「委託者情報」を埋めてください。銀行から通知されている値です。</div>':'';
-    var listHTML='<div class="sec-lb">振込対象（'+esc(state.month)+'・差引支給額）</div>';
-    if(!tr.length){ listHTML+='<p class="hint" style="margin:0">対象月に在籍する従業員がいません。</p>'; }
+    /* ★賞与の 時は 賞与だと 書く★（2026-09-03）＝前は 賞与でも「2026-09・差引支給額」と 月次の 見出しだった
+       （★どの お金を 送るのか 読んだ人に 分からない★）。 */
+    var listHTML='<div class="sec-lb">振込対象（'
+      +esc(furiMode()==='bonus' ? (bonusYmOf()+'・賞与の 差引支給額') : (state.month+'・差引支給額'))+'）</div>';
+    if(!tr.length){ listHTML+='<p class="hint" style="margin:0">'
+      +(furiMode()==='bonus' ? '賞与の金額を入れた人がいません（「入力 ▸ 賞与」で入れてください）。' : '対象月に在籍する従業員がいません。')
+      +'</p>'; }
     else {
       listHTML+='<div style="font-size:12.5px">'+ready.map(function(t){ return '<div class="dl"><span>'+esc(t.emp.name)+'（'+esc(t.bankName||'')+' '+esc(t.branchName||'')+' '+esc(t.account||'')+'）</span><span class="v">'+yen(t.amount)+'</span></div>'; }).join('')+'</div>';
       /* ★1行に縮める（どこを直せばいいかだけ）。3人以上は「ほか○名」。 */
@@ -3525,14 +3625,15 @@
     var c=state.company;
     /* ★取組日は その月から出す★（2026-08-27）＝会社の1個の日付を使わない。
        ★出せない時は 1バイトも作らない★（前は 空→0000 が黙って銀行へ行っていた）。 */
-    var d=furiMMDD(state.month);
+    var mode=furiMode();
+    var d=furiMMDDFor(mode);
     if(!/^\d{4}$/.test(d)){
       uiAlert('この月の振込指定日を決められないので、全銀ファイルは作れません。\n'
         +'「振込指定日」の所で この月の日付を決めるか、会社の「支給日」を入れてください。');
       return;
     }
-    var committer={ code:c.furiCode, name:c.furiName, torikumiMMDD:d, bankNo:c.furiBankNo, bankName:c.furiBankName, branchNo:c.furiBranchNo, branchName:c.furiBranchName, yokin:c.furiYokin, account:c.furiAccount };
-    var tr=buildTransfers().filter(function(t){return t.ready;});
+    var committer={ code:c.furiCode, name:c.furiName, torikumiMMDD:d, shubetsu:furiShubetsuFor(mode), bankNo:c.furiBankNo, bankName:c.furiBankName, branchNo:c.furiBranchNo, branchName:c.furiBranchName, yokin:c.furiYokin, account:c.furiAccount };
+    var tr=buildTransfers(mode).filter(function(t){return t.ready;});
     if(!tr.length){ uiAlert('振込対象がありません。従業員マスタの「総合振込データ用」に銀行/支店/口座を入力してください。'); return; }
     /* ★改行は会社の設定どおり。決めるのは lib（銀行→確認済みならその形／それ以外は既定CR+LF）。
        未設定・未確認の銀行・一覧にない銀行は、今まで通っている形（CR+LF）のまま。 */
@@ -3607,8 +3708,34 @@
         if(g==='company'||g==='emp'){ showScreen('scr-settings'); var b=$('#set-seg .seg-b[data-set="'+g+'"]'); if(b)b.click(); }
         else if(g==='input'){ showScreen('scr-input'); } else if(g==='print'){ showScreen('scr-print'); }
         return; }
+      /* ★丙＝支給日の 入れる所まで 連れて行く★（2026-09-03）。穴①と 同じ「押せる案内」。 */
+      /* ★賞与の 支給日へ 連れて行く★（2026-09-03）＝穴①と 同じ「押せる案内」。 */
+      if(e.target.closest('[data-fix-bonus-payday]')){
+        state.printMode='bonus';
+        showScreen('scr-input');
+        setTimeout(function(){ var el=$('[data-bn="payDay"]'); if(el && el.offsetParent){ el.scrollIntoView({block:'center'}); el.focus(); } },80);
+        return;
+      }
+      if(e.target.closest('[data-fix-payday]')){
+        showScreen('scr-settings');
+        var cb=$('#set-seg .seg-b[data-set="company"]'); if(cb)cb.click();
+        /* ★何もしないcatchを 足さない★（見張りが 46→47 で 捕まえた・2026-09-03）＝
+           見えている時だけ 指を 当てる（見えない物に focus しない）。 */
+        setTimeout(function(){ var el=$('#c-payday-day'); if(el && el.offsetParent){ el.scrollIntoView({block:'center'}); el.focus(); } },60);
+        return;
+      }
       if(e.target.closest('[data-goto-empmaster]')){ showScreen('scr-settings'); var eb=$('#set-seg .seg-b[data-set="emp"]'); if(eb)eb.click(); return; } // 空状態CTA→従業員マスタ
-      var fe=e.target.closest('[data-fix-emp]'); if(fe){ var fi=+fe.dataset.fixEmp; var femp=state.employees[fi]; if(femp){ state.open[femp.id]=true; showScreen('scr-settings'); var eb2=$('#set-seg .seg-b[data-set="emp"]'); if(eb2)eb2.click(); renderEmpMaster(); setTimeout(function(){ var c=$('#emp-list .mco[data-i="'+fi+'"]'); if(c)c.scrollIntoView({block:'center'}); },30); } return; } // 警告→該当従業員のマスタを開く(UX#10)
+      /* ★押せる案内の 受け口は ここ 1つ★（2026-09-03 穴①）。
+         data-fix-emp（番号）＝最低賃金割れ／data-fix-emp-id（id）＝県未選択。
+         ★id で 来た物は 番号に 直してから★ 同じ道を 通す＝★2つ目の 仕組みを 作らない★。
+         ★id で 指す方が 正しい★（番号は 並び替え・絞り込みで 別人を 指す）。 */
+      var fe=e.target.closest('[data-fix-emp]');
+      if(!fe){
+        var ft=e.target.closest('[data-fix-emp-id]');
+        if(ft){ var ix=state.employees.findIndex(function(x){ return x && x.id===ft.dataset.fixEmpId; });
+          if(ix>=0){ ft.setAttribute('data-fix-emp', String(ix)); fe=ft; } }
+      }
+      if(fe){ var fi=+fe.dataset.fixEmp; var femp=state.employees[fi]; if(femp){ state.open[femp.id]=true; showScreen('scr-settings'); var eb2=$('#set-seg .seg-b[data-set="emp"]'); if(eb2)eb2.click(); renderEmpMaster(); setTimeout(function(){ var c=$('#emp-list .mco[data-i="'+fi+'"]'); if(c)c.scrollIntoView({block:'center'}); },30); } return; } // 警告→該当従業員のマスタを開く(UX#10)
       var gs=e.target.closest('[data-scr]'); if(gs && !gs.classList.contains('bn')){ showScreen(gs.dataset.scr); return; } }); // CTA等 ナビ外の画面遷移
     $('#help-x').addEventListener('click',function(){ $('#help-ov').classList.remove('on'); });
     $('#help-ov').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('on'); });
@@ -3908,6 +4035,9 @@
       if((f==='dept'||f==='role')&&ev.target.value==='__new'){ var label=f==='dept'?'部署':'役職'; var fld=f; uiPrompt('新しい'+label+'名を入力').then(function(nv){ nv=(nv||'').trim(); if(nv){ var list=fld==='dept'?state.depts:state.roles; if(list.indexOf(nv)<0)list.push(nv); emp[fld]=nv; } renderEmpMaster(); }); return; }
       emp[f]=ev.target.value; if(ev.target.classList.contains('num')){ emp[f]=String(num(ev.target.value)); ev.target.value=fmtN(emp[f]); }
       if(f==='workStatus'){ if(!emp.apply)emp.apply={}; var off=(emp.workStatus==='sankyu'||emp.workStatus==='ikukyu'); ['health','pension','kaigo'].forEach(function(k){ if(off) emp.apply[k]=false; else delete emp.apply[k]; }); }
+      /* ★県は その場で 追いつかせる★（2026-09-03 穴②）＝警告の箱と 社会保険の 自動計算だけ 更新。
+         丸ごと 描き直すと ★開いていた 札が 閉じる★ので しない。 */
+      if(f==='pref'){ refreshEmpWarn(); refreshShaho(i); }
       if(f==='payType'||f==='dept'||f==='role'||f==='commuteType'||f==='workStatus'||f==='residentTaxMode'||f==='residentTaxAnnual'||f==='taishokuYmd'||f==='minWageReduce'||f==='houshuKubun') renderEmpMaster(); // minWageReduce=最賃警告再判定 / houshuKubun=源泉区分の注記・源泉プレビュー更新
     });
     el.addEventListener('input',function(ev){ var card=ev.target.closest('.mco'); if(!card)return; var i=+card.dataset.i; var emp=state.employees[i]; var t=ev.target;
@@ -3941,7 +4071,7 @@
         // ★都道府県が未選択の人は確認済みにしない（黙って東京の率で凍結させない）
         if(!String(emc.pref||'').trim()){
           e.target.checked=false;
-          uiAlert('都道府県が未選択です。健康保険料率が県ごとに違うため、選ぶまで正しい額になりません（最低賃金の判定もできません）。設定 ▸ 従業員マスタ で選んでください。');
+          uiAlert(PW().prefMissingText());   /* ★文は lib 1か所★（同じ事を 2か所に 書かない・2026-09-03） */
           return; }
         // ★確定前に現在値のスナップショットを保存してから凍結★(一括「今月を確定」と同じ順)。
         //  先に確定するとsaveMonthlyPayslipsが確定済みをスキップし当月slipが未保存になる不具合を防ぐ。
@@ -4363,6 +4493,13 @@
   function stripTransient(e){ var o={}; for(var k in e){ if(Object.prototype.hasOwnProperty.call(e,k)&&k.charAt(0)!=='_') o[k]=e[k]; } return o; }
   function snapshot(){ return { v:1, company:state.company, employees:(state.employees||[]).map(stripTransient), month:state.month, theme:state.theme, prefer:state.prefer, depts:state.depts, roles:state.roles, showRetired:state.showRetired, bonus:state.bonus, confirmed:state.confirmed, nencho:state.nencho, onboardDone:state.onboardDone, onboardOutput:state.onboardOutput, payPatterns:state.payPatterns }; }
   var _saveT=null;
+  // ★保留した保存を 出す時に「その時点の 新しい中身」を 渡す★(store.js の saveHold が呼ぶ)。
+  //  これが無いと、読み込み前の 古い一覧で 倉庫を 上書きしてしまう(2026-09-03 P0)。
+  try{ if(window.Store&&Store.setSnapshotFn) Store.setSnapshotFn(function(){ return snapshot(); }); }
+  catch(e){ /* ★黙らない★＝この口が 付かないと 保留した保存が 古い一覧を 出す恐れがある */
+    console.error('★保存の 保留に「新しい中身」を 渡す口が 付きませんでした★', e);
+    var _ss=document.getElementById('save-status'); if(_ss) _ss.textContent='⚠ クラウド保存の 準備に 失敗（開き直してください）';
+  }
   function persistSave(){
     var snap=snapshot(), lsOk=true;
     try{ localStorage.setItem(PKEY, JSON.stringify(snap)); }catch(e){ lsOk=false; }

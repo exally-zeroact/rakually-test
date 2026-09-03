@@ -189,9 +189,18 @@
     // 健保従業員率: 明示healthRate最優先(=app.jsのprefRate結果=回帰ゼロ)。
     // 未指定でも pref+payYm があれば介護(getKaigo)と対称に lib単体で年度自己選択(子育て支援金込)。
     // pref も無い空呼び出しは従来どおり既定0.04955(令和7東京折半)=回帰ゼロ。
+    // ★2026-09-03 指示役の裁定＝★県が 空の時も 表から 取る★。
+    //  前は ここだけ ★0.04955（令和7 東京・子育て支援金なし）★という ★別の 既定★を 持っていて、
+    //  getKenko の 代用（令和8 東京＋支援金＝0.0504）と ★同じ状態で 違う額★に なっていた
+    //  （260,000円で 12,883円 と 13,104円）。★代用の 値は shakaihoken-hyo に 1か所だけ★。
+    //  表そのものが 読めない時だけ 最後の砦で 0.04955（従来値）。
     var healthRate = opts.healthRate != null ? opts.healthRate
-      : (opts.pref && SHAKAIHOKEN_HYO && SHAKAIHOKEN_HYO.getKenko
-          ? SHAKAIHOKEN_HYO.getKenko(opts.pref, opts.payYm).jugyoin + (SHAKAIHOKEN_HYO.getShienkin ? SHAKAIHOKEN_HYO.getShienkin(opts.payYm) : 0)
+      : (SHAKAIHOKEN_HYO && SHAKAIHOKEN_HYO.getKenko
+          ? (opts.pref
+              ? SHAKAIHOKEN_HYO.getKenko(opts.pref, opts.payYm).jugyoin + (SHAKAIHOKEN_HYO.getShienkin ? SHAKAIHOKEN_HYO.getShienkin(opts.payYm) : 0)
+              : (SHAKAIHOKEN_HYO.daiyoJugyoinRate
+                  ? SHAKAIHOKEN_HYO.daiyoJugyoinRate(opts.payYm)
+                  : SHAKAIHOKEN_HYO.getKenko('', opts.payYm).jugyoin + (SHAKAIHOKEN_HYO.getShienkin ? SHAKAIHOKEN_HYO.getShienkin(opts.payYm) : 0)))
           : 0.04955);
     // 雇用保険 従業員率: 明示employRate最優先(=app.jsが渡す年度別率=回帰ゼロ)。
     // 未指定でも gyoshu があれば koyo-hoken で労働保険年度(payYm)＋業種を自己選択(健保率の年度自己選択と同型・単一ソース)。

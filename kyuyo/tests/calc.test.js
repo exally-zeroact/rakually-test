@@ -188,10 +188,16 @@ T('直接入力→computePayslipまで標準報酬が届く', function () {
   var r = PayslipCalc.computePayslip({ shikyu: [{ label: '基本給', value: 200000 }], birthYmd: '1990-01-01', payYm: '2026-06', fuyou: 0, hyojunBase: sb.hoshu });
   eq(r.si.hyojunHealth, 360000, '当月20万でも標準報酬36万で社保');
 });
+/* ★2026-09-03 に 2つ 直した★（指示役の裁定）
+   ①★県を 書く（pref:'tokyo'）★＝前は 県を 書かず ★黙って 代用された 率★で 通っていた。
+     ★この試験が 見たいのは「標準報酬で 決まる」事★＝率は 決め打ちに して ぶれさせない。
+   ②★期待額 16,847 → 17,136★＝代用の 率を ★表 1か所★（令和8 東京 0.04925＋子育て支援金 0.00115＝0.0504）に
+     揃えた為。★340,000 × 0.0504 = 17,136★。★お金の 決まりを 変えたのでは なく、
+     古い既定（令7・支援金なし）が ここに 残っていた★。 */
 T('hyojunBase固定: 社保は当月支給でなく標準報酬基礎で計算(残業でブレない)', function () {
   // 当月支給は残業で50万でも、確定した報酬月額34万で社保が決まる
-  var r = PayslipCalc.computePayslip({ shikyu: [{ label: '基本給', value: 500000 }], birthYmd: '1980-05-15', payYm: '2026-06', fuyou: 0, hyojunBase: 340000 });
-  eq(r.si.hyojunHealth, 340000); eq(r.si.health, 16847); eq(r.si.pension, 31110); eq(r.si.kaigo, 2754); // 介護=令和8年度0.81%: 340000×0.0081
+  var r = PayslipCalc.computePayslip({ shikyu: [{ label: '基本給', value: 500000 }], birthYmd: '1980-05-15', payYm: '2026-06', pref: 'tokyo', fuyou: 0, hyojunBase: 340000 });
+  eq(r.si.hyojunHealth, 340000); eq(r.si.health, 17136); eq(r.si.pension, 31110); eq(r.si.kaigo, 2754); // 介護=令和8年度0.81%: 340000×0.0081
 });
 
 /* ---- 法定控除の従業員ごとオン/オフ（役員・非加入対応） ---- */

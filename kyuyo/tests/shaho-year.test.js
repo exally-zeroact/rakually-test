@@ -117,10 +117,17 @@ T('健保 lib自己選択: 明示healthRateが最優先(pref/payYmを無視=回�
     pref: 'tokyo', payYm: '2026-06', healthRate: 0.05 }); // 明示値=導出と別
   eq(r.health, SH.han50(hyHealth * 0.05));
 });
-T('健保 lib自己選択: pref未指定+healthRate未指定は既定0.04955のまま(空呼び出し回帰ゼロ)', function () {
+/* ★2026-09-03 に 決め直した★（指示役の裁定・前は「既定0.04955のまま＝回帰ゼロ」だった）
+   理由＝★同じ「県が 無い」状態で 3つの 違う 額が 出ていた★（実測）:
+     getKenko の 代用 0.0504（260,000で 13,104円）／ここの 既定 0.04955（12,883円）／ops は 1人目の県。
+   ★どれも 画面にも 紙にも 出ない＝静かに ずれる★ので、★代用の 値は 表 1か所★に 揃えた。
+   ⇒ ここは もう「0.04955 のまま」では なく ★表の 代用率（daiyoJugyoinRate）と 同じ★である事を 見る。
+   ★県が 入っている人の 額は 1円も 動かしていない★（pref を 渡す 上の 試験が それを 見ている）。 */
+T('健保 lib自己選択: pref未指定+healthRate未指定は★表の代用率★と同じ(黙って別の既定を持たない)', function () {
   var hyHealth = SH.getHyojunHealth(300000);
   var r = PC.calcSocialInsurance({ payTotal: 300000, hyojunBase: 300000, employRate: 0.0055, hasKaigo: false, payYm: '2026-06' });
-  eq(r.health, SH.han50(hyHealth * 0.04955));
+  eq(r.health, SH.han50(hyHealth * SH.daiyoJugyoinRate('2026-06')));
+  ok(r.health !== SH.han50(hyHealth * 0.04955), '★古い既定 0.04955 に 戻っている★');
 });
 T('健保 lib自己選択: computePayslip(emp.pref)経由でも年度導出・emp.healthRate明示は勝つ', function () {
   var empBase = { shikyu: [{ label: '基本給', value: 300000 }], birthYmd: '1980-05-15', fuyou: 1,

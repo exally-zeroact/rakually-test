@@ -122,11 +122,32 @@ const SHAKAIHOKEN_HYO = {
   // 社保年度(3月起算): 'YYYY-MM' で month>=3→その年, <3→前年(令和8年度=2026年3月〜2027年2月)
   shahoYearOf: function (ym) { ym = String(ym || ''); var y = parseInt(ym.slice(0, 4), 10) || 2026, m = parseInt(ym.slice(5, 7), 10) || 1; return m >= 3 ? y : y - 1; },
   // 健保料率(対象月の社保年度で選択)。{name,total,jugyoin(=total/2),nendo,stale}
+  /* ★代用したら 名乗る★（2026-09-03 指示役の裁定）
+     前は ★県が 空/表に無い時 黙って 東京の率で 計算して 名前も「東京都」と 返していた★。
+     画面にも 紙にも 何も 出ないまま ★静かに ずれる★（実測＝一覧/集計・明細・帳票の 3本で 出ていた）。
+     ⇒★止めない（今 出ている物を 消さない）★が、★daiyo:true と 理由を 必ず 返す★。
+     ★代用の 率は ここ 1か所★＝他所（payroll-calc 等）は これを 呼ぶ事（別の 既定を 持たない）。 */
+  DAIYO_PREF: 'tokyo',
   getKenko: function (pref, ym) {
-    var y = this.shahoYearOf(ym); var base = this.KENKO_RITSU[pref] || this.KENKO_RITSU.tokyo; var total, nendo, stale = false;
-    if (y >= 2026) { var t = this.KENKO_2026[pref]; total = (t != null ? t : this.KENKO_2026.tokyo); nendo = '令和' + (y - 2018) + '年度'; if (y > 2026) stale = true; }
+    var y = this.shahoYearOf(ym); var key = String(pref || '');
+    var aru = !!(y >= 2026 ? this.KENKO_2026[key] != null : this.KENKO_RITSU[key]);
+    var daiyo = !aru;                       // ★空・表に無い＝代用★
+    if (daiyo) key = this.DAIYO_PREF;
+    var base = this.KENKO_RITSU[key] || this.KENKO_RITSU.tokyo; var total, nendo, stale = false;
+    if (y >= 2026) { var t = this.KENKO_2026[key]; total = (t != null ? t : this.KENKO_2026.tokyo); nendo = '令和' + (y - 2018) + '年度'; if (y > 2026) stale = true; }
     else { total = base.total; nendo = '令和7年度'; if (y < 2025) stale = true; }
-    return { name: base.name, total: total, jugyoin: total / 2, nendo: nendo, stale: stale };
+    var r = { name: base.name, total: total, jugyoin: total / 2, nendo: nendo, stale: stale };
+    if (daiyo) {
+      r.daiyo = true;
+      r.daiyoPref = this.DAIYO_PREF;
+      r.riyu = (pref ? '知らない県（' + pref + '）' : '県が 未選択') + 'のため ' + base.name + 'の率で 仮に 計算';
+    }
+    return r;
+  },
+  /* ★県が 無い時に 使う 従業員負担率＝ここ 1か所★（健保＋子育て支援金）。
+     ★別の 既定値を どこにも 書かない★（2026-09-03 実測で 0.0504 と 0.04955 の 2種類が 出ていた）。 */
+  daiyoJugyoinRate: function (ym) {
+    return this.getKenko('', ym).jugyoin + (this.getShienkin ? this.getShienkin(ym) : 0);
   },
   // 介護保険料率(対象月の社保年度で選択)。{total,jugyoin,stale}
   getKaigo: function (ym) { var y = this.shahoYearOf(ym); var k = this.KAIGO_NENDO[y]; var stale = false; if (!k) { k = this.KAIGO_NENDO[2026]; stale = true; } return { total: k.total, jugyoin: k.jugyoin, stale: stale }; },
