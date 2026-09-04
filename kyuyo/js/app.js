@@ -2698,7 +2698,7 @@
   function renderSantei(sub){ var host=$('#view-cho'); var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
     if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
     Store.getPayslipsByYm(year+'-04', year+'-06').then(function(recs){ recs=confirmedRecs(recs).filter(function(r){return r.data.kind!=='bonus';});
-      state._santeiRows=santeiRows(recs, year, state.employees); host.innerHTML=sub+santeiHTML(state._santeiRows, year); })
+      state._santeiRows=santeiRows(recs, year, state.employees); host.innerHTML=sub+todokedeIchiranHTML()+santeiHTML(state._santeiRows, year); })
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
   // 月額変更届(被保険者報酬月額変更届): 固定的賃金が変わった人を、変動月からの確定明細3か月で随時改定判定→該当者を届に。
   //  出典=日本年金機構(随時改定・被保険者報酬月額変更届)。要件=①固定的賃金の変動 ②変動月から継続3か月すべて支払基礎日数17日(短時間11日)以上 ③従前と2等級以上差。適用=変動月の4か月目。
@@ -2772,7 +2772,7 @@
   function renderGekkaku(sub){ var host=$('#view-cho'); var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
     if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
     Store.getPayslipsByYm((year-1)+'-01', year+'-12').then(function(recs){ recs=confirmedRecs(recs); // 変動月は各人バラバラ=前年〜当年を広めに取得
-      state._gekkakuRows=gekkakuRows(recs, state.employees); host.innerHTML=sub+gekkakuHTML(state._gekkakuRows); })
+      state._gekkakuRows=gekkakuRows(recs, state.employees); host.innerHTML=sub+todokedeIchiranHTML()+gekkakuHTML(state._gekkakuRows); })
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
   // 労働保険 年度更新(算定基礎賃金集計表): 労働保険年度(4月〜翌3月)の確定明細から、労災対象(全労働者・役員除く)と
   //  雇用保険対象(被保険者)の賃金総額を月別集計→年度計→保険料(雇用保険=全体率で自動・労災=業種別率を会社入力)。
@@ -2995,12 +2995,79 @@
     return note+'<div class="card"><div class="card-h">資格取得届／喪失届</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
   }
   function renderShikaku(sub){ var host=$('#view-cho'); state._shikakuRows=shikakuRows(state.employees); host.innerHTML=sub+shikakuHTML(state._shikakuRows); }
+  /* ★何が 出せるかの 表★（2026-09-05 指示役の 注文）
+     ★お客さんが「何が 出せるか」を 見て 分かる★
+     ★書き方の 決まり★
+       ①★お客さんの 言葉で★（様式の 番号は 添えるだけ）
+       ②「まだ」の 理由を 分ける
+          uchi   … ★うちが 作っていない★
+          nenkin … ★年金機構の 検査が 対応していない★（操作説明書 Ｑ2-5・うちの せいでは ない）
+       ③★出来ていない 物の ボタンは 出さない★
+     ★一番 大事★＝★「出せる」を 手書きに しない★
+       ＝TodokedeCsv に ★作る 関数が 在るか★ で 決める
+       ＝手で 書くと ★画面が 嘘に なる★（2026-09-04 の「◯つ」と 同じ 型） */
+  var TDK_LIST = [
+    { itsu:'毎年 7月10日まで（4〜6月の給与から）', nm:'算定基礎届',   yoshiki:'2225700', tsukuru:'santeiRow' },
+    { itsu:'給料が大きく変わった時（3か月後）',     nm:'月額変更届',   yoshiki:'2221700', tsukuru:'gekkakuRow' },
+    { itsu:'賞与を払った日から5日以内',             nm:'賞与支払届',   yoshiki:'2265700', tsukuru:'shoyoRow' },
+    { itsu:'入社した時（5日以内）',                 nm:'資格取得届',   yoshiki:'2200700', tsukuru:'shikakuShutokuRow', riyu:'uchi' },
+    { itsu:'退社した時（5日以内）',                 nm:'資格喪失届',   yoshiki:'2201700', tsukuru:'shikakuSoshitsuRow', riyu:'uchi' },
+    { itsu:'家族が増えた／減った時',                 nm:'被扶養者(異動)届・国民年金第3号', yoshiki:'2202700', tsukuru:'fuyoRow', riyu:'uchi' },
+    { itsu:'産前産後休業をとる時',                   nm:'産前産後休業取得者申出書', yoshiki:'2273700', tsukuru:null, riyu:'nenkin' },
+    { itsu:'育児休業をとる時',                       nm:'育児休業等取得者申出書',   yoshiki:'2263700', tsukuru:null, riyu:'nenkin' }
+  ];
+  function todokedeIchiran(){
+    var TD=window.TodokedeCsv;
+    return TDK_LIST.map(function(x){
+      var dekiru=!!(TD && x.tsukuru && typeof TD[x.tsukuru]==='function');
+      return { itsu:x.itsu, nm:x.nm, yoshiki:x.yoshiki, tsukuru:x.tsukuru,
+        dekiru:dekiru, riyu:dekiru?'':(x.riyu||'uchi') };
+    });
+  }
+  function todokedeIchiranHTML(){
+    var list=todokedeIchiran();
+    var gyo=list.map(function(x){
+      var fuda=x.dekiru
+        ? '<span style="color:#1b5e20;font-weight:600">出せます</span>'
+        : (x.riyu==='nenkin'
+           ? '<span class="hint2">年金機構の 検査が この 届出に 対応していません</span>'
+           : '<span class="hint2">これから 作ります</span>');
+      /* ★左に 揃える★（表の 既定が 右寄せで 読みにくかった＝2026-09-05 絵で 見て 気づいた） */
+      var td='padding:6px 8px;border-bottom:1px solid var(--line,#e5e5e5);text-align:left';
+      return '<tr><td class="tdk-i" style="'+td+'">'+esc(x.itsu)+'</td>'
+        +'<td class="tdk-n" style="'+td+'">'+esc(x.nm)
+        +'<span class="hint2" style="margin-left:6px">'+esc(x.yoshiki)+'</span></td>'
+        +'<td style="'+td+'">'+fuda+'</td></tr>';
+    }).join('');
+    var deru=list.filter(function(x){return x.dekiru;}).length;
+    /* ★スマホでは 表が 横に はみ出して ★「今」の 列（一番 大事）が 見えない★★
+       （2026-09-05 幅390 の 絵で 気づいた）
+       ⇒★狭い時は 表を やめて 1件ずつ 積む★（横に スクロールさせない） */
+    var css='<style>'
+      +'.tdk-t{width:100%;font-size:13px;border-collapse:collapse}'
+      +'@media(max-width:640px){'
+      +' .tdk-t,.tdk-t tbody,.tdk-t tr,.tdk-t td{display:block;width:auto}'
+      +' .tdk-t thead{display:none}'
+      +' .tdk-t tr{border:1px solid var(--line,#e5e5e5);border-radius:8px;padding:8px 10px;margin-bottom:8px}'
+      +' .tdk-t td{border:0!important;padding:1px 0!important}'
+      +' .tdk-t td.tdk-i{color:#6a6d62;font-size:12px}'
+      +' .tdk-t td.tdk-n{font-weight:600}'
+      +'}</style>';
+    return css+'<div class="card" style="margin-bottom:10px"><div class="card-h">年金事務所へ出す届出（電子申請）</div>'
+      +'<p class="hint" style="margin:0 0 8px">今 このアプリで 出せるのは <b>'+deru+'件</b>です。'
+      +'ファイルは <b>SHFD0006.CSV</b>（e-Gov で 出します）。</p>'
+      +'<table class="tdk-t"><thead><tr>'
+      +'<th style="text-align:left;padding:6px 8px">いつ</th>'
+      +'<th style="text-align:left;padding:6px 8px">届出</th>'
+      +'<th style="text-align:left;padding:6px 8px">今</th>'
+      +'</tr></thead><tbody>'+gyo+'</tbody></table></div>';
+  }
   function renderChoView(){ var host=$('#view-cho'); if(!host)return; var v=state.choView||'shakai'; var sub=choSub(v)
     +'<div class="card" style="padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b style="font-size:13px;color:#2E7D54">退職金の税金</b><span class="hint" style="flex:1;min-width:150px">退職金は毎月の給与と別（退職所得・分離課税）。ここで源泉を計算。</span><button class="btn-ghost" data-taishoku-calc="1" style="white-space:nowrap">退職金を計算</button></div>';
     if(v==='dept') host.innerHTML=sub+deptSummaryHTML();
     else if(v==='daicho'){ host.innerHTML=sub+'<div class="card"><div class="card-h">賃金台帳</div><p class="hint">読込中…</p></div>'; renderChinginDaicho(sub); }
-    else if(v==='santei'){ host.innerHTML=sub+'<div class="card"><div class="card-h">算定基礎届</div><p class="hint">読込中…</p></div>'; renderSantei(sub); }
-    else if(v==='gekkaku'){ host.innerHTML=sub+'<div class="card"><div class="card-h">月額変更届</div><p class="hint">読込中…</p></div>'; renderGekkaku(sub); }
+    else if(v==='santei'){ host.innerHTML=sub+todokedeIchiranHTML()+'<div class="card"><div class="card-h">算定基礎届</div><p class="hint">読込中…</p></div>'; renderSantei(sub); }
+    else if(v==='gekkaku'){ host.innerHTML=sub+todokedeIchiranHTML()+'<div class="card"><div class="card-h">月額変更届</div><p class="hint">読込中…</p></div>'; renderGekkaku(sub); }
     else if(v==='roudou'){ host.innerHTML=sub+'<div class="card"><div class="card-h">労働保険</div><p class="hint">読込中…</p></div>'; renderRoudou(sub); }
     else if(v==='shikaku'){ renderShikaku(sub); }
     else if(v==='chosho'){ host.innerHTML=sub+'<div class="card"><div class="card-h">支払調書</div><p class="hint">読込中…</p></div>'; renderChosho(sub); }
@@ -4930,7 +4997,7 @@
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit,
-      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf,
+      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf,
       /* ★2026-08-28 支給サイクルの「任意（N週ごと）」を 実際に押して確かめる為★
          （kyuyo/tests/paycycle-nweeks.test.mjs。★見られない物は 見張れない★） */
       payDateForSlip:payDateForSlip, payCycleLabel:payCycleLabel, ASK_Q:ASK_Q, payDaysOf:payDaysOf, payDaysText:payDaysText }; }
