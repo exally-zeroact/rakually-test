@@ -225,6 +225,53 @@ T('★⑳ 画面が CSV へ「日数の 線」を 渡している（渡さない
     '★rule を 渡していない★＝CSV が 既定（一般 17/0）で 走り、★パートの 15日・短時間の 11日が 消える★');
 });
 
+/* ══ ★備考欄（一次情報＝公式の 項目表 csv225.pdf を 読んで 照合した）★═══════════
+   ★様式コード 2225700・全53項目★／★項目43＝備考欄項目1、44＝70歳算定基礎月、45〜51＝備考欄項目2〜8★
+   ★官製様式の ⑱備考★:
+     1.70歳以上被用者算定 2.二以上勤務 3.月額変更予定 4.途中入社 5.病休・育休・休職等
+     ★6.短時間労働者（特定適用事業所等）★ ★7.パート★ 8.年間平均 9.その他
+   ★2026-09-04 実測＝app が bikou を 1度も 渡しておらず、備考欄が ★全部 空★だった★
+     ⇒★15日で 算定した 人に「パート」の 印が 付かない★＝根拠が 示されない
+   ★70歳以上（備考欄項目1）は 付けられない★（公式の 相関チェック）:
+     「41 基礎年金番号（課所符号）… ★『備考欄項目１』が'1' かつ 『個人番号』に入力がない場合 入力されていること★」
+     ⇒うちは ★個人番号も 基礎年金番号も お預かりしない（裁定 甲）★
+     ⇒★印だけ 付けると 必ず エラーに なる★／★付けずに 出すと 厚年の 70歳以上分が 漏れる★
+     ⇒★その人は 出さず、名前を 挙げて 知らせる★ */
+T('㉑ ★短時間労働者は 備考欄項目6（49番目）に 1★', () => {
+  const row = TD.santeiRow({ jimusho: { todofuken: '21', gunshiku: '01', kigou: 'ｹｲﾄ' },
+    emp: { kana: 'ｱ ｲ', kanji: '亜　井', birthYmd: '1990-01-01', seiriNo: '1' }, tekiyoYm: '2026-09',
+    months: [M(12, 100000), M(12, 100000), M(12, 100000)], rule: RULE('tanjikan'),
+    bikou: { tanjikan: true } });
+  ok(row[48] === '1', '★備考欄項目6が ' + JSON.stringify(row[48]) + '★（1 のはず）');
+  ok(row[49] === '', '★パートの 印まで 付けている★');
+});
+
+T('㉒ ★パートは 備考欄項目7（50番目）に 1★（15日で 算定した 根拠）', () => {
+  const row = TD.santeiRow({ jimusho: { todofuken: '21', gunshiku: '01', kigou: 'ｹｲﾄ' },
+    emp: { kana: 'ｱ ｲ', kanji: '亜　井', birthYmd: '1990-01-01', seiriNo: '1' }, tekiyoYm: '2026-09',
+    months: [M(16, 100000), M(16, 100000), M(16, 100000)], rule: RULE('part'),
+    bikou: { part: true } });
+  ok(row[49] === '1', '★備考欄項目7が ' + JSON.stringify(row[49]) + '★（1 のはず）');
+  ok(row[48] === '', '★短時間の 印まで 付けている★');
+});
+
+T('㉓ ★70歳以上の 人は 出さない（基礎年金番号を 持っていないから）★', () => {
+  const inp = { emp: { kana: 'ｳ ｴ', kanji: '宇　江' }, months: [M(20, 300000), M(20, 300000), M(20, 300000)],
+    rule: RULE(''), bikou: { over70: true } };
+  ok(TD.dasuKa(inp) === false, '★70歳以上の 人を 入れてしまう★＝厚年の 70歳以上分が 黙って 漏れる');
+  const w = TD.santeiWarn(inp).join('／');
+  ok(w.indexOf('70歳') >= 0, '★知らせていない★ … ' + (w || '（何も 出ていない）'));
+});
+
+T('㉔ ★画面が 備考を 渡している★（渡さないと 印が 全部 空に なる）', () => {
+  const fs2 = require('node:fs');
+  const app = fs2.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const i = app.indexOf('function santeiCsvInput');
+  const box = app.slice(i, i + 1800);
+  ok(/bikou\s*:/.test(box), '★bikou を 1度も 渡していない★＝備考欄が 全部 空');
+  ok(/isOver70/.test(box) && /stType|shortTimeType/.test(box), '★70歳・短時間/パートの どれかを 渡していない★');
+});
+
 if (SELF) {
   console.log('\n[santei-soukei] ★自己確認★（★境界を 1日ずつ★）');
   let ng = 0;

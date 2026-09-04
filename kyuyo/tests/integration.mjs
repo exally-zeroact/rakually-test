@@ -1158,5 +1158,119 @@ await TA('★② 押せる時も 公開の前に確認が出る（取り消せ�
   });
 });
 
+/* ══ 月額変更届の 電子申請 CSV の ★配線★（2026-09-04）════════════════════
+   ★lib が 緑でも、画面から 渡っていなければ 1バイトも 出ない★
+   ⇒★app.js の 中身を 実際に 動かして★ 確かめる（ソースを 読むだけの 試験に しない）。 */
+T('★月額変更届の CSV が 画面から 本当に 作れる（配線）', () => {
+  const A = win.__PAYSLIP_TEST, TD = win.TodokedeCsv;
+  ok(A && A.gekkakuRows && A.gekkakuCsvInput && A.gekkakuCsvBox, '★試験の 口が 無い★');
+  ok(TD && TD.gekkakuRow, '★TodokedeCsv が 読めていない★');
+  const st = A.state;
+  const keep = { c: st.company, e: st.employees, m: st.month };
+  try {
+    st.company = Object.assign({}, st.company, {
+      name: '株式会社テスト', pref: 'tokyo', seiriKigou: '01-ｹｲﾄ', jigyoshoNo: '12345',
+      zip: '100-0001', addr: '東京都千代田区1-1', nushi: '試験　太郎', tel: '03-1234-5678', baitaiTsuban: 0
+    });
+    st.month = '2026-07';
+    const hito = (id, name, kana, stype) => ({
+      id: id, name: name, kana: kana, birthYmd: '1985-05-05', hokenshaNo: String(id),
+      shortTimeType: stype || '', zenzenKaiteiYmd: '2025-09-01', joinYmd: '2015-04-01',
+      shaho: { henkoYm: '2026-04', fixedChanged: true, prevHyojun: 260000 }
+    });
+    /* 1＝20日（出せる）／2＝16日（★3か月とも 17日以上でない＝出せない★） */
+    st.employees = [hito(1, '年金　太郎', 'ﾈﾝｷﾝ ﾀﾛｳ'), hito(2, '年金　次郎', 'ﾈﾝｷﾝ ｼﾞﾛｳ')];
+    const recs = [];
+    [1, 2].forEach((id) => ['2026-04', '2026-05', '2026-06'].forEach((ym, i) => {
+      recs.push({ employee_id: id, ym: ym, data: { kind: 'monthly',
+        paymentDays: id === 1 ? 20 : 16, shikyuTotal: 300000 + i * 10000, genbutsuTotal: 0 } });
+    }));
+    const rows = A.gekkakuRows(recs, st.employees);
+    eq(rows.length, 2, '★対象者が 拾えていない★');
+
+    /* ★渡す物が 揃っているか（渡し忘れが 一番 怖い）★ */
+    const inp = A.gekkakuCsvInput(rows[0]);
+    eq(inp.henkoYm, '2026-04', '変動月');
+    eq(inp.zenzen.kaiteiYmd, '2025-09-01', '★従前の 改定月を 渡していない★');
+    eq(inp.jimusho.todofuken, '21', '★都道府県コード（東京＝21）を 渡していない★');
+    eq(inp.months.length, 3, '3か月');
+    eq(inp.months[0].days, 20, '日数');
+    ok('genbutsu' in inp.months[0], '★現物を 渡していない★');
+
+    /* ★出せる／出せないの 振り分け★ */
+    eq(TD.dasuKaGekkaku(A.gekkakuCsvInput(rows[0])), true, '★20日の人を 外している★');
+    eq(TD.dasuKaGekkaku(A.gekkakuCsvInput(rows[1])), false, '★16日の人を 入れている★');
+
+    /* ★画面の 箱＝ボタンの 札と 警告が 実物と 合う★ */
+    const html = A.gekkakuCsvBox(rows);
+    ok(/id="b-gekkaku-csv"/.test(html), '★ボタンが 出ていない★');
+    ok(/1人・SHFD0006\.CSV/.test(html), '★札が 実際に 出せる 人数（1人）に なっていない★ … ' + (/CSVを作る（[^<]*）/.exec(html) || [])[0]);
+    ok(/年金　次郎/.test(html) && /17日以上/.test(html), '★出せない人の 名前と 理由を 出していない★');
+
+    /* ★本当に 作れるか（1バイトも 出ないのが 一番 多い 失敗）★ */
+    const deru = rows.filter((x) => TD.dasuKaGekkaku(A.gekkakuCsvInput(x)));
+    const f = TD.gekkakuCsv({ jimusho: A.gekkakuCsvInput(deru[0]).jimusho,
+      baitai: { tsuban: '001', ymd: '2026-07-01' },
+      rows: deru.map((x) => TD.gekkakuRow(A.gekkakuCsvInput(x))) });
+    ok(f.bytes.length > 0, '★0バイト★');
+    eq(f.name, 'SHFD0006.CSV', 'ファイル名');
+    const lines = f.text.split(TD.CRLF).filter((x) => x.length);
+    const data = lines[lines.length - 1].split(',');
+    eq(data.length, 49, '★項目数★');
+    eq(data[0], '2221700', '★様式コード★');
+    eq(data[9] + '/' + data[10] + '/' + data[11], '9/08/07', '★改定年月（令和8年7月）★');
+    eq(data[36], '0930000', '★総計（30万+31万+32万）★');
+    eq(data[37], '0310000', '★平均額（93万÷3）★');
+    console.log('     実物 … ' + f.bytes.length + 'バイト／' + lines.length + '行／49項目／総計 ' + data[36] + '／平均 ' + data[37]);
+  } finally { st.company = keep.c; st.employees = keep.e; st.month = keep.m; }
+});
+
+/* ══ 算定基礎届の 配線（2026-09-04）════════════════════════════════════
+   ★月変の 配線を 壊すと 赤に なったのに、算定を 同じ様に 壊しても 緑のままだった★
+   ＝★算定の 配線を 実際に 動かして 見ている 試験が 無かった★（見張りが ソースを 読むだけ だった）。 */
+T('★算定基礎届の CSV が 画面から 本当に 作れる（配線）', () => {
+  const A = win.__PAYSLIP_TEST, TD = win.TodokedeCsv;
+  ok(A && A.santeiRows && A.santeiCsvInput, '★試験の 口が 無い★');
+  const st = A.state;
+  const keep = { c: st.company, e: st.employees, m: st.month };
+  try {
+    st.company = Object.assign({}, st.company, {
+      name: '株式会社テスト', pref: 'tokyo', seiriKigou: '01-ｹｲﾄ', jigyoshoNo: '12345',
+      zip: '100-0001', addr: '東京都千代田区1-1', nushi: '試験　太郎', tel: '03-1234-5678', baitaiTsuban: 0
+    });
+    st.month = '2026-07';
+    const hito = (id, name, kana, stype, umare) => ({
+      id: id, name: name, kana: kana, birthYmd: umare || '1985-05-05', hokenshaNo: String(id),
+      shortTimeType: stype || '', zenzenKaiteiYmd: '2025-09-01', joinYmd: '2015-04-01', shaho: {}
+    });
+    st.employees = [hito(1, '年金　太郎', 'ﾈﾝｷﾝ ﾀﾛｳ'), hito(2, '年金　花子', 'ﾈﾝｷﾝ ﾊﾅｺ', 'part')];
+    const recs = [];
+    [1, 2].forEach((id) => ['2026-04', '2026-05', '2026-06'].forEach((ym, i) => {
+      recs.push({ employee_id: id, ym: ym, data: { kind: 'monthly',
+        paymentDays: id === 1 ? (i === 1 ? 16 : 17 + i) : 16,
+        shikyuTotal: id === 1 ? [300000, 200000, 310000][i] : 100000, genbutsuTotal: 0 } });
+    }));
+    const rows = A.santeiRows(recs, 2026, st.employees);
+    eq(rows.length, 2, '★対象者が 拾えていない★');
+
+    const inp = A.santeiCsvInput(rows[0], 2026);
+    eq(inp.jimusho.todofuken, '21', '★都道府県コード（東京＝21）を 渡していない★');
+    ok(inp.rule && inp.rule.primary === 17, '★日数の 線（santeiRule）を 渡していない★');
+    ok(inp.bikou && 'over70' in inp.bikou, '★備考を 渡していない★');
+
+    /* ★一般＝17/16/18 ⇒ 対象は 4月と6月だけ（★5月の 20万を 足さない★） */
+    const r1 = TD.santeiRow(inp);
+    eq(r1[36], '0610000', '★総計★（61万 のはず／81万なら 3か月 全部を 足している）');
+    eq(r1[37], '0305000', '★平均額★（61万÷2）');
+
+    /* ★パート＝16日×3 ⇒ 15日の 特例で 出せる＋★備考欄項目7（パート）に 1★ */
+    const inp2 = A.santeiCsvInput(rows[1], 2026);
+    ok(inp2.rule.fallback === 15, '★パートの 15日を 渡していない★');
+    eq(TD.dasuKa(inp2), true, '★パートを 外している★');
+    eq(TD.santeiRow(inp2)[49], '1', '★備考欄項目7（パート）に 印が 付いていない★');
+    console.log('     算定 … 総計 ' + r1[36] + '／平均 ' + r1[37] + '／パートの印 ' + TD.santeiRow(inp2)[49]);
+  } finally { st.company = keep.c; st.employees = keep.e; st.month = keep.m; }
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
