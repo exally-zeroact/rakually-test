@@ -1493,5 +1493,43 @@ T('★賞与支払届の CSV が 画面から 本当に 作れる（配線）', 
   } finally { st.company = keep.c; st.employees = keep.e; st.month = keep.m; st.bonus = keep.b; }
 });
 
+/* ══ 何が 出せるかの 表（2026-09-05 指示役）══════════════════════════
+   ★お客さんが「何が 出せるか」を 見て 分かる★／★出来ていない 物の ボタンは 出さない★
+   ★一番 大事★＝★「出せる」を 手書きに しない★
+     ＝実物（TodokedeCsv に 作る 関数が 在るか）から 出す
+     ＝★手で 書くと 画面が 嘘に なる★（2026-09-04 の「◯つ」と 同じ 型） */
+T('★何が出せるかの表＝「出せる」を実物から出している（手書きでない）', () => {
+  const A = win.__PAYSLIP_TEST, TD = win.TodokedeCsv;
+  ok(A && A.todokedeIchiran, '★todokedeIchiran が 無い★');
+  const list = A.todokedeIchiran();
+  ok(list.length >= 8, '★' + list.length + '件★（8件 以上 のはず）');
+  /* ★出せる＝実物に 作る 関数が 在る★ */
+  const dekiru = list.filter((x) => x.dekiru);
+  eq(dekiru.length, 3, '★出せるのが ' + dekiru.length + '件★（算定・月変・賞与の 3件 のはず）');
+  ok(dekiru.every((x) => typeof TD[x.tsukuru] === 'function'), '★出せると 書いてあるのに 作る 関数が 無い★');
+  /* ★まだ＝作る 関数が 無い★ */
+  const mada = list.filter((x) => !x.dekiru);
+  ok(mada.every((x) => !x.tsukuru || typeof TD[x.tsukuru] !== 'function'), '★出せるのに「まだ」と 書いている★');
+  /* ★「まだ」の 理由は 2つに 分かれる★ */
+  ok(mada.some((x) => x.riyu === 'uchi'), '★うちが 作っていない 物が 無い★');
+  ok(mada.some((x) => x.riyu === 'nenkin'), '★年金機構の 検査が 対応していない 物が 無い★');
+  /* ★お客さんの 言葉が 先・様式の 番号は 添えるだけ★ */
+  ok(list.every((x) => x.itsu && x.itsu.length >= 3), '★「いつ 出すか」が 書いていない★');
+  ok(list.every((x) => /^2[0-9]{6}$/.test(x.yoshiki)), '★様式コードが 無い★');
+  console.log('     届出 ' + list.length + '件 … 出せる ' + dekiru.length + '／まだ ' + mada.length
+    + '（うちが作っていない ' + mada.filter((x) => x.riyu === 'uchi').length
+    + '／年金機構が対応していない ' + mada.filter((x) => x.riyu === 'nenkin').length + '）');
+});
+
+T('★表が 画面に 出る（お客さんの 言葉で）', () => {
+  const A = win.__PAYSLIP_TEST;
+  ok(A.todokedeIchiranHTML, '★todokedeIchiranHTML が 無い★');
+  const html = A.todokedeIchiranHTML();
+  ok(/入社した/.test(html), '★お客さんの 言葉（入社した 時）が 無い★');
+  ok(/算定基礎届/.test(html) && /賞与支払届/.test(html), '★届出の 名前が 無い★');
+  ok(/年金機構/.test(html), '★年金機構の 検査が 対応していない 事を 書いていない★');
+  ok(!/未対応|準備中|開発中/.test(html), '★出来ていない物の 言葉を 出している★');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
