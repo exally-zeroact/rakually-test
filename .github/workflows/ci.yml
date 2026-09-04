@@ -504,6 +504,8 @@ jobs:
         run: node kyuyo/tests/kaisha-ken.test.mjs && node kyuyo/tests/kaisha-ken.test.mjs --self-test
       - name: ★画面の「◯つ」は数えて出す（2026-09-04＝4つと書いて5個あり手順書にも写った）
         run: node kyuyo/tests/kazu-no-kotoba.test.mjs && node kyuyo/tests/kazu-no-kotoba.test.mjs --self-test
+      - name: ★算定基礎届の総計は「一定の基礎日数以上の月のみ」（2026-09-04＝3か月全部を足していた）
+        run: node kyuyo/tests/santei-soukei.test.mjs && node kyuyo/tests/santei-soukei.test.mjs --self-test
       - name: Payroll pagination (1000件超が黙って欠落しない)
         run: node kyuyo/tests/pagination.test.mjs
       - name: Payroll meisai store (Web明細 公開一覧/削除時リンク失効)

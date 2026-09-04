@@ -155,6 +155,50 @@
     if (!g) return { code: '', year: '', month: '' };
     return { code: g.code, year: pad(g.year, 2), month: m[2] };
   }
+  /* ★対象の 月を 選ぶ★（★総計・平均額は 3か月 全部では ない★）
+     ★官製の 様式に そのまま 書いてある★:
+       「★⑭ 総計(一定の基礎日数以上の月のみ)★」
+     ★操作説明書 第三部（第33.00版）40ページ 原文★:
+       「総計不正 … ＜算定基礎届の場合＞『総計』は『★基礎日数以上あった月★』の合計に誤りがあります」
+     ★★決まりは 1か所★★（2026-09-04 指示役が 割れを 見つけた）
+       ★日数の 線は 画面と 同じ物を 受け取る★＝`PayrollMonthly.santeiRule(emp)` の {primary, fallback}
+         ・短時間労働者 … primary ★11★／fallback 0
+         ・パート      … primary ★17★／fallback ★15★
+         ・一般        … primary ★17★／fallback ★0★
+       ★2026-09-04 まで CSV は 一般にも 15日の 特例を 当てていた★
+         ⇒一般で 4〜6月とも 16日の人＝画面は「CSVには 入りません」・CSV は 総計30万を 出していた（★札が 嘘★）
+     ★未測定（原文を 読めていない）★
+       ★一般で 17日以上の 月が 1つも 無い時★の 扱いは、日本年金機構「定時決定（算定基礎届）」の
+       ページに ★一般の 行は「4月・5月・6月 いずれも 17日以上」の 場合しか 書かれていない★。
+       ⇒★15日の 特例は パートの 行にしか 書かれていない★ので ★一般には 当てない★（画面と 同じ）。
+       ⇒★保険者算定に なるのか 従前のままかは 未測定★＝★数字を でっち上げず、その人を 出さない★
+     ★2026-09-04 まで うちは 3か月 全部を 足していた★（実測＝81万と 出た所が 正しくは 61万） */
+  function taishoMonths(months, rule) {
+    var ms = (months || []).slice(0, 3);
+    var r = rule || {};
+    var primary = n(r.primary) || 17, fallback = n(r.fallback) || 0;
+    var pick = function (min) {
+      var out = [];
+      for (var i = 0; i < ms.length; i++) if (n((ms[i] || {}).days) >= min) out.push(i);
+      return out;
+    };
+    var t = pick(primary);
+    if (t.length) return { kubun: String(primary), index: t, jusen: false };
+    if (fallback > 0) {
+      var f = pick(fallback);
+      if (f.length) return { kubun: String(fallback), index: f, jusen: false };
+    }
+    return { kubun: '', index: [], jusen: true };
+  }
+
+  /* ★この人を 電子申請の ファイルに 入れるか★
+     ★対象の 月が 0＝従前の 標準報酬月額の まま★＝総計・平均額に 書く数字が ★未測定★
+     ⇒★入れない★（santeiWarn が 名前を 挙げて 知らせる／★画面の 文と 実物を 合わせる★） */
+  function dasuKa(inp) {
+    inp = inp || {};
+    return !taishoMonths(inp.months || [], inp.rule).jusen;
+  }
+
   function santeiRow(inp) {
     inp = inp || {};
     var j = inp.jimusho || {}, e = inp.emp || {}, z = inp.zenzen || {}, b = inp.bikou || {};
@@ -165,8 +209,10 @@
     var kai = z.kaiteiYmd ? gengoOf(z.kaiteiYmd) : null;
     var kaiYm = kai ? { code: kai.code, year: pad(kai.year, 2), month: String(z.kaiteiYmd).slice(5, 7) } : { code: '', year: '', month: '' };
     var goukei = ms.map(function (m2) { return n(m2.tsuka) + n(m2.genbutsu); });
-    var soukei = goukei.reduce(function (a2, b2) { return a2 + b2; }, 0);
-    var atari = ms.filter(function (m2) { return n(m2.days) > 0; }).length;
+    /* ★総計・平均額は ★対象の 月だけ★（⑭総計「一定の基礎日数以上の月のみ」） */
+    var tai = taishoMonths(ms, inp.rule);
+    var soukei = tai.index.reduce(function (a2, i2) { return a2 + goukei[i2]; }, 0);
+    var atari = tai.index.length;
     var heikin = atari ? Math.floor(soukei / atari) : 0;
     var r = [];
     r[0] = '2225700';                                   /* 1 様式コード（136p） */
@@ -211,6 +257,8 @@
     return r;
   }
   /* ★丸めた事・止める事を 言う★（★黙って お金を 丸めない★） */
+  var FULL_SP = String.fromCharCode(0x3000);   /* ★全角の すき間★（半角と 見分けが つかないので コードで 書く） */
+
   function santeiWarn(inp) {
     inp = inp || {};
     var out = [], ms = (inp.months || []);
@@ -221,6 +269,33 @@
       if (g > MAN10) out.push(namae + ' ' + lb + '＝1千万円以上のため「9999999」で出します（' + g.toLocaleString() + '円）');
       if (n(m2.tsuka) > MAN10) out.push(namae + ' ' + lb + ' 通貨＝1千万円以上のため「9999999」で出します');
     });
+    /* ★対象の 月が 0＝従前の 標準報酬月額の まま★（数字を でっち上げない）
+       ★対象0の 時に 総計欄・平均額欄へ 何を 書くかは ★未測定★★
+         （官製の 記載例が 画像の PDF で 字が 取れず 一次情報を 読めていない）
+       ⇒★0 と 書かず、この人を CSV に 入れず、名前を 挙げて 知らせる★ */
+    var tai2 = taishoMonths(ms, inp.rule);
+    if (tai2.jusen) {
+      out.push(namae + '＝4〜6月とも 支払基礎日数が ' + (n((inp.rule || {}).fallback) || n((inp.rule || {}).primary) || 17) + '日'
+        + '未満のため、この人は 電子申請の ファイルに 入れていません。'
+        + '（決め方は 年金事務所へ ご確認ください）');
+    }
+    /* ★氏名の 形★（操作説明書 第三部 40ページ 原文＝年金機構の エラー一覧）
+         「氏名項目形式不正 … 漢字氏名項目の場合は姓と名の間に★全角スペースを１つ★設定してください。
+           また、カナ氏名の場合は、姓と名の間に★半角スペースを１つ★設定してください。
+           (例)正常な場合『東京△太郎』『ﾄｳｷｮｳ△ﾀﾛｳ』 エラーとなる場合『東京太郎』『東京△△太郎』」
+         「最大桁数超過 … 漢字氏名項目が…★スペース含め12文字以内★であることを確認してください」
+       ★2026-09-04 実測＝4通りとも 素通りしていた★（出した後に 年金機構で はじかれていた） */
+    var kanji = String((inp.emp || {}).kanji || '');
+    var kana = String((inp.emp || {}).kana || '');
+    if (kanji && kanji.split(FULL_SP).length !== 2) {
+      out.push(namae + ' 漢字の 名前＝姓と名の 間に ★全角の すき間を 1つだけ★ 入れてください（例「東京　太郎」）');
+    }
+    if (kana && kana.split(' ').length !== 2) {
+      out.push(namae + ' カナの 名前＝姓と名の 間に ★半角の すき間を 1つだけ★ 入れてください（例「ﾄｳｷｮｳ ﾀﾛｳ」）');
+    }
+    if (kanji.length > 12) {
+      out.push(namae + ' 漢字の 名前＝すき間を 入れて ★12文字以内★にしてください（今 ' + kanji.length + '文字）');
+    }
     var bad = badChars(((inp.emp || {}).kanji || '') + ((inp.emp || {}).kana || ''));
     if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
     return out;
@@ -335,7 +410,7 @@
   }
 
   return {
-    GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, MAN10: MAN10,
+    GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa, MAN10: MAN10,
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,
     nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,
     KEN_CODE: KEN_CODE, splitSeiriKigou: splitSeiriKigou,
