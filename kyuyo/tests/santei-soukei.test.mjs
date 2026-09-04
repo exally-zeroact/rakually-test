@@ -102,6 +102,7 @@ T('★⑧ 合計（34〜36番目）は 3か月とも そのまま 出す（総�
 T('★⑨ 対象が 0の人は 知らせる（数字を でっち上げない）', () => {
   const w = TD.santeiWarn({
     emp: { kana: 'ﾈﾝｷﾝ ﾊﾅｺ', kanji: '年金　花子' },
+    zenzen: { health: 260000, pension: 260000, kaiteiYmd: '2025-09-01' },
     months: [M(14, 90000), M(10, 60000), M(0, 0)], rule: RULE('')
   });
   ok(w.join('／').indexOf('入れていません') >= 0, '★入れない事を 知らせていない★ … ' + (w.join('／') || '（何も 出ていない）'));
@@ -111,10 +112,12 @@ T('★⑨ 対象が 0の人は 知らせる（数字を でっち上げない）
 
 T('★⑩ 従前のままの 人は CSV に 入れない（画面の 文と 実物を 合わせる）', () => {
   ok(typeof TD.dasuKa === 'function', '★TD.dasuKa が 無い★＝出す／出さないを 決めていない');
-  const deru = { months: [M(17, 300000), M(18, 310000), M(20, 320000)], rule: RULE('') };
-  const denai = { months: [M(14, 90000), M(10, 60000), M(0, 0)], rule: RULE('') };
+  /* ★従前の 改定月は 電子申請で 必須★（csv225 項番15-17）＝材料にも 入れる */
+  const ZEN = { health: 260000, pension: 260000, kaiteiYmd: '2025-09-01' };
+  const deru = { zenzen: ZEN, months: [M(17, 300000), M(18, 310000), M(20, 320000)], rule: RULE('') };
+  const denai = { zenzen: ZEN, months: [M(14, 90000), M(10, 60000), M(0, 0)], rule: RULE('') };
   /* ★指示役が 見つけた 割れ★＝一般で 16日×3（画面は「入りません」と 言う） */
-  const wareme = { months: [M(16, 100000), M(16, 100000), M(16, 100000)], rule: RULE('') };
+  const wareme = { zenzen: ZEN, months: [M(16, 100000), M(16, 100000), M(16, 100000)], rule: RULE('') };
   ok(TD.dasuKa(wareme) === false, '★一般 16日×3 を 入れてしまう★＝画面の 札が 嘘に なる');
   ok(TD.dasuKa(deru) === true, '★出せる人を 外している★');
   ok(TD.dasuKa(denai) === false, '★従前のままの 人を 入れてしまう★＝画面の 文が 嘘に なる');
@@ -139,6 +142,7 @@ T('★⑪ 画面（app.js）が その 決め方を 使っている', () => {
      「最大桁数超過 … 漢字氏名項目が最大桁数を超えました。★スペース含め12文字以内★であることを確認してください」
    ⇒★2026-09-04 実測＝4通りとも 素通りしていた★（出した後に 年金機構で はじかれる） */
 const nm = (kanji, kana) => TD.santeiWarn({ emp: { kanji, kana },
+  zenzen: { health: 260000, pension: 260000, kaiteiYmd: '2025-09-01' },
   months: [M(20, 300000), M(20, 300000), M(20, 300000)], rule: RULE('') }).join('／');
 
 T('★⑫ 姓と名の 間に スペースが 無い＝知らせる', () => {

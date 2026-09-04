@@ -512,6 +512,8 @@ jobs:
         run: node kyuyo/tests/rousai-ritsu.test.mjs && node kyuyo/tests/rousai-ritsu.test.mjs --self-test
       - name: ★労働保険 年度更新の計算（一般拠出金0.02‰・概算50〜200%・延納40万/20万・端数は第1期）
         run: node kyuyo/tests/roudou-shinkoku.test.mjs && node kyuyo/tests/roudou-shinkoku.test.mjs --self-test
+      - name: ★年金機構の検査をこちらで再現（公式の項目表 csv225/csv221・出す前の門）
+        run: node kyuyo/tests/todokede-check.test.mjs && node kyuyo/tests/todokede-check.test.mjs --self-test
       - name: Payroll pagination (1000件超が黙って欠落しない)
         run: node kyuyo/tests/pagination.test.mjs
       - name: Payroll meisai store (Web明細 公開一覧/削除時リンク失効)

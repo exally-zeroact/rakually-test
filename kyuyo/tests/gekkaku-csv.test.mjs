@@ -36,7 +36,11 @@ const T = (n, f) => { try { f(); pass++; console.log('  ✓ ' + n); } catch (e) 
 const ok = (c, m) => { if (!c) throw new Error(m); };
 const M = (d, tsuka, genbutsu) => ({ days: d, tsuka: tsuka, genbutsu: genbutsu || 0 });
 const BASE = {
-  jimusho: { todofuken: '21', gunshiku: '01', kigou: 'ｹｲﾄ' },
+  /* ★事務所の 情報は 実物と 同じ 形★（1〜4行目も 検査に かかる＝仕様書の 作成例そのもの） */
+  jimusho: { todofuken: '21', gunshiku: '01', kigou: 'ｹｲﾄ', jigyoshoNo: '123',
+    zipOya: '100', zipKo: '0000', address: '東京都千代田区霞が関１－２－２',
+    name: '健保サービス株式会社', nushi: '健保' + String.fromCharCode(0x3000) + '良一',
+    tel1: '03', tel2: '1234', tel3: '5678' },
   emp: { seiriNo: '1', kana: 'ﾈﾝｷﾝ ﾀﾛｳ', kanji: '年金　太郎', birthYmd: '1975-01-11' },
   henkoYm: '2026-04',                          /* 変動した 月＝前三ヶ月 */
   zenzen: { health: 260000, pension: 260000, kaiteiYmd: '2025-09-01' },
