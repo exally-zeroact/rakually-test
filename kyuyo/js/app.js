@@ -591,7 +591,7 @@
      ・★1問ごと保存★（答えた瞬間に保存。途中で閉じても残る）
      ・★既に埋まっている会社は「これでいいですか？」★＝空欄に戻して聞き直さない
      ・★AIは使わない★（全部ルールベース・オフライン・決定論）
-     ・★聞かない物★＝割増率(法定)／労災率(全額 事業主負担＝明細の控除に出ない・部品も一次情報も無い)／
+     ・★聞かない物★＝割増率(法定)／労災率(全額 事業主負担＝明細の控除に出ない／★2026-09-04 に 法令の 別表第１から 表を 持った＝業種を 選ぶ★)／
        源泉の甲乙(業種では決まらない＝扶養の申告書を出したかどうか)／振込の委託者情報(使う時に聞く)
      ═══════════════════════════════════════════════════════════════════ */
   function SM(){ return (typeof window!=='undefined'&&window.StatutoryMeta)||null; }
@@ -2763,16 +2763,27 @@
      ★2026-09-04 まで うちは 別々に 切り捨てて 足していた★＝実測で ★1円 ずれる★
        1,233,400円・労災2.5‰・雇用15.5‰ … 別々 22,193／合わせて ★22,194★
      ★率が 分からない時は 数字を 作らない★（null で 返す＝[[feedback_never_say_zero_when_you_dont_have_it]]） */
+  /* ★労災保険率は「業種を 選ぶ」＝手で 打たせない★（2026-09-04）
+     ★出どころ★ 労働保険の保険料の徴収等に関する法律施行規則 ★別表第１（労災保険率表）★
+       （e-Gov 法令検索から 機械で 取った＝kyuyo/lib/rousai-ritsu.js・★53業種★）
+     ★2026-09-04 まで★ 会社が ‰ を 手で 打ち込むだけ＝★間違えても 誰も 気づけない★
+       （app.js の 古い 注記「労災率…部品も 一次情報も 無い」は ★もう 嘘★＝直した）
+     ★決め方は 1か所★:
+       業種を 選んでいれば ★その率★（手入力より 勝つ＝同じ物を 2か所で 決めない）
+       一覧に 無い 会社（細目で 決まる 等）だけ ★手入力★
+       どちらも 無ければ ★null★（★0を 返さない★） */
+  function rousaiPermilOf(c){
+    c=c||{};
+    var RR=window.RousaiRitsu;
+    if(c.rousaiShurui && RR){ var p=RR.permilOf(c.rousaiShurui); if(p!=null) return p; }
+    var te=num(c.rousaiRate);
+    return te>0?te:null;
+  }
   function roudouGokei(rousaiWage, koyoWage, rousaiRate, koyoRate){
-    var rr=(rousaiRate==null)?null:rousaiRate, kr=(koyoRate==null)?null:koyoRate;
-    var rousai=roudouRyo(rousaiWage, rr), koyo=roudouRyo(koyoWage, kr);
-    if(rr==null||kr==null) return { rousai:rousai, koyo:koyo, gokei:null, awaseta:false };
-    var onaji=(Math.floor(num(rousaiWage)/1000)*1000)===(Math.floor(num(koyoWage)/1000)*1000);
-    if(onaji){
-      var base=Math.floor(num(rousaiWage)/1000)*1000;
-      return { rousai:rousai, koyo:koyo, gokei:Math.floor(base*(rr+kr)), awaseta:true };
-    }
-    return { rousai:rousai, koyo:koyo, gokei:rousai+koyo, awaseta:false };
+    /* ★計算は lib に 1か所★（kyuyo/lib/roudou-shinkoku.js＝原文を 全部 写してある） */
+    var RS=window.RoudouShinkoku;
+    if(!RS) return { rousai:null, koyo:null, gokei:null, awaseta:false };
+    return RS.hokenryo(rousaiWage, koyoWage, rousaiRate, koyoRate);
   }
   function roudouSummary(recs, fy, emps){
     var rows=roudouRows(recs, fy, emps);
@@ -2780,11 +2791,31 @@
     var gyoshu=(state.company||{}).gyoshu||'ippan', k=KH();
     var koyoFull=(k&&k.fullRate)?k.fullRate(gyoshu, fy):null;                  // 雇用保険 全体率(労働者＋事業主・厚労省照合済)。未収録年度=null
     var koyoRyo=roudouRyo(koyoWageTotal, koyoFull);                            // 賃金1000円未満切捨→×率→1円未満切捨
-    var rousaiPermil=num((state.company||{}).rousaiRate);                       // 労災率(‰)は業種別=会社入力
+    var rousaiPermil=rousaiPermilOf(state.company)||0;                          /* ★業種から 出す★（無ければ 手入力・それも 無ければ 0＝出さない） */
     var rousaiRyo=(rousaiPermil>0)?roudouRyo(rousaiWageTotal, rousaiPermil/1000):null;
     /* ★合計は roudouGokei が 1か所で 出す★（2か所で 別々に 切り捨てない） */
     var g=roudouGokei(rousaiWageTotal, koyoWageTotal, (rousaiPermil>0)?rousaiPermil/1000:null, koyoFull);
-    return { rows:rows, fy:fy, rousaiWageTotal:rousaiWageTotal, koyoWageTotal:koyoWageTotal, gyoshu:gyoshu, koyoFull:koyoFull, koyoRyo:koyoRyo, rousaiPermil:rousaiPermil, rousaiRyo:rousaiRyo , gokeiRyo:g.gokei, awaseta:g.awaseta };
+    /* ★申告書に 書く 数字★（原文は kyuyo/lib/roudou-shinkoku.js の 頭）
+       ・一般拠出金＝賃金総額×0.02/1000（★確定のみ・概算払い 無し★）
+         ★どの 賃金総額を 使うかは 原文を 読み切れていない★ので ★労災の 算定基礎額★を 渡し、画面に そう 書く
+       ・概算＝見込が 前年度の 50%〜200% なら 前年度の 額（今は 見込を 聞いていない＝前年度の 額）
+       ・延納＝概算「のみ」で 40万円以上（片方だけなら 20万円）・3期・★端数は 1期に 合算★ */
+    var RS=window.RoudouShinkoku;
+    var ippan=RS?RS.ippanKyoshutsukin(rousaiWageTotal):null;
+    var gaisan=null, enno=null, kibetsu=null;
+    if(RS && g.gokei!=null){
+      gaisan={ base:RS.gaisanBase(null, rousaiWageTotal), gaku:g.gokei };   /* 見込を 聞いていない＝前年度と 同じ 賃金で 置く */
+      var katahou=!(rousaiPermil>0 && koyoFull!=null);
+      enno=RS.ennoDekiruka(gaisan.gaku, katahou);
+      if(enno.ok) kibetsu=RS.ennoKibetsu(gaisan.gaku, 3);
+    }
+    /* ★精算＝確定 −（前年度に 納めた 概算）★
+       ★額は 会社に 聞く★（申告書の 控え・領収済通知書に 書いてある）。
+       ★入れていない時は 数字を 作らない★（seisan.measured=false） */
+    var zenGai=(state.company||{}).zennendoGaisan;
+    var seisan=(RS && g.gokei!=null && zenGai!=='' && zenGai!=null)
+      ? RS.seisan(g.gokei, num(zenGai)) : { measured:false, why:'前年度に 納めた 概算保険料を 入れてください' };
+    return { rows:rows, fy:fy, rousaiWageTotal:rousaiWageTotal, koyoWageTotal:koyoWageTotal, gyoshu:gyoshu, koyoFull:koyoFull, koyoRyo:koyoRyo, rousaiPermil:rousaiPermil, rousaiRyo:rousaiRyo , gokeiRyo:g.gokei, awaseta:g.awaseta, ippan:ippan, gaisan:gaisan, enno:enno, kibetsu:kibetsu, seisan:seisan };
   }
   function roudouAoa(sum, fy){
     var aoa=[['労働保険 算定基礎賃金集計表　'+fy+'年度（労働保険年度 '+fy+'-04〜'+(fy+1)+'-03）'], [(state.company||{}).name||''], [], ROUDOU_COLS.slice()];
@@ -2802,6 +2833,31 @@
     aoa.push(['労働保険料 合計（申告書に 書く 数字）', sum.gokeiRyo!=null?sum.gokeiRyo:'（率が そろっていません）']);
     if(sum.awaseta) aoa.push(['', '※ 労災と雇用の 算定基礎額が 同額のため、合計率に 乗じてから 切り捨てました（厚生労働省 Q3）']);
     aoa.push([]);
+    aoa.push(['【申告書に 書く 数字】']);
+    aoa.push(['① 確定保険料（労災＋雇用）', sum.gokeiRyo!=null?sum.gokeiRyo:'（率が そろっていません）']);
+    aoa.push(['② 一般拠出金（賃金総額×0.02/1000・確定のみ）', sum.ippan?sum.ippan.gaku:'—']);
+    aoa.push(['', '※ 一般拠出金の 賃金総額は 労災の 算定基礎額を 使っています（申告書の 該当ページが 画像で 読めていません）']);
+    aoa.push(['③ 概算保険料（今年度）', sum.gaisan?sum.gaisan.gaku:'—']);
+    aoa.push(['', sum.gaisan?('※ '+sum.gaisan.base.riyu+'／見込額を 別に 出す 場合は 労働局の 用紙で ご確認ください'):'']);
+    aoa.push(['④ 延納（3回に 分ける）', sum.enno?(sum.enno.ok?'できます':'できません'):'—']);
+    if(sum.enno) aoa.push(['', '※ '+sum.enno.riyu]);
+    if(sum.kibetsu){
+      aoa.push(['　第1期（端数を 含む）', sum.kibetsu.ki[0]]);
+      aoa.push(['　第2期', sum.kibetsu.ki[1]]);
+      aoa.push(['　第3期', sum.kibetsu.ki[2]]);
+      aoa.push(['', '※ 分けた 端数は すべて 第1期に 合算します（国等の債権債務等の金額の端数計算に関する法律 第三条）']);
+    }
+    if(sum.seisan && sum.seisan.measured){
+      aoa.push(['⑤ 前年度に 納めた 概算保険料', num((state.company||{}).zennendoGaisan)]);
+      aoa.push(['　精算', sum.seisan.kubun==='fusoku'?('不足 '+sum.seisan.gaku+'円')
+        :sum.seisan.kubun==='amari'?('多く 納めています '+sum.seisan.gaku+'円')
+        :'ちょうど']);
+      if(sum.seisan.kubun==='amari'){
+        aoa.push(['', '※ 多く 納めた分は 今年度の 概算保険料に 充てられます。'
+          +'お金で 戻す 場合は 申告書だけでは 戻りません＝「労働保険料・一般拠出金還付請求書」を 別に 出してください']);
+      }
+    }
+    aoa.push([]);
     aoa.push(['※ 賃金＝総支給（通勤手当・賞与含む）。役員は労災・雇用とも対象外、雇用保険オフの人は雇用保険の対象外。労災率は業種別のため申告書の率を入力してください。']);
     return aoa;
   }
@@ -2817,8 +2873,36 @@
     var ryoBox='<div class="card" style="margin-top:10px"><div class="card-h">保険料の概算</div>'
       +'<div style="display:flex;flex-wrap:wrap;gap:14px 24px;padding:4px 2px;font-size:13px">'
       +'<div><div class="hint">雇用保険（'+esc(gLabel)+'・'+koyoRateTxt+'）</div><b style="font-size:16px">'+(sum.koyoRyo!=null?yen(sum.koyoRyo):'—')+'</b></div>'
-      +'<div><div class="hint">労災（業種別の率を入力）</div><span style="display:inline-flex;align-items:center;gap:6px"><input class="finput num" data-rousai-rate="1" inputmode="decimal" value="'+attr(sum.rousaiPermil>0?sum.rousaiPermil:'')+'" placeholder="例 3.0" style="width:80px">‰　<b id="roudou-rousai-ryo" style="font-size:16px">'+(sum.rousaiRyo!=null?yen(sum.rousaiRyo):'—')+'</b></span></div>'
-      +'</div><p class="hint" style="margin:8px 0 0">雇用保険 全体率は年度で自動（厚労省照合）。労災率は業種別のため<b>申告書の率を入力</b>してください。賃金＝総支給（通勤・賞与含む）。</p></div>';
+            +'<div><div class="hint">労災（★業種を 選んでください★）</div>'
+        +'<select class="finput" data-rousai-shurui="1" style="max-width:320px">'
+        +'<option value="">（選んでください）</option>'
+        +((window.RousaiRitsu?RousaiRitsu.list():[]).map(function(r){
+            return '<option value="'+esc(r.shurui)+'"'+((state.company||{}).rousaiShurui===r.shurui?' selected':'')+'>'
+              +esc(r.bunrui+'／'+r.shurui)+'（'+r.permil+'‰）</option>'; }).join(''))
+        +'<option value="船舶所有者の事業"'+((state.company||{}).rousaiShurui==='船舶所有者の事業'?' selected':'')+'>船舶所有者の事業（42‰）</option>'
+        +'<option value="__te__"'+(((state.company||{}).rousaiShurui==='__te__')?' selected':'')+'>一覧に無い（率を 自分で 入れる）</option>'
+        +'</select>'
+        +(((state.company||{}).rousaiShurui==='__te__')
+          ? ('<span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px"><input class="finput num" data-rousai-rate="1" inputmode="decimal" style="width:80px" value="'+esc(String((state.company||{}).rousaiRate||''))+'"><span class="hint">‰</span></span>')
+          : '')
+        +'<div style="margin-top:4px"><b id="roudou-rousai-ryo" style="font-size:16px">'+(sum.rousaiRyo!=null?yen(sum.rousaiRyo):'—')+'</b></div></div>'
+      +'<div><div class="hint">一般拠出金（石綿）</div><b style="font-size:16px">'
+        +(sum.ippan?yen(sum.ippan.gaku):'—')+'</b>'
+        +'<div class="hint2" style="margin-top:2px">賃金総額×0.02/1000（確定のみ・概算払いは ありません）</div>'
+        /* ★未測定を 画面にも 出す★（2026-09-04 指示役＝Excelを 開かない 人には 伝わらない） */
+        +'<div class="hint2" style="margin-top:2px">※ 賃金総額は <b>労災と 同じ額</b>で 計算しています。'
+        +'ここは まだ 原文で 確かめられていません（申告書の 該当ページが 画像のため）。</div></div>'
+      +'<div><div class="hint">前年度に 納めた 概算保険料</div>'
+        +'<input class="finput num" data-zennendo-gaisan="1" inputmode="numeric" style="width:130px" value="'+esc(String((state.company||{}).zennendoGaisan||''))+'">'
+        +'<div class="hint2" style="margin-top:2px">申告書の 控え・領収済通知書に 書いてあります</div>'
+        +'<div style="margin-top:4px"><b style="font-size:16px">'
+          +((sum.seisan&&sum.seisan.measured)
+            ? (sum.seisan.kubun==='fusoku'?('不足 '+yen(sum.seisan.gaku))
+              :sum.seisan.kubun==='amari'?('多く 納めています '+yen(sum.seisan.gaku))
+              :'ちょうど')
+            : '—')
+        +'</b></div></div>'
+            +'</div><p class="hint" style="margin:8px 0 0">雇用保険 全体率は年度で自動（厚労省照合）。労災率は<b>法令の 労災保険率表（別表第１・53業種）</b>から 出しています。<b>細目</b>で 決まる 場合が ありますので、申告書の 率と 違う 時は 労働局へ ご確認ください。</p></div>';
     return note+'<div class="card"><div class="card-h">労働保険 算定基礎賃金集計表（'+fy+'年度）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+ryoBox;
   }
   function renderRoudou(sub){ var host=$('#view-cho'); var fy=roudouFYof();
@@ -4395,6 +4479,17 @@
     var vcho=$('#view-cho'); if(vcho) vcho.addEventListener('click',function(e){
       var st=e.target.closest('[data-cho]'); if(st){ state.choView=st.dataset.cho; renderChoView(); return; }
       var dl=e.target.closest('[data-choxlsx]'); if(dl){ downloadChoXlsx(dl.dataset.choxlsx); return; } });
+    if(vcho) vcho.addEventListener('input',function(e){ var zg=e.target.closest('[data-zennendo-gaisan]'); if(!zg)return;
+      /* ★前年度に 納めた 概算＝精算（不足／充当）の 元★ */
+      if(!state.company)state.company={}; state.company.zennendoGaisan=zg.value.replace(/[^0-9]/g,'');
+      if(window.persistSaveDebounced)persistSaveDebounced();
+      renderChoView(); });
+    if(vcho) vcho.addEventListener('change',function(e){ var sh=e.target.closest('[data-rousai-shurui]'); if(!sh)return;
+      /* ★業種を 選んだら 率は そこから 出る★（手入力は 一覧に 無い時だけ） */
+      if(!state.company)state.company={}; state.company.rousaiShurui=sh.value;
+      if(sh.value!=='__te__') state.company.rousaiRate='';
+      if(window.persistSaveDebounced)persistSaveDebounced();
+      renderChoView(); });
     if(vcho) vcho.addEventListener('input',function(e){ var rr=e.target.closest('[data-rousai-rate]'); if(!rr)return; // 労災率(‰)入力→労災保険料だけ即時再計算(集計は再取得しない=入力フォーカス維持)
       if(!state.company)state.company={}; state.company.rousaiRate=rr.value.replace(/[^0-9.]/g,''); if(window.persistSaveDebounced)persistSaveDebounced();
       var s=state._roudouSum; if(s){ var p=num(state.company.rousaiRate); s.rousaiPermil=p; s.rousaiRyo=(p>0)?roudouRyo(s.rousaiWageTotal, p/1000):null; var b=$('#roudou-rousai-ryo'); if(b) b.textContent=(s.rousaiRyo!=null?yen(s.rousaiRyo):'—'); } });
@@ -4736,7 +4831,7 @@
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit,
-      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf,
+      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf,
       /* ★2026-08-28 支給サイクルの「任意（N週ごと）」を 実際に押して確かめる為★
          （kyuyo/tests/paycycle-nweeks.test.mjs。★見られない物は 見張れない★） */
       payDateForSlip:payDateForSlip, payCycleLabel:payCycleLabel, ASK_Q:ASK_Q, payDaysOf:payDaysOf, payDaysText:payDaysText }; }

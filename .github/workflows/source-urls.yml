@@ -61,3 +61,11 @@ jobs:
       #   取れなかった回は 🟡未測定 と出す＝「今のままでよい」と混ぜない。
       - name: ★最低賃金の年度が進んだか（進んでいたら赤＝入れ替えの合図）
         run: node kyuyo/scripts/check-saitei-nendo.mjs
+
+      # ★労災保険率表（別表第１）が 法令と 合っているか★（2026-09-04 に 表を 持った）
+      #   出どころ＝e-Gov 法令検索の API（労働保険の保険料の徴収等に関する法律施行規則）。
+      #   ★これも 外を 叩く★ので ここ（週1）に 置く。
+      #   ★repo の 中だけで 判る「lib が 壊れていないか」は ci.yml の rousai-ritsu.test.mjs が 毎回 見る★。
+      #   取れなかった回は 🟡未測定（exit 2）＝「合っている」と 混ぜない。
+      - name: ★労災保険率表が法令と合っているか（ズレたら赤＝入れ替えの合図）
+        run: node kyuyo/scripts/check-rousai-ritsu.mjs
