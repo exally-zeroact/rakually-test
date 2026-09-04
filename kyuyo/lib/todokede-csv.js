@@ -32,9 +32,9 @@
  * 【利用】ブラウザ window.TodokedeCsv / Node require('./todokede-csv.js')
  */
 (function (root, factory) {
-  if (typeof module !== 'undefined' && module.exports) { module.exports = factory(); }
-  else { root.TodokedeCsv = factory(); }
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module !== 'undefined' && module.exports) { module.exports = factory(require('./todokede-check.js')); }
+  else { root.TodokedeCsv = factory(root.TodokedeCheck); }
+})(typeof self !== 'undefined' ? self : this, function (CHECK) {
   'use strict';
 
   /* ── ① 元号（一次情報 137p：昭和5・平成7・令和9） ───────────────────────
@@ -203,6 +203,11 @@
        ⇒★印を 付ければ 必ず エラー／付けずに 出せば 厚年の 70歳以上分が 黙って 漏れる★
        ⇒★出さずに 名前を 挙げる★ */
     if ((inp.bikou || {}).over70) return false;
+    /* ★従前の 改定月＝必須★（算定も 同じ）
+       公式の 項目表（csv225.pdf 項番15・16・17）「入力されていること」
+       ★2026-09-04 実測★＝空のまま 出していて、年金機構の 検査で ★3件 弾かれる★所だった。
+       （月変は 見ていたのに 算定は 見ていなかった＝★同じ 決まりを 2か所に 書いた 型★） */
+    if (!(inp.zenzen || {}).kaiteiYmd) return false;
     return !taishoMonths(inp.months || [], inp.rule).jusen;
   }
 
@@ -284,6 +289,10 @@
     if ((inp.bikou || {}).over70) {
       out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
         + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+    }
+    if (!(inp.zenzen || {}).kaiteiYmd) {
+      out.push(namae + '＝従前の 改定月が 空です（電子申請では ★必ず 要ります★）。'
+        + '前に 標準報酬月額が 決まった 月を 入れてください（電子申請の ファイルに 入れていません）');
     }
     var tai2 = taishoMonths(ms, inp.rule);
     if (tai2.jusen) {
@@ -377,6 +386,11 @@
     return m ? (m[1] + m[2] + m[3]) : '';
   }
   /* 1行目＝媒体管理レコード（年金事務所提出・45p） */
+  /* ★代表届書コード＝固定値★（ＣＳＶ形式届書作成仕様書（電子申請）第16.2版 表４．１．１－１）
+       「６ 代表届書コード 数字 ５ ★「22223」を設定する★」
+       作成例「21,01,ｹｲﾄ,001,20170101,★22223★」 */
+  var DAIHYO_CODE = '22223';
+
   function baitaiRow(jimusho, opt) {
     var j = jimusho || {}; opt = opt || {};
     return [
@@ -385,7 +399,8 @@
       String(j.kigou || ''),              /* 3 事業所記号 */
       pad(opt.tsuban || 1, 3),            /* 4 媒体通番（001〜999） */
       ymd8(opt.ymd),                      /* 5 作成年月日 YYYYMMDD */
-      String(opt.daihyo || '')            /* 6 代表届書コード */
+      DAIHYO_CODE                         /* 6 代表届書コード＝★『22223』を設定する★（仕様書 表４．１．１－１）
+                                             ★2026-09-04 まで 空だった＝「代表届書コード不正」で 弾かれる所★ */
     ];
   }
   /* 2行目のかたまり＝事業所管理レコード（事業所数情報＋事業所情報・66p/69p） */
@@ -531,7 +546,21 @@
   function gekkakuCsv(inp) {
     inp = inp || {};
     var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
-    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME };
+    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: { errors: [], hito: 0, mihakari: 0 } };
+    /* ★出す前に 必ず 年金機構の 検査を 通す★（2026-09-04 司さん
+         「お前らが 確認して リサーチして 間違えてないか 確認するんやろが」）
+       ＝公式の 項目表（csv225/csv221）の チェックを こちらで 走らせ、
+         ★1件でも 出たら ファイルを 作らない★（出しても 向こうで 弾かれる） */
+    var kensa = CHECK ? CHECK.checkRows(rows) : { errors: [], hito: rows.length, mihakari: rows.length };
+    /* ★1〜4行目（媒体管理・事業所情報）も 見る★（ここが だめでも 向こうで 弾かれる） */
+    if (CHECK && CHECK.checkHeader) {
+      CHECK.checkHeader(inp.jimusho, inp.baitai || {}).forEach(function (x) {
+        kensa.errors.push({ gyo: 0, no: x.no, name: x.name, why: x.why });
+      });
+    }
+    if (kensa.errors.length) {
+      return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: kensa };
+    }
     var out = [];
     out.push(baitaiRow(inp.jimusho, inp.baitai || {}));
     out.push([SEP_KANRI]);
@@ -540,6 +569,7 @@
     rows.forEach(function (r) { out.push(r); });
     var f = build(out);
     f.name = FILE_NAME;
+    f.kensa = kensa;
     f.tooBig = tooBig(f.bytes.length);
     return f;
   }
@@ -547,7 +577,21 @@
   function santeiCsv(inp) {
     inp = inp || {};
     var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
-    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME };
+    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: { errors: [], hito: 0, mihakari: 0 } };
+    /* ★出す前に 必ず 年金機構の 検査を 通す★（2026-09-04 司さん
+         「お前らが 確認して リサーチして 間違えてないか 確認するんやろが」）
+       ＝公式の 項目表（csv225/csv221）の チェックを こちらで 走らせ、
+         ★1件でも 出たら ファイルを 作らない★（出しても 向こうで 弾かれる） */
+    var kensa = CHECK ? CHECK.checkRows(rows) : { errors: [], hito: rows.length, mihakari: rows.length };
+    /* ★1〜4行目（媒体管理・事業所情報）も 見る★（ここが だめでも 向こうで 弾かれる） */
+    if (CHECK && CHECK.checkHeader) {
+      CHECK.checkHeader(inp.jimusho, inp.baitai || {}).forEach(function (x) {
+        kensa.errors.push({ gyo: 0, no: x.no, name: x.name, why: x.why });
+      });
+    }
+    if (kensa.errors.length) {
+      return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: kensa };
+    }
     var out = [];
     out.push(baitaiRow(inp.jimusho, inp.baitai || {}));
     out.push([SEP_KANRI]);
@@ -556,6 +600,7 @@
     rows.forEach(function (r) { out.push(r); });
     var f = build(out);
     f.name = FILE_NAME;
+    f.kensa = kensa;
     /* ★4.5MB 以上は 出さない★（電子申請が 行えない＝出しても 無駄に なる） */
     f.tooBig = tooBig(f.bytes.length);
     return f;
@@ -565,7 +610,7 @@
     GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa,
     gekkakuRow: gekkakuRow, gekkakuWarn: gekkakuWarn, gekkakuCsv: gekkakuCsv, dasuKaGekkaku: dasuKaGekkaku, ymAdd: ymAdd, MAN10: MAN10,
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,
-    nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,
+    nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, DAIHYO_CODE: DAIHYO_CODE, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,
     KEN_CODE: KEN_CODE, splitSeiriKigou: splitSeiriKigou,
     MAX_BYTES: MAX_BYTES, tooBig: tooBig,
     _resetSjisMap: _resetSjisMap,

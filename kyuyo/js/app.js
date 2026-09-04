@@ -3992,6 +3992,15 @@
         var gtsu=Number(gco.baitaiTsuban||0);
         var gf=TodokedeCsv.gekkakuCsv({ jimusho:gekkakuCsvInput(gi[0]).jimusho,
           baitai:{ tsuban:TodokedeCsv.nextTsuban(gtsu), ymd:new Date().toISOString().slice(0,10) }, rows:grows });
+        /* ★年金機構の 検査で 1件でも 出たら ファイルを 作らない★（2026-09-04）
+           ＝出しても 向こうで 弾かれる／★どこが 悪いかを その場で 見せる★ */
+        if(gf.kensa && gf.kensa.errors.length){
+          uiAlert('年金機構の 決まりに 合わない所が '+gf.kensa.errors.length+'件 あります。'
+            +String.fromCharCode(10)+gf.kensa.errors.slice(0,5).map(function(x){
+              return (x.gyo)+'人目 項番'+x.no+' '+x.name+'／'+x.why; }).join(String.fromCharCode(10))
+            +(gf.kensa.errors.length>5?(String.fromCharCode(10)+'…ほか '+(gf.kensa.errors.length-5)+'件'):''));
+          return;
+        }
         if(!gf.bytes.length){ uiAlert('出せる人がいませんでした（1バイトも作っていません）。'); return; }
         if(gf.tooBig){
           uiAlert('このファイルは 4.5MB 以上になるため、電子申請できません。'
@@ -4018,6 +4027,15 @@
         var tsu=Number(co2.baitaiTsuban||0);
         var f2=TodokedeCsv.santeiCsv({ jimusho:santeiCsvInput(iru[0], yr2).jimusho,
           baitai:{ tsuban:TodokedeCsv.nextTsuban(tsu), ymd:new Date().toISOString().slice(0,10) }, rows:rows2 });
+        /* ★年金機構の 検査で 1件でも 出たら ファイルを 作らない★（2026-09-04）
+           ＝出しても 向こうで 弾かれる／★どこが 悪いかを その場で 見せる★ */
+        if(f2.kensa && f2.kensa.errors.length){
+          uiAlert('年金機構の 決まりに 合わない所が '+f2.kensa.errors.length+'件 あります。'
+            +String.fromCharCode(10)+f2.kensa.errors.slice(0,5).map(function(x){
+              return (x.gyo)+'人目 項番'+x.no+' '+x.name+'／'+x.why; }).join(String.fromCharCode(10))
+            +(f2.kensa.errors.length>5?(String.fromCharCode(10)+'…ほか '+(f2.kensa.errors.length-5)+'件'):''));
+          return;
+        }
         if(!f2.bytes.length){ uiAlert('出せる人がいませんでした（1バイトも作っていません）。'); return; }
         /* ★4.5MB 以上は 出さない★（2026-09-04 指示役の裁定＝甲）
            一次情報が ★同じ ページの 中で 割れている★ので ★両方の 読みが 揃って 許す「未満」だけ★ 通す。

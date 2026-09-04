@@ -97,7 +97,7 @@ T('★⑧ 1件も 作れない時は 0バイト（中途半端な ファイル�
 /* ────────── 53項目の 行（算定基礎届データレコード） ────────── */
 const SAMPLE = {
   jimusho: { todofuken: '38', gunshiku: '01', kigou: 'ｹｲﾄ' },
-  emp: { seiriNo: '12', kana: 'ﾔﾏﾀﾞ ﾀﾛｳ', kanji: '山田 太郎', birthYmd: '1980-05-15' },
+  emp: { seiriNo: '12', kana: 'ﾔﾏﾀﾞ ﾀﾛｳ', kanji: '山田　太郎', birthYmd: '1980-05-15' },
   tekiyoYm: '2026-09',
   zenzen: { health: 260000, pension: 260000, kaiteiYmd: '2025-09-01' },
   months: [ { days: 30, tsuka: 260000, genbutsu: 0 }, { days: 31, tsuka: 260000, genbutsu: 0 }, { days: 30, tsuka: 260000, genbutsu: 0 } ],
