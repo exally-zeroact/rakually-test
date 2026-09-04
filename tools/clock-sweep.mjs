@@ -21,8 +21,15 @@ import { execSync } from 'node:child_process';
  *   例 YML=.github/workflows/webkit.yml SKIP="playwright install|npm install" */
 const YML = process.env.YML || '.github/workflows/ci.yml';
 const yml = fs.readFileSync(YML, 'utf8');
-const all = [...yml.matchAll(/^\s*run:\s*(.+)$/gm)].map((m) => m[1].trim())
-  .filter((c) => !/^npm install/.test(c));
+/* ★拾った 段★＝ci.yml の run: を 全部（★人が 数えた 本数では ない★）
+   ★2026-09-05 の 決まり（指示役 e9fdf1c）★
+     「押す前の『全部 緑』は ★CI と 同じ 物を 走らせて から★ 言う」
+     「出す形＝★拾った 段 ◯／走らせた ◯／赤 ◯／飛ばした ◯（理由つき）★」
+     「★1段も 走らなければ 赤★」（★0段 走って 緑★を 塞ぐ）
+   ★Exally が 1日で 2回 踏んだ★＝「全部」の 中身が 人と 機械で ちがった */
+const hirotta = [...yml.matchAll(/^\s*run:\s*(.+)$/gm)].map((m) => m[1].trim());
+const all = hirotta.filter((c) => !/^npm install/.test(c));
+const nozoita = hirotta.length - all.length;   /* 支度（npm install）＝走らせない */
 const from = Number(process.env.FROM || 1);
 const to = Number(process.env.TO || all.length);
 const skip = process.env.SKIP ? new RegExp(process.env.SKIP) : null;
@@ -49,8 +56,11 @@ for (let i = from; i <= Math.min(to, all.length); i++) {
 }
 console.log('\n[clock-sweep] ' + YML + ' ／ 時計 ' + (process.env.FAKE_NOW || process.env.DK_FAKE_NOW || '★本物★')
   + '  （' + YML.split('/').pop() + ' #' + from + '〜#' + Math.min(to, all.length) + '／全 ' + all.length + '本）');
-console.log('  走らせた ' + n + '本 ／ ★赤 ' + red.length + '本★ ／ ★未測定と出た ' + mihakari.length + '本★'
-  + (skipped.length ? ' ／ ★外した ' + skipped.length + '本★' : ''));
+/* ★1段も 走らなければ 赤★（★0段 走って 緑★を 塞ぐ＝2026-09-05 の 決まり） */
+if (n === 0) { console.log('  ★赤★ 1段も 走っていません（拾った 段 ' + hirotta.length + '）'); process.exit(1); }
+console.log('  ★拾った 段 ' + hirotta.length + '★ ／ 走らせた ' + n + '本 ／ ★赤 ' + red.length + '本★ ／ ★未測定と出た ' + mihakari.length + '本★'
+  + ' ／ 飛ばした ' + (nozoita + skipped.length) + '本'
+  + '（支度 ' + nozoita + '＝npm install' + (skipped.length ? '／SKIP ' + skipped.length : '') + '）');
 red.forEach((x) => console.log('  ★赤★ ' + x));
 mihakari.forEach((x) => console.log('  🟡未測定と出た（0件ではない） ' + x));
 skipped.forEach((x) => console.log('  — 外した ' + x));
