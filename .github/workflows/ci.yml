@@ -514,6 +514,12 @@ jobs:
         run: node kyuyo/tests/roudou-shinkoku.test.mjs && node kyuyo/tests/roudou-shinkoku.test.mjs --self-test
       - name: ★年金機構の検査をこちらで再現（公式の項目表 csv225/csv221・出す前の門）
         run: node kyuyo/tests/todokede-check.test.mjs && node kyuyo/tests/todokede-check.test.mjs --self-test
+      - name: ★賞与支払届の電子申請CSV（様式2265700・21項目／標準賞与額は1,000円未満切捨・支払日は未来不可）
+        run: node kyuyo/tests/shoyo-csv.test.mjs && node kyuyo/tests/shoyo-csv.test.mjs --self-test
+      - name: ★スマホ幅で潰れ0・はみ出し0（代行請求の物差しを借用・給与5画面＋請求書＋明細×3幅）
+        run: node tests/sumaho-haba.mjs --self-test && node tests/sumaho-haba.mjs
+      - name: ★給与の紙は白黒で刷っても読める（代行請求の物差しを借用・罫線が消えない）
+        run: node kyuyo/tests/kami-shiro-kuro.mjs --self-test && node kyuyo/tests/kami-shiro-kuro.mjs
       - name: Payroll pagination (1000件超が黙って欠落しない)
         run: node kyuyo/tests/pagination.test.mjs
       - name: Payroll meisai store (Web明細 公開一覧/削除時リンク失効)

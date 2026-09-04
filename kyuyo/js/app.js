@@ -2319,6 +2319,8 @@
     var footer = anyBonus
       ? '<div class="card" style="padding:12px;margin-top:6px"><button class="btn-primary" data-confirm-bonus style="width:100%">この賞与を確定（年調・台帳に反映）</button>'
         +'<div style="margin-top:8px;display:flex;justify-content:flex-end"><button class="btn-ghost" data-bonus-harau="1" style="padding:8px 12px;font-size:12px">賞与支払届をExcel出力</button></div>'
+        /* ★電子申請の CSV★（2026-09-05）＝Excel の 下に 出す */
+        +shoyoCsvBox(bonusHarauRows())
         +'<p class="hint" style="margin:8px 0 0">確定すると、この賞与（'+esc(ym)+'）を年末調整の自動集計と賃金台帳に反映します。あとで直せます。<b>定時決定（4〜6月の標準報酬）や前月比には賞与は含めません</b>（法令どおり）。<br>「賞与支払届」＝年金機構提出用（標準賞与額＝1,000円未満切捨・健保 年度573万／厚年1回150万上限）。被保険者整理番号は各自入力。</p></div>'
       : '';
     host.innerHTML=bonusItemSuggestHTML()+head+(cards||'<p class="hint">対象の従業員がいません。</p>')+footer;
@@ -2347,11 +2349,53 @@
   function bonusHarauRows(){
     var ym=bonusYmOf(), payDay=String((state.bonus&&state.bonus.payDay)||'').trim();
     return state.employees.filter(function(e){ return isActiveInMonth(e,ym) && num(bonusEntry(e).amount)>0; }).map(function(e){
-      var c=computeBonus(e), si=c.si||{}, tsuka=num(c.base); // 社保対象賞与=課税賞与総額
+      var c=computeBonus(e), si=c.si||{}, tsuka=num(c.base), en=bonusEntry(e); // 社保対象賞与=課税賞与総額
       var notes=[]; if(!payDay)notes.push('賞与支払日を入力してください'); if(isOver70(e,ym+'-01'))notes.push('70歳以上'); if(c.si.kenpoBase<si.hyojun)notes.push('健保 年573万上限'); if(c.si.koseiBase<si.hyojun)notes.push('厚年 150万上限');
       // 賞与支払年月日は様式で年月日必須=支払日未入力なら空にして要入力(月だけの値を出さない)
-      return { name:e.name||'', birthYmd:e.birthYmd||'', payDate:payDay||'', tsuka:tsuka, genbutsu:0, goukei:tsuka, hyojun:num(si.hyojun), note:notes.join('／') };
+      /* ★現物と 標準賞与額★（2026-09-05）
+         ★元は genbutsu:0 の 打ち込み／goukei:tsuka（★1,000円未満を 切り捨てていなかった★）
+         ★原文★ 賞与支払届の 項目表（csv265.pdf）項番14
+           「★合計（賞与額）＝((通貨によるものの額＋現物によるものの額)÷1000)×1000★」
+           「★合計（賞与額）≧'1000'★」 */
+      var gb=num(en.genbutsu);
+      var gk=(window.TodokedeCsv&&TodokedeCsv.shoyoGoukei)?TodokedeCsv.shoyoGoukei(tsuka, gb):(Math.floor((tsuka+gb)/1000)*1000);
+      return { emp:e, name:e.name||'', kana:e.kana||'', birthYmd:e.birthYmd||'', payDate:payDay||'',
+        tsuka:tsuka, genbutsu:gb, goukei:gk, hyojun:num(si.hyojun), over70:isOver70(e,ym+'-01'), note:notes.join('／') };
     });
+  }
+  /* ★賞与支払届の 電子申請 CSV に 渡す物★（2026-09-05）
+     ★算定・月変と 同じ 形★＝事業所は 会社情報から、人は 賞与の 画面が 持っている 額から。 */
+  function shoyoCsvInput(x){
+    var c=state.company||{}, e=x.emp||{};
+    var sk=(window.TodokedeCsv&&TodokedeCsv.splitSeiriKigou)?TodokedeCsv.splitSeiriKigou(c.seiriKigou):null;
+    return {
+      jimusho:{ todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
+        gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
+        zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+        address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
+        tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
+      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||x.kana||'', kanji:e.name||x.name||'', birthYmd:e.birthYmd||x.birthYmd||'' },
+      harauYmd: x.payDate||'',
+      /* ★今日は 画面が 渡す★（lib は 時計を 持たない＝headless の 決まり）
+         原文＝「『賞与支払年月日』≦『システムチェック実施日』であること」 */
+      kyou: new Date().toISOString().slice(0,10),
+      tsuka: x.tsuka||0, genbutsu: x.genbutsu||0,
+      bikou:{ over70: !!x.over70 }
+    };
+  }
+  /* ★落とす箱★（★出せない人は 名前を 挙げて 知らせ、ファイルに 入れない★） */
+  function shoyoCsvBox(rows){
+    if(!window.TodokedeCsv) return '';
+    var maru=[]; rows.forEach(function(x){ maru=maru.concat(TodokedeCsv.shoyoWarn(shoyoCsvInput(x))); });
+    var deru=rows.filter(function(x){ return TodokedeCsv.dasuKaShoyo(shoyoCsvInput(x)); });
+    return '<div class="card" style="margin-top:10px"><div class="card-h">電子申請用の CSV（年金事務所へ）</div>'
+      +'<p class="hint" style="margin:0 0 8px">賞与支払届は <b>賞与を払った日から5日以内</b>に出します。'
+      +'標準賞与額は <b>1,000円未満を切り捨て</b>ます（日本年金機構の決まり）。</p>'
+      +(maru.length?('<div class="cr-warn" style="margin:8px 0 0">⚠ <b>この方は 入れていません</b><br>'
+        +maru.map(esc).join('<br>')+'</div>'):'')
+      +'<p class="hint" style="margin:8px 0 0">ファイル名は <b>SHFD0006.CSV</b>（電子申請の 決まり）。</p>'
+      +'<div style="margin-top:10px"><button class="btn-primary" id="b-shoyo-csv"'+(deru.length?'':' disabled')+'>'
+      +(deru.length?('CSVを作る（'+deru.length+'人・SHFD0006.CSV）'):'出せる人が いません')+'</button></div></div>';
   }
   function bonusHarauAoa(rows){ var aoa=[BONUS_HARAU_COLS]; rows.forEach(function(x){ aoa.push(['', x.name, x.birthYmd, x.payDate, x.tsuka||'', x.genbutsu||0, x.goukei||'', x.hyojun||'', x.note]); }); return aoa; }
   function downloadBonusHarau(){ if(!window.PayslipXlsx) return; var rows=bonusHarauRows(); if(!rows.length){ uiAlert('賞与額が入力された従業員がいません。'); return; }
@@ -3396,7 +3440,14 @@
       totalAmount:dd.totalAmount, tax:tax, isHei:dd.isHei, net:net, single:(!periodMode&&(cyc==='daily'||dd.count<=1)),
       periodMode:periodMode, contractor:contractor, periodKey:(period&&period.key)||'' };
   }
-  var DAILY_CSS=':root{--ink:#23261f;--ink2:#6a6d62;--ink3:#7d7f72;--hair-lt:#ece7dc;--hair2:#cfc9b8;--accent:#6f5a3e;--accent-soft:#b6a06d;}*{box-sizing:border-box;margin:0;padding:0;}'
+  /* ★紙の 色は 1か所から★（2026-09-05）
+     ★元は render.js の :root と ここに ★同じ 色を 2回★ 書いていた★
+       ⇒ render.js だけ 濃くしても ★日別の 紙は 薄いまま★だった（実測で 気づいた）
+       ＝★同じ 決まりを 2か所に 書いたら 片方を 直しても もう片方は 直らない★（今日 何度も 出た 型）
+     ★罫線は 白黒で 残る 濃さ★＝--hair-lt #ECE7DC(差1.23) → ★#D8D2C2(1.51)★
+     ★見張り★ kyuyo/tests/kami-shiro-kuro.mjs（1.5 未満は 赤） */
+  var DAILY_CSS=((window.Render&&Render.rootFor)?Render.rootFor({}):
+    ':root{--ink:#23261f;--ink2:#6a6d62;--ink3:#7d7f72;--hair:#c5beb1;--hair-lt:#cdc8bd;--hair2:#b8b0a0;--accent:#6f5a3e;--accent-soft:#b6a06d;--paper:#ffffff;}')
     +'body{font-family:"Yu Mincho","YuMincho","Hiragino Mincho ProN","MS Mincho",serif;color:var(--ink);background:#fff;}'
     +'.sheet{width:794px;min-height:1123px;margin:0 auto;padding:40px 60px;}'
     +'.tophd{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;}.mh-title{font-size:15px;letter-spacing:.32em;font-weight:500;}.mh-sub{font-size:11px;letter-spacing:.14em;margin-top:6px;color:var(--ink2);}'
@@ -3981,6 +4032,36 @@
       /* ★月額変更届の CSV★（2026-09-04）＝算定と 同じ 決め:
          ★出せない人は 入れない★（dasuKaGekkaku）／★4.5MB 以上は 出さない★／
          ★媒体通番は 落とした 時にだけ 上げる★ */
+      /* ★賞与支払届の CSV★（2026-09-05）＝算定・月変と 同じ 決め */
+      if(e.target.closest('#b-shoyo-csv')){
+        if(!window.TodokedeCsv){ uiAlert('部品が読めていません。開き直してください。'); return; }
+        var sr=bonusHarauRows();
+        if(!sr.length){ uiAlert('賞与の 対象者が いません。'); return; }
+        var si2=sr.filter(function(x){ return TodokedeCsv.dasuKaShoyo(shoyoCsvInput(x)); });
+        if(!si2.length){ uiAlert('電子申請に 出せる人が いませんでした。'+String.fromCharCode(10)
+          +'賞与を払った日（先の日付は不可）と、1,000円以上の賞与額が要ります。'); return; }
+        var sco=state.company||{};
+        var srows=si2.map(function(x){ return TodokedeCsv.shoyoRow(shoyoCsvInput(x)); });
+        var stsu=Number(sco.baitaiTsuban||0);
+        var sf=TodokedeCsv.shoyoCsv({ jimusho:shoyoCsvInput(si2[0]).jimusho,
+          baitai:{ tsuban:TodokedeCsv.nextTsuban(stsu), ymd:new Date().toISOString().slice(0,10) }, rows:srows });
+        if(sf.kensa && sf.kensa.errors.length){
+          uiAlert('年金機構の 決まりに 合わない所が '+sf.kensa.errors.length+'件 あります。'
+            +String.fromCharCode(10)+sf.kensa.errors.slice(0,5).map(function(x){
+              return (x.gyo)+'人目 項番'+x.no+' '+x.name+'／'+x.why; }).join(String.fromCharCode(10)));
+          return;
+        }
+        if(!sf.bytes.length){ uiAlert('出せる人がいませんでした（1バイトも作っていません）。'); return; }
+        if(sf.tooBig){
+          uiAlert('このファイルは 4.5MB 以上になるため、電子申請できません。'
+            +String.fromCharCode(10)+'人数を分けて 出してください（日本年金機構の決まりです）。');
+          return;
+        }
+        dlBytes(sf.bytes, sf.name, 'text/csv');
+        state.company.baitaiTsuban=TodokedeCsv.nextTsuban(stsu);
+        persistSaveDebounced();
+        return;
+      }
       if(e.target.closest('#b-gekkaku-csv')){
         var gr=(state._gekkakuRows||[]).filter(function(x){return x.hasData;});
         if(!gr.length||!window.TodokedeCsv){ uiAlert('随時改定の 対象者が いません。'); return; }
@@ -4849,7 +4930,7 @@
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit,
-      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf,
+      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf,
       /* ★2026-08-28 支給サイクルの「任意（N週ごと）」を 実際に押して確かめる為★
          （kyuyo/tests/paycycle-nweeks.test.mjs。★見られない物は 見張れない★） */
       payDateForSlip:payDateForSlip, payCycleLabel:payCycleLabel, ASK_Q:ASK_Q, payDaysOf:payDaysOf, payDaysText:payDaysText }; }
