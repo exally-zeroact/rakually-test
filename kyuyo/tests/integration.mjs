@@ -1272,5 +1272,48 @@ T('★算定基礎届の CSV が 画面から 本当に 作れる（配線）', 
   } finally { st.company = keep.c; st.employees = keep.e; st.month = keep.m; }
 });
 
+/* ══ 労働保険料の 端数（2026-09-04 一次情報で 見つけた）════════════════════
+   ★厚生労働省「令和８年度 労働保険年度更新申告書の書き方（継続事業用）」Ｑ３ 原文★
+     「保険料（一般拠出金）の計算をしたら小数点以下が発生しました。切り捨てですか、切り上げですか？
+       Ａ．★切り捨て★になります。
+       　なお、労災保険と雇用保険の算定基礎額が★同額の場合★は、
+       　★別々に計算して切り捨てるのではなく、両保険の算定基礎額を両保険の料率の合計に乗じ、
+       　　その後切り捨てて★ください。（記入例４（P.27）をご参照ください。）」
+   ★うちは 別々に 切り捨てて 足していた★＝実測で ★1円 ずれる★
+     算定基礎額 1,233,400 → 千円未満切捨 1,233,000／労災 2.5‰・雇用 15.5‰
+       別々に 切り捨て … 3,082＋19,111＝★22,193★
+       合計率に 乗じてから … 1,233,000×18.0‰＝★22,194★
+   ★申告書に 書く 数字が 1円 違う★＝差額の やりとりに なる。 */
+T('★労働保険料＝算定基礎額が 同額なら 合計率に 乗じてから 切り捨てる（厚労省 Q3）', () => {
+  const A = win.__PAYSLIP_TEST;
+  ok(A && A.roudouGokei, '★roudouGokei が 無い★＝合計の 出し方が 1か所に なっていない');
+  /* ★同額の 組★＝合計率に 乗じてから 1回 切り捨て */
+  const r1 = A.roudouGokei(1233400, 1233400, 2.5 / 1000, 15.5 / 1000);
+  eq(r1.gokei, 22194, '★同額なのに 別々に 切り捨てている★');
+  eq(r1.awaseta, true, '★合わせて 計算した 印が 立っていない★');
+  /* ★違う額の 組★＝別々に 切り捨てる（原文の「同額の場合」に 当たらない） */
+  const r2 = A.roudouGokei(1233400, 1000400, 2.5 / 1000, 15.5 / 1000);
+  eq(r2.awaseta, false, '★違う額なのに 合わせている★');
+  eq(r2.gokei, Math.floor(1233000 * 2.5 / 1000) + Math.floor(1000000 * 15.5 / 1000), '★別々の 足し算が 合わない★');
+  /* ★率が 分からない時は 数字を 作らない★ */
+  eq(A.roudouGokei(1233400, 1233400, null, 15.5 / 1000).gokei, null, '★労災率が 無いのに 合計を 出している★');
+  eq(A.roudouGokei(1233400, 1233400, 2.5 / 1000, null).gokei, null, '★雇用率が 無いのに 合計を 出している★');
+  console.log('     労働保険料 … 同額 ' + r1.gokei + '円（合わせた）／違う額 ' + r2.gokei + '円（別々）');
+});
+
+T('★画面（集計表）が その合計を 使っている（2か所で 別々に 計算しない）', () => {
+  const A = win.__PAYSLIP_TEST;
+  const st = A.state;
+  const keep = { c: st.company, e: st.employees, m: st.month };
+  try {
+    st.company = Object.assign({}, st.company, { name: '株式会社テスト', gyoshu: 'ippan', rousaiRate: 2.5 });
+    st.month = '2026-07';
+    st.employees = [];
+    const sum = A.roudouSummary([], A.roudouFYof(), []);
+    ok('gokeiRyo' in sum, '★集計に 合計（gokeiRyo）が 無い★＝申告書に 書く 数字が 出ていない');
+    ok('awaseta' in sum, '★合わせて 計算したかどうかが 出ていない★');
+  } finally { st.company = keep.c; st.employees = keep.e; st.month = keep.m; }
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
