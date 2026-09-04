@@ -87,27 +87,17 @@ const pg = await (await b.newContext({ viewport: { width: 1100, height: 900 } })
 const errs = []; pg.on('pageerror', (e) => errs.push(String(e.message).slice(0, 120)));
 
 console.log('\n[kami-shiro-kuro] 給与の 紙は 白黒で 刷っても 読めるか');
-await pg.goto('http://localhost:' + PORT + '/kyuyo/index.html', { waitUntil: 'domcontentloaded' });
-let matta = 0;
-for (let i = 0; i < 60; i++) { matta++; if (await pg.$('#loginEmail, .bn[data-scr]')) break; await new Promise((r) => setTimeout(r, 250)); }
-if (await pg.$('#loginEmail')) {
-  await pg.fill('#loginEmail', 'test@test.com'); await pg.fill('#loginPass', 'test1234');
-  await pg.click('#btnLogin');
-  for (let i = 0; i < 80; i++) { matta++; if (await pg.$('.bn[data-scr="scr-print"]')) break; await new Promise((r) => setTimeout(r, 250)); }
-  await pg.evaluate(() => { const y = Array.from(document.querySelectorAll('button')).find((e) => e.offsetParent && /^(いいえ|キャンセル)$/.test(e.textContent.trim())); if (y) y.click(); });
-  await new Promise((r) => setTimeout(r, 600));
-  for (let i = 0; i < 12; i++) {
-    if (!(await pg.$('.ui-modal-ov'))) break;
-    const oseta = await pg.evaluate(() => { const ov = document.querySelector('.ui-modal-ov'); if (!ov) return false;
-      const b2 = Array.from(ov.querySelectorAll('button,.close,[data-close]')).find((e) => e.offsetParent && /×|閉じる|あとで|いいえ|キャンセル|OK/.test((e.textContent || '') + (e.getAttribute('aria-label') || ''))); if (b2) { b2.click(); return true; } return false; });
-    if (!oseta) break;
-    await new Promise((r) => setTimeout(r, 400));
-  }
+/* ★入る手順は tests/_hairu.mjs 1か所★（3本に 写していた／★1回で 諦めて たまに 赤★だった）
+   ★実測 2026-09-05★ ci.yml を 4回 まわすと 毎回 ちがう 1本だけ 赤＝正体は ★ログインの 気まぐれ★
+   （控え .sweep-red/177.txt で 見た。★推理を 先に 語らない・記録係を 先に 置く★） */
+const { hairu, toziru } = await import('../../tests/_hairu.mjs');
+const _h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-print"]');
+await toziru(pg);
+if (!_h.haitta) {
+  console.log('  🟡 ★未測定★ ' + _h.kai + '回 試して 入れなかった'); await b.close(); srv.close(); process.exit(2);
 }
-if (await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); })) {
-  console.log('  🟡 ★未測定★ 入れなかった'); await b.close(); srv.close(); process.exit(2);
-}
-console.log('  入口まで … ★待った ' + matta + '回★');
+const matta = _h.matta;
+console.log('  入口まで … ★待った ' + matta + '回★' + (_h.kai > 1 ? '（★' + _h.kai + '回目で 入れた★）' : ''));
 
 /* ★印刷の 画面を 開く★（紙の 下絵が 出る）
    ★覆いは 押す 直前にも 閉じる★＝1回 閉じても 後から もう1枚 出る事が ある

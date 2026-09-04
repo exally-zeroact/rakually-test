@@ -518,6 +518,8 @@ jobs:
         run: node kyuyo/tests/shoyo-csv.test.mjs && node kyuyo/tests/shoyo-csv.test.mjs --self-test
       - name: ★スマホ幅で潰れ0・はみ出し0（代行請求の物差しを借用・給与5画面＋請求書＋明細×3幅）
         run: node tests/sumaho-haba.mjs --self-test && node tests/sumaho-haba.mjs
+      - name: ★真ん中を突いて本当に押せるか／出た時に下の物がずれないか（ダイコメの物差しを借用・実測129px）
+        run: node tests/oseru-ka.mjs --self-test && node tests/oseru-ka.mjs
       - name: ★給与の紙は白黒で刷っても読める（代行請求の物差しを借用・罫線が消えない）
         run: node kyuyo/tests/kami-shiro-kuro.mjs --self-test && node kyuyo/tests/kami-shiro-kuro.mjs
       - name: Payroll pagination (1000件超が黙って欠落しない)

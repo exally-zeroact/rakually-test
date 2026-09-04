@@ -43,6 +43,7 @@ const EXCLUDED = {
 // テストではない道具（実行されなくてよい物）。ここも理由つきで明示する。
 const NOT_TESTS = {
   'tests/run.js': 'ランナー本体',
+  'tests/_hairu.mjs': '★ブラウザの見張りが アプリに入る（ログイン・覆いを閉じる・押す）手順★。3本に写していた物を1か所にした部品（テストではない）',
   'kyuyo/tests/run.js': 'ランナー本体',
   'tests/fake-supa.js': 'テスト用のSupabaseモック（他テストが読む部品）',
   'tests/repo-supa.mjs': 'このリポジトリの接続先(js/supa-config.js)を返す部品。実DBに触る道具が読む（テストではない）',

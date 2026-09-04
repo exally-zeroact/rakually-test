@@ -43,7 +43,19 @@ for (let i = from; i <= Math.min(to, all.length); i++) {
   n++;
   let out = '';
   try { out = String(execSync(c, { stdio: 'pipe', encoding: 'utf8', timeout: 300000 }) || ''); }
-  catch (e) { red.push('#' + i + ' ' + c); out = ((e.stdout || '') + (e.stderr || '')); }
+  catch (e) {
+    red.push('#' + i + ' ' + c);
+    out = ((e.stdout || '') + (e.stderr || ''));
+    /* ★赤の 中身は 次の回で 上書きされる★＝★出た その場で 控えを 取る★
+       （2026-09-05 実測＝ブラウザを 使う 見張りが 回ごとに ちがう 1本だけ 赤になる。
+         走らせ直すと 緑＝★推理を 先に 語らない・まず 記録係を 置く★） */
+    try {
+      fs.mkdirSync('.sweep-red', { recursive: true });
+      const NL = String.fromCharCode(10);
+      fs.writeFileSync('.sweep-red/' + String(i) + '.txt',
+        '# ' + c + NL + '# ' + new Date().toISOString() + NL + NL + out, 'utf8');
+    } catch (_) { console.log('  🟡 赤の控えが 書けません'); }
+  }
   /* ★字で拾っている事を 隠さない★＝拾った行を そのまま 見せる。
      実測 2026-09-02 … 11本のうち 5本は ★『未測定 0件』と書いてある行★＝中身は 0だった */
   if (/未測定/.test(out)) {
@@ -61,7 +73,7 @@ if (n === 0) { console.log('  ★赤★ 1段も 走っていません（拾っ�
 console.log('  ★拾った 段 ' + hirotta.length + '★ ／ 走らせた ' + n + '本 ／ ★赤 ' + red.length + '本★ ／ ★未測定と出た ' + mihakari.length + '本★'
   + ' ／ 飛ばした ' + (nozoita + skipped.length) + '本'
   + '（支度 ' + nozoita + '＝npm install' + (skipped.length ? '／SKIP ' + skipped.length : '') + '）');
-red.forEach((x) => console.log('  ★赤★ ' + x));
+red.forEach((x) => console.log('  ★赤★ ' + x + '  … 中身の控え .sweep-red/' + x.slice(1).split(' ')[0] + '.txt'));
 mihakari.forEach((x) => console.log('  🟡未測定と出た（0件ではない） ' + x));
 skipped.forEach((x) => console.log('  — 外した ' + x));
 

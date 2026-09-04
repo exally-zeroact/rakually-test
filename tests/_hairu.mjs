@@ -1,0 +1,76 @@
+/* _hairu.mjs — ★試験が アプリに 入る（ログインする）所★ 1か所
+ * =============================================================================
+ * ★なぜ 1か所に したか（2026-09-05 実測）★
+ *   ブラウザを 使う 見張り 3本（sumaho-haba／kami-shiro-kuro／oseru-ka）が
+ *   ★同じ ログインの 手順を 3か所に 写して 持っていた★。
+ *   そして ★同じ 穴を 3本とも 持っていた★＝★1回 入り損ねたら そこで おしまい★。
+ *
+ *   ★実測★ ci.yml を まるごと 4回 走らせたら、★毎回 ちがう 1本だけ 赤★になった。
+ *     ・1回目 … kami-shiro-kuro が「🟡未測定 入れなかった」で 赤（exit 2）
+ *     ・別の回 … sumaho-haba が 同じ所で 未測定（あちらは exit 0 なので 赤には ならない）
+ *     ⇒ 中身は ★どちらも 同じ＝ログインが たまに 通らない★（倉庫への 通信の 気まぐれ）。
+ *   ★決まり「たまに赤は まず 記録係を 置け」★に従って tools/clock-sweep.mjs に
+ *   ★赤の 中身を その場で 控える★ 仕掛けを 足し、控え（.sweep-red/177.txt）で 正体を 見た。
+ *
+ * ★直し方★
+ *   ★1回で 諦めない★＝入れなければ ★開き直して もう一度★（既定 3回まで）。
+ *   ★それでも 入れなければ 未測定★（0件＝合格 とは 書かない）＝★緩めていない★。
+ *   ★何回目で 入れたか★も 返す＝★黙って 3回 掛かっている★のを 隠さない。
+ */
+
+/* pg … playwright の page ／ matsu … 入れた事の 目印（この物が 出たら 入れた）
+   返り値 { haitta, matta, kai } … kai＝入れた 時の 回数（入れなければ 試した 回数） */
+export async function hairu(pg, url, matsu, kaiMax = 3) {
+  let matta = 0;
+  for (let kai = 1; kai <= kaiMax; kai++) {
+    await pg.goto(url, { waitUntil: 'domcontentloaded' });
+    for (let i = 0; i < 60; i++) { matta++; if (await pg.$('#loginEmail, .bn[data-scr]')) break; await new Promise((r) => setTimeout(r, 250)); }
+    if (await pg.$('#loginEmail')) {
+      await pg.fill('#loginEmail', 'test@test.com');
+      await pg.fill('#loginPass', 'test1234');
+      await pg.click('#btnLogin');
+      for (let i = 0; i < 80; i++) { matta++; if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
+      await pg.evaluate(() => {
+        const y = Array.from(document.querySelectorAll('button'))
+          .find((e) => e.offsetParent && /^(いいえ|キャンセル)$/.test(e.textContent.trim()));
+        if (y) y.click();
+      });
+      await new Promise((r) => setTimeout(r, 600));
+    }
+    const nokoru = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
+    if (!nokoru) return { haitta: true, matta, kai };
+    /* ★入れなかった＝少し 待って 開き直す★（倉庫の 通信の 気まぐれ） */
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  return { haitta: false, matta, kai: kaiMax };
+}
+
+/* ★案内の 覆いを 本物の 閉じる ボタンで 閉じる★（消す のでは ない＝お客さんの 道）
+   返り値＝★閉じ残り★（0 なら 覆いは 消えた） */
+export async function toziru(pg, kaiMax = 12) {
+  for (let i = 0; i < kaiMax; i++) {
+    if (!(await pg.$('.ui-modal-ov'))) return 0;
+    const oseta = await pg.evaluate(() => {
+      const ov = document.querySelector('.ui-modal-ov'); if (!ov) return false;
+      const b2 = Array.from(ov.querySelectorAll('button,.close,[data-close]'))
+        .find((e) => e.offsetParent && /×|閉じる|あとで|いいえ|キャンセル|OK|はじめる|わかった/.test((e.textContent || '') + (e.getAttribute('aria-label') || '')));
+      if (b2) { b2.click(); return true; } return false;
+    });
+    if (!oseta) break;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return (await pg.$$('.ui-modal-ov')).length;
+}
+
+/* ★覆いを 閉じてから 押す★（覆いは ★画面を 移るたびに 出る★＝2026-09-05 実測）
+   1回 閉じて 押すだけでは 足りない＝閉じた 後に また 出る 事が ある。
+   返り値 { oseta, kai, nokori } … oseta が false なら ★本当に 押せない★ */
+export async function osu(pg, sel, kaiMax = 3) {
+  let nokori = 0;
+  for (let kai = 1; kai <= kaiMax; kai++) {
+    nokori = await toziru(pg);
+    try { await pg.click(sel, { timeout: 5000 }); return { oseta: true, kai, nokori }; }
+    catch (e) { await new Promise((r) => setTimeout(r, 500)); }
+  }
+  return { oseta: false, kai: kaiMax, nokori };
+}
