@@ -185,6 +185,13 @@ require している**＝③自社Excelの土台）と、その唯一の試験 `
   → `tests/config-schema.test.mjs`
 - **法定の率・額を説明文に直書きしない** → `tests/no-hardcoded-statutory.test.mjs`
 - **倉庫の向き先を `js/supa-config.js` 以外に書かない** → `tests/no-hardcoded-supa.test.mjs`
+- **変数名・関数名に `TODO` の字を入れない**（見張りに当たる）
+  → `scripts/state-kyuyo.mjs` は「出来ていない物の言葉」を**字で**探すので、
+    `TODOKEDE`（届出の一覧）のような**まっとうな名前でも赤になる**（2026-09-05 実測）。
+    **見張りを緩めずに名前を変える**（`TDK_LIST` にした）
+- **見ている画面に、あとから上から物を差し込まない**（押す物が指の下から逃げる）
+  → `tests/oseru-ka.mjs`。実測＝台帳の札が生えた瞬間に「今月を確定」が **129px 下へ逃げた**
+    （借り元＝ダイコメ `obd-keikoku-de-botan-ga-ugokanai.spec.js`・あちらは 42px）
 
 -----
 

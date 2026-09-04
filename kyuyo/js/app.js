@@ -2030,11 +2030,25 @@
     Store.countLedger(rng.from, rng.to).then(function(r){
       _ledgerBusy[ym]=false;
       _ledgerN[ym]=(r&&typeof r.count==='number')?r.count:null;
-      // ★出す時だけ 1回 描き直す★(先に入れてから呼ぶ＝描き直しの輪にならない)
-      if(_ledgerN[ym]>=1 && ym===state.month && $('#input-list')) renderInput();
+      // ★見ている画面に あとから 差し込まない★（2026-09-05 tests/oseru-ka.mjs で 実測）
+      //   前は ここで renderInput() を 呼んで 札を 生やしていた。
+      //   ★実測★＝札が 出た 瞬間に「今月を確定」が ★129px 下に 逃げた★（幅375／幅412で 102px）。
+      //     ＝ダイコメが 直した 型と 同じ（あちらは 赤バーで 42px・
+      //       司さん「警告のせいで ボタン押せんとか ないようにしろやぼけ」）。
+      //   ★巻き上げて 相殺する 手は 捨てた★＝下は 止まるが ★上の「月次給与/賞与」が 129px 逃げた★（実測）。
+      //     ＝上に 生えた 物は 何かを 必ず 動かす。
+      //   ★直し方★＝★数え終わってから 描く★。ここでは ★数だけ しまう★。
+      //     札は 次に この画面を 描く時に 出る。それが 遅れないよう
+      //     ★月が 決まった その時に 数え始める★（下の warmLedger）＝ふつうは 初回の 描画に 間に合う。
+      //   ★機能は 1つも 減らしていない★（札も ボタンも そのまま）。
     }).catch(function(){ _ledgerBusy[ym]=false; _ledgerN[ym]=null; }); /* ★読めない＝出さない(在る事にしない)★ */
     return undefined;
   }
+  /* ★月が 決まった その時に 数え始める★（2026-09-05）
+     ＝入力画面を 開いた 時には もう 答えが 在る＝★あとから 生えてこない★。
+     ★2回まで しか 数えない★のは ledgerRowCount の中（ここは 引き金だけ）。 */
+  function warmLedger(){ if(window.Store && Store.countLedger) ledgerRowCount(state.month); }
+
   // ★K4: 台帳(Exallyで毎日入れた記録)から当月ぶんを取り込むバナー。クラウド接続時のみ表示。
   function ledgerImportBanner(){
     if(!(window.SUPA && window.Store && Store.getLedger)) return ''; // オフライン(ローカルのみ)は台帳が無いので出さない
@@ -3028,7 +3042,7 @@
     var list=todokedeIchiran();
     var gyo=list.map(function(x){
       var fuda=x.dekiru
-        ? '<span style="color:#1b5e20;font-weight:600">出せます</span>'
+        ? '<span style="font-weight:700">出せます</span>'   /* ★色で 言わない★＝読ませる字は 薄い黒（司さんの決まり）。太さで 分ける */
         : (x.riyu==='nenkin'
            ? '<span class="hint2">年金機構の 検査が この 届出に 対応していません</span>'
            : '<span class="hint2">これから 作ります</span>');
@@ -3050,7 +3064,7 @@
       +' .tdk-t thead{display:none}'
       +' .tdk-t tr{border:1px solid var(--line,#e5e5e5);border-radius:8px;padding:8px 10px;margin-bottom:8px}'
       +' .tdk-t td{border:0!important;padding:1px 0!important}'
-      +' .tdk-t td.tdk-i{color:#6a6d62;font-size:12px}'
+      +' .tdk-t td.tdk-i{color:#555555;font-size:12px}'   /* ★#6a6d62は 段に 無い 4つめの 薄い黒だった（2026-09-05 実測）★ */
       +' .tdk-t td.tdk-n{font-weight:600}'
       +'}</style>';
     return css+'<div class="card" style="margin-bottom:10px"><div class="card-h">年金事務所へ出す届出（電子申請）</div>'
@@ -3063,7 +3077,7 @@
       +'</tr></thead><tbody>'+gyo+'</tbody></table></div>';
   }
   function renderChoView(){ var host=$('#view-cho'); if(!host)return; var v=state.choView||'shakai'; var sub=choSub(v)
-    +'<div class="card" style="padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b style="font-size:13px;color:#2E7D54">退職金の税金</b><span class="hint" style="flex:1;min-width:150px">退職金は毎月の給与と別（退職所得・分離課税）。ここで源泉を計算。</span><button class="btn-ghost" data-taishoku-calc="1" style="white-space:nowrap">退職金を計算</button></div>';
+    +'<div class="card" style="padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b style="font-size:13px">退職金の税金</b><span class="hint" style="flex:1;min-width:150px">退職金は毎月の給与と別（退職所得・分離課税）。ここで源泉を計算。</span><button class="btn-ghost" data-taishoku-calc="1" style="white-space:nowrap">退職金を計算</button></div>';
     if(v==='dept') host.innerHTML=sub+deptSummaryHTML();
     else if(v==='daicho'){ host.innerHTML=sub+'<div class="card"><div class="card-h">賃金台帳</div><p class="hint">読込中…</p></div>'; renderChinginDaicho(sub); }
     else if(v==='santei'){ host.innerHTML=sub+todokedeIchiranHTML()+'<div class="card"><div class="card-h">算定基礎届</div><p class="hint">読込中…</p></div>'; renderSantei(sub); }
@@ -4227,7 +4241,7 @@
       var gs=e.target.closest('[data-scr]'); if(gs && !gs.classList.contains('bn')){ showScreen(gs.dataset.scr); return; } }); // CTA等 ナビ外の画面遷移
     $('#help-x').addEventListener('click',function(){ $('#help-ov').classList.remove('on'); });
     $('#help-ov').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('on'); });
-    document.addEventListener('change',function(ev){ if(!ev.target.classList.contains('scr-month'))return; state.month=ev.target.value||state.month; state._prevYm=null; state._bonusPrevYm=null; state._bonusYtdYm=null; /* 月替わりで前月比/賞与前月キャッシュを更新 */ $$('.scr-month').forEach(function(m){ m.value=state.month; }); updatePaydayPreview();
+    document.addEventListener('change',function(ev){ if(!ev.target.classList.contains('scr-month'))return; state.month=ev.target.value||state.month; state._prevYm=null; state._bonusPrevYm=null; state._bonusYtdYm=null; /* 月替わりで前月比/賞与前月キャッシュを更新 */ $$('.scr-month').forEach(function(m){ m.value=state.month; }); updatePaydayPreview(); warmLedger();
       if($('#scr-input').classList.contains('active')){$('#in-month').textContent=monthLabel();renderInputArea();}
       if($('#scr-list').classList.contains('active')) renderListActive();
       if($('#scr-print').classList.contains('active')) doPreview(); // 印刷の月も対象月に統合(P1-18)
@@ -5077,7 +5091,7 @@
     if(cs.payPatterns)state.payPatterns=cs.payPatterns;
     if(cs.onboardDone)state.onboardDone=true;
     state._prevYm=null; state._bonusPrevYm=null; state._bonusYtdYm=null; // クラウド復元で前月比キャッシュを無効化(stale防止)
-    $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); var act=$('.screen.active'); if(act)showScreen(act.id); return true; }
+    $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); warmLedger(); var act=$('.screen.active'); if(act)showScreen(act.id); return true; }
   function reloadCloud(){ if(window.Store&&Store.cloudLoadState){ return Store.cloudLoadState().then(applyCloudState).catch(function(){return false;}); } return Promise.resolve(false); }
   window.PayslipReloadCloud=reloadCloud; window.PayslipPersistSave=persistSave;
 
@@ -5137,5 +5151,6 @@
   if(location.hash==='#carcommute'){ var ec=state.employees[0]; if(ec){ec.commuteType='car';ec.commuteKm='12';ec.commute='15000';state.open[ec.id]=true;} var b2=$('#set-seg .seg-b[data-set="emp"]'); if(b2)b2.click(); renderEmpMaster(); }
   if(location.hash==='#input'){ if(state.employees[0]){var e0=state.employees[0]; e0.warimashi.mode='easy'; e0.warimashi.otH='45';e0.warimashi.otM='0';e0.warimashi.nightH='2';e0.warimashi.nightM='0'; state.open['I'+e0.id]=true;} showScreen('scr-input'); }
   if(location.hash==='#inputd'){ if(state.employees[0]){var ed=state.employees[0]; ed.warimashi.mode='detail'; ed.warimashi.detail={ot:{h:'43',m:''},otNight:{h:'2',m:''},over60:{h:'',m:''},over60Night:{h:'',m:''},night:{h:'',m:''},holiday:{h:'',m:''},holidayNight:{h:'1',m:''}}; state.open['I'+ed.id]=true;} showScreen('scr-input'); }
+  warmLedger();   /* ★立ち上がった その時に 数え始める★（入力画面を 開く 前に 答えを 用意する） */
   var sm=$('#store-mode'); if(sm) sm.textContent='保存先: '+(((window.Store?Store.mode:'local')==='supabase')?'クラウド（どの端末でも 同じ内容）':'この端末だけ（他の端末では 見えません）');
 })();

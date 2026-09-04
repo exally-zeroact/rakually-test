@@ -61,6 +61,7 @@ if (SELF) {
 }
 
 /* ── ここから 実ブラウザ ───────────────────────────────── */
+import { hairu, toziru } from './_hairu.mjs';   /* ★入る手順は 1か所★ */
 let borrow, pwLaunch;
 try { ({ borrow, launch: pwLaunch } = await import('../scripts/_borrow-playwright.mjs')); }
 catch (e) { console.log('🟡 ★未測定★ playwright を 借りる 道具が 読めない … ' + (e && e.message)); process.exit(2); }
@@ -143,34 +144,13 @@ for (const g of GAMEN) {
 for (const w of HABA) {
   const pg = await (await b.newContext({ viewport: { width: w, height: 820 } })).newPage();
   const errs = []; pg.on('pageerror', (e) => errs.push(String(e.message).slice(0, 120)));
-  await pg.goto('http://localhost:' + PORT + '/kyuyo/index.html', { waitUntil: 'domcontentloaded' });
-  let matta = 0, deta = false;
-  for (let i = 0; i < 60; i++) { matta++; if (await pg.$('#loginEmail, .bn[data-scr]')) { deta = true; break; } await new Promise((r) => setTimeout(r, 250)); }
-  if (deta && await pg.$('#loginEmail')) {
-    await pg.fill('#loginEmail', 'test@test.com'); await pg.fill('#loginPass', 'test1234');
-    await pg.click('#btnLogin');
-    for (let i = 0; i < 80; i++) { matta++; if (await pg.$('.bn[data-scr="scr-list"]')) break; await new Promise((r) => setTimeout(r, 250)); }
-    await pg.evaluate(() => { const y = Array.from(document.querySelectorAll('button')).find((e) => e.offsetParent && /^(いいえ|キャンセル)$/.test(e.textContent.trim())); if (y) y.click(); });
-    await new Promise((r) => setTimeout(r, 700));
-    /* ★覆い（はじめかたガイド等）を 本物の 閉じる ボタンで 閉じる★
-       ＝★覆ったままだと クリックが 届かない★（2026-09-05 実測＝ui-modal-ov が 邪魔していた）
-       ★出た事その物を 見て 待つ★（回数も 足す） */
-    for (let i = 0; i < 12; i++) {
-      const ov = await pg.$('.ui-modal-ov');
-      if (!ov) break;
-      matta++;
-      const oseta = await pg.evaluate(() => {
-        const ov2 = document.querySelector('.ui-modal-ov');
-        if (!ov2) return false;
-        const b2 = Array.from(ov2.querySelectorAll('button,.close,[data-close]'))
-          .find((e) => e.offsetParent && /×|閉じる|あとで|いいえ|キャンセル|OK/.test((e.textContent || '') + (e.getAttribute('aria-label') || '')));
-        if (b2) { b2.click(); return true; }
-        return false;
-      });
-      if (!oseta) break;
-      await new Promise((r) => setTimeout(r, 400));
-    }
-  }
+  /* ★入る手順は tests/_hairu.mjs 1か所★（3本に 写していた／★1回で 諦めて たまに 未測定★だった）
+     ★覆い（はじめかたガイド等）は 本物の 閉じる ボタンで 閉じる★
+     ＝★覆ったままだと クリックが 届かない★（2026-09-05 実測＝ui-modal-ov が 邪魔していた） */
+  const _h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-list"]');
+  await toziru(pg);
+  const matta = _h.matta;
+  if (_h.kai > 1) console.log('  （入るのに ' + _h.kai + '回 掛かりました＝倉庫の 通信の 気まぐれ）');
   mattaKei += matta;
   const haitta = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !(e && e.offsetParent); });
   if (!haitta) { console.log('  🟡 給与（入ってから） 幅' + w + ' … ★未測定★（入れなかった）'); mihakari++; await pg.close(); continue; }

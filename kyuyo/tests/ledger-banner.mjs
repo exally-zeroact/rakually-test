@@ -159,8 +159,18 @@ async function 一式(appSrc, ラベル) {
     A.renderInput(); /* ★待たない＝1回目の描画そのものを見る★（偽の倉庫は一瞬で返るので待つと測れない） */
     ok(出ていない(banner(doc)), '数える前から出ている（④初めは出さない）');
     await sleep(150);
+    /* ★2026-09-05 ここが 変わった（tests/oseru-ka.mjs の 実測で 見つかった）★
+       前は ここで もう 出ていた＝★見ている画面に あとから 上から 差し込んでいた★。
+       実測＝札が 生えた 瞬間に「今月を確定」が ★129px 下に 逃げた★（幅375／幅412で 102px）。
+         ＝ダイコメの 赤バー（42px）と 同じ形・司さん「ボタン押せんとか ないようにしろやぼけ」。
+       ⇒★数えた 答えは しまうだけ・札は 次に 描く時に 出す★。
+       ★裁定④の 理由（先に描いて後で消すと 一瞬 嘘が見える）は そのまま 守っている★
+         ＝嘘は 1回も 見せない。変わったのは ★出る のが 次の 描画★という 所だけ。
+       ★遅れない ように★ 月が 決まった その時に 数え始める（app.js の warmLedger）。 */
+    ok(出ていない(banner(doc)), '★見ている画面に あとから 差し込んだ★（押す物が 逃げる）: ' + JSON.stringify(banner(doc)));
+    A.renderInput(); await sleep(30);
     const b = banner(doc);
-    ok(b.見出し === 1 && b.ボタン === 1 && b.説明文 === 1, '3件なのに出ない: ' + JSON.stringify(b));
+    ok(b.見出し === 1 && b.ボタン === 1 && b.説明文 === 1, '次に描いても3件が出ない: ' + JSON.stringify(b));
     const btn = doc.getElementById('input-list').querySelector('[data-ledger-import]');
     btn.dispatchEvent(new (doc.defaultView.MouseEvent)('click', { bubbles: true }));
     await sleep(200);

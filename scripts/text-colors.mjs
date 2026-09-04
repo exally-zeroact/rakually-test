@@ -146,6 +146,22 @@ const kyuyoTab = (tab) => (win, doc) => {
   b.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
 };
 
+/* ★帳票の中まで 入る★（2026-09-05）
+   ★ここまでは 一度も 測っていなかった★＝「給与 ▸ 一覧/集計」は 一覧のまま止まっていて、
+   帳票（社保一覧・部署別・賃金台帳・算定基礎届・月額変更届・労働保険・資格・支払調書）は
+   ★0件ではなく 未測定★だった。指示役の注文（届出の表の色を 値で出す）で 見つかった。 */
+const kyuyoCho = (cho) => async (win, doc) => {
+  const push = (sel) => {
+    const b = doc.querySelector(sel);
+    if (!b) throw new Error('押す物が無い: ' + sel + '（測れていません）');
+    b.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  };
+  push('.seg-b[data-view="cho"]');
+  await new Promise((r) => setTimeout(r, 200));
+  push('.seg-b[data-cho="' + cho + '"]');
+  await new Promise((r) => setTimeout(r, 300));
+};
+
 const goTo = (sel) => (win, doc) => {
   const b = doc.querySelector(sel);
   if (!b) throw new Error('押す物が無い: ' + sel + '（測れていません）');
@@ -161,6 +177,10 @@ const SCREENS = [
   { name: '給与 ▸ 設定', file: 'kyuyo/index.html', boot: kyuyoTab('scr-settings'), expect: ['#scr-settings .card-h'] },
   { name: '給与 ▸ 入力', file: 'kyuyo/index.html', boot: kyuyoTab('scr-input'), expect: ['#input-list .cal-box'] },
   { name: '給与 ▸ 一覧/集計', file: 'kyuyo/index.html', boot: kyuyoTab('scr-list'), expect: ['#scr-list'] },
+  /* ★帳票の 表そのもの（.dc-tab）は 倉庫（Store）が 要る＝この道具では ★未測定★（0件では ない）★
+     ここで 測れるのは ★倉庫なしでも 描かれる物★＝届出の表 と 退職金の札。
+     ★戻す条件★ … 偽の倉庫を 積んで .dc-tab まで 描けた日に expect を .dc-tab にする。 */
+  { name: '給与 ▸ 帳票 ▸ 算定基礎届', file: 'kyuyo/index.html', boot: kyuyoTab('scr-list'), after: kyuyoCho('santei'), expect: ['#view-cho .tdk-t'] },
   { name: '給与 ▸ 印刷', file: 'kyuyo/index.html', boot: kyuyoTab('scr-print'), expect: ['#scr-print'] },
   { name: '給与 ▸ 振込', file: 'kyuyo/index.html', boot: kyuyoTab('scr-furikomi'), expect: ['#scr-furikomi .card-h'] },
   { name: 'Web明細 ▸ 開く前', file: 'kyuyo/meisai.html', expect: ['.lead'] },
@@ -296,6 +316,7 @@ const NOW = {
   '給与 ▸ 設定': 0,
   '給与 ▸ 入力': 0,
   '給与 ▸ 一覧/集計': 0,
+  '給与 ▸ 帳票 ▸ 算定基礎届': 0,
   '給与 ▸ 印刷': 0,
   '給与 ▸ 振込': 0,
   'Web明細 ▸ 開く前': 0,
