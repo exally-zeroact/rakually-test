@@ -6,6 +6,10 @@
   'use strict';
 
   // ---- 共有デザイントークン ----
+  /* ★ここは「使われない 既定」★＝紙の 色の 正本は ★下の rootFor(theme)★
+   *   （wrap した 後で `.replace(/:root\{[^}]*\}/, rootFor(theme))` に 差し替えられる）
+   *   ⇒★ここを 直しても 紙は 変わらない★（2026-09-05 に 実測で 気づいた）
+   */
   var ROOT = ':root{--ink:#23261f;--ink2:#6a6d62;--ink3:#7d7f72;--hair:#ddd7c7;--hair-lt:#ece7dc;--hair2:#cfc9b8;--accent:#6f5a3e;--accent-soft:#b6a06d;--paper:#ffffff;}' +
     '*{box-sizing:border-box;margin:0;padding:0;}' +
     '.sum{display:grid!important;grid-template-columns:1fr 1fr;align-items:baseline;}.sum .v{text-align:right;}.sum .l{text-align:left;}.sum .sgrp{display:flex;justify-content:space-between;align-items:baseline;}.r-pad .l,.r-pad .v,.r-pad .lab,.r-pad .amt{visibility:hidden;}' +
@@ -200,10 +204,47 @@
     r=Math.round(r+(255-r)*amt); g=Math.round(g+(255-g)*amt); b=Math.round(b+(255-b)*amt);
     return '#'+[r,g,b].map(function(x){return ('0'+x.toString(16)).slice(-2);}).join('');
   }
+  /* ★白地との 明るさの 差★（相対輝度・WCAG）… 紙が 白なので 相手は 白で 固定 */
+  function shiroSa(hex){
+    var m=/^#?([0-9a-f]{6})$/i.exec(hex); if(!m) return null;
+    var v=[0,2,4].map(function(i){ var c=parseInt(m[1].slice(i,i+2),16)/255;
+      return c<=0.03928? c/12.92 : Math.pow((c+0.055)/1.055,2.4); });
+    var L=0.2126*v[0]+0.7152*v[1]+0.0722*v[2];
+    return 1.05/(L+0.05);
+  }
+  /* ★白黒で 残るまで 濃くする★（★色味は 変えない＝R/G/B を 同じ 割合で 下げるだけ★） */
+  function nokoru(hex, min){
+    var m=/^#?([0-9a-f]{6})$/i.exec(hex); if(!m) return hex;
+    var v=[0,2,4].map(function(i){ return parseInt(m[1].slice(i,i+2),16); });
+    for(var r=1; r>=0; r-=0.02){
+      var c='#'+v.map(function(x){ return ('0'+Math.round(x*r).toString(16)).slice(-2); }).join('');
+      if(shiroSa(c)>=min) return c;
+    }
+    return '#000000';
+  }
   // theme = { accent:アクセント色, line:罫線色, ink:文字色 } をそれぞれ独立に適用(濃さは内部で派生)
   function rootFor(theme){
+    /* ★紙の 罫線は「白黒で 刷っても 残る」濃さに する★（2026-09-05・司さん「やれ」）
+     *   ★なぜ★ 給与の 紙を 実ブラウザで 描かせて 測ったら
+     *     ★46本中 40本（#EBE8E1）が 白地との差 1.22＝FAX・白黒コピーで 消える★所だった。
+     *   ★これは 代行請求が 2026-08-13 に 踏んだ 穴と 同じ★
+     *     invoice-pdf.js「RULE = rgb(0.69,…) ★FAX/白黒で消えないよう一段濃く★」
+     *   ★「割合で 明るくする」では 直らない★（2026-09-05 実測）
+     *     テーマは 6つ 在り、元の line の 明るさが ばらばら（#BFBFBF 1.84 〜 #C8ECD8 1.28）。
+     *     ⇒★明るくする 割合を いくら 下げても ミント（#C8ECD8）は 消えたまま★
+     *     ⇒★割合では なく「白地との 差」を 見て、足りない 分だけ 濃くする★
+     *   ★色味は 変えない★＝R/G/B を 同じ 割合で 下げるだけ（色相・彩度は そのまま）
+     *   ★実測（6テーマ とも 残る）★
+     *     既定/セピア #CFC9B8 → --hair #C7C1B1(1.8) / --hair-lt #CFC9B8(1.65) / --hair2 #BAB5A6(2.05)
+     *     クラシック紺 #C8D2DE → #B8C1CC(1.82) / #C4CEDA(1.59) / #ACB5BF(2.08)
+     *     グレー #D9D9D9 → #BFBFBF(1.84) / #CCCCCC(1.61) / #B6B6B6(2.03)
+     *     ミント #C8ECD8 → #A8C6B5(1.84) / #B4D4C2(1.6) / #A0BDAD(2.02)
+     *     モノクロ #BFBFBF → #BFBFBF(1.84) / #BFBFBF(1.84) / #B7B7B7(2.01)
+     *   ★見張り★ kyuyo/tests/kami-shiro-kuro.mjs（★白地との差 1.5 未満は 赤★） */
     theme=theme||{}; var accent=theme.accent||'#6f5a3e', line=theme.line||'#cfc9b8', ink=theme.ink||'#23261f';
-    return ':root{--ink:'+ink+';--ink2:'+lighten(ink,.34)+';--ink3:'+lighten(ink,.48)+';--hair:'+lighten(line,.30)+';--hair-lt:'+lighten(line,.58)+';--hair2:'+line+';--accent:'+accent+';--accent-soft:'+line+';--paper:#ffffff;}';
+    return ':root{--ink:'+ink+';--ink2:'+lighten(ink,.34)+';--ink3:'+lighten(ink,.48)
+      +';--hair:'+nokoru(line,1.8)+';--hair-lt:'+nokoru(line,1.55)+';--hair2:'+nokoru(line,2.0)
+      +';--accent:'+accent+';--accent-soft:'+line+';--paper:#ffffff;}';
   }
   var Render = {
     // テンプレ(prefer)で固定。全員を1枚ずつ/2人ずつ/横3人ずつに自動ページ分割(誰も欠けない)

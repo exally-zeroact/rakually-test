@@ -574,6 +574,121 @@
     return f;
   }
 
+  /* ══ 賞与支払届（様式2265700・21項目）══════════════════════════════
+     ★一次情報★ 日本年金機構「【ＣＳＶファイル添付方式】健康保険厚生年金保険被保険者賞与支払届／
+       厚生年金保険７０歳以上被用者賞与支払届」（zidoucheck.files/★csv265.pdf★・2026-09-05 に 字を 取った）
+     ★原文の 相関チェック★
+       10「賞与支払年月日（元号）…'7'（平成）、'9'（令和）の何れかであること」
+         「実存日であること」「★『賞与支払年月日』≦『システムチェック実施日』であること★」
+           ⇒★未来の 日付は 出せない★
+       14「★『合計（賞与額）』≧ '1000' であること★」
+         「通貨＋現物 ≦'9999999'の場合 ★『合計（賞与額）』＝((通貨＋現物)÷1000)×1000★」
+           ⇒★1,000円未満 切り捨て（＝標準賞与額）★
+         「＞'9999999'の場合 '9999999'であること」
+       16「『備考欄項目１』が'1' かつ 『個人番号』に入力がない場合 入力されていること」（基礎年金番号）
+         ⇒★70歳以上（備考欄項目1）は 付けられない★（番号を お預かりしない）＝算定・月変と 同じ 決め */
+  var SHOYO_MIN = 1000;
+
+  /* ★標準賞与額＝1,000円未満 切り捨て★（頭打ちは 9999999） */
+  function shoyoGoukei(tsuka, genbutsu) {
+    var wa = n(tsuka) + n(genbutsu);
+    if (wa > MAN10) return MAN10;
+    return Math.floor(wa / 1000) * 1000;
+  }
+  /* ★支払日が 今日より 後なら 出せない★（原文＝≦ システムチェック実施日） */
+  /* ★今日を lib の 中で 作らない★（headless の 見張り＝★lib は 時計を 持たない★）
+     ⇒★今日は 呼ぶ側が 渡す★（inp.kyou）。渡さない時は ★日付の 形だけ 見る★。
+     ★渡し忘れを 見張りで 捕まえる★（画面が 渡しているかの 試験を 統合テストに 置く） */
+  function shoyoHiOk(ymd, kyou) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd || ''))) return false;
+    if (!kyou) return true;
+    return String(ymd) <= String(kyou);
+  }
+  function dasuKaShoyo(inp) {
+    inp = inp || {};
+    if ((inp.bikou || {}).over70) return false;               /* 70歳以上＝基礎年金番号が 要る */
+    if (!shoyoHiOk(inp.harauYmd, inp.kyou)) return false;     /* 10 空／未来 */
+    return shoyoGoukei(inp.tsuka, inp.genbutsu) >= SHOYO_MIN; /* 14 合計 ≧ 1000 */
+  }
+  function shoyoWarn(inp) {
+    inp = inp || {};
+    var out = [], b = inp.bikou || {};
+    var namae = ((inp.emp || {}).kanji) || ((inp.emp || {}).kana) || '';
+    if (b.over70) {
+      out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
+        + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+      return out;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.harauYmd || ''))) {
+      out.push(namae + '＝賞与を 払った 日が 入っていません（年月日が 要ります）');
+    } else if (!shoyoHiOk(inp.harauYmd, inp.kyou)) {
+      out.push(namae + '＝賞与を 払った 日（' + inp.harauYmd + '）が ★先の 日付★です。'
+        + '払った 後でないと 出せません（電子申請の ファイルに 入れていません）');
+    } else {
+      var g = shoyoGoukei(inp.tsuka, inp.genbutsu);
+      if (g < SHOYO_MIN) {
+        out.push(namae + '＝賞与額が ' + g.toLocaleString() + '円（1,000円未満切捨後）です。'
+          + '★1,000円未満は 出せません★（電子申請の ファイルに 入れていません）');
+      }
+    }
+    var bad = badChars(((inp.emp || {}).kanji || '') + ((inp.emp || {}).kana || ''));
+    if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
+    return out;
+  }
+  function shoyoRow(inp) {
+    inp = inp || {};
+    var j = inp.jimusho || {}, e = inp.emp || {}, b = inp.bikou || {};
+    var born = gengoOf(e.birthYmd) || { code: '', ymd6: '' };
+    var harau = inp.harauYmd ? gengoOf(inp.harauYmd) : null;
+    var r = [];
+    r[0] = '2265700';                                   /* 1 様式コード */
+    r[1] = String(j.todofuken || '');                   /* 2 都道府県コード */
+    r[2] = String(j.gunshiku || '');                    /* 3 郡市区符号 */
+    r[3] = String(j.kigou || '');                       /* 4 事業所記号 */
+    r[4] = e.seiriNo ? String(e.seiriNo) : '';          /* 5 被保険者整理番号 */
+    r[5] = String(e.kana || '');                        /* 6 氏名カナ */
+    r[6] = String(e.kanji || '');                       /* 7 氏名漢字 */
+    r[7] = born.code; r[8] = born.ymd6;                 /* 8-9 生年月日 */
+    r[9] = harau ? harau.code : '';                     /* 10 賞与支払年月日（元号） */
+    r[10] = harau ? harau.ymd6 : '';                    /* 11 賞与支払年月日（年月日） */
+    r[11] = money7(inp.tsuka);                          /* 12 通貨によるものの額 */
+    r[12] = money7(inp.genbutsu);                       /* 13 現物によるものの額 */
+    r[13] = money7(shoyoGoukei(inp.tsuka, inp.genbutsu)); /* 14 合計（賞与額）＝1000円未満切捨 */
+    r[14] = '';                                         /* 15 ★個人番号＝持たない★ */
+    r[15] = String(b.kashoFugou || '');                 /* 16 基礎年金番号（課所符号） */
+    r[16] = String(b.kisoNenkinNo || '');               /* 17 基礎年金番号（一連番号） */
+    /* 18 備考欄項目1＝70歳以上被用者 … ★付けない★（基礎年金番号を 持たない＝dasuKa で 落とす） */
+    r[17] = '';
+    r[18] = b.nijo ? '1' : '';                          /* 19 備考欄項目2＝二以上事業所勤務 */
+    r[19] = b.dojitsu2kai ? pad(b.dojitsu2kai, 2) : ''; /* 20 備考欄項目3（数字2バイト） */
+    r[20] = '';                                         /* 21 70歳以上被用者届のみ提出 … 付けない */
+    for (var k = 0; k < 21; k++) if (r[k] == null) r[k] = '';
+    return r;
+  }
+  function shoyoCsv(inp) {
+    inp = inp || {};
+    var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
+    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: { errors: [], hito: 0, mihakari: 0 } };
+    var kensa = CHECK ? CHECK.checkRows(rows) : { errors: [], hito: rows.length, mihakari: rows.length };
+    if (CHECK && CHECK.checkHeader) {
+      CHECK.checkHeader(inp.jimusho, inp.baitai || {}).forEach(function (x) {
+        kensa.errors.push({ gyo: 0, no: x.no, name: x.name, why: x.why });
+      });
+    }
+    if (kensa.errors.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: kensa };
+    var out = [];
+    out.push(baitaiRow(inp.jimusho, inp.baitai || {}));
+    out.push([SEP_KANRI]);
+    jigyoshoRows(inp.jimusho).forEach(function (r) { out.push(r); });
+    out.push([SEP_DATA]);
+    rows.forEach(function (r) { out.push(r); });
+    var f = build(out);
+    f.name = FILE_NAME;
+    f.kensa = kensa;
+    f.tooBig = tooBig(f.bytes.length);
+    return f;
+  }
+
   function santeiCsv(inp) {
     inp = inp || {};
     var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
@@ -608,7 +723,9 @@
 
   return {
     GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa,
-    gekkakuRow: gekkakuRow, gekkakuWarn: gekkakuWarn, gekkakuCsv: gekkakuCsv, dasuKaGekkaku: dasuKaGekkaku, ymAdd: ymAdd, MAN10: MAN10,
+    gekkakuRow: gekkakuRow, gekkakuWarn: gekkakuWarn, gekkakuCsv: gekkakuCsv, dasuKaGekkaku: dasuKaGekkaku, ymAdd: ymAdd,
+    shoyoRow: shoyoRow, shoyoWarn: shoyoWarn, shoyoCsv: shoyoCsv, dasuKaShoyo: dasuKaShoyo,
+    shoyoGoukei: shoyoGoukei, shoyoHiOk: shoyoHiOk, MAN10: MAN10,
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,
     nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, DAIHYO_CODE: DAIHYO_CODE, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,
     KEN_CODE: KEN_CODE, splitSeiriKigou: splitSeiriKigou,

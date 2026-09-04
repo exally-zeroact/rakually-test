@@ -1454,5 +1454,44 @@ T('★精算＝前年度に 納めた 概算を 入れると 不足／充当が 
   } finally { st.company = keep.c; st.employees = keep.e; st.month = keep.m; }
 });
 
+/* ══ 賞与支払届の CSV が 画面から 出るか（2026-09-05）══════════════════
+   ★lib が 緑でも、画面が 呼んでいなければ 1バイトも 出ない★
+   ★画面が 元から 持っていた 穴★
+     bonusHarauRows … genbutsu:0 打ち込み／goukei:tsuka（★1,000円未満を 切り捨てていない★） */
+T('★賞与支払届の CSV が 画面から 本当に 作れる（配線）', () => {
+  const A = win.__PAYSLIP_TEST, TD = win.TodokedeCsv;
+  ok(A && A.bonusHarauRows && A.shoyoCsvInput, '★試験の 口が 無い★（shoyoCsvInput）');
+  const st = A.state;
+  const keep = { c: st.company, e: st.employees, m: st.month, b: st.bonus };
+  try {
+    st.company = Object.assign({}, st.company, {
+      name: '株式会社テスト', pref: 'tokyo', seiriKigou: '01-ｹｲﾄ', jigyoshoNo: '123',
+      zip: '100-0000', addr: '東京都千代田区霞が関１－２－２', nushi: '試験　太郎',
+      tel: '03-1234-5678', baitaiTsuban: 0
+    });
+    st.month = '2026-07';
+    st.employees = [{ id: 1, name: '年金　太郎', kana: 'ﾈﾝｷﾝ ﾀﾛｳ', birthYmd: '1975-01-11',
+      hokenshaNo: '1', payType: '月給', joinYmd: '2015-04-01' }];
+    /* ★1,000円未満が 出る 額★＝切り捨てを 配線でも 捕まえる */
+    st.bonus = { payYm: '2026-07', payDay: '2026-07-10', byEmp: { 1: { amount: '500500', addShikyu: [], addKojo: [] } } };
+    const rows = A.bonusHarauRows();
+    eq(rows.length, 1, '★対象者が 拾えていない★');
+    const inp = A.shoyoCsvInput(rows[0]);
+    eq(inp.harauYmd, '2026-07-10', '★払った 日を 渡していない★');
+    eq(inp.jimusho.todofuken, '21', '★都道府県コード★');
+    ok('genbutsu' in inp, '★現物を 渡していない★');
+    ok(TD.dasuKaShoyo(inp) === true, '★出せる人を 外している★');
+    const r = TD.shoyoRow(inp);
+    eq(r[0], '2265700', '★様式コード★');
+    eq(r.length, 21, '★項目数★');
+    eq(r[11], '0500500', '★通貨は そのまま★');
+    eq(r[13], '0500000', '★合計＝1,000円未満 切り捨て★（500,500 → 500,000）');
+    const f = TD.shoyoCsv({ jimusho: inp.jimusho, baitai: { tsuban: '001', ymd: '2026-07-15' }, rows: [r] });
+    ok(f.bytes.length > 0 && f.kensa.errors.length === 0, '★0バイト／検査で 落ちた★ … ' + JSON.stringify(f.kensa.errors));
+    const html = A.bonusHarauHTML ? A.bonusHarauHTML(rows) : '';
+    console.log('     賞与 … ' + f.bytes.length + 'バイト／通貨 ' + r[11] + '／合計 ' + r[13]);
+  } finally { st.company = keep.c; st.employees = keep.e; st.month = keep.m; st.bonus = keep.b; }
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
