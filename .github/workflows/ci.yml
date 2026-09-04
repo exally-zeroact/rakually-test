@@ -508,6 +508,10 @@ jobs:
         run: node kyuyo/tests/santei-soukei.test.mjs && node kyuyo/tests/santei-soukei.test.mjs --self-test
       - name: ★月額変更届の電子申請CSV（様式2221700・49項目／3か月とも17日以上・短時間11日）
         run: node kyuyo/tests/gekkaku-csv.test.mjs && node kyuyo/tests/gekkaku-csv.test.mjs --self-test
+      - name: ★労災保険率表（法令 別表第１・53業種／外は叩かない・週1は source-urls.yml）
+        run: node kyuyo/tests/rousai-ritsu.test.mjs && node kyuyo/tests/rousai-ritsu.test.mjs --self-test
+      - name: ★労働保険 年度更新の計算（一般拠出金0.02‰・概算50〜200%・延納40万/20万・端数は第1期）
+        run: node kyuyo/tests/roudou-shinkoku.test.mjs && node kyuyo/tests/roudou-shinkoku.test.mjs --self-test
       - name: Payroll pagination (1000件超が黙って欠落しない)
         run: node kyuyo/tests/pagination.test.mjs
       - name: Payroll meisai store (Web明細 公開一覧/削除時リンク失効)
