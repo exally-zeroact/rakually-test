@@ -143,7 +143,8 @@
        ③★前ゼロを 付けて 桁を 揃える★（原文は「300000」でも「0300000」でも よいが ★1つに 決める★）
          理由＝★取り込む側の 検査が どちらに 厳しいか 分からない／揃っている方が 目で 数えやすい★
      ★個人番号（項番40）は いつも 空★＝★持たない★（70歳未満は 原文でも 空で 通る）。
-     ★備考欄項目7・8（項番50・51）は 未測定＝空★（作る時に PDF を もう一度 開く）。 */
+     ★備考欄項目7＝パート（項番50）は 2026-09-04 に 公式の 項目表（csv225.pdf）で 番号を 確かめて 出すように した★。
+     ★備考欄項目8＝年間平均（項番51）は うちが 年間平均を 出さないので 空★。 */
   var MAN10 = 9999999;                         /* 1千万円以上の 置き換え値（原文） */
   function n(v) { var x = Number(v); return (isFinite(x) && x > 0) ? Math.round(x) : 0; }
   function pad(v, keta) { var s2 = String(n(v)); while (s2.length < keta) s2 = '0' + s2; return s2.slice(-keta); }
@@ -196,6 +197,12 @@
      ⇒★入れない★（santeiWarn が 名前を 挙げて 知らせる／★画面の 文と 実物を 合わせる★） */
   function dasuKa(inp) {
     inp = inp || {};
+    /* ★70歳以上被用者（備考欄項目1）は 付けられない★（公式の 項目表 csv225.pdf 項目41 の 相関）
+         「『備考欄項目１』が'1' かつ 『個人番号』に入力がない場合 ★入力されていること★」（＝基礎年金番号）
+       ⇒うちは ★個人番号も 基礎年金番号も お預かりしない（裁定 甲）★
+       ⇒★印を 付ければ 必ず エラー／付けずに 出せば 厚年の 70歳以上分が 黙って 漏れる★
+       ⇒★出さずに 名前を 挙げる★ */
+    if ((inp.bikou || {}).over70) return false;
     return !taishoMonths(inp.months || [], inp.rule).jusen;
   }
 
@@ -249,8 +256,9 @@
     if (b.getsugakuYotei) r[45] = '1';                   /* 46 月額変更の予定 */
     if (b.tochuNyusha) r[46] = '1';                      /* 47 途中入社で1か月分なし */
     if (b.kyushoku) r[47] = '1';                         /* 48 病休・育休・休職 */
-    if (b.tanjikan) r[48] = '1';                         /* 49 特定適用事業所の 短時間労働者 */
-    /* 50・51（備考欄項目7・8）＝★未測定＝空★ */
+    if (b.tanjikan) r[48] = '1';                         /* 49 備考欄項目6＝特定適用事業所の 短時間労働者 */
+    if (b.part) r[49] = '1';                             /* 50 備考欄項目7＝パート（★15日で 算定した 根拠★） */
+    /* 51（備考欄項目8＝年間平均）＝★うちは 年間平均を 出さない＝空★ */
     r[51] = String(b.bikouText || '');                   /* 52 備考欄（漢字） */
     r[52] = b.over70Only ? '1' : '';                     /* 53 70歳以上被用者届のみ提出 */
     for (var k = 0; k < 53; k++) if (r[k] == null) r[k] = '';
@@ -273,6 +281,10 @@
        ★対象0の 時に 総計欄・平均額欄へ 何を 書くかは ★未測定★★
          （官製の 記載例が 画像の PDF で 字が 取れず 一次情報を 読めていない）
        ⇒★0 と 書かず、この人を CSV に 入れず、名前を 挙げて 知らせる★ */
+    if ((inp.bikou || {}).over70) {
+      out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
+        + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+    }
     var tai2 = taishoMonths(ms, inp.rule);
     if (tai2.jusen) {
       out.push(namae + '＝4〜6月とも 支払基礎日数が ' + (n((inp.rule || {}).fallback) || n((inp.rule || {}).primary) || 17) + '日'
@@ -392,6 +404,146 @@
   }
   /* ★ファイル全体★＝媒体管理／[kanri]／事業所管理／[data]／データレコード…
      ★1件も 作れない時は 0バイト★（ヘッダだけ 出さない＝全銀と 同じ） */
+  /* ══ 月額変更届（随時改定）══════════════════════════════════════════════
+     ★一次情報★ 日本年金機構「【ＣＳＶファイル添付方式】…被保険者報酬月額変更届／
+       …７０歳以上被用者月額変更届」（zidoucheck.files/csv221.pdf・2026-09-04 に 字を 取って 読んだ）
+       ★様式コード 2221700★／★全49項目★（★算定 2225700・53項目とは 別物★）
+     ★原文の 相関チェック★
+       25〜27 基礎日数 …「備考欄項目３が'1'…'11'～'31'」「'1'でない場合…'17'～'31'」
+         ⇒★備考欄項目3＝短時間労働者★（★この 相関そのものが 出どころ★＝思い込みでは ない）
+         ⇒★算定と 違い 3か月 とも 満たしていないと 出せない★
+       24 給与支給月（前一ヶ月）「＋１ヶ月 ＝『改定年月（月）』であること」
+       34〜36 合計＝通貨＋現物（9999999以上なら 9999999）／37 総計＝合計3つ（同）
+       38 平均額＝（合計3つ）÷３ ★かつ ≧'1000'★
+       15〜17 従前の改定月＝★必須★
+       41 基礎年金番号「備考欄項目１が'1' かつ 個人番号が 空なら 入力されていること」
+         ⇒★70歳以上（備考欄項目1）は 付けられない★（番号を お預かりしない＝裁定 甲）＝出さない */
+  var GEKKAKU_MIN = 1000;                    /* 38 平均額 ≧ 1000 */
+
+  function ymAdd(ym, k) {
+    var m = /^(\d{4})-(\d{1,2})$/.exec(String(ym || ''));
+    if (!m) return '';
+    var y = Number(m[1]), mo = Number(m[2]) + k;
+    while (mo > 12) { mo -= 12; y++; }
+    while (mo < 1) { mo += 12; y--; }
+    return y + '-' + (mo < 10 ? '0' + mo : String(mo));
+  }
+  function gekkakuDays(inp) {
+    var tan = !!(((inp || {}).bikou || {}).tanjikan);
+    return { min: tan ? 11 : 17, max: 31 };
+  }
+  function gekkakuNums(inp) {
+    inp = inp || {};
+    var ms = (inp.months || []).slice(0, 3);
+    while (ms.length < 3) ms.push({});
+    var goukei = ms.map(function (m2) { return Math.min(n(m2.tsuka) + n(m2.genbutsu), MAN10); });
+    var soukei = Math.min(goukei.reduce(function (a2, b2) { return a2 + b2; }, 0), MAN10);
+    return { ms: ms, goukei: goukei, soukei: soukei, heikin: Math.floor(soukei / 3) };
+  }
+  /* ★この人を 出せるか★（★出せない 時に 数字を でっち上げない★） */
+  function dasuKaGekkaku(inp) {
+    inp = inp || {};
+    if ((inp.bikou || {}).over70) return false;                 /* 70歳以上＝基礎年金番号が 要る */
+    if (!(inp.zenzen || {}).kaiteiYmd) return false;            /* 15〜17 従前の改定月＝必須 */
+    if (!ymAdd(inp.henkoYm, 3)) return false;                   /* 改定年月が 出せない */
+    var lim = gekkakuDays(inp), nums = gekkakuNums(inp);
+    for (var i = 0; i < 3; i++) {
+      var d = n(nums.ms[i].days);
+      if (d < lim.min || d > lim.max) return false;             /* 25〜27 */
+    }
+    return nums.heikin >= GEKKAKU_MIN;                          /* 38 平均額 ≧ 1000 */
+  }
+  function gekkakuWarn(inp) {
+    inp = inp || {};
+    var out = [], b = inp.bikou || {};
+    var namae = ((inp.emp || {}).kanji) || ((inp.emp || {}).kana) || '';
+    if (b.over70) {
+      out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
+        + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+      return out;
+    }
+    if (!(inp.zenzen || {}).kaiteiYmd) out.push(namae + '＝従前の 改定月が 空です（月額変更届では ★必ず 要ります★）');
+    var lim = gekkakuDays(inp), nums = gekkakuNums(inp);
+    var soto = [];
+    ['前三ヶ月', '前二ヶ月', '前一ヶ月'].forEach(function (lb, i) {
+      var d = n(nums.ms[i].days);
+      if (d < lim.min || d > lim.max) soto.push(lb + ' ' + d + '日');
+    });
+    if (soto.length) {
+      out.push(namae + '＝' + soto.join('・') + '＝支払基礎日数が ' + lim.min + '〜' + lim.max + '日の 外です。'
+        + '★3か月 とも 満たしていないと 月額変更届は 出せません★（電子申請の ファイルに 入れていません）');
+    } else if (nums.heikin < GEKKAKU_MIN) {
+      out.push(namae + '＝平均額が ' + nums.heikin.toLocaleString() + '円です。'
+        + '★1,000円未満は 出せません★（電子申請の ファイルに 入れていません）');
+    }
+    var bad = badChars(((inp.emp || {}).kanji || '') + ((inp.emp || {}).kana || ''));
+    if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
+    return out;
+  }
+  function gekkakuRow(inp) {
+    inp = inp || {};
+    var j = inp.jimusho || {}, e = inp.emp || {}, z = inp.zenzen || {}, b = inp.bikou || {};
+    var nums = gekkakuNums(inp), ms = nums.ms;
+    var born = gengoOf(e.birthYmd) || { code: '', ymd6: '' };
+    var kaitei = ym2(ymAdd(inp.henkoYm, 3));                    /* 10-12 改定年月＝変動月＋3 */
+    var zen = z.kaiteiYmd ? gengoOf(z.kaiteiYmd) : null;
+    var zenYm = zen ? { code: zen.code, year: pad(zen.year, 2), month: String(z.kaiteiYmd).slice(5, 7) } : { code: '', year: '', month: '' };
+    var tsuki = function (k) { var s2 = ymAdd(inp.henkoYm, k); return s2 ? s2.slice(5, 7) : ''; };
+    var r = [];
+    r[0] = '2221700';                                   /* 1 様式コード */
+    r[1] = String(j.todofuken || '');                   /* 2 都道府県コード */
+    r[2] = String(j.gunshiku || '');                    /* 3 郡市区符号 */
+    r[3] = String(j.kigou || '');                       /* 4 事業所記号 */
+    r[4] = e.seiriNo ? String(e.seiriNo) : '';          /* 5 被保険者整理番号 */
+    r[5] = String(e.kana || '');                        /* 6 氏名カナ */
+    r[6] = String(e.kanji || '');                       /* 7 氏名漢字 */
+    r[7] = born.code; r[8] = born.ymd6;                 /* 8-9 生年月日 */
+    r[9] = kaitei.code; r[10] = kaitei.year; r[11] = kaitei.month;  /* 10-12 改定年月 */
+    r[12] = z.health ? pad(Math.round(n(z.health) / 1000), 4) : '';  /* 13 従前(健保) */
+    r[13] = z.pension ? pad(Math.round(n(z.pension) / 1000), 4) : '';/* 14 従前(厚年) */
+    r[14] = zenYm.code; r[15] = zenYm.year; r[16] = zenYm.month;     /* 15-17 従前の改定月（必須） */
+    r[17] = b.shokyuMonth ? pad(b.shokyuMonth, 2) : '';              /* 18 昇(降)給月 */
+    r[18] = b.shokyuKubun ? String(b.shokyuKubun) : '';              /* 19 昇(降)給区分 */
+    r[19] = b.sokyuMonth ? pad(b.sokyuMonth, 2) : '';                /* 20 遡及支払月 */
+    r[20] = b.sokyuAmount ? money7(b.sokyuAmount) : '';              /* 21 遡及支払額 */
+    r[21] = tsuki(0); r[22] = tsuki(1); r[23] = tsuki(2);            /* 22-24 給与支給月（続きの3か月） */
+    r[24] = pad(ms[0].days, 2); r[25] = pad(ms[1].days, 2); r[26] = pad(ms[2].days, 2);  /* 25-27 基礎日数 */
+    r[27] = money7(ms[0].tsuka); r[28] = money7(ms[1].tsuka); r[29] = money7(ms[2].tsuka);          /* 28-30 通貨 */
+    r[30] = money7(ms[0].genbutsu); r[31] = money7(ms[1].genbutsu); r[32] = money7(ms[2].genbutsu); /* 31-33 現物 */
+    r[33] = money7(nums.goukei[0]); r[34] = money7(nums.goukei[1]); r[35] = money7(nums.goukei[2]); /* 34-36 合計 */
+    r[36] = money7(nums.soukei);                        /* 37 総計 */
+    r[37] = money7(nums.heikin);                        /* 38 平均額＝総計÷3 */
+    r[38] = inp.shuseiHeikin ? money7(inp.shuseiHeikin) : '';   /* 39 修正平均額 */
+    r[39] = '';                                         /* 40 ★個人番号＝持たない★ */
+    r[40] = String(b.kashoFugou || '');                 /* 41 基礎年金番号（課所符号） */
+    r[41] = String(b.kisoNenkinNo || '');               /* 42 基礎年金番号（一連番号） */
+    for (var i = 42; i <= 48; i++) r[i] = '';           /* 43-49 */
+    /* 43 備考欄項目1＝70歳以上被用者月額変更 … ★付けない★（基礎年金番号を 持たない＝dasuKa で 落とす） */
+    if (b.nijo) r[43] = '1';                            /* 44 備考欄項目2＝二以上事業所勤務 */
+    if (b.tanjikan) r[44] = '1';                        /* 45 備考欄項目3＝★短時間労働者★（11日の 根拠） */
+    r[45] = String(b.riyu || '');                       /* 46 備考欄項目4＝理由（0〜75バイト） */
+    /* 47 備考欄項目5 … ★未測定＝空★（出す時に 様式を もう一度 見る） */
+    r[47] = String(b.bikouText || '');                  /* 48 備考欄（0〜75バイト） */
+    /* 49 70歳以上被用者届のみ提出 … ★付けない★（上と 同じ 理由） */
+    for (var k = 0; k < 49; k++) if (r[k] == null) r[k] = '';
+    return r;
+  }
+  function gekkakuCsv(inp) {
+    inp = inp || {};
+    var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
+    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME };
+    var out = [];
+    out.push(baitaiRow(inp.jimusho, inp.baitai || {}));
+    out.push([SEP_KANRI]);
+    jigyoshoRows(inp.jimusho).forEach(function (r) { out.push(r); });
+    out.push([SEP_DATA]);
+    rows.forEach(function (r) { out.push(r); });
+    var f = build(out);
+    f.name = FILE_NAME;
+    f.tooBig = tooBig(f.bytes.length);
+    return f;
+  }
+
   function santeiCsv(inp) {
     inp = inp || {};
     var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
@@ -410,7 +562,8 @@
   }
 
   return {
-    GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa, MAN10: MAN10,
+    GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa,
+    gekkakuRow: gekkakuRow, gekkakuWarn: gekkakuWarn, gekkakuCsv: gekkakuCsv, dasuKaGekkaku: dasuKaGekkaku, ymAdd: ymAdd, MAN10: MAN10,
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,
     nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,
     KEN_CODE: KEN_CODE, splitSeiriKigou: splitSeiriKigou,
