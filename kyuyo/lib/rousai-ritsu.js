@@ -90,6 +90,13 @@
   /* ★非業務災害率★（第十六条第2項）＝メリット制の 計算で 使う */
   var HIGYOMU_PERMIL = 0.6;
 
+  /* ★いつから の 表か★（法令の 附則・原文）
+       「附 則 （施行期日）第一条 この省令は、★令和六年四月一日★から施行する。
+         （経過措置）第二条 この省令による改正後の令…及び★別表第一の規定★は、
+          この省令の施行の日…以後に使用する全ての労働者に係る賃金総額に乗ずべき一般保険料率…」
+     ⇒★令和6年度（2024年度）から 適用★ */
+  var NENDO_YEAR = 2024;
+
   var FINGERPRINT = "6eefaa74";  /* ★JS 側の 数え方で 出した 指紋★（2026-09-04＝Python で 出した 指紋と 作り方が 違い、見張りが 自分で 見つけた） */      /* 表の 中身の 指紋（変わったら 見張りが 鳴る） */
   var SOURCE_URL = 'https://laws.e-gov.go.jp/api/1/lawdata/347M50002000008';
   var LAW_NAME = '労働保険の保険料の徴収等に関する法律施行規則 別表第１（労災保険率表）';
@@ -110,5 +117,6 @@
 
   return { TABLE: TABLE, list: list, bunruiList: bunruiList, permilOf: permilOf, rateOf: rateOf,
     SENPAKU_PERMIL: SENPAKU_PERMIL, HIGYOMU_PERMIL: HIGYOMU_PERMIL,
+    NENDO_YEAR: NENDO_YEAR,
     FINGERPRINT: FINGERPRINT, SOURCE_URL: SOURCE_URL, LAW_NAME: LAW_NAME, COUNT: TABLE.length };
 }));

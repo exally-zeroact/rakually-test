@@ -34,6 +34,9 @@ const libs = {
   N: require_(path.join(ROOT, 'lib/nenmatsu.js')),
   WM: require_(path.join(ROOT, 'lib/warimashi.js')),
   SHZ: require_(path.join(ROOT, 'lib/shouhizei-ritsu.js')),
+  /* ★労災保険率表★（2026-09-04 中央の 台帳へ 入れた）
+     ★労災を 持たない アプリでは 渡らない★＝statutory-rows.js が 行を 足さない */
+  RR: require_(path.join(ROOT, 'lib/rousai-ritsu.js')),
 };
 
 let pass = 0, fail = 0;
