@@ -2527,7 +2527,7 @@
       var row=santeiKisoRow(months, rule.primary, rule.fallback);
       var sb=shahoBasisOf(e), prevHoshu=(sb&&sb.hoshu>0)?sb.hoshu:0;
       var prevP=(SHH&&prevHoshu)?SHH.gradeOf(prevHoshu).hyojun:0, prevH=(SHH&&prevHoshu)?SHH.gradeOfHealth(prevHoshu).hyojun:0;
-      var notes=[]; if(stLabel(e))notes.push(stLabel(e)); if(isOver70(e,year+'-07'))notes.push('70歳以上'); if(row.noQualify)notes.push(rule.primary+'日以上の月なし=要確認');
+      var notes=[]; if(stLabel(e))notes.push(stLabel(e)); if(isOver70(e,year+'-07'))notes.push('70歳以上'); if(row.noQualify)notes.push(rule.primary+'日以上の月なし=要確認／★電子申請の CSV には 入りません★'+'（従前の 標準報酬月額の まま 決まります）');
       var hasData=months.some(function(m){return m.days>0||m.pay>0;});
       return { emp:e, name:e.name||'', birthYmd:e.birthYmd||'', months:months, prevH:prevH, prevP:prevP, r:row, note:notes.join('／'), hasData:hasData };
     });
@@ -2589,7 +2589,11 @@
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
       tekiyoYm: year+'-09',
       zenzen:{ health:x.prevH||0, pension:x.prevP||0, kaiteiYmd:e.zenzenKaiteiYmd||'' },
-      months: m.map(function(mm){ return { days:mm.days||0, tsuka:(mm.pay||0)-(mm.genbutsu||0), genbutsu:mm.genbutsu||0 }; })
+      months: m.map(function(mm){ return { days:mm.days||0, tsuka:(mm.pay||0)-(mm.genbutsu||0), genbutsu:mm.genbutsu||0 }; }),
+      /* ★日数の 線は 画面と 同じ物を 渡す★（2026-09-04 指示役＝決まりを 2か所に 書かない）
+         ＝santeiRule(e)：短時間 11/0・パート 17/15・一般 17/0。
+         ★渡し忘れると CSV が 既定（一般 17/0）で 走り、パートの 15日・短時間の 11日が 消える★ */
+      rule: santeiRule(e)
     };
   }
   /* ★4問（どこに 書いてあるかを 添える）＋ 落とすボタン＋ 止まり方★ */
@@ -3828,9 +3832,15 @@
         var rw=(state._santeiRows||[]).filter(function(x){return x.hasData;});
         if(!rw.length||!window.TodokedeCsv){ uiAlert('4〜6月の確定済み明細がありません。'); return; }
         var co2=state.company||{};
-        var rows2=rw.map(function(x){ return TodokedeCsv.santeiRow(santeiCsvInput(x, yr2)); });
+        /* ★従前の 標準報酬月額の ままに なる人は 入れない★（2026-09-04）
+           ＝4〜6月とも 支払基礎日数が 足りない人＝★総計・平均額に 書く数字が 未測定★
+             知らせる 文（santeiWarn）で「入れていません」と 言っている以上、★本当に 入れない★ */
+        var iru=rw.filter(function(x){ return TodokedeCsv.dasuKa(santeiCsvInput(x, yr2)); });
+        if(!iru.length){ uiAlert('4〜6月とも 支払基礎日数が 足りず、電子申請に 出せる人が いませんでした。'
+          +String.fromCharCode(10)+'従前の 標準報酬月額の まま 決まります（年金事務所へ ご確認ください）。'); return; }
+        var rows2=iru.map(function(x){ return TodokedeCsv.santeiRow(santeiCsvInput(x, yr2)); });
         var tsu=Number(co2.baitaiTsuban||0);
-        var f2=TodokedeCsv.santeiCsv({ jimusho:santeiCsvInput(rw[0], yr2).jimusho,
+        var f2=TodokedeCsv.santeiCsv({ jimusho:santeiCsvInput(iru[0], yr2).jimusho,
           baitai:{ tsuban:TodokedeCsv.nextTsuban(tsu), ymd:new Date().toISOString().slice(0,10) }, rows:rows2 });
         if(!f2.bytes.length){ uiAlert('出せる人がいませんでした（1バイトも作っていません）。'); return; }
         /* ★4.5MB 以上は 出さない★（2026-09-04 指示役の裁定＝甲）
