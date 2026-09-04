@@ -20,6 +20,7 @@
     'koyo:2025': { source_url: "https://www.mhlw.go.jp/content/001401966.pdf", verified_at: "2026-08-04", fingerprint: '36dc8e47' },
     'koyo:2026': { source_url: "https://jsite.mhlw.go.jp/aichi-hellowork/list/okazaki/news/koyouhokennryouR08.html", verified_at: "2026-08-03", fingerprint: 'd7ad3a44' },
     'nenmatsu:2026': { source_url: "https://www.nta.go.jp/users/gensen/2026kaisei/index.htm", verified_at: "2026-07-09", fingerprint: '4f3b1829' },
+    'rousai_ritsu:2024': { source_url: "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000008", verified_at: "2026-09-04", fingerprint: 'db8cc232' },
     'saitei_chingin:2025': { source_url: "https://www.mhlw.go.jp/content/11200000/001571192.pdf", verified_at: "2026-08-03", fingerprint: '5566dc03' },
     'shakaihoken:2025': { source_url: "https://www.kyoukaikenpo.or.jp/g7/cat330/", verified_at: "2026-07-08", fingerprint: 'c8dda132' },
     'shakaihoken:2026': { source_url: "https://www.kyoukaikenpo.or.jp/about/business/insurance_rate/rate_prefectures/r08/index.html", verified_at: "2026-08-03", fingerprint: '4554fe20' },
