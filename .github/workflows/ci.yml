@@ -540,6 +540,10 @@ jobs:
         run: node kyuyo/tests/shoyo-zenmonth-nashi.test.mjs
       - name: ★同 アプリの1行を直す前に戻すと赤になるか（自己確認）
         run: node kyuyo/tests/shoyo-zenmonth-nashi.test.mjs --self-test
+      - name: ★賞与の紙の年月日（支給日を月次と同じ和暦で／読めない賞与月を紙に焼かない）
+        run: node kyuyo/tests/shoyo-kami-hizuke.test.mjs
+      - name: ★同 直す前の姿に戻すと赤になるか（自己確認）
+        run: node kyuyo/tests/shoyo-kami-hizuke.test.mjs --self-test
       - name: Headless guard (lib/ がDOM・通信・非決定性に依存しない)
         run: node kyuyo/scripts/verify-headless.mjs
       - name: ★源泉区分(204条) 選べるのに算式が無い区分を残さない＋実数1円一致

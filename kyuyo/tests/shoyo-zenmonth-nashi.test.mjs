@@ -32,8 +32,12 @@
  *   ・★ログイン不要★（jsdom で アプリの 中身を 直に 見る）＝CIで 毎回 回せる
  */
 import fs from 'node:fs'; import path from 'node:path';
-import { createRequire } from 'node:module'; import { pathToFileURL } from 'node:url';
-const ROOT='C:/Users/zeroa/rakually-test';
+import { createRequire } from 'node:module'; import { pathToFileURL, fileURLToPath } from 'node:url';
+/* ★手元の 絶対パスを 焼き込まない★（2026-09-06 実測）
+   ここに 'C:/Users/zeroa/rakually-test' と 書いて push したら
+   ★手元は 緑・GitHubのCIだけ 赤★に なった（Linuxに その道は 無い）。
+   ⇒ ★自分の 居場所から 数える★（他の 試験と 同じ 書き方）。 */
+const ROOT=path.join(path.dirname(fileURLToPath(import.meta.url)),'..','..').split(path.sep).join('/');
 const req=createRequire(pathToFileURL(ROOT+'/package.json'));
 const { JSDOM }=req('jsdom');
 const html=fs.readFileSync(ROOT+'/kyuyo/index.html','utf8');
