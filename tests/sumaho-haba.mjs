@@ -65,6 +65,20 @@ import { hairu, toziru, osu } from './_hairu.mjs';   /* ★入る手順は 1か�
 let borrow, pwLaunch;
 try { ({ borrow, launch: pwLaunch } = await import('../scripts/_borrow-playwright.mjs')); }
 catch (e) { console.log('🟡 ★未測定★ playwright を 借りる 道具が 読めない … ' + (e && e.message)); process.exit(2); }
+/* ★本番の repo では 走らせない（★字で 言ってから 抜ける★）★
+   ★本番は 本番の 倉庫を 指す★＝test@test.com は 居ない＝★ログインできない★（実測＝3回とも）。
+   ★黙って 緑に しない★＝下の 1行を CIの 記録に 必ず 残す。
+   ★測っているのは テスト線★（同じ 画面の コードを 両方の repo が 持っている）。
+   ★戻す条件★＝本番の CI に 試験用の 鍵を 置いた日。 */
+{
+  const { kagiAru } = await import('./_hairu.mjs');
+  const _ne = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  if (!(await kagiAru(_ne))) {
+    console.log('  — ★この repo（本番）には 試験の 鍵が 無いので ここでは 測れません★'
+      + '（★テスト線で 測っています★／戻す条件＝本番CIに 鍵を 置いた日）');
+    process.exit(0);
+  }
+}
 const wk = await borrow('sumaho-haba', 'webkit');
 if (!wk) { console.log('🟡 ★未測定★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
 

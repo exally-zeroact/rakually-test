@@ -18,6 +18,19 @@
  *   ★何回目で 入れたか★も 返す＝★黙って 3回 掛かっている★のを 隠さない。
  */
 
+/* ★★試験の 鍵が 在る repo か★★（2026-09-05 本番へ 運ぶ 支度で 見つけた）
+   ★本番の repo は 本番の 倉庫を 指す★＝★test@test.com は 本番には 居ません★
+   ⇒ ログインの 要る 見張りは ★本番の CI では 動かせない★（実測＝3回とも 入れなかった）
+   ★黙って 緑に しない★＝★「ここでは 測れない・テスト線で 測っている」と 字で 言ってから★ 抜ける。
+   ★これを 入れないと どうなるか★＝本番の CI が ★毎回 赤★（＝人が 赤を 見なくなる）。
+   ★戻す条件★＝本番の CI に 試験用の 鍵を 置いた日。 */
+export async function kagiAru(root) {
+  try {
+    const { repoEnv } = await import('../scripts/repo-env.mjs');
+    return repoEnv(root) === 'test';
+  } catch (e) { return true; }        /* 読めない時は 走らせる（黙って 飛ばさない） */
+}
+
 /* pg … playwright の page ／ matsu … 入れた事の 目印（この物が 出たら 入れた）
    返り値 { haitta, matta, kai } … kai＝入れた 時の 回数（入れなければ 試した 回数） */
 export async function hairu(pg, url, matsu, kaiMax = 3) {
