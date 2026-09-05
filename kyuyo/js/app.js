@@ -320,7 +320,7 @@
   //  勝手に手当や額が付くのを防ぐ。payType/pref/taxClass/fuyou/kintai 等の構造は既定を維持。
   function defEmp(name){
     return { id:uid(), name:name||'従業員 1', no:'', birthYmd:'1980-05-15', dept:'', role:'', employmentType:'employee', houshuKubun:'none',
-      payType:'月給', base:'', hourly:'', seibetsu:'', jushoKana:'', commissionAmt:'', hourlyGuarantee:'', salesAmt:'', pieceCount:'', payRule:null, fuyou:'1', nenshoFuyo:'', pref:'', commute:'', commuteType:'public', commuteKm:'', residentTax:'', residentTaxMode:'monthly', residentTaxAnnual:'', residentTaxIkkatsu:false, juminCollect:'special', bank:'',
+      payType:'月給', base:'', hourly:'', kana:'', seibetsu:'', jushoKana:'', commissionAmt:'', hourlyGuarantee:'', salesAmt:'', pieceCount:'', payRule:null, fuyou:'1', nenshoFuyo:'', pref:'', commute:'', commuteType:'public', commuteKm:'', residentTax:'', residentTaxMode:'monthly', residentTaxAnnual:'', residentTaxIkkatsu:false, juminCollect:'special', bank:'',
       furiBankName:'', furiBankNo:'', furiBranchName:'', furiBranchNo:'', furiYokin:'普通', furiAccount:'', furiKana:'',
       annualHolidays:'', dailyWorkH:'', dailyWorkM:'', workedH:'160', workedM:'0', weeklyScheduledH:'', dailyEntries:[],
       kintai:[{label:'出勤日数',value:'21'},{label:'欠勤日数',value:'0'},{label:'有給取得',value:'1'}],
@@ -1082,6 +1082,12 @@
     var isContractor=(e.employmentType==='contractor');
     var basic=''
       +'<div class="frow"><div class="flabel">氏名</div><input class="finput m-f" data-f="name" value="'+attr(e.name)+'"></div>'
+      /* ★氏名（カナ）は 4つの 届出 ぜんぶで 必須★（算定・月変・賞与・資格取得の 項番6〜7）
+         ★2026-09-05 実測＝この欄が 1つも 無く、e.kana は ★誰も 入れられなかった★★
+           ⇒ 画面は「出せます」と 言うのに、押すと 門で 止まる（＝画面が 嘘を つく）
+         ★空なら 全銀の 受取人名（半角カナ）を 使う★＝★同じ事を 2回 聞かない★ */
+      +'<div class="frow"><div class="flabel">氏名（カナ）<span class="hint2">半角カナ・姓と名の間は半角スペース1つ（届出に使います）</span></div>'
+        +'<input class="finput m-f" data-f="kana" value="'+attr(e.kana||e.furiKana||'')+'" placeholder="ﾔﾏﾀﾞ ﾀﾛｳ"></div>'
       +'<div class="chip-row" style="margin:2px 0 8px;align-items:center"><span style="font-size:11px;color:#3D6B53;font-weight:700;margin-right:2px">雇用形態</span>'
         +[['employee','従業員（正社員/パート）'],['contractor','業務委託（個人事業主）']].map(function(o){ var on=(e.employmentType||'employee')===o[0]; return '<span class="chip'+(on?' on':'')+'" data-emptype="'+o[0]+'">'+(on?'✓ ':'')+o[1]+'</span>'; }).join('')
         +'<span class="help-i" data-help="emptype">💡</span></div>'
@@ -2399,7 +2405,7 @@
         zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
-      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||x.kana||'', kanji:e.name||x.name||'', birthYmd:e.birthYmd||x.birthYmd||'' },
+      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||x.kana||'', kanji:e.name||x.name||'', birthYmd:e.birthYmd||x.birthYmd||'' },
       harauYmd: x.payDate||'',
       /* ★今日は 画面が 渡す★（lib は 時計を 持たない＝headless の 決まり）
          原文＝「『賞与支払年月日』≦『システムチェック実施日』であること」 */
@@ -2655,7 +2661,7 @@
         zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
-      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
+      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
       tekiyoYm: year+'-09',
       zenzen:{ health:x.prevH||0, pension:x.prevP||0, kaiteiYmd:e.zenzenKaiteiYmd||'' },
       months: m.map(function(mm){ return { days:mm.days||0, tsuka:(mm.pay||0)-(mm.genbutsu||0), genbutsu:mm.genbutsu||0 }; }),
@@ -2675,6 +2681,16 @@
   /* ★事業所の 聞き取りは 1か所★（2026-09-05＝資格取得届でも 同じ物が 要ったので 出した）
      ★同じ物を 2か所で 持つと 片方だけ 直る★（会社の 決まり）。
      返す物 … { toi:欄のHTML, tarinai:[まだ 入っていない物] } */
+  /* ★事業所の 中身は 1か所で 組む★（算定・取得の どちらも これを 使う） */
+  function jimushoCsvArg(){
+    var c=state.company||{};
+    var sk=(window.TodokedeCsv&&TodokedeCsv.splitSeiriKigou)?TodokedeCsv.splitSeiriKigou(c.seiriKigou):null;
+    return { todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
+      gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
+      zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+      address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
+      tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' };
+  }
   function jimushoToi(){
     var c=state.company||{};
     /* ★見出しは HTML を そのまま 使う★（2026-09-03＝esc して 「<span…>」が 字で 出ていた／絵で 気づいた） */
@@ -2699,6 +2715,20 @@
     if(!c.seiriKigou) tarinai.push('事業所整理記号が まだです');
     if(!c.jigyoshoNo) tarinai.push('事業所番号が まだです');
     if(!(window.TodokedeCsv&&window.TodokedeCsv.KEN_CODE[c.pref])) tarinai.push('会社の 都道府県が まだです（設定 ▸ 会社情報）');
+    /* ★門そのものに 聞く★（2026-09-05 実測＝★所在地が 空でも 画面は 何も 言わず★、
+       押してから「項番7 事業所所在地／入力されていること」で 断られた）
+       ⇒★写しの 一覧を 持たない★＝checkHeader が 止める 物は 画面も 言う。
+       ★どこで 直すかを 添える★（仕様書の 言い方だけでは お客さんは 動けない） */
+    if(window.TodokedeCheck&&TodokedeCheck.checkHeader){
+      var DOKO={ '事業所所在地':'設定 ▸ 会社情報 の 住所', '事業所名称':'設定 ▸ 会社情報 の 会社名',
+        '事業主氏名':'この下の「事業主氏名」', '郵便番号（親番号）':'この下の「郵便番号」',
+        '郵便番号（子番号）':'この下の「郵便番号」' };
+      TodokedeCheck.checkHeader(jimushoCsvArg(), {tsuban:'001', ymd:'2026-01-01'}).forEach(function(x){
+        if(/局番/.test(x.name)&&!c.tel) { if(tarinai.indexOf('電話番号が まだです（この下の「電話番号」）')<0) tarinai.push('電話番号が まだです（この下の「電話番号」）'); return; }
+        var w=x.name+'が まだです'+(DOKO[x.name]?('（'+DOKO[x.name]+'）'):'');
+        if(tarinai.indexOf(w)<0) tarinai.push(w);
+      });
+    }
     return { tarinai:tarinai,
       toi:'<p class="hint" style="margin:0 0 8px">一度 入れると 次から 聞きません。'
         +'<b>所在地・会社名・都道府県は もう 分かっている</b>ので 聞きません。</p>'
@@ -2771,7 +2801,7 @@
         zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
-      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
+      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
       henkoYm: x.henko||'',
       zenzen:{ health:num(hp.prevHyojun)||num(s.prevHyojun)||0, pension:num(pp.prevHyojun)||num(s.prevHyojun)||0,
         kaiteiYmd:e.zenzenKaiteiYmd||'' },
@@ -3032,7 +3062,7 @@
         zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
-      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||'', kanji:e.name||'', birthYmd:e.birthYmd||'',
+      emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'',
         seibetsu:e.seibetsu||'', zip:e.zip||'', jushoKana:e.jushoKana||'', jushoKanji:e.address||'' },
       shutokuYmd: x.date||'',
       /* ★今日は 画面が 渡す★（lib は 時計を 持たない＝headless の 決まり）

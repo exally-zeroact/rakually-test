@@ -113,6 +113,12 @@ const PROBE = `(function(){
     var r=el.getBoundingClientRect();
     if(!r.width||!r.height)return;
     if(ov&&!ov.contains(el)){out.ooware++;return;}
+    /* ★お客さんは 押す前に そこまで 動かす★＝真ん中へ 寄せてから 突く
+       （2026-09-05 実測＝幅390の 入力画面で「詳細▾」が ★下の 帯（button.bn）の 下★に 入り、
+         そのままの 位置で 突くと 当たらなかった。動かせば 押せる＝★これで 鳴らせると
+         毎回 鳴る 見張りに なる★。動かしても なお 上に 何かが 在る物だけ 数える） */
+    if(!ov) el.scrollIntoView({block:'center',inline:'center'});
+    r=el.getBoundingClientRect();
     var p=tsukuTen(r,vw,vh);
     if(!p){out.soto++;return;}
     out.mita++;

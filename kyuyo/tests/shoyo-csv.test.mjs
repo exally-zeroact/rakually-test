@@ -79,22 +79,22 @@ T('★⑤ 1千万円以上は 9999999', () => {
 
 T('★⑥ 1,000円未満は 出さない（原文＝合計 ≧ 1000）', () => {
   const KYOU = '2026-09-05';
-  ok(TD.dasuKaShoyo({ harauYmd: '2026-07-10', tsuka: 1000, genbutsu: 0, kyou: KYOU }) === true, '★ちょうど 1,000円★');
-  ok(TD.dasuKaShoyo({ harauYmd: '2026-07-10', tsuka: 999, genbutsu: 0, kyou: KYOU }) === false, '★999円★');
-  ok(TD.dasuKaShoyo({ harauYmd: '2026-07-10', tsuka: 1999, genbutsu: 0, kyou: KYOU }) === true, '1,999→1,000');
-  ok(TD.dasuKaShoyo({ harauYmd: '2026-07-10', tsuka: 500, genbutsu: 600, kyou: KYOU }) === true, '★現物と 足して 1,100→1,000★');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-07-10', tsuka: 1000, genbutsu: 0, kyou: KYOU }) === true, '★ちょうど 1,000円★');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-07-10', tsuka: 999, genbutsu: 0, kyou: KYOU }) === false, '★999円★');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-07-10', tsuka: 1999, genbutsu: 0, kyou: KYOU }) === true, '1,999→1,000');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-07-10', tsuka: 500, genbutsu: 600, kyou: KYOU }) === true, '★現物と 足して 1,100→1,000★');
 });
 
 T('★⑦ 支払日が 空／未来なら 出さない（原文＝支払日 ≦ チェック実施日）', () => {
   /* ★今日は 外から 渡す★（lib は 時計を 持たない＝headless の 決まり）
      ⇒★偽の 時計で 測れる★＝月が 替わっても 赤に ならない */
   const kyou = '2026-09-05';
-  ok(TD.dasuKaShoyo({ harauYmd: '', tsuka: 500000, kyou }) === false, '★支払日が 空★');
-  ok(TD.dasuKaShoyo({ harauYmd: '2026-09-15', tsuka: 500000, kyou }) === false, '★未来の 支払日★');
-  ok(TD.dasuKaShoyo({ harauYmd: kyou, tsuka: 500000, kyou }) === true, '★今日は 出せる（≦）★');
-  ok(TD.dasuKaShoyo({ harauYmd: '2026-09-04', tsuka: 500000, kyou }) === true, '昨日は 出せる');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: '', tsuka: 500000, kyou }) === false, '★支払日が 空★');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-09-15', tsuka: 500000, kyou }) === false, '★未来の 支払日★');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: kyou, tsuka: 500000, kyou }) === true, '★今日は 出せる（≦）★');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-09-04', tsuka: 500000, kyou }) === true, '昨日は 出せる');
   /* ★今日を 渡さない時は 日付の 形だけ 見る（止めない）★ */
-  ok(TD.dasuKaShoyo({ harauYmd: '2099-01-01', tsuka: 500000 }) === true, '★今日を 渡さなければ 未来でも 通す（止めるのは 呼ぶ側）★');
+  ok(TD.dasuKaShoyo({ emp: EMP, harauYmd: '2099-01-01', tsuka: 500000 }) === true, '★今日を 渡さなければ 未来でも 通す（止めるのは 呼ぶ側）★');
 });
 
 T('★⑧ 70歳以上は 出さない（基礎年金番号を お預かりしない）', () => {
@@ -133,15 +133,15 @@ if (SELF) {
   let ng = 0;
   const say = (nm, good) => { if (!good) ng++; console.log('  ' + (good ? '✓' : '✗') + ' ' + nm + (good ? '' : '  ★思っていたのと 違う★')); };
   const g = (t2, g2) => row({ tsuka: t2, genbutsu: g2 || 0 })[13];
-  say('★999円 … 出せない★', TD.dasuKaShoyo({ harauYmd: '2026-07-10', tsuka: 999 }) === false);
-  say('★1,000円ちょうど … 出せる★', TD.dasuKaShoyo({ harauYmd: '2026-07-10', tsuka: 1000 }) === true);
+  say('★999円 … 出せない★', TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-07-10', tsuka: 999 }) === false);
+  say('★1,000円ちょうど … 出せる★', TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-07-10', tsuka: 1000 }) === true);
   say('1,999円 → 合計 1,000', g(1999) === '0001000');
   say('★500,999 → 500,000（切り捨て）★', g(500999) === '0500000');
   say('★501,000 → 501,000★', g(501000) === '0501000');
   say('通貨は 切り捨てない（500,999 のまま）', row({ tsuka: 500999 })[11] === '0500999');
   say('★1千万以上 → 9999999★', g(9999999, 1) === '9999999');
-  say('★支払日が 空 … 出せない★', TD.dasuKaShoyo({ harauYmd: '', tsuka: 500000, kyou: '2026-09-05' }) === false);
-  say('★未来の 支払日 … 出せない（今日を 渡した時）★', TD.dasuKaShoyo({ harauYmd: '2026-09-15', tsuka: 500000, kyou: '2026-09-05' }) === false);
+  say('★支払日が 空 … 出せない★', TD.dasuKaShoyo({ emp: EMP, harauYmd: '', tsuka: 500000, kyou: '2026-09-05' }) === false);
+  say('★未来の 支払日 … 出せない（今日を 渡した時）★', TD.dasuKaShoyo({ emp: EMP, harauYmd: '2026-09-15', tsuka: 500000, kyou: '2026-09-05' }) === false);
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
   console.log('  ★9通り ぜんぶ 思った通り★');
 }

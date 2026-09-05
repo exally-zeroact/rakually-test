@@ -1576,7 +1576,10 @@ T('★資格取得届＝画面の 配線（出せる人だけ CSVに 入れる�
     b.base = '220000'; b.pref = 'ehime';
     if (b.shikyu && b.shikyu[0]) b.shikyu[0].value = '220000';
     A.state.employees = [a, b];
-    A.state.company = Object.assign(A.defCompany(), { pref: 'ehime', seiriKigou: '01-ｱｲ', jigyoshoNo: '12345', name: '株式会社テスト' });
+    /* ★事業所の 中身は 門（checkHeader）が 見る物を ぜんぶ 入れる★
+       （2026-09-05＝画面が 門に 聞くように なったので、材料も 本物と 同じ形に する） */
+    A.state.company = Object.assign(A.defCompany(), { pref: 'ehime', seiriKigou: '01-ｱｲ', jigyoshoNo: '12345',
+      name: '株式会社テスト', addr: '愛媛県松山市1-2-3', nushi: '健保　良一', zip: '790-0001', tel: '089-123-4567' });
     const rows = A.shikakuRows(A.state.employees).filter((x) => x.kind === '取得');
     eq(rows.length, 2, '取得の 行が 2件 でない');
     /* ★出せる／出せないは 実物の lib が 決める★（画面が 手で 決めない） */
