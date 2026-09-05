@@ -878,6 +878,130 @@
     return f;
   }
 
+  /* ══ 資格喪失届（2201700・27項目）════════════════════════════════
+     ★出どころ★ zidoucheck.files/csv201.pdf（数えた 結果は kyuyo/docs/soshitsu-2201700.md）
+     ★取得届と 1つも 同じ 場所に ない★＝使い回さない（自己確認で「1つ ずらす」を 見る）
+     ★このアプリは マイナンバーを 預からない★（司さんの決め）
+       ⇒ 原文 項番12「個人番号に 入力がない場合 入力されていること」
+       ⇒★基礎年金番号（課所符号4桁＋一連番号6桁）が 必須★
+       ⇒ 司さん 2026-09-05「競合がやりよることはやれ」＝★基礎年金番号を お預かりする★
+         （マネーフォワードも「マイナンバー か 基礎年金番号」を 選ばせる形）
+     ★健保組合には 基礎年金番号で 出せない★（マネーフォワードの 公式サポートに 明記）
+       ⇒ 画面に 但し書きを 出す（協会けんぽ なら 通る） */
+  /* ★基礎年金番号を 割る★（1つの 欄で 聞いて 2つに 割る＝2回 聞かない）
+     ★形★ 4桁-6桁（例 1234-567890）／ハイフンは 有っても 無くても よい／全角も 半角へ */
+  function splitKisoNenkin(text) {
+    var s2 = String(text == null ? '' : text).trim();
+    if (!s2) return null;
+    s2 = s2.replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+      .replace(/[－ー―‐]/g, '-').replace(/\s+/g, '');
+    var m = /^([0-9]{4})-?([0-9]{6})$/.exec(s2);
+    if (!m) return null;
+    if (m[1] === '0000' || m[2] === '000000') return null;   /* 原文＝'0000'／'000000'以外 */
+    return { kasho: m[1], renban: m[2] };
+  }
+  /* ★喪失（不該当）原因★（原文 項番16） */
+  var SOSHITSU_GEN = { taishoku: '4', shibou: '5', nanajugo: '7', shougai: '9', kyoutei: '11' };
+
+  function dasuKaSoshitsu(inp) {
+    inp = inp || {};
+    var e = inp.emp || {};
+    if (!kanaOk(e)) return false;                                 /* 7 氏名（カナ）＝必須 */
+    if (!splitKisoNenkin(e.kisoNenkin)) return false;             /* 12-13 ＝マイナンバーを 持たないので 必須 */
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.soshitsuYmd || ''))) return false;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.taishokuYmd || ''))) return false;
+    if (inp.kyou && String(inp.soshitsuYmd) > String(inp.kyou)) return false;  /* 14 未来日 不可 */
+    return kensaNG(soshitsuRow(inp), inp.kyou).length === 0;      /* ★門そのものに 聞く★ */
+  }
+  function soshitsuWarn(inp) {
+    inp = inp || {};
+    var out = [], e = inp.emp || {};
+    var namae = e.kanji || e.kana || '';
+    if (!kanaOk(e)) out.push(namae + '＝' + kanaWhy(e));
+    if (!splitKisoNenkin(e.kisoNenkin)) {
+      out.push(namae + '＝★基礎年金番号★が 入っていません（または 形が ちがいます）。'
+        + '年金手帳・ねんきん定期便の ★4桁-6桁★（例 1234-567890）を '
+        + '設定 ▸ 従業員マスタ で 入れてください'
+        + '（このアプリは マイナンバーを お預かりしないので、退社の 届出には この 番号が 要ります）');
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.taishokuYmd || ''))) {
+      out.push(namae + '＝退職日が 入っていません（設定 ▸ 従業員マスタ の 在籍・勤務）');
+    } else if (inp.kyou && String(inp.soshitsuYmd) > String(inp.kyou)) {
+      out.push(namae + '＝資格喪失日（' + inp.soshitsuYmd + '）が ★先の 日付★です。'
+        + '退職した 後でないと 出せません（電子申請の ファイルに 入れていません）');
+    }
+    var bad = badChars((e.kanji || '') + (e.kana || ''));
+    if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
+    kensaKotoba(kensaNG(soshitsuRow(inp), inp.kyou)).forEach(function (w) {
+      if (out.join('／').indexOf(w) < 0) out.push(namae + '＝' + w);
+    });
+    return out;
+  }
+  function soshitsuRow(inp) {
+    inp = inp || {};
+    var j = inp.jimusho || {}, e = inp.emp || {}, b = inp.bikou || {};
+    var born = gengoOf(e.birthYmd) || { code: '', ymd6: '' };
+    var sos = inp.soshitsuYmd ? gengoOf(inp.soshitsuYmd) : null;
+    var tai = inp.taishokuYmd ? gengoOf(inp.taishokuYmd) : null;
+    var kiso = splitKisoNenkin(e.kisoNenkin);
+    var gen = String(inp.gen || SOSHITSU_GEN.taishoku);      /* 既定＝'4'（退職等） */
+    var r = [];
+    r[0] = '2201700';                                   /* 1 様式コード */
+    r[1] = String(j.todofuken || '');                   /* 2 都道府県コード */
+    r[2] = String(j.gunshiku || '');                    /* 3 郡市区符号 */
+    r[3] = String(j.kigou || '');                       /* 4 事業所記号 */
+    r[4] = String(j.jigyoshoNo || '');                  /* 5 事業所番号 */
+    r[5] = e.seiriNo ? String(e.seiriNo) : '';          /* 6 被保険者整理番号 */
+    r[6] = String(e.kana || '');                        /* 7 氏名カナ */
+    r[7] = String(e.kanji || '');                       /* 8 氏名漢字 */
+    r[8] = born.code; r[9] = born.ymd6;                 /* 9-10 生年月日 */
+    r[10] = '';                                         /* 11 ★個人番号＝持たない★ */
+    r[11] = kiso ? kiso.kasho : '';                     /* 12 基礎年金番号（課所符号） */
+    r[12] = kiso ? kiso.renban : '';                    /* 13 基礎年金番号（一連番号） */
+    r[13] = sos ? sos.code : '';                        /* 14 資格喪失年月日（元号） */
+    r[14] = sos ? sos.ymd6 : '';                        /* 15 資格喪失年月日（年月日） */
+    r[15] = gen;                                        /* 16 喪失（不該当）原因 */
+    /* 17-18 退職日死亡日＝原因が'4','5'の時だけ（それ以外は 省略が 決まり） */
+    var iru = (gen === '4' || gen === '5');
+    r[16] = (iru && tai) ? tai.code : '';
+    r[17] = (iru && tai) ? tai.ymd6 : '';
+    r[18] = b.nijo ? '1' : '';                          /* 19 備考欄項目1（二以上事業所勤務） */
+    r[19] = b.bikou2 ? '1' : '';                        /* 20 備考欄項目2 */
+    r[20] = String(b.bikou || '');                      /* 21 備考欄 */
+    r[21] = b.kaishu ? String(b.kaishu) : '';           /* 22 資格確認書回収（添付・枚数） */
+    r[22] = b.henfunou ? String(b.henfunou) : '';       /* 23 資格確認書回収（返不能・枚数） */
+    /* 24-26 70歳不該当＝★不該当年月日は 退職日死亡日 そのもの（＋1日では ない）★ */
+    r[23] = b.fugaito ? '1' : '';
+    r[24] = (b.fugaito && tai) ? tai.code : '';
+    r[25] = (b.fugaito && tai) ? tai.ymd6 : '';
+    r[26] = '';                                         /* 27 70歳以上被用者届のみ提出＝出さない */
+    for (var k = 0; k < 27; k++) if (r[k] == null) r[k] = '';
+    return r;
+  }
+  function soshitsuCsv(inp) {
+    inp = inp || {};
+    var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
+    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: { errors: [], hito: 0, mihakari: 0 } };
+    var kensa = CHECK ? CHECK.checkRows(rows, { kyou: inp.kyou }) : { errors: [], hito: rows.length, mihakari: rows.length };
+    if (CHECK && CHECK.checkHeader) {
+      CHECK.checkHeader(inp.jimusho, inp.baitai || {}).forEach(function (x) {
+        kensa.errors.push({ gyo: 0, no: x.no, name: x.name, why: x.why });
+      });
+    }
+    if (kensa.errors.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: kensa };
+    var out = [];
+    out.push(baitaiRow(inp.jimusho, inp.baitai || {}));
+    out.push([SEP_KANRI]);
+    jigyoshoRows(inp.jimusho).forEach(function (r) { out.push(r); });
+    out.push([SEP_DATA]);
+    rows.forEach(function (r) { out.push(r); });
+    var f = build(out);
+    f.name = FILE_NAME;
+    f.kensa = kensa;
+    f.tooBig = tooBig(f.bytes.length);
+    return f;
+  }
+
   function santeiCsv(inp) {
     inp = inp || {};
     var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
@@ -916,6 +1040,8 @@
     shoyoRow: shoyoRow, shoyoWarn: shoyoWarn, shoyoCsv: shoyoCsv, dasuKaShoyo: dasuKaShoyo,
     kanaOk: kanaOk, kanaWhy: kanaWhy, kensaNG: kensaNG, kensaKotoba: kensaKotoba,
     shutokuRow: shutokuRow, shutokuWarn: shutokuWarn, shutokuCsv: shutokuCsv, dasuKaShutoku: dasuKaShutoku,
+    soshitsuRow: soshitsuRow, soshitsuWarn: soshitsuWarn, soshitsuCsv: soshitsuCsv, dasuKaSoshitsu: dasuKaSoshitsu,
+    splitKisoNenkin: splitKisoNenkin, SOSHITSU_GEN: SOSHITSU_GEN,
     seibetsuCode: seibetsuCode, SEIBETSU: SEIBETSU,
     shoyoGoukei: shoyoGoukei, shoyoHiOk: shoyoHiOk, MAN10: MAN10,
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,

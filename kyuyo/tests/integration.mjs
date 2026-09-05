@@ -1509,10 +1509,11 @@ T('★何が出せるかの表＝「出せる」を実物から出している�
      ★手書きの 数では ない★＝TodokedeCsv に 作る 関数が 在るかで 決まるので、
      lib に 足した その日に ★この行が 自分で 赤に なった★（3のはずが 4）。
      ⇒★表が 実物から 出ている 証拠★。数を 上げる時は 名前も 一緒に 確かめる。 */
-  /* ★4件の まま★＝資格喪失届は ★作っても 出せない★ので 増えない（2026-09-05）
-     ★これは 表の 穴では ない★＝★預かっていない 物が 要る★という 別の 理由。
-     ★戻す条件★＝司さんが「基礎年金番号を お預かりする」と 決めた日（5件に なる）。 */
-  eq(dekiru.length, 4, '★出せるのが ' + dekiru.length + '件★（算定・月変・賞与・資格取得の 4件 のはず）');
+  /* ★2026-09-05 4件→5件★（司さん「競合がやりよることはやれ」＝基礎年金番号を お預かりする と 決めた）
+     ★戻す条件の とおりに なった★＝lib に soshitsuRow を 足した その日に
+     ★この行が 自分で 赤に なった（4のはずが 5）★＝★手書きの 数では ない 証拠★。 */
+  eq(dekiru.length, 5, '★出せるのが ' + dekiru.length + '件★（算定・月変・賞与・資格取得・資格喪失の 5件 のはず）');
+  ok(dekiru.some((x) => x.nm === '資格喪失届'), '★資格喪失届が「出せます」に なっていない★');
   ok(dekiru.some((x) => x.nm === '資格取得届'), '★資格取得届が「出せます」に なっていない★');
   ok(!list.some((x) => x.nm === '資格取得届' && x.riyu), '★資格取得届に まだ「これから 作ります」が 付いている★');
   ok(dekiru.every((x) => typeof TD[x.tsukuru] === 'function'), '★出せると 書いてあるのに 作る 関数が 無い★');
@@ -1522,14 +1523,11 @@ T('★何が出せるかの表＝「出せる」を実物から出している�
   /* ★「まだ」の 理由は 2つに 分かれる★ */
   ok(mada.some((x) => x.riyu === 'uchi'), '★うちが 作っていない 物が 無い★');
   ok(mada.some((x) => x.riyu === 'nenkin'), '★年金機構の 検査が 対応していない 物が 無い★');
-  /* ★3段目＝預かっていない 物が 要る★（2026-09-05・資格喪失届）
-     ★原文★ csv201.pdf 項番12「『個人番号』に入力がない場合 入力されていること」
-     ⇒ マイナンバーか 基礎年金番号の どちらかが 必須／うちは どちらも 預かっていない
-     ⇒★「これから 作ります」だと「待てば 出せる」と 読める＝嘘★ */
-  ok(mada.some((x) => x.riyu === 'azukari'), '★預かっていない 物が 要る（基礎年金番号）が 無い★');
-  const so = list.find((x) => x.nm === '資格喪失届');
-  ok(so && so.dekiru === false && so.riyu === 'azukari',
-    '★資格喪失届の 理由が「預かっていない 物が 要る」に なっていない★');
+  /* ★3段目（azukari＝預かっていない 物が 要る）は 今 0本★
+     ＝資格喪失届が 出せるように なったので 消えた（2026-09-05）。
+     ★段そのものは 残す★＝また 同じ形が 出た時に すぐ 使える（画面の 出し分けも 残っている）。 */
+  eq(mada.filter((x) => x.riyu === 'azukari').length, 0,
+    '★預かっていない物が要る が 残っている★（基礎年金番号を 預かる と 決めたので 0本のはず）');
   /* ★お客さんの 言葉が 先・様式の 番号は 添えるだけ★ */
   ok(list.every((x) => x.itsu && x.itsu.length >= 3), '★「いつ 出すか」が 書いていない★');
   ok(list.every((x) => /^2[0-9]{6}$/.test(x.yoshiki)), '★様式コードが 無い★');
@@ -1546,8 +1544,8 @@ T('★表が 画面に 出る（お客さんの 言葉で）', () => {
   ok(/入社した/.test(html), '★お客さんの 言葉（入社した 時）が 無い★');
   ok(/算定基礎届/.test(html) && /賞与支払届/.test(html), '★届出の 名前が 無い★');
   ok(/年金機構/.test(html), '★年金機構の 検査が 対応していない 事を 書いていない★');
-  ok(/基礎年金番号が 要ります/.test(html), '★預かっていない 物が 要る 事を 画面に 書いていない★');
-  ok(!/資格喪失届[\s\S]{0,120}これから 作ります/.test(html), '★資格喪失届に「これから 作ります」が 残っている（待てば 出せると 読める）★');
+  ok(!/資格喪失届[\s\S]{0,120}(これから 作ります|基礎年金番号が 要ります)/.test(html),
+    '★資格喪失届に 古い 理由が 残っている★（出せるように なったのに 待てと 読める）');
   ok(!/未対応|準備中|開発中/.test(html), '★出来ていない物の 言葉を 出している★');
 });
 
@@ -1572,6 +1570,38 @@ T('★資格取得届に 要る 2つの 欄が 従業員マスタに 出てい�
     ok(sel && sel.tagName.toLowerCase() === 'select', '★性別が 選ぶ形に なっていない★');
     eq(sel.querySelectorAll('option').length, 4, '★性別の 選択肢の 数★');
   } finally { A.state.employees = mae; }
+});
+
+T('★資格喪失届＝画面の 配線（退職日の翌日・基礎年金番号が無い人は出さない）', () => {
+  const A = win.__PAYSLIP_TEST, TD = win.TodokedeCsv;
+  ok(A.soshitsuCsvInput && A.soshitsuCsvBox, '★画面の 口が 無い★');
+  const mae = A.state.employees, maeC = A.state.company;
+  try {
+    const a = A.defEmp('山田　太郎');
+    a.kana = 'ﾔﾏﾀﾞ ﾀﾛｳ'; a.birthYmd = '1985-05-15'; a.taishokuYmd = '2026-08-31';
+    a.kisoNenkin = '1234-567890'; a.pref = 'ehime';
+    const b2 = A.defEmp('佐藤　花子');                      /* ★基礎年金番号を 入れていない人★ */
+    b2.kana = 'ｻﾄｳ ﾊﾅｺ'; b2.birthYmd = '1990-01-20'; b2.taishokuYmd = '2026-08-31'; b2.pref = 'ehime';
+    A.state.employees = [a, b2];
+    A.state.company = Object.assign(A.defCompany(), { pref: 'ehime', seiriKigou: '01-ｱｲ', jigyoshoNo: '12345',
+      name: '株式会社テスト', addr: '愛媛県松山市1-2-3', nushi: '健保　良一', zip: '790-0001', tel: '089-123-4567' });
+    const rows = A.shikakuRows(A.state.employees).filter((x) => x.kind === '喪失');
+    eq(rows.length, 2, '喪失の 行が 2件 でない');
+    /* ★喪失日＝退職日の 翌日★（原文 項番14） */
+    eq(rows[0].date, '2026-09-01', '★喪失日が 退職日の 翌日で ない★');
+    const deru = rows.filter((x) => TD.dasuKaSoshitsu(A.soshitsuCsvInput(x)));
+    eq(deru.length, 1, '★出せるのが ' + deru.length + '人★（基礎年金番号が 揃った 1人 のはず）');
+    const kensa = win.TodokedeCheck.soshitsu(TD.soshitsuRow(A.soshitsuCsvInput(deru[0])), '2026-09-05');
+    eq(kensa.length, 0, '出せる人なのに 赤が 出た: ' + JSON.stringify(kensa));
+    const warn = rows.map((x) => TD.soshitsuWarn(A.soshitsuCsvInput(x)).join('／')).join('／');
+    ok(/佐藤/.test(warn) && /基礎年金番号/.test(warn), '★入れていない人と 理由を 出していない★');
+    ok(!/山田/.test(warn), '★出せる人まで 注意に 出している★');
+    const html = A.soshitsuCsvBox(A.shikakuRows(A.state.employees));
+    ok(/b-soshitsu-csv/.test(html), '★ボタンが 無い★');
+    ok(html.indexOf('CSVを作る（1人・SHFD0006.CSV）') >= 0, '★人数が 出ていない★');
+    ok(/健康保険組合/.test(html), '★健保組合には 出せない 但し書きが 無い★');
+    ok(/退職日の翌日/.test(html), '★喪失日の 決まりを 書いていない★');
+  } finally { A.state.employees = mae; A.state.company = maeC; }
 });
 
 T('★資格取得届＝画面の 配線（出せる人だけ CSVに 入れる・足りない人は 名前を 挙げる）', () => {
