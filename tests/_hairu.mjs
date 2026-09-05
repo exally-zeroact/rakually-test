@@ -26,9 +26,18 @@ export async function hairu(pg, url, matsu, kaiMax = 3) {
     await pg.goto(url, { waitUntil: 'domcontentloaded' });
     for (let i = 0; i < 60; i++) { matta++; if (await pg.$('#loginEmail, .bn[data-scr]')) break; await new Promise((r) => setTimeout(r, 250)); }
     if (await pg.$('#loginEmail')) {
-      await pg.fill('#loginEmail', 'test@test.com');
-      await pg.fill('#loginPass', 'test1234');
-      await pg.click('#btnLogin');
+      /* ★打てるように なるまで 待つ★（2026-09-05 CIで 実測＝#loginEmail は 在るのに
+         30秒 打てずに 落ちた。★覆いが 出そろう前★に 打とうとしていた）
+         ★短く 切って 投げ捨てない★＝この 回を 失敗にして ★開き直して もう一度★（下の for が 回す）。 */
+      try {
+        await pg.waitForSelector('#loginEmail', { state: 'visible', timeout: 15000 });
+        await pg.fill('#loginEmail', 'test@test.com', { timeout: 10000 });
+        await pg.fill('#loginPass', 'test1234', { timeout: 10000 });
+        await pg.click('#btnLogin', { timeout: 10000 });
+      } catch (e) {
+        await new Promise((r) => setTimeout(r, 800));
+        continue;                                  /* ★この回は 失敗＝次の回で 開き直す★ */
+      }
       for (let i = 0; i < 80; i++) { matta++; if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
       await pg.evaluate(() => {
         const y = Array.from(document.querySelectorAll('button'))
