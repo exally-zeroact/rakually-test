@@ -2128,9 +2128,18 @@
     var prefMiss=PW().prefStats(activeEmployees(), ctxOf());
     /* ★スマホ幅では折り返す★。折り返さないと、説明文が1文字ずつの縦帯になって読めない
        （幅390で 行の高さ421px・説明の幅36px＝実測して直した）。 */
-    var confirmBtn='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 4px"><button class="btn-primary" data-confirm-month'+(prefMiss.missingCount?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映')+'）</button>'
+    /* ★倉庫の 答えが 来るまで 押せない★（2026-09-05 指示役の裁定・案Dの ②）
+       ★理由を 灰色に するだけで 言わないのは ×★＝札の 中に そのまま 書く。
+       ★案Dだけだと 遅い時に 人が 先に 手を 出せる★＝出た瞬間に 3737px 動いた のと 同じ事故。 */
+    var soukoTomeru = soukoMachi() ? '読み込み中です' : (soukoNG() ? 'クラウドに つながりません' : '');
+    var confirmBtn='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 4px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映'))+'）</button>'
       +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700;white-space:nowrap">✓ 確認済</span>')
       +'<span style="flex:1 0 100%;font-size:10px;color:#555555"><b>保存は自動</b>です。「確定」は全員を確認済みにし、<b>賃金台帳・年末調整の集計対象</b>として今月を記録し、<b>従業員のWeb明細に自動公開</b>します（従業員はいつでも閲覧可・あとで直せます）。</span></div>';
+    /* ★倉庫の 答えが 来るまで 人の 一覧を 描かない★（案D）＝★二度 描かないので 1pxも 動かない★
+       ★空の 一覧を 出さない＝「0人」に 見せない★（読み込み中／つながらない と はっきり 出す） */
+    if(soukoMachi()||soukoNG()){
+      host.innerHTML=statutoryStaleWarn()+soukoHTML()+calHTML+progHTML+confirmBtn; return;
+    }
     if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+renderInputTableHTML(reviewOnly)+confirmBtn; return; }
     var cards=state.employees.map(function(e,i){
       if(!isActiveInMonth(e,state.month)) return '';
@@ -4245,6 +4254,7 @@
         persistSaveDebounced();
         return;
       }
+      if(e.target.closest('#b-souko-retry')){ reloadCloud(); soukoRedraw(); return; }
       if(e.target.closest('#b-shutoku-csv')){
         if(!window.TodokedeCsv||!TodokedeCsv.shutokuRow){ uiAlert('部品が読めていません。開き直してください。'); return; }
         var kr=(state._shikakuRows||[]).filter(function(x){ return x.kind==='取得'; });
@@ -5224,7 +5234,49 @@
     if(cs.onboardDone)state.onboardDone=true;
     state._prevYm=null; state._bonusPrevYm=null; state._bonusYtdYm=null; // クラウド復元で前月比キャッシュを無効化(stale防止)
     $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); warmLedger(); var act=$('.screen.active'); if(act)showScreen(act.id); return true; }
-  function reloadCloud(){ if(window.Store&&Store.cloudLoadState){ return Store.cloudLoadState().then(applyCloudState).catch(function(){return false;}); } return Promise.resolve(false); }
+  /* ★倉庫の 答えが 来るまで 人の 一覧を 描かない★（2026-09-05 指示役の裁定・案D）
+     ★なぜ★＝前は ★端末の 写しで 先に 描き、あとから 倉庫の 本物で 丸ごと 差し替えて★いた。
+       ★実測★（候補を 1つずつ 4秒 遅らせて 確定ボタンの 上端を 測った）
+         法定データ 0px ／ 確定明細 0px ／ ★倉庫の 状態 3737px★
+         前＝従業員 1人「県が未選択」→ 後＝従業員 19人 ＝★1人と 嘘を 見せていた★
+       ⇒★裁定④（先に描いて後で消すと 一瞬 嘘が見える）と 同じ形★
+     ★state._souko の 3つの 顔★
+       'machi' … まだ 答えが 来ていない（★読み込み中と はっきり 出す・押させない★）
+       'ok'   … 来た（写しのままで よい 時も 含む）
+       'ng'   … ★つながらなかった★（★失敗と 言う・押させない★）
+     ★お知らせの 帯と 枠は 先に 出す★＝画面は すぐ 出る。 */
+  function reloadCloud(){
+    if(!(window.Store&&Store.cloudLoadState)){ state._souko='ok'; return Promise.resolve(false); }
+    state._souko='machi';
+    return Store.cloudLoadState().then(function(cs){
+      var r=applyCloudState(cs);
+      state._souko='ok';
+      if(!r) soukoRedraw();                 /* 写しのままでも ★読み込み中を 解く★ */
+      return r;
+    }).catch(function(){
+      state._souko='ng';                    /* ★黙って 空にしない＝失敗と 言う★ */
+      soukoRedraw();
+      return false;
+    });
+  }
+  /* 倉庫の 顔が 変わったら 今 見ている 画面だけ 描き直す（★開いていない 画面は 触らない★） */
+  function soukoRedraw(){
+    var act=$('.screen.active'); if(act) showScreen(act.id);
+  }
+  /* ★人の 一覧を 描いてよいか★（machi / ng の 間は 描かない＝二度 描かない） */
+  function soukoMachi(){ return state._souko==='machi'; }
+  function soukoNG(){ return state._souko==='ng'; }
+  /* ★読み込み中／つながらない を はっきり 出す★（★空の 一覧を 出さない＝0人に 見せない★） */
+  function soukoHTML(){
+    if(soukoNG()){
+      return '<div class="cr-warn" style="margin:0 0 10px">⚠ <b>クラウドに つながりませんでした</b>。'
+        +'この端末に 残っている 写しは 古いことが あるので、<b>まだ 出しません</b>。'
+        +'<div style="margin-top:8px"><button class="btn-ghost" id="b-souko-retry">もう一度 読み込む</button></div></div>';
+    }
+    return '<div class="cal-box" style="margin:0 0 10px"><div style="font-size:12.5px;color:#333333">'
+      +'<b>読み込み中です</b>（あなたの 従業員を クラウドから 読んでいます）。'
+      +'<br>読み終わるまで <b>「今月を確定」は 押せません</b>（途中の 数字で 確定しない ため）。</div></div>';
+  }
   window.PayslipReloadCloud=reloadCloud; window.PayslipPersistSave=persistSave;
 
   // 中央(Supabase statutory)の法定データをlibに注入=全国ユーザーへ一括反映。取れなければlibのハードコードのまま(フォールバック=オフラインでも動く)。
