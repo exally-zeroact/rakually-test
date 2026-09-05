@@ -569,14 +569,17 @@ await TA('3. ★別の1通に切り替えたら、前の紙の下見は消える
   doc.querySelector('#fil-seg [data-fil="all"]');
 });
 
-await TA('3. ★印刷は「紙だけの新しい窓」に書かれる', async () => {
+/* ★2026-09-06 決めが 変わった（司さん）★
+   「★印刷押すだけ これはいらんやろが★」＝印刷で 名前を 聞くのを やめた。
+   ★聞いた名前の 使い道は 窓の 題名だけ★（ファイルは 落ちない）ので、
+   ★勧める名前を そのまま 使い、人には 聞かない★。
+   ⇒ここは「名前を 見せる」ではなく ★「聞かずに 正しい題名で 出る」★を 見る。
+   （PDFで保存／Excel は 今までどおり 聞く＝下の 試験が 見ている） */
+await TA('3. ★印刷は 名前を聞かずに「紙だけの新しい窓」に書かれる', async () => {
   const n0 = opened.length;
   $('b-print').click();
   await sleep(10);
-  ok($('fn-ov').classList.contains('open'), '★落とす前にファイル名を見せていない★');
-  const suggested = $('fn-input').value;
-  ok(/^20260930_藤原建設株式会社_請求書_346$/.test(suggested), '推奨名が中身から作られていない: ' + suggested);
-  $('fn-ok').click();
+  ok(!$('fn-ov').classList.contains('open'), '★印刷なのに 名前を 聞いている★');
   await sleep(1200);
   ok(opened.length === n0 + 1, '新しい窓が開かない');
   const w = opened[opened.length - 1];
