@@ -51,6 +51,10 @@
         rule: 'rows',         // 罫線 = 横線だけ（うちの紙は縦罫を引かない）
         titleSpacing: '.32em',
         grandGo: 'ご',        // 「ご請求金額（税込）」＝ classic系の言い方（invoice-pdf.js:957）
+        /* ★備考の枠を 既定で 出す★（司さん 2026-09-05「他2つは おれの様式のように デフォで 備考欄つけとけよ」）
+           ＝司さんの 実物には 空でも 備考の枠が 刷ってある。★koujo(控除の紙)には 足さない★
+             （実物11通とも 備考の枠が 無い＝勝手に 増やさない）。 */
+        memoBox: true,
       },
     },
     elegant: {
@@ -74,6 +78,10 @@
         rule: 'rows',         // 罫線 = 横線だけ
         titleSpacing: '.5em',
         grandGo: '御',        // 「御請求金額（税込）」＝ elegant系の言い方（invoice-pdf.js:479）
+        /* ★備考の枠を 既定で 出す★（司さん 2026-09-05「他2つは おれの様式のように デフォで 備考欄つけとけよ」）
+           ＝司さんの 実物には 空でも 備考の枠が 刷ってある。★koujo(控除の紙)には 足さない★
+             （実物11通とも 備考の枠が 無い＝勝手に 増やさない）。 */
+        memoBox: true,
       },
     },
     /* ★3つ目＝工事代金＋控除（差引で出す）★（指示役の裁定 2026-08-27）
@@ -137,6 +145,14 @@
     return t ? clone(t) : null;
   }
   function getOrDefault(id) { return get(id) || get(DEFAULT_ID); }
+  /** ★この様式は 控除を 出す紙か★（司さん 2026-09-05「今 控除ないやつ 選んどんのに 控除があるし」）
+   *  ＝控除明細の 見出しを 持っている様式＝控除を 出す前提の 紙。
+   *  ★紙そのものは どの様式でも 控除を 出せる★（seikyu-paper.js:336 は 控除の行が 在るかで 決める）。
+   *  ここが 答えるのは ★設定の画面に 控除の欄を 出すか★だけ。 */
+  function usesDeduction(id) {
+    var t = get(id) || get(DEFAULT_ID);
+    return !!(t && t.theme && t.theme.dedHead);
+  }
   function list() {
     return Object.keys(TEMPLATES).map(function (k) {
       var t = TEMPLATES[k];
@@ -171,6 +187,6 @@
   return {
     TEMPLATES: TEMPLATES, DEFAULT_ID: DEFAULT_ID,
     get: get, getOrDefault: getOrDefault, list: list,
-    colsOf: colsOf, totalsOf: totalsOf,
+    colsOf: colsOf, totalsOf: totalsOf, usesDeduction: usesDeduction,
   };
 });

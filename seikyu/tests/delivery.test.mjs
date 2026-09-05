@@ -108,6 +108,24 @@ T('★⑧ 棚を増やしていない（doc_type に納品書を足していな�
   console.log('     倉庫の doc_type … ' + m[1].trim() + '（触っていない）');
 });
 
+/* ★⑩ 名前も 納品書に する★（2026-09-05 実物を 押して 見つけた）
+   ＝納品書の ボタンから 落ちる PDFの 名前が ★「…_請求書_33000.pdf」★だった。
+     紙は 納品書なのに ★名前だけ 請求書★＝お客さんは 中身と 違う名前で 保存する。
+   ★中身が 合っていても 名前が 違えば 別の紙★（[[feedback_output_filename_suggest_all_apps]]）。 */
+T('★⑩ 納品書の ファイル名は「納品書」（紙と 名前が 食い違わない）', () => {
+  const NAME = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
+  ok(NAME.KIND_LABEL.delivery === '納品書', '納品書の 呼び名が 無い（' + NAME.KIND_LABEL.delivery + '）');
+  const n = NAME.suggest({ docType: 'delivery', issueYmd: '2026-09-05',
+    partnerName: '株式会社テスト', grandTotal: 33000, ext: 'pdf' });
+  ok(/納品書/.test(n), '★納品書の 名前に なっていない★: ' + n);
+  ok(!/請求書/.test(n), '★名前が 請求書のまま★: ' + n);
+  /* ★画面の 配線も 見る★＝lib だけ 直して 呼ぶ側が 古いと 直っていない */
+  const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');
+  ok(/b-delivery[\s\S]{0,220}askName\('pdf',[\s\S]{0,80}'delivery'\)/.test(app),
+    '★納品書のボタンが 種類を 渡していない（名前は 請求書のまま）★');
+  console.log('     名前 … ' + n);
+});
+
 T('★⑨ 見積・領収の顔は 変わっていない（納品書を足して 壊していない）', () => {
   ok(/見　積　書/.test(paper('quote')), '見積の見出し');
   ok(/請　求　書/.test(INV), '請求の見出し');

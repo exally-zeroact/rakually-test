@@ -377,10 +377,18 @@
   width: 100%; aspect-ratio: 210 / 297; border: 1px solid #D4EAE0; border-radius: 8px;
   overflow: hidden; background: #fff; position: relative;
 }
-.tpl-shot iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: hidden; }
+/* ★見本の中身は 指を 吸わない★（2026-09-05 本物のマウスで 実測して 見つけた）
+   ＝iframe は 中の 紙が 押されたと 受け取って ★親の ボタンまで 届かない★。
+     札の 真ん中（＝ふつう ここを 押す）が 丸ごと 死んでいて、
+     ★様式を 押しても 何も 変わらない★状態だった（投げイベントでは 出ない穴）。
+   大きい下見(.set-pv-f)には 前から pointer-events:none が 付いていた＝こちらだけ 抜けていた。 */
+.tpl-shot iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: hidden; pointer-events: none; }
 .tpl-nm { font-size: 13px; font-weight: 700; color: #333333; }
 .tpl-note { font-size: 12px; color: #555555; line-height: 1.7; }
 .tpl-strip { display: flex; align-items: center; gap: 10px; }
+/* ★ボタンの字を 途中で 折らない★（2026-09-05 絵を 開いて 見つけた＝「設定で変え／る」）
+   ＝押す物の 字が 割れると ★別のボタンに 見える★。名前の方を 折り返させる。 */
+.tpl-strip .mini { white-space: nowrap; flex: 0 0 auto; }
 .tpl-strip-k { font-size: 11px; color: #6E6E6E; letter-spacing: .06em; }
 .tpl-strip-v { font-size: 13px; font-weight: 700; color: #333333; flex: 1 1 auto; }
 
@@ -467,6 +475,21 @@
 /* ── ★設定の先頭の 紙の下見★（司さん 2026-08-31「見せてあげて 変えて見せな分からん」）
    触った物が すぐ 紙に出る＝説明の字を 読ませない。 */
 .set-pv-card { position: sticky; top: 0; z-index: 5; }
+/* ★畳める帯★（司さん 2026-09-05「設定もこの画面が邪魔でスクロールしてもまったく見れんし」）
+   ＝下見は 539px・スマホの 見える所は 約544px。貼り付いたままだと ★下の設定に 届かない★。
+   ★スマホは 畳んだ状態で 始める★（js/seikyu-app.js が 幅で 決める）。 */
+.set-pv-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; min-height: 44px; padding: 0; margin: 0;
+  background: none; border: 0; cursor: pointer; text-align: left; font: inherit;
+}
+.set-pv-h .card-h { margin: 0; }
+.set-pv-cue { font-size: 12px; font-weight: 700; color: #2E7D54; white-space: nowrap; }
+.set-pv-card.tojiru #set-pv-body { display: none; }
+/* ★飛んだ先の 見出しが 帯の 下に 隠れない★（2026-09-05 実測で 5枚が 頭0pxだった）
+   ＝貼り付く帯（74px）の ぶんだけ 手前で 止める。 */
+#scr-set .card { scroll-margin-top: 84px; }
+#scr-set .set-pv-card { scroll-margin-top: 0; }
 .set-pv {
   width: 100%; aspect-ratio: 210 / 297; max-width: 300px; margin: 4px auto 0;
   border: 1px solid #D4EAE0; background: #FFFFFF; overflow: hidden;

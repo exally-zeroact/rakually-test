@@ -29,7 +29,11 @@
 
   /* ★領収書は doc_type ではない★（棚を増やさない）が、落とす紙としては3種類目。
      呼び名は seikyu-doc.js の DOC_LABEL と同じ物にする（画面・紙・ファイル名で別々に書かない）。 */
-  var KIND_LABEL = { invoice: '請求書', quote: '見積書', receipt: '領収書' };
+  /* ★納品書も 紙の 種類★（2026-09-05 実測で 見つけた）
+     ＝納品書の ボタンから 落ちる PDFの 名前が ★「請求書」★に なっていた
+       （お客さんは 納品書のつもりで 保存するのに ★中身と 名前が 食い違う★）。
+     紙そのものは seikyu-paper.js が 納品書として 描いている＝★名前だけが 取り残されていた★。 */
+  var KIND_LABEL = { invoice: '請求書', quote: '見積書', receipt: '領収書', delivery: '納品書' };
 
   var NO_PARTNER = '取引先未選択';
   var NO_DATE = '日付未定';

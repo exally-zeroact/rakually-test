@@ -159,7 +159,30 @@
   /** ★この相手の様式★（無ければ 会社の既定）＝様式を決める所は ここ1つ */
   function templateForPartner(pid) {
     var pt = SCOPE && SCOPE.partnerPaper(partnerById(pid)).template;
-    return (pt && TPL.get(pt)) ? pt : settings().template;
+    if (pt && TPL.get(pt)) return pt;
+    /* ★前に この相手へ 出した紙が 在れば それを そのまま 使う★
+       ＝2026-09-05 まで これは 入力の画面で「当てました。◯◯には 前回…」と
+         ★人に 聞いていた★。紙の様式を 決めるのは 設定に 寄せたので、
+         ★聞くのを やめて 黙って 効かせる★（司さんの「聞いてあげる。埋めさせない」）。
+       ★捨てていない★＝当てる中身（前回の1通から引く）は そのまま 生きている。 */
+    var g = tplFromRireki(pid);
+    if (g && TPL.get(g.id)) return g.id;
+    return settings().template;
+  }
+  /** ★この相手へ 前に 出した紙★（新しい順の 1通目）。無ければ null。 */
+  function tplFromRireki(pid) {
+    if (!pid) return null;
+    var ima = S.cur ? S.cur.id : null;
+    var mine = (S.invoices || []).filter(function (x) {
+      return x.partner_id === pid && x.id !== ima && x.template_id && TPL.get(x.template_id);
+    }).sort(function (a, b) { return String(b.issue_ymd || '').localeCompare(String(a.issue_ymd || '')); });
+    if (!mine.length) return null;
+    /* ★名前は 今 選んでいる相手から 取る★（古い1通から 引くと、その相手が 消えている時に
+       ★「（消えた取引先）には 前回…」という字が 客に 出る★＝2026-08-26 実配信で 踏んだ） */
+    var pNow = partnerById(pid);
+    var nm = (pNow && pNow.data && pNow.data.name) || '';
+    return { id: mine[0].template_id, ymd: mine[0].issue_ymd || '', na: nm || 'この相手',
+      label: TPL.getOrDefault(mine[0].template_id).label };
   }
 
   var ROUND_LABEL = { floor: '切り捨て', ceil: '切り上げ', round: '四捨五入' };
@@ -667,6 +690,10 @@
     // ★「◯年◯月分」＝請求日の前月（実物32枚と同じ）。空なら自動で入る
     if ($('e-lead')) $('e-lead').value = (v.data && v.data.lead) || '';
     drawLeadHint();
+    /* ★設定で 決めた 紙を その場で 効かせる★（入力では 聞かなくなった＝2026-09-05）
+       ここを 呼ばないと ★設定を 変えたのに 下書きは 前の紙のまま★になる。
+       ★renderTplAsk より 先★＝1行に 出す名前と 実際に 出る紙を 食い違わせない。 */
+    tplSync();
     renderTplAsk();
     renderGuess();
     renderPtAsk();
@@ -773,15 +800,54 @@
     return (i < 0) ? (html + js) : (html.slice(0, i) + js + html.slice(i));
   }
 
+  /** ★控除を出す様式の 見本には 控除の行を 入れる★
+   *  （司さん 2026-09-05「項目と控除だけやのに テンプレが2段になって 控除の欄がない」）
+   *  ＝見本の 中身に 控除が 1件も 無いと ★控除明細の 所が 描かれない★ので、
+   *    「控除つきの 紙」を 選ぼうとしている人に ★その違いが 1つも 見えない★。
+   *  ★足すのは 見本の 絵だけ★＝本物の 請求書には 1円も 足していない。 */
+  /** ★中身が 入っているか★（明細が 1行でも 在るか）
+   *  ★paperInput() は 明細0行の 下書きでも 中身を 返す★ので、
+   *  「作りかけが 在るか」を if (pi) で 見ると ★空の紙★を 見本として 見せてしまう。
+   *  2026-09-05 実測＝3枚とも「明細がまだ1行もありません」の 空の紙で、
+   *  さらに 控除の見本を 足した koujo は ★ご請求金額 ¥-7,310★ と 出た（0円−控除）。 */
+  function naiyouAru(pi) {
+    return !!(pi && pi.inv && Array.isArray(pi.inv.lines) && pi.inv.lines.length);
+  }
+
+  var DED_MIHON = [{ name: '（見本）弁当代', amount: 7310 }];
+  var DED_MIHON_KEI = 7310;
+  function dedMihon(inv, id) {
+    if (!TPL.usesDeduction(id)) return inv;
+    var d = (inv.data && inv.data.deductions) || [];
+    if (d.length) return inv;
+    return Object.assign({}, inv, { data: Object.assign({}, inv.data || {}, { deductions: DED_MIHON }) });
+  }
+  /** ★控除の 行そのものも 渡す★
+   *  紙は 行を ★o.deductLines★ から 描く（seikyu-paper.js:333）。
+   *  inv.data.deductions は「箱を 出すか」の 判定にしか 使われないので、
+   *  ここを 渡し忘れると ★箱は 出るのに 中身が 空で 控除計 ¥0★ になる（2026-09-05 実測）。 */
+  function dedMihonOpts(id, inv) {
+    if (!TPL.usesDeduction(id)) return {};
+    var d = (inv && inv.data && inv.data.deductions) || [];
+    if (d.length) return {};
+    return { deductLines: DED_MIHON, deduct: DED_MIHON_KEI };
+  }
+
   function tplSampleHtml(id) {
     /* ★本物の紙を作る★。まだ中身が整っていない時だけ 見本の中身で描く（見本と分かる字を入れる）。 */
     /* ★紙は inv.template_id を見る★（o.templateId ではない）。
        ここを間違えると ★見本2枚が 同じ絵★になる（2026-08-24 に実際に踏んだ＝★見本が嘘★）。
        列も その様式の物へ差し替える（様式ごとに列が違う）。 */
     var pi = paperInput();
-    if (pi) return fitInFrame(PAPER.build(Object.assign({}, pi, {
-      inv: Object.assign({}, pi.inv, { template_id: id }),
+    if (naiyouAru(pi)) return fitInFrame(PAPER.build(Object.assign({}, pi, dedMihonOpts(id, pi.inv), {
+      inv: dedMihon(Object.assign({}, pi.inv, { template_id: id }), id),
       templateId: id,
+      /* ★様式そのもの（罫線・呼び名・振込先1行）も 差し替える★
+         ＝前は cols だけ 差し替えていたので ★見た目が 元の様式のまま★だった */
+      template: TPL.getOrDefault(id),
+      /* ★紙は o.theme を 見る（o.template は 見ていない）★＝seikyu-paper.js:501。
+         ここを 渡さないと ★下書きの 様式の 見た目のまま★の 絵が 3枚 並ぶ。 */
+      theme: TPL.getOrDefault(id).theme,
       cols: COLS.normalizeSpec(TPL.getOrDefault(id).cols),
     })).html);
     /* ★作り物の見本を置かない★（司さん 2026-08-18 代行請求で同じ事を言われている:
@@ -792,69 +858,82 @@
        （2026-08-31 実際に そうなった）。 */
     var ln = [{ name: '（見本）品名', qty: '1', unit: '式', price: '30000', rate: 10 }];
     var t = TAX.compute({ lines: ln, taxMode: 'exclusive', rounding: 'floor' });
-    return fitInFrame(PAPER.build({
-      inv: { no: '（見本）', issue_ymd: todayYmd(), kind: 'invoice', lines: ln,
-        totals: { grandTotal: t.grandTotal }, data: {}, template_id: id },
+    return fitInFrame(PAPER.build(Object.assign({}, dedMihonOpts(id, null), {
+      inv: dedMihon({ no: '（見本）', issue_ymd: todayYmd(), kind: 'invoice', lines: ln,
+        totals: { grandTotal: t.grandTotal }, data: {}, template_id: id }, id),
       tax: t, partner: { name: '（取引先）', honor: '御中' },
       org: Object.assign({}, S.org || {}, { bank: settings().bank }),
       template: TPL.getOrDefault(id), templateId: id,
       cols: COLS.normalizeSpec(TPL.getOrDefault(id).cols),
-    }).html);
+    })).html);
   }
 
+  /** ★紙の様式は 設定で 決める★（司さん 2026-09-05
+   *  「設定で 会社情報やるんやったら 設定やないか？ 取引先マスタは 設定にあるんやろが？」）
+   *  ＝会社の情報（自社の情報）も 取引先も ★設定に 在る★。紙の様式だけ 入力にも 在って
+   *    ★同じ物が 2か所★だった（index.html の 入力180行目 と 設定390行目）。
+   *  ⇒ ★決めるのは 設定 1か所★／入力では ★今 どの紙で 出るかを 見せるだけ★。
+   *    変えたい時は ここから 設定の「紙の様式」へ 飛ぶ（続きから 戻れる）。
+   *  ★発行済みは 写しのまま★＝出した紙は 設定を あとで 変えても 動かない。 */
   function renderTplAsk() {
-    var card = $('tpl-card'), strip = $('tpl-strip'), list = $('tpl-list');
-    if (!card || !strip || !list) return;
+    var card = $('tpl-card'), strip = $('tpl-strip'), why = $('tpl-strip-why');
+    if (!card || !strip) return;
+    show(card, false);                    /* ★入力では 様式を 聞かない★ */
     var v = S.cur;
-    if (!v || locked()) { show(card, false); show(strip, false); return; }
-    var cur = v.template_id || settings().template || TPL.DEFAULT_ID;
-    var asked = !!(v.data && v.data.tplAsked);
-    show(card, !asked); show(strip, asked);
-    if (asked) {
-      var t = TPL.getOrDefault(cur);
-      setText('tpl-strip-v', t.label);
-      return;
-    }
-    var g = tplGuess();
-    show($('tpl-guess'), !!g);
-    if (g) setText('tpl-guess', '当てました。' + g.why + '。ちがう紙にもできます。');
-    list.innerHTML = '';
-    TPL.list().forEach(function (t) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'tpl-pick' + ((g ? g.id : cur) === t.id ? ' on' : '');
-      b.setAttribute('data-tpl', t.id);
-      /* ★選ばれている物には ✓ を出す★（代行請求の見せ方に合わせた・2026-08-26 司さん）
-         枠の色だけだと ★どれが選ばれているか 一目で分からない★ */
-      var bg = document.createElement('div'); bg.className = 'tpl-badge'; bg.textContent = '✓';
-      b.appendChild(bg);
-      var shot = document.createElement('div'); shot.className = 'tpl-shot';
-      var f = document.createElement('iframe');
-      f.setAttribute('title', t.label + ' の見本');
-      f.setAttribute('tabindex', '-1');
-      f.style.width = '100%'; f.style.height = '100%';    /* 枠いっぱい。★縮尺は 見本の中で決まる★ */
-      f.srcdoc = tplSampleHtml(t.id);
-      shot.appendChild(f);
-      var nm = document.createElement('div'); nm.className = 'tpl-nm'; nm.textContent = t.label;
-      var no = document.createElement('div'); no.className = 'tpl-note'; no.textContent = t.note || '';
-      b.appendChild(shot); b.appendChild(nm); b.appendChild(no);
-      b.onclick = function () { chooseTpl(t.id); };
-      list.appendChild(b);
-    });
+    if (!v) { show(strip, false); show(why, false); return; }
+    var ro = locked();
+    var cur = ro ? (v.template_id || settings().template) : tplNow(v);
+    var t = TPL.getOrDefault(cur);
+    setText('tpl-strip-v', t.label);
+    show(strip, true);
+    /* ★どこで そう決まったのかを 言う★（同じ状態を 2か所で 別々に 判定しない） */
+    var pt = SCOPE && SCOPE.partnerPaper(partnerById(v.partner_id)).template;
+    var g = ro ? null : tplFromRireki(v.partner_id);
+    var kara = ro ? '発行済み＝出した時の 紙のまま（設定を変えても 動きません）'
+      : (pt && TPL.get(pt)) ? 'この取引先は 設定で この紙に してあります'
+        : (g && g.id === cur) ? (g.na + ' には 前回 この紙で 出しています（' + (g.ymd || '日付なし') + '）')
+          : '会社の 既定（設定の「紙の様式」）です';
+    setText('tpl-strip-why', kara + '。項目（列）も 設定で 足す・消す・並べ替えが できます。');
+    show(why, true);
+    var ch = $('b-tpl-change'); if (ch) show(ch, !ro);
   }
 
-  function chooseTpl(id) {
-    var v = S.cur; if (!v) return;
+  /** ★その1通に 効く 様式★＝取引先の決め → 会社の既定（設定が 唯一の正） */
+  function tplNow(v) { return templateForPartner((v || {}).partner_id); }
+
+  /** ★下書きの 中身を 設定に そろえる★
+   *  ＝入力で 聞かなくなったので、設定を 変えたら その場で 下書きにも 効かせる。
+   *  ★発行済みには 触らない★（写しは 動かさない）。 */
+  function tplSync() {
+    var v = S.cur;
+    if (!v || locked()) return;
+    var beki = tplNow(v);
+    if ((v.template_id || null) === beki) return;
+    chooseTplCore(beki);
+  }
+
+  function chooseTpl(id) { if (chooseTplCore(id)) { renderTplAsk(); renderLines(); renderDeductions(); recalc(); } }
+  /** ★中身だけ 変える★（画面の 描き直しは 呼んだ側が やる＝行ったり来たりを 作らない） */
+  function chooseTplCore(id) {
+    var v = S.cur; if (!v) return false;
+    var maeId = v.template_id || settings().template;
     v.template_id = id;
     v.data = v.data || {}; v.data.tplAsked = true;
-    if (!v.data.cols) v.data.cols = COLS.normalizeSpec(TPL.getOrDefault(id).cols);
-    renderTplAsk();
-    renderLines();
-    recalc();
+    /* ★様式を 選び直したら 列も その様式の 物にする★（司さん 2026-09-05
+         「選んだテンプレによって スクロールした下の カスタムするところは 変わらないかん」）
+       ★前の作り★ if (!v.data.cols) …＝1度でも 列が 入ると 二度と 追従しなかった
+         （設定の画面で 同じ穴を 実測した＝std1/elegant/koujo の3つとも 同じ7列だった）。
+       ★自分で 直していた列は 消さない★＝前の様式の 既定と 同じ時だけ 差し替える。 */
+    var mae = v.data.cols ? COLS.normalizeSpec(v.data.cols) : null;
+    var maeKitei = COLS.normalizeSpec(TPL.getOrDefault(maeId).cols);
+    var jibunDe = !!(mae && JSON.stringify([mae.items, mae.widths, mae.aligns])
+      !== JSON.stringify([maeKitei.items, maeKitei.widths, maeKitei.aligns]));
+    if (!mae || !jibunDe) v.data.cols = COLS.normalizeSpec(TPL.getOrDefault(id).cols);
     /* ★1問ごと保存★（下書きだけ。発行済みは触らない） */
     /* 日付と番号がそろっている下書きだけ その場で保存する
        （そろう前に保存を呼ぶと「請求日を入れてください」の赤が出る＝まだ聞いていない事で怒らない） */
     if (DOC.canEdit(v) && v.issue_ymd && v.no) { try { saveDraft(); } catch (e) { /* 知らせは画面に出る */ } }
+    return true;
   }
 
   function renderGuess() {
@@ -1014,7 +1093,13 @@
     var v = S.cur;
     var ro = locked();
     var list = deductions();
-    show($('ded-card'), !!v && (list.length > 0 || !ro));
+    /* ★控除の 箱は 控除を 出す様式の 時だけ 出す★（司さん 2026-09-05
+         「今 控除ないやつ 選んどんのに 控除があるし」）
+       ・すでに 1行でも 入っていれば ★どの様式でも 出す★（入れた物を 隠して 迷子にしない）
+       ・様式が 控除の紙（項目と金額だけ＋控除）なら 出す
+       ★紙の 決まりは 1行も 触っていない★＝控除の行が 在れば 紙には 刷られる。 */
+    var dedTpl = !!v && TPL.usesDeduction(v.template_id || settings().template);
+    show($('ded-card'), !!v && (list.length > 0 || (!ro && dedTpl)));
     show($('b-ded-add'), !ro);
     /* ★記入ガイドは薄く・先に読ませない★
        行が0本の時は1行だけ。詳しい話は ★足した後★（その時に要る言葉だけ出す）。 */
@@ -2074,19 +2159,20 @@
     };
   }
 
-  function suggestName(ext) {
+  /** @param kind ★紙の 種類を 上書きする★（納品書は 同じ1通から 別の 紙を 出す） */
+  function suggestName(ext, kind) {
     var pi = paperInput();
     if (!pi) return null;
     return NAME.suggest({
-      docType: pi.inv.doc_type, issueYmd: pi.inv.issue_ymd,
+      docType: kind || pi.inv.doc_type, issueYmd: pi.inv.issue_ymd,
       partnerName: pi.partner.name, grandTotal: pi.tax.grandTotal, ext: ext,
     });
   }
 
   /* ★落とす前に名前を出して直させる★ */
   var fnPending = null;
-  function askName(ext, run) {
-    var n = suggestName(ext);
+  function askName(ext, run, kind) {
+    var n = suggestName(ext, kind);
     if (!n) { box('edit-err', '中身がまだ整っていないので、この形では出せません。上の赤い印を直してください。'); return; }
     askNameWith(n, ext, run);
   }
@@ -2402,9 +2488,18 @@
       && $('scr-set') && $('scr-set').classList.contains('active')) {
       return pOwn.cols;
     }
+    /* ★設定の 画面では 会社の 列を 触る★（司さん 2026-09-05
+         「選んだテンプレによって スクロールした下の カスタムするところは 変わらないかん」）
+       ★前の作り★＝設定でも 作りかけの1通(S.cur)の 列を 返していた。
+         だから 設定で 様式を 変えても ★下の カスタムは 1文字も 変わらなかった★
+         （2026-09-05 実測＝std1/elegant/koujo の3つとも 同じ7列だった。
+           koujo は「項目・金額」の2列のはず）。
+       ⇒ 設定＝会社の 既定（これから作る物に効く）／入力＝その1通、と ★触る相手を 分ける★。
+         （上の 取引先の分岐が 先に 効くのは そのまま＝相手ごとの 列が いちばん 強い） */
+    var setNow = $('scr-set') && $('scr-set').classList.contains('active');
     // 編集できるのは下書きだけ。発行済みは写しの並びを見せるだけ。
     var v = S.cur;
-    if (v && !locked()) {
+    if (!setNow && v && !locked()) {
       if (!v.data.cols) v.data.cols = COLS.normalizeSpec(colsOf(v));
       return v.data.cols;
     }
@@ -2616,7 +2711,7 @@
   function sealPaperHtml(org, extra) {
     var ex = extra || {};
     var pi = paperInput();
-    if (pi) return fitInFrame(PAPER.build(Object.assign({}, pi, { org: org }, ex)).html);
+    if (naiyouAru(pi)) return fitInFrame(PAPER.build(Object.assign({}, pi, { org: org }, ex)).html);
     var ln = [{ name: '（見本）', qty: '1', unit: '式', price: '30000', rate: 10 }];
     var t = TAX.compute({ lines: ln, taxMode: 'exclusive', rounding: 'floor' });
     return fitInFrame(PAPER.build(Object.assign({
@@ -2948,6 +3043,41 @@
    *  ・今の設定（様式・行数・列・印）で ★本物の紙★を組んで そのまま小さくする
    *  ・作りかけの1通が在れば その中身で、無ければ 見本の中身で 描く
    *  ・★触るたびに 呼ぶ★（設定を開いた時／様式を選んだ時／列を触った時／印を触った時） */
+  /** ★設定の 紙の下見を 畳める帯にする★
+   *  （司さん 2026-09-05「設定も この画面が邪魔で スクロールしても まったく見れんし」）
+   *  ・下見の箱＝539px／スマホで 見える所＝約544px ⇒ sticky で 貼り付いたまま 下が 出てこなかった
+   *  ・★スマホ（600px以下）は 畳んだ状態で 始める★／広い画面は 今までどおり 開いたまま
+   *  ・押した結果は 覚える＝毎回 畳み直させない
+   *  ★開いた時に 下見を 描き直す★＝畳んでいる間に 変えた設定が 反映されていない紙を 見せない */
+  var SET_PV_KEY = 'seikyu.setPv';
+  function setPvHiraku(open) {
+    var c = $('set-pv-card'); if (!c) return;
+    c.classList.toggle('tojiru', !open);
+    var t = $('set-pv-toggle'); if (t) t.setAttribute('aria-expanded', open ? 'true' : 'false');
+    var cue = $('set-pv-cue'); if (cue) cue.textContent = open ? '閉じる ▲' : '紙を見る ▼';
+    try { global.localStorage.setItem(SET_PV_KEY, open ? '1' : '0'); } catch (e) { /* 覚えられなくても 動く */ }
+    /* ★開いた時は 必ず 描き直す★
+       畳んでいる間（display:none）に 描くと、見本の 中の JS が 測る 幅と 高さが 0 で
+       ★scale(0) ＝真っ白の 紙★ になる（2026-09-05 絵を 開いて 見つけた）。
+       drawSetPaper は「同じ物は 描き直さない」ので、★覚え書き(data-h)を 消してから 呼ぶ★。 */
+    if (open) {
+      var fr = $('set-paper'); if (fr) fr.removeAttribute('data-h');
+      drawSetPaper();
+    }
+  }
+  function bindSetPv() {
+    var t = $('set-pv-toggle'); if (!t) return;
+    var mae = null;
+    try { mae = global.localStorage.getItem(SET_PV_KEY); } catch (e) { mae = null; }
+    /* ★狭い画面の 既定は 畳む★（前に 自分で 押していれば その通りにする） */
+    var semai = (global.innerWidth || 0) <= 600;
+    setPvHiraku(mae === null ? !semai : mae === '1');
+    t.onclick = function () {
+      var c = $('set-pv-card');
+      setPvHiraku(!!(c && c.classList.contains('tojiru')));
+    };
+  }
+
   function drawSetPaper() {
     var fr = $('set-paper'); if (!fr) return;
     /* ★打ちかけの行数も そのまま出す★＝保存しないと 見えない、を 作らない */
@@ -2957,6 +3087,13 @@
     if (rw !== null && rw !== undefined) ex.paperRows = rw;
     if (dw !== null && dw !== undefined) ex.deductRows = dw;
     ex.cols = COLS.normalizeSpec(editCols());
+    /* ★下見は 設定で 選んだ 様式で 描く★（司さん 2026-09-05
+         「項目と控除だけやのに テンプレが2段になって 控除の欄がない」）
+       ★前の作り★＝作りかけの1通(paperInput)が 在ると その1通の 様式で 描いていたので、
+         設定で koujo を 選んでも ★下見は std1 のまま★だった（3枚とも 同じ絵）。 */
+    ex.template = TPL.getOrDefault(settings().template);
+    ex.templateId = ex.template.id;
+    ex.theme = ex.template.theme;      /* ★紙は o.theme を 見る★（上と 同じ理由） */
     var html = sealPaperHtml(Object.assign({}, S.org || {}, { bank: settings().bank },
       sealPending ? { sealDataUrl: sealPending } : {}), ex);
     if (fr.getAttribute('data-h') === String(html.length)) return;   // 同じ物は 描き直さない
@@ -3053,20 +3190,68 @@
     // 様式と列（★会社の既定★。作りかけの1通ではなく、これから作る物に効く）
     drawSetTpl(s.template);
     renderColEditor();
+    dedRowsShow();
     fillSeal();
     renderPaperAsk();   /* ★紙の作り（列・行数）の聞く形も 一緒に描き直す★ */
   }
 
+  /* ★様式を 選び直したら 下の 列も 紙も 変わる★
+     （司さん 2026-09-05「選んだテンプレによって スクロールした下の カスタムするところは 変わらないかん」
+       「今 控除ないやつ 選んどんのに 控除があるし」）
+     ★前の作り★ if (!settings().cols) …で「まだ自分で決めていない会社だけ」合わせていた。
+     ところが editCols() が ★初回の 描画で S.org.invoiceCols を 必ず作る★ ので、
+     2回目から この if は ★二度と 通らない★＝★様式を 何度 選び直しても 列は std1 のまま★。
+     2026-09-05 実測（std1／elegant／koujo を 押して 下を 写した）＝★3つとも 1文字も 同じ★だった。
+     ⇒ ★選んだら 必ず その様式の 列にする★。自分で 直していた会社の分は 消さずに 取っておいて
+       ★「元に戻す」で そのまま 返せる★ようにする（黙って 捨てない）。 */
+  /** ★控除の枠（行）の 欄を 出すか★（司さん 2026-09-05「今 控除ないやつ 選んどんのに 控除があるし」）
+   *  ・控除を 出す様式（＝控除明細の 見出しを 持つ様式）を 選んでいる時＝出す
+   *  ・すでに 会社が 数を 入れている時も 出す（★入れた物を 隠して 迷子にしない★）
+   *  ★紙の 決まりは 触っていない★＝控除の行が 在れば どの様式でも 控除は 刷られる。 */
+  function dedRowsShow() {
+    var row = $('s-dedrows-row'); if (!row) return;
+    var inp = $('s-dedrows');
+    var utsu = TPL.usesDeduction(settings().template) || !!(inp && String(inp.value).trim());
+    row.style.display = utsu ? '' : 'none';
+  }
+
+  var colsUndo = null;      /* { tpl: 直前の様式, cols: 直前の列 } */
   function drawSetTpl(id) {
     renderTplSeg('s-tpl', 's-tpl-note', id, function (pick) {
       if (!S.org) S.org = {};
+      var mae = settings();
+      if (pick === mae.template) return;                 /* 同じ物を 押した＝何も しない */
+      var maeCols = mae.cols ? COLS.normalizeSpec(mae.cols) : null;
+      var chigau = !!(maeCols && !onajiCols(maeCols, TPL.getOrDefault(mae.template).cols));
       S.org.invoiceTemplate = pick;
-      // 列をまだ自分で決めていない会社は、選んだ様式の既定に合わせる
-      if (!settings().cols) S.org.invoiceCols = COLS.normalizeSpec(TPL.getOrDefault(pick).cols);
+      S.org.invoiceCols = COLS.normalizeSpec(TPL.getOrDefault(pick).cols);
+      colsUndo = chigau ? { tpl: mae.template, cols: maeCols } : null;
       drawSetTpl(pick);
-      box('col-ok', '');
       renderColEditor();
+      dedRowsShow();
+      box('col-ok', chigau
+        ? '「' + TPL.getOrDefault(pick).label + '」の 列に 変えました。'
+          + '前に 自分で 決めていた 列は 下の「前の列に戻す」で そのまま 返せます。'
+        : '「' + TPL.getOrDefault(pick).label + '」の 列に 変えました。');
+      var u = $('b-col-undo'); if (u) u.style.display = colsUndo ? '' : 'none';
     }, false);
+  }
+  /** 列が 同じ物か（並び・幅・揃え） */
+  function onajiCols(a, b2) {
+    var x = COLS.normalizeSpec(a), y = COLS.normalizeSpec(b2);
+    return JSON.stringify([x.items, x.widths, x.aligns]) === JSON.stringify([y.items, y.widths, y.aligns]);
+  }
+  /** ★前の列に 戻す★（様式を 変えた時に 消した 会社の 列を そのまま 返す） */
+  function undoCols() {
+    if (!colsUndo) return;
+    if (!S.org) S.org = {};
+    S.org.invoiceTemplate = colsUndo.tpl;
+    S.org.invoiceCols = COLS.normalizeSpec(colsUndo.cols);
+    colsUndo = null;
+    drawSetTpl(S.org.invoiceTemplate);
+    renderColEditor();
+    box('col-ok', '前の 列に 戻しました。');
+    var u = $('b-col-undo'); if (u) u.style.display = 'none';
   }
 
   /* ★既定の数は紙の lib が持ち主★（画面に書き写すと、片方だけ直した時に食い違う） */
@@ -3882,7 +4067,16 @@
         /* ★設定を変えて戻ってきた時、古い案内を残さない★
            （紙の行数を20行にしたのに「紙は2枚になります」と言ったまま＝
              人は「直っていない」と見る。2026-08-15 実UIで実際に出た） */
-        if (t === 'scr-edit' && S.cur) recalc();
+        if (t === 'scr-edit' && S.cur) {
+          /* ★設定で 紙の様式を 変えて 戻ってきた時、その場で 効かせる★（2026-09-05）
+             ＝ここを 呼ばないと ★設定は koujo なのに 入力の 1行は 前のまま★になる（実測）。
+             ★同じ状態を 2か所で 別々に 判定しない★＝正は 設定（tplNow）1つ。 */
+          tplSync();
+          renderTplAsk();
+          renderLines();
+          renderDeductions();
+          recalc();
+        }
         goScreen(t);
       };
     });
@@ -3930,6 +4124,12 @@
       $('e-termn').value = term.n || '';
       show($('e-termn'), term.kind === 'days' || term.kind === 'nextDay');
       $('e-due').value = S.cur.due_ymd || '';
+      /* ★相手を変えたら 紙も 変わりうる★（取引先ごとに 様式を 設定で 決められる＝2026-09-05）
+         ★ここを 呼ばないと 1行に 出る名前と 実際に 出る紙が 食い違う★ */
+      tplSync();
+      renderTplAsk();
+      renderLines();
+      renderDeductions();
       recalc();
       drawGensenHint();
       renderGuess();
@@ -3960,12 +4160,23 @@
        番号も ふだんは読むだけ。「変える」を押した時だけ自分で決める形にする。 */
     /* ★[変える]＝1問目へ戻る（続きから）★（司さん 2026-08-24）
        ★中身は消さない★＝戻っても 相手も明細も そのまま。紙だけ選び直せる。 */
+    /* ★[設定で変える]＝紙の様式を 決める 1か所へ 連れて行く★（司さん 2026-09-05）
+       ★飛ばしっぱなしに しない★＝その場所まで 転がして、どこを 見ればよいか 分かるように する。 */
     var tplCh = $('b-tpl-change');
     if (tplCh) tplCh.onclick = function () {
-      if (!S.cur) return;
-      S.cur.data = S.cur.data || {};
-      S.cur.data.tplAsked = false;
-      renderTplAsk();
+      /* ★タブから 入った時と 同じ道を 通す★
+         ＝goScreen だけだと ★タブは 光るのに 様式の 札が 0枚★（2026-09-05 実測）。
+           札を 描いているのは fillSettings（下のタブの 押し方と 同じ）。 */
+      fillSettings();
+      goScreen('scr-set');
+      global.setTimeout(function () {
+        var c = $('s-tpl-card'); if (!c) return;
+        /* ★無い物を 呼ばない★＝転がす手が 無い所（試験の 仮の画面・古い端末）では
+           ★画面が 例外で 止まる★（2026-09-05 実測 jsdom で TypeError）。
+           転がせなくても ★設定の画面には 着いている★ので 害は 無い。 */
+        if (typeof c.scrollIntoView !== 'function') return;
+        try { c.scrollIntoView({ block: 'start' }); } catch (e) { try { c.scrollIntoView(); } catch (e2) { /* 転がせなくても 着いている */ } }
+      }, 60);
     };
     $('b-no-edit').onclick = function () {
       var open = $('e-no').style.display !== 'none';
@@ -4000,8 +4211,17 @@
       var m = $('more-box'); if (m) m.open = true;
       box('edit-ok', '');
     };
+    bindSetPv();
     $('b-preview').onclick = function () { doPreview(); };
-    $('b-print').onclick = function () { askName('pdf', doPrint); };
+    /* ★印刷は 名前を 聞かない★（司さん 2026-09-05「印刷押すだけ これはいらんやろが」）
+       ＝聞いた名前の 使い道は seikyu-out.js:31 の w.document.title だけ＝★ファイルは 落ちない★。
+       ★それでも 名前は 付ける★＝iPhoneで 印刷から「PDFで保存」した時の 名前が この title になる。
+       ⇒ ★勧める名前を そのまま 使い、人には 聞かない★（PDFで保存の ボタンは 今までどおり 聞く）。 */
+    $('b-print').onclick = function () {
+      var n = suggestName('pdf');
+      if (!n) { box('edit-err', 'この請求書は 中身がまだ整っていないので 印刷できません。'); return; }
+      doPrint(n);
+    };
     $('b-xlsx').onclick = function () { askName('xlsx', doExcel); };
     $('fn-ok').onclick = function () {
       if (!fnPending) return;
@@ -4017,8 +4237,9 @@
     /* ★開く★＝iPhoneのビューアへ渡す（そこの共有ボタンで メールに乗る） */
     if ($('b-pdfopen')) $('b-pdfopen').onclick = function () { askName('pdf', function (n) { doPdf(n, 'open'); }); };
     /* ★納品書★＝同じ1通を 納品書の顔で PDFにして 開く（送るところまで 同じ道） */
+    /* ★納品書は 納品書の 名前で 落とす★（2026-09-05 実測＝「請求書」の名前で 落ちていた） */
     if ($('b-delivery')) $('b-delivery').onclick = function () {
-      askName('pdf', function (n) { doPdf(n, 'open', 'delivery'); });
+      askName('pdf', function (n) { doPdf(n, 'open', 'delivery'); }, 'delivery');
     };
     $('b-issue').onclick = function () { return issue(); };
 
@@ -4094,6 +4315,7 @@
     $('seal-file').onchange = function (e) { pickSeal(e.target.files && e.target.files[0]); };
     $('b-col-add').onclick = function () { addCol(); };
     $('b-col-reset').onclick = function () { resetCols(); };
+    if ($('b-col-undo')) $('b-col-undo').onclick = function () { undoCols(); };
     $('col-new').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addCol(); } };
     $('s-format').onchange = settingsHint;
     $('s-rows').oninput = rowsHint;

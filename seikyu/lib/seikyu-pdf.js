@@ -247,7 +247,7 @@
           for (var i = 0; i < pages.length; i++) read.push(readPage(pages[i]));
           var total = read.reduce(function (n, r) { return n + r.texts.length; }, 0);
           if (!total) throw new Error('紙に 字が 1つも ありません（測れていません）');
-          return draw(a, read);
+          return draw(a, read, o);
         } finally {
           st.close();
         }
@@ -287,8 +287,12 @@
   /* ★実際に 置いた所★（見張りが 数で 確かめる為に 取っておく） */
   var _placed = [];
   function lastPlaced() { return _placed.slice(); }
+  /** ★字体を どれだけ 軽く できたか★（報告と 見張りが 読む） */
+  var _slimInfo = null;
+  function lastSlim() { return _slimInfo; }
 
-  function draw(a, pages) {
+  function draw(a, pages, o) {
+    o = o || {};
     var PDFLib = a.PDFLib, rgb = PDFLib.rgb;
     _placed = [];
     return PDFLib.PDFDocument.create().then(function (doc) {
@@ -322,8 +326,61 @@
         });
       }, Promise.resolve());
 
+      /* ★使う字だけ 形を 残した 字体を 作る★（司さん 2026-09-05
+           「請求書1枚で 重すぎるやろが／ええとこ200kBぐらいのもんやろが／構造がおかしいんやろが」）
+         ★pdf-lib の subset は 使わない★＝字が 落ちる（絵で 再現ずみ）。
+         ここは ★字の 番号を 1つも 動かさず 形だけ 空にする★ので、
+         合成の字も 番号も ずれようが 無い（lib/font-slim.js）。
+         ★作れなければ 丸ごとに 戻す★＝軽くする為に 字を 落とさない。 */
+      var slim = null;
+      try {
+        /* ★この道具は 画面（window）に 居る★＝この lib は UMD なので global は 無い */
+        var FSL = (typeof window !== 'undefined') ? window.FontSlim : null;
+        if (!FSL) _slimInfo = { err: 'FontSlim が 読めていない' };
+        else if (!a.fontkit) _slimInfo = { err: 'fontkit が 無い' };
+        if (FSL && a.fontkit) {
+          var fk = a.fontkit.create(a.fontBytes);
+          var gid = {};
+          gid[0] = true;
+          /* ★字体が 持っていない字は 〓 に なる★（sanitize）＝その字も 要る */
+          var hiroi = ['〓'];
+          pages.forEach(function (p2) {
+            (p2.texts || []).forEach(function (t2) { hiroi.push(String(t2.s || '')); });
+          });
+          hiroi.join('').split('').forEach(function (ch) {
+            try {
+              var gs = fk.layout(ch).glyphs;
+              for (var i2 = 0; i2 < gs.length; i2++) gid[gs[i2].id] = true;
+            } catch (e2) { /* 出せない字は sanitize が 〓 に する */ }
+          });
+          /* ★字→番号の 対応表も 使う分だけに する★（番号は 元のまま＝壊れようが無い）
+             ★引けなくなった字は sanitize が 〓 に する★＝黙って 消えない。 */
+          var pairs = [], mita = {};
+          hiroi.join('').split('').forEach(function (ch) {
+            var cp = ch.codePointAt(0);
+            if (mita[cp]) return;                 /* ★同じ字を 2度 入れない★
+                                                     ＝対応表は 昇順で 重ならない事が 決まり */
+            mita[cp] = true;
+            try {
+              var gg = fk.glyphForCodePoint(cp);
+              if (gg && gg.id > 0) pairs.push([cp, gg.id]);
+            } catch (e4) { /* 持っていない字＝〓 に なる */ }
+          });
+          var list = Object.keys(gid).map(Number);
+          slim = FSL.slim(a.fontBytes, list, pairs);
+          _slimInfo = { moto: a.fontBytes.length, ato: slim ? slim.length : 0, ji: list.length, hiku: pairs.length };
+        }
+      } catch (e) { slim = null; _slimInfo = { err: String(e && e.message).slice(0, 120) }; }
+
       return embedAll.then(function () {
-        return doc.embedFont(a.fontBytes, { subset: false });
+        /* ★字を 使った分だけ 埋めるか★（既定は 今までどおり 丸ごと）
+           ★2026-09-05 司さん「請求書1枚で 重すぎるやろが／構造がおかしいんやろが」★
+             実測＝実物の 請求書PDF 327本の 中央値 0.31MB に対し うちは 2.94MB（9.4倍）。
+             PDFの 94% が 字体（4.45MB・13,932字）＝1通の紙に 全字入りの 辞書を 同梱していた。
+           ここは まだ 既定を 変えていない（下の 確かめが 通ってから 変える）。 */
+        /* ★渡すのは 間引いた字体・でも subset は false★
+           ＝pdf-lib の 壊れている 間引きの 道を 通らない。 */
+        return doc.embedFont(slim || a.fontBytes, { subset: (o.subset === true) });
       }).then(function (font) {
         pages.forEach(function (pg) {
           var page = doc.addPage([PT_W, PT_H]);
@@ -408,7 +465,7 @@
   }
   function lastMissing() { return (_missing || []).slice(); }
 
-  return { build: build, lastMissing: lastMissing, lastPlaced: lastPlaced,
+  return { build: build, lastMissing: lastMissing, lastPlaced: lastPlaced, lastSlim: lastSlim,
     lastBadImages: lastBadImages,
     PX_W: PX_W, PX_H: PX_H, PT_W: PT_W, PT_H: PT_H, K: K, ASSETS: ASSETS,
     _readPage: readPage, _splitByLine: splitByLine, _rgbOf: rgbOf, _alphaOf: alphaOf };

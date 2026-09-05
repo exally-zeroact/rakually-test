@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=fe41bade">
-<link rel="stylesheet" href="css/app.css?v=fe41bade">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=cec3011a">
+<link rel="stylesheet" href="css/app.css?v=cec3011a">
 </head>
 <body>
 
@@ -147,6 +147,9 @@
       <div class="frow">
         <div class="flabel">だれに</div>
         <select class="finput" id="e-partner"></select>
+        <!-- ★取引先ごとに 紙を 変えられる事を ここで 言う★（司さん 2026-09-05
+             「上の だれにの 横に 取引先ごとに 請求書は 選べますって いるやろ」） -->
+        <p class="hint">相手ごとに ★別の 紙の様式★に 出来ます（この相手だけ 項目を 変える事も できます）。</p>
         <p class="hint" id="e-partner-hint" style="display:none"></p>
         <div class="pt-new" id="pt-new" style="display:none">
           <input class="finput" id="pt-new-name" type="text" placeholder="会社名を入れてください">
@@ -180,12 +183,18 @@
       <div class="card-h">どの紙で出しますか</div>
       <p class="hint" id="tpl-guess" style="display:none"></p>
       <div id="tpl-list" class="tpl-list"></div>
+
     </div>
+    <!-- ★紙の様式を 決めるのは 設定★（司さん 2026-09-05
+         「設定で 会社情報やるんやったら 設定やないか？ 取引先マスタは 設定にあるんやろが？」）
+         ＝会社の情報も 取引先も 設定に 在るので、紙の様式も 設定 1か所に する。
+         ★入力では 聞かない・見せるだけ★／変えたい時は ここから 設定へ 飛ぶ。 -->
     <div class="card tpl-strip" id="tpl-strip" style="display:none">
       <span class="tpl-strip-k">紙</span>
       <span class="tpl-strip-v" id="tpl-strip-v"></span>
-      <button class="mini" type="button" id="b-tpl-change">変える</button>
+      <button class="mini" type="button" id="b-tpl-change">設定で変える</button>
     </div>
+    <p class="hint" id="tpl-strip-why" style="display:none"></p>
 
     <!-- ★前回から当てて確かめる（空欄を並べて埋めさせない）★ -->
     <div class="card" id="guess-card" style="display:none">
@@ -338,14 +347,26 @@
     <div class="card">
       <div class="btn-row">
         <button class="btn-primary btn-big" type="button" id="b-issue">発行する</button>
+        <!-- ★「発行済み」が 何なのかを 画面が 言う★（司さん 2026-09-05
+             「発行済みってのは 何をもって 済みになる？」）
+             ＝決まりは seikyu-app.js issue() に 前から 在ったが ★画面が 一言も 言っていなかった★ -->
         <!-- ★出した見積の「次の一手」＝請求書にする★
              発行済みの見積では 発行するが消えるので、ここが主役の操作になる。
              ★隠さない・塞がっている時は灰色＋理由をボタンの中★ -->
         <button class="btn-primary btn-big" type="button" id="b-toinv" style="display:none">この見積から請求書を作る</button>
       </div>
+      <p class="hint">「発行する」を 押すと ★その時の 中身が そのまま 固まって★ 発行済みになります
+        （番号が 決まり、あとから 直す・消す事は 出来なくなります。間違えた時は「取り消し」で 出し直します）。
+        ★押すまでは 下書き★＝何度でも 直せます。</p>
       <p class="why" id="act-why"></p>
       <details class="more" id="out-box">
         <summary class="more-s" id="out-sum">ほかの出し方（下書き・下見・PDF・送る・印刷・Excel）</summary>
+        <!-- ★落ちた先を 画面が 言う★（司さん 2026-09-05「保存したら どこに保存されるわけ？」）
+             js/file-out.js:99 anchorDownload ＝★端末の ダウンロード先★／
+             ★Rakunally の中には 1件も 貯めていない★（だから ファイル一覧の タブは 作らない） -->
+        <p class="hint">PDF・Excel は ★この端末の「ファイル」（ダウンロード）★に 落ちます。
+          Rakunally の中には ためません。「一覧」タブに 並ぶのは ★請求書の 記録★（下書き・発行済み・取り消し）で、
+          ファイルでは ありません。</p>
         <div class="btn-row">
           <button class="btn-ghost" type="button" id="b-save">下書きを保存</button>
           <button class="btn-ghost" type="button" id="b-preview">中身を見る</button>
@@ -381,12 +402,21 @@
     <!-- ★触るたびに 紙が変わるのを その場で見せる★（司さん 2026-08-31
          「詳細決めたりテンプレ決めるところに 見せてあげて タイムラインで変えて見せな分からんやろが」）
          ＝様式・行数・列・印を いじると ここの紙が すぐ変わる。★本物の紙★（作り物の絵ではない）。 -->
-    <div class="card set-pv-card">
-      <div class="card-h">今の設定で こう出ます</div>
-      <div class="set-pv"><iframe class="set-pv-f" id="set-paper" title="紙の下見" tabindex="-1"></iframe></div>
-      <p class="hint" id="set-pv-note">下で 様式・行数・列・印を変えると、この紙が すぐ変わります。</p>
+    <!-- ★スマホでは 畳んでおく★（司さん 2026-09-05「設定もこの画面が邪魔でスクロールしてもまったく見れんし」）
+         ＝下見の箱は 539px。スマホで 見える所は 約544px。sticky で 貼り付いたまま だったので
+         ★下の設定（自分の様式・列を消す）に 一生 たどり着けなかった★。
+         ⇒ 畳んだ時は 44px の 帯だけ 残す（sticky のまま）＝押せば すぐ 紙が 出る。 -->
+    <div class="card set-pv-card" id="set-pv-card">
+      <button type="button" class="set-pv-h" id="set-pv-toggle" aria-expanded="true" aria-controls="set-pv-body">
+        <span class="card-h">今の設定で こう出ます</span>
+        <span class="set-pv-cue" id="set-pv-cue">閉じる ▲</span>
+      </button>
+      <div id="set-pv-body">
+        <div class="set-pv"><iframe class="set-pv-f" id="set-paper" title="紙の下見" tabindex="-1"></iframe></div>
+        <p class="hint" id="set-pv-note">下で 様式・行数・列・印を変えると、この紙が すぐ変わります。</p>
+      </div>
     </div>
-    <div class="card">
+    <div class="card" id="s-tpl-card">
       <div class="card-h">紙の様式</div>
       <p class="hint">紙の見た目だけが変わります（金額は1円も変わりません）。</p>
       <div class="seg" id="s-tpl"></div>
@@ -421,7 +451,10 @@
           <div class="flabel">明細の枠（行）</div>
           <input class="finput" id="s-rows" type="number" min="0" max="60" step="1" inputmode="numeric" placeholder="既定">
         </div>
-        <div class="frow">
+        <!-- ★控除の枠は 控除を出す様式の時だけ★（司さん 2026-09-05
+             「今 控除ないやつ 選んどんのに 控除があるし」）
+             ＝控除を 出さない様式を 選んでいる間は 出さない（消しはしない＝控除を使い出したら 戻る） -->
+        <div class="frow" id="s-dedrows-row">
           <div class="flabel">控除の枠（行）</div>
           <input class="finput" id="s-dedrows" type="number" min="0" max="30" step="1" inputmode="numeric" placeholder="既定">
         </div>
@@ -435,6 +468,8 @@
         <input class="finput" id="col-new" type="text" placeholder="例：行き先" style="flex:1 1 150px">
         <button class="btn-ghost" type="button" id="b-col-add">＋ 列を足す</button>
         <button class="btn-ghost" type="button" id="b-col-reset">様式の既定に戻す</button>
+        <!-- ★様式を変えた時に 自分で決めていた列を 黙って 捨てない★（2026-09-05） -->
+        <button class="btn-ghost" type="button" id="b-col-undo" style="display:none">前の列に戻す</button>
       </div>
       <p class="why" id="col-why"></p>
       <div class="ok" id="col-ok" style="display:none"></div>
@@ -797,58 +832,61 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="../js/supa-config.js?v=fe41bade"></script>
-<script src="../lib/xlsx.full.min.js?v=fe41bade"></script>
-<script src="../js/file-out.js?v=fe41bade"></script>
-<script src="../js/suite-data.js?v=fe41bade"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=fe41bade"></script>
+<script src="../js/supa-config.js?v=cec3011a"></script>
+<script src="../lib/xlsx.full.min.js?v=cec3011a"></script>
+<script src="../js/file-out.js?v=cec3011a"></script>
+<script src="../js/suite-data.js?v=cec3011a"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=cec3011a"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=fe41bade"></script>
-<script src="lib/seikyu-tax.js?v=fe41bade"></script>
-<script src="lib/seikyu-gensen.js?v=fe41bade"></script>
-<script src="lib/seikyu-carry.js?v=fe41bade"></script>
-<script src="lib/seikyu-cols.js?v=fe41bade"></script>
-<script src="lib/seikyu-templates.js?v=fe41bade"></script>
-<script src="../lib/toroku-no.js?v=fe41bade"></script>
-<script src="lib/seikyu-doc.js?v=fe41bade"></script>
-<script src="lib/seikyu-partner-ask.js?v=fe41bade"></script>
-<script src="lib/seikyu-pdf.js?v=fe41bade"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=cec3011a"></script>
+<script src="lib/seikyu-tax.js?v=cec3011a"></script>
+<script src="lib/seikyu-gensen.js?v=cec3011a"></script>
+<script src="lib/seikyu-carry.js?v=cec3011a"></script>
+<script src="lib/seikyu-cols.js?v=cec3011a"></script>
+<script src="lib/seikyu-templates.js?v=cec3011a"></script>
+<script src="../lib/toroku-no.js?v=cec3011a"></script>
+<script src="lib/seikyu-doc.js?v=cec3011a"></script>
+<script src="lib/seikyu-partner-ask.js?v=cec3011a"></script>
+<!-- ★字体を 軽くする（使う字だけ 形を 残す）★（司さん 2026-09-05「重すぎるやろが」）
+     ★seikyu-pdf.js より 先に 読む★＝後だと 1通目だけ 丸ごとの 重い紙が 出る -->
+<script src="../lib/font-slim.js?v=cec3011a"></script>
+<script src="lib/seikyu-pdf.js?v=cec3011a"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=fe41bade"></script>
-<script src="lib/seikyu-seal.js?v=fe41bade"></script>
+<script src="../js/hanko.js?v=cec3011a"></script>
+<script src="lib/seikyu-seal.js?v=cec3011a"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=fe41bade"></script>
+<script src="lib/seikyu-report.js?v=cec3011a"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=fe41bade"></script>
+<script src="lib/seikyu-items.js?v=cec3011a"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=fe41bade"></script>
+<script src="lib/seikyu-recurring.js?v=cec3011a"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=fe41bade"></script>
+<script src="lib/seikyu-find.js?v=cec3011a"></script>
 <!-- ★自社のExcelを そのまま使う★（読む・当てる・書く）
      ＝2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★（司さん 2026-08-31） -->
-<script src="../lib/zip-surgeon.js?v=fe41bade"></script>
-<script src="../lib/xlsx-edit.js?v=fe41bade"></script>
-<script src="lib/seikyu-book.js?v=fe41bade"></script>
-<script src="lib/seikyu-scope.js?v=fe41bade"></script>
-<script src="../lib/kikan.js?v=fe41bade"></script>
-<script src="lib/seikyu-invoice-ask.js?v=fe41bade"></script>
-<script src="lib/seikyu-paper-ask.js?v=fe41bade"></script>
-<script src="lib/seikyu-name.js?v=fe41bade"></script>
-<script src="lib/seikyu-paper.js?v=fe41bade"></script>
-<script src="lib/seikyu-aoa.js?v=fe41bade"></script>
-<script src="js/seikyu-store.js?v=fe41bade"></script>
-<script src="js/seikyu-out.js?v=fe41bade"></script>
-<script src="js/seikyu-app.js?v=fe41bade"></script>
-<script src="../js/rakunally-login.js?v=fe41bade"></script>
-<script src="js/auth.js?v=fe41bade"></script>
+<script src="../lib/zip-surgeon.js?v=cec3011a"></script>
+<script src="../lib/xlsx-edit.js?v=cec3011a"></script>
+<script src="lib/seikyu-book.js?v=cec3011a"></script>
+<script src="lib/seikyu-scope.js?v=cec3011a"></script>
+<script src="../lib/kikan.js?v=cec3011a"></script>
+<script src="lib/seikyu-invoice-ask.js?v=cec3011a"></script>
+<script src="lib/seikyu-paper-ask.js?v=cec3011a"></script>
+<script src="lib/seikyu-name.js?v=cec3011a"></script>
+<script src="lib/seikyu-paper.js?v=cec3011a"></script>
+<script src="lib/seikyu-aoa.js?v=cec3011a"></script>
+<script src="js/seikyu-store.js?v=cec3011a"></script>
+<script src="js/seikyu-out.js?v=cec3011a"></script>
+<script src="js/seikyu-app.js?v=cec3011a"></script>
+<script src="../js/rakunally-login.js?v=cec3011a"></script>
+<script src="js/auth.js?v=cec3011a"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=fe41bade"></script>
+<script src="../js/env-badge.js?v=cec3011a"></script>
 </body>
 </html>

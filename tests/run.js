@@ -19,6 +19,15 @@ const path = require('path');
 
 const FILES = [
   'stamp.test.mjs',         // キャッシュバスター(?v=)の道具そのもの
+  /* ★字体を 軽くしても 字は 1つも 変わらない★（司さん 2026-09-05「重すぎるやろが」）
+     PDFの 94%が 字体だった＝3,093,585B → 102,034B。形・番号・部品を 1つずつ 突き合わせる。 */
+  'font-slim.test.mjs',
+  ['font-slim.test.mjs', '--self-test'],
+  /* ★PDFに 字体を 丸ごと 埋めない★（全アプリ 共通の 決まり・司さん 2026-09-05
+     「全アプリ共通やろが／請求書に限らず PDFにするとき」）
+     ＝PDFを 作る所を 自分で 探して、生の 字体を 渡していたら 赤。道具の バイト一致も 見る。 */
+  'pdf-font-weight.test.mjs',
+  ['pdf-font-weight.test.mjs', '--self-test'],
   'suite-data.test.js',     // E0 共有データ層の契約
   /* ★2026-08-18 集計(E1/E5)と台帳(E2)の3本を外した★＝Exally の物なので入口から外した
      （aggregate.test.js / ledger-source.test.js / cross-agg.test.js・見る lib ごと外した）。

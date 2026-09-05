@@ -105,6 +105,12 @@ jobs:
         run: node seikyu/tests/seal-pos.mjs --self-test
       # ★紙は 本物のブラウザで 測る★（2026-09-02・口座1〜6 × 明細1/10/20行 × 控除なし/あり＝36通り）
       #   直す前は ★6口座で 口座番号が 丸ごと 消えていた★（.sheet は overflow:hidden＝黙って 切れる）
+      # ★備考の枠★（司さん 2026-09-05「他2つは おれの様式のように デフォで 備考欄つけとけよ」）
+      #   足元が 23px 高くなる＝明細の枠を 1行 減らさないと A4 を はみ出して ★黙って 切れる★
+      - name: ★備考の枠を出しても 紙から はみ出さない（18通り 実測・A4 1122.5px）
+        run: node seikyu/tests/memo-waku.mjs
+      - name: ★同 足元を高くすると 赤になるか（自己確認・壊した数と赤の数を並べる）
+        run: node seikyu/tests/memo-waku.mjs --self-test
       - name: ★口座を何個出しても 紙から 字が消えない（36通り 実測）
         run: node seikyu/tests/bank-paper.mjs
       - name: ★同 わざと直す前の形にすると はみ出すか（自己確認）

@@ -339,11 +339,21 @@
     if (o.showDeduct !== undefined) return !!o.showDeduct;
     return !!(inv && inv.data && inv.data.showDeduct);   // ★既定は出さない★
   }
+  /** ★備考の枠を 出すか★（1か所で 決める）
+   *  ★同じ事を 2か所で 別々に 判定しない★＝行数の 計算と 紙の 描画が 食い違うと
+   *    「載ると 言って 切れる」紙が 出る。 */
+  function memoBoxOf(inv, o) {
+    o = o || {};
+    if (o.memoBox !== undefined && o.memoBox !== null) return !!o.memoBox;
+    var st = Object.assign({}, o.theme || {}, o.style || {}, (inv && inv.data && inv.data.style) || {});
+    if (st.memoBox !== undefined && st.memoBox !== null) return !!st.memoBox;
+    return false;
+  }
   function frameRowsOf(inv, o) {
     o = o || {};
     var given = (o.paperRows !== undefined ? o.paperRows : (inv && inv.data && inv.data.paperRows));
     var ded = (o.showDeductResolved !== undefined) ? !!o.showDeductResolved : showDeductOf(inv, o);
-    var max = maxRowsOf(ded, o.rateRows, o.dedLines, o.bankRows);
+    var max = maxRowsOf(ded, o.rateRows, o.dedLines, o.bankRows, memoBoxOf(inv, o));
     var n = Math.max(0, Math.trunc(Number(given) || max));
     /* ★物理の上限で頭打ち★＝紙は A4 固定なので、これ以上は載せると切れる。
        ★黙って切らない★＝ここで止めて、残りは2枚目に送る。画面はその事を人に言う。 */
@@ -364,8 +374,14 @@
   /* ★控除の件数が枠（DEDUCT_ROWS）を超えたら その分 明細に使える行が減る★
      （司さん 2026-08-16「控除項目が増えたら ちゃんと行が増えるようにもやれよ」）
      ＝控除の箱は 件数ぶん伸びるので、伸びた分だけ 明細の枠を減らして はみ出させない。 */
-  function maxRowsOf(showDeduct, rateRows, dedLines, bankRows) {
+  function maxRowsOf(showDeduct, rateRows, dedLines, bankRows, memoBox) {
     var base = showDeduct ? PAPER_ROWS_DED : PAPER_ROWS;
+    /* ★備考の枠を 出すと 足元が 23px 高くなる＝明細を 1行 減らす★
+       ★2026-09-05 実測（WebKit・A4 297mm＝1122.5px）★
+         枠18行＋備考 … 1146px ＝★23px はみ出す★
+         枠17行＋備考 … 1123px ＝載る（15/16/17行とも 1123px）
+       ★黙って 切らない★＝ここで 1行 減らして、あふれる分は 2枚目に 送る。 */
+    if (memoBox && !showDeduct) base -= 1;
     var n = Math.max(0, Math.trunc(Number(rateRows) || 0));
     var d = Math.max(0, Math.trunc(Number(dedLines) || 0));
     /* ★口座が 3つを 超えたら 1つごとに 明細を1行 減らす★（2026-09-02 実測）
@@ -576,7 +592,11 @@
        ＝入れないと ★6口座で 口座番号が 紙から切れて 黙って 消える★（2026-09-02 実測） */
     var planInput = { paperRows: frameRowsGiven, showDeductResolved: showDeduct,
       rateRows: rateRowsOf(tax), dedLines: deductLines.length, lineCount: lines.length,
-      bankRows: bankPick.lines.length };
+      bankRows: bankPick.lines.length,
+      /* ★備考の枠も 行数に 効く★（+23px＝明細 1行ぶん）。
+         ★ここへ 渡し忘れると 行数の 計算だけ 知らないまま になり、
+           「載る」と 言って ★はみ出す★紙が 出る（2026-09-05 実測 1146px）。 */
+      memoBox: memoBoxOf(inv, o) };
     frameRows = frameRowsOf(inv, planInput);
     var gen = o.gensen || null;     // ★源泉徴収（引く紙だけ）★
     var carry = o.carry || null;    // ★繰越（前回の残り）★
@@ -989,7 +1009,16 @@
       if (bank) left += '<div class="note note-bank"><div class="note-h">お振込先</div>'
         + '<div class="note-b note-bb">' + bankHtml(bank) + '</div></div>';
       var memo = textOf(inv.data && inv.data.memo);
+      /* ★備考の枠は 中身が 無くても 出す★（司さん 2026-09-05
+           「他2つは おれの様式のように デフォで 備考欄つけとけよ」）
+         ＝司さんの 実物の 請求書には ★空でも 備考の枠が 刷ってある★（手で 書き足す為）。
+         ★出すか どうかは 様式が 決める★（theme.memoBox）＝控除の紙(koujo)は 実物11通とも
+         備考の枠が 無いので 出さない。会社が 切りたい時は o.memoBox=false。
+         ★行数（PAPER_ROWS）は この枠を 入れて 測り直す★（下の 実測の 覚え書き）。 */
+      var memoBox = memoBoxOf(inv, o);      /* ★行数の 計算と 同じ 1か所★ */
       if (memo) left += '<div class="note"><div class="note-h">備考</div><div class="note-b">' + esc(memo).replace(/\n/g, '<br>') + '</div></div>';
+      else if (memoBox && !isDelivery) left += '<div class="note note-memo"><div class="note-h">備考</div>'
+        + '<div class="note-b note-mb"></div></div>';
       var right = breakdownBlock();
       /* ★（内訳）が無い時は 右のマスごと出さない★＝振込先が幅いっぱい使える
          （空のマスを残すと 左が狭いままで、長い銀行名が折り返す） */
@@ -1480,6 +1509,8 @@
          （実測 2026-08-16：長い名義で +24px＝1行ぶん はみ出した）。
          ＝★2行ぶんの高さを最初から取る★＝どの会社でも 紙の顔が同じ・行数も同じ。 */
       '.note-bb{width:auto;min-width:22mm;min-height:83px;}',
+      /* ★空の 備考の枠★＝手で 書き足せる 広さ（2行ぶん）。罫は 振込先と 同じ濃さ。 */
+      '.note-mb{min-height:40px;}',
       '.note-bank .note-h{color:' + TH.headInk + ';font-weight:700;}',
       /* 口座番号（続いた数字）だけ 大きく等幅＝読み間違いを減らす */
       /* 名義は次の行（★毎回おなじ形★＝中途半端な所で折れない） */

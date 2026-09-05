@@ -115,7 +115,7 @@ async function measureShape(doc) {
   return j;
 }
 
-async function boot(appSrc) {
+async function boot(appSrc, tane) {
   const html = fs.readFileSync(FILE, 'utf8');
   const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''), {
     runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/seikyu/index.html',
@@ -133,7 +133,9 @@ async function boot(appSrc) {
     tables: {
       pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中' }, deleted_at: null }],
-      pay_invoices: [], pay_receipts: [],
+      /* ★前に 出した1通は ★倉庫に★ 置く★（画面の 配列に 足すだけでは
+         画面を 行き来した時に 倉庫から 読み直されて ★消える★＝2026-09-05 実測） */
+      pay_invoices: (tane && tane.invoices) || [], pay_receipts: [],
       pay_companies: [{ account_id: 'u1', data: {}, updated_at: '2026-08-01T00:00:00Z' }],
     },
     pk: { pay_org: 'account_id', pay_companies: 'account_id' },
@@ -158,15 +160,40 @@ async function boot(appSrc) {
   return { win, doc };
 }
 
+/** ★設定の画面を 開いた状態で 起こす★
+ *  ＝紙の様式を 決めるのは 設定（司さん 2026-09-05
+ *    「設定で 会社情報やるんやったら 設定やないか？ 取引先マスタは 設定にあるんやろが？」）。
+ *  ★タブと 同じ道で 開く★（fillSettings を 通らないと 札が 0枚のまま） */
+async function bootSet(appSrc, tane) {
+  const r = await boot(appSrc, tane);
+  const tab = r.doc.querySelector('.bn[data-scr="scr-set"]');
+  ok(tab, '設定のタブが 無い');
+  tab.click();
+  await sleep(400);
+  return r;
+}
+
 async function run(label, appSrc) {
   console.log('\n[' + label + '] ★押す物の一覧（先に書く）★');
-  console.log('  ① 1問目が出る ② 見本2枚が別の絵 ③ 選ぶ→畳んで1行 ④ [変える]で戻って続きから ⑤ 出せない時は押せない');
+  console.log('  ① 入力では聞かない（決めるのは設定） ② 設定の見本が別の絵 ③ 設定で選ぶと入力も変わる'
+    + ' ④ [設定で変える]で設定へ・中身は残る ⑤ 出せない時は押せない');
 
-  await T('① ★新しく作ると まず「どの紙で出しますか」が出る★（何を書くかより先）', async () => {
+  /* ★2026-09-05 決め直し（司さん）★
+     「設定で 会社情報やるんやったら 設定やないか？ 取引先マスタは 設定にあるんやろが？」
+     ＝自社の情報も 取引先も ★設定に 在る★のに、紙の様式だけ ★入力と設定の 2か所★に 在った。
+     ⇒ ★決めるのは 設定 1か所★。入力では ★今 どの紙で 出るかを 見せるだけ★。
+     ★前は「入力で 先に 聞く」を ここで 守っていた★＝決めが 変わったので 守る物も 変えた。 */
+  await T('① ★入力では 様式を 聞かない★（決めるのは 設定）／今の紙は 1行で 見える', async () => {
     const { doc } = await boot(appSrc);
     const card = doc.getElementById('tpl-card');
-    ok(card && card.style.display !== 'none', '1問目が出ていない');
-    ok(/どの紙で出しますか/.test(card.textContent || ''), '問いの字が違う');
+    ok(!card || card.style.display === 'none', '★入力に 様式を選ぶ札が 出ている（2か所に 戻っている）★');
+    const strip = doc.getElementById('tpl-strip');
+    ok(strip && strip.style.display !== 'none', '今 どの紙かの 1行が 出ていない');
+    ok((doc.getElementById('tpl-strip-v').textContent || '').length > 2, '紙の名前が 出ていない');
+    const why = (doc.getElementById('tpl-strip-why').textContent || '');
+    ok(/設定/.test(why), '★どこで 決まったのかを 言っていない★: ' + why.slice(0, 60));
+    ok(/設定で変える/.test(doc.getElementById('b-tpl-change').textContent || ''),
+      '★どこへ 行けば 変えられるか ボタンが 言っていない★');
   });
 
   /* ★様式の数を 決め打ちしない★（2026-08-27 3つ目を足した日に ここが赤くなった）
@@ -176,40 +203,57 @@ const TPL_N = (function () {
   return T2.list().length;
 })();
 
-  await T('② ★見本を一緒に見せる／' + TPL_N + '枚とも 別の絵★（同じ絵なら 見本が嘘）', async () => {
-    const { doc } = await boot(appSrc);
-    const shots = [...doc.querySelectorAll('.tpl-shot iframe')].map((f) => f.getAttribute('srcdoc') || '');
+  await T('② ★設定に 見本が ' + TPL_N + '枚／どれも 別の絵★（同じ絵なら 見本が嘘）', async () => {
+    const { doc } = await bootSet(appSrc);
+    const shots = [...doc.querySelectorAll('#s-tpl .tpl-shot iframe')].map((f) => f.getAttribute('srcdoc') || '');
     eq(shots.length, TPL_N, '見本の数');
     shots.forEach((x, i) => ok(x.length > 500, '★' + (i + 1) + '枚目の見本が空＝描けていない★'));
     ok(new Set(shots).size === shots.length, '★同じ絵が混ざっている＝様式が効いていない（見本が嘘）★');
   });
 
-  await T('③ ★選ぶと その場で畳んで 1行になる★（1問ごと保存）', async () => {
-    const { win, doc } = await boot(appSrc);
-    doc.querySelectorAll('.tpl-pick')[1].click();
-    await sleep(250);
-    eq(doc.getElementById('tpl-card').style.display, 'none', '畳んでいない');
-    ok(doc.getElementById('tpl-strip').style.display !== 'none', '1行になっていない');
-    ok((doc.getElementById('tpl-strip-v').textContent || '').length > 2, '選んだ紙の名前が出ていない');
-    eq(win.SeikyuApp._state.cur.template_id, 'elegant', '選んだ紙が入っていない');
+  await T('③ ★設定で 選ぶと 入力の 1行も 紙も 変わる★（同じ状態を 2か所で 別々に 判定しない）', async () => {
+    const { win, doc } = await bootSet(appSrc);
+    const koujo = doc.querySelector('#s-tpl [data-tpl="koujo"]');
+    ok(koujo, '設定に koujo の札が 無い');
+    koujo.click();
+    await sleep(300);
+    /* 入力へ 戻る＝タブと 同じ道 */
+    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    await sleep(400);
+    const na = (doc.getElementById('tpl-strip-v').textContent || '');
+    ok(/控除/.test(na), '★設定で 変えたのに 入力の 1行が 前のまま★: ' + na);
+    eq(win.SeikyuApp._state.cur.template_id, 'koujo', '★1通の中身が 設定に そろっていない★');
+    /* ★控除の箱も 様式で 変わる★（司さん「今 控除ないやつ 選んどんのに 控除があるし」） */
+    const ded = doc.getElementById('ded-card');
+    ok(ded && ded.style.display !== 'none', '★控除の紙なのに 控除の箱が 出ていない★');
+    /* 控除を 出さない紙に 戻したら 箱も 消える */
+    doc.querySelector('.bn[data-scr="scr-set"]').click();
+    await sleep(300);
+    doc.querySelector('#s-tpl [data-tpl="std1"]').click();
+    await sleep(300);
+    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    await sleep(400);
+    eq(doc.getElementById('ded-card').style.display, 'none',
+      '★控除の無い様式なのに 控除の箱が 出たまま★');
   });
 
-  await T('④ ★[変える]で 戻れる／中身は残る（続きから）★', async () => {
+  await T('④ ★[設定で変える]で 設定の「紙の様式」へ 行く／中身は 残る（続きから）★', async () => {
     const { win, doc } = await boot(appSrc);
     const before = win.SeikyuApp._state.cur.partner_id;
-    doc.querySelectorAll('.tpl-pick')[1].click();
-    await sleep(250);
     doc.getElementById('b-tpl-change').click();
-    await sleep(200);
-    ok(doc.getElementById('tpl-card').style.display !== 'none', '戻れていない');
-    eq(win.SeikyuApp._state.cur.partner_id, before, '★戻ったら 相手が消えた（続きからになっていない）★');
-    eq(win.SeikyuApp._state.cur.template_id, 'elegant', '★戻ったら 選んだ紙が消えた★');
+    await sleep(300);
+    ok(doc.getElementById('scr-set').classList.contains('active'), '★設定へ 行っていない★');
+    /* ★行っただけで 札が 0枚では 意味が 無い★＝タブと 同じ道を 通っているか */
+    eq(doc.querySelectorAll('#s-tpl [data-tpl]').length, TPL_N,
+      '★設定へ 着いたのに 様式の札が 描かれていない★');
+    ok(doc.getElementById('s-tpl-card'), '飛び先の 札に 目印(id)が 無い');
+    eq(win.SeikyuApp._state.cur.partner_id, before, '★行ったら 相手が消えた（続きからになっていない）★');
   });
 
   await T('⑥ ★見本の形が A4縦★／★紙が枠から はみ出さない★／★2枚とも 画面に入る★（Chromeで実測）', async () => {
     /* ★2026-08-26 司さんの指摘★ 前は 枠が 298×190（横÷縦 1.57＝横長）で、
        中のA4縦の紙が ★下から80px はみ出して切れていた★＝★紙が横に見えた★。 */
-    const { doc } = await boot(appSrc);
+    const { doc } = await bootSet(appSrc);
     const j = await measureShape(doc);
     eq(j.vw, 390, '390pxで測れていない');
     eq(j.shots.length, TPL_N, '見本の数');
@@ -234,18 +278,28 @@ const TPL_N = (function () {
       + '　紙 ' + j.shots.map((x) => x.pw + '×' + x.ph).join(' / '));
   });
 
-  await T('⑦ ★当てた根拠に「（消えた取引先）」を出さない★（今 選んでいる相手の名前で言う）', async () => {
+  await T('⑦ ★前回の紙を 聞かずに そのまま 使う／根拠に「（消えた取引先）」を出さない★', async () => {
     /* ★2026-08-26 実配信で踏んだ★…古い1通から名前を引いていたので、
-       その相手が消えていると ★「（消えた取引先）には 前回…」★ と客に出た。 */
-    const { win, doc } = await boot(appSrc);
+       その相手が消えていると ★「（消えた取引先）には 前回…」★ と客に出た。
+       ★2026-09-05★ 紙の様式を 設定へ 寄せたので、当てる中身は ★聞かずに 効かせる★形に した
+       （捨てていない＝templateForPartner の 2番目に 入っている）。 */
+    const { win, doc } = await boot(appSrc, { invoices: [{
+      id: 'iv_old', account_id: 'u1', doc_type: 'invoice', no: '202608-001', partner_id: 'pt_a',
+      issue_ymd: '2026-08-18', due_ymd: null, status: 'issued', tax_mode: 'exclusive', rounding: 'floor',
+      lines: [], totals: {}, snapshot: {}, data: {}, template_id: 'elegant', quote_from: null,
+      issued_at: '2026-08-18T00:00:00Z', sent_at: null, voided_at: null, updated_at: '2026-08-18T00:00:00Z',
+    }] });
     const S = win.SeikyuApp._state;
-    S.invoices.push({ id: 'iv_old', partner_id: S.cur.partner_id, template_id: 'elegant',
-      issue_ymd: '2026-08-18', status: 'issued', data: {}, lines: [] });
-    win.SeikyuApp._state.cur.data.tplAsked = false;
-    doc.getElementById('b-tpl-change') && doc.getElementById('b-tpl-change').click();
-    await sleep(300);
-    const t = (doc.getElementById('tpl-guess').textContent || '');
-    ok(t.indexOf('当てました') >= 0, '当てて見せていない: ' + t.slice(0, 60));
+    /* 画面を 行き来する＝前回の 紙を 引き直す道（お客さんの道） */
+    doc.querySelector('.bn[data-scr="scr-set"]').click();
+    await sleep(250);
+    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    await sleep(400);
+    eq(S.cur.template_id, 'elegant', '★前回の紙を 使っていない（当てる中身が 死んでいる）★');
+    const na = (doc.getElementById('tpl-strip-v').textContent || '');
+    ok(/ひかえめ/.test(na), '1行が 前回の紙に なっていない: ' + na);
+    const t = (doc.getElementById('tpl-strip-why').textContent || '');
+    ok(t.indexOf('前回') >= 0, '根拠を 言っていない: ' + t.slice(0, 60));
     ok(t.indexOf('消えた') < 0, '★「消えた取引先」が客の字に出ている★: ' + t.slice(0, 80));
     ok(t.indexOf('A株式会社') >= 0, '今の相手の名前で言っていない: ' + t.slice(0, 80));
   });
@@ -282,12 +336,16 @@ if (!SELF) {
   process.exit(fail ? 1 : 0);
 } else {
   /* ★わざと壊す★ … 1問目を出さない姿へ戻すと 赤になるか */
-  console.log('\n★自己診断★ … 1問目を出さない姿へ戻して 赤が出るかを見る');
+  /* ★2026-09-05★ 決めが 変わった（紙の様式は 設定 1か所）ので、壊す所も 変えた。
+     ★壊す形＝「設定で 変えても 入力に 効かない」★＝2026-09-05 に 実際に 出た形
+       （tplSync を 呼ばないと ★設定は koujo なのに 入力の 1行は 前のまま★だった）。
+     ★これを 見逃す 見張りなら、次に 同じ事を した日にも 見逃す★ */
+  console.log(String.fromCharCode(10) + '★自己診断★ … 設定を 入力に 効かせない姿へ戻して 赤が出るかを見る');
   const keep = fs.readFileSync(APP, 'utf8');
-  const mark = '    show(card, !asked); show(strip, asked);';
+  const mark = '  function tplSync() {';
   if (keep.indexOf(mark) < 0) { console.log('  ★壊す場所が見つからない＝この自己診断は古い★'); process.exit(2); }
-  await run('1問目を出さない seikyu-app.js（わざと壊した）',
-    keep.replace(mark, '    show(card, false); show(strip, asked);'));
+  await run('設定を 入力に 効かせない seikyu-app.js（わざと壊した）',
+    keep.replace(mark, '  function tplSync() { return;'));
   console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（2件以上のはず）');
   if (fail < 2) { console.log('  ✗ ★空振りです★ 壊しても赤にならない'); process.exit(1); }
   console.log('  ✓ ★壊したら赤になった＝この試験は本当に見張っています★');
