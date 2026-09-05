@@ -3163,7 +3163,15 @@
     { itsu:'給料が大きく変わった時（3か月後）',     nm:'月額変更届',   yoshiki:'2221700', tsukuru:'gekkakuRow' },
     { itsu:'賞与を払った日から5日以内',             nm:'賞与支払届',   yoshiki:'2265700', tsukuru:'shoyoRow' },
     { itsu:'入社した時（5日以内）',                 nm:'資格取得届',   yoshiki:'2200700', tsukuru:'shutokuRow' },
-    { itsu:'退社した時（5日以内）',                 nm:'資格喪失届',   yoshiki:'2201700', tsukuru:'shikakuSoshitsuRow', riyu:'uchi' },
+    /* ★資格喪失届＝「これから 作ります」では ★嘘★★（2026-09-05 原文で 数えて 分かった）
+       ★原文★ csv201.pdf 項番12 基礎年金番号（課所符号）
+         「★『個人番号』に 入力がない場合 入力されていること★」
+       ⇒★マイナンバーか 基礎年金番号の どちらかが 必須★／★うちは どちらも 預かっていない★
+       ⇒★今の 作りでは 1件も 出せません★＝「待てば 出せる」と 読ませない
+       ★取得届とは 違う★＝取得は 個人番号を 省くと 郵便番号＋住所（カナ）で 代われた（項番29-31）。
+         喪失は ★住所の 欄が そもそも 無い★。
+       ★戻す条件★＝司さんが「基礎年金番号を お預かりする」と 決めた日（紙 kyuyo/docs/soshitsu-2201700.md） */
+    { itsu:'退社した時（5日以内）',                 nm:'資格喪失届',   yoshiki:'2201700', tsukuru:null, riyu:'azukari' },
     { itsu:'家族が増えた／減った時',                 nm:'被扶養者(異動)届・国民年金第3号', yoshiki:'2202700', tsukuru:'fuyoRow', riyu:'uchi' },
     { itsu:'産前産後休業をとる時',                   nm:'産前産後休業取得者申出書', yoshiki:'2273700', tsukuru:null, riyu:'nenkin' },
     { itsu:'育児休業をとる時',                       nm:'育児休業等取得者申出書',   yoshiki:'2263700', tsukuru:null, riyu:'nenkin' }
@@ -3179,11 +3187,17 @@
   function todokedeIchiranHTML(){
     var list=todokedeIchiran();
     var gyo=list.map(function(x){
+      /* ★「まだ」の 理由は 3段★（2026-09-05 に 3段目を 足した）
+           uchi    … うちが まだ 作っていない
+           nenkin  … 年金機構の 検査が この 届出に 対応していない（うちの せいでは ない）
+           azukari … ★預かっていない 物が 要る★（基礎年金番号）＝★待っても 出せない★ */
       var fuda=x.dekiru
         ? '<span style="font-weight:700">出せます</span>'   /* ★色で 言わない★＝読ませる字は 薄い黒（司さんの決まり）。太さで 分ける */
         : (x.riyu==='nenkin'
            ? '<span class="hint2">年金機構の 検査が この 届出に 対応していません</span>'
-           : '<span class="hint2">これから 作ります</span>');
+           : x.riyu==='azukari'
+             ? '<span class="hint2">基礎年金番号が 要ります（このアプリでは お預かりしていません）</span>'
+             : '<span class="hint2">これから 作ります</span>');
       /* ★左に 揃える★（表の 既定が 右寄せで 読みにくかった＝2026-09-05 絵で 見て 気づいた） */
       var td='padding:6px 8px;border-bottom:1px solid var(--line,#e5e5e5);text-align:left';
       return '<tr><td class="tdk-i" style="'+td+'">'+esc(x.itsu)+'</td>'
