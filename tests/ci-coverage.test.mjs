@@ -22,6 +22,19 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // ★CIから外しているテスト（ここに載っていない除外は赤になる）
 const EXCLUDED = {
+  'kyuyo/tests/shoyo-gensen-mitei.mjs': {
+    reason: '★実ブラウザで 賞与を 打って「源泉が 決まっていない時に 確定させない」を 数える★。'
+      + 'DB-test の 倉庫へ 実接続して ログインする（★賞与の 画面は ログイン後にしか 描かれない★）。'
+      + '★手元では 4本とも 緑・わざと壊して 2件=赤2件★。'
+      + '★この試験が 見つけた 中身（2026-09-06 実測）★＝源泉が「前月給与の入力待ち」なのに'
+      + ' ★差引支給額 ¥253,500 を 確定的に 出し・「この賞与を確定（年調・台帳に反映）」も 押せた★。'
+      + 'そのまま 振り込むと 会社が 源泉徴収を していない事に なり、確定すると'
+      + ' ★源泉0の 賞与が 年末調整と 賃金台帳に 入る★。'
+      + '★同じ中身を 倉庫なしで 見る 見張りは まだ 作れていません★（未測定＝0件では ない）。',
+    restoreWhen: '★ログイン無しで 賞与の 画面を 描ける 測り台を 作った日★'
+      + '（または CI に DB-test の 鍵を 置いた日）。その時 webkit の 仕事へ 入れる。',
+    owner: 'Rakunally',
+  },
   'kyuyo/tests/rakunally-login.test.mjs': {
     reason: 'item C（メール確認ON前提のsignup分岐）は payslip-app のテスト線のみの機能。'
       + '本番の js/rakunally-login.js には意図的に未展開で、統合時に本番のログイン挙動を変えないため'
@@ -141,9 +154,9 @@ T('★除外リストの各項目に「理由」と「戻す条件」が書か�
     if (!fs.existsSync(path.join(ROOT, f))) throw new Error(f + ': 除外リストにあるがファイルが無い（消したなら除外リストからも消す）');
   }
 });
-T('★除外は2本だけ（増えていたら、ここが赤になって気づける）', function () {
+T('★除外は5本だけ（増えていたら、ここが赤になって気づける）', function () {
   const n = Object.keys(EXCLUDED).length;
-  if (n !== 4) throw new Error(`除外が ${n} 本あります。増やすなら、この本数もここで更新して意図を示すこと: ` + Object.keys(EXCLUDED).join(', '));
+  if (n !== 5) throw new Error(`除外が ${n} 本あります。増やすなら、この本数もここで更新して意図を示すこと: ` + Object.keys(EXCLUDED).join(', '));
 });
 T('検査が空振りしていない（テストファイルを実際に数えている）', function () {
   if (covered.length < 50) throw new Error('CIが回しているテストが少なすぎます: ' + covered.length);
