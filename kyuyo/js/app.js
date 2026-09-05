@@ -462,6 +462,11 @@
 
   /* ---------- ナビ ---------- */
   function showScreen(id){
+    /* ★台帳の 札を 出すか どうかは 画面を 開いた その時に 1回 決める★（2026-09-05）
+       ★描き直しの たびに 決め直すと、あとから 生えて 下の 物が 動く★
+       （実測＝幅375で 押す物が 129px 逃げた。★倉庫の 描き直しに つられて 生えた★）
+       ⇒ ここで 決めを 捨て、次の 1回目の 描画で 決め直す。 */
+    if(id==='scr-input') state._ledgerLock=undefined;
     $$('.screen').forEach(function(s){ s.classList.toggle('active', s.id===id); });
     $$('.bn').forEach(function(b){ b.classList.toggle('on', b.dataset.scr===id); });
     var TABN={'scr-settings':'設定','scr-input':'入力','scr-list':'一覧 / 集計','scr-print':'印刷','scr-furikomi':'振込'}; var at=$('#appbar-tab'); if(at) at.textContent=TABN[id]||''; // ヘッダー右はタブ名
@@ -2070,12 +2075,17 @@
   function ledgerImportBanner(){
     if(!(window.SUPA && window.Store && Store.getLedger)) return ''; // オフライン(ローカルのみ)は台帳が無いので出さない
     var _n=ledgerRowCount(state.month); /*★行数を見る★*/
+    /* ★画面を 開いた その時の 決めに 従う★＝同じ 訪問の 間に あとから 生えない
+       （生えると 下の 物が 動く＝指の 下から 逃げる）。次に 開いた 時に 決め直す。
+       ★数える 呼び出しの 後に 置く★＝数え直しの 仕組み（2回まで）を 止めない。 */
+    if(state._ledgerLock==='nashi') return '';
     /* ★2回とも読めなかった時だけ 1行だけ出す★（指示役の裁定 2026-08-22）
        理由＝★台帳を持っている会社が 黙って二度打ちに戻る★（読めないだけなのに 機能が消える）。
        ★ボタンは出さない（押せない物を見せない）／出口は1つ／理由と次の手を書く★ */
     if(_n===null) return '<div class="cal-box" style="background:#F7F7F5;border:1px solid #E2E2DC;border-radius:12px;padding:10px 12px;margin-bottom:12px"><div style="font-size:11.5px;color:#333333">台帳を読み込めませんでした。この画面を開き直すと もう一度 読みに行きます。</div></div>'; /*★行数を見る★*/
     // 0件・まだ数えていない → ★見出しもボタンも説明文も出さない★
-    if(!(typeof _n==='number' && _n>=1)) return ''; /*★行数を見る★*/
+    if(!(typeof _n==='number' && _n>=1)){ if(state._ledgerLock===undefined) state._ledgerLock='nashi'; return ''; } /*★行数を見る★*/
+    state._ledgerLock='ari';
     var imported=(state.employees||[]).some(function(e){ return e && e._ledgerCtx; });
     return '<div class="cal-box" style="background:#F0FAF4;border:1px solid #C8ECD8;border-radius:12px;padding:10px 12px;margin-bottom:12px">'
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">'
@@ -2112,7 +2122,20 @@
         +'<b style="color:#333333;font-size:13px">確認 '+cnt.done+'/'+cnt.total+'名</b>'
         +(cnt.need>0?'<span style="background:#fff8e1;border:1px solid #F4D8A8;color:#92500A;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700">✓ 全員確認済</span>')
         +'<label style="font-size:11px;color:#3D6B53;display:inline-flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" data-reviewonly'+(reviewOnly?' checked':'')+'>要確認だけ表示</label>'
-        +'<span id="save-status" style="margin-left:auto;font-size:10.5px;color:#6E6E6E">'+(state._savedAt?'自動保存済 '+esc(state._savedAt):'')+'</span>'
+      +'</div>'
+      /* ★保存の 知らせは ★場所を 先に 取っておく★★（2026-09-05 指示役の裁定・案B）
+         ★実測★＝前は 上の 折り返す 行の 中に 入れていたので、
+           「自動保存済 hh:mm」が ★あとから 出た 瞬間に 行が 折り返して★
+           箱が 伸び、下の「今月を確定」まで 動いていた:
+             幅412 ★+25px★／幅390 ★+15px★／幅375 0px（元から 2行）
+           ＝「たまに 赤」の 正体（記録係が「下書き確認の 箱だけ 110→135px」と 名指しした）
+         ★直し★＝★自分の 行に 出し、空でも 1行ぶんの 場所を 取る★
+           ⇒ 字が 入っても 高さが 変わらない＝★下の 物が 1pxも 動かない★
+         ★仮の 字は 入れない★（空のまま 場所だけ＝裁定④「一瞬 嘘が 見える」を 避ける）
+         ★残っている 所★＝長い 知らせ（「別の端末で更新されました」等）は 2行に なり得る。
+           そちらは ★めったに 出ない★ので 1行ぶんで 取っている（出た時は 動く）。 */
+      +'<div style="min-height:15px;margin-top:4px;display:flex;justify-content:flex-end">'
+        +'<span id="save-status" style="font-size:10.5px;color:#6E6E6E;line-height:15px">'+(state._savedAt?'自動保存済 '+esc(state._savedAt):'')+'</span>'
       +'</div>'
       +'<div style="font-size:10px;color:#555555;margin-top:4px">前月と変わった人だけ「確認」を。変わっていない人は自動で確認済み扱いです。</div>'
       +'</div>';
@@ -2138,7 +2161,11 @@
     /* ★倉庫の 答えが 来るまで 人の 一覧を 描かない★（案D）＝★二度 描かないので 1pxも 動かない★
        ★空の 一覧を 出さない＝「0人」に 見せない★（読み込み中／つながらない と はっきり 出す） */
     if(soukoMachi()||soukoNG()){
-      host.innerHTML=statutoryStaleWarn()+soukoHTML()+calHTML+progHTML+confirmBtn; return;
+      /* ★読み込み中は 押せる物を 出さない★（2026-09-05 実測で 分かった）
+         暦の 箱（「全員の 出勤を 所定で 埋める」「勤怠CSVを 取り込む」）を 先に 出すと、
+         答えが 来た 瞬間に ★その ボタンが 35px 動く★＝★指の 下から 逃げる★。
+         ⇒ 出すのは ★お知らせと 確定ボタン（押せない）★だけ。答えが 来たら 一度で 描く。 */
+      host.innerHTML=statutoryStaleWarn()+soukoHTML()+confirmBtn; return;
     }
     if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+renderInputTableHTML(reviewOnly)+confirmBtn; return; }
     var cards=state.employees.map(function(e,i){

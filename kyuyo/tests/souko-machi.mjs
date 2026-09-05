@@ -143,6 +143,38 @@ for (const w of [375, 390, 412]) {
   await pg.close();
 }
 
+/* ── ⑤ ★保存の 知らせが あとから 出ても 下が 動かない★ ─────────────
+   ★2026-09-05 実測★＝前は 上の 折り返す 行の 中に 在り、「自動保存済 hh:mm」が
+   出た 瞬間に 行が 折り返して 箱が 伸びていた（幅412 ★+25px★／幅390 ★+15px★）。
+   ＝これが「たまに 赤」の 正体（記録係が「下書き確認の 箱だけ 110→135px」と 名指しした）。
+   ★直し★＝自分の 行に 出し ★空でも 1行ぶんの 場所を 取る★（案B）。 */
+for (const w of [375, 390, 412]) {
+  const pg = await (await b.newContext({ viewport: { width: w, height: 900 } })).newPage();
+  const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]');
+  if (!h.haitta) { console.log('  🟡 ⑤幅' + w + ' … ★未測定★（入れなかった）'); mihakari++; await pg.close(); continue; }
+  await osu(pg, '.bn[data-scr="scr-input"]');
+  await machi(3000);
+  const m = await pg.evaluate(() => {
+    const ss = document.getElementById('save-status');
+    if (!ss) return { NG: '#save-status が 無い' };
+    const btn = document.querySelector('[data-confirm-month]');
+    const moto = ss.textContent;
+    ss.textContent = '';
+    const kara = btn ? Math.round(btn.getBoundingClientRect().top) : null;
+    ss.textContent = '自動保存済 12:34';
+    const ari = btn ? Math.round(btn.getBoundingClientRect().top) : null;
+    ss.textContent = moto;
+    return { kara: kara, ari: ari };
+  });
+  if (m.NG) { console.log('  🟡 ⑤幅' + w + ' … ★未測定★（' + m.NG + '）'); mihakari++; }
+  else {
+    T('★⑤ 幅' + w + '＝「自動保存済」が 出ても 確定ボタンが ★0px★',
+      m.kara != null && m.ari != null && zure(m.kara, m.ari) === 0,
+      m.kara + ' → ' + m.ari + '（ずれ ' + zure(m.kara, m.ari) + 'px）');
+  }
+  await pg.close();
+}
+
 /* ── ③ わざと 失敗させる ─────────────────────────────── */
 {
   const pg = await (await b.newContext({ viewport: { width: 390, height: 900 } })).newPage();

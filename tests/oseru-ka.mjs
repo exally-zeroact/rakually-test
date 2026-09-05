@@ -220,6 +220,10 @@ const ICHI = `(function(){
   [].forEach.call(document.querySelectorAll(OSU),function(el){
     var cs=getComputedStyle(el);
     if(cs.display==='none'||cs.visibility==='hidden')return;
+    /* ★押せない 物は 数えない★（2026-09-05 指示役の 決め）
+       ＝危ないのは「動く」事では なく ★指の 下から 逃げる★事。
+       押せない 札は 指を 受け付けないので、動いても 逃げられない。 */
+    if(el.disabled)return;
     var r=el.getBoundingClientRect(); if(!r.width||!r.height)return;
     var k=nm(el)+'|'+(el.textContent||'').trim().replace(/\\s+/g,' ').slice(0,16);
     if(o[k]===undefined)o[k]=Math.round(r.top);

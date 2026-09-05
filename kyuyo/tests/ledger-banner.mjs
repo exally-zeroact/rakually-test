@@ -28,6 +28,12 @@ try { ({ JSDOM } = require_('jsdom')); }
 catch { console.log('★jsdom が要ります（npm install）。飛ばせません（SKIPを緑と呼ばない）。'); process.exit(1); }
 
 const SELF = process.argv.includes('--self-test');
+/* ★画面を「開き直す」★＝台帳の 札の 決めを 取り直す（2026-09-05）
+   ★決まりが 変わった★＝札は ★画面を 開いた その時に 1回だけ 決める★。
+     ＝同じ 訪問の 中で あとから 生えると ★下の 物が 動く★（実測 幅375で 129px 逃げた）。
+   ⇒ 試験も「描き直し」ではなく ★開き直し★で 確かめる。 */
+function hirakinaosu(A) { A.state._ledgerLock = undefined; }
+
 let pass = 0, fail = 0;
 const ok = (v, m) => { if (!v) throw new Error(m || 'false'); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -132,7 +138,8 @@ async function 一式(appSrc, ラベル) {
   await T('② ★0件なら 見出し・ボタン・説明文の3つとも出ない★', async () => {
     const st = seed('0件');
     const { A, doc } = await boot(appSrc, st);
-    A.renderInput(); await sleep(120); A.renderInput(); await sleep(60);
+    hirakinaosu(A); A.renderInput(); await sleep(120);
+    hirakinaosu(A); A.renderInput(); await sleep(60);
     const b = banner(doc);
     ok(出ていない(b), '0件なのに出た: ' + JSON.stringify(b));
     ok(st.calls.range === '2026-08-01〜2026-08-31', '数えた期間が当月でない: ' + st.calls.range);
@@ -141,7 +148,9 @@ async function 一式(appSrc, ラベル) {
   await T('③ ★読めない時は ボタンを出さず「1行だけ」言う★（読めない＝在る にしない）', async () => {
     const st = seed('読めない');
     const { A, doc } = await boot(appSrc, st);
-    A.renderInput(); await sleep(120); A.renderInput(); await sleep(120); A.renderInput(); await sleep(60);
+    hirakinaosu(A); A.renderInput(); await sleep(120);
+    hirakinaosu(A); A.renderInput(); await sleep(120);
+    hirakinaosu(A); A.renderInput(); await sleep(60);
     const b = banner(doc);
     ok(出ていない(b), '読めないのにボタンが出た: ' + JSON.stringify(b));
     /* ★2回とも読めなかった時だけ 1行★（指示役の裁定 2026-08-22）
@@ -168,7 +177,7 @@ async function 一式(appSrc, ラベル) {
          ＝嘘は 1回も 見せない。変わったのは ★出る のが 次の 描画★という 所だけ。
        ★遅れない ように★ 月が 決まった その時に 数え始める（app.js の warmLedger）。 */
     ok(出ていない(banner(doc)), '★見ている画面に あとから 差し込んだ★（押す物が 逃げる）: ' + JSON.stringify(banner(doc)));
-    A.renderInput(); await sleep(30);
+    hirakinaosu(A); A.renderInput(); await sleep(30);
     const b = banner(doc);
     ok(b.見出し === 1 && b.ボタン === 1 && b.説明文 === 1, '次に描いても3件が出ない: ' + JSON.stringify(b));
     const btn = doc.getElementById('input-list').querySelector('[data-ledger-import]');
