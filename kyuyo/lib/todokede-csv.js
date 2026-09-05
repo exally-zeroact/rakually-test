@@ -689,6 +689,147 @@
     return f;
   }
 
+  /* ══ 資格取得届（2200700・34項目）════════════════════════════════
+     ★出どころ★ zidoucheck.files/★csv200_202412.pdf★（2026-09-05・全34項目）
+     ★並びが 算定と ずれている★（★5＝事業所番号／6＝被保険者整理番号★）ので 使い回さない。
+     ★このアプリは マイナンバーを お預かりしていません★（司さんの決め）
+       ⇒ 13 個人番号＝空。すると 原文の 相関で
+         ★29 郵便番号（親）・30 郵便番号（子）・31 住所（カナ）が 必須★になる。
+       ⇒ 住所カナが 無い人は ★ファイルに 入れず 名前を 挙げて 知らせる★（落とさない）。
+     ★70歳以上（備考欄項目１）は 出さない★＝基礎年金番号が 要るのに 持っていない（賞与と同じ理由） */
+  var ZEN_SP = String.fromCharCode(0x3000);
+  var SHUTOKU_MIN = 1000;                     /* 23 合計 ≧ '1000' */
+  /* 種別（性別）… 1=坑内員以外の男子／2=女子／3=坑内員 */
+  var SEIBETSU = { 'male': '1', 'female': '2', 'kounai': '3' };
+  function seibetsuCode(v) { return SEIBETSU[String(v || '')] || ''; }
+  function zip3(v) { return String(v || '').replace(/[^0-9]/g, '').slice(0, 3); }
+  function zip4(v) { return String(v || '').replace(/[^0-9]/g, '').slice(3, 7); }
+  /* ★日付は 今日より 後に できない★（今日は 呼ぶ側が 渡す＝libは 時計を 持たない） */
+  function shutokuHiOk(ymd, kyou) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd || ''))) return false;
+    if (!kyou) return true;
+    return String(ymd) <= String(kyou);
+  }
+  function dasuKaShutoku(inp) {
+    inp = inp || {};
+    var e = inp.emp || {};
+    if ((inp.bikou || {}).over70) return false;             /* 24 備考欄項目１＝基礎年金番号が 要る */
+    if (!shutokuHiOk(inp.shutokuYmd, inp.kyou)) return false; /* 18-19 */
+    if (!seibetsuCode(e.seibetsu)) return false;            /* 11 種別＝取得区分'1'なら 必須 */
+    if (!zip3(e.zip) || !zip4(e.zip)) return false;         /* 29-30 個人番号を 省くので 必須 */
+    if (!String(e.jushoKana || '').trim()) return false;    /* 31 同上 */
+    return n(inp.tsuka) + n(inp.genbutsu) >= SHUTOKU_MIN;   /* 23 合計 ≧ 1000 */
+  }
+  function shutokuWarn(inp) {
+    inp = inp || {};
+    var out = [], b = inp.bikou || {}, e = inp.emp || {};
+    var namae = e.kanji || e.kana || '';
+    if (b.over70) {
+      out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
+        + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+      return out;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.shutokuYmd || ''))) {
+      out.push(namae + '＝入社日（資格取得日）が 入っていません（年月日が 要ります）');
+    } else if (!shutokuHiOk(inp.shutokuYmd, inp.kyou)) {
+      out.push(namae + '＝入社日（' + inp.shutokuYmd + '）が ★先の 日付★です。'
+        + '入社した 後でないと 出せません（電子申請の ファイルに 入れていません）');
+    }
+    if (!seibetsuCode(e.seibetsu)) {
+      out.push(namae + '＝★性別★が 入っていません（届出の「種別」に 要ります）。'
+        + '設定 ▸ 従業員マスタ で 選んでください');
+    }
+    if (!zip3(e.zip) || !zip4(e.zip)) {
+      out.push(namae + '＝★郵便番号★が 入っていません。'
+        + 'このアプリは マイナンバーを お預かりしないので、代わりに 住所が 要ります');
+    }
+    if (!String(e.jushoKana || '').trim()) {
+      out.push(namae + '＝★住所（カナ）★が 入っていません。'
+        + 'このアプリは マイナンバーを お預かりしないので、代わりに 住所が 要ります');
+    }
+    var wa2 = n(inp.tsuka) + n(inp.genbutsu);
+    if (wa2 <= 0) {
+      out.push(namae + '＝★入社時の 見込みの 報酬月額★が 入っていません。'
+        + '設定 ▸ 従業員マスタ の 社会保険で 入れてください（資格取得届の「報酬月額」に なります）');
+    } else if (wa2 < SHUTOKU_MIN) {
+      out.push(namae + '＝報酬月額の 合計が ' + wa2.toLocaleString() + '円です。'
+        + '★1,000円未満は 出せません★（電子申請の ファイルに 入れていません）');
+    }
+    var bad = badChars((e.kanji || '') + (e.kana || '') + (e.jushoKanji || '') + (e.jushoKana || ''));
+    if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
+    return out;
+  }
+  function shutokuRow(inp) {
+    inp = inp || {};
+    var j = inp.jimusho || {}, e = inp.emp || {}, b = inp.bikou || {};
+    var born = gengoOf(e.birthYmd) || { code: '', ymd6: '' };
+    var toku = inp.shutokuYmd ? gengoOf(inp.shutokuYmd) : null;
+    var wa = n(inp.tsuka) + n(inp.genbutsu);
+    var r = [];
+    r[0] = '2200700';                                   /* 1 様式コード */
+    r[1] = String(j.todofuken || '');                   /* 2 都道府県コード */
+    r[2] = String(j.gunshiku || '');                    /* 3 郡市区符号 */
+    r[3] = String(j.kigou || '');                       /* 4 事業所記号 */
+    r[4] = String(j.jigyoshoNo || '');                  /* 5 事業所番号（★算定には 無い★） */
+    r[5] = e.seiriNo ? String(e.seiriNo) : '';          /* 6 被保険者整理番号 */
+    r[6] = String(e.kana || '');                        /* 7 氏名カナ */
+    r[7] = String(e.kanji || '');                       /* 8 氏名漢字 */
+    r[8] = born.code; r[9] = born.ymd6;                 /* 9-10 生年月日 */
+    r[10] = seibetsuCode(e.seibetsu);                   /* 11 種別（性別） */
+    r[11] = '1';                                        /* 12 取得区分＝'1'（健保・厚年に加入する者） */
+    r[12] = '';                                         /* 13 ★個人番号＝持たない★ */
+    r[13] = '';                                         /* 14 住民票住所を記載できない理由＝使わない */
+    r[14] = '';                                         /* 15 個人番号情報（備考欄）＝14が'3'の時だけ */
+    r[15] = '';                                         /* 16 基礎年金番号（課所符号）＝持たない */
+    r[16] = '';                                         /* 17 基礎年金番号（一連番号）＝持たない */
+    r[17] = toku ? toku.code : '';                      /* 18 資格取得年月日（元号） */
+    r[18] = toku ? toku.ymd6 : '';                      /* 19 資格取得年月日（年月日） */
+    r[19] = b.fuyo ? '1' : '0';                         /* 20 被扶養者の有無 */
+    r[20] = money7(inp.tsuka);                          /* 21 通貨によるものの額 */
+    r[21] = money7(inp.genbutsu);                       /* 22 現物によるものの額 */
+    r[22] = money7(wa >= 9999999 ? 9999999 : wa);       /* 23 合計 */
+    r[23] = '';                                         /* 24 備考欄項目1＝70歳以上被用者該当（出さない） */
+    r[24] = b.nijo ? '1' : '';                          /* 25 備考欄項目2＝二以上事業所勤務 */
+    r[25] = b.tanjikan ? '1' : '';                      /* 26 備考欄項目3＝短時間労働者 */
+    r[26] = b.saikoyo ? '1' : '';                       /* 27 備考欄項目4＝退職後の継続再雇用 */
+    r[27] = String(b.bikou || '');                      /* 28 備考欄 */
+    r[28] = zip3(e.zip);                                /* 29 郵便番号（親番号） */
+    r[29] = zip4(e.zip);                                /* 30 郵便番号（子番号） */
+    r[30] = String(e.jushoKana || '');                  /* 31 被保険者住所（カナ） */
+    /* 32 被保険者住所（漢字）… 原文「半角スペースが含まれていないこと」「連続した全角スペースが
+       含まれていないこと」。うちの 住所欄（源泉徴収票用）は ★半角スペースで 建物名を 区切っている★
+       ので、★続いた すきまを 全角スペース1つに 直してから 出す★（中身は 変えていない）。 */
+    r[31] = String(e.jushoKanji || '').replace(/[ 　]+/g, ZEN_SP);
+    r[32] = '';                                         /* 33 70歳以上被用者届のみ提出＝出さない */
+    r[33] = '';                                         /* 34 資格確認書発行要否 */
+    for (var k = 0; k < 34; k++) if (r[k] == null) r[k] = '';
+    return r;
+  }
+  function shutokuCsv(inp) {
+    inp = inp || {};
+    var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
+    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: { errors: [], hito: 0, mihakari: 0 } };
+    /* ★出す前の 門★＝1件でも 合わなければ ★ファイルを 作らない★ */
+    var kensa = CHECK ? CHECK.checkRows(rows, { kyou: inp.kyou }) : { errors: [], hito: rows.length, mihakari: rows.length };
+    if (CHECK && CHECK.checkHeader) {
+      CHECK.checkHeader(inp.jimusho, inp.baitai || {}).forEach(function (x) {
+        kensa.errors.push({ gyo: 0, no: x.no, name: x.name, why: x.why });
+      });
+    }
+    if (kensa.errors.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: kensa };
+    var out = [];
+    out.push(baitaiRow(inp.jimusho, inp.baitai || {}));
+    out.push([SEP_KANRI]);
+    jigyoshoRows(inp.jimusho).forEach(function (r) { out.push(r); });
+    out.push([SEP_DATA]);
+    rows.forEach(function (r) { out.push(r); });
+    var f = build(out);
+    f.name = FILE_NAME;
+    f.kensa = kensa;
+    f.tooBig = tooBig(f.bytes.length);
+    return f;
+  }
+
   function santeiCsv(inp) {
     inp = inp || {};
     var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
@@ -725,6 +866,8 @@
     GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa,
     gekkakuRow: gekkakuRow, gekkakuWarn: gekkakuWarn, gekkakuCsv: gekkakuCsv, dasuKaGekkaku: dasuKaGekkaku, ymAdd: ymAdd,
     shoyoRow: shoyoRow, shoyoWarn: shoyoWarn, shoyoCsv: shoyoCsv, dasuKaShoyo: dasuKaShoyo,
+    shutokuRow: shutokuRow, shutokuWarn: shutokuWarn, shutokuCsv: shutokuCsv, dasuKaShutoku: dasuKaShutoku,
+    seibetsuCode: seibetsuCode, SEIBETSU: SEIBETSU,
     shoyoGoukei: shoyoGoukei, shoyoHiOk: shoyoHiOk, MAN10: MAN10,
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,
     nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, DAIHYO_CODE: DAIHYO_CODE, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,

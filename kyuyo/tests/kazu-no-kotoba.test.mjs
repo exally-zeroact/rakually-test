@@ -30,9 +30,13 @@ const app = fs.readFileSync(path.join(ROOT, 'kyuyo/js/app.js'), 'utf8');
 console.log('\n[kazu-no-kotoba] 画面の「◯つ」は 本当に ◯個 か（2026-09-04＝4つと書いて 5個 だった）');
 
 T('★① 電子申請の 問いは 数を 文字で 書いていない', () => {
-  const i = app.indexOf('function santeiCsvBox');
-  const j = app.indexOf('function renderSantei', i);
+  /* ★2026-09-05 引っ越した★＝資格取得届でも 同じ 聞き取りが 要ったので
+     ★jimushoToi 1か所★に 出した（写しを 2か所に 持たない）。見る所も そこへ 移す。
+     ★移した事に この見張りが 気づいて 赤に なった★＝字で 探す 見張りが 効いた 証拠。 */
+  const i = app.indexOf('function jimushoToi');
+  const j = app.indexOf('function santeiCsvBox', i);
   const box = app.slice(i, j > i ? j : i + 4000);
+  ok(i >= 0, '★jimushoToi が 無い（聞き取りの 1か所が 消えた）★');
   /* ★「下の 4つは」の様に 数を 打ち込んでいないか★（注記の 中は 数えない） */
   const nama = box.replace(/\/\*[\s\S]*?\*\//g, ' ').match(/[下上]の\s*[0-9０-９一二三四五六七八九十]+つ/g) || [];
   ok(!nama.length, '★数を 文字で 書いている★ … ' + nama.join('／'));
@@ -40,8 +44,8 @@ T('★① 電子申請の 問いは 数を 文字で 書いていない', () => 
 });
 
 T('★② 出どころ別に 箱が 分かれている（納入告知書／会社の物）', () => {
-  const i = app.indexOf('function santeiCsvBox');
-  const box = app.slice(i, i + 4000);
+  const i = app.indexOf('function jimushoToi');
+  const box = app.slice(i, app.indexOf('function santeiCsvBox', i));
   ok(/TOI_NOUNYU/.test(box) && /TOI_KAISHA/.test(box), '★出どころで 分けていない★');
   /* ★納入告知書の 箱は 2つだけ★（一次情報＝CSV仕様書 69p「納入告知書 納付書・領収証書に記載されている」
      のは ★事業所整理記号（郡市区符号＋事業所記号）★と ★事業所番号★） */
