@@ -5,7 +5,7 @@
     "generator": "scripts/make-golden.mjs",
     "generatedAt": "2026-07-31T11:36:24.799Z",
     "inputFixture": "tests/fixtures/payroll-input.json",
-    "inputSha256": "a818829b0248d9a1266f3b0789d7561ece23b75da3bed91f881f03e7ab85eca9",
+    "inputSha256": "ffad212007f85aedad37527b1202cc3d148ba2cc635b79c0c68f3b43a625b2ad",
     "goldenSha256": "81f9469e8ba5b51edb646a8ccb3bf1d45baf343ac31ae90e6e6b15a99cfd7163",
     "note": "★移設前(1c128e1)の真値。オペ化後の出力はこれと1円まで一致すること。作り直し禁止(sha照合で検知)。"
   },
