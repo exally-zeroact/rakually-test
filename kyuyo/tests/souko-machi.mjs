@@ -91,8 +91,13 @@ let pass = 0, fail = 0, mihakari = 0;
 const T = (n, c, m) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ ' + n + (m ? ' — ' + m : '')); } };
 const machi = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* ★倉庫の 答えを わざと 遅らせる／わざと 失敗させる★（アプリ自身の 道は 変えない） */
-const shikomu = (osoiMs, kowasu) => (pg) => pg.addInitScript((a) => {
+/* ★倉庫の 答えを 止めておく／わざと 失敗させる★（アプリ自身の 道は 変えない）
+   ★時間で 待たせない★（2026-09-05 CIで 実測）＝「5秒 遅らせる」だと
+   ★ログインが 遅い 機械では その 5秒が ログイン中に 過ぎてしまい★、
+   画面を 開いた 時には もう 答えが 来ている＝★測りたい 場面が 来ない★（幅375だけ 通って 390/412が 落ちた）。
+   ⇒★こちらが 合図を 出すまで 止めておく★＝機械の 速さに 左右されない。 */
+const shikomu = (kowasu) => (pg) => pg.addInitScript((a) => {
+  window.__soukoHold = true;
   let _st;
   Object.defineProperty(window, 'Store', {
     configurable: true,
@@ -101,16 +106,21 @@ const shikomu = (osoiMs, kowasu) => (pg) => pg.addInitScript((a) => {
       if (v && typeof v.cloudLoadState === 'function') {
         const moto = v.cloudLoadState.bind(v);
         v.cloudLoadState = function () {
-          return new Promise((res, rej) => setTimeout(() => {
-            if (a.kowasu) rej(new Error('★わざと 倉庫を 落とした★'));
-            else res(moto());
-          }, a.osoi));
+          return new Promise((res, rej) => {
+            const tick = () => {
+              if (window.__soukoHold) { setTimeout(tick, 50); return; }
+              if (a.kowasu) rej(new Error('★わざと 倉庫を 落とした★'));
+              else res(moto());
+            };
+            setTimeout(tick, 50);
+          });
         };
       }
       _st = v;
     },
   });
-}, { osoi: osoiMs, kowasu: !!kowasu });
+}, { kowasu: !!kowasu });
+const hanasu = (pg) => pg.evaluate(() => { window.__soukoHold = false; });
 
 const YOMU = `(function(){
   var btn=document.querySelector('[data-confirm-month]');
@@ -129,7 +139,7 @@ console.log('\n[souko-machi] 倉庫の 答えが 遅れても 動かない／押
 /* ── ①② 遅らせる ─────────────────────────────────── */
 for (const w of [375, 390, 412]) {
   const pg = await (await b.newContext({ viewport: { width: w, height: 900 } })).newPage();
-  await shikomu(5000, false)(pg);
+  await shikomu(false)(pg);
   const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]');
   if (!h.haitta) { console.log('  🟡 幅' + w + ' … ★未測定★（' + h.kai + '回 試して 入れなかった）'); mihakari++; await pg.close(); continue; }
   await osu(pg, '.bn[data-scr="scr-input"]');
@@ -139,7 +149,8 @@ for (const w of [375, 390, 412]) {
   T('★② 幅' + w + '＝理由が 字で 出ている（灰色だけに しない）', machiOk(a1.fuda), '札「' + a1.fuda + '」');
   T('★④ 幅' + w + '＝空の 一覧を 出さない（0人に 見せない）',
     a1.hito === 0 && /読み込み中/.test(a1.ji), '人 ' + a1.hito + '／字「' + a1.ji.slice(0, 50) + '」');
-  await machi(7000);                                  /* 倉庫が 答える */
+  await hanasu(pg);                                   /* ★ここで はじめて 倉庫が 答える★ */
+  await machi(4000);
   const a2 = await pg.evaluate(YOMU);
   /* ★ここは 動きます★＝人の 一覧が 0人から 本物に なるので、その 下の ボタンは 必ず 下がる。
      ★大事なのは「動く 間は 押せない」事★＝指の 下から 逃げない。
@@ -192,12 +203,14 @@ for (const w of [375, 390, 412]) {
 /* ── ③ わざと 失敗させる ─────────────────────────────── */
 {
   const pg = await (await b.newContext({ viewport: { width: 390, height: 900 } })).newPage();
-  await shikomu(800, true)(pg);
+  await shikomu(true)(pg);
   const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]');
   if (!h.haitta) { console.log('  🟡 失敗の 回 … ★未測定★（入れなかった）'); mihakari++; }
   else {
     await osu(pg, '.bn[data-scr="scr-input"]');
-    await machi(3000);
+    await machi(400);
+    await hanasu(pg);                                 /* ★ここで はじめて 落ちる★ */
+    await machi(2500);
     const a = await pg.evaluate(YOMU);
     T('★③ つながらなかったら ★失敗と 言う★（黙って 空に しない）',
       /つながりませんでした/.test(a.ji), '字「' + a.ji.slice(0, 70) + '」');
