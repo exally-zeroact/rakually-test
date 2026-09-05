@@ -480,11 +480,10 @@
    ★スマホは 畳んだ状態で 始める★（js/seikyu-app.js が 幅で 決める）。 */
 .set-pv-h {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  width: 100%; min-height: 44px; padding: 0; margin: 0;
-  background: none; border: 0; cursor: pointer; text-align: left; font: inherit;
+  width: 100%; min-height: 44px;
 }
 .set-pv-h .card-h { margin: 0; }
-.set-pv-cue { font-size: 12px; font-weight: 700; color: #2E7D54; white-space: nowrap; }
+.set-pv-h .mini { white-space: nowrap; flex: 0 0 auto; }
 .set-pv-card.tojiru #set-pv-body { display: none; }
 /* ★飛んだ先の 見出しが 帯の 下に 隠れない★（2026-09-05 実測で 5枚が 頭0pxだった）
    ＝貼り付く帯（74px）の ぶんだけ 手前で 止める。 */

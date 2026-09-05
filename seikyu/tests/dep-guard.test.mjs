@@ -54,6 +54,13 @@ const OUTSIDE = [
   'kyuyo/lib/shiharai-chosho.js',      // ★源泉の率と式（法定の唯一の正）CHOSHO.gensenA★
   'kyuyo/lib/shouhizei-ritsu.js',      // ★消費税の率（法定の唯一の正）SR.hyojun / SR.keigen★
   'lib/xlsx.full.min.js',              // Excel の読み書き
+  /* ★PDFの 字体を 軽くする★（司さん 2026-09-06「請求書1枚で 重すぎるやろが／全アプリ共通やろが」）
+     ＝PDFの 94%が 字体だった（4,669,688B・13,932字を 1通の紙に 丸ごと 同梱）。
+     ★字の 番号を 1つも 動かさず 形だけ 空にする★ので 見た目は 1画素も 変わらない
+     （実測 3,087,087B → 88,558B）。★正本は ここ（rakually-test/lib）★で、
+     代行請求の 2repo にも 同じバイトで 配ってある（tests/pdf-font-weight.test.mjs が 突き合わせる）。
+     ★pdf-slim.js は 請求書では 使っていない★（代行のような「描きながら 字が 決まる」作り用）。 */
+  'lib/font-slim.js',                  // 使う字だけ 形を 残した 字体を 作る（借り物ゼロ・自前）
   /* ★2026-08-29 締め期間を 共通の場所へ★（司さん「取引先ごとに様式を設定できてる前提か？」の流れ）
      正本＝Timeally の period(ym, closeDay) を ★同じ形のまま★ 借りた物。
      ★請求書（対象期間）も 給与（締め日）も 同じ1本を見る★＝2か所に写さない

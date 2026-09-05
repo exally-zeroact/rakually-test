@@ -909,7 +909,16 @@
     if (!v || locked()) return;
     var beki = tplNow(v);
     if ((v.template_id || null) === beki) return;
-    chooseTplCore(beki);
+    /* ★勝手に 直す時は 様式だけ★（列には 触らない）
+       ★2026-09-06 実測で 踏んだ★ … chooseTplCore は v.data.cols を 書く。
+       colsOf() は ★v.data.cols を 取引先ごとの 列より 先に 見る★ので、
+       ここで 書くと ★「この相手だけの 列」が 二度と 紙に 出なくなる★
+       （seikyu/tests/scope-ui.mjs が 赤に なって 気づいた）。
+       ⇒ 列は colsOf() に 任せる＝★取引先 → 会社 → 様式★の 順で 解ける。
+       ★人が 設定で 様式を 押した時（chooseTpl）は 今までどおり 列も 変える★＝そちらは 人の 意思。 */
+    v.template_id = beki;
+    v.data = v.data || {};
+    v.data.tplAsked = true;
   }
 
   function chooseTpl(id) { if (chooseTplCore(id)) { renderTplAsk(); renderLines(); renderDeductions(); recalc(); } }
@@ -3054,7 +3063,8 @@
     var c = $('set-pv-card'); if (!c) return;
     c.classList.toggle('tojiru', !open);
     var t = $('set-pv-toggle'); if (t) t.setAttribute('aria-expanded', open ? 'true' : 'false');
-    var cue = $('set-pv-cue'); if (cue) cue.textContent = open ? '閉じる ▲' : '紙を見る ▼';
+    /* ★字は 押す物 そのものに 出す★（見出しを button に すると 台帳に 無い顔に なる） */
+    if (t) t.textContent = open ? '閉じる ▲' : '紙を見る ▼';
     try { global.localStorage.setItem(SET_PV_KEY, open ? '1' : '0'); } catch (e) { /* 覚えられなくても 動く */ }
     /* ★開いた時は 必ず 描き直す★
        畳んでいる間（display:none）に 描くと、見本の 中の JS が 測る 幅と 高さが 0 で
