@@ -61,7 +61,7 @@ if (SELF) {
 }
 
 /* ── ここから 実ブラウザ ───────────────────────────────── */
-import { hairu, toziru } from './_hairu.mjs';   /* ★入る手順は 1か所★ */
+import { hairu, toziru, osu } from './_hairu.mjs';   /* ★入る手順は 1か所★ */
 let borrow, pwLaunch;
 try { ({ borrow, launch: pwLaunch } = await import('../scripts/_borrow-playwright.mjs')); }
 catch (e) { console.log('🟡 ★未測定★ playwright を 借りる 道具が 読めない … ' + (e && e.message)); process.exit(2); }
@@ -157,7 +157,10 @@ for (const w of HABA) {
   for (const scr of NAKA) {
     const aru = await pg.$('.bn[data-scr="' + scr + '"]');
     if (!aru) { console.log('  🟡 給与 ' + scr + ' 幅' + w + ' … ★未測定★（そのタブが 無い）'); mihakari++; continue; }
-    await pg.click('.bn[data-scr="' + scr + '"]');
+    /* ★覆いは 画面を 移るたびに 出る★（2026-09-05 実測＝ここで 落ちていた）
+       ⇒★毎回 本物の 閉じる ボタンで 閉じてから 押す★／押せなければ ★未測定★（黙って 落ちない） */
+    const o = await osu(pg, '.bn[data-scr="' + scr + '"]');
+    if (!o.oseta) { console.log('  🟡 給与 ' + scr + ' 幅' + w + ' … ★未測定★（' + o.kai + '回 試して タブが 押せない・覆いの 閉じ残り ' + o.nokori + '）'); mihakari++; continue; }
     await new Promise((r) => setTimeout(r, 600));
     const m = await pg.evaluate(() => {
       const de = document.documentElement; const bad = [];

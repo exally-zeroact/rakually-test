@@ -516,6 +516,8 @@ jobs:
         run: node kyuyo/tests/todokede-check.test.mjs && node kyuyo/tests/todokede-check.test.mjs --self-test
       - name: ★賞与支払届の電子申請CSV（様式2265700・21項目／標準賞与額は1,000円未満切捨・支払日は未来不可）
         run: node kyuyo/tests/shoyo-csv.test.mjs && node kyuyo/tests/shoyo-csv.test.mjs --self-test
+      - name: ★資格取得届の電子申請CSV（様式2200700・34項目／マイナンバー無し＝郵便番号・住所カナが必須）
+        run: node kyuyo/tests/shutoku-csv.test.mjs && node kyuyo/tests/shutoku-csv.test.mjs --self-test
       - name: ★スマホ幅で潰れ0・はみ出し0（代行請求の物差しを借用・給与5画面＋請求書＋明細×3幅）
         run: node tests/sumaho-haba.mjs --self-test && node tests/sumaho-haba.mjs
       - name: ★真ん中を突いて本当に押せるか／出た時に下の物がずれないか（ダイコメの物差しを借用・実測129px）
