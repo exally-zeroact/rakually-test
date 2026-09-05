@@ -114,10 +114,12 @@ T('★⑩ 従前のままの 人は CSV に 入れない（画面の 文と 実�
   ok(typeof TD.dasuKa === 'function', '★TD.dasuKa が 無い★＝出す／出さないを 決めていない');
   /* ★従前の 改定月は 電子申請で 必須★（csv225 項番15-17）＝材料にも 入れる */
   const ZEN = { health: 260000, pension: 260000, kaiteiYmd: '2025-09-01' };
-  const deru = { zenzen: ZEN, months: [M(17, 300000), M(18, 310000), M(20, 320000)], rule: RULE('') };
-  const denai = { zenzen: ZEN, months: [M(14, 90000), M(10, 60000), M(0, 0)], rule: RULE('') };
+  /* ★氏名（カナ）も 電子申請で 必須★（csv225 項番6）＝材料にも 入れる（2026-09-05） */
+  const E = { kana: 'ﾈﾝｷﾝ ﾀﾛｳ', kanji: '年金　太郎' };
+  const deru = { emp: E, zenzen: ZEN, months: [M(17, 300000), M(18, 310000), M(20, 320000)], rule: RULE('') };
+  const denai = { emp: E, zenzen: ZEN, months: [M(14, 90000), M(10, 60000), M(0, 0)], rule: RULE('') };
   /* ★指示役が 見つけた 割れ★＝一般で 16日×3（画面は「入りません」と 言う） */
-  const wareme = { zenzen: ZEN, months: [M(16, 100000), M(16, 100000), M(16, 100000)], rule: RULE('') };
+  const wareme = { emp: E, zenzen: ZEN, months: [M(16, 100000), M(16, 100000), M(16, 100000)], rule: RULE('') };
   ok(TD.dasuKa(wareme) === false, '★一般 16日×3 を 入れてしまう★＝画面の 札が 嘘に なる');
   ok(TD.dasuKa(deru) === true, '★出せる人を 外している★');
   ok(TD.dasuKa(denai) === false, '★従前のままの 人を 入れてしまう★＝画面の 文が 嘘に なる');

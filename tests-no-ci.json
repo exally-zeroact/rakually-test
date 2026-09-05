@@ -4,5 +4,6 @@
   "tests/live-seed.mjs":          { "kind": "tool", "why": "試験ではなく ★種を撒く道具★（手で走らせる）", "back": "入れた物を確かめる試験に作り替えた日" },
   "tests/dbtest-seed.mjs":        { "kind": "tool", "why": "試験ではなく ★種を撒く道具★（手で走らせる）", "back": "入れた物を確かめる試験に作り替えた日" },
   "kyuyo/tests/load-before-delete-live.mjs": { "why": "DB-test へ実接続して ★まっさらな端末で 何回 開いたら 倉庫が減るか★ を数える（鍵とブラウザが要る／CIには鍵が無い）。★CIで 毎回 回る 見張りは kyuyo/tests/load-before-delete.test.mjs と cloud-sync.mjs の P0-race①②③★", "back": "CI に DB-test の鍵を置いた日" },
+  "kyuyo/tests/shutoku-ui.mjs":   { "why": "★実ブラウザで お客さんの道どおり 資格取得届を 出す★（DB-test へ 実接続＝ログインが 要る）。★手元では 9本とも 緑・SHFD0006.CSV 294バイト・34列★／CIでは ★欄に 打った 値が 次の 描き直しに 間に合わず★ ②③が 落ちる（★穴では なく 私の 待ち方が 足りない★）。★この試験が 見つけた 中身（氏名カナの 欄／画面と門の食い違い）は 別の 見張りに 落としてある★＝kyuyo/tests/shutoku-csv.test.mjs と kyuyo/tests/integration.mjs（89本）", "back": "★打った値が 入った事を 見てから 次へ進む★ように 待ち方を 直した日（CIで 9本 緑に なった日）" },
   "tests/repo-supa.mjs":          { "kind": "tool", "why": "試験ではなく ★倉庫の中を見る道具★（手で走らせる）", "back": "見た物を確かめる試験に作り替えた日" }
 }

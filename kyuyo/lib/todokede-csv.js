@@ -195,8 +195,45 @@
   /* ★この人を 電子申請の ファイルに 入れるか★
      ★対象の 月が 0＝従前の 標準報酬月額の まま★＝総計・平均額に 書く数字が ★未測定★
      ⇒★入れない★（santeiWarn が 名前を 挙げて 知らせる／★画面の 文と 実物を 合わせる★） */
+  /* ★氏名（カナ）は 4つの 届出 ぜんぶで 必須★（算定6／月変6／賞与6／取得7）
+     ★2026-09-05 実測★＝画面に 入れる欄が 1つも 無く、e.kana は 必ず 空だった。
+       それでも dasuKa* は ★true★ を 返していた＝★ボタンが「1人・SHFD0006.CSV」と 嘘を つく★
+       （押すと 門で 止まり 0バイト＝★お客さんは「出せる」と 言われてから 断られる★）
+     ⇒★ここで 止めて、warn が 名前と 理由を 出す★（画面の 文と 実物を 合わせる） */
+  /* ★画面の 判定と 門の 判定を 1つに する★（2026-09-05 実測で 見つけた 型）
+     ★同じ状態を 2か所で 別々に 判定するな★（会社の 決まり）＝画面が「出せます」と 言い、
+     押すと 門が 別の 理由で 止める＝★お客さんは 出せると 言われてから 断られる★。
+     ★実測（実ブラウザ）★
+       ・氏名（漢字）の 姓名間に 全角スペースが 無い → 項番8 で 門が 止めたが 画面は 何も 言わなかった
+       ・事業所所在地が 空 → 項番7 で 門が 止めたが 画面は「もう 分かっている」と 言っていた
+     ⇒★画面は 門そのものに 聞く★（写しの 一覧を 持たない）。
+     ★仕様書の 言い方を そのまま 出す★（言い換えない＝直す時に 迷わない） */
+  function kensaNG(row, kyou) {
+    if (!CHECK || !CHECK.check) return [];
+    var c = CHECK.check(row, kyou);
+    return (c && c.measured) ? (c.errors || []) : [];
+  }
+  function kensaKotoba(errs) {
+    return (errs || []).map(function (x) { return '項番' + x.no + ' ' + x.name + '／' + x.why; });
+  }
+
+  function kanaOk(emp) {
+    var k = String((emp || {}).kana || '').trim();
+    if (!k) return false;
+    if (!/^[｡-ﾟ ]+$/.test(k)) return false;          /* 半角カナ＋半角スペース */
+    return k.indexOf(' ') > 0 && k.indexOf('  ') < 0; /* 姓名間セパレータ 1個以上・連続しない */
+  }
+  function kanaWhy(emp) {
+    var k = String((emp || {}).kana || '').trim();
+    if (!k) return '氏名（カナ）が 入っていません（設定 ▸ 従業員マスタ の 「氏名（カナ）」）';
+    if (!/^[｡-ﾟ ]+$/.test(k)) return '氏名（カナ）は ★半角カナ★で 入れてください（今 「' + k + '」）';
+    if (k.indexOf(' ') <= 0) return '氏名（カナ）は ★姓と名の 間に 半角スペースを 1つ★ 入れてください（今 「' + k + '」）';
+    return '氏名（カナ）に ★半角スペースが 続いています★（今 「' + k + '」）';
+  }
+
   function dasuKa(inp) {
     inp = inp || {};
+    if (!kanaOk(inp.emp)) return false;                         /* 6 氏名（カナ）＝必須 */
     /* ★70歳以上被用者（備考欄項目1）は 付けられない★（公式の 項目表 csv225.pdf 項目41 の 相関）
          「『備考欄項目１』が'1' かつ 『個人番号』に入力がない場合 ★入力されていること★」（＝基礎年金番号）
        ⇒うちは ★個人番号も 基礎年金番号も お預かりしない（裁定 甲）★
@@ -458,6 +495,7 @@
   /* ★この人を 出せるか★（★出せない 時に 数字を でっち上げない★） */
   function dasuKaGekkaku(inp) {
     inp = inp || {};
+    if (!kanaOk(inp.emp)) return false;                         /* 6 氏名（カナ）＝必須 */
     if ((inp.bikou || {}).over70) return false;                 /* 70歳以上＝基礎年金番号が 要る */
     if (!(inp.zenzen || {}).kaiteiYmd) return false;            /* 15〜17 従前の改定月＝必須 */
     if (!ymAdd(inp.henkoYm, 3)) return false;                   /* 改定年月が 出せない */
@@ -606,6 +644,7 @@
   }
   function dasuKaShoyo(inp) {
     inp = inp || {};
+    if (!kanaOk(inp.emp)) return false;                         /* 6 氏名（カナ）＝必須 */
     if ((inp.bikou || {}).over70) return false;               /* 70歳以上＝基礎年金番号が 要る */
     if (!shoyoHiOk(inp.harauYmd, inp.kyou)) return false;     /* 10 空／未来 */
     return shoyoGoukei(inp.tsuka, inp.genbutsu) >= SHOYO_MIN; /* 14 合計 ≧ 1000 */
@@ -631,6 +670,7 @@
           + '★1,000円未満は 出せません★（電子申請の ファイルに 入れていません）');
       }
     }
+    if (!kanaOk(inp.emp)) out.push(namae + '＝' + kanaWhy(inp.emp));
     var bad = badChars(((inp.emp || {}).kanji || '') + ((inp.emp || {}).kana || ''));
     if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
     return out;
@@ -713,12 +753,15 @@
   function dasuKaShutoku(inp) {
     inp = inp || {};
     var e = inp.emp || {};
+    if (!kanaOk(e)) return false;                               /* 7 氏名（カナ）＝必須 */
     if ((inp.bikou || {}).over70) return false;             /* 24 備考欄項目１＝基礎年金番号が 要る */
     if (!shutokuHiOk(inp.shutokuYmd, inp.kyou)) return false; /* 18-19 */
     if (!seibetsuCode(e.seibetsu)) return false;            /* 11 種別＝取得区分'1'なら 必須 */
     if (!zip3(e.zip) || !zip4(e.zip)) return false;         /* 29-30 個人番号を 省くので 必須 */
     if (!String(e.jushoKana || '').trim()) return false;    /* 31 同上 */
-    return n(inp.tsuka) + n(inp.genbutsu) >= SHUTOKU_MIN;   /* 23 合計 ≧ 1000 */
+    if (n(inp.tsuka) + n(inp.genbutsu) < SHUTOKU_MIN) return false;   /* 23 合計 ≧ 1000 */
+    /* ★最後に 門そのものに 聞く★（画面と 門を 1つに する） */
+    return kensaNG(shutokuRow(inp), inp.kyou).length === 0;
   }
   function shutokuWarn(inp) {
     inp = inp || {};
@@ -755,8 +798,13 @@
       out.push(namae + '＝報酬月額の 合計が ' + wa2.toLocaleString() + '円です。'
         + '★1,000円未満は 出せません★（電子申請の ファイルに 入れていません）');
     }
+    if (!kanaOk(e)) out.push(namae + '＝' + kanaWhy(e));
     var bad = badChars((e.kanji || '') + (e.kana || '') + (e.jushoKanji || '') + (e.jushoKana || ''));
     if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
+    /* ★門が 止める 物は 画面も 言う★（写しの 一覧を 持たない） */
+    kensaKotoba(kensaNG(shutokuRow(inp), inp.kyou)).forEach(function (w) {
+      if (out.join('／').indexOf(w) < 0) out.push(namae + '＝' + w);
+    });
     return out;
   }
   function shutokuRow(inp) {
@@ -866,6 +914,7 @@
     GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa,
     gekkakuRow: gekkakuRow, gekkakuWarn: gekkakuWarn, gekkakuCsv: gekkakuCsv, dasuKaGekkaku: dasuKaGekkaku, ymAdd: ymAdd,
     shoyoRow: shoyoRow, shoyoWarn: shoyoWarn, shoyoCsv: shoyoCsv, dasuKaShoyo: dasuKaShoyo,
+    kanaOk: kanaOk, kanaWhy: kanaWhy, kensaNG: kensaNG, kensaKotoba: kensaKotoba,
     shutokuRow: shutokuRow, shutokuWarn: shutokuWarn, shutokuCsv: shutokuCsv, dasuKaShutoku: dasuKaShutoku,
     seibetsuCode: seibetsuCode, SEIBETSU: SEIBETSU,
     shoyoGoukei: shoyoGoukei, shoyoHiOk: shoyoHiOk, MAN10: MAN10,

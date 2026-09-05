@@ -21,15 +21,36 @@
 /* pg … playwright の page ／ matsu … 入れた事の 目印（この物が 出たら 入れた）
    返り値 { haitta, matta, kai } … kai＝入れた 時の 回数（入れなければ 試した 回数） */
 export async function hairu(pg, url, matsu, kaiMax = 3) {
-  let matta = 0;
+  let matta = 0, naze = '';
   for (let kai = 1; kai <= kaiMax; kai++) {
     await pg.goto(url, { waitUntil: 'domcontentloaded' });
     for (let i = 0; i < 60; i++) { matta++; if (await pg.$('#loginEmail, .bn[data-scr]')) break; await new Promise((r) => setTimeout(r, 250)); }
     if (await pg.$('#loginEmail')) {
-      await pg.fill('#loginEmail', 'test@test.com');
-      await pg.fill('#loginPass', 'test1234');
-      await pg.click('#btnLogin');
-      for (let i = 0; i < 80; i++) { matta++; if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
+      /* ★打てるように なるまで 待つ★（2026-09-05 CIで 実測＝#loginEmail は 在るのに
+         30秒 打てずに 落ちた。★覆いが 出そろう前★に 打とうとしていた）
+         ★短く 切って 投げ捨てない★＝この 回を 失敗にして ★開き直して もう一度★（下の for が 回す）。 */
+      try {
+        await pg.waitForSelector('#loginEmail', { state: 'visible', timeout: 15000 });
+        await pg.fill('#loginEmail', 'test@test.com', { timeout: 10000 });
+        await pg.fill('#loginPass', 'test1234', { timeout: 10000 });
+        await pg.click('#btnLogin', { timeout: 10000 });
+      } catch (e) {
+        await new Promise((r) => setTimeout(r, 800));
+        continue;                                  /* ★この回は 失敗＝次の回で 開き直す★ */
+      }
+      /* ★入口の 覆いが 消えるのを 待つ★
+         ★2026-09-05 CIで 実測＝ここが 本当の 穴だった★
+           前は「matsu が 出るまで」待っていたが、matsu（タブ等）は ★ログインする前から 在る★。
+           だから 待ち loop は ★1回目で 抜けて★、倉庫の 返事が 来る前に
+           「まだ #loginEmail が 見えている＝入れなかった」と 決めていた。
+           手元は 速いので 通り、★CIだけ 3回とも 落ちた★（＝待っていない 待ち）。 */
+      for (let i = 0; i < 100; i++) {
+        matta++;
+        const nokoru2 = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
+        if (!nokoru2) break;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      for (let i = 0; i < 40; i++) { matta++; if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
       await pg.evaluate(() => {
         const y = Array.from(document.querySelectorAll('button'))
           .find((e) => e.offsetParent && /^(いいえ|キャンセル)$/.test(e.textContent.trim()));
@@ -39,10 +60,17 @@ export async function hairu(pg, url, matsu, kaiMax = 3) {
     }
     const nokoru = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
     if (!nokoru) return { haitta: true, matta, kai };
+    /* ★入れなかった 時は 画面の 言い分を 控える★（推し量らない＝会社の 決まり）
+       CIで「3回とも 入れなかった」と だけ 出て、★理由が 分からず 手が 止まった★（2026-09-05） */
+    naze = await pg.evaluate(() => {
+      const e = document.getElementById('loginErr');
+      const t = e ? String(e.textContent || '').trim() : '';
+      return t || '（画面は 何も 言っていない）';
+    });
     /* ★入れなかった＝少し 待って 開き直す★（倉庫の 通信の 気まぐれ） */
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 1200 * kai));
   }
-  return { haitta: false, matta, kai: kaiMax };
+  return { haitta: false, matta, kai: kaiMax, naze: naze };
 }
 
 /* ★案内の 覆いを 本物の 閉じる ボタンで 閉じる★（消す のでは ない＝お客さんの 道）
