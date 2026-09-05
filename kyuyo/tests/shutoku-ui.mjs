@@ -111,7 +111,7 @@ console.log('\n[shutoku-ui] 資格取得届を ★実ブラウザで お客さ�
 const ctx = await b.newContext({ viewport: { width: 1000, height: 1400 }, acceptDownloads: true });
 const pg = await ctx.newPage();
 const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-settings"]');
-if (!h.haitta) { console.log('  🟡 ★未測定★ ' + h.kai + '回 試して 入れなかった'); await b.close(); srv.close(); process.exit(2); }
+if (!h.haitta) { console.log('  🟡 ★未測定★ ' + h.kai + '回 試して 入れなかった … 画面の 言い分 … ' + (h.naze || '（無し）')); await b.close(); srv.close(); process.exit(2); }
 await machi(600);
 await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(500);
 await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(800);

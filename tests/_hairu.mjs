@@ -21,7 +21,7 @@
 /* pg … playwright の page ／ matsu … 入れた事の 目印（この物が 出たら 入れた）
    返り値 { haitta, matta, kai } … kai＝入れた 時の 回数（入れなければ 試した 回数） */
 export async function hairu(pg, url, matsu, kaiMax = 3) {
-  let matta = 0;
+  let matta = 0, naze = '';
   for (let kai = 1; kai <= kaiMax; kai++) {
     await pg.goto(url, { waitUntil: 'domcontentloaded' });
     for (let i = 0; i < 60; i++) { matta++; if (await pg.$('#loginEmail, .bn[data-scr]')) break; await new Promise((r) => setTimeout(r, 250)); }
@@ -48,10 +48,17 @@ export async function hairu(pg, url, matsu, kaiMax = 3) {
     }
     const nokoru = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
     if (!nokoru) return { haitta: true, matta, kai };
+    /* ★入れなかった 時は 画面の 言い分を 控える★（推し量らない＝会社の 決まり）
+       CIで「3回とも 入れなかった」と だけ 出て、★理由が 分からず 手が 止まった★（2026-09-05） */
+    naze = await pg.evaluate(() => {
+      const e = document.getElementById('loginErr');
+      const t = e ? String(e.textContent || '').trim() : '';
+      return t || '（画面は 何も 言っていない）';
+    });
     /* ★入れなかった＝少し 待って 開き直す★（倉庫の 通信の 気まぐれ） */
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 1200 * kai));
   }
-  return { haitta: false, matta, kai: kaiMax };
+  return { haitta: false, matta, kai: kaiMax, naze: naze };
 }
 
 /* ★案内の 覆いを 本物の 閉じる ボタンで 閉じる★（消す のでは ない＝お客さんの 道）
