@@ -38,7 +38,19 @@ export async function hairu(pg, url, matsu, kaiMax = 3) {
         await new Promise((r) => setTimeout(r, 800));
         continue;                                  /* ★この回は 失敗＝次の回で 開き直す★ */
       }
-      for (let i = 0; i < 80; i++) { matta++; if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
+      /* ★入口の 覆いが 消えるのを 待つ★
+         ★2026-09-05 CIで 実測＝ここが 本当の 穴だった★
+           前は「matsu が 出るまで」待っていたが、matsu（タブ等）は ★ログインする前から 在る★。
+           だから 待ち loop は ★1回目で 抜けて★、倉庫の 返事が 来る前に
+           「まだ #loginEmail が 見えている＝入れなかった」と 決めていた。
+           手元は 速いので 通り、★CIだけ 3回とも 落ちた★（＝待っていない 待ち）。 */
+      for (let i = 0; i < 100; i++) {
+        matta++;
+        const nokoru2 = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
+        if (!nokoru2) break;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      for (let i = 0; i < 40; i++) { matta++; if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
       await pg.evaluate(() => {
         const y = Array.from(document.querySelectorAll('button'))
           .find((e) => e.offsetParent && /^(いいえ|キャンセル)$/.test(e.textContent.trim()));
