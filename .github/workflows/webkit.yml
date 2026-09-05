@@ -116,3 +116,8 @@ jobs:
       #   ★止め方は 変えていない★＝赤は そのまま 赤で 止まる（握りつぶさない）
       - name: ★口座は1つずつ別の箱・選んだ札だけが光る（375/390/430で実測／赤は中身を残す）
         run: node tools/aka-kiroku.mjs -- node seikyu/tests/ask-look-webkit.mjs
+      # ★倉庫の 答えが 遅れても 画面が 動かない／押させない／黙らない★（2026-09-05 指示役の裁定・案D）
+      #   ★犯人は 1つずつ 遅らせて 測って 突き止めた★＝倉庫の状態(cloudLoadState) だけが 3737px 動かした。
+      #   ★人の一覧は 答えが来るまで描かない／その間は確定を押させない／失敗は失敗と言う★
+      - name: ★倉庫の答えが遅れても 動かない/押させない/黙らない（375・390・412／わざと落として失敗も見る）
+        run: node kyuyo/tests/souko-machi.mjs --self-test && node kyuyo/tests/souko-machi.mjs

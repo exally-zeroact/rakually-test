@@ -255,12 +255,29 @@ for (const osoi of [false, true]) {
     const o2 = await osu(pg, '.bn[data-scr="scr-input"]');
     if (!o2.oseta) { console.log('  ✗ ' + nabe + ' 幅' + w + ' … ★入力タブが 押せない★（' + o2.kai + '回 試した・覆いの 閉じ残り ' + o2.nokori + '）'); akai++; atarazuKei.push(nabe + ' 幅' + w + ' … 入力タブが 押せない'); await pg.close(); continue; }
     await new Promise((r) => setTimeout(r, 400));
+    /* ★動いた 時に「何が 生えたか」を その場で 控える★（2026-09-05）
+       ★実測★＝1回だけ 15px 動いたが、控えが 位置だけ だったので ★誰のせいか 分からなかった★。
+       ⇒★入力画面の 上（お知らせの 帯）を 名前と 高さで 控える★（推し量らない） */
+    const UE = `(function(){
+      var h=document.querySelector('#input-list'); if(!h) return {NG:'#input-list が 無い'};
+      var o=[];
+      [].forEach.call(h.children,function(el){
+        var r=el.getBoundingClientRect();
+        if(!r.height) return;
+        o.push({ nm:(el.tagName.toLowerCase()+(el.id?'#'+el.id:'')+(typeof el.className==='string'&&el.className?'.'+el.className.trim().replace(/\s+/g,'.'):'')).slice(0,36),
+          h:Math.round(r.height), ji:(el.textContent||'').replace(/\s+/g,' ').trim().slice(0,24) });
+        if(o.length>=6) return;
+      });
+      return o;
+    })()`;
+    const ue1 = await pg.evaluate(UE);
     const mae = await pg.evaluate(ICHI);                       /* 開いた 直後 */
     const maeFuda = await pg.evaluate(() => !!document.querySelector('[data-ledger-import]'));
     if (osoi) await pg.evaluate(() => { window.__ledgerHold = false; });   /* ★ここで はじめて 倉庫が 答える★ */
     await new Promise((r) => setTimeout(r, 2000));             /* あとから 何かが 生えてこないか 待つ */
     const atoFuda = await pg.evaluate(() => !!document.querySelector('[data-ledger-import]'));
     const ato = await pg.evaluate(ICHI);
+    const ue2 = await pg.evaluate(UE);
     await pg.close();
     mita++;
     /* ★Ａは 札が 出ていないと 測った事に ならない★（出ない＝生えてくる 心配も 無い＝未測定） */
@@ -273,6 +290,9 @@ for (const osoi of [false, true]) {
       const msg = nabe + ' 幅' + w + ' … ★押す物が ' + ugoita.length + '個 動いた（最大 ' + saidai + 'px）★（' + fuda + '）';
       console.log('  ✗ ' + msg); atarazuKei.push(msg);
       ugoita.slice(0, 4).forEach((k) => console.log('       ★' + zure(mae[k], ato[k]) + 'px 逃げた★ ' + k));
+      /* ★誰が 生えたか★＝上の 帯を 前後で 並べる（次の 回で 上書きされない よう ここで 出す） */
+      console.log('       ── 入力画面の 上（前）──'); (ue1 || []).forEach((x) => console.log('         ' + String(x.h).padStart(4) + 'px ' + x.nm + ' 「' + x.ji + '」'));
+      console.log('       ── 入力画面の 上（後）──'); (ue2 || []).forEach((x) => console.log('         ' + String(x.h).padStart(4) + 'px ' + x.nm + ' 「' + x.ji + '」'));
     } else {
       console.log('  ✓ ' + nabe + ' 幅' + w + ' … 押す物 ' + Object.keys(mae).length + '個 ★1つも 動いていない★（' + fuda + '）');
     }
