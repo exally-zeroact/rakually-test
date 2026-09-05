@@ -118,6 +118,14 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
   await new Promise((r) => setTimeout(r, 400));
   const card = doc.getElementById('tpl-card');
   N.作る時に聞く箱 = (card && card.style.display !== 'none') ? 1 : 0;
+  /* ★2026-09-06 決めが 変わった（司さん）★
+     「設定で 会社情報やるんやったら 設定やないか？ 取引先マスタは 設定にあるんやろが？」
+     ⇒★紙の様式を 決めるのは 設定 1か所★。入力では 聞かない（見せるだけ）。
+     ⇒ 作る時に聞く箱は ★0が 正しい★／★見本は 設定に 移った★。
+     ★数を 0にして 終わりに しない★＝★測る場所を 設定へ 移す★
+       （0にするだけだと「見本が 別の絵か」が ★空振りのまま 緑★になる）。 */
+  const setTab = doc.querySelector('.bn[data-scr="scr-set"]');
+  if (setTab) { setTab.click(); await new Promise((r) => setTimeout(r, 700)); }
   /* ★見本も一緒に見せるか★（司さん 2026-08-24）＝見本の絵が何枚 描けているか（空は数えない） */
   const shots = [...doc.querySelectorAll('.tpl-shot iframe')]
     .map((f) => f.getAttribute('srcdoc') || '').filter((x) => x.length > 500);
@@ -128,7 +136,9 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
   /* ★戻って続きから★（司さん 2026-08-24）＝[変える]が在るか */
   N.戻る動線 = doc.getElementById('b-tpl-change') ? 1 : 0;
   stage.push({
-    段: '① 紙の様式を決める', 状態: (N.作る時に聞く箱 && N.見本の絵 >= 2 && N.戻る動線) ? '半分' : '無い',
+    段: '① 紙の様式を決める（★決めるのは 設定 1か所★）',
+    /* ★入力で 聞かなくなった★ので 作る時に聞く箱は 見ない（決めが 変わった＝2026-09-06） */
+    状態: (N.見本の絵 >= 2 && N.見本が別の絵 && N.戻る動線) ? '半分' : '無い',
     数: '様式 ' + N.紙の様式 + '種／作る時に聞く ' + N.作る時に聞く箱 + '／見本 ' + N.見本の絵
       + '枚（別の絵 ' + N.見本が別の絵 + '）／戻る動線 ' + N.戻る動線,
   });
