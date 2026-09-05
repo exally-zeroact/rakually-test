@@ -68,8 +68,15 @@ const tsukutta = await pg.evaluate(() => {
   const v = document.getElementById('bonus-view'); if (!v) return '賞与の 画面が 無い';
   const bp = v.querySelector('input[data-bp]');
   if (bp) { bp.value = ''; bp.dispatchEvent(new Event('input', { bubbles: true })); bp.dispatchEvent(new Event('change', { bubbles: true })); }
-  const a = Array.from(v.querySelectorAll('input'))[0];
-  if (!a) return '打つ欄が 無い';
+  /* ★実物の 印（★data-ba＝賞与額★）で 当てる★
+     ＝2026-09-06 に 私は 2度 外した。
+       ①`input[0]` … ★隠れた欄★に 打っていた
+       ②`data-bn` … それは ★支給月・支給日★の 印だった
+     どちらも 賞与額が 入らないので ★確定ボタンが そもそも 描かれず★、
+     「押せない」と「そもそも 無い」を ★取り違えかけた★
+     （★直す前の 姿でも 同じだったので 私の 直しは 無実だと 分かった★）。 */
+  const a = v.querySelector('input[data-ba]');
+  if (!a) return '★賞与額の 欄（data-ba）が 無い★';
   a.focus(); a.value = '300000';
   a.dispatchEvent(new Event('input', { bubbles: true }));
   a.dispatchEvent(new Event('change', { bubbles: true }));
@@ -89,7 +96,10 @@ const yomu = () => pg.evaluate((mi) => {
     tedori: (t.match(/差引支給額[^¥]*¥([0-9,]+)/) || [])[1] || null,
     off: k ? k.disabled : null,
     ji: k ? (k.textContent || '').trim() : '',
-    wake: /前月給与が 入っていません/.test(k ? (k.textContent || '') : ''),
+    /* ★理由が ボタンの 中に 出ているか★＝字そのものを 決め打ちしない
+       （2026-09-06 に「前月給与が 入っていません」→「源泉が 決まっていません」へ 言い方を
+         変えた時、★動きは 正しいのに この検査だけ 赤に なった★＝物差しが 字に 縛られていた） */
+    wake: /名の[^）]*(決まって|入っていま)/.test(k ? (k.textContent || '') : ''),
   };
 }, MI);
 
@@ -119,14 +129,26 @@ console.log('     前月 250,000 を 入れた後 … 手取り ¥' + a2.tedori 
 if (SELF) {
   console.log('\n[shoyo-gensen-mitei --self-test] わざと 直す前の姿に すると 赤に なるか');
   let kowashita = 0, aka = 0;
-  /* ★直す前の姿★＝止めを 外す（disabled を 剥がし、手取りを 額で 出す） */
+  /* ★直す前の姿に 戻す★＝前月を 空に して「決まっていない」状態を 作り直す。
+     ★作り直せたかを 先に 数える★（作れていないのに 壊しても 意味が 無い＝空振り） */
   await pg.evaluate(() => {
     const el = document.querySelector('#bonus-view input[data-bp]');
     if (el) { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
   });
   await machi(2500);
+  const sonae = await yomu();
+  console.log('  （壊す前の 姿 … 確定ボタン ' + (sonae.off === null ? '★見つからない★' : ('押せない=' + sonae.off))
+    + '／手取り ' + (sonae.tedori ? '¥' + sonae.tedori : 'まだ 出せません') + '）');
+  if (sonae.off !== true) {
+    console.log('  ★★作り直せていません＝この 自己確認は 空振りです★★');
+    await b.close(); srv.close(); process.exit(1);
+  }
   for (const [na, f] of [
     ['止めを 外す（確定を 押せるように する）', async () => {
+      /* ★描き直しに 追い越されない★＝止めを 外す前に 画面が 落ち着くのを 待つ
+         （2026-09-06 … 前月を 空にした 直後に disabled を 剥がしたら
+           ★その後の 描き直しで また 止まって「気づけない」と 出た★＝待ちが 足りなかった） */
+      await machi(1500);
       await pg.evaluate(() => {
         const k = Array.from(document.querySelectorAll('#bonus-view button')).find((e) => /確定/.test(e.textContent || ''));
         if (k) k.disabled = false;

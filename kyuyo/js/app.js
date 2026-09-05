@@ -2326,9 +2326,15 @@
     if(_contractor){ /* 業務委託=源泉なし */ }
     else if(prevAfter==null) noPrev=true;
     else if(SZl) tax=SZl.calcBonusTax({ bonus:base, bonusSI:si.total, prevSalary:prevAfter, prevSI:0, fuyou:num(e.fuyou)+jintekiOf(e, e.taxClass==='otsu'?'otsu':'ko'), taxClass:e.taxClass, payYm:ym });
+    /* ★「源泉が 決まっていない」を 1か所で 決める★（同じ状態を 2か所で 別々に 判定しない）
+       ①前月給与（社保後）が 無い … 算出率表が 引けない
+       ②特例なのに 税額表が 読めなかった … 月額表で 人が 計算する事に なる
+       ★どちらも 中では 税額0で 進む★ので、額を 出す所と 確定の 門は ★この1つ★を 見る。
+       ★業務委託は 源泉なしが 正しい★ので 未定では ない。 */
+    var taxMitei = !_contractor && (noPrev || !!(tax.special && !tax.specialComputed));
     var taxAmt=(noPrev||_contractor)?0:(tax.tax||0);
     return { bonus:bonus, base:base, totalGross:totalGross, addShikyu:addShikyu, addKojo:addKojo, addTaxable:addTaxable, addNonTax:addNonTax, addKojoTotal:addKojoTotal,
-      prevAfter:prevAfter, fromHistory:(!manualPrev&&histPrev), noPrev:noPrev, ytdVal:ytdVal, ytdAuto:(!manualYtd&&ytdVal>0), si:si, tax:tax, taxAmt:taxAmt, net:totalGross-si.total-taxAmt-addKojoTotal };
+      prevAfter:prevAfter, fromHistory:(!manualPrev&&histPrev), noPrev:noPrev, taxMitei:taxMitei, ytdVal:ytdVal, ytdAuto:(!manualYtd&&ytdVal>0), si:si, tax:tax, taxAmt:taxAmt, net:totalGross-si.total-taxAmt-addKojoTotal };
   }
   function renderBonus(){
     var host=$('#bonus-view'); if(!host) return; loadBonusPrev(); loadBonusYtd();
@@ -2374,8 +2380,8 @@
       var addKLines=(c.addKojo||[]).map(function(it){ return '<div class="calc-line"><span>'+esc(it.label||'控除')+'</span><span class="v">'+yen(it.value)+'</span></div>'; }).join('');
       return '<div class="acc icard'+(num(en.amount)>0?' open':'')+'">'
         +'<div class="ic-top"><span class="acc-nm">'+esc(e.name)+'</span><span class="acc-net"'
-          +(c.noPrev?' style="color:#C0392B;font-size:12px"':'')+'>'
-          +(c.noPrev?'源泉が 未定':yen(c.net))+'</span></div>'
+          +(c.taxMitei?' style="color:#C0392B;font-size:12px"':'')+'>'
+          +(c.taxMitei?'源泉が 未定':yen(c.net))+'</span></div>'
         +'<div style="padding:0 12px 12px">'
         +'<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><span style="font-size:12px;color:#2E7D54;font-weight:700;min-width:54px">賞与額</span><input class="finput num" data-ba="'+e.id+'" inputmode="numeric" value="'+attr(en.amount)+'" placeholder="円" style="flex:1"></div>'
         +prevBox
@@ -2397,9 +2403,13 @@
              ★前は そのまま「差引支給額 ¥253,500」と 確定的に 出していた★
                ⇒ 源泉を 引かずに 振り込む＝★会社が 源泉徴収を していない事に なる★。
              ⇒ ★決まっていない事を 数字で 言わない★（[[feedback_never_say_zero_when_you_dont_have_it]]） */
-          +(c.noPrev
+          +(c.taxMitei
             ? '<div class="calc-line net tot"><span>差引支給額（手取り）</span><span class="v" style="color:#C0392B">まだ 出せません</span></div>'
-              +'<div class="hint" style="margin:6px 0 0;color:#C0392B">前月の給与（社保を引いた後）が 入るまで ★源泉所得税が 決まらない★ので、手取りも 出せません。上の 赤い箱に 入れてください。</div></div>'
+              +'<div class="hint" style="margin:6px 0 0;color:#C0392B">'
+              +(c.noPrev
+                ? '前月の給与（社保を引いた後）が 入るまで <b>源泉所得税が 決まりません</b>ので、手取りも 出せません。上の 赤い箱に 入れてください。'
+                : '<b>源泉所得税が 決まっていません</b>（特例・月額表で ご確認ください）ので、手取りも 出せません。')
+              +'</div></div>'
             : '<div class="calc-line net tot"><span>差引支給額（手取り）</span><span class="v">'+yen(c.net)+'</span></div></div>')
         +'</div></div>';
     }).join('');
@@ -2409,19 +2419,20 @@
          そのまま 確定すると ★源泉0の 賞与が 年調と 賃金台帳に 入る★＝あとで 全部 狂う。
        ★押せない時は 理由を ボタンの 中に 出す★（黙って 無反応に しない）。 */
     var _machiNin = state.employees.filter(function(e){ return isActiveInMonth(e,ym); })
-      .filter(function(e){ var cc=computeBonus(e); return cc.noPrev && (bonusEntry(e).amount>0); });
+      .filter(function(e){ var cc=computeBonus(e); return cc.taxMitei && (bonusEntry(e).amount>0); });
     var _machi = _machiNin.length;
     var footer = anyBonus
       ? '<div class="card" style="padding:12px;margin-top:6px"><button class="btn-primary" data-confirm-bonus style="width:100%"'
         +(_machi?' disabled':'')+'>'
         +(_machi
-          ? 'この賞与を確定（'+_machi+'名の 前月給与が 入っていません）'
+          ? 'この賞与を確定（'+_machi+'名の 源泉が 決まっていません）'
           : 'この賞与を確定（年調・台帳に反映）')+'</button>'
         +(_machi
           ? '<div class="cr-warn" style="margin:8px 0 0">⚠ <b>'+_machi+'名</b>は 前月の給与（社保を引いた後）が 無いので'
-            +' <b>源泉所得税の 率が 決まりません</b>（国税庁 算出率表は 前月給与で 決まります）。'
+            +' <b>源泉所得税が 決まりません</b>（賞与の 源泉は 前月給与で 率が 決まります／特例は 月額表）。'
             +'このまま 確定すると <b>源泉0の 賞与</b>が 年末調整と 賃金台帳に 入ります。'
-            +'<br>各人の 赤い箱に 前月の額を 入れるか、前月を 計算して 確定してください。</div>'
+            +'<br>各人の 赤い箱に 前月の額を 入れるか、前月を 計算して 確定してください。'
+            +'（特例で「月額表で要計算」と 出ている人は その額を 確かめてから）</div>'
           : '')
         +'<div style="margin-top:8px;display:flex;justify-content:flex-end"><button class="btn-ghost" data-bonus-harau="1" style="padding:8px 12px;font-size:12px">賞与支払届をExcel出力</button></div>'
         /* ★電子申請の CSV★（2026-09-05）＝Excel の 下に 出す */
