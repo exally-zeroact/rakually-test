@@ -84,25 +84,39 @@ const MIGRATION_DAY = '2026-08-06';
 const EDGE_FUNCS = ['dk-issue-license', 'dk-register-company', 'dk-sync-jobs', 'dk-customers'];
 
 /* ④ 戻り先を確かめる住所（許可リストに載っているべき物） */
+/* ★どの倉庫の許可リストを見るべきか＝★そのアプリが 実際に 向いている倉庫★（want）★
+   （2026-09-06 実測して 書き足した）
+   前は ★全ホストを 本番・テストの 両方で★ 見ていたので、
+   「本番のアプリが テスト倉庫の 許可リストに 無い」を 🔴 と 出していた（9件）。
+   だが ①で 16/16 全アプリが ★自分の倉庫だけ★を 向いている事を 毎回 測っている＝
+   ★本番のアプリが テスト倉庫へ 戻り先を 送る事は 起きない★。つまり その9件は
+   ★起こり得ない組み合わせ★で、赤ではない。
+   ★赤を 消したのでは ない★＝見る先を 正しくした。本当の穴（自分の倉庫で 戻れない）は
+   今までどおり 🔴。もう片方は「起こり得ない」と 出し、★もし 許されていたら 🟡★で 知らせる
+   （害は 小さいが、黙って 増えていたら 気づけるように）。
+   ★飲み屋を 足した★＝共通ログイン(js/exally-login.js)で パスワード再設定を 使うのに
+   この一覧に ★1行も 無かった★（見張りの 死角だった。2026-09-06 実測＝両方とも 自分に戻る）。 */
 const REDIRECT_HOSTS = [
   /* ★Rakunally（2026-08-17）★ ログインの戻り先。許可リストに無いと
      ★別のアプリ（請求書アプリ）へ流れる★（reference_supabase_auth_redirect_shared の前科）。 */
-  { app: 'Rakunally テスト', url: 'https://rakually-test.vercel.app/' },
-  { app: 'Rakunally 本番',   url: 'https://rakually.vercel.app/' },
-  { app: 'Exally',         url: 'https://exally.vercel.app/hub.html' },
-  { app: '給与 kyuyo',     url: 'https://exally.vercel.app/kyuyo/admin.html' },
-  { app: 'Exally テスト',  url: 'https://exally-zeroact.github.io/exally-staging/hub.html' },
+  { app: 'Rakunally テスト', url: 'https://rakually-test.vercel.app/', want: TEST_REF },
+  { app: 'Rakunally 本番',   url: 'https://rakually.vercel.app/', want: PROD_REF },
+  { app: 'Exally',         url: 'https://exally.vercel.app/hub.html', want: PROD_REF },
+  { app: '給与 kyuyo',     url: 'https://exally.vercel.app/kyuyo/admin.html', want: PROD_REF },
+  { app: 'Exally テスト',  url: 'https://exally-zeroact.github.io/exally-staging/hub.html', want: TEST_REF },
   // ★畳んだ住所（2026-08-07）。それでも許可リストには★残す★★
   //   理由: 許可リストから行を消す作業そのものが事故のもと（消し間違えると他アプリのログインが壊れる）。
   //   　　  余分な行が1つ残っても害は無い（そこへ戻る物がもう無い）。
   //   ここで毎週「許可されたまま」を確かめておくと、
   //   もし将来この住所を作り直しても、いきなり穴が開いた状態にならない。
-  { app: 'Exally テストV(畳んだ住所)', url: 'https://exally-staging.vercel.app/hub.html' },
-  { app: '代行請求',       url: 'https://daikou-seikyu.vercel.app/daikou-seikyu.html' },
-  { app: 'ダイコメ',       url: 'https://daikou-app.vercel.app/' },
-  { app: 'ダイコメ事務所', url: 'https://daikome-jimusho.vercel.app/login.html' },
-  { app: 'アマかせ',       url: 'https://amazon-ads-automation-lyart.vercel.app/' },
-  { app: 'アマかせ テスト', url: 'https://amazon-ads-automation-test.vercel.app/' },
+  { app: 'Exally テストV(畳んだ住所)', url: 'https://exally-staging.vercel.app/hub.html', want: TEST_REF },
+  { app: '代行請求',       url: 'https://daikou-seikyu.vercel.app/daikou-seikyu.html', want: PROD_REF },
+  { app: 'ダイコメ',       url: 'https://daikou-app.vercel.app/', want: PROD_REF },
+  { app: 'ダイコメ事務所', url: 'https://daikome-jimusho.vercel.app/login.html', want: PROD_REF },
+  { app: 'アマかせ',       url: 'https://amazon-ads-automation-lyart.vercel.app/', want: PROD_REF },
+  { app: 'アマかせ テスト', url: 'https://amazon-ads-automation-test.vercel.app/', want: TEST_REF },
+  { app: '飲み屋 本番',    url: 'https://nomiya-app.vercel.app/', want: PROD_REF },
+  { app: '飲み屋 テスト',  url: 'https://nomiya-app-test.vercel.app/', want: TEST_REF },
 ];
 
 /* ══════════ 判定の中身（純関数・self-testで作り物を通せる） ══════════ */
@@ -277,15 +291,37 @@ async function ghGet(url, token, timeout = 25000) {
   return get(url, h, timeout);
 }
 
+/** ④の判定（★純関数＝self-testで作り物を通せる★）
+ *  ok    … その倉庫の許可リストに 在るか（null=測れなかった）
+ *  jibun … ★そのアプリが 実際に 向いている倉庫か★（①で毎回 測っている）
+ *
+ *  ★自分の倉庫で 戻れない＝本当の穴（🔴）★
+ *  もう片方の倉庫は ★起こり得ない組み合わせ★（アプリは そちらへ 戻り先を 送らない）
+ *    ・弾かれる … 🟢（これでよい）
+ *    ・許されている … 🟡（害は小さいが 黙って 増えていたら 気づけるように 出す）
+ */
+export function judgeRedirect(ok, jibun) {
+  if (ok === null) return '🟡';
+  if (jibun) return ok ? '🟢' : '🔴';
+  return ok ? '🟡' : '🟢';
+}
+export function redirectText(ok, jibun) {
+  if (ok === null) return '未測定（戻り先を読めない）';
+  if (jibun) return ok ? '許可済み' : '★未許可＝忘れた時に別アプリへ飛ぶ';
+  return ok ? '（もう片方の倉庫）余分に許されている＝害は小さいが 消さずに 知らせる'
+            : '（もう片方の倉庫）弾かれた＝これでよい';
+}
+
 /* ── ④ 認証の戻り先（★鍵が要らない★） ── */
 async function measureRedirects() {
   for (const ref of [PROD_REF, TEST_REF]) {
     for (const h of REDIRECT_HOSTS) {
       const ok = await redirectAllowed(ref, h.url);
-      const mark = ok === null ? '🟡' : ok ? '🟢' : '🔴';
+      const jibun = (h.want === ref);          /* ★そのアプリが 実際に 向いている倉庫か★ */
+      const mark = judgeRedirect(ok, jibun);
       bump(mark);
       rows.c4.push({ ref: ref === PROD_REF ? '本番' : 'テスト', app: h.app, url: h.url, mark,
-        text: ok === null ? '未測定（戻り先を読めない）' : ok ? '許可済み' : '★未許可＝忘れた時に別アプリへ飛ぶ' });
+        text: redirectText(ok, jibun) });
     }
   }
   // ★見張りが空振りしていないこと★: 許していない住所は必ず弾かれる
@@ -453,6 +489,23 @@ if (argv.includes('--self-test')) {
       if (!['🟢', '🟡'].includes(v.mark)) throw new Error(k + ': mark が 🟢/🟡 以外');
       if (!k.includes('|')) throw new Error(k + ': repo|path の形になっていない');
     }
+  });
+  /* ★④の判定＝「赤を消した」のではない事を ここで 見せる★（2026-09-06）
+     見る先を「そのアプリが 向いている倉庫」に 正した。★本当の穴は 今までどおり 赤★。 */
+  T('★自分の倉庫で 戻れない＝🔴（本当の穴は 今までどおり 赤）', () => eq(judgeRedirect(false, true), '🔴', '穴'));
+  T('自分の倉庫で 戻れる＝🟢', () => eq(judgeRedirect(true, true), '🟢', '正常'));
+  T('★もう片方の倉庫で 弾かれる＝🟢（起こり得ない組み合わせ）', () => eq(judgeRedirect(false, false), '🟢', '対象外'));
+  T('★もう片方の倉庫で 許されている＝🟡（黙って増えたら気づけるように）', () => eq(judgeRedirect(true, false), '🟡', '余分'));
+  T('★測れなかったら 🟢 にしない', () => {
+    eq(judgeRedirect(null, true), '🟡', '自分の倉庫が測れない');
+    eq(judgeRedirect(null, false), '🟡', 'もう片方が測れない');
+  });
+  T('★一覧の 全ホストに「向いている倉庫」が 書いてある（書き忘れると 全部 対象外になる）', () => {
+    for (const h of REDIRECT_HOSTS) {
+      if (h.want !== PROD_REF && h.want !== TEST_REF) throw new Error(h.app + ': want が 無い');
+    }
+    if (REDIRECT_HOSTS.filter((h) => h.want === PROD_REF).length < 2) throw new Error('本番側が 少なすぎる');
+    if (REDIRECT_HOSTS.filter((h) => h.want === TEST_REF).length < 2) throw new Error('テスト側が 少なすぎる');
   });
   T('★引き継ぎ中の物は 🟡（緑にしていない）', () => {
     const h = TOOL_ALLOWED['exally-zeroact/Daikou-app-test|scripts/check-hosts.mjs'];
