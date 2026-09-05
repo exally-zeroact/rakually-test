@@ -2322,10 +2322,25 @@
     var _contractor=(e.employmentType==='contractor');
     if(_contractor){ si={ total:0, health:0, pension:0, kaigo:0, employ:0, hyojun:si.hyojun, kenpoBase:si.kenpoBase, koseiBase:si.koseiBase }; }
     e._bonusExempt=bonusExempt;
+    /* ★「前月の 給与が 無い」は 2つ 在る★（2026-09-06・指示役の 問い → 一次情報で 確かめた）
+       ★国税庁 No.2523★「前月に 給与の 支払が ない場合」は ★別の 方法で 計算する★
+         ＝（賞与−社保）÷6（または12）を ★月額表★に 当てて 税額を 出し、×6（12）
+         ⇒★「計算できない」では ない★＝止めては いけない。
+       ★lib（shoyo-zei.js）は 前から この特例を 持っている★（実測 … 前月0でも
+         special:true / specialComputed:true / method:月額表 / months:6 で 税額を 返す）。
+       ★穴だったのは アプリ側★＝prevAfter が null なら ★lib を 呼ばずに★ 止めていた。
+       ⇒ 入社したばかりの 人は ★法に 計算の 道が 在るのに 永久に 確定できない★ 所だった。
+
+       ★見分け方は 聞かずに 機械で 出せる★
+         ・前月に ★在籍していない★（入社が 当月 など）… 本当に 給与が 無い ⇒ ★特例で 計算★
+         ・前月に ★在籍している★のに 額が 取れていない … ★前月を まだ 計算していないだけ★
+           ⇒ 特例で 計算すると ★法的に 誤った 税額★に なるので ★止める★（前月を 入れてもらう） */
     var tax={tax:0}, noPrev=false;
+    var _pm = ymAddLocal ? ymAddLocal(ym,-1) : null;
+    var _zaisekiPrev = _pm ? isActiveInMonth(e,_pm) : true;
     if(_contractor){ /* 業務委託=源泉なし */ }
-    else if(prevAfter==null) noPrev=true;
-    else if(SZl) tax=SZl.calcBonusTax({ bonus:base, bonusSI:si.total, prevSalary:prevAfter, prevSI:0, fuyou:num(e.fuyou)+jintekiOf(e, e.taxClass==='otsu'?'otsu':'ko'), taxClass:e.taxClass, payYm:ym });
+    else if(prevAfter==null && _zaisekiPrev) noPrev=true;   /* 居たのに 取れていない＝前月待ち */
+    else if(SZl) tax=SZl.calcBonusTax({ bonus:base, bonusSI:si.total, prevSalary:(prevAfter==null?0:prevAfter), prevSI:0, fuyou:num(e.fuyou)+jintekiOf(e, e.taxClass==='otsu'?'otsu':'ko'), taxClass:e.taxClass, payYm:ym });
     /* ★「源泉が 決まっていない」を 1か所で 決める★（同じ状態を 2か所で 別々に 判定しない）
        ①前月給与（社保後）が 無い … 算出率表が 引けない
        ②特例なのに 税額表が 読めなかった … 月額表で 人が 計算する事に なる

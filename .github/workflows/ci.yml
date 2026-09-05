@@ -536,6 +536,10 @@ jobs:
         run: node kyuyo/tests/nencho-web-declaration.test.js && node kyuyo/tests/nencho-compute.test.mjs
       - name: Golden freeze guard (移設前の真値と入力fixtureが作り直されていないか)
         run: node kyuyo/tests/golden-immutable.test.mjs
+      - name: ★賞与「前月の給与が無い」の2つを取り違えない（本当に無い＝特例で計算／取れていないだけ＝止める）
+        run: node kyuyo/tests/shoyo-zenmonth-nashi.test.mjs
+      - name: ★同 アプリの1行を直す前に戻すと赤になるか（自己確認）
+        run: node kyuyo/tests/shoyo-zenmonth-nashi.test.mjs --self-test
       - name: Headless guard (lib/ がDOM・通信・非決定性に依存しない)
         run: node kyuyo/scripts/verify-headless.mjs
       - name: ★源泉区分(204条) 選べるのに算式が無い区分を残さない＋実数1円一致
