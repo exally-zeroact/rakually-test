@@ -4022,7 +4022,14 @@
     /* ★委託者情報が空なら 押させない★（2026-08-28 実際に動かして見つけた）
        前は ★押せて、押してから 中で止まっていた★。★出来ていない物のボタンを見せるな★。
        ★止める所は lib にも残す★（最後の砦＝Zengin.build の checkCommitter） */
-    var cm=(typeof Zengin!=='undefined'&&Zengin.checkCommitter)?Zengin.checkCommitter(committer||{}):'';
+    /* ★ボタンの中の 短い字も lib から もらう★（2026-09-06 実測して 直した）
+       前は 下の説明だけ 4通りに 分かれ、★ボタンの中は 4通りとも「委託者情報なし」★だった。
+       ⇒ ★10桁 きちんと 入れた人（0000000000）にも「情報なし」＝嘘★／
+         委託者名だけ 空の時も「情報なし」＝どこを 直すか 分からない。
+       ★短い字を ここで 作らない★＝lib と 食い違わない（正本は Zengin.committerProblem）。 */
+    var cp=(typeof Zengin!=='undefined'&&Zengin.committerProblem)?Zengin.committerProblem(committer||{})
+      :{ long:(typeof Zengin!=='undefined'&&Zengin.checkCommitter)?Zengin.checkCommitter(committer||{}):'', short:'委託者情報なし' };
+    var cm=cp.long;
     /* ★取組日が 出せない時も 押させない★（2026-09-03＝★絵を 開いて 見つけた★）
        賞与の 支給日が 自由文の 時、対象者が 居ると ★ボタンが 押せて 見えていた★
        （押すと 中で 止まる＝★出来ていない物の ボタンを 見せるな★に 反する）。 */
@@ -4034,7 +4041,7 @@
         reason: noDate ? (furiMode()==='bonus' ? '賞与の支給日が 年-月-日 の形ではありません' : 'この月の振込指定日を決められません')
           : (ready.length ? (cm || '') : (listed.length ? '振込先(銀行・支店・口座)が入っていません' : '対象月に振込む人がいません')),
         // ★短い理由＝ボタンの中に入れる用。押せない理由を下まで読ませない。
-        short: noDate ? '振込指定日なし' : (ready.length ? (cm ? '委託者情報なし' : '') : (listed.length ? '振込先なし' : '対象者なし')) },
+        short: noDate ? '振込指定日なし' : (ready.length ? (cm ? cp.short : '') : (listed.length ? '振込先なし' : '対象者なし')) },
       xlsx:{ enabled:listed.length>0, count:listed.length,
         reason: listed.length ? '' : '対象月に振込む人がいません',
         short: listed.length ? '' : '対象者なし' }

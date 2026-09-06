@@ -204,14 +204,22 @@
      ・受取人名が漢字だけ … toHankaku が ★全部スペース★にして ★名前の無い振込★になる
        （画面は e.furiKana が空だと ★漢字の氏名で代わりを埋める★＝カナに直せない字が全部消える）
      ⇒ ★どちらも「作らない」★。★黙って空の物を銀行へ出さない★。 */
-  function checkCommitter(c) {
+  /* ★委託者の どこが 悪いかを 1か所で 決める★（2026-09-06）
+     ★long★ … 下に出す 詳しい説明（今までどおり・1文字も 変えていない）
+     ★short★ … ★ボタンの中に入れる 短い字★
+     前は 画面側が「委託者情報なし」と ★4通りとも 同じ字★を 出していた。
+     ★10桁 きちんと 入れた人（0000000000）にも「情報なし」と 言っていた＝嘘★。
+     委託者名だけ 空の時も「情報なし」＝どこを 直せばよいか 分からない。
+     ⇒ ★long と short を 同じ関数から 返す★＝片方だけ 直して 食い違うのを 止める。 */
+  function committerProblem(c) {
     var code = String((c || {}).code == null ? '' : c.code).trim();
-    if (!code) return '委託者コードが空です（銀行から通知された10桁を入れてください）';
-    if (!/^\d{1,10}$/.test(code)) return '委託者コードが数字ではありません: ' + JSON.stringify(code);
-    if (/^0+$/.test(code)) return '委託者コードが 0 だけです: ' + JSON.stringify(code);
-    if (!toHankaku((c || {}).name).trim()) return '委託者名が空です（半角カナで入れてください）';
-    return '';
+    if (!code) return { long: '委託者コードが空です（銀行から通知された10桁を入れてください）', short: '委託者コードなし' };
+    if (!/^\d{1,10}$/.test(code)) return { long: '委託者コードが数字ではありません: ' + JSON.stringify(code), short: '委託者コードが数字でない' };
+    if (/^0+$/.test(code)) return { long: '委託者コードが 0 だけです: ' + JSON.stringify(code), short: '委託者コードが0だけ' };
+    if (!toHankaku((c || {}).name).trim()) return { long: '委託者名が空です（半角カナで入れてください）', short: '委託者名なし' };
+    return { long: '', short: '' };
   }
+  function checkCommitter(c) { return committerProblem(c).long; }
   function checkName(t, i) {
     if (toHankaku((t || {}).name).trim()) return '';
     return (i + 1) + '件目の受取人名が空になります（半角カナで入れてください）: '
@@ -240,7 +248,7 @@
 
   return {
     shubetsuOf: shubetsuOf, SHUBETSU_OK: SHUBETSU_OK,
-    build: build, checkTorikumi: checkTorikumi, checkCommitter: checkCommitter, checkName: checkName, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
+    build: build, checkTorikumi: checkTorikumi, checkCommitter: checkCommitter, committerProblem: committerProblem, checkName: checkName, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
     toHankaku: toHankaku, padN: padN, padC: padC, yokinCode: yokinCode, toShiftJisBytes: toShiftJisBytes,
     newlineKey: newlineKey, resolveNewlineKey: resolveNewlineKey, bankOf: bankOf,
     NEWLINES: NEWLINES, NEWLINE_DEFAULT: NEWLINE_DEFAULT, BANKS: BANKS

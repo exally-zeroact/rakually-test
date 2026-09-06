@@ -270,7 +270,10 @@ await TA('★⑥ 委託者コードが空なら 押せない＋理由（1バイ�
   /* ★押す前に止める★＝出来ていない物のボタンを見せない。★lib にも最後の砦を残す★ */
   const b = await openFuri(seedOf({ company: { furiCode: '' } }));
   ok(b.zb.disabled, '★委託者コードが空なのに 押せる★');
-  ok(/委託者情報なし/.test(b.zb.textContent || ''), '★押せない理由が ボタンの中に無い★: ' + b.zb.textContent);
+  /* ★ボタンの中の 字は「どこが 悪いか」まで 言う★（2026-09-06 実測して 直した）
+     前は ★4通りとも「委託者情報なし」★だった。
+     ★10桁 きちんと 入れた人（0000000000）にも「情報なし」と 言っていた＝嘘★。 */
+  ok(/委託者コードなし/.test(b.zb.textContent || ''), '★押せない理由が ボタンの中に無い★: ' + b.zb.textContent);
   b.zb.dispatchEvent(new b.win.MouseEvent('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 120));
   eq(b.files.length, 0, '★空なのに ファイルが出来た★');
@@ -278,6 +281,25 @@ await TA('★⑥ 委託者コードが空なら 押せない＋理由（1バイ�
   ok(Z.checkCommitter({ code: '', name: 'ｱ' }), 'lib が 空の委託者コードを通す');
   ok(Z.checkCommitter({ code: '0000000000', name: 'ｱ' }), 'lib が 0だけの委託者コードを通す');
   ok(!Z.checkCommitter({ code: '1234567890', name: 'ｱ' }), 'lib が 正しい委託者コードを止める');
+  /* ★4通りが ちゃんと 分かれているか★＝1つでも 同じ字なら「どこを直すか」が 伝わらない。
+     ★long（下の説明）は 1文字も 変えていない★事も ここで 押さえる。 */
+  const YOTSU = [
+    { c: { code: '', name: 'ｱ' }, short: '委託者コードなし', long: '委託者コードが空です（銀行から通知された10桁を入れてください）' },
+    { c: { code: '0000000000', name: 'ｱ' }, short: '委託者コードが0だけ', long: '委託者コードが 0 だけです: "0000000000"' },
+    { c: { code: '12A4567890', name: 'ｱ' }, short: '委託者コードが数字でない', long: '委託者コードが数字ではありません: "12A4567890"' },
+    { c: { code: '1234567890', name: '' }, short: '委託者名なし', long: '委託者名が空です（半角カナで入れてください）' },
+  ];
+  const mita = {};
+  YOTSU.forEach((y) => {
+    const p2 = Z.committerProblem(y.c);
+    eq(p2.short, y.short, 'ボタンの中の字 ' + JSON.stringify(y.c));
+    eq(p2.long, y.long, '下の説明（今までどおり） ' + JSON.stringify(y.c));
+    eq(Z.checkCommitter(y.c), y.long, 'checkCommitter が 前と 同じ字を 返す');
+    mita[p2.short] = (mita[p2.short] || 0) + 1;
+  });
+  eq(Object.keys(mita).length, 4, '★4通りが 同じ字に なっている（どこを直すか 伝わらない）★');
+  eq(Z.committerProblem({ code: '1234567890', name: 'ｱ' }).short, '', '正しい時は 何も言わない');
+  console.log('     4通りの ボタンの字 … ' + Object.keys(mita).join(' / '));
   console.log('     ボタンの字「' + String(b.zb.textContent).trim() + '」／画面「'
     + String((b.doc.querySelector('#furi-box .cr-warn') || {}).textContent || '').trim().slice(0, 30) + '…」');
 });
