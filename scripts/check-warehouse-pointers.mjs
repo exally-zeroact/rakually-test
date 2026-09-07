@@ -308,7 +308,15 @@ export function judgeRedirect(ok, jibun) {
 export function redirectText(ok, jibun) {
   if (ok === null) return '未測定（戻り先を読めない）';
   if (jibun) return ok ? '許可済み' : '★未許可＝忘れた時に別アプリへ飛ぶ';
-  return ok ? '（もう片方の倉庫）余分に許されている＝害は小さいが 消さずに 知らせる'
+  /* ★余分な2件は 消さないと 決めた（司さん 2026-09-08「Rakunallyのみでやることやれ」で 測った）★
+     ・実測＝本番の一覧に rakually-test、テストの一覧に rakually が 余分に 入っている
+     ・害を 追った＝別プロジェクトの 鍵は ★向こうでは 通らない★（入れ違いで 着いても 何も できない）。
+       ①で 16/16 全アプリが 自分の倉庫だけを 向いている＝そもそも 送られない。
+     ・消す方が 危ない＝この一覧は ★カンマ区切りの 全文 置き換え★＝
+       1文字 間違えると ★他アプリ（ダイコメ・飲み屋・Exally）の ログインが 壊れる★（前科あり）。
+       うちの 決まりも「SITE_URLは 触らない／★足すだけ★」。
+     ⇒ ★知らせるだけに する（🟡のまま）★。消すなら 司さんの 一声で。 */
+  return ok ? '（もう片方の倉庫）余分に許されている＝害は無いと測った・消す方が危ないので そのまま'
             : '（もう片方の倉庫）弾かれた＝これでよい';
 }
 
@@ -401,6 +409,46 @@ export const TOOL_ALLOWED = {
   },
   'exally-zeroact/exally-staging|kyuyo/scripts/verify-statutory.mjs': { mark: '🟢', why: '同上（法定データは本番中央が正）' },
   'exally-zeroact/exally-staging|kyuyo/scripts/check-source-urls.mjs': { mark: '🟢', why: '同上（法定データは本番中央が正）' },
+  /* ★Rakunally（rakually / rakually-test）の 道具★（2026-09-08 に 1本ずつ 実物を 読んで 載せた）
+     ★理由を 書かずに 載せない★＝載せた分だけ「見なくなる」ので、なぜ 見なくてよいかを 残す。
+     Exally 側には 同じ物が 既に 載っていた（Rakunallyへ 運んだ時に 載せ忘れていただけ）。 */
+  'exally-zeroact/rakually|tests/dbtest-seed.mjs': {
+    mark: '🟢', why: '★テスト倉庫に 固定した 手で走らせる道具★（種まき／片づけ）。'
+      + '実物を 読んで 確かめた＝①URLは khaw… の 直書き ②起動時に「本番refを 指していたら 即中止」'
+      + '③アカウントも test@test.com に 固定し、違えば 何もせず 中止。CIでは 1度も 走らない。',
+  },
+  'exally-zeroact/rakually-test|tests/dbtest-seed.mjs': {
+    mark: '🟢', why: '同上＝テスト倉庫に 固定した 手で走らせる道具（両repoに 同じ物を 置く）',
+  },
+  'exally-zeroact/rakually|scripts/check-warehouse-pointers.mjs': {
+    mark: '🟢', why: '★この見張り自身★。本番とテストの 両方の ref を「正解」として 持たないと 何とも 突き合わせられない',
+  },
+  'exally-zeroact/rakually-test|scripts/check-warehouse-pointers.mjs': {
+    mark: '🟢', why: '同上＝★この見張り自身★（両repoに 同じ物を 置く）。両方の ref を 正解として 持つ',
+  },
+  'exally-zeroact/rakually|tests/pages-hosting.test.mjs': {
+    mark: '🟢', why: '★配信されている物が どちらの倉庫を 指しているかを 測る 試験★＝両方の ref を 知らないと 測れない。'
+      + 'わざと 逆の ref を 混ぜた 作り物を 通して、赤に なる事も 中で 確かめている（書き込みは しない）',
+  },
+  'exally-zeroact/rakually-test|tests/pages-hosting.test.mjs': {
+    mark: '🟢', why: '同上＝配信物が どちらの倉庫を 指すかを 測る 試験（両方の ref が 要る・読むだけ）',
+  },
+  'exally-zeroact/rakually|kyuyo/scripts/verify-statutory.mjs': {
+    mark: '🟢', why: '★法定データ（最低賃金・保険料率・税の数値）は 本番の 中央倉庫が 正★。'
+      + 'テスト線からも ★そこを 読む★（読むだけ・匿名の公開鍵）＝写しが ずれていないかの 突き合わせ',
+  },
+  'exally-zeroact/rakually-test|kyuyo/scripts/verify-statutory.mjs': {
+    mark: '🟢', why: '同上＝法定データの 正は 本番の 中央倉庫。テスト線からも そこを 読む（読むだけ）',
+  },
+  'exally-zeroact/rakually-test|kyuyo/scripts/pull-statutory.mjs': {
+    mark: '🟢', why: '同上（法定データの 正は 本番の 中央倉庫）。★中央から lib の写しを 作り直す★道具＝読むだけ',
+  },
+  'exally-zeroact/rakually-test|kyuyo/scripts/check-source-urls.mjs': {
+    mark: '🟢', why: '同上（中央 statutory の 出典URLが 生きているかを 見る＝読むだけ）',
+  },
+  'exally-zeroact/rakually-test|scripts/seikyu-sql-guard.mjs': {
+    mark: '🟢', why: '★倉庫に 当てる前の 門番★。どの倉庫の 設計図かを 見分ける為に 両方の ref を 持つ（当てるのは 人）',
+  },
   'exally-zeroact/Daikou-app-test|scripts/check-hosts.mjs': {
     mark: '🟡', why: '★ダイコメの物。2026-08-07に指示役へ報告し、ダイコメセッションへ引き継ぎ済み。'
       + 'Exally側では直さない。直ったらこの行を消す★',

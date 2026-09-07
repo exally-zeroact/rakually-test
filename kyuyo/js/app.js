@@ -2751,7 +2751,14 @@
     var maru=[];
     if(window.TodokedeCsv){ withData.forEach(function(x){ maru=maru.concat(TodokedeCsv.santeiWarn(santeiCsvInput(x, year))); }); }
     var maruHtml=maru.length? ('<div class="cr-warn" style="margin:0 0 10px">⚠ '+maru.map(esc).join('<br>')+'</div>') : '';
-    return note+maruHtml+'<div class="card"><div class="card-h">算定基礎届（'+year+'年4〜6月）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'
+    /* ★Excel を 出す口を 戻した★（司さん 2026-09-08「Rakunallyのみでやることやれ」）
+       ★2026-09-03 の 書き直し(21ace29)で この画面から 消えていた★＝
+       出す関数(downloadChoXlsx('santei'))も 表を作る関数(santeiAoa)も 残っているのに
+       ★どのボタンからも 呼ばれない★状態だった（＝落とし物・新しい機能では ない）。
+       他の 届出（月額変更届・資格取得喪失届・社保一覧・部署別）は どれも Excel を 出せる。
+       ★電子申請の CSV は 別の道★＝会社情報が 揃うまで 押せない。Excel は 揃っていなくても 出せる。 */
+    return note+maruHtml+'<div class="card"><div class="card-h">算定基礎届（'+year+'年4〜6月）'
+      +'<button class="btn-ghost" data-choxlsx="santei" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel</button></div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'
       +santeiCsvBox(withData, year);
   }
   /* ★電子申請（CSV）★（2026-09-03 指示役の裁定＝作るのは「ファイルを 落とす所まで」）

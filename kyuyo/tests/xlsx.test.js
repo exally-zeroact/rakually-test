@@ -134,3 +134,23 @@ T('★画面の 呼ぶ側が ほどいて 渡している（app.js）', function
   ok(!/aoa:\s*PayslipXlsx\.deptSummaryAOA\(/.test(src), '★部署別が そのまま 渡している（固まる）★');
   ok(/aoa:\s*shk\.aoa/.test(src) && /aoa:\s*dpt\.aoa/.test(src), '★ほどいて 渡していない★');
 });
+
+/* ★帳票の Excel を 出す口が どれか 1つでも 消えていないか★（司さん 2026-09-08）
+   ★実測した 姿★＝算定基礎届の Excel は 2026-09-03 の 書き直し(21ace29)で ★画面から 消えていた★。
+   出す関数(downloadChoXlsx の kind==='santei')も 表を作る関数(santeiAoa)も 残っているのに
+   ★どのボタンからも 呼ばれない★＝落とし物。他の 届出は どれも Excel を 出せる。
+   ⇒ ★出す口(data-choxlsx)と 受け口(kind===)の 数を そろえて 見る★＝片方が 消えたら 赤。 */
+T('★帳票の Excel: 出す口と 受け口が そろっている（片方が 消えたら 赤）', function () {
+  var fs2 = require('fs'), path2 = require('path');
+  var src = fs2.readFileSync(path2.join(__dirname, '..', 'js', 'app.js'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');
+  var deguchi = {}, ukeguchi = {};
+  (src.match(/data-choxlsx="([a-z]+)"/g) || []).forEach(function (m) { deguchi[m.replace(/.*"([a-z]+)".*/, '$1')] = 1; });
+  (src.match(/kind\s*===\s*'([a-z]+)'/g) || []).forEach(function (m) { ukeguchi[m.replace(/.*'([a-z]+)'.*/, '$1')] = 1; });
+  var KIND = ['shakai', 'dept', 'daicho', 'santei', 'gekkaku', 'roudou', 'shikaku', 'chosho'];
+  var nai = KIND.filter(function (k) { return !deguchi[k]; });
+  var shini = KIND.filter(function (k) { return ukeguchi[k] && !deguchi[k]; });
+  ok(Object.keys(deguchi).length >= 8, '★出す口が ' + Object.keys(deguchi).length + '個＝この試験は 空振り★');
+  ok(!nai.length, '★Excelを 出す口が 無い 帳票★: ' + nai.join(','));
+  ok(!shini.length, '★受け口だけ 在って 押せない（死にコード）★: ' + shini.join(','));
+});
