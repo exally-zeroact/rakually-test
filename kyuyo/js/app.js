@@ -4279,9 +4279,17 @@
       listHTML+='<div style="font-size:12.5px">'+ready.map(function(t){ return '<div class="dl"><span>'+esc(t.emp.name)+'（'+esc(t.bankName||'')+' '+esc(t.branchName||'')+' '+esc(t.account||'')+'）</span><span class="v">'+yen(t.amount)+'</span></div>'; }).join('')+'</div>';
       /* ★1行に縮める（どこを直せばいいかだけ）。3人以上は「ほか○名」。 */
       if(notReady.length){
-        var nm=notReady.map(function(t){return esc(t.emp.name);});
-        var who=nm.length<=2?nm.join('・'):(nm[0]+'ほか'+(nm.length-1)+'名');
-        listHTML+='<div class="cr-warn" style="margin:8px 0 0">⚠ '+who+' は振込先が未入力（設定 ▸ 従業員マスタ）</div>';
+        /* ★場所を 書くだけでは 辿り着けない★（2026-09-07 司さん「やって」＝渡す前の 気になり所②）
+           振込先は ★入口から 4回 開く★所に 在る
+           （設定 ▸ 従業員マスタ → カード → 詳細設定 → 通勤・手当・振込・控除）。
+           ★私自身が 2回 見つけられなかった★＝初めての人は まず 詰まる。
+           ⇒★押せる案内に する★＝県が未選択の時と ★同じ仕組み(data-fix-emp-id)を 借りる★
+             （2つ目の 仕組みを 作らない）。開く所まで 連れて行くのは
+             data-fix-sub＝その 小見出しも 開く印。 */
+        var nm=notReady.map(function(t){
+          return '<b class="mw-fix" data-fix-emp-id="'+attr(t.emp.id)+'" >'+esc(t.emp.name)+' ▸</b>'; });
+        var who=nm.length<=2?nm.join('・'):(nm[0]+'<b class="mw-fix" data-fix-emp-id="'+attr(notReady[1].emp.id)+'" data-fix-sub="teate">ほか'+(nm.length-1)+'名 ▸</b>');
+        listHTML+='<div class="cr-warn" style="margin:8px 0 0">⚠ '+who+' は振込先が未入力（押すと その欄を 開きます）</div>';
       }
     }
     var total=ready.reduce(function(a,t){return a+t.amount;},0);
@@ -4611,7 +4619,12 @@
         if(ft){ var ix=state.employees.findIndex(function(x){ return x && x.id===ft.dataset.fixEmpId; });
           if(ix>=0){ ft.setAttribute('data-fix-emp', String(ix)); fe=ft; } }
       }
-      if(fe){ var fi=+fe.dataset.fixEmp; var femp=state.employees[fi]; if(femp){ state.open[femp.id]=true; showScreen('scr-settings'); var eb2=$('#set-seg .seg-b[data-set="emp"]'); if(eb2)eb2.click(); renderEmpMaster(); setTimeout(function(){ var c=$('#emp-list .mco[data-i="'+fi+'"]'); if(c)c.scrollIntoView({block:'center'}); },30); } return; } // 警告→該当従業員のマスタを開く(UX#10)
+      /* ★data-fix-sub が 付いていたら 中の 小見出しまで 開く★（2026-09-07）
+         ＝カードを 開いただけでは 振込先に 辿り着けない（さらに 詳細設定＋小見出しの 2段 奥）。
+         ★開く印は 描く側と 同じ 鍵を 使う★（'D'+id＝詳細設定／'DS'+id+key＝小見出し）。 */
+      if(fe){ var fi=+fe.dataset.fixEmp; var femp=state.employees[fi]; if(femp){ state.open[femp.id]=true;
+          var fsub=fe.dataset.fixSub; if(fsub){ state.open['D'+femp.id]=true; state.open['DS'+femp.id+fsub]=true; }
+          showScreen('scr-settings'); var eb2=$('#set-seg .seg-b[data-set="emp"]'); if(eb2)eb2.click(); renderEmpMaster(); setTimeout(function(){ var c=$('#emp-list .mco[data-i="'+fi+'"]'); if(c)c.scrollIntoView({block:'center'}); },30); } return; } // 警告→該当従業員のマスタを開く(UX#10)
       var gs=e.target.closest('[data-scr]'); if(gs && !gs.classList.contains('bn')){ showScreen(gs.dataset.scr); return; } }); // CTA等 ナビ外の画面遷移
     $('#help-x').addEventListener('click',function(){ $('#help-ov').classList.remove('on'); });
     $('#help-ov').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('on'); });

@@ -72,6 +72,52 @@ T('★④ 文は lib 1か所（画面ごとに 書かない）', () => {
   ok(!/都道府県が未選択/.test(app), '★app にも 同じ文を 書いている★＝2か所に なる');
 });
 
+/* ★振込先が 未入力の 案内も 押せるまで 作る★（2026-09-07 司さん「やって」②）
+   ★実測した 姿★＝振込先は 入口から ★4回 開く★所に 在る
+     設定 ▸ 従業員マスタ → カード → 詳細設定 → 「通勤・手当・振込・控除」
+   ★私自身が 2回 見つけられなかった★＝初めての人は まず 詰まる。
+   前は「（設定 ▸ 従業員マスタ）」と ★場所を 書くだけ★だった。
+   ⇒ ★県未選択と 同じ 型を 借りる★（data-fix-emp-id）＋ ★小見出しまで 開く印★（data-fix-sub）。 */
+/* ★「振込先が未入力」は 2か所に 在る★（1つ目は 💡の 説明文・2つ目が 画面に 出す 案内）。
+   ★最初の 出現を 拾うと 説明文を 見てしまう★（2026-09-07 に 私が 踏んだ）。
+   ⇒★画面に 出す 方を 名指しする★＝cr-warn の 帯を 組み立てている 所。 */
+const furiAnnai = (() => {
+  const m = app.match(/listHTML\s*\+=\s*'<div class="cr-warn"[^;]*振込先が未入力[^;]*;/);
+  return m ? m[0] : '';
+})();
+const furiBlock = (() => {
+  const i2 = app.indexOf(furiAnnai);
+  return i2 < 0 ? '' : app.slice(Math.max(0, i2 - 900), i2 + furiAnnai.length);
+})();
+T('★⑤ 振込先が未入力の 案内が 押せる（場所を 書くだけに しない）', () => {
+  ok(furiAnnai, '★画面に 出す 案内が 見つからない★（説明文では なく 帯の 方）');
+  /* ★枝は 2つ在る★＝「1〜2名（名前を 並べる）」と「3名以上（ほか◯名）」。
+     ★片方だけ 押せる★でも 気づけるように ★2つとも★ 見る
+     （2026-09-07 の 自己確認で ★片方を 外しても 赤に ならなかった★＝ここを 強くした）。 */
+  const kazu = (furiBlock.match(/data-fix-emp-id/g) || []).length;
+  ok(kazu >= 2, '★押せる所が ' + kazu + '個＝枝の 片方が 押せない（1〜2名／3名以上）★');
+  ok(/mw-fix[^>]*data-fix-emp-id[^>]*>'\s*\+\s*esc\(t\.emp\.name\)/.test(furiBlock),
+    '★名前そのものが 押せる所に なっていない★');
+  ok(!/設定 ▸ 従業員マスタ）<\/div>/.test(furiAnnai), '★古い「場所を書くだけ」の 文が 残っている★');
+  console.log('     案内 … ' + furiAnnai.replace(/\s+/g, ' ').slice(0, 90));
+});
+
+T('★⑥ 押すと 振込先の 小見出しまで 開く（4回 開かせない）', () => {
+  ok(/data-fix-sub="teate"/.test(furiBlock), '★小見出しを 開く印(data-fix-sub)が 無い★');
+  /* 受け口の 側＝印を 見て ★詳細設定と 小見出しの 両方★を 開いているか */
+  ok(/state\.open\['D'\+femp\.id\]\s*=\s*true/.test(app), '★詳細設定を 開いていない★');
+  ok(/state\.open\['DS'\+femp\.id\+fsub\]\s*=\s*true/.test(app), '★小見出しを 開いていない★');
+  /* ★描く側と 同じ 鍵を 使っているか★＝鍵が ずれたら 開かない（黙って 効かなくなる） */
+  ok(/state\.open\['D'\+e\.id\]|open\['D'\+de\.id\]/.test(app), '★詳細設定の 鍵が 描く側と 違う★');
+  ok(/'DS'\+e\.id\+k|'DS'\+dse\.id\+pp\[1\]/.test(app), '★小見出しの 鍵が 描く側と 違う★');
+});
+
+T('★⑦ 受け口は 1つのまま（2つ目の 仕組みを 作っていない）', () => {
+  const michi = (app.match(/state\.open\[femp\.id\]\s*=\s*true/g) || []).length;
+  ok(michi === 1, '★連れて行く 道が ' + michi + '本★');
+});
+
+
 if (SELF) {
   console.log('\n[warn-is-tappable] ★自己確認★（★わざと 壊すと 赤に なるか★）');
   let ng = 0;
