@@ -2167,6 +2167,12 @@
     var soukoTomeru = soukoMachi() ? '読み込み中です' : (soukoNG() ? 'クラウドに つながりません' : '');
     var confirmBtn='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 4px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映'))+'）</button>'
       +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700;white-space:nowrap">✓ 確認済</span>')
+      /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
+         ★確定済みの 月にだけ 出す★＝押せない物を 並べない。
+         ★目立たせない★（btn-ghost）＝主役は「確定」。取り消しは 逃げ道。
+         ★確定済みかは monthFixedInfo() 1か所から 取る★＝入力画面の 札（下書き／確定済）や
+         「Web明細で公開」の 可否と ★同じ物差し★を 使う（食い違わせない）。 */
+      +(monthFixedInfo().fixed?'<button class="btn-ghost" data-undo-month style="padding:9px 14px;font-size:12px;white-space:nowrap">この月の確定を取り消す</button>':'')
       +'<span style="flex:1 0 100%;font-size:10px;color:#555555"><b>保存は自動</b>です。「確定」は全員を確認済みにし、<b>賃金台帳・年末調整の集計対象</b>として今月を記録し、<b>従業員のWeb明細に自動公開</b>します（従業員はいつでも閲覧可・あとで直せます）。</span></div>';
     /* ★倉庫の 答えが 来るまで 人の 一覧を 描かない★（案D）＝★二度 描かないので 1pxも 動かない★
        ★空の 一覧を 出さない＝「0人」に 見せない★（読み込み中／つながらない と はっきり 出す） */
@@ -3953,12 +3959,29 @@
     row.style.display=show?'':'none';
     if(show) $$('.dls').forEach(function(x){ x.classList.toggle('on', x.dataset.dls===(state.dailySlipLayout||'1col')); });
   }
-  /* ★従業員への公開は「取り返しがつかない」★（月ごとに取り消す道が無い＝実測）。
-     だから ①未確定の月では押せない ②押す時は必ず確認を1枚、の2つで守る。
-     文言は1か所に置く（確定ボタンと公開ボタンで食い違わせない）。 */
-  var PUBLISH_WARN='あとから月ごとに取り消す方法はありません。\n（個人ごとに「確認済」を外すことはできますが、公開は消えません）';
+  /* ★従業員への公開は「一度 見えたら 見えた」★＝押す時は 必ず 確認を1枚。
+     ①未確定の月では押せない ②押す時は確認、の2つで守る。
+     文言は1か所に置く（確定ボタンと公開ボタンで食い違わせない）。
+
+     ★2026-09-07 直した（司さん「やって」）★
+       前は「★あとから月ごとに取り消す方法はありません★」と 書いていた。
+       ★それは アプリに 道が 無かっただけ★で、倉庫は 消させてくれる（実測した）。
+       ★知り合いに 渡すと、練習で押した月が 永久に 従業員に 見えたままに なる★所だった。
+       ⇒「この月の確定を取り消す」を 足し、★文も 本当の事に 直した★。
+       同じ画面の 別の所に「あとで直せます」とも 書いてあり、
+       ★同じアプリの中で 言う事が 食い違っていた★（これで 揃った）。
+       ★消えるのは Web明細の その月ぶんだけ★＝従業員のリンクと パスワードは そのまま
+       （他の月は 見られる・配り直さなくてよい）。 */
+  var PUBLISH_WARN='従業員が すでに 見ている場合、見た事までは 取り消せません。\n'
+    + '（あとから「この月の確定を取り消す」で、Web明細から この月を 下げる事は できます）';
   var CONFIRM_MONTH_MSG='確定すると、この月の明細が従業員のWeb明細に公開されます。\n'+PUBLISH_WARN;
   var PUBLISH_MSG='この月の明細を、従業員のWeb明細に公開します。\n'+PUBLISH_WARN;
+  /* ★取り消しの 確認★＝何が どう なるかを そのまま 書く（推し量らせない） */
+  var UNDO_MONTH_MSG='この月の確定を取り消します。\n'
+    + '・全員の「確認済」が外れ、下書きに戻ります（入力した金額は消えません）\n'
+    + '・従業員のWeb明細から この月が 見えなくなります\n'
+    + '・賃金台帳と年末調整の 集計対象から この月が 外れます\n'
+    + '従業員のリンクとパスワードは そのままです（他の月は 今までどおり 見られます）。';
   /* 「Web明細で公開」を押せるか。★確定していない月は押せない（下書きを従業員に見せない）★
      賞与は確定の道が別なので、ここでは月次だけを見る（賞与は今までどおり）。
      ★可否も理由も monthFixedInfo() ＝入力画面の「下書き／確定済」と同じ1か所から取る★
@@ -4938,6 +4961,30 @@
         try{ saveMonthlyPayslips(); }catch(_){} setConfirm(emc.id, true); renderInput(); persistSave(); return; }
       if(e.target.dataset.reviewonly!=null){ state._reviewOnly=e.target.checked; renderInput(); return; }
       var ivw=e.target.closest('[data-ivw]'); if(ivw){ state.inputView=ivw.dataset.ivw==='table'?'table':'card'; renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); return; }
+      /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
+         ★戻すのは 3つ★＝①全員の 確認済 を外す ②Web明細から その月を 下げる
+                         ③下書きに 戻る（賃金台帳・年調の 集計対象から 外れる）
+         ★入力した 金額は 消さない★＝下書きに 戻すだけ（消したい人は 人ごとに 直す）。
+         ★倉庫が 消えたか どうかを そのまま 言う★＝「消しました」と 言って 消えていない、を 作らない
+         （2026-08-21 に Web明細で 踏んだ型＝約束の 失敗を 黙って 捨てない）。 */
+      var umb=e.target.closest('[data-undo-month]');
+      if(umb){ uiConfirm(UNDO_MONTH_MSG).then(function(ok){
+          if(!ok) return;
+          var ym=state.month;
+          state.employees.forEach(function(emp){ if(isActiveInMonth(emp,ym)) setConfirm(emp.id,false); });
+          persistSave(); renderInput();
+          if(!(window.Store&&Store.unpublishMonth)){ toast('この月を 下書きに 戻しました。★Web明細からは 下げられていません★'); return; }
+          /* ★失敗の 受け皿は .catch で 書く★＝家の 書き方に そろえる
+             （scripts/silent-catch.mjs が 見ているのは .catch の 形。
+               then の 2つ目でも 動くが、★見張りから 見えない書き方を しない★） */
+          Store.unpublishMonth(ym).then(function(r){
+            if(r&&r.ok) toast('この月の確定を取り消しました'+(r.n?'（Web明細から '+r.n+'件 下げました）':'（Web明細に この月は ありませんでした）'));
+            else toast('下書きに戻しました。★Web明細からは 下げられていません★（'+((r&&r.err)||'理由不明')+'）。もう一度 押してください。');
+          }).catch(function(err){
+            toast('下書きに戻しました。★Web明細からは 下げられていません★（'+((err&&err.message)||'理由不明')+'）。もう一度 押してください。');
+          });
+        }); return; }
+
       var cmb=e.target.closest('[data-confirm-month]');
       /* ★確定＝その場で従業員に公開される。月ごとに取り消す道が無いので、確認を1枚 挟む。
          「取り消せる」と誤解させない＝取り消せないことを、そのまま書く。 */

@@ -397,6 +397,34 @@
       return { employeeId:p.employeeId, name:nm, token:p.token, link:'meisai.html?t='+p.token, hasPassword:hasPw, initCode:(hasPw?null:p.initCode), consentAt:p.consentAt, docs:ds };
     }));
   };
+  /* ★その月の 公開明細を 消す（＝「今月の確定を 取り消す」の 中身）★（2026-09-07）
+     ★なぜ 足したか（司さん「やって」）★
+       前は 確定の 確認に「あとから 月ごとに 取り消す方法は ありません」と 書いてあった。
+       ★知り合いに 渡すと、練習で 押した 月が 永久に 従業員に 見えたままに なる★。
+       倉庫は 消させてくれる事を 実測した（自分の 行は 消せる／★他人の 行は 0行★）。
+       ⇒ アプリ側に 道が 無かっただけ。
+     ★消すのは その月の 明細の 中身(pay_meisai_docs)だけ★。
+       公開の 入口(pay_meisai_pub＝従業員の リンクと パスワード)は ★触らない★
+       ＝他の月は 今までどおり 見られる・リンクを 配り直さなくてよい。
+     ★他人の 分は 消えない★＝RLSが 自分の 行しか 触らせない（2026-09-07 実測で 確かめた）。
+     kind … 'monthly'（月次）／'bonus'（賞与）／'gensen'（源泉徴収票）。省くと その月の 全部。 */
+  Store.unpublishMonth = function(ym, kind){
+    if(!ym) return Promise.resolve({ ok:false, n:0 });
+    if(hasSupa){
+      var q = sb.from('pay_meisai_docs').delete().eq('ym', ym);
+      if(kind) q = q.eq('kind', kind);
+      return q.select('id').then(function(r){
+        if(r.error) return { ok:false, n:0, err:r.error.message };
+        return { ok:true, n:(r.data||[]).length };
+      }).catch(function(e){ return { ok:false, n:0, err:String(e&&e.message||e) }; });
+    }
+    try{
+      var docs=mDoc(), mae=docs.length;
+      var nokoru=docs.filter(function(d){ return !(d.ym===ym && (!kind || d.kind===kind)); });
+      mDocW(nokoru);
+      return Promise.resolve({ ok:true, n:mae-nokoru.length });
+    }catch(e){ return Promise.resolve({ ok:false, n:0 }); }
+  };
   // 従業員削除時=Web明細リンクを失効(その従業員の全公開行の認証情報をクリア=get_meisaiが明細を返さない=リンク死)。
   //  ★pay_meisai_docs(公開明細)は物理削除しない=pub行を消すとcascadeで消えるため、行は残し認証情報だけ無効化する(既存方針=お金の記録は残す)。
   //  オフライン/未ログインは no-op で安全に(RLSで auth.uid()=null は0行更新)。

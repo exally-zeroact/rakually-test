@@ -965,8 +965,15 @@ await TA('★① 今月を確定：確認が出る／キャンセルなら確定
       const ov = win.document.querySelector('.ui-modal-ov');
       ok(ov, '★確認が出ない（取り消せない操作なのに）');
       ok(/Web明細に公開/.test(ov.textContent), '公開されることを言っていない: ' + ov.textContent.slice(0, 60));
-      ok(/取り消す方法はありません/.test(ov.textContent), '★取り消せないことを正直に書いていない');
-      ok(/「確認済」を外す/.test(ov.textContent), '個人ごとに外せることの断りが無い');
+      /* ★2026-09-07 事実が 変わった★＝「取り消す方法は ありません」は もう 嘘。
+         「この月の確定を取り消す」を 足したので、★確認の 文も それに 合わせた★。
+         ここで 見るのは ★取り消しの 道が 在る事を 先に 言っている★事。 */
+      ok(/取り消/.test(ov.textContent), '★取り消しについて 何も 言っていない');
+      ok(!/取り消す方法はありません/.test(ov.textContent), '★古い（嘘の）文が 出ている');
+      /* ★前は「個人ごとに『確認済』を外せるが 公開は 消えない」と 断っていた。
+         ★今は 月ごと まるごと 下げられる★ので、断るべきは そちら＝
+         「あとから この月の確定を取り消せる」事を 言っているか を 見る。 */
+      ok(/この月の確定を取り消す/.test(ov.textContent), '★あとから 取り消せる事を 言っていない');
       eq(/★/.test(ov.textContent), false, '画面に「★」が出ている');
       [...ov.querySelectorAll('button')].find(x => /キャンセル/.test(x.textContent)).click();
       await tick();
@@ -1150,7 +1157,8 @@ await TA('★② 押せる時も 公開の前に確認が出る（取り消せ�
       win.document.getElementById('b-webpub').click();
       const ov = win.document.querySelector('.ui-modal-ov');
       ok(ov, '★確認なしで公開された');
-      ok(/取り消す方法はありません/.test(ov.textContent), '取り消せないことを書いていない');
+      ok(/取り消/.test(ov.textContent), '取り消しについて 何も 言っていない');
+      ok(!/取り消す方法はありません/.test(ov.textContent), '★古い（嘘の）文が 出ている');
       [...ov.querySelectorAll('button')].find(x => /キャンセル/.test(x.textContent)).click();
       await tick();
       eq(published, 0, '★キャンセルしたのに公開された');
