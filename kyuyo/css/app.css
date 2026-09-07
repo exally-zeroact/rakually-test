@@ -1,6 +1,11 @@
 /* 給与明細アプリ — Exally統一ミントUI（CSS変数は使わず直hex / CLAUDE.md準拠） */
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;}
+/* ★iPhone で「無駄に 動く」のを 止める★（司さん 2026-09-07「全ページでやれや」）
+   ① height:100% … ★今 見えている 高さ★に そのまま 合わせる
+      （vh は「URLバーが 隠れた時」の 高さ＝いつも 少し 長い＝転がせてしまう）
+   ② overscroll-behavior:none … ★端を 越えて 引っぱれなくする★（跳ね返りで 地の色だけが 見える）
+   ★中身が 長い画面は 今までどおり 転がる★（高さを 決めるのは html/body だけ・中身は 伸びる）。 */
+html,body{height:100%;overscroll-behavior:none;}
 /* ★この画面は皮(css/rakunally-ui.css)を読んでいない★ので、字の色はここが持ち主。
    値は全アプリ共通の #333333（司さんの決定）。 */
 body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-webkit-text-size-adjust:100%;}

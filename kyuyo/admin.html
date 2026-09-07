@@ -22,6 +22,11 @@
      ★2つの緑を作らない★＝ここを直したら 皮も一緒に見る（tests/button-uniform.test.mjs が数える） */
   :root{ --ink:#333333; --accent:#3D9E72; --accent2:#2E7D54; --muted:#6E6E6E; --line:#C8ECD8; --line2:#d4eae0; --bg:#F0FAF4; }
   *{box-sizing:border-box;}
+  /* ★iPhone で「無駄に 動く」のを 止める★（司さん 2026-09-07「全ページでやれや」）
+     height:100% … 今 見えている 高さに 合わせる（vh は URLバーが 隠れた時の 高さ）
+     overscroll-behavior:none … 端を 越えて 引っぱれなくする（跳ね返り）
+     ★中身が 長い時は 今までどおり 転がる★ */
+  html,body{height:100%;overscroll-behavior:none;}
   body{margin:0;font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN',sans-serif;background:var(--bg);color:var(--ink);}
   .bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;}
   .bar b{font-size:16px;font-weight:800;}
@@ -131,23 +136,23 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="../js/supa-config.js?v=795dd3bd"></script>
+  <script src="../js/supa-config.js?v=2615ee4a"></script>
   <!-- 法定データlib(admin法定データ画面が中央へ投入する「あるべき値」の生成に使用) -->
-  <script src="lib/shakaihoken-hyo.js?v=795dd3bd"></script>
-  <script src="lib/koyo-hoken.js?v=795dd3bd"></script>
-  <script src="lib/shotokuzei-densan.js?v=795dd3bd"></script>
-  <script src="lib/shotokuzei-hei.js?v=795dd3bd"></script>
-  <script src="lib/shotokuzei-nichi.js?v=795dd3bd"></script>
-  <script src="lib/shoyo-zei.js?v=795dd3bd"></script>
-  <script src="lib/warimashi.js?v=795dd3bd"></script>
-  <script src="lib/saitei-chingin.js?v=795dd3bd"></script>
-  <script src="lib/nenmatsu.js?v=795dd3bd"></script>
-  <script src="lib/shouhizei-ritsu.js?v=795dd3bd"></script>
-  <script src="lib/statutory-rows.js?v=795dd3bd"></script>
-  <script src="js/admin.js?v=795dd3bd"></script>
+  <script src="lib/shakaihoken-hyo.js?v=2615ee4a"></script>
+  <script src="lib/koyo-hoken.js?v=2615ee4a"></script>
+  <script src="lib/shotokuzei-densan.js?v=2615ee4a"></script>
+  <script src="lib/shotokuzei-hei.js?v=2615ee4a"></script>
+  <script src="lib/shotokuzei-nichi.js?v=2615ee4a"></script>
+  <script src="lib/shoyo-zei.js?v=2615ee4a"></script>
+  <script src="lib/warimashi.js?v=2615ee4a"></script>
+  <script src="lib/saitei-chingin.js?v=2615ee4a"></script>
+  <script src="lib/nenmatsu.js?v=2615ee4a"></script>
+  <script src="lib/shouhizei-ritsu.js?v=2615ee4a"></script>
+  <script src="lib/statutory-rows.js?v=2615ee4a"></script>
+  <script src="js/admin.js?v=2615ee4a"></script>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=795dd3bd"></script>
+<script src="../js/env-badge.js?v=2615ee4a"></script>
 </body>
 </html>
