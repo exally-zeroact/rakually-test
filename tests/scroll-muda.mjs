@@ -26,7 +26,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { borrow, launch as pwLaunch } from '../scripts/_borrow-playwright.mjs';
-import { hairu, toziru } from './_hairu.mjs';
+import { hairu, toziru, kagiAru } from './_hairu.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..').split(path.sep).join('/');
 const SELF = process.argv.includes('--self-test');
@@ -94,6 +94,16 @@ const srv = http.createServer((rq, rs) => {
 });
 await new Promise((r) => srv.listen(0, r));
 const PORT = srv.address().port;
+/* ★本番の repo では ログインの 要る画面に 入れない★（試験用の人は テストの倉庫にしか 居ない）
+   ⇒ ★黙って 緑に しない★／★赤にも しない★＝「ここでは 測れない」と 字で 言って 抜ける。
+     （2026-09-07 実測＝本番で 3画面が 入れず 赤に なった。字の 見張り（上）は 本番でも 効く。） */
+if (!(await kagiAru(ROOT))) {
+  console.log('\n  ★ここは 本番の repo です＝ログインの 要る画面は 測れません（テスト線で 測っています）★');
+  console.log('   （上の「決まりが 入っているか」は 本番でも 効いています）');
+  console.log('\n  ★赤 ' + ng + '件★');
+  srv.close();
+  process.exit(ng ? 1 : 0);
+}
 let b;
 try { b = await pwLaunch('scroll-muda', await borrow('scroll-muda', 'webkit')); }
 catch (e) { console.log('\n  🟡 実際に 押す所は 未測定（playwright を 借りられない）'); srv.close(); process.exit(ng ? 1 : 0); }
