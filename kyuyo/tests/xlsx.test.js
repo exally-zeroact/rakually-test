@@ -83,3 +83,54 @@ T('賃金台帳Sheets: 確定済み月のある従業員だけシート化', fun
   ok(/山田/.test(sheets[0].name), '山田のシート');
   eq(sheets[0].aoa[2][0], '項目'); eq(sheets[0].aoa[2][13], '年計'); // 12月+年計
 });
+
+/* ★表の 形が 違ったら 固まらずに 理由を 言う★（司さん 2026-09-07「全部やってから報告しろ」）
+   ★実測した 姿★＝一覧/集計 ▸ 帳票 の「社保一覧」「部署別」の Excel を 押すと
+   ★アプリが 固まった★（20秒 待っても 画面が 一切 動かない＝押しても 何も 起きないより 悪い）。
+   元は 呼ぶ側が ★{aoa,cols} を そのまま aoa の中に 入れていた★＝
+   XLSX.utils.aoa_to_sheet に 配列でない物が 渡り、その中で 回り続けていた。
+   ⇒ ①呼ぶ側を 直す（aoa と cols を ほどいて 渡す）
+     ②lib は ★入る前に 止めて 理由を 言う★（二度と 固まらせない）
+   ★ここは 同期で 読む★＝fail() は その場で 知らせ役を 呼ぶ（setErrorReporter）。 */
+var _mita = null;
+X.setErrorReporter(function (e) { _mita = e && e.code; });
+var _deta = null;
+X.setFileOut({ deliver: function (bytes, fn) { _deta = { n: bytes && bytes.length, fn: fn }; return Promise.resolve({ how: 'test' }); } });
+var SHK = X.shakaiListAOA([{ name: 'A', hyojun: 1, health: 2, kaigo: 3, pension: 4, employ: 5, sum: 6 }], {});
+
+T('★（前提）shakaiListAOA は {aoa,cols} を返す＝そのまま 渡す物では ない', function () {
+  ok(SHK && Array.isArray(SHK.aoa), 'aoa が 中に 在る');
+  ok(!Array.isArray(SHK), '返り値そのものは 表では ない');
+});
+T('★{aoa,cols} を そのまま 入れたら 固まらずに 断る（AOA_WRAPPED）', function () {
+  _mita = null; _deta = null;
+  X.downloadSheets([{ name: 'x', aoa: SHK }], { filename: 'x.xlsx' });
+  eq(_mita, 'AOA_WRAPPED:0');
+  eq(_deta, null); // ★中身は 作らない★
+});
+T('★表が 配列でない時も 断る（AOA_NOT_ARRAY）＝黙って 固まらない', function () {
+  _mita = null; _deta = null;
+  X.downloadSheets([{ name: 'x', aoa: 'これは表ではない' }], {});
+  eq(_mita, 'AOA_NOT_ARRAY:0');
+});
+T('★正しく ほどいて 渡せば 形では 断らない（空振りしていない）', function () {
+  /* ★node には XLSX が 無い★ので ここは XLSX_NOT_LOADED まで 進めば 合格
+     ＝「形で 断られていない」事が 見たい事（実物の 出来上がりは 実ブラウザで 押して 確かめた）。 */
+  _mita = null; _deta = null;
+  X.downloadSheets([{ name: '社保一覧', aoa: SHK.aoa, cols: SHK.cols }], { filename: 'y.xlsx' });
+  ok(_mita === null || _mita === 'XLSX_NOT_LOADED', '★形で 断られた＝正しい渡し方が 通らない★: ' + _mita);
+  ok(!/AOA_/.test(String(_mita)), '★形の 文句が 出ている★: ' + _mita);
+});
+T('★部署別も 同じ形（{aoa,cols}）＝どちらも ほどいて 渡す', function () {
+  var g = { groups: [{ dept: '営業', rows: [{ name: 'A', s: 1, k: 2, n: 3 }], sub: { s: 1, k: 2, n: 3 } }], total: { s: 1, k: 2, n: 3 } };
+  var d = X.deptSummaryAOA(g, {});
+  ok(d && Array.isArray(d.aoa) && !Array.isArray(d), '{aoa,cols} を返す');
+});
+T('★画面の 呼ぶ側が ほどいて 渡している（app.js）', function () {
+  var fs2 = require('fs'), path2 = require('path');
+  var src = fs2.readFileSync(path2.join(__dirname, '..', 'js', 'app.js'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');
+  ok(!/aoa:\s*PayslipXlsx\.shakaiListAOA\(/.test(src), '★社保一覧が そのまま 渡している（固まる）★');
+  ok(!/aoa:\s*PayslipXlsx\.deptSummaryAOA\(/.test(src), '★部署別が そのまま 渡している（固まる）★');
+  ok(/aoa:\s*shk\.aoa/.test(src) && /aoa:\s*dpt\.aoa/.test(src), '★ほどいて 渡していない★');
+});

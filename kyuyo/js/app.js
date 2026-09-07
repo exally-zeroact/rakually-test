@@ -3392,11 +3392,16 @@
     aoa.push([]); aoa.push(['※個人番号(マイナンバー)は各自記入。本表はマイナンバーを扱いません。']);
     aoa.push(['※提出基準未満・204条非該当（運転代行・運送等）は本表の対象外です。']); return aoa; }
   function downloadChoXlsx(kind){ if(!window.PayslipXlsx) return; var co=(state.company||{}).name, mlabel=monthLabel().replace(/ /g,'');
-    if(kind==='shakai'){ PayslipXlsx.downloadSheets([{name:'社保一覧', aoa:PayslipXlsx.shakaiListAOA(shakaiRows(),{company:co,monthLabel:mlabel})}], {filename:'社保一覧_'+state.month+'.xlsx'}); return; }
+    /* ★{aoa,cols} を ほどいて 渡す★（2026-09-07 実測＝そのまま 渡していて ★アプリが 固まっていた★）
+       shakaiListAOA / deptSummaryAOA は ★表と 列幅を 一緒に 返す★。 */
+    if(kind==='shakai'){ var shk=PayslipXlsx.shakaiListAOA(shakaiRows(),{company:co,monthLabel:mlabel});
+      PayslipXlsx.downloadSheets([{name:'社保一覧', aoa:shk.aoa, cols:shk.cols}], {filename:'社保一覧_'+state.month+'.xlsx'}); return; }
     if(kind==='chosho'){ var cyr=parseInt(String(state.month||'').slice(0,4),10)||2026; var crows=(state._choshoRows||[]).filter(function(r){return r.target;});
       if(!crows.length){ uiAlert('支払調書の提出対象者がいません（区分・提出基準を確認）。'); return; }
       PayslipXlsx.downloadSheets([{name:'支払調書'+cyr, aoa:choshoAoa(state._choshoRows,cyr)}], {filename:'支払調書_'+cyr+'.xlsx'}); return; }
-    if(kind==='dept'){ var g=CD().deptGroups(deptRows()); PayslipXlsx.downloadSheets([{name:'部署別集計', aoa:PayslipXlsx.deptSummaryAOA(g,{company:co,monthLabel:mlabel})}], {filename:'部署別集計_'+state.month+'.xlsx'}); return; }
+    if(kind==='dept'){ var g=CD().deptGroups(deptRows());
+      var dpt=PayslipXlsx.deptSummaryAOA(g,{company:co,monthLabel:mlabel});
+      PayslipXlsx.downloadSheets([{name:'部署別集計', aoa:dpt.aoa, cols:dpt.cols}], {filename:'部署別集計_'+state.month+'.xlsx'}); return; }
     if(kind==='daicho'){ var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
       Store.getPayslipsByYm(year+'-01',year+'-12').catch(function(e){ toast('過去の月を読み込めませんでした（' + ((e&&e.message)||'つながりません') + '）。Excelは作りません。'); throw e; }).then(function(recs){ recs=confirmedRecs(recs).filter(function(r){return r.data.kind!=='bonus';}); var L=CD().buildLedger(recs,year,state.employees); // 賃金台帳(月次)は賞与除外
         var sheets=PayslipXlsx.chinginDaichoSheets(L, year, CD(), {company:co}); if(!sheets.length){ uiAlert('確定済みの月がありません。'); return; } PayslipXlsx.downloadSheets(sheets,{filename:'賃金台帳_'+year+'.xlsx'}); }); return; }

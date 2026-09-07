@@ -132,10 +132,31 @@
       sheets.push({ name:sheetName(row.name,used), aoa:aoa, cols:[{wch:12}].concat(months.map(function(){return {wch:9};})).concat([{wch:11}]) }); });
     return sheets; }
   // 汎用: シート配列(name/aoa/cols/merges)を1ブックに書き出す
+  /* ★表の 形が 違ったら 固まらずに 理由を 言う★（司さん 2026-09-07「全部やってから報告しろ」）
+     ★実測した 姿★＝社保一覧と 部署別の Excel を 押すと ★アプリが 固まった★（20秒でも 戻らない）。
+     元は 呼ぶ側が ★{aoa,cols} を そのまま aoa の中に 入れていた★＝
+     aoa_to_sheet に 配列でない物が 渡り、その中で 回り続けていた。
+     ⇒ ★渡された物が 配列でなければ 入る前に 止める★＝
+       「黙って 何も 起きない」より 悪い ★固まる★ を 作らない。 */
   function downloadSheets(sheets, opts){ opts=opts||{};
+    /* ★形を いちばん先に 見る★＝XLSX が 在るかより 前。
+       ここが 本当の 原因なので、先に 名指しで 断る（XLSX_NOT_LOADED に 隠されない）。 */
+    var warui=null;
+    (sheets||[]).forEach(function(sh, i){
+      if(warui) return;
+      var a=sh&&sh.aoa;
+      if(!Array.isArray(a)){
+        /* ★よくある 間違いを 名指しする★＝{aoa,cols} を そのまま 入れた時 */
+        warui = (a && Array.isArray(a.aoa)) ? ('AOA_WRAPPED:' + i) : ('AOA_NOT_ARRAY:' + i);
+      }
+    });
+    if(warui) return fail(warui);
+    if(!(sheets||[]).length) return fail('NO_SHEET');
     if(typeof XLSX==='undefined') return fail('XLSX_NOT_LOADED');
     var wb=XLSX.utils.book_new(), used={};
-    (sheets||[]).forEach(function(sh){ var s=XLSX.utils.aoa_to_sheet(sh.aoa); if(sh.cols)s['!cols']=sh.cols; if(sh.merges)s['!merges']=sh.merges; XLSX.utils.book_append_sheet(wb, s, sheetName(sh.name||'Sheet', used)); });
+    sheets.forEach(function(sh){
+      var s2=XLSX.utils.aoa_to_sheet(sh.aoa); if(sh.cols)s2['!cols']=sh.cols; if(sh.merges)s2['!merges']=sh.merges;
+      XLSX.utils.book_append_sheet(wb, s2, sheetName(sh.name||'Sheet', used)); });
     return deliverBook(wb, opts.filename||'帳票.xlsx'); }
 
   return { setErrorReporter: setErrorReporter, setFileOut: setFileOut, shukeiAOA: shukeiAOA, meishiAOA: meishiAOA, sheetName: sheetName, download: download,
