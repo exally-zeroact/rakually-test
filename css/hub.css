@@ -13,7 +13,17 @@ body {
 button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで拡大されない */
 
 /* ── 全体 ── */
-.app { max-width: 720px; margin: 0 auto; min-height: 100vh; } /* 下部タブ(59px)に操作ボタンが隠れないだけの余白 */
+/* ★min-height:100vh を 外した★（司さん 2026-09-07「スクロールのバグ問題なおせ」）
+   ★何が 起きていたか（実測）★
+     ・地の色は body が 持っている＝★.app を 画面いっぱいに 伸ばす 必要が 無い★
+     ・伸ばすと ★中身が 収まっていても 紙が 画面より 高くなる★＝空白を スクロールできる
+       テスト線では ★46px★（「テスト環境」の帯が body に padding-top を 足す）
+       ★iPhoneの Safari では もっと大きい★＝100vh は ★URLバーが 隠れた時の 高さ★なので、
+       URLバーが 出ている 間は いつも その分 紙が 長い（＝いつでも 空白へ スクロールできる）
+     ・下タブに 隠れない 余白は ★#scr-hub の padding-bottom:84px★が やっている＝
+       この min-height は ★その役目を 持っていない★（コメントが 事実と 違っていた）
+   ★給与・請求書の 画面は 100vh を 1つも 使っていない★＝入口だけが 違う作りだった。 */
+.app { max-width: 720px; margin: 0 auto; }
 
 /* ── ヘッダー ── */
 .hd {

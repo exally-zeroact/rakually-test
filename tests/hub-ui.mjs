@@ -335,6 +335,48 @@ await (async () => {
   });
 })();
 
+/* ★入口を 画面の 高さに 伸ばさない★（司さん 2026-09-07「スクロールのバグ問題なおせ」）
+   ★何が 起きていたか（実測）★
+     .app に min-height:100vh が 付いていた。地の色は body が 持っているので ★伸ばす必要は 無い★。
+     伸ばすと ★中身が 収まっていても 紙が 画面より 高くなる★＝空白へ スクロールできる。
+       テスト線 … 「テスト環境」の帯が body に足す 46px ぶん
+       ★iPhoneの Safari … 100vh は「URLバーが 隠れた時」の 高さ★＝
+         バーが 出ている間は ずっと その差ぶん 長い（＝いつでも 空白へ 転がる）
+     下タブに 隠れない 余白は #scr-hub の padding-bottom が やっている（この指定の 役目では 無い）。
+   ★給与・請求書の CSS は 100vh を 1つも 使っていない★＝入口だけが 違う作りだった。
+   ⇒ ここで ★入口の CSS に 画面の高さで 伸ばす指定が 無い事★を 押さえる。 */
+T('8. ★画面の高さで 伸ばす指定が どこにも 無い（空白へ スクロールさせない）', () => {
+  /* ★入口だけ 見ない★＝2026-09-07 に 入口(css/hub.css)を 直した後、
+     ★従業員が 見る kyuyo/meisai.html にも 同じ物が 在った★。
+     ⇒ ★repo 全体を 探す★（お客さんに 出る CSS と HTML の 中の style）。 */
+  const mita = [];
+  const nobiru = [];
+  const RX = /(min-)?height\s*:\s*(100vh|100dvh|100svh|100lvh)/g;
+  const miru = (rel) => {
+    const p2 = path.join(ROOT, rel);
+    if (!fs.existsSync(p2)) return;
+    mita.push(rel);
+    const src = fs.readFileSync(p2, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')          /* ★コメントは 数えない★（説明の字を 拾わない） */
+      .replace(/<!--[\s\S]*?-->/g, ' ');
+    (src.match(RX) || []).forEach((x) => nobiru.push(rel + ' … ' + x));
+  };
+  const hirou = (dir) => {
+    const p2 = path.join(ROOT, dir);
+    if (!fs.existsSync(p2)) return;
+    fs.readdirSync(p2).forEach((f) => { if (/\.(css|html)$/.test(f)) miru(path.join(dir, f).split(path.sep).join('/')); });
+  };
+  ['css', 'kyuyo/css', 'seikyu/css', '.', 'kyuyo', 'seikyu'].forEach(hirou);
+  ok(mita.length >= 5, '★見たファイルが ' + mita.length + '本＝この試験は 空振り★');
+  ok(nobiru.length === 0, '★画面の高さで 伸ばす指定が ' + nobiru.length + '件 在る …\n       ' + nobiru.join('\n       '));
+  console.log('       見たファイル ' + mita.length + '本 … 伸ばす指定 0件');
+  /* ★空振りしていない事★＝そもそも 入口の 決まりが 読めているか */
+  const hub = fs.readFileSync(path.join(ROOT, 'css/hub.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  ok(/\.app\s*\{[^}]*max-width/.test(hub), '★.app の 決まりが 見つからない＝この試験は 空振り★');
+  /* ★下タブに 隠れない 余白は 別の所が 持っている★（伸ばす指定を 消した代わりに ここが 要る） */
+  ok(/\.scr\s*\{[^}]*padding[^}]*\}/.test(hub), '★下タブぶんの 余白を 持つ 決まりが 無い＝ボタンが タブに 隠れる★');
+});
+
 T('7. ここまでで JS例外・未処理の失敗が0', () => {
   ok(errs.length === 0, errs.join('\n       '));
 });
