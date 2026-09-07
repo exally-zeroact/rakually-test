@@ -375,6 +375,14 @@ T('8. ★画面の高さで 伸ばす指定が どこにも 無い（空白へ �
   ok(/\.app\s*\{[^}]*max-width/.test(hub), '★.app の 決まりが 見つからない＝この試験は 空振り★');
   /* ★下タブに 隠れない 余白は 別の所が 持っている★（伸ばす指定を 消した代わりに ここが 要る） */
   ok(/\.scr\s*\{[^}]*padding[^}]*\}/.test(hub), '★下タブぶんの 余白を 持つ 決まりが 無い＝ボタンが タブに 隠れる★');
+  /* ★iPhone側の 動きも 止めている事★（2026-09-07 司さん「まだ直ってない」）
+     ・height:100% … 今 見えている 高さに 合わせる（vh は URLバーが 隠れた時の 高さ）
+     ・overscroll-behavior … 端を 越えて 引っぱれなくする（跳ね返りで 地の色だけが 見える） */
+  ok(/html\s*,\s*body\s*\{[^}]*height\s*:\s*100%/.test(hub), '★html,body に height:100% が 無い★');
+  ok(/html\s*,\s*body\s*\{[^}]*overscroll-behavior\s*:\s*none/.test(hub), '★跳ね返りを 止めていない★');
+  const mei = fs.readFileSync(path.join(ROOT, 'kyuyo/meisai.html'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  ok(/html\s*,\s*body\s*\{[^}]*height\s*:\s*100%/.test(mei), '★明細の画面に height:100% が 無い★');
+  ok(/html\s*,\s*body\s*\{[^}]*overscroll-behavior\s*:\s*none/.test(mei), '★明細の画面の 跳ね返りを 止めていない★');
 });
 
 T('7. ここまでで JS例外・未処理の失敗が0', () => {

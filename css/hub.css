@@ -4,7 +4,18 @@
  * モバイル前提: 1画面ずつ・大きなタップ・親指が届く下部タブ。
  */
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
+/* ★iPhone で「無駄に 動く」のを 止める★（司さん 2026-09-07「まだ直ってない」）
+   min-height:100vh を 外しても ★まだ 動いた★＝残っていたのは 2つとも ★iPhone側の 動き★。
+     ① URLバーの 開閉 … 少しでも 転がせると Safari は バーを 畳もうとして 中身を 押し上げる
+        （見出しが 消えるくらい 動く＝司さんの 写真の 1枚目）
+     ② 引っぱった時の 跳ね返り … 端を 越えて 引っぱれる（地の色だけが 見える
+        ＝司さんの 写真の 2枚目で 見出しの 上に 出ていた 緑）
+   ★直し方★
+     ・height:100% … ★画面の高さを vh で 書かない★（vh は URLバーが 隠れた時の 高さ＝
+       いつも 少し 長くなる）。100% なら ★今 見えている 高さ★に そのまま 合う。
+     ・overscroll-behavior: none … ★端を 越えて 引っぱれなくする★（跳ね返りを 止める）
+   ★中身が 長い 画面は 今までどおり 転がる★（.app は min-height＝下に 伸びる）。 */
+html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior: none; }
 body {
   font-family: 'Noto Sans JP', system-ui, -apple-system, sans-serif;
   background: #F0FAF4; color: #333333;   /* ★読ませる字は薄い黒★（この画面も皮を読んでいない） */
@@ -23,7 +34,7 @@ button, input, select { font-family: inherit; font-size: 16px; } /* 16px=iOSで�
      ・下タブに 隠れない 余白は ★#scr-hub の padding-bottom:84px★が やっている＝
        この min-height は ★その役目を 持っていない★（コメントが 事実と 違っていた）
    ★給与・請求書の 画面は 100vh を 1つも 使っていない★＝入口だけが 違う作りだった。 */
-.app { max-width: 720px; margin: 0 auto; }
+.app { max-width: 720px; margin: 0 auto; min-height: 100%; }
 
 /* ── ヘッダー ── */
 .hd {

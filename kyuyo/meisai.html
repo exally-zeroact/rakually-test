@@ -23,6 +23,11 @@
 <link rel="manifest" href="meisai.webmanifest">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
+/* ★iPhone で「無駄に 動く」のを 止める★（入口と 同じ直し・2026-09-07）
+   height:100% … 画面の高さを vh で 書かない（vh は URLバーが 隠れた時の 高さ）
+   overscroll-behavior:none … 端を 越えて 引っぱれなくする（跳ね返りを 止める）
+   ★中身が 長い時は 今までどおり 転がる★（body は 伸びる）。 */
+html,body{height:100%;overscroll-behavior:none;}
 /* ★min-height:100vh を 外した★（司さん 2026-09-07「スクロールのバグ問題なおせ」）
    地の色は body に 付いていて ★画面いっぱいに 広がる★（背景は 紙全体に 伸びる決まり）＝伸ばす必要が 無い。
    ★iPhoneの Safari では 100vh は「URLバーが 隠れた時」の 高さ★なので、
@@ -178,18 +183,18 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 </div>
 
 <!-- ★既存Service Worker/キャッシュを削除して常に最新に(古い版が居座る問題の根絶) --><script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
-<script src="js/render.js?v=5d6dd141"></script>
-<script src="lib/nencho-declaration.js?v=5d6dd141"></script>
+<script src="js/render.js?v=795dd3bd"></script>
+<script src="lib/nencho-declaration.js?v=795dd3bd"></script>
 <!-- PDF保存=jsPDFで自前生成(A4ぴったり1ページ・ブラウザのフッター無し)。iOSのwebページ印刷は必ずURL/日付フッターが付き余白で2ページ化するため不使用。 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <!-- 本番はSupabase(RPC)。window.SUPA/supabase未読込ならstore.jsはlocalStorage層にフォールバック。 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="../js/supa-config.js?v=5d6dd141"></script>
-<script src="js/store.js?v=5d6dd141"></script>
-<script src="js/meisai.js?v=5d6dd141"></script>
+<script src="../js/supa-config.js?v=795dd3bd"></script>
+<script src="js/store.js?v=795dd3bd"></script>
+<script src="js/meisai.js?v=795dd3bd"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=5d6dd141"></script>
+<script src="../js/env-badge.js?v=795dd3bd"></script>
 </body>
 </html>
