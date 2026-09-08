@@ -57,7 +57,10 @@ if (SELF) {
   say('★はみ出し … 12px 溢れている★', hamidashi(402, 390) === 12);
   /* ★通信の失敗と 作りの落ちを 分けられるか★（2026-09-08 足した） */
   say('★倉庫の 通信の 失敗＝通信と 見る★（総なめで 実際に 出た 字）',
-    tsushinKa('/khawdrnvssdenumbiwfg.supabase.co/auth/v1/token?grant_type=password due to access control checks.') === true);
+    /* ★接続先は js/supa-config.js だけが 持つ★＝ここに 倉庫の 名前を 書かない
+       （CIの「向き先を 直書きしていない」見張りが 正しく 捕まえた・2026-09-08）。
+       ★見分けに 要るのは「supabase」という 語だけ★＝ホスト名は 要らない。 */
+    tsushinKa('supabase.co/auth/v1/token?grant_type=password due to access control checks.') === true);
   say('★網の 切れ＝通信と 見る★', tsushinKa('Load failed') === true);
   say('★作りの 落ちは 通信に しない★（undefined is not an object）',
     tsushinKa("undefined is not an object (evaluating 'a.b')") === false);
