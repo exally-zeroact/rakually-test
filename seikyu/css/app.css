@@ -75,6 +75,18 @@
 }
 .iv-amt { font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; font-weight: 700; color: #2E7D54; }
 
+/* ★2026-09-08 司さん「取引先のところに 確認や修正と削除のボタン作って
+   押したらPDFが見えたり修正できたりでええやろ」★
+   ＝行そのものを 押す（どこへ行くか 分からない）のを やめて、
+     1通ぶんを ★1枚の カード★にし、下に ★何が起きるか 書いた ボタン★を 並べる。
+   ★ボタンは 裸で 並べない＝flex+gap の 箱に 入れる★（全アプリ 共通の 決まり）。 */
+.iv-card { padding: 12px 14px 10px; margin-bottom: 10px; }
+.iv-btns { margin-top: 10px; gap: 8px; flex-wrap: wrap; }
+/* ★どのボタンも 指で 押せる 大きさ★（44px＝Apple の 目安） */
+.iv-btns > button { flex: 1 1 auto; min-width: 0; white-space: nowrap; min-height: 44px; }
+/* ★確認で 出す 紙★＝入力画面の 下見と 同じ 見た目 */
+#lv-card .pv-wrap { margin-top: 10px; }
+
 /* ── 入金の1行（★1回＝1行。上書きしない＝分割払いの履歴が残る★）─────
    ★flex の子に文を直接置くと、狭い端末で1文字ずつ縦に割れる（前科あり）★
      ＝日付・金額の並びと、備考の文を別の箱に分け、文の側に最低幅を持たせる。

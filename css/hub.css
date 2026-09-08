@@ -118,8 +118,15 @@ input, select, textarea { color: #333333; }   /* ★打った値は読ませる�
   padding: 6px 8px 6px 12px; font-size: 13px; color: #2E7D54;
 }
 .chip-x { border: none; background: none; color: #6E6E6E; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 3px; }
-.chip-add { display: flex; gap: 8px; }
-.chip-add input { flex: 1; }
+/* ★2026-09-08 司さん「事業いれるとこの追加が右にはみ出てわからん」★
+   原因＝flex の子は 既定で min-width:auto ＝★中身より 細くならない★。
+   入力欄が placeholder の 幅を 守ろうとして 縮まず、隣の「追加」を 画面の外へ 押し出す。
+   ⇒ ★入力欄に min-width:0（縮んでよい）／ボタンは 縮まない・折り返さない★。
+   同じ形は 他にも 3か所 在ったので まとめて 直した（.agg-custom / .addcustom / 探す欄）。 */
+.chip-add { display: flex; gap: 8px; align-items: center; }
+.chip-add input { flex: 1 1 auto; min-width: 0; }
+.chip-add .b2 { flex: 0 0 auto; white-space: nowrap; }
+
 
 /* ── 一覧(人・取引先) ── */
 .rows { border-top: 1px solid #E4F1EA; }
@@ -147,7 +154,7 @@ input, select, textarea { color: #333333; }   /* ★打った値は読ませる�
 .agg-range { font-size: 12px; color: #333333; margin-bottom: 14px; }
 .agg-custom { display: none; gap: 8px; margin-bottom: 12px; }
 .agg-custom.on { display: flex; }
-.agg-custom input { flex: 1; padding: 10px; border: 1.5px solid #D4EAE0; border-radius: 10px; color: #333333; }
+.agg-custom input { flex: 1 1 auto; min-width: 0; padding: 10px; border: 1.5px solid #D4EAE0; border-radius: 10px; color: #333333; }
 .agg-head, .agg-row {
   display: grid; grid-template-columns: 1fr 52px 96px; gap: 8px; align-items: center;
   padding: 10px 2px; border-bottom: 1px solid #E4F1EA;

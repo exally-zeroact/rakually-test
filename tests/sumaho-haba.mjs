@@ -99,8 +99,21 @@ const HABA = [375, 390, 412];
 const GAMEN = [
   { nm: '給与（入口）', url: '/kyuyo/index.html', matsu: '#loginEmail, .bn[data-scr]' },
   { nm: '請求書（入口）', url: '/seikyu/index.html', matsu: 'input, button, .bn, [data-scr]' },
-  { nm: '従業員の明細（web）', url: '/kyuyo/meisai.html', matsu: 'body > *' }
+  { nm: '従業員の明細（web）', url: '/kyuyo/meisai.html', matsu: 'body > *' },
+  /* ★2026-09-08 足した★ 司さん「事業いれるとこの追加が右にはみ出てわからん」
+     ＝★入口(index.html)を この見張りは 一度も 見ていなかった★（給与・請求書・明細の3本だけ）。
+     ★一番 守りたい物が 見る範囲に 入っているか 名指しで 確かめる★の 通りに 足す。 */
+  { nm: 'Rakunally（入口）', url: '/index.html', matsu: '.bn-i[data-go], .tile, button' }
 ];
+/* ★入口の 中の 画面★（ホーム／データ）＝★事業の「追加」は データの 中に 在る★ */
+const HUB_NAKA = ['scr-hub', 'scr-data'];
+/* ★入口だけ 320 も 見る★（2026-09-08 司さん「事業いれるとこの追加が右にはみ出てわからん」）
+   ★実測★ .chip-add input が flex:1（min-width:auto）だと
+     320px で 追加ボタンが ★幅62→53・高44→64＝札が「追／加」と 2行に 割れた★。
+   ★375以上では 出ない★＝手元の WebKit の 字幅と 実機の 字幅が 違うので、
+     司さんの 実機で 起きた 物を 手元で 出すには ★狭い所で 測る★のが 一番 確か。
+   ★他の画面の 幅は 変えていない★（別件の 赤を 混ぜない）。 */
+const HUB_HABA = [320, 375, 390, 412];
 /* ★入口だけでは 足りない★＝★入ってからの 画面★も 見る（2026-09-05）
    ★代行請求は 6画面（設定/入金/入力/一覧/編集/請求）を 1つずつ 押していた★
    ⇒ うちも ★入ってから タブを 1つずつ 押して 測る★（押す物の 一覧を 先に 書く） */
@@ -201,6 +214,95 @@ for (const w of HABA) {
     if (ng) akai++;
     console.log('  ' + (ng ? '✗' : '✓') + ' 給与 ' + scr + ' 幅' + w
       + ' … はみ出し ' + m.over + 'px ／ 縦に割れ ' + m.bad.length + '件 ／ 見た部品 ' + m.kazu + '個');
+    if (m.bad.length) m.bad.slice(0, 3).forEach((x) => console.log('       ★割れ★ 「' + x.t + '」 幅' + x.w + '×高' + x.h));
+  }
+  if (errs.length) { console.log('       ★画面のエラー★ ' + errs.join(' / ')); akai++; }
+  await pg.close();
+}
+
+/* ── ★入口(Rakunally)の 中の 画面★ ────────────────────────── */
+for (const w of HUB_HABA) {
+  const pg = await (await b.newContext({ viewport: { width: w, height: 820 } })).newPage();
+  const errs = []; pg.on('pageerror', (e) => errs.push(String(e.message).slice(0, 120)));
+  /* ★入口は ログインしないと 中身の 幅が 0★（2026-09-08 実測＝
+     画面を 切り替えても .app が hidden のままで ★全部 幅0★＝わざと 壊しても 緑だった）。
+     ⇒ ★給与と 同じ hairu で 入ってから 測る★（★入れなければ 未測定★・緑に しない）。 */
+  const _h2 = await hairu(pg, 'http://localhost:' + PORT + '/index.html', '.bn-i[data-go]');
+  mattaKei += _h2.matta;
+  await toziru(pg);
+  const haitta2 = await pg.evaluate(() => {
+    const a = document.getElementById('app');
+    const e = document.getElementById('loginEmail');
+    return !!(a && !a.hidden) && !(e && e.offsetParent);
+  });
+  if (!haitta2) { console.log('  🟡 入口（中） 幅' + w + ' … ★未測定★（入れなかった）'); mihakari++; await pg.close(); continue; }
+  for (const scr of HUB_NAKA) {
+    const oseta = await pg.evaluate((s2) => {
+      const b2 = document.querySelector('.bn-i[data-go="' + s2 + '"]');
+      if (!b2) return false; b2.click(); return true;
+    }, scr);
+    if (!oseta) { console.log('  🟡 入口 ' + scr + ' 幅' + w + ' … ★未測定★（その札が 無い）'); mihakari++; continue; }
+    await new Promise((r) => setTimeout(r, 600));
+    const m = await pg.evaluate(() => {
+      const de = document.documentElement; const bad = [];
+      const all = document.querySelectorAll('body *');
+      for (const el of all) {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+        if (el.children.length) continue;
+        const t = (el.textContent || '').trim();
+        if (t.length < 2) continue;
+        const fsz = parseFloat(cs.fontSize) || 12;
+        if (r.width < fsz * 1.6 - 1e-9 && r.height > fsz * 2.4 + 1e-9) bad.push({ t: t.slice(0, 18), w: Math.round(r.width), h: Math.round(r.height) });
+      }
+      /* ★はみ出しは「押せない物が 在るか」でも 見る★＝画面の 右端より 外に 出た 押す物 */
+      const soto = [];
+      document.querySelectorAll('button, input, select, a').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === 'hidden' || cs.display === 'none') return;
+        if (r.right > de.clientWidth + 1e-9) soto.push({ t: (el.textContent || el.value || el.id || '').trim().slice(0, 14), r: Math.round(r.right) });
+      });
+      /* ★測れているかを 自分で 確かめる★＝押す物が 1つも 見えないなら ★未測定★
+         （幅0の 画面を「はみ出し0」と 読むのが 2026-09-08 の 偽の緑だった） */
+      let mieru = 0;
+      document.querySelectorAll('button, input, select').forEach((el) => {
+        const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) mieru++;
+      });
+      /* ★押す物の 札が 折り返していないか★（2026-09-08）
+         ＝はみ出し 0px でも ★ボタンが 潰れて「追／加」と 2行に なる★事が 在る。
+         司さんが 見たのは これ。★字に 改行が 無いのに 2行ぶんの 高さ★＝潰れている。 */
+      const oreta = [];
+      document.querySelectorAll('button, .b2, .btn-primary, .btn-ghost').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) return;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === 'hidden' || cs.display === 'none') return;
+        const t = (el.textContent || '').trim();
+        if (t.length < 2 || t.indexOf(String.fromCharCode(10)) >= 0) return;   /* 元から 2行の 札は 見ない */       /* 元から 2行の 札は 見ない */
+        /* ★中に 部品を 持つ ボタンは 見ない★（2026-09-08 実測＝下の札は
+           <span>🏠</span>ホーム で ★わざと 2行★＝これを 赤にすると 嘘に なる）。
+           見るのは ★字だけの ボタン★（「追加」「保存」など）。 */
+        if (el.children.length) return;
+        const lh = parseFloat(cs.lineHeight) || (parseFloat(cs.fontSize) || 14) * 1.4;
+        const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+          + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+        if (r.height > pad + lh * 1.9) oreta.push({ t: t.slice(0, 14), w: Math.round(r.width), h: Math.round(r.height) });
+      });
+      return { over: de.scrollWidth - de.clientWidth, bad: bad, kazu: all.length, soto: soto, mieru: mieru, oreta: oreta };
+    });
+    if (!m.mieru) { console.log('  🟡 入口 ' + scr + ' 幅' + w + ' … ★未測定★（押す物が 1つも 見えない＝幅0の 画面を 測っていた）'); mihakari++; continue; }
+    mita++;
+    const ng = (m.over > 0) || m.bad.length || m.soto.length || m.oreta.length;
+    if (ng) akai++;
+    console.log('  ' + (ng ? '✗' : '✓') + ' 入口 ' + scr + ' 幅' + w
+      + ' … はみ出し ' + m.over + 'px ／ 縦に割れ ' + m.bad.length + '件 ／ 画面の外の 押す物 ' + m.soto.length + '個'
+      + ' ／ ★札が 折り返した ボタン ' + m.oreta.length + '個★ ／ 見えた押す物 ' + m.mieru + '個');
+    m.soto.slice(0, 3).forEach((x) => console.log('       ★外★ 「' + x.t + '」 右端' + x.r + 'px（画面は ' + w + 'px）'));
+    m.oreta.slice(0, 3).forEach((x) => console.log('       ★折り返し★ 「' + x.t + '」 幅' + x.w + '×高' + x.h));
     if (m.bad.length) m.bad.slice(0, 3).forEach((x) => console.log('       ★割れ★ 「' + x.t + '」 幅' + x.w + '×高' + x.h));
   }
   if (errs.length) { console.log('       ★画面のエラー★ ' + errs.join(' / ')); akai++; }

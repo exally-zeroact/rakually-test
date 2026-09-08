@@ -343,11 +343,28 @@ T('2-a. ★出すボタンは1つだけ大きく・ほかは畳む（7個 横並
    ★開くまで 何が出来るか 分からない★のを 止める為の決まり。
    ★中に在るのに 見出しに無い★＝この見張りが 赤になる。
    （2026-08-30 実際に赤になった：PDFで保存を足したのに 見出しが「下書き・下見・印刷・Excel」のままだった） */
+/* ★紙の 下見を 出す 押し方★（2026-09-08）
+   前は 入力の「中身を見る」(#b-preview) を 押していた。司さんの
+   「中身見るやら印刷やらここにいらんやろ」で ★一覧の「確認」★へ 移したので、
+   ★押し方も 1か所に まとめて★ 移す（各所に 写すと 次に 変えた日に 片方が 残る）。
+   返り値＝紙の HTML（前の #pv と 同じ 読み方が できる）。 */
+async function shitami(id) {
+  doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(30);
+  const bs = [...$('list-body').querySelectorAll('[data-look]')];
+  const b = id ? bs.find((x) => x.getAttribute('data-look') === id) : bs[0];
+  if (!b) throw new Error('★一覧に「確認」が 無い★（' + bs.length + '個）');
+  b.click(); await sleep(400);
+  return ($('lv') && $('lv').srcdoc) || '';
+}
+
 T('2-a. ★畳みの見出しに 中の出し口が ぜんぶ 書いてある（PDFを含む）', () => {
   const sum = ($('out-sum').textContent || '');
   /* 見出しの言葉 ← 中の押す物（id と 見出しの言葉の対応表。★増やしたら ここに1行★） */
-  const WORD = { 'b-save': '下書き', 'b-preview': '下見', 'b-pdf': 'PDF', 'b-pdfopen': '送る',
-    'b-print': '印刷', 'b-delivery': '納品書', 'b-xlsx': 'Excel' };
+  /* ★2026-09-08 司さん「中身見るやら印刷やらここにいらんやろ」★
+     ＝出し口（下見・PDF・送る・印刷・納品書・Excel）は ★一覧の「確認」へ 移した★。
+     入力に 残るのは 下書き・複製・取り消し・削除 だけ。
+     ★見出しと 中身が 合っているか★という 決まりは そのまま（見る先だけ 移した）。 */
+  const WORD = { 'b-save': '下書き', 'b-preview': '下見', 'b-copy': '複製', 'b-void': '取り消し', 'b-delete': '削除' };
   const shown = (el) => { for (let e = el; e && e !== doc.body; e = e.parentElement) { if (e.style && e.style.display === 'none') return false; } return true; };
   const inside = [...$('out-box').querySelectorAll('button')].filter((b) => shown(b) && b.id);
   const miss = [], unknown = [];
@@ -358,7 +375,13 @@ T('2-a. ★畳みの見出しに 中の出し口が ぜんぶ 書いてある（
   });
   ok(!unknown.length, '★対応表に無い出し口が 増えている＝見出しに書けているか 分からない★ ' + unknown.join(' / '));
   ok(!miss.length, '★中に在るのに 見出しに書いていない★ ' + miss.join(' / ') + ' … 見出し「' + sum + '」');
-  ok(inside.length >= 4, '★中の出し口が ' + inside.length + '個＝数えられていない（空振り）★');
+  ok(inside.length >= 1, '★中の出し口が ' + inside.length + '個＝数えられていない（空振り）★');
+  /* ★移した先に 本当に 在るか★＝移した と 言って 消えていたら 一番 悪い */
+  const UTSUSHITA = ['b-pdf', 'b-pdfopen', 'b-print', 'b-delivery', 'b-xlsx'];   /* ★中身を見る は 入力に 残した★ */
+  const nai = UTSUSHITA.filter((id) => !$(id));
+  ok(!nai.length, '★入力から 移した 出し口が どこにも 無い★ ' + nai.join(' / '));
+  const soto = UTSUSHITA.filter((id) => $('out-box').contains($(id)));
+  ok(!soto.length, '★移したはずの 出し口が まだ 入力の 畳みの 中に 在る★ ' + soto.join(' / '));
   console.log('     見出し「' + sum + '」 ／ 中の出し口 ' + inside.length + '個 ぜんぶ 書いてある');
 });
 
@@ -837,7 +860,10 @@ await TA('6-b. ★写しに列が無い古い請求書は、会社の「今の�
   await win.SeikyuApp._state.store.invoices.list('invoice');
   $('b-reload').click();
   await sleep(60);
-  const row = [...$('list-body').querySelectorAll('[data-open]')].find((r) => /OLD-0001/.test(r.textContent));
+  /* ★2026-09-08 一覧が「1通＝1枚のカード」に なった★
+     ＝[data-open] は もう ★「修正」ボタン★なので、字は カードの側を 読む。 */
+  const row = [...$('list-body').querySelectorAll('[data-open]')]
+    .find((r) => /OLD-0001/.test((r.closest('.iv-card') || r).textContent));
   ok(row, '作った古い1通が一覧に無い');
   row.click();
   await sleep(30);
@@ -1311,8 +1337,9 @@ await TA('11-d. ★一覧にも「一部入金・残り 40,000 円」と出る',
   doc.querySelector('#fil-seg [data-fil="issued"]').click(); await sleep(10);
   const row = [...$('list-body').querySelectorAll('[data-open]')].find((b) => b.getAttribute('data-open') === sep.id);
   ok(row, '一覧にこの1通が無い');
-  ok(/一部入金/.test(row.textContent), '状態が出ていない: ' + row.textContent);
-  ok(row.textContent.includes(yenS(40000)), '★残りの金額が出ていない（状態の言葉だけでは督促を判断できない）★: ' + row.textContent);
+  const card = row.closest('.iv-card') || row;   /* ★字は カードの側★（押す物は「修正」だけ） */
+  ok(/一部入金/.test(card.textContent), '状態が出ていない: ' + card.textContent);
+  ok(card.textContent.includes(yenS(40000)), '★残りの金額が出ていない（状態の言葉だけでは督促を判断できない）★: ' + card.textContent);
   doc.querySelector('#fil-seg [data-fil="all"]').click(); await sleep(10);
   row.click(); await sleep(30);
 });
@@ -1828,7 +1855,8 @@ await TA('13-e. ★★控除が在る紙でも、全額もらえば「残り」�
   doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(40);
   doc.querySelector('#fil-seg [data-fil="issued"]').click(); await sleep(40);
   const row = [...$('list-body').querySelectorAll('[data-open]')].find((b) => b.getAttribute('data-open') === yagiInv);
-  ok(row && /入金済/.test(row.textContent), '★一覧が未入金のまま★: ' + (row && row.textContent));
+  const card2 = row && (row.closest('.iv-card') || row);   /* ★字は カードの側★ */
+  ok(card2 && /入金済/.test(card2.textContent), '★一覧が未入金のまま★: ' + (card2 && card2.textContent));
 });
 
 await TA('13-f. ★値引き行（明細の中のマイナス）は 税も一緒に減る＝控除と別物', async () => {

@@ -260,6 +260,14 @@ input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
 .more[open] > summary::before { content: "▾ "; }
 .more[open] > summary { border-bottom: 1px solid #D4EAE0; margin-bottom: 10px; }
 .more > *:not(summary) { padding: 0 14px 12px; }
+/* ★★畳んだ details が 畳まれていなかった★★（2026-09-08 実測）
+   ブラウザは details:not([open]) > *:not(summary) を display:none にするが、
+   それは ★ブラウザ既定の 弱い決まり★。中の部品が 自分で display を持つと
+   （例 .seg{display:flex} / .btn-row{display:flex}）★そちらが 勝って 出たままに なる★。
+   ⇒ 実測＝一覧の「もっと」は open=false なのに 中の kind-seg が 幅358×高49 で 見えていた。
+   ★同じ形は find-box / rep-box にも 在った★（誰も 気づいていなかった）。
+   ⇒ ★作りの側で はっきり 消す★（!important を使わずに 勝てる 強さで 書く）。 */
+details.more:not([open]) > *:not(summary) { display: none; }
 /* ★左右を 0 にしない★（2026-08-28 司さんが実機で見つけた・指示役が1行に特定）
    `.more { padding: 0 }` が ★.card の padding:14px を消して★いるので、
    ここで ★14px を戻さないと 中身だけ 画面の端に寄る★（実測 13px ／ 他の札は 27px だった）。

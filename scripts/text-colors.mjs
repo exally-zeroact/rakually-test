@@ -241,6 +241,12 @@ const PROBE = `
     var cs=getComputedStyle(e);return cs.display!=='none'&&cs.visibility!=='hidden'&&cs.opacity!=='0';}
   function name(e){return e.tagName.toLowerCase()+(e.id?'#'+e.id:'')
     +(e.className&&typeof e.className==='string'?'.'+e.className.trim().replace(/\\s+/g,'.'):'');}
+  /* ★畳んである所も 開いてから 数える★（2026-09-08）
+     それまでは ★畳んだ details の 中が（作りの穴で）見えていた★ので
+     たまたま 数えられていた。作りを 直して 本当に 隠れたら、
+     ★中の 字の 色を 誰も 見なくなった★（自己確認が それを 捕まえた）。
+     ⇒ ★見張りの 側で 開ける★＝畳みの 中の 字も 必ず 数える。 */
+  [].forEach.call(document.querySelectorAll('details'),function(d){d.open=true;});
   var PRESS='button,a,summary,[role="button"]';
   var VALUE='input,select,textarea';
   var SELECTED=/(^|[\\s-])(on|active|sel|current)([\\s-]|$)/;

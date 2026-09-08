@@ -48,6 +48,14 @@
      （2文が続けて流れると「何件 出ているか」が読めない＝控除の赤で実際に読みにくかった）
      中身は textContent で入れる＝打った文字がそのまま出る（HTMLとして解釈しない）。 */
   function box(id, text) {
+    /* ★知らせは「今 見ている 画面」に 出す★（2026-09-08）
+       ＝出す物（PDF・印刷・納品書・Excel）を 一覧の「確認」へ 移したので、
+         その時の 成功／失敗を ★入力画面の 箱に 書くと 誰も 読めない★。
+       ★確認の 箱が 出ている 間だけ そちらへ 回す★（口は 増やさない）。 */
+    if (id === 'edit-err' || id === 'edit-ok') {
+      var lv = $('lv-card');
+      if (lv && lv.offsetParent) id = (id === 'edit-err') ? 'lv-err' : 'lv-ok';
+    }
     var e = $(id); if (!e) return;
     var t = String(text == null ? '' : text);
     e.textContent = '';
@@ -507,10 +515,15 @@
     renderRecurring();
     renderReport();
     var host = $('list-body'); if (!host) return;
+    drawListPartners();
     var rows = S.invoices.filter(function (v) {
       if (S.fil === 'live') return v.status !== 'void';   // ★既定は取り消し以外（出した紙が上に来る）
       return S.fil === 'all' || v.status === S.fil;
     });
+    /* ★取引先で しぼる★（2026-09-08）＝代行請求の 一覧と 同じ 1つだけの 絞り込み。
+       ★選んでいない時は 全部★（黙って 減らさない）。 */
+    var lp = $('l-partner');
+    if (lp && lp.value) rows = rows.filter(function (v) { return v.partner_id === lp.value; });
     /* ★探す★（相手・番号・件名／請求日の範囲／金額の範囲。決まりは seikyu-find が唯一の正）
        ★何件から 何件に 絞ったかを 必ず出す★＝「消えた」と 思わせない。 */
     var FIND = global.SeikyuFind, before = rows.length, q = findQuery();
@@ -542,22 +555,40 @@
       if (v.status === 'draft') {
         try { waiting = DOC.rowIssuesOf(v.lines || []).noAmount.length; } catch (e) { waiting = 0; }
       }
-      return '<button class="row" type="button" data-open="' + esc(v.id) + '">'
-        + '<span class="iv-top">' + tag
+      /* ★2026-09-08 司さん「取引先のところに 確認や修正と削除のボタン作って
+           押したらPDFが見えたり修正できたりでええやろ」★
+         ＝行そのものを 押す（どこへ行くか 分からない）のを やめて、
+           ★何が 起きるかを 書いた ボタン★を 並べる。
+         ★消すは 状態で 言葉が 変わる★＝下書きは「削除」、発行済は「取り消す」。
+           発行した 請求書は ★消せない★（番号を 二度 使わない為）＝嘘を 書かない。 */
+      var keseru = DOC.canDelete(v) && v.id;
+      var kesu = keseru ? '削除' : (DOC.canVoid(v) ? '取り消す' : '');
+      return '<div class="card iv-card">'
+        + '<div class="iv-top">' + tag
         + '<span class="iv-no">' + (esc(v.no) || '（未採番）') + '</span>'
-        + '<span class="iv-name">' + esc(partnerName(v)) + '</span></span>'
-        + '<span class="iv-sub">' + esc(v.issue_ymd || '請求日なし')
+        + '<span class="iv-name">' + esc(partnerName(v)) + '</span></div>'
+        + '<div class="iv-sub">' + esc(v.issue_ymd || '請求日なし')
         + (v.due_ymd ? '　期限 ' + esc(v.due_ymd) : '')
-        + '　' + esc(payLabel(v)) + '</span>'
-        + '<span class="iv-sub"><span class="iv-amt">'
+        + '　' + esc(payLabel(v)) + '</div>'
+        + '<div class="iv-sub"><span class="iv-amt">'
         + (waiting
           ? '金額まだ ' + waiting + '行'
           : (g === undefined || g === null ? '—' : yen(g) + ' 円'))
-        + '</span></span>'
-        + '</button>';
+        + '</span></div>'
+        + '<div class="btn-row iv-btns">'
+        + '<button class="btn-ghost" type="button" data-look="' + esc(v.id) + '">確認</button>'
+        + '<button class="btn-ghost" type="button" data-open="' + esc(v.id) + '">修正</button>'
+        + (kesu ? '<button class="bdel" type="button" data-kesu="' + esc(v.id) + '">' + kesu + '</button>' : '')
+        + '</div></div>';
     }).join('');
     Array.prototype.forEach.call(host.querySelectorAll('[data-open]'), function (b) {
       b.onclick = function () { openInvoice(b.getAttribute('data-open')); };
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-look]'), function (b) {
+      b.onclick = function () { lookPaper(b.getAttribute('data-look')); };
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-kesu]'), function (b) {
+      b.onclick = function () { kesuFromList(b.getAttribute('data-kesu')); };
     });
   }
 
@@ -622,6 +653,62 @@
     fillEdit();
     autoNumber();
     goScreen('scr-edit');
+  }
+
+  /* ★一覧の 取引先の 選び★＝今 出ている 紙に 出てくる 相手だけ 並べる
+     （1通も 無い 相手を 並べても 押す物が 増えるだけ）。 */
+  function drawListPartners() {
+    var el = $('l-partner'); if (!el) return;
+    var ima = el.value || '';
+    var mita = {}, list = [];
+    (S.invoices || []).forEach(function (v) {
+      if (!v.partner_id || mita[v.partner_id]) return;
+      mita[v.partner_id] = 1;
+      list.push({ id: v.partner_id, nm: partnerName(v) });
+    });
+    list.sort(function (a, b) { return String(a.nm).localeCompare(String(b.nm), 'ja'); });
+    el.innerHTML = '<option value="">すべての取引先</option>'
+      + list.map(function (x) {
+        return '<option value="' + esc(x.id) + '"' + (x.id === ima ? ' selected' : '') + '>' + esc(x.nm) + '</option>';
+      }).join('');
+    if (ima && el.value !== ima) el.value = '';      /* 消えた相手を 選んだままに しない */
+  }
+
+  /* ★確認＝その紙を そのまま 見せる★（2026-09-08 司さん
+     「押したらPDFが見えたり修正できたりでええやろ」）
+     ★入力画面へ 飛ばさない★＝一覧に 居たまま 中身が 見える。
+     紙の 作り方は ★doPreview と 同じ 1本（PAPER.build）★＝2つの 紙を 作らない。 */
+  function lookPaper(id) {
+    var v = null;
+    for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === id) v = S.invoices[i];
+    if (!v) { box('list-err', 'この請求書が見つかりませんでした。「もっと」の中の「読み直す」を押してください。'); return; }
+    S.cur = JSON.parse(JSON.stringify(v));
+    if (!S.cur.data) S.cur.data = {};
+    if (!Array.isArray(S.cur.lines) || !S.cur.lines.length) S.cur.lines = [blankLine()];
+    var pi = paperInput();
+    if (!pi) { box('list-err', 'この紙は まだ 中身が 整っていないので 出せません。「修正」から 直してください。'); return; }
+    var built = PAPER.build(pi);
+    var f = $('lv');
+    if (f) { f.onload = fitLook; f.srcdoc = built.html; }
+    /* srcdoc は 端末によって load が 来ない事が 在るので 時間でも 1度 合わせる（入力と 同じ） */
+    global.setTimeout(fitLook, 260);
+    setText('lv-h', (v.no || '（未採番）') + '　' + partnerName(v));
+    show($('lv-card'), true);
+    applyPaperGate();                 /* ★出せない紙の ボタンは 押させない★（入力と 同じ門） */
+    box('lv-err', ''); box('lv-ok', '');
+    var c = $('lv-card'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'start' });
+  }
+
+  /* ★一覧から 消す★＝下書きは 削除／発行済は 取り消し。
+     ★中の 判定は DOC 1本★（canDelete / canVoid）＝入力画面の ボタンと 同じ物を 見る。 */
+  function kesuFromList(id) {
+    var v = null;
+    for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === id) v = S.invoices[i];
+    if (!v) return Promise.resolve();
+    S.cur = JSON.parse(JSON.stringify(v));
+    if (DOC.canDelete(v) && v.id) return removeDraft().then(function () { renderList(); });
+    if (DOC.canVoid(v)) return voidIt().then(function () { renderList(); });
+    return Promise.resolve();
   }
 
   function openInvoice(id) {
@@ -1071,16 +1158,19 @@
          発行済みでは下書き保存が出ていないのに「下書き…」と書いてあると、
          開くまで何が出来るのか分からない（2026-08-11 実機で発生）。
          発行済み・取り消し済みは、ここが唯一の出来る事なので ★開いた状態で出す★。 */
+      /* ★見出しは「中に 本当に 在る物」で 書く★（この畳みの 決まり）
+         ★2026-09-08★ 司さん「中身見るやら印刷やらここにいらんやろ」で
+         下見・PDF・送る・印刷・納品書・Excel は ★一覧の「確認」へ 移した★。
+         ⇒ ここに 書いたままだと ★開いても 無い物を 見出しが 約束する★。 */
       var can = [];
-      if (!ro) can.push('下書き');
-      /* ★PDFを 見出しに書く★（司さん 2026-08-30「知り合いに使ってもらう」）
-         中に「PDFで保存」が在るのに 見出しに無いと、★開くまで PDFが出せると分からない★。
-         ここは この畳みの決まり（中に在る物だけを 見出しに書く）を そのまま守る。 */
-      can.push('下見', 'PDF', '送る', '印刷', '納品書', 'Excel');
+      if (!ro) can.push('下書きのまま とっておく', '下見');
       if (v.id && (v.lines || []).length) can.push('複製');
       if (DOC.canVoid(v)) can.push('取り消し');
       if (DOC.canDelete(v) && v.id) can.push('削除');
-      setText('out-sum', (ro ? 'この請求書に出来る事' : 'ほかの出し方') + '（' + can.join('・') + '）');
+      setText('out-sum', can.length
+        ? ((ro ? 'この' + esc(DOC.docLabel(v.doc_type || 'invoice')) + 'に 出来る事' : 'ほかに 出来る事')
+          + '（' + can.join('・') + '）')
+        : 'ほかに 出来る事');
       $('out-box').open = ro;
     }
 
@@ -1905,6 +1995,10 @@
   /* ★紙から作る物は ぜんぶ ここに書く★（1つでも 書き忘れると
      ★出せない中身なのに 押せる★＝押した後で 赤い字を出す形に 戻ってしまう）。
      ★b-pdf（自作PDF）は 2026-08-30 に足した時 ここに書き忘れていた★ */
+  /* ★2026-09-08 出す物の 置き場を 分けた★
+     ＝b-preview（中身を見る）は ★入力に 残した★（打ちながら 見る＝入力の話）。
+     ★ファイルを 作る 5つ★は 一覧の「確認」の 箱に ★同じ id のまま★ 移した。
+     ⇒ どちらに 在っても この門は そのまま 効く（id で 探している）。 */
   var PAPER_BTNS = ['b-preview', 'b-print', 'b-pdf', 'b-pdfopen', 'b-delivery', 'b-xlsx'];
   function applyPaperGate() {
     var g = paperGate();
@@ -2204,8 +2298,11 @@
 
   /* ★紙はA4の幅で組んである。スマホの幅にそのまま入れると右が切れて金額が見えない。
        だから紙は縮めず、まるごと縮小して全体を見せる（実物と同じ形のまま小さくする）。 */
-  function fitPreview() {
-    var f = $('pv'), wrap = $('pv-wrap');
+  /* ★紙を 枠に 収める★（1か所）
+     ★2026-09-08★ 一覧の「確認」にも 同じ 枠を 作ったので ★2つとも ここで 縮める★
+     （写して 2本に すると、片方だけ 直った日に ★確認の紙だけ はみ出す★）。 */
+  function fitPreviewOf(fid, wid) {
+    var f = $(fid), wrap = $(wid);
     if (!f || !wrap || wrap.style.display === 'none') return;
     var d = f.contentDocument;
     if (!d || !d.documentElement) return;
@@ -2218,6 +2315,8 @@
     f.style.transform = 'scale(' + k + ')';
     wrap.style.height = Math.ceil(ph * k) + 'px';
   }
+  function fitPreview() { fitPreviewOf('pv', 'pv-wrap'); }
+  function fitLook() { fitPreviewOf('lv', 'lv-wrap'); }
 
   function doPreview() {
     var pi = paperInput();
@@ -4119,6 +4218,12 @@
     $('b-toinv').onclick = function () { return toInvoice(); };
     // ★「読み直す」は共有マスタも取り直す（自社が読めなかった時の直し方がこれ）
     $('b-reload').onclick = function () { return loadMasters().then(loadList); };
+    /* ★一覧の 取引先の 選び★（2026-09-08） */
+    if ($('l-partner')) $('l-partner').onchange = function () { renderList(); };
+    /* ★確認で 出した 紙の ボタン★＝作り方は 入力画面と 同じ 1本（doPdf/doPrint）。
+       ★S.cur は lookPaper が すでに その1通に している★ので そのまま 使える。 */
+    if ($('b-lv-close')) $('b-lv-close').onclick = function () { show($('lv-card'), false); };
+
 
     $('e-partner').onchange = function () {
       /* ★「＋ 新しい相手を作る」を選んだら その場で作る欄を開く★（外のアプリへ行かせない） */
@@ -4229,7 +4334,7 @@
       box('edit-ok', '');
     };
     bindSetPv();
-    $('b-preview').onclick = function () { doPreview(); };
+    if ($('b-preview')) $('b-preview').onclick = function () { doPreview(); };
     /* ★印刷は 名前を 聞かない★（司さん 2026-09-05「印刷押すだけ これはいらんやろが」）
        ＝聞いた名前の 使い道は seikyu-out.js:31 の w.document.title だけ＝★ファイルは 落ちない★。
        ★それでも 名前は 付ける★＝iPhoneで 印刷から「PDFで保存」した時の 名前が この title になる。
