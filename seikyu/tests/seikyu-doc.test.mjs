@@ -13,6 +13,7 @@
  * 使い方: node seikyu/tests/seikyu-doc.test.mjs
  *         node seikyu/tests/seikyu-doc.test.mjs --self-test
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -107,6 +108,7 @@ if (process.argv.includes('--self-test')) {
     const first = D.nextNo({ format: 'ym-seq', ymd: '2026-09-30', existing: [] });
     if (first !== '202609-001') throw new Error('最初の番号がずれた: ' + first);
   });
+
 
   console.log('\n[self-test] ' + sp + ' passed, ' + sf + ' failed');
   process.exit(sf ? 1 : 0);
@@ -790,6 +792,32 @@ T('★品名は在るのに金額も「数量×単価」も無い行は止める
   });
   eq(chk.ok, false, '★金額の無い行のまま発行できてしまう★');
   ok(hasErr(chk.errors, '2行目'), '何行目か言っていない: ' + chk.errors.join('/'));
+});
+
+/* ★画面の 字が 書類の 種類に 従うか★（司さん 2026-09-08「出来てないものは全部やれ」で 見つけた）
+   ★実測した 姿★＝一覧で「見積書」を 選び「＋ 新しい見積書」を 押したのに、
+   入力画面の 見出しは ★「新しい請求書」★、発行後も ★「この請求書は発行済みです」★だった。
+   ★倉庫には ちゃんと doc_type='quote'／番号も 別系列（202609-001）で 入っていた★
+   ＝★中身は 正しく 画面の 字だけが 嘘★。お客さんは「見積のつもりが 請求書に なった」と 誤解する。 */
+T('★画面の 字を 請求書で 決め打ちしていない（見積書でも 正しく 出る）', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n');
+  ok(!/'新しい請求書'/.test(src), '★見出しを「新しい請求書」で 決め打ちしている★');
+  ok(/'新しい' \+ _lb/.test(src), '★見出しを 種類から 作っていない★');
+  ok(!/'この請求書は発行済みです/.test(src), '★「この請求書は発行済み」で 決め打ちしている★');
+  /* ★入金の 話だけは「請求書」で 正しい★＝見積書に 入金は 無い（2026-09-08 実物を 読んで 確かめた）
+     ⇒ ★入金の 行は 数えない★（誤って 赤に しない）。直すべきは 発行済み・取り消し済みの 断り。 */
+  const torikeshi = (src.match(/'この請求書は取り消し済みです[^']*'/g) || [])
+    .filter((x) => !/入金/.test(x));
+  ok(torikeshi.length === 0, '★「この請求書は取り消し済み」で 決め打ちしている★ … ' + torikeshi.join(' / '));
+  const nokori = (src.match(/'この請求書は 中身がまだ整っていない/g) || []).length;
+  ok(nokori === 0, '★「この請求書は 中身がまだ…」が ' + nokori + '件 残っている★');
+  ok(/DOC\.docLabel/.test(src), '★docLabel を 1度も 使っていない＝この試験は 空振り★');
+});
+T('★HTMLの 初期値も 請求書で 決め打ちしていない', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'seikyu/index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, ' ');
+  ok(!/この請求書は発行済みです/.test(html), '★HTMLに 決め打ちが 残っている★');
 });
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

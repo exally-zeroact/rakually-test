@@ -467,7 +467,7 @@
     try { pi = paperInput(); } finally { S.cur = keep; }
     if (!pi) {
       show(acts, false);
-      setText('bill-note', 'この請求書は 中身がまだ整っていないので 紙が出せません。');
+      setText('bill-note', 'この' + DOC.docLabel((S.cur && S.cur.doc_type) || S.docType || 'invoice') + 'は 中身がまだ整っていないので 紙が出せません。');
       return;
     }
     var html = fitInFrame(PAPER.build(pi).html);
@@ -491,7 +491,7 @@
     S.cur = cur.row;                                   /* 名前も 紙も この1通で 作る */
     var n = suggestName(ext);
     S.cur = keep;
-    if (!n) { box('bill-err', 'この請求書は 中身がまだ整っていないので 出せません。'); return; }
+    if (!n) { box('bill-err', 'この' + DOC.docLabel((S.cur && S.cur.doc_type) || S.docType || 'invoice') + 'は 中身がまだ整っていないので 出せません。'); return; }
     askNameWith(n, ext, function (name) {
       var k2 = S.cur;
       S.cur = cur.row;
@@ -639,7 +639,12 @@
 
   function fillEdit() {
     var v = S.cur; if (!v) return;
-    setText('edit-h', v.id ? ((v.no || '（未採番）') + '　' + (v.status === 'issued' ? '発行済' : v.status === 'void' ? '取り消し済' : '下書き')) : '新しい請求書');
+    /* ★書類の 名前は 種類から 取る★（司さん 2026-09-08「出来てないものは全部やれ」で 見つけた）
+       ★実測した 姿★＝「＋ 新しい見積書」で 作ったのに 入力画面の 見出しが ★「新しい請求書」★のまま。
+       倉庫には ちゃんと doc_type='quote'・番号も 別系列で 入っていた
+       ＝★中身は 正しく 画面の 字だけが 嘘★。お客さんは「見積のつもりが 請求書に なった」と 誤解する。 */
+    var _lb = DOC.docLabel(v.doc_type || S.docType || 'invoice');
+    setText('edit-h', v.id ? ((v.no || '（未採番）') + '　' + (v.status === 'issued' ? '発行済' : v.status === 'void' ? '取り消し済' : '下書き')) : ('新しい' + _lb));
     show($('edit-locked'), locked());
     // ★別の1通に切り替えたら、前の紙の下見は消す（違う請求書の紙を出したままにしない）
     show($('pv-wrap'), false);
@@ -1080,8 +1085,10 @@
     }
 
     var why = '';
-    if (ro && v.status === 'issued') why = 'この請求書は発行済みです。直すには取り消してから作り直します。';
-    else if (ro && v.status === 'void') why = 'この請求書は取り消し済みです。新しく作り直してください。';
+    /* ★ここも 種類から★（見積書なのに「この請求書は…」と 出ていた・2026-09-08 実測） */
+    var lb2 = DOC.docLabel(v.doc_type || S.docType || 'invoice');
+    if (ro && v.status === 'issued') why = 'この' + lb2 + 'は発行済みです。直すには取り消してから作り直します。';
+    else if (ro && v.status === 'void') why = 'この' + lb2 + 'は取り消し済みです。新しく作り直してください。';
     setText('act-why', why);
   }
 
@@ -4229,7 +4236,7 @@
        ⇒ ★勧める名前を そのまま 使い、人には 聞かない★（PDFで保存の ボタンは 今までどおり 聞く）。 */
     $('b-print').onclick = function () {
       var n = suggestName('pdf');
-      if (!n) { box('edit-err', 'この請求書は 中身がまだ整っていないので 印刷できません。'); return; }
+      if (!n) { box('edit-err', 'この' + DOC.docLabel((S.cur && S.cur.doc_type) || S.docType || 'invoice') + 'は 中身がまだ整っていないので 印刷できません。'); return; }
       doPrint(n);
     };
     $('b-xlsx').onclick = function () { askName('xlsx', doExcel); };
