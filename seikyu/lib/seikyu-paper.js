@@ -893,13 +893,18 @@
         return '<tr' + (r[0] ? ' class="' + r[0] + '"' : '') + '><th>' + r[1] + '</th><td>' + r[2] + '</td></tr>';
       }).join('') + '</tbody></table>';
       /* ★2026-09-08 司さん「3番目の青線の所に なんの塊か 上の2つと 分かるように 何が作れや」★
-         ＝上の2つ（項目／控除明細）には 見出しが 在るのに ここだけ 無かった。
-         ★見た目は 作らない★＝控除明細と ★同じ blockHead（.st）★を そのまま 使う。
+         ★2026-09-08（同じ日の 2回目）司さん「項目とか内容みたいに 緑の枠つくれよ」★
+         ＝①の「項目｜金額」・②の「内容｜金額」は ★薄い緑の 帯★の 見出し行。
+           ③だけ 字だけの 見出しだったので ★同じ 帯★に そろえる。
+         ★見た目は 作らない★＝②の 帯（.ded-hd）と ★1文字も 違わない 値★を 使う。
          ★控除を 出さない紙は 塊が 1つ★なので 見出しは 出さない（要らない物を 増やさない）。 */
       if (!showDeduct) return tbl;
       var sHead = textOf((inv.data && inv.data.sumsHeadLabel) || o.sumsHeadLabel || TH.sumsHead);
       if (!sHead) return tbl;
-      return '<div class="blk blk-sums">' + blockHead(sHead) + tbl + '</div>';
+      /* ★右は「金額」★＝①②の 帯と 同じ 言葉（3つとも 同じ 読み方に なる） */
+      var hd = '<thead><tr class="sums-hd"><th>' + esc(sHead) + '</th><td>金額</td></tr></thead>';
+      return '<table class="sums">' + hd + tbl.replace('<table class="sums">', '').replace(/<\/table>$/, '')
+        + '</table>';
     }
 
     /* ── 繰越（前回の残り）★紙の頭・箱で囲まない★
@@ -1434,6 +1439,17 @@
       'font-size:8.5pt;border:0;padding:' + ROW_PAD + ';line-height:1.35;height:auto;}',
       '.ded-hd td{text-align:right;font-family:inherit;}',
       '.ded .r-blank th,.ded .r-blank td{color:transparent;}',
+      /* ★3つ目の 塊の 帯★（2026-09-08 司さん「項目とか内容みたいに 緑の枠つくれよ」）
+         ★.ded-hd と 1文字も 違わない★＝新しい 見た目を 作らない。
+         別の 名前に するのは ★.sums th の 字の色が 後から 上書きして しまう★為
+         （どちらも 詳細度が 同じで、後に 書いた .sums th が 勝つ）。 */
+      /* ★.sums th より 強く 書く★（2026-09-08 絵を 見て 分かった）
+         同じ 強さ（0,1,1）だと ★後に 書いてある .sums th の 薄い字が 勝つ★＝
+         ③の 帯だけ 字が 薄く 見えた（①②は 濃い黒）。
+         ⇒ .sums を 前に 足して 強さを 上げる（値は .ded-hd と 同じまま）。 */
+      '.sums .sums-hd th,.sums .sums-hd td{background:' + TH.headBg + ';color:' + TH.headInk + ';font-weight:700;',
+      'font-size:8.5pt;border:0;padding:' + ROW_PAD + ';line-height:1.35;height:auto;}',
+      '.sums .sums-hd td{text-align:right;font-family:inherit;}',
 
       '.foot{width:100%;border-collapse:collapse;table-layout:auto;margin:0;}',
       '.foot td{vertical-align:top;padding:0;}',

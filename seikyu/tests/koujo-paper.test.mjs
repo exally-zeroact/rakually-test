@@ -315,6 +315,46 @@ T('★控除を 出さない 紙は 塊が 1つ＝名札を 増やさない', ()
   ok(t.indexOf('請求額の計算') < 0, '★控除なしの 紙に 請求額の計算が 出ている★');
 });
 
+T('★塊は 3つとも 同じ 緑の帯を 持つ（司さん 2026-09-08「項目とか内容みたいに 緑の枠つくれよ」）', () => {
+  /* ★印(class)が 付いたかでは 見ない★＝★同じ 色・同じ 太さか★を CSSの 値で 比べる
+     （印だけ 見ると「付いているが 色が 違う」が 素通りする）。
+     ★正規表現を 使わない★＝逆斜線の 逃がしが 便りの 途中で 落ちる（うちの 前科）。 */
+  /* ★紙に 効いている CSSは PAPER.css(様式の 見た目)★（build は 字だけ 返す） */
+  const css = String(PAPER.css(TPL.getOrDefault('koujo').theme) || '');
+  const kimari = (sel) => {
+    const i = css.indexOf(sel);
+    if (i < 0) return null;
+    const a = css.indexOf('{', i), b = css.indexOf('}', a);
+    if (a < 0 || b < 0) return null;
+    const naka = css.slice(a + 1, b);
+    const g = (k) => {
+      const j = naka.indexOf(k + ':');
+      if (j < 0) return '';
+      const e = naka.indexOf(';', j);
+      return naka.slice(j + k.length + 1, e < 0 ? undefined : e).trim();
+    };
+    return { bg: g('background'), ink: g('color'), futosa: g('font-weight') };
+  };
+  const b = kimari('.ded-hd th');            /* ②「内容｜金額」 */
+  const c = kimari('.sums .sums-hd th');     /* ③「請求額の計算｜金額」 */
+  ok(b && c, '★帯の 決まりが 見つからない★ ②' + JSON.stringify(b) + ' ③' + JSON.stringify(c));
+  ok(b.bg && b.bg !== 'transparent', '★②の 帯に 地の色が 無い★: ' + b.bg);
+  eq(c.bg, b.bg, '★③の 帯の 地の色が ②と 違う★');
+  eq(c.ink, b.ink, '★③の 帯の 字の色が ②と 違う★（薄いと 1つだけ 沈んで 見える）');
+  eq(c.futosa, b.futosa, '★③の 帯の 字の 太さが ②と 違う★');
+  console.log('     帯 … ②' + b.bg + ' / ' + b.ink + '　＝　③' + c.bg + ' / ' + c.ink);
+});
+
+T('★3つの 帯が 紙に 出ている（右は どれも「金額」）', () => {
+  const h = String(build().html);
+  ok(h.indexOf('<tr class="ded-hd">') >= 0, '★②の 帯が 無い★');
+  ok(h.indexOf('<tr class="sums-hd">') >= 0, '★③の 帯が 無い★');
+  const t = textOf(h);
+  /* 「金額」は ①②③ の 帯に 1つずつ＝★3回★ 出る */
+  const n = t.filter((x) => x === '金額').length;
+  eq(n, 3, '★「金額」が ' + n + '回★（①②③の 帯で 3回 のはず）');
+});
+
 T('★呼び名は 焼き付いていない（会社が 変えられる）', () => {
   /* ★中計／控除明細と 同じ 決まり★＝様式が 持つ・様式で 変えられる */
   const t = textOf(build({}, { sumsHeadLabel: 'お支払いの計算' }).html);
