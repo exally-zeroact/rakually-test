@@ -1525,9 +1525,18 @@ T('★何が出せるかの表＝「出せる」を実物から出している�
   ok(dekiru.some((x) => x.nm === '資格取得届'), '★資格取得届が「出せます」に なっていない★');
   ok(!list.some((x) => x.nm === '資格取得届' && x.riyu), '★資格取得届に まだ「これから 作ります」が 付いている★');
   ok(dekiru.every((x) => typeof TD[x.tsukuru] === 'function'), '★出せると 書いてあるのに 作る 関数が 無い★');
-  /* ★まだ＝作る 関数が 無い★ */
+  /* ★まだ＝①作る 関数が 無い か ②材料が まだ 揃っていない★（2026-09-08 足した）
+     被扶養者(異動)届は ★土台(fuyoRow)を 先に 作った★が、★家族を 入れる 画面と 保管が まだ★＝
+     アプリは 扶養の「人数」しか 持っていない。土台だけで「出せます」と 出すと
+     ★押しても 空の紙が 出る＝出せない物の ボタンを 見せる★。
+     ⇒ iru（いる材料）が 付いている 物は「まだ」で 正しい。 */
   const mada = list.filter((x) => !x.dekiru);
-  ok(mada.every((x) => !x.tsukuru || typeof TD[x.tsukuru] !== 'function'), '★出せるのに「まだ」と 書いている★');
+  ok(mada.every((x) => !x.tsukuru || typeof TD[x.tsukuru] !== 'function' || x.iru),
+    '★出せるのに「まだ」と 書いている★');
+  /* ★材料待ちの 物は 土台が 在る事も 確かめる★（iru を 言い訳に 使わせない） */
+  const zairyoMachi = list.filter((x) => x.iru);
+  ok(zairyoMachi.every((x) => typeof TD[x.tsukuru] === 'function'),
+    '★材料待ちと 書いてあるのに 土台すら 無い★');
   /* ★「まだ」の 理由は 2つに 分かれる★ */
   ok(mada.some((x) => x.riyu === 'uchi'), '★うちが 作っていない 物が 無い★');
   ok(mada.some((x) => x.riyu === 'nenkin'), '★年金機構の 検査が 対応していない 物が 無い★');

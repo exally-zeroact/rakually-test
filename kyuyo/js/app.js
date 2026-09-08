@@ -3297,16 +3297,24 @@
          喪失は ★住所の 欄が そもそも 無い★。
        ★戻す条件★＝司さんが「基礎年金番号を お預かりする」と 決めた日（紙 kyuyo/docs/soshitsu-2201700.md） */
     { itsu:'退社した時（5日以内）',                 nm:'資格喪失届',   yoshiki:'2201700', tsukuru:'soshitsuRow' },
-    { itsu:'家族が増えた／減った時',                 nm:'被扶養者(異動)届・国民年金第3号', yoshiki:'2202700', tsukuru:'fuyoRow', riyu:'uchi' },
+    /* ★土台(fuyoRow)は 出来た（2026-09-08・仕様どおり 139項目）が、
+       ★家族を 入れる 画面と 保管が まだ★＝iru:'kazoku' で 止めている。 */
+    { itsu:'家族が増えた／減った時',                 nm:'被扶養者(異動)届・国民年金第3号', yoshiki:'2202700', tsukuru:'fuyoRow', riyu:'uchi', iru:'kazoku' },
     { itsu:'産前産後休業をとる時',                   nm:'産前産後休業取得者申出書', yoshiki:'2273700', tsukuru:null, riyu:'nenkin' },
     { itsu:'育児休業をとる時',                       nm:'育児休業等取得者申出書',   yoshiki:'2263700', tsukuru:null, riyu:'nenkin' }
   ];
   function todokedeIchiran(){
     var TD=window.TodokedeCsv;
     return TDK_LIST.map(function(x){
+      /* ★土台が 在る＝出せる、では ない★（2026-09-08 実測して 直した）
+         被扶養者(異動)届は ★CSVを作る土台(fuyoRow)を 先に 作った★が、
+         ★家族を 入れる 画面と 保管が まだ 無い★（アプリは 扶養の「人数」しか 持っていない）。
+         土台だけで「出せます」と 出すと ★押しても 空の紙が 出る＝出せない物の ボタンを 見せる★。
+         ⇒ ★材料(いる物)も 見る★＝x.iru が 在る物は、その材料が 揃うまで「これから 作ります」。 */
       var dekiru=!!(TD && x.tsukuru && typeof TD[x.tsukuru]==='function');
+      if (dekiru && x.iru === 'kazoku') dekiru = false;   /* ★家族の 画面と 保管が 出来た日に この行を 消す★ */
       return { itsu:x.itsu, nm:x.nm, yoshiki:x.yoshiki, tsukuru:x.tsukuru,
-        dekiru:dekiru, riyu:dekiru?'':(x.riyu||'uchi') };
+        dekiru:dekiru, iru:x.iru||'', riyu:dekiru?'':(x.riyu||'uchi') };
     });
   }
   function todokedeIchiranHTML(){

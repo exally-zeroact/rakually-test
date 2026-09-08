@@ -548,6 +548,8 @@ jobs:
         run: node kyuyo/tests/rls-tanin.mjs
       - name: ★同 判定そのものが空振りしていないか（自己確認）
         run: node kyuyo/tests/rls-tanin.mjs --self-test
+      - name: ★被扶養者(異動)届（様式2202700）の土台＝139項目ちょうど／個人番号は空で住所を出す
+        run: node kyuyo/tests/fuyo-todokede.test.mjs
       - name: ★賞与の紙の年月日（支給日を月次と同じ和暦で／読めない賞与月を紙に焼かない）
         run: node kyuyo/tests/shoyo-kami-hizuke.test.mjs
       - name: ★同 直す前の姿に戻すと赤になるか（自己確認）

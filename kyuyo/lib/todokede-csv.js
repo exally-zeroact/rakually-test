@@ -1034,6 +1034,136 @@
     return f;
   }
 
+  /* ══ 被扶養者(異動)届・国民年金第３号被保険者関係届（様式2202700） ══════════════
+   * 【一次情報】上と同じ 仕様書 第16.2版 の ★表４．１０．１－１★（PDFを 落として 原文を 読んだ）
+   *   ★1行＝139項目★（図と 明細表の 両方で 数えて 合わせた）
+   *     1〜21    被保険者（本人）
+   *     22〜69   配偶者である被扶養者
+   *     70〜102  その他の被扶養者１（33項目）
+   *     103〜135 その他の被扶養者２（★項番103「設定内容はその他の被扶養者１と同様にする」★）
+   *     136      届出意思確認済（★原文「省略する」★＝空）
+   *     137〜139 資格確認書発行要否（配偶者／その他１／その他２）
+   *
+   * ★個人番号（マイナンバー）は 空で 出す★＝既にある 資格取得届・喪失届と 同じ道。
+   *   項番20（被保険者住所）に「個人番号を入力した場合は省略する」と 在る
+   *   ＝★個人番号が 空なら 住所を 出す★。うちは ★持たない物は 漏れない★ので 住所で 出す。
+   *
+   * ★異動の別★（項番21）… 1=該当（増えた）／2=非該当（減った）／3=変更
+   * ★人数★ … 1行で 配偶者1人＋その他2人まで。3人以上は ★呼ぶ側が 行を 分ける★。
+   *
+   * ★ここは まだ 土台だけ★＝画面（家族を 入れる所）と 保管は これから。
+   *   アプリは 今 ★扶養の「人数」しか 持っていない★（氏名も 生年月日も 無い）。
+   */
+  var FUYO_IDOU = { gaito: '1', higaito: '2', henko: '3' };
+
+  /* その他の被扶養者 1人ぶん＝33項目（項番70〜102 と 103〜135 で 同じ 並び） */
+  function sonotaBlock(x) {
+    x = x || {};
+    var born = gengoOf(x.birthYmd) || { code: '', ymd6: '' };
+    var natta = x.nattaYmd ? gengoOf(x.nattaYmd) : null;
+    var yameta = x.yametaYmd ? gengoOf(x.yametaYmd) : null;
+    var a = [];
+    a[0] = String(x.bangou || '');                          /* 70 被扶養者番号 */
+    a[1] = String(x.kana || '');                            /* 71 氏名（カナ） */
+    a[2] = String(x.kanji || '');                           /* 72 氏名（漢字） */
+    a[3] = x.birthYmd ? born.code : ''; a[4] = x.birthYmd ? born.ymd6 : ''; /* 73-74 生年月日 */
+    a[5] = seibetsuCode(x.seibetsu);                        /* 75 性別 */
+    a[6] = String(x.zokugara || '');                        /* 76 続柄コード */
+    a[7] = String(x.zokugaraOther || '');                   /* 77 続柄コードその他補足 */
+    a[8] = '';                                              /* 78 個人番号＝★持たない★ */
+    a[9] = (x.doukyo == null) ? '' : (x.doukyo ? '1' : '2'); /* 79 同居・別居の別 */
+    a[10] = zip3(x.zip); a[11] = zip4(x.zip);               /* 80-81 郵便番号 */
+    a[12] = String(x.jusho || '').replace(/[ 　]+/g, ZEN_SP); /* 82 住所（漢字） */
+    a[13] = x.kaigai ? '1' : '';                            /* 83 海外特例 */
+    a[14] = ''; a[15] = '';                                 /* 84-85 海外特例 該当理由 */
+    a[16] = ''; a[17] = '';                                 /* 86-87 海外特例 非該当理由 */
+    a[18] = ''; a[19] = '';                                 /* 88-89 国内転入日 */
+    a[20] = natta ? natta.code : ''; a[21] = natta ? natta.ymd6 : ''; /* 90-91 になった日 */
+    a[22] = String(x.shokugyo || '');                       /* 92 職業 */
+    a[23] = String(x.jushochi || '');                       /* 93 住所地 */
+    a[24] = (x.shunyu == null || x.shunyu === '') ? '' : money7(x.shunyu); /* 94 収入 */
+    a[25] = String(x.nattaRiyu || '');                      /* 95 になった理由（選択） */
+    a[26] = String(x.nattaRiyuOther || '');                 /* 96 になった理由（その他） */
+    a[27] = yameta ? yameta.code : ''; a[28] = yameta ? yameta.ymd6 : ''; /* 97-98 でなくなった日 */
+    a[29] = String(x.yametaRiyu || '');                     /* 99 でなくなった理由（選択） */
+    a[30] = String(x.yametaRiyuOther || '');                /* 100 でなくなった理由（その他） */
+    a[31] = String(x.bikou || '');                          /* 101 備考 */
+    a[32] = x.zokugaraKakunin ? '1' : '';                   /* 102 続柄確認 */
+    for (var k = 0; k < 33; k++) if (a[k] == null) a[k] = '';
+    return a;
+  }
+
+  function fuyoRow(inp) {
+    inp = inp || {};
+    var j = inp.jimusho || {}, e = inp.emp || {};
+    var hai = inp.hai || null, sono = inp.sonota || [];
+    var born = gengoOf(e.birthYmd) || { code: '', ymd6: '' };
+    var uke = inp.ukeYmd ? gengoOf(inp.ukeYmd) : null;
+    var kiso = splitKisoNenkin(e.kisoNenkin);
+    var r = [];
+    r[0] = '2202700';                                       /* 1 様式コード */
+    r[1] = String(j.todofuken || '');                       /* 2 都道府県コード */
+    r[2] = String(j.gunshiku || '');                        /* 3 郡市区符号 */
+    r[3] = String(j.kigou || '');                           /* 4 事業所記号 */
+    r[4] = inp.jigyonushiKakunin ? '1' : '0';               /* 5 事業主確認欄 */
+    r[5] = uke ? uke.code : ''; r[6] = uke ? uke.ymd6 : ''; /* 6-7 事業主等受付年月日 */
+    r[7] = e.seiriNo ? String(e.seiriNo) : '';              /* 8 被保険者整理番号 */
+    r[8] = String(e.kana || '');                            /* 9 氏名（カナ） */
+    r[9] = String(e.kanji || '');                           /* 10 氏名（漢字） */
+    r[10] = e.birthYmd ? born.code : ''; r[11] = e.birthYmd ? born.ymd6 : ''; /* 11-12 生年月日 */
+    r[12] = seibetsuCode(e.seibetsu);                       /* 13 性別 */
+    r[13] = '';                                             /* 14 個人番号＝★持たない★ */
+    r[14] = kiso ? kiso.kasho : ''; r[15] = kiso ? kiso.renban : '';                /* 15-16 基礎年金番号 */
+    r[16] = (e.shunyu == null || e.shunyu === '') ? '' : money7(e.shunyu); /* 17 被保険者の収入 */
+    r[17] = zip3(e.zip); r[18] = zip4(e.zip);               /* 18-19 郵便番号 */
+    r[19] = String(e.jushoKanji || '').replace(/[ 　]+/g, ZEN_SP); /* 20 住所（個人番号が空＝出す） */
+    r[20] = String(inp.idou || '');                         /* 21 異動の別 */
+
+    var hb = gengoOf(hai && hai.birthYmd) || { code: '', ymd6: '' };
+    var hd = (hai && hai.todokeYmd) ? gengoOf(hai.todokeYmd) : null;
+    var hn = (hai && hai.nattaYmd) ? gengoOf(hai.nattaYmd) : null;
+    var hy = (hai && hai.yametaYmd) ? gengoOf(hai.yametaYmd) : null;
+    r[21] = hd ? hd.code : ''; r[22] = hd ? hd.ymd6 : '';   /* 22-23 届出日 */
+    r[23] = hai ? String(hai.kana || '') : '';              /* 24 氏名（カナ） */
+    r[24] = hai ? String(hai.kanji || '') : '';             /* 25 氏名（漢字） */
+    r[25] = (hai && hai.birthYmd) ? hb.code : '';
+    r[26] = (hai && hai.birthYmd) ? hb.ymd6 : '';           /* 26-27 生年月日 */
+    r[27] = hai ? seibetsuCode(hai.seibetsu) : '';          /* 28 性別（続柄） */
+    r[28] = '';                                             /* 29 個人番号＝持たない */
+    r[29] = ''; r[30] = '';                                 /* 30-31 基礎年金番号（配偶者）＝持たない */
+    r[31] = hai ? String(hai.kokuseki || '') : '';          /* 32 外国籍 */
+    r[32] = ''; r[33] = '';                                 /* 33-34 外国人通称名 */
+    r[34] = (hai && hai.doukyo != null) ? (hai.doukyo ? '1' : '2') : ''; /* 35 同居・別居 */
+    r[35] = hai ? String(hai.jushochi || '') : '';          /* 36 住所地 */
+    r[36] = hai ? zip3(hai.zip) : ''; r[37] = hai ? zip4(hai.zip) : ''; /* 37-38 郵便番号 */
+    r[38] = hai ? String(hai.jusho || '').replace(/[ 　]+/g, ZEN_SP) : ''; /* 39 住所（漢字） */
+    r[39] = ''; r[40] = ''; r[41] = ''; r[42] = '';         /* 40-43 電話番号 */
+    r[43] = hn ? hn.code : ''; r[44] = hn ? hn.ymd6 : '';   /* 44-45 になった日 */
+    r[45] = hai ? String(hai.nattaRiyu || '') : '';         /* 46 になった理由（選択） */
+    r[46] = hai ? String(hai.nattaRiyuOther || '') : '';    /* 47 になった理由（その他） */
+    r[47] = hai ? String(hai.shokugyo || '') : '';          /* 48 職業 */
+    r[48] = (hai && hai.shunyu != null && hai.shunyu !== '') ? money7(hai.shunyu) : ''; /* 49 収入 */
+    r[49] = hy ? hy.code : ''; r[50] = hy ? hy.ymd6 : '';   /* 50-51 でなくなった日 */
+    r[51] = hai ? String(hai.yametaRiyu || '') : '';        /* 52 でなくなった理由（選択） */
+    r[52] = hai ? String(hai.yametaRiyuOther || '') : '';   /* 53 でなくなった理由（その他） */
+    r[53] = ''; r[54] = '';                                 /* 54-55 死亡年月日 */
+    r[55] = hai ? String(hai.bikou || '') : '';             /* 56 備考 */
+    r[56] = (hai && hai.zokugaraKakunin) ? '1' : '';        /* 57 続柄確認 */
+    r[57] = (hai && hai.kaigai) ? '1' : '';                 /* 58 海外特例 */
+    for (var q = 58; q <= 67; q++) r[q] = '';               /* 59-68 海外特例の 日と 理由 */
+    r[68] = (inp.haiNenshu == null || inp.haiNenshu === '') ? '' : money7(inp.haiNenshu); /* 69 配偶者の年間収入 */
+
+    var b1 = sonotaBlock(sono[0]), b2 = sonotaBlock(sono[1]);
+    for (var i2 = 0; i2 < 33; i2++) { r[69 + i2] = b1[i2]; r[102 + i2] = b2[i2]; }
+    r[135] = '';                                            /* 136 届出意思確認済＝★省略する★ */
+    r[136] = inp.shoumeiHai ? '1' : '';                     /* 137 資格確認書発行要否（配偶者） */
+    r[137] = (sono[0] && sono[0].shoumei) ? '1' : '';       /* 138 同（その他１） */
+    r[138] = (sono[1] && sono[1].shoumei) ? '1' : '';       /* 139 同（その他２） */
+    for (var k2 = 0; k2 < 139; k2++) if (r[k2] == null) r[k2] = '';
+    return r;
+  }
+
+
   return {
     GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa,
     gekkakuRow: gekkakuRow, gekkakuWarn: gekkakuWarn, gekkakuCsv: gekkakuCsv, dasuKaGekkaku: dasuKaGekkaku, ymAdd: ymAdd,
@@ -1043,6 +1173,7 @@
     soshitsuRow: soshitsuRow, soshitsuWarn: soshitsuWarn, soshitsuCsv: soshitsuCsv, dasuKaSoshitsu: dasuKaSoshitsu,
     splitKisoNenkin: splitKisoNenkin, SOSHITSU_GEN: SOSHITSU_GEN,
     seibetsuCode: seibetsuCode, SEIBETSU: SEIBETSU,
+    fuyoRow: fuyoRow, sonotaBlock: sonotaBlock, FUYO_IDOU: FUYO_IDOU,
     shoyoGoukei: shoyoGoukei, shoyoHiOk: shoyoHiOk, MAN10: MAN10,
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,
     nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, DAIHYO_CODE: DAIHYO_CODE, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,
