@@ -189,7 +189,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m02",
@@ -331,7 +332,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m03",
@@ -473,7 +475,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m04",
@@ -615,7 +618,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m05",
@@ -757,7 +761,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m06",
@@ -899,7 +904,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m07",
@@ -1043,7 +1049,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m08",
@@ -1202,7 +1209,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m09",
@@ -1344,7 +1352,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m10",
@@ -1486,7 +1495,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m11",
@@ -1628,7 +1638,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m12",
@@ -1771,6 +1782,7 @@
             "mikomi": "",
             "manual": ""
           },
+          "kazoku": [],
           "joinYmd": "2026-06-16"
         },
         {
@@ -1914,6 +1926,7 @@
             "mikomi": "",
             "manual": ""
           },
+          "kazoku": [],
           "taishokuYmd": "2026-06-20"
         },
         {
@@ -2057,6 +2070,7 @@
             "mikomi": "",
             "manual": ""
           },
+          "kazoku": [],
           "taishokuYmd": "2026-06-30"
         },
         {
@@ -2199,7 +2213,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m16",
@@ -2341,7 +2356,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m17",
@@ -2483,7 +2499,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m18",
@@ -2625,7 +2642,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m19",
@@ -2767,7 +2785,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m20",
@@ -2918,7 +2937,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m21",
@@ -3065,7 +3085,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m22",
@@ -3207,7 +3228,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m23",
@@ -3349,7 +3371,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m24",
@@ -3491,7 +3514,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m25",
@@ -3633,7 +3657,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m26",
@@ -3775,7 +3800,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m27",
@@ -3917,7 +3943,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m28",
@@ -4059,7 +4086,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m29",
@@ -4204,7 +4232,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m30",
@@ -4346,7 +4375,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m31",
@@ -4489,6 +4519,7 @@
             "mikomi": "",
             "manual": ""
           },
+          "kazoku": [],
           "minashiH": "20"
         },
         {
@@ -4631,7 +4662,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m33",
@@ -4773,7 +4805,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m34",
@@ -4915,7 +4948,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m35",
@@ -5057,7 +5091,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "m36",
@@ -5200,6 +5235,7 @@
             "mikomi": "",
             "manual": ""
           },
+          "kazoku": [],
           "nenchoAdj": {
             "ym": "2026-06",
             "amount": -42000
@@ -5346,6 +5382,7 @@
             "mikomi": "",
             "manual": ""
           },
+          "kazoku": [],
           "nenchoAdj": {
             "ym": "2026-06",
             "amount": 18000
@@ -5491,7 +5528,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {
@@ -5733,7 +5771,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "t02",
@@ -5878,7 +5917,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "t03",
@@ -6023,7 +6063,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}
@@ -6215,7 +6256,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}
@@ -6407,7 +6449,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}
@@ -6599,7 +6642,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}
@@ -6791,7 +6835,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b02",
@@ -6933,7 +6978,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b03",
@@ -7075,7 +7121,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}
@@ -7267,7 +7314,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b02",
@@ -7409,7 +7457,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b03",
@@ -7551,7 +7600,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}
@@ -7743,7 +7793,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b02",
@@ -7885,7 +7936,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b03",
@@ -8027,7 +8079,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}
@@ -8219,7 +8272,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b02",
@@ -8361,7 +8415,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b03",
@@ -8503,7 +8558,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}
@@ -8695,7 +8751,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b02",
@@ -8837,7 +8894,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         },
         {
           "id": "b03",
@@ -8979,7 +9037,8 @@
             ],
             "mikomi": "",
             "manual": ""
-          }
+          },
+          "kazoku": []
         }
       ],
       "otHistory": {}

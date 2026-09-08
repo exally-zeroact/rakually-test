@@ -55,7 +55,7 @@
         var y = Number(m[1]) - GENGO[i].base;
         if (y < 1 || y > 99) return null;
         var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
-        return { code: GENGO[i].code, name: GENGO[i].name, year: y,
+          return { code: GENGO[i].code, name: GENGO[i].name, year: y,
           ymd6: p2(y) + m[2] + m[3] };                     /* YYMMDD 6桁 */
       }
     }
@@ -742,6 +742,10 @@
   /* 種別（性別）… 1=坑内員以外の男子／2=女子／3=坑内員 */
   var SEIBETSU = { 'male': '1', 'female': '2', 'kounai': '3' };
   function seibetsuCode(v) { return SEIBETSU[String(v || '')] || ''; }
+  /* ★配偶者の続柄（項番28）★　民法の婚姻でない場合を 届け出せるよう
+     ★性別とは 別に 持つ★（otto/tsuma/otto-todokede-nashi/tsuma-todokede-nashi） */
+  var HAI_ZOKU = { otto: '1', tsuma: '2', ottoMitodoke: '3', tsumaMitodoke: '4',
+    '1': '1', '2': '2', '3': '3', '4': '4' };
   function zip3(v) { return String(v || '').replace(/[^0-9]/g, '').slice(0, 3); }
   function zip4(v) { return String(v || '').replace(/[^0-9]/g, '').slice(3, 7); }
   /* ★日付は 今日より 後に できない★（今日は 呼ぶ側が 渡す＝libは 時計を 持たない） */
@@ -1063,7 +1067,7 @@
     var natta = x.nattaYmd ? gengoOf(x.nattaYmd) : null;
     var yameta = x.yametaYmd ? gengoOf(x.yametaYmd) : null;
     var a = [];
-    a[0] = String(x.bangou || '');                          /* 70 被扶養者番号 */
+    a[0] = '';                                             /* 70 被扶養者番号＝★文字数０＝必ず省略する★（原文） */
     a[1] = String(x.kana || '');                            /* 71 氏名（カナ） */
     a[2] = String(x.kanji || '');                           /* 72 氏名（漢字） */
     a[3] = x.birthYmd ? born.code : ''; a[4] = x.birthYmd ? born.ymd6 : ''; /* 73-74 生年月日 */
@@ -1128,7 +1132,10 @@
     r[24] = hai ? String(hai.kanji || '') : '';             /* 25 氏名（漢字） */
     r[25] = (hai && hai.birthYmd) ? hb.code : '';
     r[26] = (hai && hai.birthYmd) ? hb.ymd6 : '';           /* 26-27 生年月日 */
-    r[27] = hai ? seibetsuCode(hai.seibetsu) : '';          /* 28 性別（続柄） */
+    /* 28 ★「性別」と書いてあるが 中身は 続柄★
+       原文（項番28）… 夫：「1」・妻：「2」・夫(未届)：「3」・妻(未届)：「4」
+       ★男女の コードを そのまま 入れると 未届が 出せない★＝別の 表を 持つ。 */
+    r[27] = hai ? (HAI_ZOKU[String(hai.zokugara || '')] || seibetsuCode(hai.seibetsu)) : '';
     r[28] = '';                                             /* 29 個人番号＝持たない */
     r[29] = ''; r[30] = '';                                 /* 30-31 基礎年金番号（配偶者）＝持たない */
     r[31] = hai ? String(hai.kokuseki || '') : '';          /* 32 外国籍 */
@@ -1164,6 +1171,70 @@
   }
 
 
+  /* ★被扶養者(異動)届の CSV★（2026-09-08）＝資格取得届と 同じ 組み立て。
+     ★1件でも 合わなければ ファイルを 作らない★（門は 共通の CHECK）。 */
+  function fuyoCsv(inp) {
+    inp = inp || {};
+    var rows = (inp.rows || []).filter(function (r) { return r && r.length; });
+    if (!rows.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: { errors: [], hito: 0, mihakari: 0 } };
+    var kensa = CHECK ? CHECK.checkRows(rows, { kyou: inp.kyou }) : { errors: [], hito: rows.length, mihakari: rows.length };
+    if (CHECK && CHECK.checkHeader) {
+      CHECK.checkHeader(inp.jimusho, inp.baitai || {}).forEach(function (x) {
+        kensa.errors.push({ gyo: 0, no: x.no, name: x.name, why: x.why });
+      });
+    }
+    if (kensa.errors.length) return { text: '', bytes: new Uint8Array(0), rows: 0, name: FILE_NAME, kensa: kensa };
+    var out = [];
+    out.push(baitaiRow(inp.jimusho, inp.baitai || {}));
+    out.push([SEP_KANRI]);
+    jigyoshoRows(inp.jimusho).forEach(function (r) { out.push(r); });
+    out.push([SEP_DATA]);
+    rows.forEach(function (r) { out.push(r); });
+    var f = build(out);
+    f.name = FILE_NAME;
+    f.kensa = kensa;
+    f.tooBig = tooBig(f.bytes.length);
+    return f;
+  }
+
+  /* ★出せるか（材料が 揃っているか）★＝出せない物の ボタンを 見せない為。
+     ★配偶者か その他の被扶養者が 1人でも 要る★／★氏名(カナ)と 生年月日と 続柄は 必ず★ */
+  function dasuKaFuyo(inp) {
+    inp = inp || {};
+    var e = inp.emp || {}, hai = inp.hai || null, sono = (inp.sonota || []).filter(Boolean);
+    var naze = [];
+    if (!hai && !sono.length) naze.push('家族（被扶養者）が 1人も 入っていません');
+    if (!String(e.kana || '').trim()) naze.push('本人の 氏名（カナ）が まだです');
+    if (!e.birthYmd) naze.push('本人の 生年月日が まだです');
+    /* ★門が 止める物は 画面も 先に 言う★（2026-09-08 実ブラウザで 見つけた）
+       前は ここを 見ていなくて、ボタンは 押せるのに 押したら
+       「項番13・15・18・19・20 が 入力されていない」と 5件 断られた。
+       ★出せない物の ボタンを 見せない★＝同じ物を ここでも 見る。 */
+    if (!String(e.seibetsu || '').trim()) naze.push('本人の 性別が まだです');
+    if (!String(e.kisoNenkin || '').replace(/[^0-9]/g, '')) naze.push('本人の 基礎年金番号が まだです（マイナンバーを お預かりしない為）');
+    if (String(e.zip || '').replace(/[^0-9]/g, '').length < 7) naze.push('本人の 郵便番号が まだです');
+    if (!String(e.jushoKanji || '').trim()) naze.push('本人の 住所が まだです');
+    if (!String(inp.idou || '').trim()) naze.push('異動の別（増えた／減った／変更）が まだです');
+    [].concat(hai ? [{ x: hai, na: '配偶者' }] : [], sono.map(function (x, k) { return { x: x, na: '家族' + (k + 1) }; }))
+      .forEach(function (o) {
+        if (!String(o.x.kana || '').trim()) naze.push(o.na + 'の 氏名（カナ）が まだです');
+        if (!o.x.birthYmd) naze.push(o.na + 'の 生年月日が まだです');
+        if (o.na !== '配偶者' && !String(o.x.zokugara || '').trim()) naze.push(o.na + 'の 続柄が まだです');
+        /* ★原文 項番37-39／80-82★「個人番号の有無、同居・別居の別の区分の
+           設定に関わらず、省略不可とする」＝★同居でも 要る★ */
+        if (String(o.x.zip || '').replace(/[^0-9]/g, '').length < 7) naze.push(o.na + 'の 郵便番号が まだです（同居でも 要ります）');
+        if (!String(o.x.jusho || '').trim()) naze.push(o.na + 'の 住所が まだです（同居でも 要ります）');
+        if (!String(o.x.shokugyo || '').trim()) naze.push(o.na + 'の 職業が まだです');
+        if (!o.x.nattaYmd) naze.push(o.na + 'の 「扶養に 入った日」が まだです');
+        if (!String(o.x.nattaRiyu || '').trim()) naze.push(o.na + 'の 「扶養に 入った理由」が まだです');
+        if (o.x.doukyo == null) naze.push(o.na + 'の 同居／別居が まだです');
+        if (o.x.shunyu == null || o.x.shunyu === '') naze.push(o.na + 'の 年間収入が まだです（0円なら 0）');
+        if (!String(o.x.seibetsu || '').trim()) naze.push(o.na + 'の 性別が まだです');
+      });
+    if (sono.length > 2) naze.push('1回に 出せるのは 配偶者1人＋家族2人までです（' + sono.length + '人 入っています）');
+    return { ok: !naze.length, naze: naze };
+  }
+
   return {
     GENGO: GENGO, gengoOf: gengoOf, santeiRow: santeiRow, santeiWarn: santeiWarn, taishoMonths: taishoMonths, dasuKa: dasuKa,
     gekkakuRow: gekkakuRow, gekkakuWarn: gekkakuWarn, gekkakuCsv: gekkakuCsv, dasuKaGekkaku: dasuKaGekkaku, ymAdd: ymAdd,
@@ -1173,7 +1244,7 @@
     soshitsuRow: soshitsuRow, soshitsuWarn: soshitsuWarn, soshitsuCsv: soshitsuCsv, dasuKaSoshitsu: dasuKaSoshitsu,
     splitKisoNenkin: splitKisoNenkin, SOSHITSU_GEN: SOSHITSU_GEN,
     seibetsuCode: seibetsuCode, SEIBETSU: SEIBETSU,
-    fuyoRow: fuyoRow, sonotaBlock: sonotaBlock, FUYO_IDOU: FUYO_IDOU,
+    fuyoRow: fuyoRow, sonotaBlock: sonotaBlock, FUYO_IDOU: FUYO_IDOU, fuyoCsv: fuyoCsv, dasuKaFuyo: dasuKaFuyo,
     shoyoGoukei: shoyoGoukei, shoyoHiOk: shoyoHiOk, MAN10: MAN10,
     baitaiRow: baitaiRow, jigyoshoRows: jigyoshoRows, santeiCsv: santeiCsv,
     nextTsuban: nextTsuban, FILE_NAME: FILE_NAME, DAIHYO_CODE: DAIHYO_CODE, SEP_KANRI: SEP_KANRI, SEP_DATA: SEP_DATA,
