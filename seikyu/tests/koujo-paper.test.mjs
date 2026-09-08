@@ -355,6 +355,41 @@ T('★3つの 帯が 紙に 出ている（右は どれも「金額」）', () 
   eq(n, 3, '★「金額」が ' + n + '回★（①②③の 帯で 3回 のはず）');
 });
 
+/* ═══ ★3つの 様式 ぜんぶで 同じ 形に なる★（司さん 2026-09-08
+       「他のテンプレもできることはやって見せて（項目の合計など）」）═══════════
+   ★実測して 分かった事★＝控除を 入れると std1/elegant でも 塊は 3つに なるのに、
+   ★①の 合計は 出るのに ③の 見出しだけ 出ていなかった★（ちぐはぐ）。
+   ★地の色は 様式なりの物★＝elegant は わざと 白（罫線ひかえめ）なので
+   そこに 緑を 足さない＝★その様式の headBg を そのまま 使う★。 */
+T('★3様式とも 控除を 入れると 塊が 3つに なる（①の合計・②・③の見出し）', () => {
+  const machi = [];
+  ['std1', 'elegant', 'koujo'].forEach((id) => {
+    const t = textOf(build({ template_id: id }).html);
+    const th = TPL.getOrDefault(id).theme;
+    if (t.indexOf(th.itemSum || '項目の合計') < 0) machi.push(id + '：①の 合計が 無い');
+    if (t.indexOf(th.sumsHead || '') < 0 || !th.sumsHead) machi.push(id + '：③の 見出しが 無い');
+    if (t.indexOf('内容') < 0) machi.push(id + '：②の 帯が 無い');
+  });
+  ok(!machi.length, '★様式で ちぐはぐ★ ' + machi.join(' / '));
+  console.log('     3様式とも ①の合計・②の帯・③の見出しが 出る');
+});
+
+T('★③の 帯の 地は その様式の 物（elegant に 緑を 足さない）', () => {
+  ['std1', 'elegant', 'koujo'].forEach((id) => {
+    const th = TPL.getOrDefault(id).theme;
+    const css = String(PAPER.css(th) || '');
+    const i = css.indexOf('.sums .sums-hd th');
+    ok(i >= 0, id + '：③の 帯の 決まりが 無い');
+    const a = css.indexOf('{', i), b = css.indexOf('}', a);
+    const naka = css.slice(a + 1, b);
+    ok(naka.indexOf(th.headBg) >= 0,
+      '★' + id + ' の ③の 帯が その様式の 地の色（' + th.headBg + '）を 使っていない★: ' + naka);
+  });
+  console.log('     帯の 地 … std1 ' + TPL.getOrDefault('std1').theme.headBg
+    + ' ／ elegant ' + TPL.getOrDefault('elegant').theme.headBg
+    + ' ／ koujo ' + TPL.getOrDefault('koujo').theme.headBg);
+});
+
 T('★呼び名は 焼き付いていない（会社が 変えられる）', () => {
   /* ★中計／控除明細と 同じ 決まり★＝様式が 持つ・様式で 変えられる */
   const t = textOf(build({}, { sumsHeadLabel: 'お支払いの計算' }).html);

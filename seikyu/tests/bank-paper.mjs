@@ -86,17 +86,25 @@ const pg = await (await b.newContext({ viewport: { width: 1000, height: 1500 } }
 
 console.log('\n[bank-paper] 口座を 何個 出しても 紙から 字が 消えないか（実物 1〜6口座）');
 
+/* ★2026-09-08 ここは ★存在しない 様式id 'ded1'★ を 渡していた★
+   ＝getOrDefault が 既定(std1)に 落とすので、
+     ★控除ありも ずっと std1 で 測っていた＝koujo は 一度も 測っていなかった★。
+   ⇒ ★本当の 様式の 名前を 3つとも 名指しで 回す★（36通り → 108通り）。
+   ★見張りは「見る範囲」を 先に 数えて 書く★（うちの 決まり）。 */
+const YOSHIKI = ['std1', 'elegant', 'koujo'];
 const cases = [];
-for (const bankN of [1, 2, 3, 4, 5, 6]) {
-  for (const rows of [1, 10, 20]) {
-    for (const ded of [false, true]) cases.push({ bankN, rows, ded });
+for (const tpl of YOSHIKI) {
+  for (const bankN of [1, 2, 3, 4, 5, 6]) {
+    for (const rows of [1, 10, 20]) {
+      for (const ded of [false, true]) cases.push({ tpl, bankN, rows, ded });
+    }
   }
 }
 const bad = [], lost = [];
 for (const c of cases) {
-  await pg.setContent(paperHtml(c.bankN, c.rows, c.ded, c.ded ? 'ded1' : 'std1'), { waitUntil: 'load' });
+  await pg.setContent(paperHtml(c.bankN, c.rows, c.ded, c.tpl), { waitUntil: 'load' });
   const m = await pg.evaluate(MEASURE);
-  const tag = '口座' + c.bankN + '／明細' + c.rows + '行／' + (c.ded ? '控除あり' : '控除なし');
+  const tag = c.tpl + '／口座' + c.bankN + '／明細' + c.rows + '行／' + (c.ded ? '控除あり' : '控除なし');
   if (m.over.length) bad.push(tag + '（はみ出した箱 ' + m.over.length + '個・最大 ' + Math.max(...m.over.map((o) => o.over)) + 'px）');
   if (m.gone.length) lost.push(tag + '（消えた字 ' + m.gone.map((g) => '「' + g.text + '」').join('/') + '）');
   /* ★口座番号は 全部 出ているか★（1枚目の足元に 出る） */
@@ -104,10 +112,19 @@ for (const c of cases) {
 }
 await b.close();
 
-console.log('     測った通り数 ' + cases.length + '（口座1〜6 × 明細1/10/20行 × 控除なし/あり）');
+console.log('     測った通り数 ' + cases.length + '（★様式3つ★ × 口座1〜6 × 明細1/10/20行 × 控除なし/あり）');
 T('★① 紙から はみ出した箱 0個', () => ok(!bad.length, bad.slice(0, 4).join(' / ')));
 T('★② 丸ごと 消えた字 0個（overflow:hidden で 黙って 切れない）', () => ok(!lost.length, lost.slice(0, 4).join(' / ')));
-T('★③ 空振りしていない（0通りで 緑にしない）', () => ok(cases.length === 36, '通り数 ' + cases.length));
+/* ★数は 手で 書かない＝掛け算で 書く★（2026-09-08）
+   36 と 手で 書いてあったので、様式を 3つに 広げた 途端 赤に なった。
+   ★増やした 日に 自分で 気づける★のは よい事だが、
+   ★数の 出どころを 式に すれば 直し忘れが 起きない★。 */
+T('★③ 空振りしていない（0通りで 緑にしない）', () => {
+  const beki = YOSHIKI.length * 6 * 3 * 2;
+  ok(cases.length === beki, '通り数 ' + cases.length + '（様式' + YOSHIKI.length + '×口座6×明細3×控除2＝' + beki + ' のはず）');
+  ok(YOSHIKI.every((x) => TPL.get(x)), '★存在しない 様式の 名前が 混ざっている★ ' + YOSHIKI.join('/'));
+  console.log('     様式 … ' + YOSHIKI.join(' / ') + '（★名前が 本当に 在る事も 見た★）');
+});
 
 if (SELF) {
   /* ★自己確認は 環境に 左右されない形で 見る★（2026-09-02 CIで 1回 赤を出して 学んだ）
@@ -122,7 +139,7 @@ if (SELF) {
   const b2 = await pwLaunch('bank-paper', webkit);
   const pg2 = await (await b2.newContext({ viewport: { width: 1000, height: 1500 } })).newPage();
   const rowsOf = async (bankN, ded) => {
-    await pg2.setContent(paperHtml(bankN, 1, ded, ded ? 'ded1' : 'std1'), { waitUntil: 'load' });
+    await pg2.setContent(paperHtml(bankN, 1, ded, ded ? 'koujo' : 'std1'), { waitUntil: 'load' });
     return await pg2.evaluate(() => document.querySelectorAll('.items tbody tr').length);
   };
   const r3 = await rowsOf(3, false), r6 = await rowsOf(6, false);
