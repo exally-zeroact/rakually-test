@@ -42,7 +42,10 @@ const BANKS = ['伊予銀行', '愛媛銀行', '愛媛信用金庫', 'ゆうち�
 const accounts = (n) => BANKS.slice(0, n).map((b, i) =>
   b + '　今治支店　普通　' + (4160657 + i * 1111) + '　ド）ゼロアクト');
 
-function paperHtml(bankN, rows, ded, tplId) {
+/* ★waku＝明細の 枠の 行数（paperRows）★（2026-09-08 足した）
+   ★明細の 行数を 増やしても 紙は 自分で 2枚に 割る★ので、
+   ★1枚が どこまで 高く なるか★は これでしか 測れない（memo-waku と 同じ 渡し方）。 */
+function paperHtml(bankN, rows, ded, tplId, waku) {
   const lines = Array.from({ length: rows }, (_, i) => ({
     name: '作業' + (i + 1) + '　室外機オーバーホール', qty: '1', unit: '式', price: '15000', rate: 10,
   }));
@@ -55,6 +58,7 @@ function paperHtml(bankN, rows, ded, tplId) {
     org: { yago: '合同会社ZEROact', addr: '今治市本町7-3-40', tel: '090-5716-1946',
       invoiceNo: 'T3500003003293', bank: accounts(bankN).join('\n') },
     template: TPL.getOrDefault(tplId),
+    paperRows: waku,
     deduct: ded ? 11340 : 0,
     deductLines: ded ? [{ name: '弁当代 矢原', amount: 11340 }] : [],
   });
@@ -119,6 +123,7 @@ T('★② 丸ごと 消えた字 0個（overflow:hidden で 黙って 切れな�
    36 と 手で 書いてあったので、様式を 3つに 広げた 途端 赤に なった。
    ★増やした 日に 自分で 気づける★のは よい事だが、
    ★数の 出どころを 式に すれば 直し忘れが 起きない★。 */
+
 T('★③ 空振りしていない（0通りで 緑にしない）', () => {
   const beki = YOSHIKI.length * 6 * 3 * 2;
   ok(cases.length === beki, '通り数 ' + cases.length + '（様式' + YOSHIKI.length + '×口座6×明細3×控除2＝' + beki + ' のはず）');
