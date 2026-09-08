@@ -1387,15 +1387,6 @@
          見出しの下に線 → 中身（足りない行は高さの決まった空行）→ ★このブロックの合計★（上に線）
          ★左右の行の高さを同じにする★＝同じ番号の行の上端が同じ位置に来る。 */
       '.blk{margin:0 0 4mm;}',
-      /* ★控除の箱は 枠で 囲う★（2026-09-08 司さん
-         「控除ありのやつ 赤丸の所らが 境目も分からん
-           逆にどこ見たらええか分からんから 何を伝えてるか分からん」）
-         前は 控除の表も 締めの表も ★同じ幅・同じ見た目で 縦に 並んでいた★。
-         ⇒ 控除は ★箱★（引いた物の 中身）、締めは ★右の 計算★ と 役目を 分ける。
-         ★白黒で刷っても 残る 濃さの 枠★（地の色だけでは 消える）。 */
-      '.blk-ded{border:' + HAIR + ' solid ' + LINE + ';border-radius:1mm;',
-      'padding:2.4mm 2.6mm 2.6mm;margin:0 0 5mm;background:#FFFFFF;}',
-      '.blk-ded .st{border-bottom:' + HAIR + ' solid ' + LINE + ';margin:0 0 1.6mm;}',
       /* 箱の名前（控除）＝読ませる字なので ★薄い黒★（罫の色で書くと消えかける） */
       '.st{font-size:9.5pt;font-weight:700;color:' + INK + ';letter-spacing:.16em;',
       'padding:0 0 1.6mm;border-bottom:' + HAIR + ' solid ' + LINE + ';margin:0 0 0;}',
@@ -1438,12 +1429,7 @@
       '.foot-r{width:1%;white-space:nowrap;}',
 
       /* ★小計/消費税/合計＝右下・枠なし・合計の上に線★ */
-      /* ★締めは 右に 寄せる★（2026-09-08）
-         全幅だと 札と 金額が 紙の 左端と右端に 離れて
-         ★どの札の 金額か 目で 追えない★（司さんの 赤丸）。
-         上の 控除の箱（全幅）と 幅が 違う事が そのまま 境目に なる。 */
-      '.sums{border-collapse:collapse;font-size:9.5pt;width:46%;min-width:58mm;',
-      'margin:0 0 4mm auto;}',
+      '.sums{border-collapse:collapse;font-size:9.5pt;width:100%;margin:0 0 4mm;}',
       '.sums th{text-align:left;color:' + SUB + ';font-weight:400;border:0;',
       'padding:1.4mm ' + EDGE + ';white-space:nowrap;}',
       '.sums td{text-align:right;border:0;padding:1.4mm ' + EDGE + ';white-space:nowrap;',
@@ -1459,23 +1445,8 @@
       /* 締めの中の枝（本文より少し小さく・罫は引かない） */
       '.sums-sub th,.sums-sub td{color:' + SUB + ';font-size:9pt;}',
       /* ★締めの最後の1行＝実際に払う額★ 大きさは変えず、線と太さで一番 強くする。 */
-      /* ★引く行の 手前で 一拍 置く★（2026-09-08）
-         締めは 意味が 2つに 分かれている：
-           小計 → 消費税 → 合計   ＝この請求の 中身
-           控除 → 請求額           ＝そこから 引いて ★実際に 振り込む額★
-         前は 5行とも 同じ見た目だったので ★どこからが「引く話」か 分からない★。 */
-      '.sums-minus th,.sums-minus td{padding-top:2.6mm;}',
-      /* ★締めの 最後の1行＝実際に 払う額★
-         ★二重線★で「ここが 答え」と 分かるようにする
-         （紙の頭の「ご請求金額」と 同じ額＝大きさでは なく 線と 太さで 強くする）。 */
-      /* ★線は 1種類のまま★（seikyu-paper.test.mjs「紙の線は1種類」）
-         二重線に したかったが、太さを 変えると その決まりを 破る。
-         ⇒ ★同じ 細線を 2本★（控除の 下線 ＋ 請求額の 上線）で 締める。 */
-      '.sums-minus th,.sums-minus td{border-bottom:' + HAIR + ' solid ' + LINE + ';padding-bottom:1.4mm;}',
-      '.sums-net th,.sums-net td{border-top:' + HAIR + ' solid ' + LINE + ';font-weight:700;color:' + INK + ';',
-      'padding-top:1.8mm;}',
-      '.sums-net th{font-size:10.5pt;}',
-      '.sums-net td{color:' + TH.grandInk + ';font-size:11.5pt;}',
+      '.sums-net th,.sums-net td{border-top:' + HAIR + ' solid ' + LINE + ';font-weight:700;color:' + INK + ';}',
+      '.sums-net td{color:' + TH.grandInk + ';}',
 
       /* （内訳）★枠で囲まない★ */
       /* ★（内訳）の周りにも余白★（右下にぴったり詰めない） */
