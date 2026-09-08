@@ -111,8 +111,12 @@
        CI(Linux) … 1124px＝★A4を 1px 超えた★
        手元(WebKit/Windows) … 1145px＝★22px 超えた★（字幅が 違うので 数も 違う）
      ★.sheet は overflow:hidden＝黙って 切れる★ので、超えたら 字が 消える。 */
-  var PAPER_ROWS = 17;        // 控除を出さない紙（★実測＝物理の上限★・合計行の分 18→17）
-  var PAPER_ROWS_DED = 7;     // 控除を出す紙（★実測＝物理の上限★・合計行の分 8→7）
+  /* ★2026-09-08（同じ日の 2回目）もう 1行 減らした★
+     ＝控除が 無い 紙にも ★3つ目の 帯（ご請求金額｜金額）★を 出したので、
+       足元が また 1行ぶん 高く なった。
+     ★測ってから 減らした★＝減らす前に 出したら 1142px（A4 1122.5px を 19px 超え）。 */
+  var PAPER_ROWS = 16;        // 控除を出さない紙（★実測★ 18→17→16＝合計行＋帯の分）
+  var PAPER_ROWS_DED = 7;     // 控除を出す紙（★実測★ 8→7＝合計行の分・帯は 前から 在る）
   var DEDUCT_ROWS = 4;        // 控除の枠 ★会社が変えられる★（実物 八木＝E17:H20＝4行）
   var ROWS_FIRST = 12;
   var ROWS_REST = 24;
@@ -905,8 +909,11 @@
            ③だけ 字だけの 見出しだったので ★同じ 帯★に そろえる。
          ★見た目は 作らない★＝②の 帯（.ded-hd）と ★1文字も 違わない 値★を 使う。
          ★控除を 出さない紙は 塊が 1つ★なので 見出しは 出さない（要らない物を 増やさない）。 */
-      if (!showDeduct) return tbl;
-      var sHead = textOf((inv.data && inv.data.sumsHeadLabel) || o.sumsHeadLabel || TH.sumsHead);
+      /* ★控除が 無い 紙にも 帯を 出す★（2026-09-08 司さん
+         「この赤の線にも 控除ありの時のように 分かりやすくやって」）
+         ★呼び名は 控除の 有無で 変える★＝引く物が 無いのに「差引」と 書かない。 */
+      var sHead = textOf((inv.data && inv.data.sumsHeadLabel) || o.sumsHeadLabel
+        || (showDeduct ? TH.sumsHead : TH.sumsHeadPlain));
       if (!sHead) return tbl;
       /* ★右は「金額」★＝①②の 帯と 同じ 言葉（3つとも 同じ 読み方に なる） */
       var hd = '<thead><tr class="sums-hd"><th>' + esc(sHead) + '</th><td>金額</td></tr></thead>';
