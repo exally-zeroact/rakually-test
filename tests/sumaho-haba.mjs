@@ -55,8 +55,16 @@ if (SELF) {
   say('境界 … 高さちょうど 28.8（＝12×2.4）は 見つけない', warete({ width: 16, height: 28.8 }, 12) === false);
   say('はみ出し … 同じなら 0', hamidashi(390, 390) === 0);
   say('★はみ出し … 12px 溢れている★', hamidashi(402, 390) === 12);
+  /* ★通信の失敗と 作りの落ちを 分けられるか★（2026-09-08 足した） */
+  say('★倉庫の 通信の 失敗＝通信と 見る★（総なめで 実際に 出た 字）',
+    tsushinKa('/khawdrnvssdenumbiwfg.supabase.co/auth/v1/token?grant_type=password due to access control checks.') === true);
+  say('★網の 切れ＝通信と 見る★', tsushinKa('Load failed') === true);
+  say('★作りの 落ちは 通信に しない★（undefined is not an object）',
+    tsushinKa("undefined is not an object (evaluating 'a.b')") === false);
+  say('★作りの 落ちは 通信に しない★（is not a function）',
+    tsushinKa('x.foo is not a function') === false);
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★8通り ぜんぶ 思った通り★');
+  console.log('  ★12通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -94,6 +102,16 @@ await new Promise((r) => srv.listen(0, r));
 const PORT = srv.address().port;
 const b = await pwLaunch('sumaho-haba', wk);
 
+/* ★画面のエラーは 2つに 分ける★（2026-09-08 実測）
+   ★総なめで 1回だけ 赤に なった★＝中身は
+     「…supabase.co/auth/v1/token?grant_type=password due to access control checks.」
+   ＝★倉庫への 通信が その回だけ 断られた★（何本も 同時に ログインしている時に 出る）。
+   ★これは 画面の 穴では ない★＝単独で 走らせると 緑（待った 41回／混んだ時 144回）。
+   ⇒ ★通信の 失敗は 🟡未測定★（測れていない）／★作りの 落ちは 赤★。
+   ★黙って 緑には しない★＝どちらも 字で 出す。 */
+function tsushinKa(m) {
+  return /supabase|fetch|network|access control|Load failed|NetworkError|ERR_|timed? ?out/i.test(String(m));
+}
 const HABA = [375, 390, 412];
 /* ★押す物の 一覧を 先に 書く★（決まり＝実UIの 押し込みは 一覧を 先に） */
 const GAMEN = [
@@ -162,7 +180,11 @@ for (const g of GAMEN) {
       + ' … はみ出し ' + m.over + 'px ／ 縦に割れ ' + m.bad.length + '件 ／ 見た部品 ' + m.kazu + '個'
       + (matta > 2 ? '（待った ' + matta + '回）' : ''));
     if (m.bad.length) m.bad.slice(0, 3).forEach((x) => console.log('       ★割れ★ 「' + x.t + '」 幅' + x.w + '×高' + x.h));
-    if (errs.length) { console.log('       ★画面のエラー★ ' + errs.join(' / ')); akai++; }
+    if (errs.length) {
+      const ts = errs.filter(tsushinKa), hn = errs.filter((x) => !tsushinKa(x));
+      if (hn.length) { console.log('       ★画面のエラー（作りの落ち）★ ' + hn.join(' / ')); akai++; }
+      if (ts.length) { console.log('       🟡 倉庫への 通信が 断られた（測れていない）… ' + ts.join(' / ')); mihakari++; }
+    }
     await pg.close();
   }
 }
@@ -216,7 +238,11 @@ for (const w of HABA) {
       + ' … はみ出し ' + m.over + 'px ／ 縦に割れ ' + m.bad.length + '件 ／ 見た部品 ' + m.kazu + '個');
     if (m.bad.length) m.bad.slice(0, 3).forEach((x) => console.log('       ★割れ★ 「' + x.t + '」 幅' + x.w + '×高' + x.h));
   }
-  if (errs.length) { console.log('       ★画面のエラー★ ' + errs.join(' / ')); akai++; }
+  if (errs.length) {
+    const ts = errs.filter(tsushinKa), hn = errs.filter((x) => !tsushinKa(x));
+    if (hn.length) { console.log('       ★画面のエラー（作りの落ち）★ ' + hn.join(' / ')); akai++; }
+    if (ts.length) { console.log('       🟡 倉庫への 通信が 断られた（測れていない）… ' + ts.join(' / ')); mihakari++; }
+  }
   await pg.close();
 }
 
@@ -305,7 +331,11 @@ for (const w of HUB_HABA) {
     m.oreta.slice(0, 3).forEach((x) => console.log('       ★折り返し★ 「' + x.t + '」 幅' + x.w + '×高' + x.h));
     if (m.bad.length) m.bad.slice(0, 3).forEach((x) => console.log('       ★割れ★ 「' + x.t + '」 幅' + x.w + '×高' + x.h));
   }
-  if (errs.length) { console.log('       ★画面のエラー★ ' + errs.join(' / ')); akai++; }
+  if (errs.length) {
+    const ts = errs.filter(tsushinKa), hn = errs.filter((x) => !tsushinKa(x));
+    if (hn.length) { console.log('       ★画面のエラー（作りの落ち）★ ' + hn.join(' / ')); akai++; }
+    if (ts.length) { console.log('       🟡 倉庫への 通信が 断られた（測れていない）… ' + ts.join(' / ')); mihakari++; }
+  }
   await pg.close();
 }
 
