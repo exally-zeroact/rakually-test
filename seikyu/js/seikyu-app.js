@@ -1101,45 +1101,21 @@
     return true;
   }
 
+  /* ★聞かない。黙って 引き継ぐ★（2026-09-09 司さん「前回と同じで作りますか？は いらない」）
+     ★代行請求の 実物も 聞いていない★（confirm は 全部で 2か所・どちらも別用途）
+       ＝前回の 会社を 自動で 選ぶ／直前の行の 日付を 引き継ぐ／
+         会社ごとの 項目の 構成は そのまま 使う。★問いかけは 1つも 出さない★。
+     ⇒ うちも 問いを やめる。ただし ★黙っては やらない★＝
+       何を 引き継いだかを ★1行 言う★（決まり「黙って いじらない」を 破らない）。
+     ★明細の 中身は 引き継がない★（毎月 違う）＝前と 同じ。 */
   function renderGuess() {
-    var card = $('guess-card'); if (!card) return;
     var v = S.cur;
-    // 発行済み・すでに決めた1通では出さない（聞くのは新しく作る時だけ）
-    if (!v || locked() || v.id || S.guessDone) { show(card, false); return; }
-    if (!v.partner_id) { show(card, false); return; }
-
-    var prev = prevOf(v.partner_id);
-    var g = guessFrom(prev);
+    if (!v || locked() || v.id || S.guessDone) return;
+    if (!v.partner_id) return;
+    var g = guessFrom(prevOf(v.partner_id));
     S.guess = g;
-
-    if (!g) {
-      // ★初回は「前回の請求はありません」＝空欄を並べない・0と書かない
-      setText('guess-h', '前回の請求はありません');
-      $('guess-list').innerHTML = '<p class="hint">この取引先へは初めての請求です。'
-        + 'このまま明細を打てば出せます（支払期限や件名は「細かく決める」で足せます）。</p>';
-      show($('b-guess-ok'), false);
-      show($('b-guess-edit'), false);
-      show(card, true);
-      return;
-    }
-    setText('guess-h', '前回と同じで作りますか？');
-    var rows = [
-      ['前回の請求', 'No.　' + esc(g.no) + (g.total === undefined || g.total === null ? '' : '（' + yen(g.total) + ' 円）')],
-      ['支払期限', esc(termLabel(g.term))],
-      ['件名', esc(g.subject || '（なし）')],
-      ['明細の列', esc((g.cols && g.cols.items ? g.cols.items : colsOf(v).items).join('・'))],
-      ['税の入れ方', g.taxMode === 'inclusive' ? '内税' : '外税'],
-    ];
-    // ★源泉・繰越は「有る時だけ」出す（無い人の画面に増やさない）
-    if (g.gensen) rows.push(['源泉徴収', 'する（前回と同じ）']);
-    else if (partnerGensen(v.partner_id)) rows.push(['源泉徴収', 'する（この取引先の設定）']);
-    if (g.carryOn) rows.push(['繰越', '前回の残りを紙に出す']);
-    $('guess-list').innerHTML = '<table class="guess-t"><tbody>'
-      + rows.map(function (r) { return '<tr><th>' + r[0] + '</th><td>' + r[1] + '</td></tr>'; }).join('')
-      + '</tbody></table>';
-    show($('b-guess-ok'), true);
-    show($('b-guess-edit'), true);
-    show(card, true);
+    if (!g) { S.guessDone = true; return; }   /* 初めての相手＝引き継ぐ物が 無い */
+    applyGuess();
   }
 
   /** ✓ を押した＝前回の中身をこの1通に入れる（明細の中身は入れない＝毎月 違うので） */
@@ -1152,7 +1128,11 @@
     if (g.taxMode) v.tax_mode = g.taxMode;
     if (g.rounding) v.rounding = g.rounding;
     if (g.templateId) v.template_id = g.templateId;
-    if (g.cols) v.data.cols = COLS.normalizeSpec(g.cols);
+    /* ★列は 引き継がない★（2026-09-09）
+       ＝「はい」を 押していた頃は「前回と 同じ列で」で よかったが、
+         ★聞かずに 自動で 入れる★ようにした今 これを やると
+         ★設定で 足した 列が 黙って 消える★（見張り seikyu-ui 2-b が 捕まえた）。
+       ★列は 設定（会社／取引先）が 唯一の 正★＝代行請求も 会社ごとの 項目構成を 使う。 */
     /* ★「前回と同じ」で源泉を消さない★
        取引先の設定で「源泉徴収の対象」にしてあるのに、前回（設定より古い1通）が
        源泉なしだと、✓ を押した瞬間に源泉が外れる＝★振り込まれる額が黙って変わる★。
@@ -1166,7 +1146,16 @@
     show($('tag-subject'), !!S.guessApplied.subject);
     show($('tag-term'), !!S.guessApplied.term);
     show($('tag-gensen'), !!S.guessApplied.gensen);
-    box('edit-ok', '前回と同じ内容を入れました。明細を打てば発行できます（直したい所は「細かく決める」から）。');
+    /* ★何を 引き継いだかを 言う★（2026-09-09 司さん「前回と同じで作りますか？は いらない」
+       ＝★聞くのは やめる。言うのは やめない★）。 */
+    var hiki = [];
+    if (g.term && g.term.kind && g.term.kind !== 'none') hiki.push('支払期限');
+    if (g.subject) hiki.push('件名');
+    if (g.templateId) hiki.push('紙の様式');
+    if (wantGensen) hiki.push('源泉徴収');
+    box('edit-ok', (g.no ? '前回（No.' + g.no + '）と 同じで 用意しました' : '前回と 同じで 用意しました')
+      + (hiki.length ? '＝' + hiki.join('・') : '')
+      + '。明細を 打てば 出せます（直したい所は「細かく決める」から）。');
   }
 
   /* 発行済み・取り消し済みは触らせない（★押せない理由も出す★） */
@@ -2800,6 +2789,39 @@
      ＝★当てて見せるだけ★。人が その場で 直せる（うちの決まり「聞いてあげる。埋めさせない」）。 */
   var sealGuess = null;
 
+  /* ★倉庫に 白い地の 判子が 残っていたら 自動で 透かす★（2026-09-09 司さん
+     「判子が ★自動で 透過されない★から 背景が 邪魔になる」）
+     ★実測（scripts/_hakaru-hanko.mjs）★
+       白い地の 判子を ★今 入れれば 透ける★（白 83%→0%／透け 0%→74%）。
+       ＝白抜きの 道具は 効いている。効いていないのは
+       ★道具を 入れた 2026-08-30 より 前に 保存した 判子★＝倉庫に 白い四角のまま 残っている。
+       今までは ★入れ直さないと 直らなかった★。
+     ⇒ 設定を 開いた時に 1度だけ 見て、白い地なら 透かして 下見に 出す。
+     ★倉庫は 触らない★＝下見に 出して「保存を押すと…」と 言うだけ
+       （決めるのは 司さん＝勝手に 会社の 判子を 書き換えない）。 */
+  var sealAutoDone = false;
+  function sealAutoTouka() {
+    if (sealAutoDone) return Promise.resolve(false);
+    var SEAL = global.SeikyuSeal;
+    var url = (S.org || {}).sealDataUrl || '';
+    if (!SEAL || !SEAL.shiroiKa || !url || sealPending) return Promise.resolve(false);
+    sealAutoDone = true;                 /* ★1度だけ★（開くたびに 何度も 言わない） */
+    return SEAL.shiroiKa(url).then(function (r) {
+      if (!r || !r.shiroi) return false;
+      return SEAL.prepare(url).then(function (p) {
+        var next = p && p.dataUrl;
+        if (!next || next === url) return false;
+        var chk = DOC.validateSeal(next);
+        if (!chk.ok) { box('seal-err', chk.reason); return false; }
+        sealPending = next;
+        fillSeal();
+        box('seal-ok', '前に 入れた 判子の ★白い背景を 透かしました★'
+          + '（白かった所 ' + r.shiro + '%）。「保存」を押すと 紙に 出ます。');
+        return true;
+      });
+    }).catch(function () { return false; });
+  }
+
   function fillSeal() {
     var d = S.org || {};
     var url = sealPending || d.sealDataUrl || '';
@@ -3302,6 +3324,7 @@
       $('s-zeikomi').value = (st.zeikomiTag === false) ? 'off' : '';
       $('s-bankline').value = (st.bankOneLine === true) ? 'one' : '';
       $('s-subject').value = (st.subjectOn === true) ? 'on' : '';
+      if ($('s-no')) $('s-no').value = (st.noOn === false) ? 'off' : '';
       $('s-taxnote').value = st.taxNote || '';
       /* ★率は lib が唯一の正★＝画面の見本の文にも 数字を直書きしない
          （法が変わった日に ★画面の文だけ 取り残される★のを止める） */
@@ -3372,6 +3395,9 @@
     renderColEditor();
     dedRowsShow();
     fillSeal();
+    /* ★倉庫の 判子に 白い地が 残っていたら 自動で 透かす★（2026-09-09 司さん）
+       ＝1度だけ・倉庫は 触らない（下見に 出して 保存を 押してもらう）。 */
+    sealAutoTouka();
     renderPaperAsk();   /* ★紙の作り（列・行数）の聞く形も 一緒に描き直す★ */
   }
 
@@ -4128,6 +4154,8 @@
         if ($('s-zeikomi').value === 'off') o.zeikomiTag = false;
         if ($('s-bankline').value === 'one') o.bankOneLine = true;
         if ($('s-subject').value === 'on') o.subjectOn = true;
+        /* ★出す時は 何も 書かない★（既定＝出す）／切った時だけ false を 持つ */
+        if ($('s-no') && $('s-no').value === 'off') o.noOn = false;
         if (String($('s-taxnote').value || '').trim()) o.taxNote = String($('s-taxnote').value).trim();
         if (String($('s-dedhead').value || '').trim()) o.dedHead = String($('s-dedhead').value).trim();
         if (String($('s-dedsum').value || '').trim()) o.dedSum = String($('s-dedsum').value).trim();
@@ -4393,13 +4421,8 @@
       drawGensenHint();
     };
     $('s-carry').onchange = function () { settingsHint(); };
-    $('b-guess-ok').onclick = function () { applyGuess(); };
-    $('b-guess-edit').onclick = function () {
-      S.guessDone = true;
-      renderGuess();
-      var m = $('more-box'); if (m) m.open = true;
-      box('edit-ok', '');
-    };
+    /* ★「はい／ちがう」の ボタンは 消した★（2026-09-09 司さん「前回と同じで作りますか？は いらない」）
+       ＝聞かずに 引き継ぐ（renderGuess が その場で applyGuess を 呼ぶ）。 */
     bindSetPv();
     if ($('b-preview')) $('b-preview').onclick = function () { doPreview(); };
     /* ★印刷は 名前を 聞かない★（司さん 2026-09-05「印刷押すだけ これはいらんやろが」）

@@ -220,8 +220,46 @@
     }).catch(function () { return { dataUrl: dataUrl, did: [], w: 0, h: 0 }; });
   }
 
+  /** ★白い地が 残っているか★を 数える（2026-09-09 司さん
+   *  「判子が 自動で 透過されないから 背景が 邪魔になる」）
+   *  ＝白抜きの 道具は 2026-08-30 に 入れたので、★それより 前に 入れた判子★は
+   *    倉庫に ★白い四角のまま★ 残っている。入れ直させないと 直らなかった。
+   *  ★数え方★ 透けている点が ほとんど 無く（1%未満）、白い点が 多い（半分以上）＝白い地。
+   *  返り = Promise<{shiroi:真偽, suke:%, shiro:%}>。読めなければ shiroi:false（★決めつけない★）。 */
+  function shiroiKa(dataUrl) {
+    return new Promise(function (res) {
+      if (!dataUrl) { res({ shiroi: false, suke: 0, shiro: 0 }); return; }
+      /* ★new Image() は 使わない★＝dep-guard が「window.○○ を 呼んでいるのに
+         誰も 作っていない」と 赤にする（借り物の 名前を 増やさない）。
+         ★同じ物★＝document.createElement('img')。 */
+      var im = global.document.createElement('img');
+      im.onload = function () {
+        try {
+          var W = im.naturalWidth || im.width, H = im.naturalHeight || im.height;
+          if (!W || !H) { res({ shiroi: false, suke: 0, shiro: 0 }); return; }
+          var c = global.document.createElement('canvas');
+          c.width = W; c.height = H;
+          var x = c.getContext('2d');
+          x.drawImage(im, 0, 0);
+          var d = x.getImageData(0, 0, W, H).data;
+          var suke = 0, shiro = 0, zen = 0;
+          for (var i = 0; i < d.length; i += 4) {
+            zen++;
+            if (d[i + 3] < 32) suke++;
+            else if (Math.min(d[i], d[i + 1], d[i + 2]) >= 235) shiro++;
+          }
+          var sp = zen ? (suke / zen * 100) : 0;
+          var hp = zen ? (shiro / zen * 100) : 0;
+          res({ shiroi: (sp < 1 && hp >= 50), suke: Math.round(sp), shiro: Math.round(hp) });
+        } catch (e) { res({ shiroi: false, suke: 0, shiro: 0 }); }
+      };
+      im.onerror = function () { res({ shiroi: false, suke: 0, shiro: 0 }); };
+      im.src = dataUrl;
+    });
+  }
+
   var API = { guess: guess, measure: measure, guessFromUrl: guessFromUrl,
-    prepare: prepare, inkBox: inkBox, MAX_PX: MAX_PX,
+    prepare: prepare, inkBox: inkBox, shiroiKa: shiroiKa, MAX_PX: MAX_PX,
     MM_KAKU: MM_KAKU, MM_MARU: MM_MARU, KAKU_MIN: KAKU_MIN, MARU_MAX: MARU_MAX, CORNER: CORNER };
   global.SeikyuSeal = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

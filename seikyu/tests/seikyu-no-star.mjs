@@ -130,8 +130,10 @@ async function walk() {
 
   // 中身を入れて 合計・控除・注意書きを出す
   setVal('e-partner', 'pt_a'); await sleep(60);
-  if (win.getComputedStyle($('guess-card')).display !== 'none') soakUp('入力(前回から当てる)');
-  if (win.getComputedStyle($('guess-card')).display !== 'none') { $('b-guess-edit').click(); await sleep(20); }
+  /* ★2026-09-09「前回と同じで作りますか？」の 箱は 消した★（司さん「いらない」）
+     ＝聞かずに 引き継ぐので、押す物も 箱も もう 無い。
+     引き継いだ事は 入力の 知らせ（edit-ok）に 1行 出る＝そこを 見る。 */
+  await sleep(40); soakUp('入力(前回から引き継いだ)');
   setVal('e-issue', '2026-07-21'); await sleep(40);
   setLine(0, 'name', '工事代金'); setLine(0, 'qty', '140'); setLine(0, 'price', '1900');
   await sleep(60); soakUp('入力(合計あり)');

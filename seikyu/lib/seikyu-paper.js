@@ -162,6 +162,13 @@
        ⇒ ★要る会社は 設定で出す★（カスタム性の決まり＝焼き付けてよいのは法律だけ）。
        ★世の中で多いか少ないかは まだ測っていない★＝測ったら 既定を見直す。 */
     subjectOn: false,
+    /* ★請求番号を 紙に 出すか★（2026-09-09 司さん「請求番号を除ける設定がない」）
+       ★既定は 出す★＝今 出ている物を 黙って 消さない（切りたい会社が 設定で 切る）。
+       ★代行請求は 逆で 既定 OFF★（showInvoiceNo:false／実物に 番号を 刷っていなかった）
+         ＝うちは 前から 出しているので、既定を 変えると ★紙の顔が 黙って 変わる★。
+       ★番号を 付けるのは 止めない★＝紙に 書くかどうかだけ
+         （番号は 控えと 二度使わない為に 要る）。 */
+    noOn: true,
   };
   function themeOf(t) { return Object.assign({}, THEME, t || {}); }
 
@@ -737,7 +744,9 @@
       var ds = dateStr(isReceipt ? (rc && rc.ymd) : inv.issue_ymd, era);
       var dLabel = isReceipt ? '領収日　' : isDelivery ? '納品日　' : isQuote ? '見積日　' : '請求日　';
       var meta = '<div class="meta-l">' + dLabel + (ds || '（未入力）') + '</div>';
-      meta += '<div class="meta-l">' + esc(noLabel) + (esc(headNo) || '（未採番）') + '</div>';
+      /* ★番号を 紙に 出すかは 会社が 決める★（2026-09-09 司さん「請求番号を除ける設定がない」）
+         ★出さない時は 欄ごと 出さない★＝空の「No.」だけが 残ると 何かが 抜けたように 見える。 */
+      if (TH.noOn !== false) meta += '<div class="meta-l">' + esc(noLabel) + (esc(headNo) || '（未採番）') + '</div>';
       // ★もう受け取った紙に「お支払期限」を出さない★
       /* ★納品書に お支払期限を 出さない★（支払いの依頼ではない） */
       if (!isReceipt && !isDelivery && inv.due_ymd) meta += '<div class="meta-l">お支払期限　' + dateStr(inv.due_ymd, era) + '</div>';

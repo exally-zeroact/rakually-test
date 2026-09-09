@@ -1145,19 +1145,22 @@ await TA('9-d. ★①「前回から当てる」が源泉ありでも壊れな�
   let taps2 = 0;
   setVal('e-partner', 'pt_g'); taps2++;
   await sleep(60);
-  ok(win.getComputedStyle($('guess-card')).display !== 'none', '「前回と同じで作りますか？」が出ていない');
-  ok(/源泉徴収/.test($('guess-list').textContent), '当てた中身に源泉が出ていない: ' + $('guess-list').textContent);
-
-  $('b-guess-ok').click(); taps2++;
-  await sleep(40);
-  eq($('e-gensen').checked, true, '✓ を押したのに源泉が入っていない');
+  /* ★2026-09-09 司さん「前回と同じで作りますか？は いらない」★
+     ＝問いの 箱も ボタンも 消えた。★聞かずに 引き継ぐ★ので
+       ★取引先を 選んだ その場で もう 入っている★（押す回数が 1回 減る）。
+     引き継いだ事は 入力の 知らせ（edit-ok）に 1行 出る＝黙っては やらない。 */
+  ok(!doc.getElementById('guess-card'), '★問いの 箱が まだ 在る★');
+  ok(/前回/.test($('edit-ok').textContent), '★何を 引き継いだかを 言っていない★: ' + $('edit-ok').textContent);
+  ok(/源泉徴収/.test($('edit-ok').textContent), '★源泉を 引き継いだと 言っていない★: ' + $('edit-ok').textContent);
+  eq($('e-gensen').checked, true, '★聞かずに 引き継いだのに 源泉が 入っていない★');
   ok(win.getComputedStyle($('tag-gensen')).display !== 'none', '「前回から」の印が源泉に付いていない');
   setF('name', '原稿料 10月分'); setF('amount', '150000');
   await sleep(30);
   $('b-issue').click(); taps2++;
   await sleep(80);
   eq(st.cur.status, 'issued', '2通目が発行できていない: ' + $('edit-err').textContent);
-  eq(taps2, 3, '★2通目の押す回数が3回を超えた（取引先・✓・発行）★: ' + taps2);
+  eq(taps2, 2, '★2通目の押す回数が2回を超えた（取引先・発行）★＝'
+    + '問いを やめたので ✓ の 1回が 減る: ' + taps2);
   eq(st.cur.snapshot.gensen.amount, CHOSHO.gensenA(150000), '2通目の源泉が違う');
 });
 
@@ -1194,11 +1197,10 @@ await TA('9-f. ★「前回と同じ」で源泉を消さない（振り込ま�
   $('b-new').click(); await sleep(20);
   setVal('e-partner', 'pt_h'); await sleep(60);
   eq($('e-gensen').checked, true, '取引先の既定で源泉が入っていない');
-  ok(/源泉徴収/.test($('guess-list').textContent),
-    '★押したらどうなるかを言っていない（前回に無い物は黙って変わる）★: ' + $('guess-list').textContent);
-
-  $('b-guess-ok').click(); await sleep(40);
-  eq($('e-gensen').checked, true, '★✓ を押したら源泉が消えた（振込額が黙って変わる）★');
+  ok(/源泉徴収/.test($('edit-ok').textContent),
+    '★どうなったかを言っていない（前回に無い物が 黙って 変わる）★: ' + $('edit-ok').textContent);
+  await sleep(40);
+  eq($('e-gensen').checked, true, '★引き継いだら 源泉が 消えた（振込額が 黙って 変わる）★');
   eq(!!st.cur.data.gensen, true, '中の値も消えている');
 
   setF('name', '10月分'); setF('amount', '100000');
@@ -1267,7 +1269,7 @@ async function issueOne(partnerId, ymd, amount, name) {
   doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(10);
   $('b-new').click(); await sleep(20);
   setVal('e-partner', partnerId); await sleep(60);
-  if (win.getComputedStyle($('guess-card')).display !== 'none') { $('b-guess-edit').click(); await sleep(20); }
+  /* ★問いの 箱は 消えた★（2026-09-09）＝押す物が 無い */
   setVal('e-issue', ymd); await sleep(40);
   const tr = doc.querySelector('#lines-body tr');
   const setF = (k, v) => { const e = tr.querySelector('[data-f="' + k + '"]'); e.value = v; e.dispatchEvent(new win.Event('input')); e.dispatchEvent(new win.Event('change')); };
@@ -1518,7 +1520,7 @@ await TA('12-b. ★見積を1通 出せる（番号は請求と別の系列＝�
   $('b-new').click(); await sleep(30);
   eq(st.cur.doc_type, 'quote', '★見積を選んでいるのに請求書を作っている★');
   setVal('e-partner', 'pt_q'); await sleep(60);
-  if (win.getComputedStyle($('guess-card')).display !== 'none') { $('b-guess-edit').click(); await sleep(20); }
+  /* ★問いの 箱は 消えた★（2026-09-09）＝押す物が 無い */
   setVal('e-issue', '2026-09-10'); await sleep(40);
   const tr = doc.querySelector('#lines-body tr');
   const setF = (k, v) => { const e = tr.querySelector('[data-f="' + k + '"]'); e.value = v; e.dispatchEvent(new win.Event('input')); e.dispatchEvent(new win.Event('change')); };
@@ -1655,7 +1657,7 @@ await TA('12-f. ★明細の並べ替え（▲▼）で 金額は1円も動か�
   doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(10);
   $('b-new').click(); await sleep(30);
   setVal('e-partner', 'pt_q'); await sleep(60);
-  if (win.getComputedStyle($('guess-card')).display !== 'none') { $('b-guess-edit').click(); await sleep(20); }
+  /* ★問いの 箱は 消えた★（2026-09-09）＝押す物が 無い */
   const setRow = (i, name, amt) => {
     const tr = $('lines-body').querySelectorAll('tr')[i];
     const n = tr.querySelector('[data-f="name"]'), a = tr.querySelector('[data-f="amount"]');
@@ -1741,7 +1743,7 @@ async function newInvoiceFor(pid, ymd) {
   doc.querySelector('#kind-seg [data-kind="invoice"]').click(); await sleep(60);
   $('b-new').click(); await sleep(40);
   setVal('e-partner', pid); await sleep(80);
-  if (win.getComputedStyle($('guess-card')).display !== 'none') { $('b-guess-edit').click(); await sleep(30); }
+  /* ★問いの 箱は 消えた★（2026-09-09）＝押す物が 無い */
   setVal('e-issue', ymd); await sleep(60);
 }
 
