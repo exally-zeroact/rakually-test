@@ -96,7 +96,13 @@ for (const id of Object.keys(MACHIRU)) {
 }
 const T = (n, c, msg) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ ' + n + ' — ' + msg); } };
 
-T('① 備考の枠は std1／elegant に 出て koujo には 出ない（様式が 決める）',
+/* ★★2026-09-08 ①を 書き直した★★
+   ★司さんが 実物を 見せてくれて 私の 読み違いが 分かった★
+   「おれの備考欄は 消費税の横にもって来て 現場名とか 書いてないか？」の
+   ★「消費税の横」＝明細表の 消費税の列の 右隣の 列★（行ごとに 現場名）。
+   私は「足元の 箱」と 読み違えて、その箱を この見張りが 守っていた。
+   ⇒ ★足元の 箱は 出さない★／★備考は 明細の 列★（役目 'memo' は 前から 在る）。 */
+T('① 足元に 備考の箱を 出さない（備考は 明細の 列＝消費税の 右隣）',
   !bad.some((x) => /備考の枠/.test(x)), bad.filter((x) => /備考の枠/.test(x)).join(' / '));
 T('② 枠15〜20行の どれでも 紙の高さ ≦ A4（黙って 切れない）',
   !bad.some((x) => /A4を/.test(x)), bad.filter((x) => /A4を/.test(x)).join(' / '));
@@ -108,23 +114,33 @@ T('② 枠15〜20行の どれでも 紙の高さ ≦ A4（黙って 切れな�
    見張りとしては 効いているが、★控除ありの 境界は 🟡未測定★。 */
 T('③ 空振りしていない（' + kazu + '通り 測った）', kazu === 18, '測った通り数 ' + kazu + '（想定 18）');
 
-/* ④ ★行数の計算と 紙の描画が 同じ 1か所を 見ているか★
-   ＝備考を 切った紙（memoBox:false）は 1行 多く 載る。
-     ここが 食い違うと「載ると 言って はみ出す」紙が 出る。 */
-await pg.setContent(paperHtml('std1', 20, { memoBox: false }), { waitUntil: 'load' });
-const off = await pg.evaluate(MEASURE);
-await pg.setContent(paperHtml('std1', 20), { waitUntil: 'load' });
-const on = await pg.evaluate(MEASURE);
-const gyoOff = (paperHtml('std1', 20, { memoBox: false }).match(/class="row"/g) || []).length;
-const gyoOn = (paperHtml('std1', 20).match(/class="row"/g) || []).length;
-T('④ 備考を出す紙は 明細の枠が 1行 少ない（計算と 描画が 同じ1か所）',
-  off.h <= A4 + 1 && on.h <= A4 + 1 && !off.memo && on.memo,
-  '備考なし ' + off.h + 'px(' + off.memo + ') ／ 備考あり ' + on.h + 'px(' + on.memo + ')');
-console.log('     実測 … 備考なし ' + off.h + 'px ／ 備考あり ' + on.h + 'px ／ A4 ' + A4.toFixed(1) + 'px');
+/* ④ ★備考は 明細の 列★（司さん 2026-09-08 の 実物＝黒田空調）
+   実物の 列 … 項目／数量／単位／金額／消費税／★備考★
+   備考に ★現場名★（東予市 川本邸・菊水ホテル…）を 1行ずつ 書いている。
+   ★役目は seikyu-cols.js に 前から 在る★（'備考'／'摘要' → memo）＝
+   会社が 設定 ▸ 明細の列 で 足せば 出る。★ここでは それを 押して 確かめる★。 */
+const COLS2 = require_(path.join(ROOT, "seikyu/lib/seikyu-cols.js"));
+const specM = COLS2.normalizeSpec({
+  items: ['項目', '数量', '単位', '金額', '消費税', '備考'],
+  widths: { '項目': 200, '数量': 46, '単位': 40, '金額': 90, '消費税': 70, '備考': 160 }, aligns: {},
+});
+const tM = TPL.getOrDefault('std1');
+const linesM = [{ name: 'エアコン洗浄', qty: 1, unit: '台', price: 12000, rate: 10, memo: '東予市　川本邸' },
+  { name: 'エアコン取替', qty: 1, unit: '台', price: 20000, rate: 10, memo: '菊水ホテル' }];
+const taxM = TAX.compute({ lines: linesM, taxMode: 'exclusive', rounding: 'floor' });
+const htmlM = PAPER.build({
+  inv: { no: 'A', issue_ymd: '2026-08-01', kind: 'invoice', lines: linesM,
+    totals: { grandTotal: taxM.grandTotal }, data: {} },
+  tax: taxM, partner: { name: '株式会社黒田空調工業', honor: '御中' },
+  org: { yago: '合同会社ZEROact', bank: '伊予銀行　今治支店　普通　4160657' },
+  template: tM, templateId: 'std1', theme: tM.theme, cols: specM, deduct: 0, deductLines: [],
+}).html;
+T('④ ★備考の 列に 現場名が 出る（消費税の 右隣）',
+  /東予市/.test(htmlM) && /菊水ホテル/.test(htmlM),
+  '★現場名が 紙に 出ていない★（備考の列の 値は line.memo）');
+T('④-2 ★備考は 明細の 列＝足元の 箱では ない',
+  !/note-memo/.test(htmlM), '★足元に 備考の箱が まだ 出ている★');
 
-/* ── ★わざと 壊して 赤に なるか★ ──
-   ＝「行数を 減らす」直しを 外した形（memoBox を 行数に 数えない）を 手で 組んで測る。
-     ★壊した数と 赤の数を 並べる★（[[feedback_hankaku_kiku_mihari_ga_ichiban_mitsukenikui]]） */
 if (SELF) {
   console.log('\n[memo-waku --self-test] わざと 直す前の形にすると はみ出すか');
   let kowashita = 0, aka = 0;
