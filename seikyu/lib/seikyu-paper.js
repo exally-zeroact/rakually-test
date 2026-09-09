@@ -903,6 +903,16 @@
       var tbl = '<table class="sums"><tbody>' + sumsRows().map(function (r) {
         return '<tr' + (r[0] ? ' class="' + r[0] + '"' : '') + '><th>' + r[1] + '</th><td>' + r[2] + '</td></tr>';
       }).join('') + '</tbody></table>';
+      /* ★備考は 締めの 左横★（2026-09-08 司さんの 実物の 並び）
+         ★2段組みは 表で 作る★（flex だと 文が 1文字ずつ 縦に 割れる＝うちの 前科）。 */
+      var mm = memoHtml();
+      var tsutsumu = function (naka) {
+        if (!mm) return naka;
+        return '<table class="foot"><tbody><tr>'
+          + '<td class="foot-l">' + mm + '</td>'
+          + '<td class="foot-r">' + naka + '</td>'
+          + '</tr></tbody></table>';
+      };
       /* ★2026-09-08 司さん「3番目の青線の所に なんの塊か 上の2つと 分かるように 何が作れや」★
          ★2026-09-08（同じ日の 2回目）司さん「項目とか内容みたいに 緑の枠つくれよ」★
          ＝①の「項目｜金額」・②の「内容｜金額」は ★薄い緑の 帯★の 見出し行。
@@ -914,11 +924,11 @@
          ★呼び名は 控除の 有無で 変える★＝引く物が 無いのに「差引」と 書かない。 */
       var sHead = textOf((inv.data && inv.data.sumsHeadLabel) || o.sumsHeadLabel
         || (showDeduct ? TH.sumsHead : TH.sumsHeadPlain));
-      if (!sHead) return tbl;
+      if (!sHead) return tsutsumu(tbl);
       /* ★右は「金額」★＝①②の 帯と 同じ 言葉（3つとも 同じ 読み方に なる） */
       var hd = '<thead><tr class="sums-hd"><th>' + esc(sHead) + '</th><td>金額</td></tr></thead>';
-      return '<table class="sums">' + hd + tbl.replace('<table class="sums">', '').replace(/<\/table>$/, '')
-        + '</table>';
+      return tsutsumu('<table class="sums">' + hd
+        + tbl.replace('<table class="sums">', '').replace(/<\/table>$/, '') + '</table>');
     }
 
     /* ── 繰越（前回の残り）★紙の頭・箱で囲まない★
@@ -1027,6 +1037,21 @@
         return (i === 0) ? t : '<span class="bank-nm">' + t + '</span>';
       }).join('<br>');
     }
+    /* ★備考の箱★（2026-09-08 司さん「おれの備考欄は 消費税の横にもって来て
+       現場名とか 書いてないか？」）
+       ★場所は 締め（小計・消費税・合計）の 左横★＝司さんの 実物の 並び。
+       ★出すか どうかは 様式が 決める★（theme.memoBox）＝控除の紙(koujo)は
+       実物11通とも 備考の枠が 無いので 出さない。会社が 切りたい時は o.memoBox=false。
+       ★中身が 空でも 枠は 出す★＝手で 現場名などを 書き足す 欄。 */
+    function memoHtml() {
+      var memo = textOf(inv.data && inv.data.memo);
+      if (memo) return '<div class="note note-memo"><div class="note-h">備考</div>'
+        + '<div class="note-b">' + esc(memo).replace(/\n/g, '<br>') + '</div></div>';
+      if (memoBoxOf(inv, o) && !isDelivery) return '<div class="note note-memo"><div class="note-h">備考</div>'
+        + '<div class="note-b note-mb"></div></div>';
+      return '';
+    }
+
     function footerBlock() {
       var left = '';
       /* ★納品書には お振込先を 出さない★（払えの紙ではない＝二重請求に見える） */
@@ -1035,17 +1060,9 @@
          枠で囲って薄く塗る（★白黒コピーでも枠は残る濃さ★）。 */
       if (bank) left += '<div class="note note-bank"><div class="note-h">お振込先</div>'
         + '<div class="note-b note-bb">' + bankHtml(bank) + '</div></div>';
-      var memo = textOf(inv.data && inv.data.memo);
-      /* ★備考の枠は 中身が 無くても 出す★（司さん 2026-09-05
-           「他2つは おれの様式のように デフォで 備考欄つけとけよ」）
-         ＝司さんの 実物の 請求書には ★空でも 備考の枠が 刷ってある★（手で 書き足す為）。
-         ★出すか どうかは 様式が 決める★（theme.memoBox）＝控除の紙(koujo)は 実物11通とも
-         備考の枠が 無いので 出さない。会社が 切りたい時は o.memoBox=false。
-         ★行数（PAPER_ROWS）は この枠を 入れて 測り直す★（下の 実測の 覚え書き）。 */
-      var memoBox = memoBoxOf(inv, o);      /* ★行数の 計算と 同じ 1か所★ */
-      if (memo) left += '<div class="note"><div class="note-h">備考</div><div class="note-b">' + esc(memo).replace(/\n/g, '<br>') + '</div></div>';
-      else if (memoBox && !isDelivery) left += '<div class="note note-memo"><div class="note-h">備考</div>'
-        + '<div class="note-b note-mb"></div></div>';
+      /* ★備考は ここには 出さない★（2026-09-08 司さん
+         「おれの備考欄は 消費税の横にもって来て 現場名とか 書いてないか？」）
+         ⇒ ★締めの 横★へ 移した（memoHtml／totalsRow が 出す）。 */
       var right = breakdownBlock();
       /* ★（内訳）が無い時は 右のマスごと出さない★＝振込先が幅いっぱい使える
          （空のマスを残すと 左が狭いままで、長い銀行名が折り返す） */
@@ -1550,19 +1567,29 @@
          ★border-collapse は継承する★＝足元の表（collapse）の中に display:table を置くと
          ★padding が丸ごと無視される★（実測 2026-08-16：枠と字の間が 1px しか無かった）。
          ＝separate に戻してから余白を付ける。 */
-      '.note-bank{display:table;border-collapse:separate;border:' + HAIR + ' solid ' + LINE + ';',
+      /* ★備考も 振込先と 同じ 箱に する★（2026-09-08 司さん
+         「振込先の塊の下に なぜ 備考って 出るん？ ここに 備考いる？」）
+         ★実測★ 前は 備考が ★高さ61px を 使っているのに 枠も 地も 無い★
+           （地 rgba(0,0,0,0)／枠 0px none）＝「備考」の字が ぽつんと 出て 下は 空白。
+         ⇒ 司さん 2026-09-05「おれの様式のように デフォで ★備考欄★つけとけよ」の
+           「欄」に なっていなかった。★同じ 箱の 見た目に そろえる★。 */
+      '.note-bank,.note-memo{display:table;border-collapse:separate;border:' + HAIR + ' solid ' + LINE + ';',
       'background:' + TH.headBg + ';border-radius:1.5mm;padding:2.4mm 4mm;margin:0 0 2.4mm;}',
-      '.note-bank .note-h{margin-bottom:1.6mm;}',
+      '.note-bank .note-h,.note-memo .note-h{margin-bottom:1.6mm;}',
 
       /* 箱の中の字は 中身なりの幅（★最低幅は残す＝1文字ずつ縦に割れない★）
          ※ .note-b とは別のクラスにしている＝「.note-b の決まり」を検査する所と混ざらないため */
-      /* ★振込先の高さは いつも同じ★（司さん 2026-08-16 の並びの統一と同じ考え）
-         名義が長くて2行になる会社と 1行の会社で ★足元の高さが変わると 載る行数も変わる★
-         （実測 2026-08-16：長い名義で +24px＝1行ぶん はみ出した）。
-         ＝★2行ぶんの高さを最初から取る★＝どの会社でも 紙の顔が同じ・行数も同じ。 */
-      '.note-bb{width:auto;min-width:22mm;min-height:83px;}',
+      /* ★振込先の 箱は 口座の 数なりの 高さ★（2026-09-08 司さん
+         「振込先の数に合わせて 背景の枠の高さを 自動で調整するべきでは？」）
+         ★前は min-height:83px 固定★＝口座1つでも 2つでも 同じ高さで
+           ★口座1つの 紙は 下が 無駄に 空いていた★（実測 中身83px／3口座で ようやく 103px）。
+         ★元の 理由（2026-08-16）★は「名義が 長い会社と 短い会社で 足元の 高さが 変わると
+           載る行数も 変わる」。⇒ ★行数の 側で 面倒を 見る★（maxRowsOf の bankRows）ので
+           箱の 高さは 中身なりで よい。★1行ぶんだけ 最低を 残す★（1文字ずつ 縦に割れない為）。 */
+      '.note-bb{width:auto;min-width:22mm;min-height:24px;}',
       /* ★空の 備考の枠★＝手で 書き足せる 広さ（2行ぶん）。罫は 振込先と 同じ濃さ。 */
       '.note-mb{min-height:40px;}',
+      '.note-memo .note-h{color:' + TH.headInk + ';font-weight:700;}',
       '.note-bank .note-h{color:' + TH.headInk + ';font-weight:700;}',
       /* 口座番号（続いた数字）だけ 大きく等幅＝読み間違いを減らす */
       /* 名義は次の行（★毎回おなじ形★＝中途半端な所で折れない） */

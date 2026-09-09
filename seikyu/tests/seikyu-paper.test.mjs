@@ -365,7 +365,20 @@ T('★★振込先は枠で囲って 口座番号を大きく等幅にする（�
        長い  「三菱UFJ信託銀行 みなとみらいランドマークタワー支店 当座 12345678 …」
              → 箱 454px・★1行目は1行のまま★・紙からはみ出さない・A4 1枚のまま */
   const cssB = PAPER.css();
-  const ruleB = (sel) => { const i = cssB.indexOf(sel + '{'); return i < 0 ? null : cssB.slice(i + sel.length + 1, cssB.indexOf('}', i)); };
+  /* ★セレクタは 1つで 書いてあるとは 限らない★（2026-09-08）
+     ＝備考の箱を 振込先と 同じ 見た目に そろえた時に `.note-bank,.note-memo{…}` と
+       まとめたので `.note-bank{` では 見つからなくなった（★見張りが 空振りする所★）。
+     ⇒ ★セレクタの 直後が「{」でも「,」でも 拾う★（同じ 決まりを 見ている）。 */
+  const ruleB = (sel) => {
+    for (let i = 0; (i = cssB.indexOf(sel, i)) >= 0; i += sel.length) {
+      const c = cssB[i + sel.length];
+      if (c !== '{' && c !== ',') continue;
+      const a = cssB.indexOf('{', i);
+      if (a < 0) return null;
+      return cssB.slice(a + 1, cssB.indexOf('}', a));
+    }
+    return null;
+  };
   ok(/display:table/.test(ruleB('.note-bank') || ''),
     '★箱が中身なりの幅でない（字の右に空きが出る）★: ' + ruleB('.note-bank'));
   ok(!/max-width/.test(ruleB('.note-bank') || ''),
@@ -389,7 +402,9 @@ T('★★振込先は枠で囲って 口座番号を大きく等幅にする（�
   const own = bankOf('伊予銀行 今治支店 普通 4160657\nカ）ゼロアクト');
   ok(/<br><span class="bank-nm">カ）/.test(own), '★会社が入れた改行を無視している★: ' + own);
   const css = PAPER.css();
-  const box = (/\.note-bank\{([^}]*)\}/.exec(css) || [])[1] || '';
+  /* ★上の ruleB と 同じ 理由★＝セレクタは 1つで 書いてあるとは 限らない
+     （`.note-bank,.note-memo{…}` に まとめた・2026-09-08）。 */
+  const box = ruleB('.note-bank') || '';
   ok(/border:[^;]*solid/.test(box), '★枠が無い（白黒コピーで箱が消える）★: ' + box);
   ok(/background:/.test(box), '薄い塗りが無い');
   const no = (/\.bank-no\{([^}]*)\}/.exec(css) || [])[1] || '';

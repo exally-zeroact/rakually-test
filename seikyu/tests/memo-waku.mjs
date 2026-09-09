@@ -131,11 +131,17 @@ if (SELF) {
   for (const id of ['std1', 'elegant']) {
     for (const waku of [18, 19, 20]) {
       kowashita++;
-      /* ★足元だけ 高くする★＝「備考の枠が 高くなったのに 行数が 知らない」状態を そのまま 作る。
-         ＝2026-09-05 に 実際に 起きた形（枠18行＋備考 で 1146px＝23px はみ出し）と 同じ。
+      /* ★足元だけ 高くする★＝「足元が 高くなったのに 行数が 知らない」状態を そのまま 作る。
+         ★2026-09-08 壊す 所を 変えた★
+           前は ★備考の枠★を 高くしていた。だが 司さん
+           「おれの備考欄は 消費税の横にもって来て」で ★備考を 締めの 横へ 移した★ので、
+           備考を 高くしても ★締めの 高さの 方が 高い＝紙は もう はみ出さない★
+           （実測 6通りとも 1123px のまま＝★壊せていない★）。
+           ⇒ ★今 足元の 高さを 決めているのは 振込先の 箱★なので そちらを 高くする。
          ★見張りが これを 見逃すなら、次に 足元を 触った日にも 見逃す★ */
       const html = paperHtml(id, waku, { memoBox: true })
-        .replace('.note-mb{min-height:40px;}', '.note-mb{min-height:140px;}');
+        .replace('.note-bb{width:auto;min-width:22mm;min-height:24px;}',
+          '.note-bb{width:auto;min-width:22mm;min-height:180px;}');
       await pg.setContent(html, { waitUntil: 'load' });
       const m = await pg.evaluate(MEASURE);
       const deta = m.h > A4 + 1;
