@@ -425,6 +425,14 @@ jobs:
         run: node seikyu/tests/koujo-paper.test.mjs
       - name: ★控除の紙 (様式を戻す/控除を空にする/呼び名を変える で赤になるかの自己確認)
         run: node seikyu/tests/koujo-paper.test.mjs --self-test
+      # ★一覧を 一覧のままに する★（司さん 2026-09-09
+      #   「確認押したら 違うページにいって／請求書先が 多くなったら ごちゃごちゃするやろ
+      #     代行請求書アプリのように 請求ごとや 何年何月分とか 全体とか 選べれるように」）
+      #   ★取引先8社×3か月＝24通で 実際に 押す★（多い時を 見ないと 意味が 無い）。
+      - name: ★一覧 (確認で別画面/一覧に紙を出さない/取引先と何年何月分でしぼる/件数と合計)
+        run: node seikyu/tests/ichiran-look.mjs
+      - name: ★一覧 (画面を変えない/しぼらない/件数を出さない/戻れない で赤になるかの自己確認)
+        run: node seikyu/tests/ichiran-look.mjs --self-test
       - name: ★請求書 1問目に様式を聞く/見本を見せる/戻って続きから (本物を動かして押す)
         run: node seikyu/tests/tpl-ask-ui.mjs
       - name: ★1問目を出さない姿へ戻したら赤になるかの自己確認

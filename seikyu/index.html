@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=c989a21d">
-<link rel="stylesheet" href="css/app.css?v=c989a21d">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=5e9bca49">
+<link rel="stylesheet" href="css/app.css?v=5e9bca49">
 </head>
 <body>
 
@@ -40,31 +40,21 @@
          ★消してはいない★（種類・状態・探す・毎月・集計は 前に 司さんが 頼んだ物）
          ＝下の「もっと」に ★1つに まとめて 畳んだ★。 -->
     <div class="card">
-      <div class="frow">
-        <div class="flabel">取引先</div>
+      <!-- ★代行請求と 同じ形★（2026-09-09 司さん
+           「代行請求書アプリのように ここでも 請求ごとや 何年何月分とか 全体とか
+             選べれるようにして」）
+           ＝代行請求の 一覧は ★select の 横並び★（.filterbar）で、
+             「全社」「全期間」は ★value="" の option 1個★。特別扱いは しない。
+             月の 選択肢は ★実データから 作る★（出した紙が 在る月だけ・新しい順）。 -->
+      <div class="bill-pick">
         <select class="finput" id="l-partner" aria-label="取引先でしぼる"></select>
+        <select class="finput" id="l-month" aria-label="何年何月分でしぼる"></select>
       </div>
+      <!-- ★何件に 絞ったか・いくらか を 必ず出す★（代行請求の #listSum と 同じ）
+           ＝「消えた」と 思わせない。 -->
+      <p class="hint" id="list-sum"></p>
       <p class="hint" id="list-hint">発行した請求書は、あとから中身を直せません（取り消して作り直します）。番号は同じ物を二度使いません。</p>
       <div class="bad" id="list-err" style="display:none"></div>
-    </div>
-
-    <!-- ★確認を押したら ここに 紙が 出る★（入力画面へ 飛ばさない） -->
-    <div class="card" id="lv-card" style="display:none">
-      <div class="card-h" id="lv-h">紙の中身</div>
-      <!-- ★入力から 移してきた 本物のボタン（id も 中身も そのまま）★
-           ＝新しい 出し口を 作らない（作ると 片方だけ 直る事故に なる）。 -->
-      <div class="btn-row">
-        <button class="btn-ghost" type="button" id="b-pdf">PDFで保存</button>
-        <button class="btn-ghost" type="button" id="b-pdfopen">PDFを開く（送る）</button>
-        <button class="btn-ghost" type="button" id="b-print">印刷 / PDF保存</button>
-        <button class="btn-ghost" type="button" id="b-delivery">納品書</button>
-        <button class="btn-ghost" type="button" id="b-xlsx">Excel</button>
-        <button class="btn-ghost" type="button" id="b-lv-close">閉じる</button>
-      </div>
-      <p class="hint">PDF・Excel は この端末の「ファイル」（ダウンロード）に 落ちます。</p>
-      <div class="bad" id="lv-err" style="display:none"></div>
-      <div class="ok" id="lv-ok" style="display:none"></div>
-      <div class="pv-wrap" id="lv-wrap"><iframe class="pv" id="lv" title="請求書の紙"></iframe></div>
     </div>
 
     <div id="list-body"></div>
@@ -125,6 +115,34 @@
        司さん 2026-08-31「代行請求書アプリのように 請求書／集計を作って 見せ方も一緒にしろ
                         なにがどこにあるとか ごちゃごちゃで分かりにくい」
        ＝月と相手を選ぶ → その紙が すぐ出る → PDF／印刷／Excel。★探し回らせない★ -->
+  <!-- ═══ ★紙を 見る（別の画面）★ ═══
+       2026-09-09 司さん「一覧の件は こうゆうことやなくて ★確認押したら 違うページにいって★
+         このやり方やったら 請求書先が 多くなったら ごちゃごちゃするやろ」
+       ＝前は 一覧の 中に 紙の箱を 出していたので、紙が 一覧に 割り込んでいた。
+       ★代行請求も 請求書そのものは 別画面★（下部ナビの「請求/集計」）。
+       ★下のタブには 出さない★＝一覧から「確認」で 来て、戻る道は 1つ。 -->
+  <section class="screen" id="scr-look">
+    <div class="card">
+      <div class="card-h" id="lv-h">紙の中身</div>
+      <div class="btn-row">
+        <button class="btn-ghost" type="button" id="b-lv-back">← 一覧へ戻る</button>
+      </div>
+      <!-- ★入力から 移してきた 本物のボタン（id も 中身も そのまま）★
+           ＝新しい 出し口を 作らない（作ると 片方だけ 直る事故に なる）。 -->
+      <div class="btn-row">
+        <button class="btn-ghost" type="button" id="b-pdf">PDFで保存</button>
+        <button class="btn-ghost" type="button" id="b-pdfopen">PDFを開く（送る）</button>
+        <button class="btn-ghost" type="button" id="b-print">印刷 / PDF保存</button>
+        <button class="btn-ghost" type="button" id="b-delivery">納品書</button>
+        <button class="btn-ghost" type="button" id="b-xlsx">Excel</button>
+      </div>
+      <p class="hint">PDF・Excel は この端末の「ファイル」（ダウンロード）に 落ちます。</p>
+      <div class="bad" id="lv-err" style="display:none"></div>
+      <div class="ok" id="lv-ok" style="display:none"></div>
+      <div class="pv-wrap" id="lv-wrap"><iframe class="pv" id="lv" title="請求書の紙"></iframe></div>
+    </div>
+  </section>
+
   <section class="screen" id="scr-bill">
     <div class="card">
       <p class="hint">月と相手を選ぶと、その請求書が下に出ます。そのまま PDF・印刷・Excel にできます。</p>
@@ -853,61 +871,61 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="../js/supa-config.js?v=c989a21d"></script>
-<script src="../lib/xlsx.full.min.js?v=c989a21d"></script>
-<script src="../js/file-out.js?v=c989a21d"></script>
-<script src="../js/suite-data.js?v=c989a21d"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=c989a21d"></script>
+<script src="../js/supa-config.js?v=5e9bca49"></script>
+<script src="../lib/xlsx.full.min.js?v=5e9bca49"></script>
+<script src="../js/file-out.js?v=5e9bca49"></script>
+<script src="../js/suite-data.js?v=5e9bca49"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=5e9bca49"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=c989a21d"></script>
-<script src="lib/seikyu-tax.js?v=c989a21d"></script>
-<script src="lib/seikyu-gensen.js?v=c989a21d"></script>
-<script src="lib/seikyu-carry.js?v=c989a21d"></script>
-<script src="lib/seikyu-cols.js?v=c989a21d"></script>
-<script src="lib/seikyu-templates.js?v=c989a21d"></script>
-<script src="../lib/toroku-no.js?v=c989a21d"></script>
-<script src="lib/seikyu-doc.js?v=c989a21d"></script>
-<script src="lib/seikyu-partner-ask.js?v=c989a21d"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=5e9bca49"></script>
+<script src="lib/seikyu-tax.js?v=5e9bca49"></script>
+<script src="lib/seikyu-gensen.js?v=5e9bca49"></script>
+<script src="lib/seikyu-carry.js?v=5e9bca49"></script>
+<script src="lib/seikyu-cols.js?v=5e9bca49"></script>
+<script src="lib/seikyu-templates.js?v=5e9bca49"></script>
+<script src="../lib/toroku-no.js?v=5e9bca49"></script>
+<script src="lib/seikyu-doc.js?v=5e9bca49"></script>
+<script src="lib/seikyu-partner-ask.js?v=5e9bca49"></script>
 <!-- ★字体を 軽くする（使う字だけ 形を 残す）★（司さん 2026-09-05「重すぎるやろが」）
      ★seikyu-pdf.js より 先に 読む★＝後だと 1通目だけ 丸ごとの 重い紙が 出る -->
-<script src="../lib/font-slim.js?v=c989a21d"></script>
-<script src="lib/seikyu-pdf.js?v=c989a21d"></script>
+<script src="../lib/font-slim.js?v=5e9bca49"></script>
+<script src="lib/seikyu-pdf.js?v=5e9bca49"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=c989a21d"></script>
-<script src="lib/seikyu-seal.js?v=c989a21d"></script>
+<script src="../js/hanko.js?v=5e9bca49"></script>
+<script src="lib/seikyu-seal.js?v=5e9bca49"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=c989a21d"></script>
+<script src="lib/seikyu-report.js?v=5e9bca49"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=c989a21d"></script>
+<script src="lib/seikyu-items.js?v=5e9bca49"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=c989a21d"></script>
+<script src="lib/seikyu-recurring.js?v=5e9bca49"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=c989a21d"></script>
+<script src="lib/seikyu-find.js?v=5e9bca49"></script>
 <!-- ★自社のExcelを そのまま使う★（読む・当てる・書く）
      ＝2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★（司さん 2026-08-31） -->
-<script src="../lib/zip-surgeon.js?v=c989a21d"></script>
-<script src="../lib/xlsx-edit.js?v=c989a21d"></script>
-<script src="lib/seikyu-book.js?v=c989a21d"></script>
-<script src="lib/seikyu-scope.js?v=c989a21d"></script>
-<script src="../lib/kikan.js?v=c989a21d"></script>
-<script src="lib/seikyu-invoice-ask.js?v=c989a21d"></script>
-<script src="lib/seikyu-paper-ask.js?v=c989a21d"></script>
-<script src="lib/seikyu-name.js?v=c989a21d"></script>
-<script src="lib/seikyu-paper.js?v=c989a21d"></script>
-<script src="lib/seikyu-aoa.js?v=c989a21d"></script>
-<script src="js/seikyu-store.js?v=c989a21d"></script>
-<script src="js/seikyu-out.js?v=c989a21d"></script>
-<script src="js/seikyu-app.js?v=c989a21d"></script>
-<script src="../js/rakunally-login.js?v=c989a21d"></script>
-<script src="js/auth.js?v=c989a21d"></script>
+<script src="../lib/zip-surgeon.js?v=5e9bca49"></script>
+<script src="../lib/xlsx-edit.js?v=5e9bca49"></script>
+<script src="lib/seikyu-book.js?v=5e9bca49"></script>
+<script src="lib/seikyu-scope.js?v=5e9bca49"></script>
+<script src="../lib/kikan.js?v=5e9bca49"></script>
+<script src="lib/seikyu-invoice-ask.js?v=5e9bca49"></script>
+<script src="lib/seikyu-paper-ask.js?v=5e9bca49"></script>
+<script src="lib/seikyu-name.js?v=5e9bca49"></script>
+<script src="lib/seikyu-paper.js?v=5e9bca49"></script>
+<script src="lib/seikyu-aoa.js?v=5e9bca49"></script>
+<script src="js/seikyu-store.js?v=5e9bca49"></script>
+<script src="js/seikyu-out.js?v=5e9bca49"></script>
+<script src="js/seikyu-app.js?v=5e9bca49"></script>
+<script src="../js/rakunally-login.js?v=5e9bca49"></script>
+<script src="js/auth.js?v=5e9bca49"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=c989a21d"></script>
+<script src="../js/env-badge.js?v=5e9bca49"></script>
 </body>
 </html>

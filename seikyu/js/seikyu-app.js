@@ -53,8 +53,8 @@
          その時の 成功／失敗を ★入力画面の 箱に 書くと 誰も 読めない★。
        ★確認の 箱が 出ている 間だけ そちらへ 回す★（口は 増やさない）。 */
     if (id === 'edit-err' || id === 'edit-ok') {
-      var lv = $('lv-card');
-      if (lv && lv.offsetParent) id = (id === 'edit-err') ? 'lv-err' : 'lv-ok';
+      var lv = $('scr-look');
+      if (lv && lv.classList.contains('active')) id = (id === 'edit-err') ? 'lv-err' : 'lv-ok';
     }
     var e = $(id); if (!e) return;
     var t = String(text == null ? '' : text);
@@ -85,11 +85,15 @@
   function goScreen(id) {
     /* ★画面の一覧は 1か所★＝ここに足し忘れると ★タブは光るのに 中身が真っ白★
        （2026-08-31 実際にそうなった＝請求/集計を足した日） */
-    ['scr-list', 'scr-edit', 'scr-set', 'scr-bill'].forEach(function (s) {
+    ['scr-list', 'scr-edit', 'scr-set', 'scr-bill', 'scr-look'].forEach(function (s) {
       var el = $(s); if (el) el.classList.toggle('active', s === id);
     });
+    /* ★scr-look は 下のタブに 無い★（一覧から「確認」で 来る画面）。
+       ここで 何も 光らせないと ★4つとも 消えて 今どこか 分からなくなる★ので、
+       ★来た元（一覧）を 光らせたまま★に する。 */
+    var hikaru = (id === 'scr-look') ? 'scr-list' : id;
     Array.prototype.forEach.call(document.querySelectorAll('.bn'), function (b) {
-      b.classList.toggle('on', b.getAttribute('data-scr') === id);
+      b.classList.toggle('on', b.getAttribute('data-scr') === hikaru);
     });
     try { global.scrollTo(0, 0); } catch (e) { /* 端末によっては動かないが害はない */ }
   }
@@ -522,8 +526,12 @@
     });
     /* ★取引先で しぼる★（2026-09-08）＝代行請求の 一覧と 同じ 1つだけの 絞り込み。
        ★選んでいない時は 全部★（黙って 減らさない）。 */
+    drawListMonths();
     var lp = $('l-partner');
     if (lp && lp.value) rows = rows.filter(function (v) { return v.partner_id === lp.value; });
+    /* ★何年何月分★（代行請求と 同じ＝空なら 素通り） */
+    var lm = $('l-month');
+    if (lm && lm.value) rows = rows.filter(function (v) { return billYm(v) === lm.value; });
     /* ★探す★（相手・番号・件名／請求日の範囲／金額の範囲。決まりは seikyu-find が唯一の正）
        ★何件から 何件に 絞ったかを 必ず出す★＝「消えた」と 思わせない。 */
     var FIND = global.SeikyuFind, before = rows.length, q = findQuery();
@@ -535,6 +543,17 @@
     } else {
       setText('q-hint', '');
     }
+    /* ★何件に 絞ったか・いくらか を 必ず出す★（代行請求の #listSum と 同じ）
+       ＝「消えた」と 思わせない。★絞り込み中★と 書くのは 実際に 絞っている時だけ。 */
+    var shibotta = !!((lp && lp.value) || (lm && lm.value));
+    var kei = 0, yomeru = 0;
+    rows.forEach(function (v) {
+      var g = v.totals && v.totals.grandTotal;
+      if (typeof g === 'number') { kei += g; yomeru++; }
+    });
+    setText('list-sum', rows.length + '件' + (shibotta ? '（絞り込み中）' : '')
+      + (yomeru ? '　合計 ' + yen(kei) + ' 円'
+        + (yomeru < rows.length ? '（金額が 入っている ' + yomeru + '件ぶん）' : '') : ''));
     if (!rows.length) {
       host.innerHTML = '<div class="card"><div class="empty">'
         + (S.invoices.length ? 'この絞り込みに当てはまる請求書はありません。' : 'まだ請求書がありません。「＋ 新しい請求書」から出せます。')
@@ -657,6 +676,29 @@
 
   /* ★一覧の 取引先の 選び★＝今 出ている 紙に 出てくる 相手だけ 並べる
      （1通も 無い 相手を 並べても 押す物が 増えるだけ）。 */
+  /** ★何年何月分で しぼる★（2026-09-09 司さん
+   *  「代行請求書アプリのように ここでも 請求ごとや 何年何月分とか 全体とか 選べれるようにして」）
+   *  ★代行請求と 同じ作り★＝出した紙が 在る月だけを 実データから 拾って 新しい順。
+   *    「全期間」は ★value="" の option 1個★（特別扱いを 作らない）。
+   *  ★月の 読み方は billYm 1本★＝「請求/集計」の 画面と 同じ物を 使う
+   *    （2か所で 別々に 切ると、片方だけ 直った時に 食い違う）。 */
+  function drawListMonths() {
+    var el = $('l-month'); if (!el) return;
+    var ima = el.value || '';
+    var mita = {}, list = [];
+    (S.invoices || []).forEach(function (v) {
+      var m = billYm(v); if (!m || mita[m]) return;
+      mita[m] = 1; list.push(m);
+    });
+    list.sort().reverse();
+    el.innerHTML = '<option value="">月をぜんぶ</option>'
+      + list.map(function (m) {
+        return '<option value="' + esc(m) + '"' + (m === ima ? ' selected' : '') + '>'
+          + esc(m.slice(0, 4) + '年' + String(Number(m.slice(5, 7))) + '月') + '</option>';
+      }).join('');
+    if (ima && el.value !== ima) el.value = '';   /* 無くなった月を 選んだままに しない */
+  }
+
   function drawListPartners() {
     var el = $('l-partner'); if (!el) return;
     var ima = el.value || '';
@@ -693,10 +735,13 @@
     /* srcdoc は 端末によって load が 来ない事が 在るので 時間でも 1度 合わせる（入力と 同じ） */
     global.setTimeout(fitLook, 260);
     setText('lv-h', (v.no || '（未採番）') + '　' + partnerName(v));
-    show($('lv-card'), true);
+    /* ★別の 画面へ 行く★（2026-09-09 司さん「確認押したら 違うページにいって」）
+       ＝前は 一覧の 中に 箱を 出していたので、取引先が 増えると 紙が 割り込んで
+         ★一覧が 一覧で なくなっていた★。 */
+    goScreen('scr-look');
     applyPaperGate();                 /* ★出せない紙の ボタンは 押させない★（入力と 同じ門） */
     box('lv-err', ''); box('lv-ok', '');
-    var c = $('lv-card'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'start' });
+    /* 画面を 移ると goScreen が 上へ 戻す＝ここで もう一度 動かさない */
   }
 
   /* ★一覧から 消す★＝下書きは 削除／発行済は 取り消し。
@@ -4239,9 +4284,12 @@
     $('b-reload').onclick = function () { return loadMasters().then(loadList); };
     /* ★一覧の 取引先の 選び★（2026-09-08） */
     if ($('l-partner')) $('l-partner').onchange = function () { renderList(); };
+    /* ★何年何月分★（2026-09-09 司さん）＝取引先と 同じ 1本の 道で 描き直す */
+    if ($('l-month')) $('l-month').onchange = function () { renderList(); };
     /* ★確認で 出した 紙の ボタン★＝作り方は 入力画面と 同じ 1本（doPdf/doPrint）。
        ★S.cur は lookPaper が すでに その1通に している★ので そのまま 使える。 */
-    if ($('b-lv-close')) $('b-lv-close').onclick = function () { show($('lv-card'), false); };
+    /* ★戻る道は 1つ★＝「← 一覧へ戻る」。下のタブの「一覧」でも 戻れる。 */
+    if ($('b-lv-back')) $('b-lv-back').onclick = function () { goScreen('scr-list'); };
 
 
     $('e-partner').onchange = function () {
