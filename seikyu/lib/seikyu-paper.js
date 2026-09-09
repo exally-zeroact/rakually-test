@@ -62,6 +62,18 @@
          ROW_H が ★一度も効いていなかった★。だから余白と行間も ここで決める。 */
   /* ★罫の太さは1か所★（濃さは THEME.line）＝紙の中に太さの違う線を作らない */
   var HAIR = '0.5pt';
+  /* ★締めの 線★＝「項目の合計」「中計」「合計」「請求額（差引請求額）」の 上の 1本。
+     ★2026-09-09 司さん「③は 中計の上の線だけ 濃いくなってるのを、
+       項目の合計と 下の請求額ってとこの 上の線も 濃いくして 統一感だせよ」★
+     ★実測（絵の 画素を 数えた／A4の 2倍の 絵）★
+       項目の合計の上 2px ／ ★中計の上 4px★ ／ 合計の上 2px ／ 請求額の上 2px
+       ＝中計だけ 濃かったのは ★別の 表（.ded と .bsum）で 線が 2本 重なっていた★から
+         （わざとでは ない。ほかは border-collapse で 1本に なる）。
+     ⇒ ★濃い方に そろえる★＝4本とも この太さ。重なりは 下の .ded で 止める。
+     ★太さは 1pt では 変わらない★（実測 2026-09-09）＝1pt=1.33px は ブラウザ が
+       0.5pt と 同じ 1CSSpx に 丸めるので ★絵が 1ドットも 変わらなかった★。
+       司さんが 見ていた「濃い 中計」は ★2CSSpx（絵の 上で 4px）★＝1.5pt。 */
+  var RULE_SUM = '1.5pt';
   /* ★表の外側の余白は1つ★（司さん 2026-08-16「左揃えか中央か右かきっちりやれ」）
      明細・締め・控除・（内訳）で バラバラ（1.2mm と 3mm）だったので、
      ★数字の右端が表ごとに違う位置★に来ていた。ここで1つに決める。 */
@@ -363,33 +375,19 @@
     if (st.memoBox !== undefined && st.memoBox !== null) return !!st.memoBox;
     return false;
   }
-  /* ★すきま自動★（2026-09-08 司さん
-     「赤丸の隙間を 自動で調整する版の これも テンプレに 加えといたら
-       細々した調整も いらんやろ？」）
-     ＝明細が 少ない月に ★表の 下に 大きな 空白★が 出るのを やめる。
-     ★枠の 行数を 中身なりに する★＝空行を 埋めない（上限は そのまま 効く）。
-     ★様式が 決める★（theme.autoRows）＝実物どおり 空行を 残す 様式は そのまま。 */
-  function autoRowsOf(inv, o) {
-    o = o || {};
-    if (o.autoRows !== undefined && o.autoRows !== null) return !!o.autoRows;
-    var st = Object.assign({}, o.theme || {}, o.style || {}, (inv && inv.data && inv.data.style) || {});
-    return !!st.autoRows;
-  }
+  /* ★★「すきま自動」は 消しました★★（2026-09-09）
+     司さん「★項目入力行や 控除入力行は なんもなくても デフォで 何行って 決めてないか？
+       それ以上 増えた時だけ A4に 収まるような 増やせって 設定したど★」
+     ＝★空行を 出さない のは この 決めに 反する★。
+     ★今の 動き（2026-09-09 実測）★
+       既定の 枠 … 控除なし 18行／控除あり 7行（なんも 無くても この行数）
+       明細 18件までは 1枚・★19件目から 2枚目に 増える★（A4に 収まる 範囲で）
+     ⇒ 決めは もう 効いている。様式 slim（すきま自動）も 消した。 */
   function frameRowsOf(inv, o) {
     o = o || {};
     var given = (o.paperRows !== undefined ? o.paperRows : (inv && inv.data && inv.data.paperRows));
     var ded = (o.showDeductResolved !== undefined) ? !!o.showDeductResolved : showDeductOf(inv, o);
     var max = maxRowsOf(ded, o.rateRows, o.dedLines, o.bankRows, memoBoxOf(inv, o));
-    /* ★すきま自動★＝この様式を 選んだら ★行数の 設定より 先★
-       ★2026-09-08 直した★ はじめは「会社が 行数を 決めていない時だけ」に していたが、
-       ★設定に 行数が 残っている 会社では 何も 変わらなかった★
-       （見本でも std1 と 同じ絵に なり、state-seikyu が「見本が 嘘」と 赤にした）。
-       司さんの 言葉は「★細々した調整も いらんやろ？★」＝
-       ★この様式を 選ぶ事が「行数は もう いじらない」という 決め★。 */
-    if (autoRowsOf(inv, o)) {
-      var kazu = ((inv && inv.lines) || []).length;
-      return Math.max(1, Math.min(kazu, max));
-    }
     var n = Math.max(0, Math.trunc(Number(given) || max));
     /* ★物理の上限で頭打ち★＝紙は A4 固定なので、これ以上は載せると切れる。
        ★黙って切らない★＝ここで止めて、残りは2枚目に送る。画面はその事を人に言う。 */
@@ -632,12 +630,7 @@
       /* ★備考の枠も 行数に 効く★（+23px＝明細 1行ぶん）。
          ★ここへ 渡し忘れると 行数の 計算だけ 知らないまま になり、
            「載る」と 言って ★はみ出す★紙が 出る（2026-09-05 実測 1146px）。 */
-      memoBox: memoBoxOf(inv, o),
-      /* ★すきま自動も ここへ 渡す★（2026-09-08）
-         ★渡し忘れると theme が 見えない★＝様式で「すきま自動」を 選んでも
-         枠が 18行のまま＝★選んだのに 何も 変わらない★（実測で 踏んだ）。
-         memoBox と まったく 同じ 形＝★行数に 効く物は 全部 ここに 並べる★。 */
-      autoRows: autoRowsOf(inv, o) };
+      memoBox: memoBoxOf(inv, o) };
     frameRows = frameRowsOf(inv, planInput);
     var gen = o.gensen || null;     // ★源泉徴収（引く紙だけ）★
     var carry = o.carry || null;    // ★繰越（前回の残り）★
@@ -905,12 +898,23 @@
          ★数は 1円も 変えない★＝ここは 今までどおり tax.subtotal（税抜）。 */
       rows.push(['', allPfx + '小計' + (inclusive ? '（税抜）' : ''), yen(tax.subtotal)]);
       rows.push(['', allPfx + taxLabel(tax, inv.tax_mode), yen(tax.taxTotal)]);
-      rows.push(['sums-mid', '合計', yen(tax.grandTotal)]);
+      /* ★控除を 引く 紙では ここは「中計」★（2026-09-09 司さん
+         「2個目の赤丸の 合計は ★中計★」）
+         ＝下に 控除を 引いた ★合計★が 来るので、ここは まだ 途中の 計。
+         ★控除が 無い 紙は 今までどおり「合計」★（引く物が 無い＝ここが 最後）。 */
+      rows.push(['sums-mid', (showDeduct && (deduct === null || Number(deduct) !== 0)) ? '中計' : '合計',
+        yen(tax.grandTotal)]);
       var hasRealDeduct = showDeduct && (deduct === null || Number(deduct) !== 0);
       if (hasRealDeduct) {
         var billedNet = (deduct === null) ? null : (tax.grandTotal - deduct);
         rows.push(['sums-minus', '控除', (deduct === null) ? '（未確認）' : yen(deduct)]);
-        rows.push(['', '請求額', (billedNet === null ? '（未確認）' : yen(billedNet))]);
+        /* ★いちばん下は「合計」★（2026-09-09 司さん
+           「3個目の赤丸の 差引請求額は ★合計★の方が えんやないか？」）
+           ＝上から 小計 → 消費税 → 中計 → 控除 → ★合計★ と 下りて 終わる。
+             ③の 帯の 見出し（差引請求額）は ★この 塊の 名前★で、
+             ここは ★その 塊の いちばん下の 数★＝役目が 違う。 */
+        rows.push(['', textOf(TH.finalLabel) || '合計',
+          (billedNet === null ? '（未確認）' : yen(billedNet))]);
       }
       if (gen && gen.on) {
         var pay = DOC.payableOf(tax, carry, gen, deduct);
@@ -920,6 +924,16 @@
       rows[rows.length - 1][0] = 'sums-net';
       return rows;
     }
+    /* ★締めの 帯の 呼び名は ここ 1か所★（2026-09-09）
+       ＝③の 帯（見出し）と いちばん下の 行が ★同じ 字★に なる。
+       会社が 変えたい時は inv.data.sumsHeadLabel か o.sumsHeadLabel。
+       ★引く物が 無い 紙は 別の 呼び名★（sumsHeadPlain＝合計金額）
+         ＝控除が 無いのに「差引」と 書かない。 */
+    function sumsHeadOf() {
+      return textOf((inv.data && inv.data.sumsHeadLabel) || o.sumsHeadLabel
+        || (showDeduct ? TH.sumsHead : TH.sumsHeadPlain));
+    }
+
     /* 締めの一番 下の行＝★この紙で実際に払う額★（字のまま返す＝「（未確認）」もそのまま） */
     function payTextOf() {
       var r = sumsRows();
@@ -943,8 +957,7 @@
       /* ★控除が 無い 紙にも 帯を 出す★（2026-09-08 司さん
          「この赤の線にも 控除ありの時のように 分かりやすくやって」）
          ★呼び名は 控除の 有無で 変える★＝引く物が 無いのに「差引」と 書かない。 */
-      var sHead = textOf((inv.data && inv.data.sumsHeadLabel) || o.sumsHeadLabel
-        || (showDeduct ? TH.sumsHead : TH.sumsHeadPlain));
+      var sHead = sumsHeadOf();
       if (!sHead) return tbl;
       /* ★右は「金額」★＝①②の 帯と 同じ 言葉（3つとも 同じ 読み方に なる） */
       var hd = '<thead><tr class="sums-hd"><th>' + esc(sHead) + '</th><td>金額</td></tr></thead>';
@@ -1474,14 +1487,14 @@
          給料明細の「支給合計」と同じ役目だが、★列がある表では 表の中に置く★。 */
       /* ★見出しの地色を引き継がない★（th なので .items th の薄い地が乗って、
          合計行の左半分だけ塗られて見えた＝2026-08-15 スクショで発見） */
-      '.items tfoot .r-sum th,.items tfoot .r-sum td{background:transparent;border-top:' + HAIR + ' solid ' + LINE + ';',
+      '.items tfoot .r-sum th,.items tfoot .r-sum td{background:transparent;border-top:' + RULE_SUM + ' solid ' + LINE + ';',
       'border-bottom:0;padding:' + ROW_PAD + ';line-height:' + ROW_LH + ';font-weight:700;color:' + INK + ';}',
       '.items tfoot .r-sum td{' + "font-family:'DM Mono',ui-monospace,monospace;}",
       '.c-sumlabel{text-align:left;white-space:nowrap;}',
       '.bsum{width:100%;border-collapse:collapse;font-size:9.5pt;margin:0;}',
-      '.bsum th{text-align:left;font-weight:700;color:' + INK + ';border:0;border-top:' + HAIR + ' solid ' + LINE + ';',
+      '.bsum th{text-align:left;font-weight:700;color:' + INK + ';border:0;border-top:' + RULE_SUM + ' solid ' + LINE + ';',
       'padding:1.8mm ' + EDGE + ';white-space:nowrap;}',
-      '.bsum td{text-align:right;font-weight:700;color:' + INK + ';border:0;border-top:' + HAIR + ' solid ' + LINE + ';',
+      '.bsum td{text-align:right;font-weight:700;color:' + INK + ';border:0;border-top:' + RULE_SUM + ' solid ' + LINE + ';',
       'padding:1.8mm ' + EDGE + ';white-space:nowrap;' + "font-family:'DM Mono',ui-monospace,monospace;}",
 
       /* ★② 差し引く（控除）★ ★行の高さは明細と同じ★（左右の罫線をそろえる） */
@@ -1497,6 +1510,9 @@
       'font-size:8.5pt;border:0;padding:' + ROW_PAD + ';line-height:1.35;height:auto;}',
       '.ded-hd td{text-align:right;font-family:inherit;}',
       '.ded .r-blank th,.ded .r-blank td{color:transparent;}',
+      /* ★線を 2本 重ねない★＝控除の表の 最後の行の 下罫を 止める
+         （すぐ下の .bsum が 自分で 上罫を 引く。重なると そこだけ 濃くなる）。 */
+      '.ded tbody tr:last-child th,.ded tbody tr:last-child td{border-bottom:0;}',
       /* ★3つ目の 塊の 帯★（2026-09-08 司さん「項目とか内容みたいに 緑の枠つくれよ」）
          ★.ded-hd と 1文字も 違わない★＝新しい 見た目を 作らない。
          別の 名前に するのは ★.sums th の 字の色が 後から 上書きして しまう★為
@@ -1505,7 +1521,10 @@
          同じ 強さ（0,1,1）だと ★後に 書いてある .sums th の 薄い字が 勝つ★＝
          ③の 帯だけ 字が 薄く 見えた（①②は 濃い黒）。
          ⇒ .sums を 前に 足して 強さを 上げる（値は .ded-hd と 同じまま）。 */
-      '.sums .sums-hd th,.sums .sums-hd td{background:' + TH.headBg + ';color:' + TH.headInk + ';font-weight:700;',
+      /* ★締めの 見出しの 地★＝様式が 別に 決めていれば そちら（TH.sumsBg）。
+         2026-09-09 司さん「なんで②だけ 下の合計金額のタブに 背景いれて 合わせてないんど」
+         ＝地を 使わない 様式（elegant）では ★ここだけ 帯が 抜けて 見えた★。 */
+      '.sums .sums-hd th,.sums .sums-hd td{background:' + (TH.sumsBg || TH.headBg) + ';color:' + TH.headInk + ';font-weight:700;',
       'font-size:8.5pt;border:0;padding:' + ROW_PAD + ';line-height:1.35;height:auto;}',
       '.sums .sums-hd td{text-align:right;font-family:inherit;}',
 
@@ -1532,11 +1551,11 @@
       /* ★途中の「合計」は途中★＝細い線だけ。ここを太くすると
          「合計＝太字／請求額＝細字」になり、★払う額の方が弱く見える★
          （2026-08-15 実物のスクショで見つけた。給料明細も最後の行が主役）。 */
-      '.sums-mid th,.sums-mid td{border-top:' + HAIR + ' solid ' + LINE + ';color:' + INK + ';}',
+      '.sums-mid th,.sums-mid td{border-top:' + RULE_SUM + ' solid ' + LINE + ';color:' + INK + ';}',
       /* 締めの中の枝（本文より少し小さく・罫は引かない） */
       '.sums-sub th,.sums-sub td{color:' + SUB + ';font-size:9pt;}',
       /* ★締めの最後の1行＝実際に払う額★ 大きさは変えず、線と太さで一番 強くする。 */
-      '.sums-net th,.sums-net td{border-top:' + HAIR + ' solid ' + LINE + ';font-weight:700;color:' + INK + ';}',
+      '.sums-net th,.sums-net td{border-top:' + RULE_SUM + ' solid ' + LINE + ';font-weight:700;color:' + INK + ';}',
       '.sums-net td{color:' + TH.grandInk + ';}',
 
       /* （内訳）★枠で囲まない★ */

@@ -42,12 +42,41 @@ const n = await pg.evaluate(() => {
     na: [...document.querySelectorAll('.tpl-pick .tpl-nm')].map((e) => e.textContent.trim()) };
 });
 await pg.waitForTimeout(600);
-const f = path.join(OUT, 'youshiki-5mai.png');
-const card = await pg.$('#s-tpl-card');
-if (card && n.takasa > 0) await card.screenshot({ path: f }); else await pg.screenshot({ path: f, fullPage: true });
+
+/* ★1枚ずつ 原寸で★（司さん 2026-09-09「1個ずつちゃんと見せて」）
+   ★見本の 中身そのもの★を 取り出して A4の 大きさで 撮る。
+   iframe を そのまま 撮ると ★後ろの ページごと 写る★（1回 やらかした）。
+   srcdoc は 見本が 実際に 表示している HTML そのもの＝作り直していない。
+   中の 縮尺の script は 窓の 大きさで 決まるので、窓を A4に すると 1倍に なる。 */
+const shots = await pg.evaluate(() =>
+  [...document.querySelectorAll('.tpl-shot iframe')].map((f) => f.getAttribute('srcdoc')));
+const pg2 = await b.newPage({ viewport: { width: 794, height: 1123 }, deviceScaleFactor: 2 });
+const fs2 = [];
+for (let i = 0; i < shots.length; i++) {
+  const na = (n.na[i] || ('youshiki' + i));
+  await pg2.setContent(shots[i], { waitUntil: 'load' });
+  await pg2.waitForTimeout(500);
+  const sh = await pg2.$('.sheet');
+  const f2 = path.join(OUT, 'youshiki-' + (i + 1) + '.png');
+  if (sh) await sh.screenshot({ path: f2 }); else await pg2.screenshot({ path: f2 });
+  const ha = await pg2.evaluate(() => {
+    const s = document.querySelector('.sheet'); if (!s) return null;
+    const r = s.getBoundingClientRect();
+    const hd = [...s.querySelectorAll('thead th, .items th')].map((e) => e.textContent.trim()).filter(Boolean);
+    return { w: Math.round(r.width), h: Math.round(r.height), naka: Math.round(s.scrollHeight), hd: hd };
+  });
+  const st2 = fs.statSync(f2);
+  fs2.push({ na: na, f: f2, byte: st2.size, ha: ha,
+    sha: createHash('sha256').update(fs.readFileSync(f2)).digest('hex').slice(0, 12) });
+}
 await b.close(); srv.close();
-const st = fs.statSync(f);
 console.log('見本 ' + n.mai + '枚 ／ 箱 ' + n.haba + '×' + n.takasa + 'px');
-console.log('  ' + n.na.join(' ／ '));
-console.log('バイト ' + st.size + ' ／ sha256 ' + createHash('sha256').update(fs.readFileSync(f)).digest('hex').slice(0, 16));
-console.log('  ' + f);
+for (const x of fs2) {
+  console.log('  ' + x.na);
+  console.log('      紙 ' + (x.ha ? x.ha.w + '×' + x.ha.h + 'px（中身 ' + x.ha.naka + 'px）' : '?')
+    + ' ／ ' + x.byte + 'バイト sha ' + x.sha);
+  console.log('      列 … ' + (x.ha && x.ha.hd.length ? x.ha.hd.join(' / ') : '（読めない）'));
+  console.log('      ' + x.f);
+}
+const shas = fs2.map((x) => x.sha);
+console.log(new Set(shas).size === shas.length ? ('★' + shas.length + '枚とも 別の絵★') : '★同じ絵が 混ざっている★');

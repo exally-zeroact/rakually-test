@@ -954,7 +954,17 @@
       inv: dedMihon({ no: '（見本）', issue_ymd: todayYmd(), kind: 'invoice', lines: ln,
         totals: { grandTotal: t.grandTotal }, data: {}, template_id: id }, id),
       tax: t, partner: { name: '（取引先）', honor: '御中' },
-      org: Object.assign({}, S.org || {}, { bank: settings().bank }),
+      /* ★振込先も 見本を 入れる★（2026-09-09 司さん「ほんで振込先は？」）
+         ★実測★ 見本は 会社の設定の 振込先を そのまま 使うので、
+           まだ 口座を 入れていない 会社では ★足元が 空っぽの 見本★に なっていた
+           （4様式とも）。振込先は ★載る行数にも 効く★ので、
+           見本と 本物の 紙で 見え方が ずれる。
+         ⇒ 設定が 空の時だけ ★（見本）と 分かる 口座★を 入れる。
+           ★入っている 会社は そのまま★＝本物の 口座で 見える。 */
+      org: Object.assign({}, S.org || {}, {
+        /* ★名義は 書かない★＝配る物に 別の会社名を 残さない
+           （tests/own-name.test.mjs が 捕まえた。見本の 会社名は 合同会社Rakunally だけ）。 */
+        bank: settings().bank || '（見本）銀行 ◯◯支店 普通 1234567' }),
       template: TPL.getOrDefault(id), templateId: id,
       /* ★ここにも theme が 要る★（2026-09-09 実測）
          ★紙は o.template を 見ていない★＝o.theme／o.style／inv.data.style だけ

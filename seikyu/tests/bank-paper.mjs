@@ -95,11 +95,11 @@ console.log('\n[bank-paper] 口座を 何個 出しても 紙から 字が 消�
      ★控除ありも ずっと std1 で 測っていた＝koujo は 一度も 測っていなかった★。
    ⇒ ★本当の 様式の 名前を 3つとも 名指しで 回す★（36通り → 108通り）。
    ★見張りは「見る範囲」を 先に 数えて 書く★（うちの 決まり）。 */
-/* ★様式は 増えたら ここも 増やす★（2026-09-09 slim／genba を 足した）
+/* ★様式は 増えたら ここも 増やす★（2026-09-09 genba を 足した／slim は 消した）
    ★前の やらかし★ 2026-09-08、ここに 在りもしない 'ded1' と 書いていて
    ★黙って std1 に 落ちて 控除の紙が 一度も A4で 測られていなかった★。
    ⇒ 下で ★名前が 本当に 在るか★ も 見る。 */
-const YOSHIKI = ['std1', 'elegant', 'koujo', 'slim', 'genba'];
+const YOSHIKI = ['std1', 'elegant', 'koujo', 'genba'];
 const cases = [];
 for (const tpl of YOSHIKI) {
   for (const bankN of [1, 2, 3, 4, 5, 6]) {

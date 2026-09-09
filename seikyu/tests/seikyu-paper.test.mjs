@@ -525,7 +525,9 @@ T('★★複数ページの決まり（何枚のうち何枚目・宛名は全�
     ok(/T1234567890123/.test(flat), (i + 1) + '枚目に登録番号が無い');
     const last = (i === sheets.length - 1);
     // ★締め・控除・振込先・（内訳）は最後の1枚だけ★（途中に出すと二重に見える）
-    eq(/請求額/.test(flat), last, (i + 1) + '枚目の締めの出し方が違う');
+    /* ★締めが 在るかは 印（sums-net＝いちばん下の 行）で 見る★
+       ＝呼び名（2026-09-09 に「請求額」→「合計」）が 変わっても 効く。 */
+    eq(p.indexOf('<tr class="sums-net"') >= 0, last, (i + 1) + '枚目の締めの出し方が違う');
     eq(/お振込先/.test(flat), last, (i + 1) + '枚目の振込先の出し方が違う');
     eq(/控除計/.test(flat), last, (i + 1) + '枚目の控除の出し方が違う');
     // ★途中の紙は「このページの小計」と「次ページへ続く」★
@@ -578,7 +580,16 @@ T('★★（内訳）は明細と同じ寸法（字・行の高さ・余白）�
   ok(/<colgroup>/.test(PAPER.build(sample()).html), '★列の幅を決める colgroup が無い★');
 });
 
-T('★★紙の線は1種類（太さも濃さも1つ）★★', () => {
+T('★★紙の線は 役目ごとに 1種類（色は 1つ・太さは 2つまで）★★', () => {
+  /* ★2026-09-09 決めが 変わった★（司さん
+       「③は 中計の上の線だけ 濃いくなってるのを、項目の合計と 下の請求額ってとこの
+         上の線も 濃いくして 統一感だせよ」）
+     ＝★締めの 線（項目の合計・中計・合計・差引請求額の 上）は 太い★／
+       ★明細や（内訳）の 罫は 細い★ の 2種類に なった。
+     ★見張りの 芯は 変えていない★＝「思いつきで 線を 増やすな」。
+       ⇒ ①色は ★1つだけ★（濃さで 遊ばない）
+         ②太さは ★2つまで★（細い罫／太い締め）
+         ③太い方は ★締めの 4か所だけ★（数えて 確かめる） */
   const css = PAPER.css();
   const found = {};
   for (const m of css.matchAll(/border(?:-top|-bottom|-left|-right)?\s*:\s*([^;}]+)/g)) {
@@ -589,8 +600,23 @@ T('★★紙の線は1種類（太さも濃さも1つ）★★', () => {
     found[w + ' ' + c.toUpperCase()] = (found[w + ' ' + c.toUpperCase()] || 0) + 1;
   }
   const kinds = Object.keys(found);
-  eq(kinds.length, 1, '★紙の中に線が ' + kinds.length + ' 種類ある（1種類にそろえる）★: '
+  const iro = [...new Set(kinds.map((k) => k.split(' ')[1]))];
+  eq(iro.length, 1, '★線の 色が ' + iro.length + ' 種類ある（1つに そろえる）★: ' + JSON.stringify(found));
+  const futosa = [...new Set(kinds.map((k) => k.split(' ')[0]))];
+  ok(futosa.length <= 2, '★線の 太さが ' + futosa.length + ' 種類ある（細い罫と 太い締めの 2つまで）★: '
     + JSON.stringify(found));
+  /* ★太い方は 締めの 線だけ★＝ほかに こっそり 太い線を 足していないか 数える */
+  if (futosa.length === 2) {
+    const kazu = (x) => Number(String(x).replace(/[^\d.]/g, ''));
+    const futoi = futosa.map(kazu).sort((a, b) => b - a)[0];
+    const key = kinds.filter((k) => kazu(k.split(' ')[0]) === futoi)[0];
+    const shimeSel = ['.r-sum', '.bsum th', '.bsum td', '.sums-mid', '.sums-net'];
+    shimeSel.forEach((sel) => ok(css.indexOf(sel) >= 0, '★締めの 決まりが 無い★ ' + sel));
+    ok(found[key] === shimeSel.length,
+      '★太い線が 締めの ' + shimeSel.length + ' か所 以外にも 在る★: ' + key + ' が ' + found[key] + ' 回');
+    console.log('     細い罫 ' + kinds.filter((k) => k !== key)[0]
+      + ' ／ 太い締め ' + key + '（' + found[key] + 'か所＝' + shimeSel.join(' / ') + '）');
+  }
 });
 
 T('★★線の向きが揃っている（合計の線は上・表そのものに下線を引かない）★★', () => {
@@ -969,7 +995,9 @@ T('★★控除を引いた「請求額」が紙に出る（頭の金額も引�
      「控除で引くもの分かっとんのに マイナス表記にすんなや」）
      ＝「控除」と書いてある行の額は 引く物と 分かる。 */
   ok(!/-¥11,340/.test(flat), '★控除に マイナスを付けている★: ' + flat.slice(-260));
-  ok(/請求額/.test(flat), '★請求額の行が紙に無い★');
+  /* ★2026-09-09 呼び名が 変わった★（司さん「3個目の赤丸の 差引請求額は 合計の方が えんやないか？」）
+     ＝締めの いちばん下は「合計」。★字だけを 見ずに 額と 組で 見る★（別の「合計」に 釣られない）。 */
+  ok(flat.indexOf('合計 ¥281,260') >= 0, '★引いたあとの 額の行が 紙に無い★: ' + flat.slice(-260));
   ok(/¥281,260/.test(flat), '★実際に請求している額が紙に出ていない★');
   // ★紙の頭の金額も 引いたあと★（ここだけ控除前だと、頭と足元で食い違う）
   const head = /（税込）\s*¥([\d,]+)/.exec(flat);
@@ -979,7 +1007,7 @@ T('★★控除を引いた「請求額」が紙に出る（頭の金額も引�
 
 T('★控除が無い紙は 今までどおり（控除の行も請求額の行も出さない）', () => {
   const flat = PAPER.build(sample()).html.split('</head>')[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  ok(!/請求額/.test(flat), '控除が無いのに「請求額」の行が出ている');
+  ok(!/差引請求額/.test(flat), '控除が無いのに「差引請求額」の帯が出ている');
   ok(!/-¥/.test(flat.replace(/-¥0\b/g, '')), '控除が無いのに引き算の行が出ている');
 });
 
@@ -1143,7 +1171,7 @@ T('★★控除が読めない時は 請求額も数字にしない（引き忘�
   const h = framed(3, { deduct: null, deductLines: [{ name: '弁当代', amount: null }] }).html;
   const flat = h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   ok(/控除計 （未確認）/.test(flat), '控除計が（未確認）になっていない: ' + flat.slice(-300));
-  ok(/請求額 （未確認）/.test(flat), '★控除が読めないのに請求額を数字で出している★');
+  ok(/合計 （未確認）/.test(flat), '★控除が読めないのに 引いたあとの額を 数字で出している★');
   // 頭の金額も数字にしない
   ok(!/（税込） ¥/.test(flat) || /（税込） （未確認）/.test(flat), '★頭の金額が控除前の数字のまま★');
 });
@@ -1151,7 +1179,9 @@ T('★★控除が読めない時は 請求額も数字にしない（引き忘�
 T('★控除計は1か所だけ（同じ物を2か所に出さない）', () => {
   const flat = framed(3).html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   eq((flat.match(/控除計/g) || []).length, 1, '★控除計が2か所に出ている★');
-  eq((flat.match(/請求額/g) || []).length, 1, '請求額が2か所に出ている');
+  /* ★締めの いちばん下の 行は 1本だけ★（印で 数える＝呼び名に よらない） */
+  eq((framed(3).html.split('<tr class="sums-net"').length - 1), 1,
+    '締めの いちばん下の 行が 2か所に出ている');
 });
 
 T('★① 明細 → ② 控除 → ③ 締め の順で紙に出る（給料明細と同じ作法）', () => {
@@ -1198,7 +1228,7 @@ T('★★締めの中で一番 強いのは「請求額」（途中の合計よ�
   ok(/sums-net/.test(lastOf(noDed)) && /合計/.test(lastOf(noDed)),
     '★差し引きの無い紙で「合計」が細字のまま（払う額が一番 弱い）★: ' + lastOf(noDed));
   const withDed = framed(3).html;
-  ok(/sums-net/.test(lastOf(withDed)) && /請求額/.test(lastOf(withDed)), '控除ありの紙の最後が請求額でない');
+  ok(/sums-net/.test(lastOf(withDed)) && /合計/.test(lastOf(withDed)), '控除ありの紙の最後が「合計」でない');
   eq(cnt(noDed).length, 1, '★締めの中に強い行が2つ以上ある★');
   eq(cnt(withDed).length, 1, '★締めの中に強い行が2つ以上ある（控除あり）★');
 });
@@ -1221,13 +1251,14 @@ T('★★締めの筋道で 小計＋消費税−控除 ＝ 請求額 が必ず�
     const r = framed(n, { deduct: 300, deductLines: [{ name: '立替', amount: 300 }] });
     const S = sumsOfPaper(r.html);
     ok(typeof S['小計'] === 'number', n + '行: 小計が読めない（' + JSON.stringify(S) + '）');
-    ok(typeof S['合計'] === 'number' && typeof S['控除'] === 'number' && typeof S['請求額'] === 'number',
+    /* ★2026-09-09 呼び名★ 小計 → 消費税 → ★中計★ → 控除 → ★合計★ */
+    ok(typeof S['中計'] === 'number' && typeof S['控除'] === 'number' && typeof S['合計'] === 'number',
       n + '行: 締めの数が読めない（' + JSON.stringify(S) + '）');
     const tx = S[Object.keys(S).find((k) => /^消費税/.test(k))];
-    eq(S['小計'] + tx, S['合計'], n + '行: ★小計＋消費税 ≠ 合計★');
+    eq(S['小計'] + tx, S['中計'], n + '行: ★小計＋消費税 ≠ 中計★');
     /* ★控除は マイナスを付けずに 出す★（司さん 2026-08-31）＝紙の上では「引く額」を そのまま書く。
        ★辻褄は ここで 引いて 合わせる★（数が合っている事は 変わらず 見張る）。 */
-    eq(S['小計'] + tx - S['控除'], S['請求額'], n + '行: ★紙の中で辻褄が合っていない★');
+    eq(S['小計'] + tx - S['控除'], S['合計'], n + '行: ★紙の中で辻褄が合っていない★');
     ok(S['控除'] > 0, n + '行: 控除の額が出ていない');
   }
 });
@@ -1239,7 +1270,7 @@ T('★★控除が0件の紙でも成り立つ（控除の行を出さない・�
     const tx = S[Object.keys(S).find((k) => /^消費税/.test(k))];
     eq(S['小計'] + tx, S['合計'], n + '行: ★控除の無い紙で辻褄が合っていない★');
     ok(!('控除' in S), n + '行: ★控除0件なのに 締めに控除の行を出している★');
-    ok(!('請求額' in S), n + '行: ★合計と同じ数を 請求額として もう1回 出している★');
+    ok(!('中計' in S), n + '行: ★控除が0件なのに 途中の計（中計）を 出している★');
     ok(!/控除計/.test(r.html), n + '行: 控除が無いのに控除計が出ている');
   }
 });
@@ -1360,15 +1391,16 @@ T('★★それぞれのブロックの下に そのブロックの合計が出�
   const flat = framed(3).html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   ok(/小計/.test(flat), '★左ブロックの合計が無い★');
   ok(/控除計/.test(flat), '★右ブロックの合計が無い★');
-  ok(/請求額/.test(flat), '締めの請求額が無い');
+  ok(framed(3).html.indexOf('<tr class="sums-net"') >= 0, '★締めの いちばん下の 行が無い★');
   /* ★2026-09-03（指示役の裁定＝案B）★ 1枚物の紙は ★表の中に 合計行を 出さない★
      （同じ「小計」が 2回 出ていた／実物45枚では ★0回★の言葉）。
      ⇒ 1枚物では 「小計」は ★締めにだけ★ 在る＝控除計の 後に 来る。
        ★順番の用（払う額までの筋道）は 締めの中で 見る★（下の「締めの筋道」の試験が 本体）。 */
-  ok(flat.indexOf('控除計') < flat.indexOf('請求額'), '控除計より先に請求額が出ている');
+  const h3 = framed(3).html;
+  ok(h3.indexOf('控除計') < h3.indexOf('<tr class="sums-net"'), '控除計より先に 締めの いちばん下が出ている');
   const sumsFlat = ((/<table class="sums">([\s\S]*?)<\/table>/.exec(framed(3).html) || [])[1] || '')
     .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  ok(sumsFlat.indexOf('小計') < sumsFlat.indexOf('請求額'), '★締めの中で 小計より先に 請求額が出ている★');
+  ok(sumsFlat.indexOf('小計') < sumsFlat.lastIndexOf('合計'), '★締めの中で 小計より先に 払う額が出ている★');
   /* ★「ブロックの合計」と「払う額までの筋道」は役目が違う★（司さん 2026-08-15）
      ・表の中の合計行（列の真下）＝そのブロックの足し算
      ・締めの1本の筋道（小計→消費税→合計→控除→請求額）＝払う額の出し方
@@ -1401,8 +1433,8 @@ T('★★紙の中で一番 大きい金額は1つだけ＝客が払う額★★
   const flat = framed(3, { deduct: 300, deductLines: [{ name: '立替', amount: 300 }] })
     .html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const head = /（税込）\s*¥([\d,]+)/.exec(flat);
-  const bill = /請求額\s*¥([\d,]+)/.exec(flat);
-  ok(head && bill, '頭の金額か請求額が読めない');
+  const bill = /控除\s*¥[\d,]+\s*合計\s*¥([\d,]+)/.exec(flat);
+  ok(head && bill, '頭の金額か 払う額が読めない: ' + flat.slice(-200));
   eq(head[1], bill[1], '★頭の大きい金額が、客が払う額と違う★');
 });
 
@@ -1413,11 +1445,11 @@ T('★★1カラム版が出る（上から ①明細 → ②差し引く → �
   /* ★2026-09-03（案B）★ 1枚物は 表の中に 合計行が 無い＝「小計」は 締めにだけ。
      ⇒ 順番の用（①明細 → ②差し引く → ③締め）は ★ブロックの見出しで 見る★
        （「控除計」＝②の合計 → 「請求額」＝③の締め）。 */
-  ok(flat.indexOf('控除計') < flat.indexOf('請求額'), '1カラムの順番が違う（②→③）');
+  ok(one.indexOf('控除計') < one.indexOf('<tr class="sums-net"'), '1カラムの順番が違う（②→③）');
   // ★2カラムと同じ順番★（探す場所が変わらない）
-  const two = framed(3, { layout: 'col2' }).html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  const orderOf = (t) => ['控除計', '請求額'].map((k) => t.indexOf(k));
-  const a1 = orderOf(flat), a2 = orderOf(two);
+  const two = framed(3, { layout: 'col2' }).html;
+  const orderOf = (t) => ['控除計', '<tr class="sums-net"'].map((k) => t.indexOf(k));
+  const a1 = orderOf(one), a2 = orderOf(two);
   ok(a1[0] < a1[1], "1カラムの順番が崩れている");
   ok(a2[0] < a2[1], "2カラムの順番が崩れている");
   // 数は同じ（形が変わっても金額は1円も動かない）
@@ -1429,7 +1461,8 @@ T('★知らない形を渡されたら1カラムに倒す（黙って壊れな�
   for (const bad of ['col3', '', 'ほげ', null, 0, 99]) {
     const h = framed(3, { layout: bad }).html;
     ok(!/<table class="cols2">/.test(h), '知らない形（' + bad + '）で2カラムになった');
-    ok(/class="items"/.test(h) && /請求額/.test(h), '知らない形（' + bad + '）で崩れている');
+    ok(/class="items"/.test(h) && h.indexOf('<tr class="sums-net"') >= 0,
+      '知らない形（' + bad + '）で崩れている');
   }
 });
 
