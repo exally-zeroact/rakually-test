@@ -956,6 +956,15 @@
       tax: t, partner: { name: '（取引先）', honor: '御中' },
       org: Object.assign({}, S.org || {}, { bank: settings().bank }),
       template: TPL.getOrDefault(id), templateId: id,
+      /* ★ここにも theme が 要る★（2026-09-09 実測）
+         ★紙は o.template を 見ていない★＝o.theme／o.style／inv.data.style だけ
+         （seikyu-paper.js:553 themeOf）。上の 道（下書きが 在る時）には 渡してあったが
+         ★こちら（下書きが 無い時＝設定から 選ぶ ふつうの場合）に 渡し忘れていた★。
+         ⇒ 見本 5枚が ★どれも 既定の 見た目★で 並び、違うのは 列だけだった。
+         「すきま自動(slim)」は 列が std1 と 同じなので ★1枚目と 同じ絵★になり、
+         state-seikyu が「見本が 嘘」と 赤にして 見つかった。
+         ★2026-08-24 に 一度 踏んだ 穴が、もう一方の 道に 残っていた★。 */
+      theme: TPL.getOrDefault(id).theme,
       cols: COLS.normalizeSpec(TPL.getOrDefault(id).cols),
     })).html);
   }

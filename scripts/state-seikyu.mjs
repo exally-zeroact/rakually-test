@@ -133,6 +133,14 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
   /* ★2枚 決め打ちをやめる★＝様式が3つになったら 3枚とも別の絵か を見る（2026-08-27）
      ★「2枚の時だけ見る」形は 3枚目を足した瞬間 黙って0になった★＝決め打ちの穴。 */
   N.見本が別の絵 = (shots.length >= 2 && new Set(shots).size === shots.length) ? 1 : 0;
+  if (N.見本が別の絵 === 0 && shots.length >= 2) {
+    const mi = {};
+    const onaji = [];
+    const nm = [...doc.querySelectorAll('.tpl-pick .tpl-nm')].map((e) => e.textContent.trim());
+    shots.forEach((h, i) => { if (mi[h] !== undefined) onaji.push((nm[mi[h]] || mi[h]) + ' ＝ ' + (nm[i] || i)); else mi[h] = i; });
+    console.log('   ★同じ絵★ ' + (onaji.join(' ／ ') || '（見つからない）'));
+    console.log('   絵の 長さ … ' + shots.map((h, i) => (nm[i] || i) + ':' + h.length).join(' / '));
+  }
   /* ★戻って続きから★（司さん 2026-08-24）＝[変える]が在るか */
   N.戻る動線 = doc.getElementById('b-tpl-change') ? 1 : 0;
   stage.push({

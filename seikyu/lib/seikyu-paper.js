@@ -363,11 +363,33 @@
     if (st.memoBox !== undefined && st.memoBox !== null) return !!st.memoBox;
     return false;
   }
+  /* ★すきま自動★（2026-09-08 司さん
+     「赤丸の隙間を 自動で調整する版の これも テンプレに 加えといたら
+       細々した調整も いらんやろ？」）
+     ＝明細が 少ない月に ★表の 下に 大きな 空白★が 出るのを やめる。
+     ★枠の 行数を 中身なりに する★＝空行を 埋めない（上限は そのまま 効く）。
+     ★様式が 決める★（theme.autoRows）＝実物どおり 空行を 残す 様式は そのまま。 */
+  function autoRowsOf(inv, o) {
+    o = o || {};
+    if (o.autoRows !== undefined && o.autoRows !== null) return !!o.autoRows;
+    var st = Object.assign({}, o.theme || {}, o.style || {}, (inv && inv.data && inv.data.style) || {});
+    return !!st.autoRows;
+  }
   function frameRowsOf(inv, o) {
     o = o || {};
     var given = (o.paperRows !== undefined ? o.paperRows : (inv && inv.data && inv.data.paperRows));
     var ded = (o.showDeductResolved !== undefined) ? !!o.showDeductResolved : showDeductOf(inv, o);
     var max = maxRowsOf(ded, o.rateRows, o.dedLines, o.bankRows, memoBoxOf(inv, o));
+    /* ★すきま自動★＝この様式を 選んだら ★行数の 設定より 先★
+       ★2026-09-08 直した★ はじめは「会社が 行数を 決めていない時だけ」に していたが、
+       ★設定に 行数が 残っている 会社では 何も 変わらなかった★
+       （見本でも std1 と 同じ絵に なり、state-seikyu が「見本が 嘘」と 赤にした）。
+       司さんの 言葉は「★細々した調整も いらんやろ？★」＝
+       ★この様式を 選ぶ事が「行数は もう いじらない」という 決め★。 */
+    if (autoRowsOf(inv, o)) {
+      var kazu = ((inv && inv.lines) || []).length;
+      return Math.max(1, Math.min(kazu, max));
+    }
     var n = Math.max(0, Math.trunc(Number(given) || max));
     /* ★物理の上限で頭打ち★＝紙は A4 固定なので、これ以上は載せると切れる。
        ★黙って切らない★＝ここで止めて、残りは2枚目に送る。画面はその事を人に言う。 */
@@ -610,7 +632,12 @@
       /* ★備考の枠も 行数に 効く★（+23px＝明細 1行ぶん）。
          ★ここへ 渡し忘れると 行数の 計算だけ 知らないまま になり、
            「載る」と 言って ★はみ出す★紙が 出る（2026-09-05 実測 1146px）。 */
-      memoBox: memoBoxOf(inv, o) };
+      memoBox: memoBoxOf(inv, o),
+      /* ★すきま自動も ここへ 渡す★（2026-09-08）
+         ★渡し忘れると theme が 見えない★＝様式で「すきま自動」を 選んでも
+         枠が 18行のまま＝★選んだのに 何も 変わらない★（実測で 踏んだ）。
+         memoBox と まったく 同じ 形＝★行数に 効く物は 全部 ここに 並べる★。 */
+      autoRows: autoRowsOf(inv, o) };
     frameRows = frameRowsOf(inv, planInput);
     var gen = o.gensen || null;     // ★源泉徴収（引く紙だけ）★
     var carry = o.carry || null;    // ★繰越（前回の残り）★
