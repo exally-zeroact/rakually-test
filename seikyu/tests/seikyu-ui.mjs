@@ -446,22 +446,41 @@ await TA('2. ★発行すると固まる（写しが入り、状態が発行済�
   eq(row.totals.grandTotal, 346);
 });
 
-await TA('2. ★発行済みは直せない・もう一度発行できない（理由も出る）', async () => {
-  ok($('e-partner').disabled, '取引先が直せる');
-  ok($('e-no').disabled, '番号が直せる');
-  ok(qa('#lines-body input').every((i) => i.disabled), '明細が直せる');
-  // ★押せない物は「出さない」（説明で補わない）
-  eq($('b-save').style.display, 'none', '発行済みなのに保存が出ている');
-  eq($('b-issue').style.display, 'none', '発行済みなのに発行が出ている');
+await TA('2. ★発行済みでも いつでも 直せる／発行するは もう 出ない', async () => {
+  /* ★2026-09-09 決めが 変わった★（司さん
+       「発行とゆう概念が めんどくさい／★代行請求書のように いつでも編集できるように★するのと
+         ★請求日を いつでも 触れるように★するのと」
+       ＋「一覧から 取り消して 入力画面はいると ★何も触れない★」）
+     ★代行請求の 実物★＝請求書に 状態の 列が 無く、過去月でも PDFを 出した後でも
+       ★何のブロックも 無く 直せる★。
+     ⇒ 欄を 塞ぐのを やめた。★守る物は 番号だけ★（一度 決めたら 動かさない）。 */
+  ok(!$('e-partner').disabled, '★発行済みで 取引先が 直せない★');
+  ok(!$('e-no').disabled, '★発行済みで 番号が 直せない★');
+  ok(!$('e-issue').disabled, '★発行済みで 請求日が 直せない★（司さんの 名指し）');
+  ok(qa('#lines-body input').every((i) => !i.disabled), '★発行済みで 明細が 直せない★');
+  /* ★「発行する」は 番号を 付ける 1回きり★＝付いた後に 出すと 二度押しに なる */
+  eq($('b-issue').style.display, 'none', '★発行済みなのに「発行する」が 出ている★');
+  ok($('b-save').style.display !== 'none', '★直せるのに「保存」が 出ていない★');
+  ok(!$('edit-locked'), '★「直せません」の 札が まだ 在る★');
   ok(!$('b-delete'), '発行済みなのに削除が出ている');
   ok($('b-void'), '取り消しが出ていない');
-  ok(/発行済み/.test($('act-why').textContent), '理由が出ていない: ' + $('act-why').textContent);
-  /* ★畳みの見出しが、中に無い物を並べていない（発行済みに「下書き」と書かない）★
-     ＋ 発行済みはここが唯一の出来る事なので、畳んだままにしない */
-  eq(/下書き/.test($('out-sum').textContent), false, '発行済みなのに見出しが「下書き」と言っている: ' + $('out-sum').textContent);
   ok(/取り消し/.test($('out-sum').textContent), '見出しに「取り消し」が無い: ' + $('out-sum').textContent);
-  eq($('out-box').open, true, '発行済みなのに出来る事が畳まれたまま');
-  ok($('edit-locked').style.display !== 'none', '発行済みの断り書きが出ていない');
+});
+
+/* ★取り消し済みでも 触れる★（司さん「一覧から 取り消して 入力画面はいると 何も触れない」） */
+await TA('2-a. ★取り消し済みでも 中身が 触れる', async () => {
+  const st = win.SeikyuApp._state;
+  const mae = st.cur.status;
+  st.cur.status = 'void';
+  win.SeikyuApp._fillEdit();
+  await sleep(20);
+  ok(!$('e-partner').disabled, '★取り消し済みで 取引先が 触れない★');
+  ok(!$('e-issue').disabled, '★取り消し済みで 請求日が 触れない★');
+  ok(qa('#lines-body input').every((i) => !i.disabled), '★取り消し済みで 明細が 触れない★');
+  eq($('b-issue').style.display, 'none', '★取り消し済みに「発行する」が 出ている★');
+  st.cur.status = mae;
+  win.SeikyuApp._fillEdit();
+  await sleep(20);
 });
 
 /* ═══ 2-b. ★どんな項目にも対応できる（列を自分で決める）★ ═══ */
@@ -1897,10 +1916,15 @@ await TA('13-h. ★控除の赤は 埋めた瞬間に消える（古い文を残
   await newInvoiceFor('pt_y', '2026-08-07');
   setLine(0, 'name', '工事代金'); setLine(0, 'amount', '100000');
   await sleep(80);
+  /* ★2026-09-09★ 前回の 控除が 自動で 入るように なったので（司さん
+     「項目や控除は 前のを 記憶して…」）、★足した行は 0番目とは 限らない★。
+     ⇒ 足した ★最後の行★ を 見る（この検査の 狙いは「埋めたら 赤が 消える」）。 */
   $('b-ded-add').click(); await sleep(60);
   // 足した直後は「名前が空です」＝正しい
   ok(/名前が空です/.test($('ded-err').textContent), '空の控除で赤が出ていない');
-  const dn = $('ded-list').querySelector('[data-dn="0"]'), da = $('ded-list').querySelector('[data-da="0"]');
+  const _dns = [...$('ded-list').querySelectorAll('[data-dn]')];
+  const _i = _dns.length - 1;
+  const dn = $('ded-list').querySelector('[data-dn="' + _i + '"]'), da = $('ded-list').querySelector('[data-da="' + _i + '"]');
   dn.value = '弁当代'; dn.dispatchEvent(new win.Event('input'));
   await sleep(60);
   ok(!/名前が空です/.test($('ded-err').textContent),
@@ -1945,6 +1969,9 @@ await TA('14-a. ★同じ数字を2回 言わない（税率が1つなら「◯%
 
 await TA('14-b. ★払う金額を1つだけ 一番 大きく（大きい数字が2つ並ばない）', async () => {
   await newInvoiceFor('pt_y', '2026-08-11');
+  /* ★2026-09-09★ 前回の 控除が 自動で 入るように なったので、
+     ★「控除が 無い時」を 見たいこの検査は 先に 空にする★（司さんの 直しの せいではない）。 */
+  win.SeikyuApp._state.cur.data.deductions = [];
   setLine(0, 'name', '工事代金'); setLine(0, 'qty', '140'); setLine(0, 'price', '1900');
   await sleep(100);
   // 控除が無い時＝一番 下は「合計」
@@ -1953,7 +1980,8 @@ await TA('14-b. ★払う金額を1つだけ 一番 大きく（大きい数字�
   ok(/合計/.test(big[0].textContent), '一番 大きいのが合計でない: ' + big[0].textContent);
   // 控除を足すと 一番 下は「請求額」になり、合計は小さくなる
   $('b-ded-add').click(); await sleep(40);
-  const dn = $('ded-list').querySelector('[data-dn="0"]'), da = $('ded-list').querySelector('[data-da="0"]');
+  const _j = [...$('ded-list').querySelectorAll('[data-dn]')].length - 1;
+  const dn = $('ded-list').querySelector('[data-dn="' + _j + '"]'), da = $('ded-list').querySelector('[data-da="' + _j + '"]');
   dn.value = '弁当代'; dn.dispatchEvent(new win.Event('input'));
   da.value = '11340'; da.dispatchEvent(new win.Event('input'));
   await sleep(120);
@@ -2178,10 +2206,14 @@ await TA('15-d2. ★設定は開いた時に見える数を減らす（既定で
 
 await TA('15-e. ★差し引く額が合計を超えたら 言う（止めないが黙らない）', async () => {
   await newInvoiceFor('pt_y', '2026-08-13');
+  /* ★2026-09-09★ 前回の 控除が 自動で 入るように なったので、
+     ★引く額を この検査で 決めたい★＝先に 空にしてから 1行だけ 足す。 */
+  win.SeikyuApp._state.cur.data.deductions = [];
   setLine(0, 'name', '工事代金'); setLine(0, 'amount', '1000');
   await sleep(90);
   $('b-ded-add').click(); await sleep(60);
-  const dn = $('ded-list').querySelector('[data-dn="0"]'), da = $('ded-list').querySelector('[data-da="0"]');
+  const _k = [...$('ded-list').querySelectorAll('[data-dn]')].length - 1;
+  const dn = $('ded-list').querySelector('[data-dn="' + _k + '"]'), da = $('ded-list').querySelector('[data-da="' + _k + '"]');
   dn.value = '前受金'; dn.dispatchEvent(new win.Event('input'));
   da.value = '5000'; da.dispatchEvent(new win.Event('input'));
   await sleep(90);

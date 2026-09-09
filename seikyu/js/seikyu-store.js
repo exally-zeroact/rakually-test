@@ -120,7 +120,11 @@
               partner_id: inv.partner_id || '',
               issue_ymd: inv.issue_ymd || null,
               due_ymd: inv.due_ymd || null,
-              status: 'draft',
+              /* ★今の 状態を 保つ★（2026-09-09 司さん「いつでも編集できるように」）
+                 ★前は いつも 'draft' に 落としていた★＝発行済みを 直して 保存すると
+                   ★黙って 下書きに 戻る★（番号は 付いたまま）＝一覧の 札が 嘘に なる。
+                 新しい1通は draft（まだ 番号を 付けていない）。 */
+              status: (['draft', 'issued', 'void'].indexOf(inv.status) >= 0) ? inv.status : 'draft',
               tax_mode: inv.tax_mode, rounding: inv.rounding,
               lines: inv.lines || [], totals: inv.totals || {}, snapshot: inv.snapshot || {},
               data: inv.data || {}, template_id: inv.template_id || '',

@@ -192,7 +192,20 @@
 
   /* ── 発行したら固まる ────────────────────────────────────────── */
   function statusOf(inv) { return (inv && inv.status) || 'draft'; }
-  function canEdit(inv) { return statusOf(inv) === 'draft'; }
+  /* ★いつでも 直せる★（2026-09-09 司さん
+       「発行とゆう概念が めんどくさい／★代行請求書のように いつでも編集できるように★するのと
+         請求日を いつでも 触れるようにする」
+       ＋「一覧から 取り消して 入力画面はいると ★何も触れない★」）
+     ★前は draft だけ★＝発行済み・取り消し済みは 1文字も 直せなかった。
+     ★代行請求の 実物★（読んだ 2026-09-09）＝
+       請求書に 状態の 列が 無い／請求書は 保存された物ですら 無く 毎回 明細から 作り直す／
+       過去月でも PDFを 出した後でも ★何のブロックも 無く 直せる★。
+     ⇒ 状態で 縛るのを やめる。
+     ★捨てていない物★
+       ・status（draft/issued/void）は 残す＝一覧の 札・番号を 付けたかの 目印
+       ・番号は ★一度 決めたら 動かさない★／倉庫の unique が 二度使いを 止める
+       ・写し（snapshot）は ★直したら 作り直す★＝代行請求と 同じ「直すと 紙も 変わる」 */
+  function canEdit() { return true; }
   function canDelete(inv) { return statusOf(inv) === 'draft'; } // ★発行済みは消せない＝番号を欠番にしない
   function canVoid(inv) { return statusOf(inv) === 'issued'; }
 

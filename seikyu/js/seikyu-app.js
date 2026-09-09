@@ -777,7 +777,6 @@
        ＝★中身は 正しく 画面の 字だけが 嘘★。お客さんは「見積のつもりが 請求書に なった」と 誤解する。 */
     var _lb = DOC.docLabel(v.doc_type || S.docType || 'invoice');
     setText('edit-h', v.id ? ((v.no || '（未採番）') + '　' + (v.status === 'issued' ? '発行済' : v.status === 'void' ? '取り消し済' : '下書き')) : ('新しい' + _lb));
-    show($('edit-locked'), locked());
     // ★別の1通に切り替えたら、前の紙の下見は消す（違う請求書の紙を出したままにしない）
     show($('pv-wrap'), false);
 
@@ -880,6 +879,13 @@
       cols: (snapCols && snapCols.items && snapCols.items.length) ? snapCols : (d.cols || null),
       lineCount: Array.isArray(prev.lines) ? prev.lines.length : 0,
       total: (prev.totals && prev.totals.grandTotal),
+      /* ★前回の 明細と 控除を そのまま 覚える★（2026-09-09 司さん
+         「項目や控除は 前のを 記憶して 消すか 足すか 選べたらええ
+           ★記憶してたら 金額変えたりするだけだから 楽★
+           （項目名や 控除名も もちろん その場で 変えれたらええ）」）
+         ★写しを 渡す★＝前の1通を 指したまま 渡すと、打った字が 前の紙まで 書き換える。 */
+      lines: Array.isArray(prev.lines) ? JSON.parse(JSON.stringify(prev.lines)) : [],
+      deductions: Array.isArray(d.deductions) ? JSON.parse(JSON.stringify(d.deductions)) : [],
     };
   }
 
@@ -1097,7 +1103,7 @@
     /* ★1問ごと保存★（下書きだけ。発行済みは触らない） */
     /* 日付と番号がそろっている下書きだけ その場で保存する
        （そろう前に保存を呼ぶと「請求日を入れてください」の赤が出る＝まだ聞いていない事で怒らない） */
-    if (DOC.canEdit(v) && v.issue_ymd && v.no) { try { saveDraft(); } catch (e) { /* 知らせは画面に出る */ } }
+    if (v.issue_ymd && v.no) { try { saveDraft(); } catch (e) { /* 知らせは画面に出る */ } }
     return true;
   }
 
@@ -1139,6 +1145,25 @@
        前回で足す事はあっても、★引く事はしない★（消したい時は畳みの中で自分で外す）。 */
     var wantGensen = !!g.gensen || !!(v.data && v.data.gensen) || partnerGensen(v.partner_id);
     v.data.gensen = wantGensen;
+    /* ★前回の 明細と 控除を 入れる★（2026-09-09 司さん「記憶してたら 金額変えたりするだけだから 楽」）
+       ★まだ 何も 打っていない 時だけ★＝打ち始めていたら 上書きしない（打った字を 消さない）。
+       ★名前も 金額も そのまま★＝要らない行は ×で 消す・足すのは ＋・名前は その場で 直せる
+         （どれも 前から 出来ていた＝★入れて おくだけ★が 足りなかった）。 */
+    var kara = !Array.isArray(v.lines) || v.lines.every(function (l) {
+      return !String((l && l.name) || '').trim() && !String((l && l.amount) || '').trim()
+        && !String((l && l.price) || '').trim();
+    });
+    var hikiL = 0, hikiD = 0;
+    if (kara && g.lines && g.lines.length) {
+      v.lines = g.lines.map(function (l) { return Object.assign(blankLine(), l); });
+      hikiL = v.lines.length;
+    }
+    if (kara && g.deductions && g.deductions.length && !(v.data.deductions || []).length) {
+      v.data.deductions = g.deductions.map(function (x) {
+        return { name: String((x && x.name) || ''), amount: (x && x.amount) };
+      });
+      hikiD = v.data.deductions.length;
+    }
     S.guessApplied = { subject: !!g.subject, term: !!(g.term && g.term.kind !== 'none'), gensen: !!g.gensen };
     S.guessDone = true;
     recalcDue();
@@ -1153,12 +1178,20 @@
     if (g.subject) hiki.push('件名');
     if (g.templateId) hiki.push('紙の様式');
     if (wantGensen) hiki.push('源泉徴収');
+    if (hikiL) hiki.push('明細 ' + hikiL + '行');
+    if (hikiD) hiki.push('控除 ' + hikiD + '行');
     box('edit-ok', (g.no ? '前回（No.' + g.no + '）と 同じで 用意しました' : '前回と 同じで 用意しました')
       + (hiki.length ? '＝' + hiki.join('・') : '')
-      + '。明細を 打てば 出せます（直したい所は「細かく決める」から）。');
+      + (hikiL ? '。★金額を 確かめてください★（要らない行は × で 消せます）。'
+        : '。明細を 打てば 出せます（直したい所は「細かく決める」から）。'));
   }
 
-  /* 発行済み・取り消し済みは触らせない（★押せない理由も出す★） */
+  /* ★いつでも 触れる★（2026-09-09 司さん「代行請求書のように いつでも編集できるように」
+       ＋「一覧から 取り消して 入力画面はいると ★何も触れない★」）
+     ＝欄を 塞ぐのは やめた（locked() は もう いつも false）。
+     ★「発行する」だけは 下書きの時だけ★＝
+       番号を 付ける 1回きりの 操作なので、番号が 付いた後に 出すと 二度押しに なる
+       （見張り 12-c が 捕まえた）。直した後は「保存」で 上書きする。 */
   function lockInputs() {
     var ro = locked();
     ['e-partner', 'e-issue', 'e-term', 'e-termn', 'e-due', 'e-no', 'e-subject', 'e-memo'].forEach(function (id) {
@@ -1172,10 +1205,12 @@
 
     var v = S.cur || {};
     // ★押せない物は出さない（説明で補わない）★
-    show($('b-issue'), !ro);
-    show($('b-save'), !ro);
-    show($('more-box'), !ro);
-    if (!ro) drawIssueButton();
+    /* ★番号を 付ける 前だけ★＝発行済み・取り消し済みに「発行する」は 出さない */
+    var mada = DOC.statusOf(v) === 'draft';
+    show($('b-issue'), mada);
+    show($('b-save'), true);
+    show($('more-box'), true);
+    if (mada) drawIssueButton();
 
     /* ★出した見積の主役の操作＝「請求書を作る」★（発行するが消えた後のここが次の一手）
        ★存在しない時は出さない／在るのに塞がっている時は灰色＋理由をボタンの中★ */
@@ -2478,7 +2513,11 @@
       }
       S.cur.id = r.id;
       S.dirty = false;
-      box('edit-ok', '下書きを保存しました。');
+      /* ★言葉は 状態なりに★（2026-09-09 いつでも直せるように したので
+         発行済みを 直した時に「下書きを保存しました」と 出ると 嘘に なる）。 */
+      box('edit-ok', (S.cur.status === 'issued' ? '直した内容を 保存しました（番号 ' + (S.cur.no || '') + ' は そのままです）。'
+        : S.cur.status === 'void' ? '取り消し済みの 中身を 保存しました。'
+          : '下書きを保存しました。'));
       return loadList().then(function () { fillEdit(); });
     });
   }
