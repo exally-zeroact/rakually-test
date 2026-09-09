@@ -326,6 +326,26 @@ T('★そろっていれば発行できる', () => {
   ok(r.ok, JSON.stringify(r.errors));
 });
 
+T('★お振込先が 空なら 言う（止めないが 黙らない）', () => {
+  /* 2026-09-09 司さん「振込先は 設定で 入れたら 出るんか？
+     今は 入れんかったら 出てないけん それでええんか？」
+     ★実測★ 空だと 紙に「お振込先」の 箱が ★出ない★のに、
+       発行の 検査に 振込先が 1つも 無く ★何も 言わずに 出ていた★。
+     ⇒ ★止めない★（現金・手形・相殺など 振込先が 要らない 請求も 在る）
+       ★黙らない★（客が どこへ 払えばよいか 分からない 紙に なる）。 */
+  const nashi = { data: { yago: '合同会社ZEROact', invoiceNo: 'T3500003003293' } };
+  const r = D.validateInvoice({ inv: goodInv(), partner: goodPartner, org: nashi });
+  ok(r.ok, '★振込先が 無いだけで 止めている★（現金の 請求が 出せなくなる）: ' + JSON.stringify(r.errors));
+  ok(r.warnings.some((w) => /振込先/.test(w)),
+    '★振込先が 空なのに 黙っている★: ' + JSON.stringify(r.warnings));
+  /* ★入れたら 言わない★＝いつも 出る 小言に しない */
+  const ari = { data: { yago: '合同会社ZEROact', invoiceNo: 'T3500003003293',
+    bank: '伊予銀行 今治支店 普通 1234567' } };
+  const r2 = D.validateInvoice({ inv: goodInv(), partner: goodPartner, org: ari });
+  ok(!r2.warnings.some((w) => /振込先/.test(w)),
+    '★入れているのに まだ 言っている★: ' + JSON.stringify(r2.warnings));
+});
+
 T('★足りない物は空欄で通さず、1つずつ理由を出す', () => {
   const cases = [
     [{ partner_id: '' }, '取引先'],
