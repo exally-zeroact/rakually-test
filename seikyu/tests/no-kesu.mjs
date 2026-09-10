@@ -110,5 +110,24 @@ T('★④ 設定の 欄が 在り、読み書きが つながっている', () =
   ok(a.indexOf('o.noOn = false;') > 0, '★切った時に false を 書いていない★');
 });
 
+T('★⑥ 畳んだ 引き出しの 中に 隠れていない（探して 見つかる所に 在る）', () => {
+  /* ★2026-09-10 実測で 踏んだ★
+     欄は 在ったのに、「紙の書き方（言い方と並び）」という ★畳んだ 引き出しの 中★に 置いていた。
+     司さんは 設定を 上から 下まで 見て「請求書番号のオンオフ（が無い）」と 言った。
+     ⇒ ★開かないと 見えない 所に 置いた 設定は「無い」のと 同じ★。
+       番号の 話は 「番号の形」と 同じ カードの 中＝畳まれていない 所に 置く。
+       ★司さん「番号の形の 上に しろよ」★＝出すか どうかが 先、形は その次。 */
+  const h = fs.readFileSync(path.join(ROOT, 'seikyu', 'index.html'), 'utf8');
+  const set = h.slice(h.indexOf('id="scr-set"'), h.indexOf('id="s-no"'));
+  const aku = (set.match(/<details/g) || []).length;
+  const shime = (set.match(/<\/details>/g) || []).length;
+  ok(aku === shime, '★請求番号の 欄が 畳んだ 引き出しの 中に 在る★（開いた ' + aku + ' / 閉じた ' + shime + '）');
+  /* ★番号の形と 同じ カードに 在る★＝「請求書の決まり」の 中 */
+  const kime = h.indexOf('請求書の決まり');
+  ok(kime > 0 && kime < h.indexOf('id="s-no"'), '★「請求書の決まり」より 前に 在る★');
+  /* ★司さん 2026-09-10「番号の形の 上に しろよ」★＝出すか どうかが 先、形は その次 */
+  ok(h.indexOf('id="s-no"') < h.indexOf('id="s-format"'), '★番号の形より 上に 在る★');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

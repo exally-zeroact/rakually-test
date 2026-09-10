@@ -16,6 +16,10 @@
  *   ⑦ 空振りしない（押す道が 本当に 在る）
  *   ⑧ ★口座が 2つなら 紙も 2行★（別々の 口座を つながない）
  *   ⑨ ★箱の 幅は いつも 同じ★（長い 振込先も 1行で 入る 幅を 既定に）
+ *   ⑩ ★1口座を 分けて 打つ★（銀行名・支店・預金の種類・口座番号・口座名義）
+ *      司さん 2026-09-10「銀行口座の 入れ方を ★分けて いれさせろ★／銀行名、支店、口座番号、名前」
+ *   ⑪ ★前から 打ってある 1行を 分けて 読める★（全角の あきでも／読めない物は そのまま 見せる）
+ *   ⑫ ★触っていない 行の 字は 1文字も 変えない★（全角の あきを 勝手に 直さない）
  *
  * 使い方: node seikyu/tests/bank-ran.mjs [--self-test]
  */
@@ -58,12 +62,27 @@ doc.getElementById('app').hidden = false;
 const A = win.SeikyuApp, S = A._state;
 const PAPER = win.SeikyuPaper;
 const $ = (id) => doc.getElementById(id);
-const rans = () => [...doc.querySelectorAll('#s-bank-list [data-bank-i]')];
+/* ★1口座＝1つの 囲い★（中に 銀行名・支店・種類・口座番号・名義の 欄が 在る） */
+const rans = () => [...doc.querySelectorAll('#s-bank-list [data-bank-row]')];
+const ran = (i, k) => rans()[i] && rans()[i].querySelector('[data-bank-p="' + k + '"]');
 const osu = (sel) => { const b = doc.querySelector(sel); ok(b, '押す物が無い: ' + sel);
   b.dispatchEvent(new win.MouseEvent('click', { bubbles: true })); };
+/* ★1行の 字を 分けて 打つ★＝人が 5つの 欄に 打つのと 同じ道を 通す
+   （「銀行 支店 種類 番号 名義」の 形を そのまま 分ける） */
 const utsu = (i, v) => {
-  const el = rans()[i]; ok(el, (i + 1) + 'つ目の 欄が 無い');
-  el.value = v; el.dispatchEvent(new win.Event('input', { bubbles: true }));
+  const row = rans()[i]; ok(row, (i + 1) + 'つ目の 囲いが 無い');
+  const t = String(v).split(/\s+/).filter((x) => x);
+  const bi = t.findIndex((x) => /^[0-9]{5,8}$/.test(x));
+  ok(bi > 0, '★この 検査の 見本に 口座番号が 無い★: ' + v);
+  const shu = ['普通', '当座', '貯蓄'].indexOf(t[bi - 1]) >= 0 ? t[bi - 1] : '';
+  const mae = t.slice(0, shu ? bi - 1 : bi);
+  const kumi = { ginko: mae.slice(0, -1).join(' '), shiten: mae[mae.length - 1] || '',
+    shubetsu: shu, bango: t[bi], meigi: t.slice(bi + 1).join(' ') };
+  Object.keys(kumi).forEach((k) => {
+    const el = ran(i, k); ok(el, (i + 1) + 'つ目に 欄が 無い: ' + k);
+    el.value = kumi[k];
+    el.dispatchEvent(new win.Event('input', { bubbles: true }));
+  });
 };
 
 S.org = { yago: '合同会社Rakunally', invoiceNo: 'T1234567890123',
@@ -76,6 +95,8 @@ S.store = {
 };
 A._bindForTest();
 A._fillSettings();
+/* ★倉庫の 字を 入れ替えて 描き直す★＝人が 設定を 開き直したのと 同じ道 */
+const drawFor = (n) => A._drawBankRowsForTest(n);
 
 console.log('\n[bank-ran] お振込先は 1口座＝1つの 欄／＋で 足せる' + (SELF ? '（自分ためし）' : ''));
 
@@ -88,6 +109,9 @@ if (SELF) {
     ['空の欄を しまう', app, 'function bankRowsWrite(list)'],
     ['紙が また 勝手に 割る', lib, '    return [t];'],
     ['口座番号を 目立たせない', lib, ".bank-no{font-size:13pt"],
+    ['分けて 読むのを やめる', app, '  function bankParse(line) {'],
+    ['分けた物の 突き合わせを やめる', app, "    if (bankJoin(out) !== tok.join(' ')) {"],
+    ['触っていない 行も 組み立て直す', app, '  var bankMoto = [];'],
   ];
   kowasu.forEach(([na, src, a]) => ok(src.split(a).length === 2,
     '★壊す所が 1つ 見つからない★ ' + na + ' … ' + a));
@@ -96,8 +120,12 @@ if (SELF) {
 
 T('★① 設定に 1口座＝1つの 欄が 出る', () => {
   ok($('s-bank-list'), '★口座の 欄を 並べる 所が 無い★');
-  eq(rans().length, 1, '欄の 数');
-  eq(rans()[0].value, '伊予銀行 今治支店 普通 1234567 ド）ラクナリー', '倉庫の 中身が 欄に 出ていない');
+  eq(rans().length, 1, '口座の 数');
+  eq(ran(0, 'ginko').value, '伊予銀行', '銀行名');
+  eq(ran(0, 'shiten').value, '今治支店', '支店');
+  eq(ran(0, 'shubetsu').value, '普通', '預金の種類');
+  eq(ran(0, 'bango').value, '1234567', '口座番号');
+  eq(ran(0, 'meigi').value, 'ド）ラクナリー', '口座名義');
   /* ★大きな 1枚の 欄は もう 見せない★＝どこで 割れるか 分からない元 */
   const h = $('s-bank');
   /* ★見えない 欄は type="hidden"★＝textarea の hidden だと
@@ -116,9 +144,9 @@ T('★② ＋で 欄が 増える（2つ目を 打てる）', () => {
   osu('#b-bank-add');
   /* ★押す前と 比べる★＝「もともと 2つ 在った」で 素通りさせない
      （2026-09-10 わざと 壊しても 赤に ならなかった＝この検査の 穴だった） */
-  eq(rans().length, mae + 1, '★＋を 押しても 欄が 増えていない★');
+  eq(rans().length, mae + 1, '★＋を 押しても 口座が 増えていない★');
   utsu(1, '愛媛銀行 今治支店 当座 7654321 ド）ラクナリー');
-  eq(rans().length, mae + 1, '打ったら 欄の 数が 変わった');
+  eq(rans().length, mae + 1, '打ったら 口座の 数が 変わった');
 });
 
 T('★④ 倉庫の 形は 改行つなぎ／空の欄は しまわない', () => {
@@ -148,6 +176,64 @@ T('★③ ×で 消せる（1つの時は 消せない）', () => {
   kesu()[1].dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
   eq(rans().length, 1, '2つ目が 消えていない');
   eq(kesu().length, 0, '★1つしか 無いのに ×が 出ている★（振込先が 全部 消える）');
+});
+
+T('★⑩ 1口座を 分けて 打つ（銀行名・支店・種類・口座番号・名義）', () => {
+  /* ★司さん 2026-09-10「銀行口座の 入れ方を 分けて いれさせろ」★
+     ＝前は「サンプル銀行 サンプル支店 普通 1234567 カ）サンプル」を
+       ★1つの 欄に 自分で 並べて 打つ★しか なかった。 */
+  const iru = ['ginko', 'shiten', 'shubetsu', 'bango', 'meigi'];
+  iru.forEach((k) => ok(ran(0, k), '★欄が 無い★: ' + k));
+  eq(ran(0, 'shubetsu').tagName, 'SELECT', '★預金の種類は 選ばせる★（打ち間違いを 作らない）');
+  eq(ran(0, 'bango').getAttribute('inputmode'), 'numeric', '★口座番号は 数の キーボード★');
+  /* ★分けて 打った物が つながって 倉庫へ 行く★ */
+  ['ginko', 'shiten', 'bango', 'meigi'].forEach((k, i) => {
+    ran(0, k).value = ['サンプル銀行', 'サンプル支店', '1234567', 'カ）サンプル'][i];
+  });
+  ran(0, 'shubetsu').value = '普通';
+  ran(0, 'meigi').dispatchEvent(new win.Event('input', { bubbles: true }));
+  eq($('s-bank').value, 'サンプル銀行 サンプル支店 普通 1234567 カ）サンプル',
+    '★分けて 打った物が 1行に なっていない★');
+});
+
+T('★⑪ 前から 打ってある 1行を 分けて 読める（読めない物は そのまま）', () => {
+  /* ★全角の あき★でも 読める（司さんの 今の 設定が これ） */
+  $('s-bank').value = '伊予銀行\u3000今治支店\u3000普通\u30004160657\u3000ド）ゴウ';
+  drawFor(1);
+  eq(ran(0, 'ginko').value, '伊予銀行', '全角の あきで 銀行名が 読めない');
+  eq(ran(0, 'shiten').value, '今治支店', '全角の あきで 支店が 読めない');
+  eq(ran(0, 'bango').value, '4160657', '全角の あきで 口座番号が 読めない');
+  /* ★支店らしい 語が 無い物★（ゆうちょ）も 落とさない */
+  $('s-bank').value = 'ゆうちょ銀行 〇一八店 普通 12345678 カ）ニホンソウゴウ';
+  drawFor(1);
+  eq(ran(0, 'ginko').value, 'ゆうちょ銀行', 'ゆうちょの 銀行名');
+  eq(ran(0, 'shiten').value, '〇一八店', 'ゆうちょの 店');
+  eq(ran(0, 'bango').value, '12345678', 'ゆうちょの 8桁');
+  /* ★分けて 読めない 物は そのまま 見せる★＝字を 落とさない・勝手に 直さない */
+  $('s-bank').value = 'ゆうちょ 記号12345 番号6789012';
+  drawFor(1);
+  ok(!ran(0, 'ginko'), '★読めないのに 分けた 欄を 出している★');
+  const raw = ran(0, 'raw');
+  ok(raw, '★そのままの 欄が 無い＝打った 字の 行き場が 無い★');
+  eq(raw.value, 'ゆうちょ 記号12345 番号6789012', '★そのままの 字が 変わっている★');
+});
+
+T('★⑫ 触っていない 行の 字は 1文字も 変えない', () => {
+  /* ★全角の あきを こちらの 都合で 半角に しない★
+     ＝紙の 顔が 黙って 変わる（司さんが 打った 通りに 出す）。 */
+  const moto = '伊予銀行\u3000今治支店\u3000普通\u30004160657\u3000ド）ゴウ';
+  $('s-bank').value = moto;
+  drawFor(1);
+  osu('#b-bank-add');                       /* 2つ目を 足すだけ＝1つ目は 触らない */
+  ran(1, 'ginko').value = 'サンプル銀行';
+  ran(1, 'bango').value = '7654321';
+  ran(1, 'bango').dispatchEvent(new win.Event('input', { bubbles: true }));
+  eq($('s-bank').value.split(NL)[0], moto, '★触っていない 行の 字が 変わった★');
+  /* ★触ったら 組み立て直す★ */
+  ran(0, 'shiten').value = '波方支店';
+  ran(0, 'shiten').dispatchEvent(new win.Event('input', { bubbles: true }));
+  eq($('s-bank').value.split(NL)[0], '伊予銀行 波方支店 普通 4160657 ド）ゴウ',
+    '★触った 行が 組み立て直されていない★');
 });
 
 T('★⑤ 紙は 1つの 欄＝1行（勝手に 割らない）', () => {

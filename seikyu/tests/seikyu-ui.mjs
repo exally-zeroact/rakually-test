@@ -800,14 +800,15 @@ await TA('7. 支払期限は決め方から自動で入り、手でも直せる'
 });
 
 /* ═══ 6-c. ★角印（会社の印）★ ═══ */
+// ファイル選択は jsdom で作れないので、読み込んだあとの data URL を直接渡す
+const seal小 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 await TA('6-c. ★角印を入れると紙に出る／大きさを変えられる／消せる', async () => {
   doc.querySelector('.bn[data-scr="scr-set"]').click();
   await sleep(30);
   ok($('seal-none').style.display !== 'none', '最初から印が入っていることになっている');
   ok($('b-seal-clear').disabled, '印が無いのに「消す」が押せる');
 
-  // ファイル選択は jsdom で作れないので、読み込んだあとの data URL を直接渡す
-  const seal = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const seal = seal小;
   const r = win.SeikyuApp._pickSealUrl(seal);
   ok(r.ok, '正しい画像がはじかれた: ' + r.reason);
   await sleep(20);
@@ -837,17 +838,32 @@ await TA('6-c. ★角印を入れると紙に出る／大きさを変えられ�
   ok(/width:30mm/.test(src), '紙の印の大きさが効いていない');
 });
 
-await TA('6-c. ★大きすぎる画像・PNG/JPEG でない物は入らない（理由を出す）', async () => {
+await TA('6-c. ★PNG/JPEG でない物は入らない／大きい写真は そろえてから見る（理由を出す）', async () => {
   doc.querySelector('.bn[data-scr="scr-set"]').click();
   await sleep(30);
   const bad = win.SeikyuApp._pickSealUrl('https://example.com/hanko.png');
   ok(!bad.ok, '外のURLが通った');
   ok($('seal-err').style.display !== 'none', '理由を出していない');
+  /* ★★2026-09-10 司さん「判子の ファイルや 画像が 300KB以下にしてって出るけど 正常か？」★★
+     ＝正常では なかった。★選んだ その場で 断って★ いたが、その後に
+       ①白抜き ②まわりの余白を 切る ③縮める を やる＝★縮める前の 大きさで 断っていた★。
+       スマホの 写真は 2〜5MB なので ★必ず 断られる★（実測 2,515KB→そろえた後 15KB）。
+     ⇒ ★選んだ時は 形（PNG/JPEG か）だけ★を 見る。
+       大きさは ★そろえた後★に 見て、それでも 超える時だけ 断る。
+     ここ（jsdom）には canvas が 無いので ★そろえられない★＝
+       その時は ★保存で 断る★（黙って 大きい物を 倉庫へ 入れない）。 */
   const big = win.SeikyuApp._pickSealUrl('data:image/png;base64,' + 'A'.repeat(500 * 1024));
-  ok(!big.ok, '大きすぎる画像が通った');
+  ok(big.ok, '★選んだ その場で 断っている（縮める前の 大きさで 見ている）★');
+  await sleep(20);
+  await win.SeikyuApp._saveSealForTest();
+  await sleep(40);
+  ok($('seal-err').style.display !== 'none', '★そろえられないのに 保存で 断っていない★');
   ok(/KB/.test($('seal-err').textContent), '何KBかを言っていない: ' + $('seal-err').textContent);
   // 前に保存した印は残っている（弾かれても消えない）
   eq(db.pay_org[0].data.sealDataUrl.slice(0, 22), 'data:image/png;base64,', '弾かれた拍子に保存済みの印が消えた');
+  /* ★次の検査に 大きい物を 持ち越さない★＝下見を もとの 小さい印へ 戻す */
+  win.SeikyuApp._pickSealUrl(seal小);
+  await sleep(20);
 });
 
 await TA('6-c. ★印を消せる（消しても、すでに出した紙は変わらない）', async () => {

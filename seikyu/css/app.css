@@ -184,6 +184,21 @@
 .ded-n { flex: 1 1 150px; min-width: 150px; }
 .ded-a { flex: 0 1 110px; min-width: 110px; text-align: right; }
 
+/* ── お振込先＝1口座ずつ 分けて 打つ ─────────────────────────
+   ★裸で 並べない★＝口座 1つを 1つの 囲いに する（どこまでが 1口座か 見て分かる）。
+   ★消すボタンは 明細と 同じ .l-del を 使い回す★（新しい 部品を 作らない）。 */
+.bank-c {
+  border: 1px solid #C8ECD8; border-radius: 10px; padding: 10px 10px 2px;
+  margin-bottom: 8px; background: #FFFFFF;
+}
+.bank-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.bank-t { font-size: 11px; font-weight: 700; color: #333333; }
+/* ★スマホでも 2列のまま★＝.frow2 は 480px以下で 1列に なるので
+   5つの 欄が 縦に 積み上がって ★1口座で 画面 1枚★に なる（実測で そうなった）。
+   ★子は min-width:0★＝中身より 細くならず 隣を 外へ 押し出す事故を 作らない。 */
+.bank-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bank-2 > * { min-width: 0; }
+
 /* 明細の「消費税」は ★出る物（読むだけ）★＝打てる欄と見た目で分ける */
 .l-ro {
   font-family: 'DM Mono', ui-monospace, monospace; font-size: 13px; color: #555555;

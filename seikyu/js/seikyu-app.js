@@ -2886,7 +2886,10 @@
     drawSetPaper();
     setText('seal-why', (sealGuess ? sealGuess.why + '（違う時は 上の数を 直してください）' : '')
       + '大きさは ' + DOC.SEAL_MIN_MM + '〜' + DOC.SEAL_MAX_MM + 'mm の間だけ（既定 '
-      + DOC.SEAL_DEFAULT_MM + 'mm）。画像は ' + Math.round(DOC.SEAL_MAX_BYTES / 1024) + 'KB まで。'
+      + DOC.SEAL_DEFAULT_MM + 'mm）。'
+      /* ★大きさの話を 人に させない★（2026-09-10 司さん「300KB以下にしてって出るけど 正常か？」）
+         ＝白抜き・余白切り・縮めは こちらで やる。人に「小さくしてから 入れ直せ」と 言わない。 */
+      + '写真の まま 入れて かまいません（まわりを 切って 小さくします）。'
       + '発行した時の印は写しに残るので、あとで印を替えても出した紙は変わりません。');
     $('b-seal-clear').disabled = !(d.sealDataUrl || sealPending);
   }
@@ -3179,18 +3182,37 @@
     box('seal-err', ''); box('seal-ok', '');
     if (!file) return;
     var fr = new FileReader();
-    fr.onload = function () {
-      var url = String(fr.result || '');
-      var chk = DOC.validateSeal(url);
-      if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; fillSeal(); return; }
-      sealPending = url;
-      sealGuess = null;
-      fillSeal();
-      box('seal-ok', '下見に出しました。「保存」を押すと紙に出ます。');
-      applySealTools(url);
-    };
+    fr.onload = function () { sealUrlPicked(String(fr.result || '')); };
     fr.onerror = function () { box('seal-err', 'この画像は読めませんでした。別の画像でお試しください。'); };
     fr.readAsDataURL(file);
+  }
+  /** ★判子を 1枚 受け取った時の 道は ここ 1本★
+   *  （2026-09-10 まで ★見張り用の入口が 同じ事を 別に 書いて★ いた＝
+   *    片方だけ 直すと ★見張りは 緑・お客さんは 赤★に なる。作る道を 2本に しない。） */
+  function sealUrlPicked(url) {
+    box('seal-err', ''); box('seal-ok', '');
+    /* ★★大きさは ここでは 見ない★★（2026-09-10 司さん
+         「判子の ファイルや 画像が ★300KB以下にしてって出る★けど 正常か？」）
+       ★順番が 逆だった★＝この後の applySealTools が
+         ①白抜き ②まわりの余白を 切る ③長辺600点に 縮める を やるので、
+         ★縮める前の 写真の 大きさで 断っていた★（スマホの写真は 2〜5MB＝必ず 断られる）。
+       ⇒ ここでは ★形（PNG/JPEG か）だけ★を 見る。
+         大きさは ★そろえた後★に 見て、それでも 超える時だけ 断る。
+       ★代行請求（Exally-test/daikou-seikyu.html）には 大きさの 上限が そもそも 無い★
+         （"KB" の字が 0か所・loadHanko は 読んで HankoTool.process に 渡すだけ）＝
+         あちらでは この知らせは ★出ない★。 */
+    var chk = DOC.validateSeal(url, { maxBytes: Infinity });
+    if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; sealGuess = null; fillSeal(); return chk; }
+    sealPending = url;
+    sealGuess = null;
+    fillSeal();
+    box('seal-ok', '下見に出しました。「保存」を押すと紙に出ます。');
+    var SEAL = global.SeikyuSeal;
+    if (!SEAL) return chk;
+    /* ★そろえて 当て終わるのを 待てる形で返す★（見張りが「その後」を見られるように） */
+    return Object.assign({}, chk, {
+      guessed: Promise.resolve(applySealTools(url)).then(function () { return sealGuess; }),
+    });
   }
 
   /** ★入れた判子を そろえて、形から 大きさを当てる★（司さん 2026-08-30「ハンコの情報あるんやけんやれや」）
@@ -3202,24 +3224,30 @@
     var SEAL = global.SeikyuSeal;
     if (!SEAL) return Promise.resolve();
     /* ★返す★＝呼ぶ側（と 見張り）が「終わったか」を 待てる（待てない物は 測れない） */
-    return SEAL.prepare(url).then(function (r) {
+    /* ★入らなければ もっと 小さくして 試す★（2026-09-10）
+       ＝判子は 紙に 17mm で 押す＝長辺 300点でも 刷りに 足りる。
+         ★人に「小さくしてから 入れ直せ」と 言う前に、こちらで やる★ */
+    var HABA = [SEAL.MAX_PX || 600, 400, 300];
+    var tameshi = function (i) {
+      return SEAL.prepare(url, { maxPx: HABA[i] }).then(function (r) {
+        var u = (r && r.dataUrl) || url;
+        var d = (r && r.did) || [];
+        if (DOC.validateSeal(u).ok) return { url: u, did: d, ok: true };
+        if (i + 1 < HABA.length) return tameshi(i + 1);
+        return { url: u, did: d, ok: false };
+      });
+    };
+    return tameshi(0).then(function (r) {
       if (sealPending !== url) return null;         // 途中で 別の画像に替えられていたら 捨てる
-      var next = (r && r.dataUrl) || url;
-      var did = (r && r.did) || [];
-      if (next !== url) {
-        /* ★そろえた物が 上限を超える事が ある★（写真をPNGにすると 太る）
-           ＝その時は ★元の画像のまま★にして、なぜ そのままかを 言う（黙って通さない）。 */
+      var next = r.url;
+      var did = r.did;
+      if (!r.ok) {
+        /* ★いちばん小さくしても 入らない★＝黙って 通さない（保存で 断られる） */
         var chk = DOC.validateSeal(next);
-        if (!chk.ok) {
-          box('seal-ok', '判子をそろえてみましたが、' + chk.reason
-            + '。入れた画像を そのまま使います。');
-          next = url;
-          did = [];
-        } else {
-          sealPending = next;
-          fillSeal();
-        }
+        box('seal-err', chk.reason);
+        return null;
       }
+      if (next !== url) { sealPending = next; fillSeal(); }
       if (did.length) box('seal-ok', did.join('／') + '。「保存」を押すと紙に出ます。');
       return SEAL.guessFromUrl(next).then(function (g) {
         if (sealPending !== next && sealPending !== url) return;
@@ -3353,6 +3381,50 @@
     var a = t.split(String.fromCharCode(10)).map(function (x) { return x.trim(); }).filter(function (x) { return x; });
     return a.length ? a : [''];
   }
+
+  /* ★★口座は 分けて 打つ★★（2026-09-10 司さん
+       「銀行口座の 入れ方を ★分けて いれさせろ★／銀行名、支店、口座番号、名前」）
+     ★倉庫の 形も 紙も 変えない★＝打った物を つないで ★1口座＝1行★に して しまう
+       （紙の bankLines は 前のまま＝2か所で 別々に 切らない）。
+     ★預金の種類（普通/当座）も 欄に する★＝今 紙に 出ている 物を 黙って 消さない為
+       （司さんの 今の 設定「伊予銀行 今治支店 普通 4160657 ド）ゴウ」にも 入っている）。 */
+  var BANK_SHU = ['普通', '当座', '貯蓄'];
+  var BANK_P = ['ginko', 'shiten', 'shubetsu', 'bango', 'meigi'];
+  function bankJoin(p) {
+    return BANK_P.map(function (k) { return String((p && p[k]) || '').trim(); })
+      .filter(function (x) { return x; }).join(' ');
+  }
+  /* ★口座番号の 見分け方は 紙と 同じ 決まりを 使う★＝5〜8桁
+     （seikyu-paper.js の bank-no と 同じ。2か所で 別々に 決めない） */
+  function bankParse(line) {
+    var t = String(line || '').replace(/\u3000/g, ' ').trim();
+    var out = { ginko: '', shiten: '', shubetsu: '', bango: '', meigi: '', raw: '' };
+    if (!t) return out;
+    var tok = t.split(/\s+/).filter(function (x) { return x; });
+    var bi = -1;
+    for (var i = 0; i < tok.length; i++) { if (/^[0-9]{5,8}$/.test(tok[i])) { bi = i; break; } }
+    if (bi < 0) { out.raw = t; return out; }
+    out.bango = tok[bi];
+    out.meigi = tok.slice(bi + 1).join(' ');
+    var mae = tok.slice(0, bi);
+    if (mae.length && BANK_SHU.indexOf(mae[mae.length - 1]) >= 0) { out.shubetsu = mae.pop(); }
+    /* ★支店らしい 語で 切る★＝無ければ ★最後の1つを 支店★（ゆうちょの「〇一八店」等）。
+       ★どちらでも 字は 1文字も 落とさない★＝下の 突き合わせで 確かめる。 */
+    var si = -1;
+    for (var j = mae.length - 1; j >= 0; j--) {
+      if (/(支店|支所|出張所|本店|営業部|店)$/.test(mae[j])) { si = j; break; }
+    }
+    if (si < 0 && mae.length >= 2) si = mae.length - 1;
+    if (si >= 0) { out.shiten = mae.slice(si).join(' '); out.ginko = mae.slice(0, si).join(' '); }
+    else { out.ginko = mae.join(' '); }
+    /* ★分けた物を 戻して 元と 同じか★＝違ったら ★分けずに そのまま 見せる★
+       （勝手に 直したり 落としたり しない） */
+    if (bankJoin(out) !== tok.join(' ')) {
+      return { ginko: '', shiten: '', shubetsu: '', bango: '', meigi: '', raw: t };
+    }
+    return out;
+  }
+
   function bankRowsWrite(list) {
     var v = (list || []).map(function (x) { return String(x || '').trim(); })
       .filter(function (x) { return x; }).join(String.fromCharCode(10));
@@ -3362,6 +3434,10 @@
      ＝倉庫の 形は「空を 落として 改行つなぎ」なので、
        ★空の 欄を 足した 瞬間に 画面から 消えて しまう★（実測で 踏んだ）。 */
   var bankRanN = 0;
+  /* ★触っていない 行は 打たれた 字を そのまま 残す★
+     ＝全角の あきや 並びを ★こちらの 都合で 書き換えない★（触った 行だけ 組み立て直す） */
+  var bankMoto = [];
+  function bankLabel(i) { return (i + 1) + 'つ目の口座'; }
   function drawBankRows(fuyasu) {
     var host = $('s-bank-list'); if (!host) return;
     var list = bankRows();
@@ -3371,21 +3447,75 @@
     bankRanN = Math.max(1, Math.min(bankRanN, 20));
     while (list.length < bankRanN) list.push('');
     list = list.slice(0, bankRanN);
+    bankMoto = list.slice();
+    var ran = function (na, k, ph, extra) {
+      return '<div class="frow"><div class="flabel">' + na + '</div>'
+        + '<input class="finput" data-bank-p="' + k + '" type="text"' + (extra || '')
+        + ' placeholder="' + ph + '"></div>';
+    };
     host.innerHTML = list.map(function (x, i) {
-      return '<div class="ded-row">'
-        + '<input class="finput" data-bank-i="' + i + '" type="text" value="' + esc(x) + '"'
-        + ' placeholder="例：サンプル銀行 サンプル支店 普通 1234567 カ）サンプル"'
-        + ' aria-label="' + (i + 1) + 'つ目の口座">'
+      var b = bankParse(x);
+      var head = '<div class="bank-h"><span class="bank-t">' + bankLabel(i) + '</span>'
         + (list.length > 1
-          ? '<button class="l-del" type="button" data-bank-d="' + i + '" aria-label="この口座を消す">×</button>'
-          : '')
+          ? '<button class="l-del" type="button" data-bank-d="' + i + '" aria-label="' + bankLabel(i) + 'を消す">×</button>'
+          : '') + '</div>';
+      if (b.raw) {
+        /* ★分けて 読めなかった 物★＝打った 字を そのまま 見せる（落とさない） */
+        return '<div class="bank-c" data-bank-row="' + i + '" data-bank-raw="1">' + head
+          + '<div class="frow"><div class="flabel">そのまま<span class="hint2">分けて 読めませんでした</span></div>'
+          + '<input class="finput" data-bank-p="raw" type="text"></div></div>';
+      }
+      return '<div class="bank-c" data-bank-row="' + i + '">' + head
+        + '<div class="bank-2">'
+        + ran('銀行名', 'ginko', 'サンプル銀行')
+        + ran('支店', 'shiten', 'サンプル支店')
+        + '</div><div class="bank-2">'
+        + '<div class="frow"><div class="flabel">預金の種類</div>'
+        + '<select class="finput" data-bank-p="shubetsu">'
+        + BANK_SHU.map(function (k) { return '<option value="' + k + '">' + k + '</option>'; }).join('')
+        + '<option value="">（なし）</option>'
+        + '</select></div>'
+        + ran('口座番号', 'bango', '1234567', ' inputmode="numeric"')
+        + '</div>'
+        + ran('口座名義', 'meigi', '例：カ）サンプル（カタカナ）')
         + '</div>';
     }).join('');
+    /* ★打たれた 字は 属性でなく value に 入れる★＝エスケープの 事故を 作らない */
+    Array.prototype.forEach.call(host.querySelectorAll('[data-bank-row]'), function (row, i) {
+      var b = bankParse(list[i] || '');
+      /* ★何も 打っていない 口座は 種類を「普通」から★（世の中で いちばん 多い）
+         ＝打ってある 口座の 種類は ★そのまま★（勝手に 足さない）。 */
+      if (!String(list[i] || '').trim()) b.shubetsu = BANK_SHU[0];
+      Array.prototype.forEach.call(row.querySelectorAll('[data-bank-p]'), function (el) {
+        el.value = String(b[el.getAttribute('data-bank-p')] || '');
+      });
+    });
     var yomu = function () {
-      return Array.prototype.map.call(host.querySelectorAll('[data-bank-i]'), function (el) { return el.value; });
+      return Array.prototype.map.call(host.querySelectorAll('[data-bank-row]'), function (row, i) {
+        if (bankMoto[i] != null) return bankMoto[i];
+        if (row.getAttribute('data-bank-raw')) {
+          var r = row.querySelector('[data-bank-p="raw"]');
+          return r ? r.value : '';
+        }
+        var p = {};
+        Array.prototype.forEach.call(row.querySelectorAll('[data-bank-p]'), function (el) {
+          p[el.getAttribute('data-bank-p')] = el.value;
+        });
+        /* ★預金の種類は 選ぶだけで 中身に ならない★
+           ＝何も 打っていない 口座が「普通」の 1行として 紙に 出るのを 止める。 */
+        var uchi = ['ginko', 'shiten', 'bango', 'meigi']
+          .some(function (k) { return String(p[k] || '').trim(); });
+        return uchi ? bankJoin(p) : '';
+      });
     };
-    Array.prototype.forEach.call(host.querySelectorAll('[data-bank-i]'), function (el) {
-      el.oninput = function () { bankRowsWrite(yomu()); drawSetPaper(); };
+    Array.prototype.forEach.call(host.querySelectorAll('[data-bank-p]'), function (el) {
+      var teuchi = function () {
+        var row = el.parentNode;
+        while (row && !(row.getAttribute && row.getAttribute('data-bank-row'))) row = row.parentNode;
+        if (row) bankMoto[+row.getAttribute('data-bank-row')] = null;  /* ★触った 行だけ 組み立て直す★ */
+        bankRowsWrite(yomu()); drawSetPaper();
+      };
+      el.oninput = teuchi; el.onchange = teuchi;
     });
     Array.prototype.forEach.call(host.querySelectorAll('[data-bank-d]'), function (b) {
       b.onclick = function () {
@@ -4634,8 +4764,9 @@
     if ($('b-bank-add')) $('b-bank-add').onclick = function () {
       drawBankRows(true);
       var host = $('s-bank-list');
-      var all = host ? host.querySelectorAll('[data-bank-i]') : [];
-      var el = all[all.length - 1];
+      var rows = host ? host.querySelectorAll('[data-bank-row]') : [];
+      var last = rows[rows.length - 1];
+      var el = last ? last.querySelector('[data-bank-p]') : null;
       if (el && el.focus) el.focus();
     };
     $('b-set-save').onclick = function () { return saveSettings(); };
@@ -4697,6 +4828,8 @@
     _go: goScreen,
     _new: newInvoice,
     _fillSettings: fillSettings,
+    /* ★倉庫の 字を 入れ替えて 描き直す道★＝設定を 開き直したのと 同じ（見張り用） */
+    _drawBankRowsForTest: function (n) { return drawBankRows(n); },
     /* テスト用: ★相手ごとの紙の設定を 画面から 作る★（口座の札を 押した結果が 入るか を 見る為） */
     _partnerPaperFromForm: function (id) { return partnerPaperFromForm(id); },
     _loadMasters: function () { return loadMasters(true); },   // テストから1回だけ読ませる
@@ -4742,16 +4875,8 @@
     _sealPutAtForTest: function (x, y) { return sealPutAt(x, y); },
     _sealXYForTest: function () { return sealXY; },
     _saveSealForTest: function () { return saveSeal(); },       // テスト用: 保存を そのまま走らせる
-    _pickSealUrl: function (url) {           // テスト用: ファイル選択の代わりに data URL を渡す
-      var chk = DOC.validateSeal(url);
-      if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; sealGuess = null; fillSeal(); return chk; }
-      sealPending = url; sealGuess = null; fillSeal();
-      var SEAL = global.SeikyuSeal;
-      if (!SEAL) return chk;
-      /* ★そろえて 当て終わるのを 待てる形で返す★（見張りが「その後」を見られるように） */
-      return Object.assign({}, chk, {
-        guessed: Promise.resolve(applySealTools(url)).then(function () { return sealGuess; }),
-      });
-    },
+    /* テスト用: ファイル選択の代わりに data URL を渡す。
+       ★お客さんが 通る道（sealUrlPicked）を そのまま 呼ぶ★＝同じ事を 2度 書かない。 */
+    _pickSealUrl: function (url) { return sealUrlPicked(url); },
   };
 })(window);
