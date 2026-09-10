@@ -22,6 +22,7 @@
  *   ⑤ 空振りしない（本当に 画面の 字を 拾えている）
  *
  * ★実ブラウザで 測る★＝ブラウザが 作る 字は jsdom には 出ない。
+ * ★入る（ログインする）★ので ★本番の repo では 走らない★（鍵が 無い＝tests/_hairu.mjs kagiAru）。
  * 使い方: node seikyu/tests/eigo-dasanai.mjs [--self-test]
  */
 import fs from 'node:fs';
@@ -37,6 +38,19 @@ let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
 const ok = (c, m) => { if (!c) throw new Error(m || 'false'); };
 
+/* ★★入る（ログインする）見張りは 本番の repo では 走らせない★★
+   ＝本番の repo は ★本番の 倉庫★を 指すので test@test.com は 居ない
+     （2026-09-10 実測＝本番の 入れ物で 3回とも 入れず 30秒で 落ちた）。
+   ★黙って 緑に しない★＝「ここでは 測れない・テスト線で 測っている」と 字で 言ってから 抜ける。
+   ★決まりは tests/_hairu.mjs の kagiAru が 唯一の正★（他の 入る見張りと 同じ道）。 */
+{
+  const { kagiAru } = await import('../../tests/_hairu.mjs');
+  if (!(await kagiAru(ROOT))) {
+    console.log('[eigo-dasanai] — ★この repo（本番）には 試験の 鍵が 無いので ここでは 測れません★'
+      + '（★テスト線で 測っています★／戻す条件＝本番CIに 鍵を 置いた日）');
+    process.exit(0);
+  }
+}
 const ch = await borrow('eigo-dasanai', 'chromium');
 if (!ch) { console.log('🟡 ★未測定★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
 
