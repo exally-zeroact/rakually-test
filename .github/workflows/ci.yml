@@ -439,6 +439,12 @@ jobs:
         run: node seikyu/tests/itsudemo-naoseru.mjs
       - name: ★いつでも直せる (直せなくする/発行するを出す/状態を落とす/前を入れない で赤になるかの自己確認)
         run: node seikyu/tests/itsudemo-naoseru.mjs --self-test
+      # ★お振込先の 入れ方★（司さん 2026-09-10「どこで 改行など 分からんから ちゃんとして
+      #   それと 2個 表示する時用で 追加ボタンで また 入力するようにしろ」）
+      - name: ★お振込先 (1口座＝1つの欄/＋で足せる/×で消せる/空の欄はしまわない/紙は1行)
+        run: node seikyu/tests/bank-ran.mjs
+      - name: ★お振込先 (足しても増えない/また勝手に割る/番号を目立たせない で赤になるかの自己確認)
+        run: node seikyu/tests/bank-ran.mjs --self-test
       - name: ★請求番号 (既定は出る/切ると欄ごと消える/採番は止めない/4様式とも)
         run: node seikyu/tests/no-kesu.mjs
       - name: ★一覧 (確認で別画面/一覧に紙を出さない/取引先と何年何月分でしぼる/件数と合計)

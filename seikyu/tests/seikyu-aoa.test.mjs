@@ -369,15 +369,26 @@ T('★★振込先の名義は Excel でも次の行（紙と同じ分け方を�
     const i = arr.findIndex((x) => x && x[0] === 'お振込先');
     return i < 0 ? [] : [arr[i], arr[i + 1]];
   };
-  const a = mk('伊予銀行　今治支店　普通　4160657　ド）ゼロアクト');
-  eq(a[0][1], '伊予銀行　今治支店　普通　4160657', '★Excel の1行目に名義まで入っている★: ' + JSON.stringify(a));
-  eq(a[1][0], '', '名義の行に見出しを繰り返している');
-  eq(a[1][1], 'ド）ゼロアクト', '★Excel で名義が次の行に来ていない★: ' + JSON.stringify(a));
-  const want = PAPER_.bankLines('伊予銀行　今治支店　普通　4160657　ド）ゼロアクト');
-  eq(a[0][1], want[0], '紙と Excel で1行目が違う');
-  eq(a[1][1], want[1], '紙と Excel で2行目が違う');
-  const b = mk('伊予銀行　今治支店　普通　4160657');
-  ok(!b[1] || b[1][1] !== '', '★名義が無いのに空の行を足している★: ' + JSON.stringify(b));
+  /* ★2026-09-10 決めが 変わった★（司さん「字を 小さくしても 1行で 収めれないか」
+       →「収まるなら 口座番号は 目立つように」）
+     ＝★勝手に 名義を 次の行へ 送るのを やめた★。1口座＝1行。
+     ★見張りの 芯は 変えない★＝★紙と Excel で 分け方が 同じ★（呼ぶ物が 1つ）。 */
+  const NL = String.fromCharCode(10);
+  const hitotsu = 'サンプル銀行　サンプル支店　普通　1234567　カ）サンプル';
+  const a = mk(hitotsu);
+  const want = PAPER_.bankLines(hitotsu);
+  eq(want.length, 1, '★1口座なのに 紙が 割っている★');
+  eq(a[0][1], want[0], '★紙と Excel で 1行目が 違う★: ' + JSON.stringify(a));
+  ok(!a[1] || !a[1][1], '★1口座なのに Excel が 2行 出している★: ' + JSON.stringify(a));
+  /* ★2口座なら Excel も 2行★（別々の 口座を つながない） */
+  const futatsu = hitotsu + NL + 'テスト銀行　テスト支店　当座　7654321　カ）サンプル';
+  const c = mk(futatsu);
+  const want2 = PAPER_.bankLines(futatsu);
+  eq(want2.length, 2, '★打った 改行で 割れていない★');
+  eq(c[0][1], want2[0], '紙と Excel で1行目が違う');
+  ok(c[1], '★Excel に 2つ目の 口座が 無い★: ' + JSON.stringify(c));
+  eq(c[1][0], '', '名義の行に見出しを繰り返している');
+  eq(c[1][1], want2[1], '紙と Excel で2行目が違う');
 });
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

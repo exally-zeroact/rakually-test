@@ -81,7 +81,13 @@
   var ROW_H = '6.3mm';
   /* ★あて名の下と「◯月分」の間の余白（mm）★＝★元の紙と同じ数★（実測 15.3mm）
      ここを 0にしてしまい 司さんに 差し戻された（2026-08-31）。★言われていない所は 変えない★ */
-  var MID_PAD_MM = 15.3;
+  /* ★あて名の 下〜「◯月分」の 余白★
+     ★2026-08-31 司さん「赤線の所の 余白 詰めろなんか ゆうたか？ いらんことすんなや」★
+       ＝その時は ★触るな★だったので 15.3mm を そのまま 残した。
+     ★2026-09-10 司さん「下が 重たく 感じるから ★赤線の ところの 余白を 少なくして★
+       項目の 行数を 2個 減らして」★＝★今回は 減らせ★と 言われた。
+     ⇒ 15.3 → 8.0mm（★前の 決めを 上書き★。言われた日と 中身を 両方 残す）。 */
+  var MID_PAD_MM = 8.0;
   var ROW_PAD = '0.9mm 1.2mm';
   var ROW_LH = '1.35';
   /* ★A4 1枚に載る行数★（★実測して決めた数★）
@@ -127,11 +133,14 @@
      ＝控除が 無い 紙にも ★3つ目の 帯（ご請求金額｜金額）★を 出したので、
        足元が また 1行ぶん 高く なった。
      ★測ってから 減らした★＝減らす前に 出したら 1142px（A4 1122.5px を 19px 超え）。 */
-  var PAPER_ROWS = 18;        /* ★控除を出さない紙★（★実測＝物理の上限は 19・1行の 余裕を 取って 18★）
+  /* ★2026-09-10 司さん「下が 重たく 感じるから … ★項目の 行数を 2個 減らして★」★
+     ＝18 → 16／控除ありは 7 → 5。★上限が 減るのでは なく 出す 空行が 減る★
+       （明細が それより 多い時は 今までどおり 2枚目へ 送る）。 */
+  var PAPER_ROWS = 16;        /* ★控除を出さない紙★（★実測＝物理の上限は 19・司さんの 決めで 16★）
      ★2026-09-08 の 道すじ★ 18 →（合計行を 足す）17 →（帯を 足す）16
        →（★足元の 備考の箱を 消した★＝司さんの 実物で 備考は 明細の 列と 分かった）★18★
      ★実測（WebKit・A4 1122.5px）★ 18行 緑／19行 緑／★20行で 1146px＝23px 超え★ */
-  var PAPER_ROWS_DED = 7;     /* ★控除を出す紙★（合計行の分 8→7・帯は 前から 在る） */
+  var PAPER_ROWS_DED = 5;     /* ★控除を出す紙★（2026-09-10 司さんの 決めで 7→5） */
   var DEDUCT_ROWS = 4;        // 控除の枠 ★会社が変えられる★（実物 八木＝E17:H20＝4行）
   var ROWS_FIRST = 12;
   var ROWS_REST = 24;
@@ -422,7 +431,14 @@
          枠18行＋備考 … 1146px ＝★23px はみ出す★
          枠17行＋備考 … 1123px ＝載る（15/16/17行とも 1123px）
        ★黙って 切らない★＝ここで 1行 減らして、あふれる分は 2枚目に 送る。 */
-    if (memoBox && !showDeduct) base -= 1;
+    /* ★足元に 備考の 枠を 出すと その高さぶん 明細を 減らす★
+       ★2026-09-10 実測（Chromium・A4 1122.5px）★
+         枠の 大きさ … 263×88px（空のまま）／263×96px（2行 書いた時）
+         減らさない … 1172px（★49px はみ出す★）／1行だけ 減らす … まだ 足りない
+         ★4行 減らす … 1123px（収まる）★（明細 1行＝約24px）
+       ★2026-09-05 に「1行で足りる」と 書いたのは 箱が 23px の 時の 話★＝
+         今の 箱（手で 書き足せる 2行ぶん）とは 別物。★測り直した★。 */
+    if (memoBox && !showDeduct) base -= 4;
     var n = Math.max(0, Math.trunc(Number(rateRows) || 0));
     var d = Math.max(0, Math.trunc(Number(dedLines) || 0));
     /* ★口座が 3つを 超えたら 1つごとに 明細を1行 減らす★（2026-09-02 実測）
@@ -504,8 +520,17 @@
     if (/\n/.test(t)) {
       return t.split('\n').map(function (x) { return x.trim(); }).filter(function (x) { return x; });
     }
-    var m = /^([\s\S]*?\d{5,8})[ 　]+(\S[\s\S]*)$/.exec(t);
-    return m ? [m[1].trim(), m[2].trim()] : [t];
+    /* ★★勝手に 割るのを やめました★★（2026-09-10 司さん
+         「そもそも どこで 改行とやなしに ★字を 少し 小さくしても 長い振込先でも 1行で 収めれないか？★」
+          →「★収まるなら 口座番号は 目立つようにして★」）
+       ★前は ここで 口座番号（5〜8桁）の 後ろを 見つけて 2行に 割っていました★
+         （2026-08-16・司さんの 指示なし＝私の 都合）。
+       ★実測（2026-09-10・左の列 438px）★
+         本文 9.5pt のまま … 世の中の 長い 振込先 4件が ★1行に 入らない★（最長 510px）
+         ★本文 8pt・口座番号は 13pt のまま … 6件とも 1行に 入る★（最長 441px）
+       ⇒ 割るのを やめて、★字だけ 小さく／口座番号は 目立たせたまま★。
+       ★改行を 打った時は そのまま 割る★（上の分岐）＝どこで 割るかは 人が 決める。 */
+    return [t];
   }
 
   /* ★相手ごとに 出す口座を 決める（唯一の正）★（2026-09-02・実物45枚から）
@@ -1094,11 +1119,13 @@
        分け方（何行に分けるか）は ★bankLines が唯一の正★＝紙も Excel も同じ形にする。 */
     function bankHtml(bank) {
       var parts = bankLines(bank);
-      /* ★1行で出す様式★（実物の控除型は 11通とも 振込先が1行）＝様式が決める・焼き付けない */
-      if (TH.bankOneLine) {
-        var one = esc(parts.join(' ')).replace(/(\d{5,8})/g, '<span class="bank-no">$1</span>');
-        return one;
-      }
+      /* ★★2026-09-10 司さん「なんで 2個 あるのに 改行してないんど／★1行で まとめなや★」★★
+         ＝bankOneLine（実物の 控除型は 11通とも 振込先が 1行）を
+           ★口座が 2つ以上 在る時にも 効かせていた★＝2口座が 1行に つながって 出ていた。
+         ★1行で出す★の 意味は ★1つの 口座を 1行に 収める★事であって、
+           ★別々の 口座を くっつける★事では ない。
+         ⇒ ★口座は いつも 1つ1行★。bankOneLine は もう 見ない
+           （2026-09-10 に 勝手な 割りを やめたので、1口座は もともと 1行に なる）。 */
       return parts.map(function (line, i) {
         var t = esc(line).replace(/(\d{5,8})/g, '<span class="bank-no">$1</span>');
         return (i === 0) ? t : '<span class="bank-nm">' + t + '</span>';
@@ -1129,8 +1156,17 @@
          ★2026-09-08 に 一度 これも 消して しまった★＝納品書の 備考が 紙から 落ちて
          delivery.test.mjs が 捕まえた。★空の箱を 消すのと 書いた物を 消すのは 別★。 */
       var memo = textOf(inv.data && inv.data.memo);
-      if (memo) left += '<div class="note"><div class="note-h">備考</div><div class="note-b">'
+      if (memo) left += '<div class="note note-memo"><div class="note-h">備考</div><div class="note-b">'
         + esc(memo).split(String.fromCharCode(10)).join('<br>') + '</div></div>';
+      /* ★空でも 備考の 枠を 刷る★（2026-09-10 司さん「備考欄が 下に あるバージョン 見せろや」）
+         ＝手で 書き足す 為の 欄。★出すか どうかは 様式が 決める★（theme.memoBox）。
+         ★既定は 出さない★＝どの様式も memoBox を 持っていないので、今までと 1ドットも 変わらない。
+         ★納品書には 出さない★（払えの紙では ないので 書き足す欄が 要らない）。
+         ★行数の 計算は もう 知っている★（maxRowsOf の memoBox＝出すと 明細が 1行 減る）。 */
+      else if (memoBoxOf(inv, o) && !isDelivery) {
+        left += '<div class="note note-memo"><div class="note-h">備考</div>'
+          + '<div class="note-b note-mb"></div></div>';
+      }
       var right = breakdownBlock();
       /* ★（内訳）が無い時は 右のマスごと出さない★＝振込先が幅いっぱい使える
          （空のマスを残すと 左が狭いままで、長い銀行名が折り返す） */
@@ -1383,8 +1419,16 @@
       /* 上の中身は上から積み、足元は紙の下端に貼る（★表の2行で作る＝flex を使わない★） */
       '.pg{width:100%;height:100%;border-collapse:collapse;table-layout:fixed;}',
       '.pg>tbody>tr>td{padding:0;}',
-      '.pg-b>td{vertical-align:top;}',
-      '.pg-f>td{vertical-align:bottom;height:1px;}',
+      /* ★★足元を 紙の 下端に 貼るのを やめました★★（2026-09-10 司さん
+           「なぜ ここが 余白 増えるんど」＝あて名の 余白と 行数を 詰めたのに、
+             ★その分が そのまま 表と 足元の 間の 空白に 移っただけ★だった）
+         ★前は★ 上の段が 残りの 高さを 全部 使い、足元を 下端に 貼っていた
+           （2026-08-16・振込先を いつも 同じ高さに 出す為＝私が 決めた 事）。
+         ★今は★ 上の段の 高さを 中身なりに して、足元を そのすぐ下へ 寄せる。
+           ⇒ 明細が 少ない紙は ★下が 空く★（足元の 位置は 行数で 動く）。
+         ★A4は 超えない★＝物理の 上限は 前と 同じ（測って 確かめた）。 */
+      '.pg-b>td{vertical-align:top;height:1px;}',
+      '.pg-f>td{vertical-align:top;height:auto;}',
       /* 画面で紙の切れ目が分かるように（印刷では出さない） */
       '.sheet + .sheet{border-top:' + HAIR + ' dashed ' + LINE + ';}',
       '@media print{.sheet{page-break-after:always;break-after:page;border-top:0;}',
@@ -1515,6 +1559,11 @@
          見出しの下に線 → 中身（足りない行は高さの決まった空行）→ ★このブロックの合計★（上に線）
          ★左右の行の高さを同じにする★＝同じ番号の行の上端が同じ位置に来る。 */
       '.blk{margin:0 0 4mm;}',
+      /* ★詰めすぎない★（2026-09-10 司さん「詰めすぎ」）
+         ＝足元を 下端に 貼るのを やめた分、★明細の 表と 締めが くっつきすぎた★。
+         ★ここで 一息 入れる★（表の 下＝締めの 上）。
+         前は 明細の 行数で 空白が 動いていた（多い時 270px・少ない時 0）。 */
+      '.blk-items{margin-bottom:10mm;}',
       /* 箱の名前（控除）＝読ませる字なので ★薄い黒★（罫の色で書くと消えかける） */
       '.st{font-size:9.5pt;font-weight:700;color:' + INK + ';letter-spacing:.16em;',
       'padding:0 0 1.6mm;border-bottom:' + HAIR + ' solid ' + LINE + ';margin:0 0 0;}',
@@ -1643,9 +1692,12 @@
          ★border-collapse は継承する★＝足元の表（collapse）の中に display:table を置くと
          ★padding が丸ごと無視される★（実測 2026-08-16：枠と字の間が 1px しか無かった）。
          ＝separate に戻してから余白を付ける。 */
-      '.note-bank{display:table;border-collapse:separate;border:' + HAIR + ' solid ' + LINE + ';',
+      /* ★備考の 箱は 振込先と 同じ 見た目★（2026-09-10）＝新しい 顔を 作らない。 */
+      '.note-bank,.note-memo{display:table;border-collapse:separate;border:' + HAIR + ' solid ' + LINE + ';',
       'background:' + TH.headBg + ';border-radius:1.5mm;padding:2.4mm 4mm;margin:0 0 2.4mm;}',
-      '.note-bank .note-h{margin-bottom:1.6mm;}',
+      '.note-bank .note-h,.note-memo .note-h{margin-bottom:1.6mm;}',
+      /* ★空の 備考の枠★＝手で 書き足せる 広さ（2行ぶん） */
+      '.note-mb{min-height:40px;}',
 
       /* 箱の中の字は 中身なりの幅（★最低幅は残す＝1文字ずつ縦に割れない★）
          ※ .note-b とは別のクラスにしている＝「.note-b の決まり」を検査する所と混ざらないため */
@@ -1656,7 +1708,19 @@
          ★元の 理由（2026-08-16）★は「名義が 長い会社と 短い会社で 足元の 高さが 変わると
            載る行数も 変わる」。⇒ ★行数の 側で 面倒を 見る★（maxRowsOf の bankRows）ので
            箱の 高さは 中身なりで よい。★1行ぶんだけ 最低を 残す★（1文字ずつ 縦に割れない為）。 */
-      '.note-bb{width:auto;min-width:22mm;min-height:24px;}',
+      /* ★振込先だけ 字を 小さく★（2026-09-10・上の bankLines と 対）
+         ＝1行に 収める為。★口座番号（.bank-no 13pt）は 触らない★＝いちばん 読み間違えたく ない所。
+         ★実測★ いちばん長い 例で 441px なので 箱の 最大を 450px まで 許す。 */
+      /* ★1口座＝1行★（2026-09-10 司さん「字を 少し 小さくしても 1行で 収めれないか」
+           →「収まるなら ★口座番号は 目立つように★」）
+         ★折り返させない★＝white-space:nowrap（親の .note-b は normal なので ここで 上書き）。
+         ★字は 8pt／口座番号は 13pt のまま★＝いちばん 読み間違えたく ない所は 触らない。
+         ★実測（左の列に 使える 幅＝約429px）★ 世の中の 長い 例で 8pt+13pt … 441px＝★3px 足りない★
+           ⇒ 本文 7.5pt で 419px＝収まる。口座番号は 13pt のまま。 */
+      /* ★.note-b より 後に 書かれても 勝つように 2つ重ねる★
+         （同じ 詳しさだと ★後に 書いた .note-b が 勝つ★＝
+           2026-09-08 に 締めの 帯の 字が 薄いままだったのと 同じ 穴）。 */
+      '.note-b.note-bb{width:auto;min-width:22mm;min-height:24px;font-size:7.5pt;white-space:nowrap;}',
 
       '.note-bank .note-h{color:' + TH.headInk + ';font-weight:700;}',
       /* 口座番号（続いた数字）だけ 大きく等幅＝読み間違いを減らす */

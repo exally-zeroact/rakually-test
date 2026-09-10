@@ -138,8 +138,18 @@ const htmlM = PAPER.build({
 T('④ ★備考の 列に 現場名が 出る（消費税の 右隣）',
   /東予市/.test(htmlM) && /菊水ホテル/.test(htmlM),
   '★現場名が 紙に 出ていない★（備考の列の 値は line.memo）');
-T('④-2 ★備考は 明細の 列＝足元の 箱では ない',
-  !/note-memo/.test(htmlM), '★足元に 備考の箱が まだ 出ている★');
+/* ★見るのは「★空の 枠★が 出ていないか」★（2026-09-10 直した）
+   ＝2026-09-10 に、司さんが 頼んだ 時だけ 出せる ように
+     ★足元の 備考の 枠（theme.memoBox）★を 戻した。
+     ★既定は どの様式も 持っていない★ので 今までと 1ドットも 変わらない。
+   ★note-memo は 書いた 備考にも 付く★ので、それで 見ると
+     「備考を 打っただけ」で 赤に なる（＝この検査の 狙いでは ない）。
+   ⇒ ★空の 枠（note-mb）★で 見る。 */
+/* ★CSSの 決まりの 字を 数えない★＝class の 名前は 見た目の 定義にも 1回 出る
+   （2026-09-10 実測で 踏んだ／2026-09-09 にも 同じ 穴を 踏んでいる）。
+   ⇒ ★出た 要素★で 見る。 */
+T('④-2 ★足元に 空の 備考の枠を 出さない（備考は 明細の 列）',
+  htmlM.indexOf('class="note-b note-mb"') < 0, '★足元に 空の 備考の箱が 出ている★');
 
 if (SELF) {
   console.log('\n[memo-waku --self-test] わざと 直す前の形にすると はみ出すか');
@@ -155,9 +165,13 @@ if (SELF) {
            （実測 6通りとも 1123px のまま＝★壊せていない★）。
            ⇒ ★今 足元の 高さを 決めているのは 振込先の 箱★なので そちらを 高くする。
          ★見張りが これを 見逃すなら、次に 足元を 触った日にも 見逃す★ */
+      /* ★2026-09-10 壊し方を 直した★
+         ・振込先の 決まりは ★.note-b.note-bb★（2つ重ね）に なった＝前の 字では 当たらない
+         ・足元を ★紙の 下端に 貼るのを やめた★ので 余裕が でき、180px では 出なくなった
+         ⇒ ★当たる 字★に して ★出るまで 大きく★（実測して 決めた 400px）。 */
       const html = paperHtml(id, waku, { memoBox: true })
-        .replace('.note-bb{width:auto;min-width:22mm;min-height:24px;}',
-          '.note-bb{width:auto;min-width:22mm;min-height:180px;}');
+        .replace(/\.note-b\.note-bb\{[^}]*\}/,
+          '.note-b.note-bb{width:auto;min-width:22mm;min-height:400px;}');
       await pg.setContent(html, { waitUntil: 'load' });
       const m = await pg.evaluate(MEASURE);
       const deta = m.h > A4 + 1;
