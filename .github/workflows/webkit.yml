@@ -116,6 +116,10 @@ jobs:
       #   ★字の はみ出しは 画素でしか 分からない★ので 実ブラウザ＝ここ（webkit.yml）。
       - name: ★列の幅 (消費税の右にすきま/真ん中4列は1塊/字がはみ出さない/A4に収まる)
         run: node seikyu/tests/retsu-haba.mjs
+      - name: 画面にブラウザ任せの英語を出さない（Choose File が出ていない）
+        run: node seikyu/tests/eigo-dasanai.mjs
+      - name: 同 わざと壊して赤になるか
+        run: node seikyu/tests/eigo-dasanai.mjs --self-test
       - name: 2枚目・3枚目に入った紙（1枚目がスカスカにならない・A4に収まる）
         run: node seikyu/tests/maisuu.mjs
       - name: 同 わざと壊して赤になるか

@@ -4723,13 +4723,23 @@
     if ($('b-bill-xlsx')) $('b-bill-xlsx').onclick = function () { billDo('xlsx'); };
     /* ★自社のExcel★ 読む・使う・やめる */
     if ($('book-file')) $('book-file').onchange = function (e) {
-      pickBook(e.target.files && e.target.files[0]);
+      var f = e.target.files && e.target.files[0];
+      setText('book-fname', f ? f.name : '選んでいません');
+      pickBook(f);
     };
     if ($('b-book-use')) $('b-book-use').onclick = function () { return useBook(); };
     if ($('b-book-clear')) $('b-book-clear').onclick = function () { return clearBook(); };
     $('b-seal-save').onclick = function () { return saveSeal(); };
     $('b-seal-clear').onclick = function () { return clearSeal(); };
-    $('seal-file').onchange = function (e) { pickSeal(e.target.files && e.target.files[0]); };
+    /* ★ブラウザの 英語の ボタンを 出さない★（司さん 2026-09-10「なんで いきなり 英語 入れるんど」）
+       ＝入れ物は 隠して、日本語の ボタンから 呼ぶ。選んだ 名前も 自分で 出す。 */
+    $('b-seal-pick').onclick = function () { $('seal-file').click(); };
+    $('seal-file').onchange = function (e) {
+      var f = e.target.files && e.target.files[0];
+      setText('seal-fname', f ? f.name : '選んでいません');
+      pickSeal(f);
+    };
+    $('b-book-pick').onclick = function () { $('book-file').click(); };
     $('b-col-add').onclick = function () { addCol(); };
     $('b-col-reset').onclick = function () { resetCols(); };
     if ($('b-col-undo')) $('b-col-undo').onclick = function () { undoCols(); };
