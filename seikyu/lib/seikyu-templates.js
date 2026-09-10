@@ -272,6 +272,49 @@
     },
   };
 
+  /* ★★様式は「備考あり／なし」で 対に する★★（2026-09-10 司さん
+       「テンプレで それぞれ ★あり版 なし版★で 並べるんやろが」
+        →「おれが いよる あり版なし版は ★備考★の ことやろが」）
+     ＝前は 備考の 列を 持つ様式が genba 1つだけで、
+       「罫線ありの 紙に 現場名も 書きたい」「控除も 消費税も 備考も 要る」が 選べなかった。
+     ★相方は 元から 機械で 生やす★＝元を 直せば 両方 直る（★片方だけ 直る 事故を 止める★）。
+     ★列の 割り振りは 様式ごとに 明示★＝
+       司さんの 決め（2026-09-10）「真ん中の 4列は 1塊に 詰めて ★項目と 備考は 多めに★」。
+     ★前からの id は 1文字も 変えない★＝出した紙の 様式が 迷子に ならない。 */
+  function kaeHan(motoId, id, label, note, items, widths) {
+    var t = JSON.parse(JSON.stringify(TEMPLATES[motoId]));
+    t.id = id; t.label = label; t.note = note;
+    t.cols = { items: items, widths: widths, aligns: {} };
+    return t;
+  }
+  TEMPLATES.std1memo = kaeHan('std1', 'std1memo',
+    '品名・数量・単価（罫線あり）＋備考',
+    'いちばん上と 同じ形に、いちばん右へ 備考の列を 足した物。行ごとに 現場名などを 書けます。',
+    ['#', '品名・内容', '数量', '単位', '単価', '金額', '消費税', '備考'],
+    { '#': 22, '品名・内容': 158, '数量': 34, '単位': 28, '単価': 56, '金額': 62, '消費税': 66, '備考': 174 });
+  TEMPLATES.koujomemo = kaeHan('koujo', 'koujomemo',
+    '項目・金額＋控除＋備考（現場名を書く）',
+    '控除（弁当代など）を 引く紙に、行ごとの 消費税と 備考の列を 足した物。',
+    ['項目', '数量', '単位', '金額', '消費税', '備考'],
+    { '項目': 176, '数量': 34, '単位': 28, '金額': 68, '消費税': 66, '備考': 228 });
+  TEMPLATES.genbanashi = kaeHan('genba', 'genbanashi',
+    '項目・金額（単価を出さない）',
+    '単価の列を 出さず、項目・数量・単位・金額・消費税だけ。備考は 出しません。',
+    ['項目', '数量', '単位', '金額', '消費税'],
+    { '項目': 404, '数量': 34, '単位': 28, '金額': 68, '消費税': 66 });
+
+  /* ★並びは「なし → あり」の 対★＝対が 離れて 見えないように 順を 決める。
+     ★ここに 無い id は 後ろに 付ける★＝様式を 足した日に 一覧から 消えない。 */
+  var NARABI = ['std1', 'std1memo', 'koujo', 'koujomemo', 'genbanashi', 'genba'];
+  /* ★選べる 一覧から 隠す★（2026-09-10 司さん「③④ いらんことないか？」）
+     ＝「罫線ひかえめ」は ★罫線の 濃さだけ★が 違う 別物で、
+       選ぶ人から 見ると 上の2つと 見分けが つかない。
+     ★中身は 消さない★＝倉庫に template_id='elegant' で 保存された 紙が 在ると、
+       消した瞬間に ★出した紙の 顔が 変わる★（getOrDefault が 既定へ 落とす）。
+       ⇒ 選択肢から 外すだけ。出した紙は 今までどおり その顔で 出る。
+     ★今日 作った elegantmemo は まるごと 消した★＝誰も まだ 使っていない。 */
+  var KAKUSU = ['elegant'];
+
   var DEFAULT_ID = 'std1';
 
   function get(id) {
@@ -288,7 +331,12 @@
     return !!(t && t.theme && t.theme.dedHead);
   }
   function list() {
-    return Object.keys(TEMPLATES).map(function (k) {
+    var keys = Object.keys(TEMPLATES);
+    var jun = NARABI.filter(function (k) { return keys.indexOf(k) >= 0; })
+      .concat(keys.filter(function (k) {
+        return NARABI.indexOf(k) < 0 && KAKUSU.indexOf(k) < 0;
+      }));
+    return jun.map(function (k) {
       var t = TEMPLATES[k];
       return { id: t.id, label: t.label, note: t.note };
     });

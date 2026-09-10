@@ -719,9 +719,17 @@
           var body = cell.kind === 'money' ? (cell.text === '' ? '' : comma(cell.text))
             : cell.kind === 'num' ? (cell.text === '' ? '' : num(cell.text))
               : esc(cell.text);
-          if (role === 'name' && ln.memo && !hasRole(spec.items, 'memo')) {
-            body += '<span class="c-memo">' + esc(ln.memo) + '</span>';
-          }
+          /* ★★品名の 下に 備考を 出すのは やめました★★（2026-09-10 司さん
+               「なんで 勝手に 項目を 2行に しとんど／★誰が 指示したんだ★」）
+             ★測った事実★ この仕組みは 2026-08-18 の「Rakually の器を立てる」に
+               最初から 入っていて、★司さんが 頼んだ 記録は 1件も 無い★
+               （見張りも 0本）＝私が 勝手に 足した物。
+             ★司さんの 実物★（黒田空調 2026/7分・2026-09-08 に 本人が 見せた）は
+               備考が ★列★（消費税の 右隣）。品名の 下では ない。
+             ★実害★ 1行が 2行に なるのに 行数の 計算は 1行としか 数えず、
+               A4を はみ出して ★合計も 振込先も 丸ごと 消えていた★（実測 +310px）。
+             ⇒ 出すのを やめる。備考は ★列★だけ
+               （設定 ▸ 明細の列 で 足せる／様式「項目・金額＋備考」は 既定で 持つ）。 */
           return '<td class="c-col c-' + al + ((cell.kind === 'text' && !noWrap) ? ' c-wrap' : '')
             + (noWrap ? ' c-nowrap' : '') + gapR(spec, spec.items.indexOf(k)) + '">' + body + '</td>';
         }).join('') + '</tr>';
@@ -1486,7 +1494,6 @@
       "font-family:'DM Mono',ui-monospace,monospace;}",
       '.items .c-wrap{word-break:normal;overflow-wrap:break-word;}',
       '.items .c-nowrap{white-space:nowrap;}',
-      '.c-memo{display:block;font-size:8.5pt;color:' + SUB + ';line-height:1.6;margin-top:.5mm;}',
       /* ★消費税の 右に すきま★（2026-09-10 司さん「消費税を もう少し 金額側に 寄せて 間をもって」）
          ＝右寄せの 数字が 右へ 寄り切らない＝金額の 側に 寄る。 */
       '.items .c-gap-r{padding-right:5mm;}',

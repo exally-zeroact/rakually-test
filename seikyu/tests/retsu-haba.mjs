@@ -124,17 +124,34 @@ T('★② 消費税が いちばん右の 様式には 付けない', () => {
   });
 });
 
-T('★③ 真ん中の4列は 1塊（項目より 細い・備考より 細い）', () => {
+T('★③ 真ん中の 数の列は 1塊（品名より 細い・備考より 細い）', () => {
+  /* ★列の 名前で 引かない★（2026-09-10 実測で 踏んだ）
+     ＝様式によって 名前が 違う（「項目」／「品名・内容」）。
+     ★役目（role）で 引く★＝名前を 変えても 効く。
+       品名＝name ／ 塊＝qty・unit・price・tax・amount ／ 備考＝memo */
   MEMO_TPL.forEach((id) => {
-    const w = (TPL.getOrDefault(id).cols || {}).widths || {};
-    const katamari = ['数量', '単位', '金額', '消費税'].reduce((s, k) => s + (Number(w[k]) || 0), 0);
+    const tp = TPL.getOrDefault(id);
+    const sp = COLS.normalizeSpec(tp.cols);
+    const w = (tp.cols || {}).widths || {};
+    const haba = (yaku) => (sp.items || [])
+      .filter((k) => COLS.roleOfIn(sp, k) === yaku)
+      .reduce((s, k) => s + (Number(w[k]) || 0), 0);
+    const naKey = (sp.items || []).filter((k) => COLS.roleOfIn(sp, k) === 'name')[0];
+    const na = Number(w[naKey]) || 0;
+    const memo = haba('memo');
+    const katamari = ['qty', 'unit', 'price', 'amount', 'tax'].reduce((s, y) => s + haba(y), 0);
     ok(katamari > 0, id + '：★塊の 幅が 読めない★');
-    ok(katamari < Number(w['項目']) * 1.2,
-      id + '：★塊が 太い＝項目が 押されている★ 塊' + katamari + ' / 項目' + w['項目']);
-    ok(katamari < Number(w['備考']),
-      id + '：★塊が 備考より 太い★ 塊' + katamari + ' / 備考' + w['備考']);
-    console.log('     ' + id + ' … 項目' + w['項目'] + ' ／ 塊' + katamari
-      + '（' + ['数量', '単位', '金額', '消費税'].map((k) => w[k]).join('+') + '）／ 備考' + w['備考']);
+    ok(na > 0, id + '：★品名の 幅が 読めない★ ' + naKey);
+    ok(memo > 0, id + '：★備考の 幅が 読めない★');
+    /* ★司さんの 決め（2026-09-10）★「真ん中の 4列は 1塊に 詰めて ★項目と 備考は 多めに★」
+       ＝★両端（品名＋備考）の 方が 太い★を 見る。
+       ★単価が 在る 様式は 塊の 列が 1本 多い★ので、
+       「塊 < 品名」だけで 見ると 単価の 在る 様式が 必ず 落ちる（実測で 踏んだ）。 */
+    ok(katamari < na + memo,
+      id + '：★真ん中が 両端より 太い＝項目と 備考が 押されている★ 塊' + katamari
+        + ' / ' + naKey + na + '＋備考' + memo + '=' + (na + memo));
+    console.log('     ' + id + ' … ' + naKey + na + ' ／ 塊' + katamari + ' ／ 備考' + memo
+      + '（両端 ' + (na + memo) + '）');
   });
 });
 
