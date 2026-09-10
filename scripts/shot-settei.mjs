@@ -69,7 +69,17 @@ console.log('★お振込先★ 口座の 数 … ' + await pg.evaluate(() =>
   document.querySelectorAll('#s-bank-list [data-bank-row]').length)
   + ' ／ 1口座の 欄 … ' + await pg.evaluate(() =>
   document.querySelectorAll('#s-bank-list [data-bank-row]')[0].querySelectorAll('[data-bank-p]').length) + '個');
-for (const f of [f1, f2, f3]) {
+/* ★判子の 所★（司さん 2026-09-10「なら 説明書きしとけ」） */
+const hanko = await pg.evaluateHandle(() => {
+  const el = [...document.querySelectorAll('#scr-set .card')]
+    .filter((c) => (c.querySelector('.card-h') || {}).textContent === '角印（会社の印）')[0];
+  return el;
+});
+const f4 = path.join(OUT, 'settei-hanko.png');
+await hanko.asElement().scrollIntoViewIfNeeded();
+await pg.waitForTimeout(300);
+await hanko.asElement().screenshot({ path: f4 });
+for (const f of [f1, f2, f3, f4]) {
   console.log('  ' + fs.statSync(f).size + 'バイト sha '
     + createHash('sha256').update(fs.readFileSync(f)).digest('hex').slice(0, 12) + '  ' + f);
 }

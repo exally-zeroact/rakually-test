@@ -132,6 +132,7 @@ const r = await pg.evaluate(async () => {
   out.shashin_byte = bytes(shashin);
   /* ★上限そのものが 無い★＝大きいまま 通る（形だけ 見る） */
   out.ookii_toru = DOC.validateSeal(shashin).ok;
+  out.kitei = DOC.SEAL_DEFAULT_MM;
   out.soto = DOC.validateSeal('https://example.com/hanko.png').ok;
   out.svg = DOC.validateSeal('data:image/svg+xml;base64,PHN2Zz4=').ok;
   /* ★お客さんが 通る道★＝ファイルを 選んだ時と 同じ（_pickSealUrl は それを 呼ぶだけ） */
@@ -218,6 +219,28 @@ T('★⑧ 判子を 受け取る 道は 1本（見張り用の 別の道を 作�
   const lib = fs.readFileSync(path.join(ROOT, 'seikyu', 'lib', 'seikyu-doc.js'), 'utf8');
   ok(lib.indexOf('SEAL_MAX_BYTES') < 0, '★上限が まだ 在る★');
   ok(lib.indexOf('画像が大きすぎます') < 0, '★大きすぎると 断る 言い方が 残っている★');
+});
+
+T('★⑨ 撮り方の 説明が 画面に 在る（影・明るさ・大きさ）', () => {
+  /* ★司さん 2026-09-10「なら 説明書きしとけ／影がないようにと 明るさや色の調整を できるだけ
+       しとけって／大きさは どんな大きさでも 大丈夫なんやろ？」★
+     ＝白抜きは「白い所を 透かす」やり方なので ★影が 混ざると そこが 抜けない★
+       （実測 右半分だけ 影＝紙の 45.1% が 灰色のまま 残る）。
+       こちらで 直せない ぶんは ★人に 頼む★。頼む以上 ★画面に 書いてある事★を 見る。 */
+  const h = fs.readFileSync(path.join(ROOT, 'seikyu', 'index.html'), 'utf8');
+  const i = h.indexOf('角印（会社の印）');
+  ok(i > 0, '★角印の 所が 見つからない★');
+  const naka = h.slice(i, h.indexOf('id="b-seal-save"', i));
+  ok(naka.indexOf('影が入らないように') >= 0, '★影の 話が 書いていない★');
+  ok(naka.indexOf('明るさや色') >= 0, '★明るさ・色の 話が 書いていない★');
+  ok(/大きさは\s*どんな大きさでも大丈夫/.test(naka.replace(/<[^>]*>/g, '')),
+    '★大きさの 話が 書いていない★');
+  /* ★数を 2か所に 書かない★＝mm欄の 見本の数は 決まりの 既定と 同じ */
+  const m = /id="seal-mm"[^>]*placeholder="([0-9]+)"/.exec(naka);
+  ok(m, '★mm欄の 見本の数が 無い★');
+  ok(Number(m[1]) === r.kitei,
+    '★画面の 見本 ' + m[1] + 'mm と 決まりの 既定 ' + r.kitei + 'mm が ちがう★');
+  console.log('     撮り方 3つ … 画面に 在る ／ mm欄の 見本 ' + m[1] + 'mm（既定と 同じ）');
 });
 
 T('★⑤ 設定を 開いた時に 呼んでいる（作っただけで 使っていない を 止める）', () => {

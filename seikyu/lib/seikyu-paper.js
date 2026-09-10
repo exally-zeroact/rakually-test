@@ -259,10 +259,11 @@
     return '消費税' + (inTax ? '（内税）' : '');
   }
 
-  /* 角印の大きさ（mm）。10〜40に収める＝紙からはみ出す印を作らない */
+  /* 角印の大きさ（mm）。10〜40に収める＝紙からはみ出す印を作らない。
+     ★既定は 20mm★（司さん 2026-09-10）＝seikyu-doc.SEAL_DEFAULT_MM と 同じ数に する */
   function sealMm(v) {
     var n = Number(v);
-    if (!Number.isFinite(n)) return 17;
+    if (!Number.isFinite(n)) return 20;
     return Math.max(10, Math.min(40, Math.round(n)));
   }
   /* ★印の場所は 紙の上のどこでもよい★

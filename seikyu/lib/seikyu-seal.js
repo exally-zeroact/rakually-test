@@ -36,7 +36,10 @@
 (function (global) {
   'use strict';
 
-  var MM_KAKU = 17;        // 会社の角印（実寸21mm × 0.8＝紙に出る大きさ）
+  /* ★会社の角印＝20mm★（司さん 2026-09-10「デフォが17mmになってるのを 20mmにしといて」）
+     ★ここも 直す★＝形から「角印だ」と 当てた時に 入れる 数。
+       片方だけ 直すと ★角印を 入れた人には 今までどおり 17mm が 出る★。 */
+  var MM_KAKU = 20;        // 会社の角印（前は 実寸21mm × 0.8 の 17mm）
   var MM_MARU = 12;        // 個人の苗字の丸い印（実寸15mm × 0.8）
   var CORNER = 0.15;       // 四隅の 見る広さ（印影の短い辺の15%）
   var KAKU_MIN = 0.12;     // 四隅の墨が これ以上 → 四角い枠が在る
@@ -56,7 +59,9 @@
     if (c >= KAKU_MIN) {
       return { shape: 'kaku', mm: MM_KAKU, sure: true,
         why: '四隅にも 印があるので、四角い印（会社の角印）と見ました。'
-          + '角印の実物は 21mm角が多く、紙には その8割で押すので ' + MM_KAKU + 'mm にしました。' };
+          /* ★「実寸の8割」は もう 使っていない★（司さん 2026-09-10「20mmにしといて」）
+             ＝合わない 理屈を 画面に 書かない。 */
+          + '大きさは 会社の角印の 既定 ' + MM_KAKU + 'mm にしました（直せます）。' };
     }
     if (c <= MARU_MAX) {
       return { shape: 'maru', mm: MM_MARU, sure: true,
@@ -260,6 +265,8 @@
 
   var API = { guess: guess, measure: measure, guessFromUrl: guessFromUrl,
     prepare: prepare, inkBox: inkBox, shiroiKa: shiroiKa, MAX_PX: MAX_PX,
+    /* ★見張りが 数を 焼き付けないで 済むように 出す★（2026-09-10 17→20 で 4本 赤に なった） */
+    MM_KAKU: MM_KAKU, MM_MARU: MM_MARU,
     MM_KAKU: MM_KAKU, MM_MARU: MM_MARU, KAKU_MIN: KAKU_MIN, MARU_MAX: MARU_MAX, CORNER: CORNER };
   global.SeikyuSeal = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

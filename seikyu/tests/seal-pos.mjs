@@ -147,8 +147,12 @@ T('★⑦ 2枚の紙でも どの紙も 同じ所に 押す',
 /* ★既定の数は 1つ★（決まりの側 と 紙の側 が 同じ数を 言う）
    2026-08-31 実測で 食い違っていた＝画面は「既定21mm」・紙は 17mmで押していた。 */
 T('★⑨-2 印の大きさの既定は 決まりの側と 紙の側で 同じ',
-  DOC.sealSizeMm() === PAPER.sealMm() && PAPER.sealMm() === 17,
-  '決まり ' + DOC.sealSizeMm() + 'mm ／ 紙 ' + PAPER.sealMm() + 'mm');
+  /* ★数を 焼き付けない★（2026-09-10 司さん「20mmにしといて」で 17→20 に なった）
+     ＝見たいのは ★決まりの側と 紙の側が 同じ数か★／★形から当てる側も 同じか★。 */
+  DOC.sealSizeMm() === PAPER.sealMm()
+  && DOC.sealSizeMm() === DOC.SEAL_DEFAULT_MM
+  && DOC.SEAL_DEFAULT_MM >= DOC.SEAL_MIN_MM && DOC.SEAL_DEFAULT_MM <= DOC.SEAL_MAX_MM,
+  '決まり ' + DOC.sealSizeMm() + 'mm ／ 紙 ' + PAPER.sealMm() + 'mm ／ 既定 ' + DOC.SEAL_DEFAULT_MM + 'mm');
 
 /* ═══ ★自社の塊は「ご請求金額」と 下をそろえる★ ═══
    （司さん 2026-08-31「赤の塊を青に持ってきて ごちゃごちゃさすな」

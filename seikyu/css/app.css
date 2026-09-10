@@ -199,6 +199,15 @@
 .bank-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .bank-2 > * { min-width: 0; }
 
+/* ── 判子の 撮り方（3つ）─────────────────────────────────
+   ★文を flex/grid の 子に 直接 置かない★（1文字ずつ 縦に 割れる 事故を 作らない）
+   ＝ふつうの 箇条書きに する。 */
+.seal-tips { margin: 6px 0 10px; padding-left: 18px; }
+.seal-tips li {
+  font-size: 12px; color: #333333; line-height: 1.7; margin-bottom: 4px;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+
 /* 明細の「消費税」は ★出る物（読むだけ）★＝打てる欄と見た目で分ける */
 .l-ro {
   font-family: 'DM Mono', ui-monospace, monospace; font-size: 13px; color: #555555;

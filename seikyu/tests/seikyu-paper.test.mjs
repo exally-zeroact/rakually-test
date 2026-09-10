@@ -753,11 +753,14 @@ T('★角印（会社の印）が紙に出る／入れていなければ出さ�
 T('★角印の大きさは 10〜40mm に収める（紙からはみ出す印を作らない）', () => {
   eq(PAPER.sealMm(999), 40);
   eq(PAPER.sealMm(1), 10);
-  /* ★既定は 17mm★（司さん 2026-08-30 実物の角印で 測り直した）
-     ＝実寸21mmの角印は 紙には その8割で押す（代行請求 invoice-pdf.js:762 と同じ基準）。
-     21mmで押すと 自社の63文字のうち 28文字が 印に潰れていた（実測）。 */
-  eq(PAPER.sealMm(), 17, '既定が17mmでない');
-  eq(PAPER.sealMm('abc'), 17, '数でない値が通っている');
+  /* ★既定は 決まりの側（seikyu-doc）と 同じ数★＝数を 焼き付けない
+     （2026-09-10 司さん「デフォが17mmになってるのを ★20mmにしといて★」で 17→20 に なった。
+       ★前の 17 は★ 実寸21mmの角印の 8割（司さん 2026-08-30 実物で 測り直した数）で、
+       ★21mmで押すと 自社の63文字のうち 28文字が 印に潰れていた★＝
+       大きくする時は ★字が 潰れないか★を 見る（tests/seal-pos.mjs が 場所と 重なりを 見る）。 */
+  eq(PAPER.sealMm(), DOC.SEAL_DEFAULT_MM, '★決まりの側と 紙の側で 既定が ちがう★');
+  eq(PAPER.sealMm('abc'), DOC.SEAL_DEFAULT_MM, '数でない値が通っている');
+  ok(DOC.SEAL_DEFAULT_MM >= 10 && DOC.SEAL_DEFAULT_MM <= 40, '★既定が 10〜40mm の外★');
   const h = PAPER.build(sample({ org: Object.assign({}, S1.org, { sealDataUrl: 'data:image/png;base64,iVBORw0KGgo=', sealSizeMm: 999 }) })).html;
   ok(/width:40mm/.test(h), '上限に収まっていない');
 });
