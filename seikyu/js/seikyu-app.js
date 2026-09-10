@@ -3342,6 +3342,59 @@
     fr.srcdoc = html;
   }
 
+  /* ★お振込先は 1口座＝1つの 欄★（2026-09-10 司さん
+     「振込先を 今の 設定からだと ★どこで 改行など 分からん★から ちゃんとして
+       それと ★2個 表示する時用で 追加ボタンで また 入力する★ようにしろ」）
+     ★倉庫の 形は 変えない★＝改行1つで つないで しまう
+       （紙の bankLines が そのまま 読む＝2か所で 別々に 切らない）。
+     ★空の 欄は しまわない★＝打っていない 欄が 紙に 空行を 作らない。 */
+  function bankRows() {
+    var t = String(($('s-bank') && $('s-bank').value) || '');
+    var a = t.split(String.fromCharCode(10)).map(function (x) { return x.trim(); }).filter(function (x) { return x; });
+    return a.length ? a : [''];
+  }
+  function bankRowsWrite(list) {
+    var v = (list || []).map(function (x) { return String(x || '').trim(); })
+      .filter(function (x) { return x; }).join(String.fromCharCode(10));
+    if ($('s-bank')) $('s-bank').value = v;
+  }
+  /* ★画面の 欄の 数は 別に 持つ★
+     ＝倉庫の 形は「空を 落として 改行つなぎ」なので、
+       ★空の 欄を 足した 瞬間に 画面から 消えて しまう★（実測で 踏んだ）。 */
+  var bankRanN = 0;
+  function drawBankRows(fuyasu) {
+    var host = $('s-bank-list'); if (!host) return;
+    var list = bankRows();
+    if (fuyasu === true) bankRanN = Math.max(list.length, bankRanN) + 1;
+    else if (typeof fuyasu === 'number') bankRanN = fuyasu;
+    else if (!bankRanN) bankRanN = list.length;
+    bankRanN = Math.max(1, Math.min(bankRanN, 20));
+    while (list.length < bankRanN) list.push('');
+    list = list.slice(0, bankRanN);
+    host.innerHTML = list.map(function (x, i) {
+      return '<div class="ded-row">'
+        + '<input class="finput" data-bank-i="' + i + '" type="text" value="' + esc(x) + '"'
+        + ' placeholder="例：サンプル銀行 サンプル支店 普通 1234567 カ）サンプル"'
+        + ' aria-label="' + (i + 1) + 'つ目の口座">'
+        + (list.length > 1
+          ? '<button class="l-del" type="button" data-bank-d="' + i + '" aria-label="この口座を消す">×</button>'
+          : '')
+        + '</div>';
+    }).join('');
+    var yomu = function () {
+      return Array.prototype.map.call(host.querySelectorAll('[data-bank-i]'), function (el) { return el.value; });
+    };
+    Array.prototype.forEach.call(host.querySelectorAll('[data-bank-i]'), function (el) {
+      el.oninput = function () { bankRowsWrite(yomu()); drawSetPaper(); };
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-bank-d]'), function (b) {
+      b.onclick = function () {
+        var v = yomu(); v.splice(+b.getAttribute('data-bank-d'), 1);
+        bankRowsWrite(v); drawBankRows(v.length || 1); drawSetPaper();
+      };
+    });
+  }
+
   function fillSettings() {
     var s = settings();
     drawOrgView();
@@ -3352,6 +3405,7 @@
     $('s-taxmode').value = s.taxMode;
     fillSelect($('s-round'), TAX.ROUNDINGS.map(function (k) { return { v: k, t: ROUND_LABEL[k] }; }), s.rounding);
     $('s-bank').value = s.bank;
+    drawBankRows(bankRows().length);
     $('s-carry').checked = s.carry;
     $('s-rows').value = (s.paperRows === null ? '' : s.paperRows);
     $('s-dedrows').value = (s.deductRows === null ? '' : s.deductRows);
@@ -4578,6 +4632,13 @@
     $('s-pterm').onchange = function () {
       var k = $('s-pterm').value;
       show($('s-ptermn'), k === 'days' || k === 'nextDay');
+    };
+    if ($('b-bank-add')) $('b-bank-add').onclick = function () {
+      drawBankRows(true);
+      var host = $('s-bank-list');
+      var all = host ? host.querySelectorAll('[data-bank-i]') : [];
+      var el = all[all.length - 1];
+      if (el && el.focus) el.focus();
     };
     $('b-set-save').onclick = function () { return saveSettings(); };
     $('b-pt-save').onclick = function () { return savePartner(); };

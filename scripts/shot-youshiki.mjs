@@ -43,6 +43,23 @@ const n = await pg.evaluate(() => {
 });
 await pg.waitForTimeout(600);
 
+/* ★お振込先の 欄★も 撮る（司さん 2026-09-10「追加ボタンで また 入力するように」） */
+await pg.evaluate(() => {
+  const el = document.getElementById('s-bank-list');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+});
+await pg.waitForTimeout(400);
+{
+  const el = await pg.$('#s-bank-list');
+  if (el) {
+    const box = await pg.evaluateHandle(() => document.getElementById('s-bank-list').closest('.frow'));
+    const f3 = path.join(OUT, 'bank-ran.png');
+    await (box.asElement() || el).screenshot({ path: f3 });
+    console.log('お振込先の 欄 … ' + fs.statSync(f3).size + 'バイト');
+    console.log('  ' + f3);
+  }
+}
+
 /* ★1枚ずつ 原寸で★（司さん 2026-09-09「1個ずつちゃんと見せて」）
    ★見本の 中身そのもの★を 取り出して A4の 大きさで 撮る。
    iframe を そのまま 撮ると ★後ろの ページごと 写る★（1回 やらかした）。
