@@ -48,8 +48,30 @@ let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
 const 改行と字下げ = String.fromCharCode(10) + '      ';
 
-/* ★見る 範囲を 先に 数えて 書く★（★写しでは なく この repo を 数えた★） */
-const 見る = ['css/hub.css', 'kyuyo/admin.html'];
+/* ★見る 範囲を 先に 数えて 書く★（★写しでは なく この repo を 数えた★）
+   ★★2026-09-10 Rakunally が 広げました★★
+     もとは ['css/hub.css', 'kyuyo/admin.html'] の ★2本を 名指し★でした。
+     ★Exally が 同じ日に 3回 落としています★
+       ①代行請求の .toast-undo ②staging の kyuyo/admin.html ③手前の 見落とし
+     ＝「★手で 探すと 必ず 漏れる★」は 例外なし。
+   ⇒ ★repo の 中の css/html を 機械で 全部 拾う★（node_modules と .git は 除く）。
+     ★拾えた 本数も 出す★＝0本で 緑に しない。 */
+function 集める(根, 出) {
+  for (const e of fs.readdirSync(根, { withFileTypes: true })) {
+    if (e.name === 'node_modules' || e.name === '.git' || e.name === '.sweep-red') continue;
+    const p2 = path.join(根, e.name);
+    if (e.isDirectory()) { 集める(p2, 出); continue; }
+    if (/\.(css|html)$/i.test(e.name)) 出.push(path.relative(ROOT, p2).split(path.sep).join('/'));
+  }
+  return 出;
+}
+const 見る = 集める(ROOT, []);
+if (!見る.length) {
+  console.log('★見る ファイルが 0本＝この 見張りは 何も 見て いない★');
+  process.exit(1);
+}
+console.log('  見た ファイル … css/html ' + 見る.length + '本'
+  + '（★手で 名指しせず 機械で 拾った★）');
 
 /* ══ ★免除（★理由つきで 名指し★／黙って 見逃さない）★ ══ */
 const 免除 = [
@@ -214,19 +236,27 @@ if (自己試験) {
     return c !== null && 明るさ(c) < 170;
   });
 
-  T('★★前の 塗りに 戻すと 赤に なる（2本とも）★★', () => {
+  T('★★前の 塗りに 戻すと 赤に なる（知らせの規則を持つ 全部）★★', () => {
     /* ★字そのものに 寄りかからない★＝規則の 中の 塗りを ★形で★ 見つけて 差し替える
        （2026-09-10 … prettier が #ffffff を #fff に 縮めて 探す 字が 消えた） */
-    const 組 = [[0, '#2E7D54'], [1, '#3D9E72']];
-    for (const [i, 前] of 組) {
-      const 規則 = 知らせの規則(全[i].字).filter((r) => !免除か(r.名));
-      if (!規則.length) throw new Error('★' + 全[i].名 + ' に 知らせの 規則が 無い★');
+    /* ★★2026-09-10 Rakunally が 直しました★★
+       もとは ★見る ファイルの 先頭2本★を 番号で 指していました（[0] と [1]）。
+       見る 範囲を repo 全体（css/html 9本）に 広げたので、
+       ★3本目は 知らせの 規則を 持たない★＝赤に なりました。
+       ⇒ ★知らせの 規則を 持つ ファイルだけ★を 相手に する（番号で 指さない）。
+       ★0本なら 赤★＝壊す 相手が 無いのに 緑と 言わない。 */
+    const 持つ = 全.filter((f) => 知らせの規則(f.字).filter((r) => !免除か(r.名)).length);
+    if (!持つ.length) throw new Error('★知らせの 規則を 持つ ファイルが 1本も 無い＝壊せない★');
+    const 前の色 = { 'css/hub.css': '#2E7D54', 'kyuyo/admin.html': '#3D9E72' };
+    for (const f of 持つ) {
+      const 前 = 前の色[f.名] || '#2E7D54';
+      const 規則 = 知らせの規則(f.字).filter((r) => !免除か(r.名));
       const r = 規則[0];
       const 壊した = r.中.replace(/background(-color)?\s*:\s*[^;}]+/, 'background: ' + 前);
       if (壊した === r.中) throw new Error('★写しを 壊せて いない★＝★この 試験は 何も 見て いない★');
-      if (!判じ(全[i].字.replace(r.中, 壊した))) throw new Error('★' + 全[i].名 + ' で 戻しても 赤に ならない★');
+      if (!判じ(f.字.replace(r.中, 壊した))) throw new Error('★' + f.名 + ' で 戻しても 赤に ならない★');
     }
-    console.log('      … 2本とも 戻すと 赤');
+    console.log('      … ' + 持つ.length + '本とも 戻すと 赤（' + 持つ.map((f) => f.名).join(' / ') + '）');
   });
 
   T('★★帯を 外すと 赤に なる（★見逃す側★を 塞いだ 証拠）★★', () => {
