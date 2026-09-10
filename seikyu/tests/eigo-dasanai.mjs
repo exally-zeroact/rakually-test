@@ -12,6 +12,10 @@
  *
  * 見る物:
  *   ① ★見えている ファイルの欄（type=file）が 1つも 無い★
+ *      ★display:none では 隠さない★＝見張り（scripts/webkit-size.mjs）は
+ *        「隠れた物も 開いて 測る」ので、開いた とたん 英語の ボタンが 出て
+ *        ★375px で 3px はみ出した★（2026-09-10 CI で 実測・手元は 0px）。
+ *      ⇒ ★1px の 透明（.file-kakusu）★＝開かれても 大きくならない・字も 出ない。
  *   ② ★日本語の ボタンから 選べる★（押すと 隠れた 欄が 呼ばれる）
  *   ③ ★選んだ ファイルの 名前を 自分で 出す★（「No file chosen」を 見せない）
  *   ④ ★4つの 画面に 思わぬ 英語が 出ていない★（許す物は 下に 名指し）
@@ -67,9 +71,13 @@ const hirou = () => pg.evaluate(() => {
   const out = { ji: [], file: 0, fileMieru: 0 };
   const scr = [...document.querySelectorAll('.screen')].filter((s) => getComputedStyle(s).display !== 'none')[0];
   if (!scr) return out;
+  /* ★「見えている」＝人の目に 字が 出る大きさ★
+     ＝1px の 透明（.file-kakusu）は 見えていない。
+       ★0より大きい で 見ると 隠した 欄まで「見えている」に なる★（2026-09-10 実測）。 */
   const mieru = (el) => {
     const r = el.getBoundingClientRect();
-    return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+    const cs = getComputedStyle(el);
+    return r.width > 4 && r.height > 4 && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.05;
   };
   const w = document.createTreeWalker(scr, NodeFilter.SHOW_TEXT);
   let n;
@@ -124,8 +132,8 @@ if (SELF) {
   const h = fs.readFileSync(path.join(ROOT, 'seikyu', 'index.html'), 'utf8');
   const a = fs.readFileSync(path.join(ROOT, 'seikyu', 'js', 'seikyu-app.js'), 'utf8');
   const kowasu = [
-    ['判子の欄を 見せる', h, 'id="seal-file" type="file" accept="image/png,image/jpeg" style="display:none"'],
-    ['Excelの欄を 見せる', h, 'id="book-file" type="file"'],
+    ['判子の欄を 見せる', h, 'class="file-kakusu" id="seal-file"'],
+    ['Excelの欄を 見せる', h, 'class="file-kakusu" id="book-file"'],
     ['判子の ボタンを 外す', a, "$('b-seal-pick').onclick"],
     ['Excelの ボタンを 外す', a, "$('b-book-pick').onclick"],
   ];

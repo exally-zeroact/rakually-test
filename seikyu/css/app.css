@@ -199,6 +199,17 @@
 .bank-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .bank-2 > * { min-width: 0; }
 
+/* ── ブラウザ任せの ファイルの欄を 見せない ─────────────────────
+   ★display:none に しない★＝見張り（scripts/webkit-size.mjs）は
+     「隠れた物も 開いて 測る」ので、★開いた とたん 英語の ボタンが 出て
+     375px で 3px はみ出した★（2026-09-10 CI で 実測・手元は 0px＝字の 太さの 違い）。
+   ⇒ ★1px の 透明★に する。開かれても 大きくならず、字も 出ない。
+     押すのは 隣の 日本語の ボタンから（input.click()）。 */
+.file-kakusu {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  border: 0; opacity: 0; overflow: hidden; clip-path: inset(50%); pointer-events: none;
+}
+
 /* ── 判子の 撮り方（3つ）─────────────────────────────────
    ★文を flex/grid の 子に 直接 置かない★（1文字ずつ 縦に 割れる 事故を 作らない）
    ＝ふつうの 箇条書きに する。 */
