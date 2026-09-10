@@ -19,6 +19,11 @@ const path = require('path');
 
 const FILES = [
   'stamp.test.mjs',         // キャッシュバスター(?v=)の道具そのもの
+  /* ★知らせの 箱を 濃い色で 塗らない★（司さん 2026-09-10「絶対 これが ええ」
+     「アプリごとに 色分け 使い分けろよ」）＝白地・濃い色は 左の 5px の 帯だけ。
+     ★この repo は Rakunally(#3D9E72) と Kyually(#52B788) が 同居★＝同じ色に しない。 */
+  'shirase-iro.test.mjs',
+  ['shirase-iro.test.mjs', '--self-test'],
   /* ★字体を 軽くしても 字は 1つも 変わらない★（司さん 2026-09-05「重すぎるやろが」）
      PDFの 94%が 字体だった＝3,093,585B → 102,034B。形・番号・部品を 1つずつ 突き合わせる。 */
   'font-slim.test.mjs',

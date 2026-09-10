@@ -196,12 +196,24 @@ input, select, textarea { color: #333333; }   /* ★打った値は読ませる�
 .bn-i.active { color: #2E7D54; }
 
 /* ── トースト ── */
+/* ★★2026-09-10 司さん「絶対 これが ええ」／「アプリごとに 色分け 使い分けろよ」★★
+   前 … 濃い緑で 箱の 全面を 塗る ＋ 白い 字
+   後 … ★白地・薄い黒の 字・濃い緑は 左の 5px の 帯だけ★
+   ★色を 作って いません★＝★この 画面で 一番 使われて いる 色を 数えて 選んだ★
+     Rakunally の hub … #3D9E72（11回）／#2E7D54（10回）⇒ ★#3D9E72★
+     （Exally 本体は #2E7D54・Kyually は #52B788 …「アプリごとに 分ける」）
+   ★実測（Exally の 同じ 箱で 絵を 撮って 点を 数えた）★
+     箱の 中の 暗い 点 … 88% → ★6%★（★14.8分の1★）
+   ★手本★ exally `book.html` の `#toast`（PR #64・入り済 c3b0c36） */
 .toast {
   position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
-  background: #2E7D54; color: #fff; font-size: 13px; line-height: 1.7;
+  background: #fff; color: #333333; font-size: 13px; line-height: 1.7;
+  border: 1px solid #D4EAE0; border-left: 5px solid #3D9E72; text-align: left;
   padding: 12px 18px; border-radius: 12px; max-width: 88%; z-index: 50;
-  box-shadow: 0 6px 20px rgba(30,60,40,.25); display: none;
+  box-shadow: 0 8px 28px rgba(30,60,40,.22); display: none;
 }
+/* ★白地に なったので 太字は 読める 色に する★ */
+.toast b { color: #3D9E72; font-weight: 700; }
 .toast.on { display: block; }
 
 /* ── 日次台帳(E2) ── */

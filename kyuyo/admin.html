@@ -64,7 +64,20 @@
   .seg button.on.disabled{background:#C0392B;border-color:#C0392B;}
   /* ★空の知らせの箱★＝全画面で 同じ内側（26px 14px）＝2026-08-29 統一 */
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:26px 14px;line-height:1.7;}
-  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#3D9E72;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20;}
+  /* ★★2026-09-10 司さん「絶対 これが ええ」／「アプリごとに 色分け 使い分けろよ」★★
+     ★ここは お客さんに 実際に 出て いる 給与の 画面です★
+       （rakually-test.vercel.app/kyuyo/admin.html … 200）
+       ★payslip-app は もう 死んで います★（実配信 503・設定は 全部 よそへ 飛ばすだけ）
+       ⇒ 私は 一度 そちらを 直して しまいました＝★repo の 名前で 本番だと 思い込んだ★
+     前 … #3D9E72 で 箱の 全面を 塗る ＋ 白い 字
+     後 … ★白地・#333333 の 字・帯は 左の 5px だけ★
+     ★帯の 色＝Kyually 自身の ロゴ色 #52B788★（★色を 作って いません★）
+       出どころ … 記憶 reference_exally_brand_and_kyually_pwa_2026-07-14
+       「icon-512/192（Kyually＝DM Mono ★#52B788★・淡ミント白地）」「.logo は DM Mono/#52B788」
+     ★実測（Exally の 同じ 箱で 絵を 撮って 点を 数えた）★ 暗い 点 88% → ★6%★ */
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#fff;color:#333333;border:1px solid #D4EAE0;border-left:5px solid #52B788;text-align:left;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20;box-shadow:0 8px 28px rgba(30,60,40,.22);}
+  /* ★白地に なったので 太字は 読める 色に する★ */
+  .toast b{color:#52B788;font-weight:700;}
   .toast.show{opacity:1;}
   .hide{display:none;}
   /* タブ */
@@ -136,23 +149,23 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="../js/supa-config.js?v=53fe8c72"></script>
+  <script src="../js/supa-config.js?v=1b530f81"></script>
   <!-- 法定データlib(admin法定データ画面が中央へ投入する「あるべき値」の生成に使用) -->
-  <script src="lib/shakaihoken-hyo.js?v=53fe8c72"></script>
-  <script src="lib/koyo-hoken.js?v=53fe8c72"></script>
-  <script src="lib/shotokuzei-densan.js?v=53fe8c72"></script>
-  <script src="lib/shotokuzei-hei.js?v=53fe8c72"></script>
-  <script src="lib/shotokuzei-nichi.js?v=53fe8c72"></script>
-  <script src="lib/shoyo-zei.js?v=53fe8c72"></script>
-  <script src="lib/warimashi.js?v=53fe8c72"></script>
-  <script src="lib/saitei-chingin.js?v=53fe8c72"></script>
-  <script src="lib/nenmatsu.js?v=53fe8c72"></script>
-  <script src="lib/shouhizei-ritsu.js?v=53fe8c72"></script>
-  <script src="lib/statutory-rows.js?v=53fe8c72"></script>
-  <script src="js/admin.js?v=53fe8c72"></script>
+  <script src="lib/shakaihoken-hyo.js?v=1b530f81"></script>
+  <script src="lib/koyo-hoken.js?v=1b530f81"></script>
+  <script src="lib/shotokuzei-densan.js?v=1b530f81"></script>
+  <script src="lib/shotokuzei-hei.js?v=1b530f81"></script>
+  <script src="lib/shotokuzei-nichi.js?v=1b530f81"></script>
+  <script src="lib/shoyo-zei.js?v=1b530f81"></script>
+  <script src="lib/warimashi.js?v=1b530f81"></script>
+  <script src="lib/saitei-chingin.js?v=1b530f81"></script>
+  <script src="lib/nenmatsu.js?v=1b530f81"></script>
+  <script src="lib/shouhizei-ritsu.js?v=1b530f81"></script>
+  <script src="lib/statutory-rows.js?v=1b530f81"></script>
+  <script src="js/admin.js?v=1b530f81"></script>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=53fe8c72"></script>
+<script src="../js/env-badge.js?v=1b530f81"></script>
 </body>
 </html>
