@@ -844,26 +844,24 @@ await TA('6-c. ★PNG/JPEG でない物は入らない／大きい写真は そ�
   const bad = win.SeikyuApp._pickSealUrl('https://example.com/hanko.png');
   ok(!bad.ok, '外のURLが通った');
   ok($('seal-err').style.display !== 'none', '理由を出していない');
-  /* ★★2026-09-10 司さん「判子の ファイルや 画像が 300KB以下にしてって出るけど 正常か？」★★
-     ＝正常では なかった。★選んだ その場で 断って★ いたが、その後に
-       ①白抜き ②まわりの余白を 切る ③縮める を やる＝★縮める前の 大きさで 断っていた★。
-       スマホの 写真は 2〜5MB なので ★必ず 断られる★（実測 2,515KB→そろえた後 15KB）。
-     ⇒ ★選んだ時は 形（PNG/JPEG か）だけ★を 見る。
-       大きさは ★そろえた後★に 見て、それでも 超える時だけ 断る。
-     ここ（jsdom）には canvas が 無いので ★そろえられない★＝
-       その時は ★保存で 断る★（黙って 大きい物を 倉庫へ 入れない）。 */
+  /* ★★2026-09-10 司さん「300KB以下にしてって出るけど 正常か？」→「★判子も 上限きめんなや★」★★
+     ＝上限そのものを 外した。前は スマホの 写真（2〜5MB）が ★必ず 断られて★ いた。
+       小さくするのは こちら（白抜き→余白切り→長辺600点。実測 2,515KB→15KB）。
+     ⇒ ★大きさでは 断らない★／★形（PNG/JPEG か）では 断る★。 */
   const big = win.SeikyuApp._pickSealUrl('data:image/png;base64,' + 'A'.repeat(500 * 1024));
-  ok(big.ok, '★選んだ その場で 断っている（縮める前の 大きさで 見ている）★');
+  ok(big.ok, '★大きいだけで 断っている（上限が 残っている）★');
   await sleep(20);
   await win.SeikyuApp._saveSealForTest();
   await sleep(40);
-  ok($('seal-err').style.display !== 'none', '★そろえられないのに 保存で 断っていない★');
-  ok(/KB/.test($('seal-err').textContent), '何KBかを言っていない: ' + $('seal-err').textContent);
-  // 前に保存した印は残っている（弾かれても消えない）
-  eq(db.pay_org[0].data.sealDataUrl.slice(0, 22), 'data:image/png;base64,', '弾かれた拍子に保存済みの印が消えた');
-  /* ★次の検査に 大きい物を 持ち越さない★＝下見を もとの 小さい印へ 戻す */
+  ok($('seal-err').style.display === 'none', '★大きいだけで 保存を 断っている★: ' + $('seal-err').textContent);
+  eq(db.pay_org[0].data.sealDataUrl.length, ('data:image/png;base64,' + 'A'.repeat(500 * 1024)).length,
+    '★大きい 判子が 倉庫に 入っていない★');
+  /* ★次の検査に 大きい物を 持ち越さない★＝もとの 小さい印へ 戻して 保存し直す */
   win.SeikyuApp._pickSealUrl(seal小);
   await sleep(20);
+  await win.SeikyuApp._saveSealForTest();
+  await sleep(40);
+  eq(db.pay_org[0].data.sealDataUrl, seal小, '小さい印に 戻っていない');
 });
 
 await TA('6-c. ★印を消せる（消しても、すでに出した紙は変わらない）', async () => {

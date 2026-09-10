@@ -312,9 +312,14 @@
   var SEAL_DEFAULT_MM = 17;
   var SEAL_MIN_MM = 10;
   var SEAL_MAX_MM = 40;
-  /* 倉庫の1行に画像を入れるので上限を決める。★超えたら黙って縮めずに赤で返す★
-     （黙って縮めると「押したはずの印が薄い/欠ける」になり、押した本人が気づけない） */
-  var SEAL_MAX_BYTES = 300 * 1024;
+  /* ★★大きさの 上限は 置かない★★（司さん 2026-09-10「★判子も 上限きめんなや★」）
+     ★前は 300KB で 断っていた★＝スマホの 写真（2〜5MB）は 必ず 断られ、
+       人に「小さくしてから 入れ直せ」と させていた。
+     ★今は こちらで 小さくする★＝白抜き → まわりの余白を 切る → 長辺600点に 縮める
+       （seikyu-seal.js の prepare／実測 2,515KB の 写真 → ★15KB★）。
+       ★やった事は 画面で 言う★ので「黙って 縮める」には ならない。
+     ★見るのは 形だけ★＝PNG か JPEG の data URL か。
+     ★大きさは 返す★（bytes）＝知りたい所は 使える。断る材料には しない。 */
 
   /* ★印の場所は 紙の上のどこでもよい★
      （司さん 2026-08-31「そこも違うかないか？ 場所は自由に変えれんのか？」）
@@ -349,11 +354,10 @@
     return Math.max(SEAL_MIN_MM, Math.min(SEAL_MAX_MM, Math.round(n)));
   }
 
-  /** 角印に使える画像か。返り = { ok, reason }
+  /** 角印に使える画像か。返り = { ok, reason, bytes }
    *  ・png / jpeg の data URL だけ（外のURLは受けない＝紙を刷る時に読めないと空白になる）
-   *  ・上限を超えたら赤（何KBかを言う） */
-  function validateSeal(dataUrl, opts) {
-    var max = (opts && opts.maxBytes) || SEAL_MAX_BYTES;
+   *  ・★大きさでは 断らない★（司さん 2026-09-10「判子も 上限きめんなや」） */
+  function validateSeal(dataUrl) {
     var s = String(dataUrl || '');
     if (!s) return { ok: false, reason: '画像が選ばれていません' };
     var m = /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/.exec(s);
@@ -362,10 +366,6 @@
     var b64 = m[2];
     var pad = (b64.slice(-2) === '==') ? 2 : (b64.slice(-1) === '=' ? 1 : 0);
     var bytes = Math.floor(b64.length * 3 / 4) - pad;
-    if (bytes > max) {
-      return { ok: false, bytes: bytes, reason: '画像が大きすぎます（' + Math.round(bytes / 1024) + 'KB）。'
-        + Math.round(max / 1024) + 'KB までにしてください（角印は小さく写れば十分です）' };
-    }
     return { ok: true, bytes: bytes };
   }
 
@@ -831,7 +831,7 @@
     snapshotOf: snapshotOf, partnerNameOf: partnerNameOf,
     validateSeal: validateSeal, sealSizeMm: sealSizeMm,
     sealXY: sealXY, PAPER_W_MM: PAPER_W_MM, PAPER_H_MM: PAPER_H_MM,
-    SEAL_DEFAULT_MM: SEAL_DEFAULT_MM, SEAL_MIN_MM: SEAL_MIN_MM, SEAL_MAX_MM: SEAL_MAX_MM, SEAL_MAX_BYTES: SEAL_MAX_BYTES,
+    SEAL_DEFAULT_MM: SEAL_DEFAULT_MM, SEAL_MIN_MM: SEAL_MIN_MM, SEAL_MAX_MM: SEAL_MAX_MM,
     paymentStateOf: paymentStateOf,
     validateInvoice: validateInvoice, convertQuoteToInvoice: convertQuoteToInvoice,
     duplicateDoc: duplicateDoc,

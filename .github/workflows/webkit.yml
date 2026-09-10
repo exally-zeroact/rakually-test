@@ -116,6 +116,10 @@ jobs:
       #   ★字の はみ出しは 画素でしか 分からない★ので 実ブラウザ＝ここ（webkit.yml）。
       - name: ★列の幅 (消費税の右にすきま/真ん中4列は1塊/字がはみ出さない/A4に収まる)
         run: node seikyu/tests/retsu-haba.mjs
+      - name: 2枚目・3枚目に入った紙（1枚目がスカスカにならない・A4に収まる）
+        run: node seikyu/tests/maisuu.mjs
+      - name: 同 わざと壊して赤になるか
+        run: node seikyu/tests/maisuu.mjs --self-test
       - name: ★備考の枠を出しても 紙から はみ出さない（18通り 実測・A4 1122.5px）
         run: node seikyu/tests/memo-waku.mjs
       - name: ★同 足元を高くすると 赤になるか（自己確認・壊した数と赤の数を並べる）

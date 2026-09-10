@@ -415,8 +415,10 @@ T('★実測した規模（1通 最大69行）が余裕で入る', () => {
 
 /* ── 角印（会社の印） ────────────────────────────────────────────
    ★押してある／無いで相手の受け取り方が変わる★ので、入れられる・大きさを変えられる・
-   消せる を揃える。上限を超えた画像は ★黙って縮めずに赤で返す★
-   （黙って縮めると「押したはずの印が欠けている」に押した本人が気づけない）。 */
+   消せる を揃える。
+   ★大きさの 上限は 置かない★（司さん 2026-09-10「★判子も 上限きめんなや★」）
+     ＝白抜き → まわりの余白を 切る → 長辺600点に 縮める を こちらで やる
+       （seikyu-seal.js の prepare。★やった事は 画面で 言う★）。 */
 T('★角印に使えるのは PNG / JPEG の画像だけ（外のURLは受けない）', () => {
   ok(D.validateSeal('data:image/png;base64,iVBORw0KGgo=').ok);
   ok(D.validateSeal('data:image/jpeg;base64,/9j/4AAQ').ok);
@@ -426,15 +428,17 @@ T('★角印に使えるのは PNG / JPEG の画像だけ（外のURLは受け�
   eq(D.validateSeal('').reason, '画像が選ばれていません');
 });
 
-T('★大きすぎる画像は黙って縮めずに赤で返す（何KBかを言う）', () => {
-  const big = 'data:image/png;base64,' + 'A'.repeat(500 * 1024);
+T('★大きさでは 断らない（上限そのものを 置かない）', () => {
+  /* ★司さん 2026-09-10「判子も 上限きめんなや」★
+     ＝前は 300KB で 断っていて、スマホの 写真（2〜5MB）は ★必ず 断られた★。 */
+  const big = 'data:image/png;base64,' + 'A'.repeat(5 * 1024 * 1024);
   const r = D.validateSeal(big);
-  ok(!r.ok, '上限を超えた画像が通っている');
-  ok(/KB/.test(r.reason), '大きさを言っていない: ' + r.reason);
-  ok(r.bytes > D.SEAL_MAX_BYTES, '大きさを測れていない');
-  // 上限のすぐ下は通る（境界）
-  const justUnder = 'data:image/png;base64,' + 'A'.repeat(Math.floor(D.SEAL_MAX_BYTES * 4 / 3) - 8);
-  ok(D.validateSeal(justUnder).ok, '上限のすぐ下が通らない');
+  ok(r.ok, '★大きいだけで 断っている★: ' + r.reason);
+  ok(r.bytes > 3 * 1024 * 1024, '★大きさを 測れていない★ ' + r.bytes);
+  ok(!('SEAL_MAX_BYTES' in D), '★上限が まだ 外へ 出ている★');
+  /* ★形では 断る★＝素通りに なっていない */
+  ok(!D.validateSeal('data:image/svg+xml;base64,' + 'A'.repeat(400 * 1024)).ok,
+    '★大きさを 見なくなった ついでに 形まで 素通りに なっている★');
 });
 
 T('★角印の大きさは 10〜40mm（既定17mm＝紙の側と同じ数）', () => {

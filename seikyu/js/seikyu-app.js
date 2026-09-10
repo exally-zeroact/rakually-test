@@ -2887,8 +2887,9 @@
     setText('seal-why', (sealGuess ? sealGuess.why + '（違う時は 上の数を 直してください）' : '')
       + '大きさは ' + DOC.SEAL_MIN_MM + '〜' + DOC.SEAL_MAX_MM + 'mm の間だけ（既定 '
       + DOC.SEAL_DEFAULT_MM + 'mm）。'
-      /* ★大きさの話を 人に させない★（2026-09-10 司さん「300KB以下にしてって出るけど 正常か？」）
-         ＝白抜き・余白切り・縮めは こちらで やる。人に「小さくしてから 入れ直せ」と 言わない。 */
+      /* ★大きさの話を 人に させない★（2026-09-10 司さん
+         「300KB以下にしてって出るけど 正常か？」→「★判子も 上限きめんなや★」）
+         ＝白抜き・余白切り・縮めは こちらで やる。★大きさで 断らない★。 */
       + '写真の まま 入れて かまいません（まわりを 切って 小さくします）。'
       + '発行した時の印は写しに残るので、あとで印を替えても出した紙は変わりません。');
     $('b-seal-clear').disabled = !(d.sealDataUrl || sealPending);
@@ -3201,7 +3202,7 @@
        ★代行請求（Exally-test/daikou-seikyu.html）には 大きさの 上限が そもそも 無い★
          （"KB" の字が 0か所・loadHanko は 読んで HankoTool.process に 渡すだけ）＝
          あちらでは この知らせは ★出ない★。 */
-    var chk = DOC.validateSeal(url, { maxBytes: Infinity });
+    var chk = DOC.validateSeal(url);
     if (!chk.ok) { box('seal-err', chk.reason); sealPending = null; sealGuess = null; fillSeal(); return chk; }
     sealPending = url;
     sealGuess = null;
@@ -3224,29 +3225,13 @@
     var SEAL = global.SeikyuSeal;
     if (!SEAL) return Promise.resolve();
     /* ★返す★＝呼ぶ側（と 見張り）が「終わったか」を 待てる（待てない物は 測れない） */
-    /* ★入らなければ もっと 小さくして 試す★（2026-09-10）
-       ＝判子は 紙に 17mm で 押す＝長辺 300点でも 刷りに 足りる。
-         ★人に「小さくしてから 入れ直せ」と 言う前に、こちらで やる★ */
-    var HABA = [SEAL.MAX_PX || 600, 400, 300];
-    var tameshi = function (i) {
-      return SEAL.prepare(url, { maxPx: HABA[i] }).then(function (r) {
-        var u = (r && r.dataUrl) || url;
-        var d = (r && r.did) || [];
-        if (DOC.validateSeal(u).ok) return { url: u, did: d, ok: true };
-        if (i + 1 < HABA.length) return tameshi(i + 1);
-        return { url: u, did: d, ok: false };
-      });
-    };
-    return tameshi(0).then(function (r) {
+    /* ★大きさで 断らない★（司さん 2026-09-10「判子も 上限きめんなや」）
+       ＝白抜き → まわりの余白を 切る → 長辺600点に 縮める を やって、その物を 使う。
+         ★やった事は 画面で 言う★（黙って いじらない）。 */
+    return SEAL.prepare(url).then(function (r) {
       if (sealPending !== url) return null;         // 途中で 別の画像に替えられていたら 捨てる
-      var next = r.url;
-      var did = r.did;
-      if (!r.ok) {
-        /* ★いちばん小さくしても 入らない★＝黙って 通さない（保存で 断られる） */
-        var chk = DOC.validateSeal(next);
-        box('seal-err', chk.reason);
-        return null;
-      }
+      var next = (r && r.dataUrl) || url;
+      var did = (r && r.did) || [];
       if (next !== url) { sealPending = next; fillSeal(); }
       if (did.length) box('seal-ok', did.join('／') + '。「保存」を押すと紙に出ます。');
       return SEAL.guessFromUrl(next).then(function (g) {
@@ -3264,6 +3249,7 @@
     sealTouched = false;                  // 保存したら 倉庫の値が 正になる
     var patch = { sealSizeMm: mm, sealX: xy.x, sealY: xy.y };
     if (sealPending) {
+      /* ★形だけ 見る★＝PNG/JPEG か（大きさでは 断らない） */
       var chk = DOC.validateSeal(sealPending);
       if (!chk.ok) { box('seal-err', chk.reason); return Promise.resolve(); }
       patch.sealDataUrl = sealPending;

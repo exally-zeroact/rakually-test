@@ -335,27 +335,36 @@
      実測（Chromium 2026-08-16）：★途中の紙は 30行★（31行で −25px＝足元に食い込む）
        ＝最後の紙（控除あり8行）の ★3.75倍★。前は全ページ同じ8行で刷っていて、
          途中の紙に ★22行ぶんの余白★ ができ、紙が無駄に増えていた。
-     ★分け方★：最後の紙に「最後の紙の枠」ぶん残し、残りを途中の紙へ ★均等に★ 配る
-       （均等＝途中の紙の顔が揃う。片方だけスカスカにしない） */
-  var MID_ROWS = 30;
+     ★★分け方＝前の紙から 順に いっぱいまで 入れる★★（司さん 2026-09-10
+       「★なんで 1ページ目が 少ないやつがあるんど おかしかろが★」）
+     ★前は こうだった（2026-08-16〜09-10）★
+       「最後の紙に『最後の紙の枠』ぶん 残し、残りを 途中の紙へ ★均等に★ 配る」
+       ＝明細17本・最後の枠15本なら ★1枚目に 2本しか 載らなかった★
+         （実測：1枚目 2行／2枚目 15行。1枚目の 3分の2が 真っ白）。
+       「均等」は ★途中の紙どうし★の 話で、★1枚目が スカスカ★なのを 見ていなかった。
+     ★今★＝前の紙から 順に ★途中の枠いっぱい（MID_ROWS）★まで 入れ、
+       ★最後の紙は 残り★（0〜「最後の紙の枠」）。
+       ・1枚目が いちばん 多い（後ろの紙が 1枚目より 多くなる事は 無い）
+       ・★0 も許す＝最後の紙は 締めだけ★（控除が多い・区分が多い紙は
+         締めだけで A4 を使い切る。無理に1行 押し込むと ★黙って はみ出す★＝実測 −193px）
+       ・★紙の枚数は 増えない★（17本→2枚／46本→3枚／35本→3枚＝前と同じ。実測） */
+  /* ★途中の紙に 載る 本数★＝実測（scripts/_hakaru-mid-rows.mjs）
+     ★2026-09-10 実測 28行★（29行で +29px＝足元に食い込む）。どの様式でも 同じ。
+     ★前は 30★＝2026-08-16 の 数。その後 紙の 作り（余白・締めの線・行の高さ）が
+       変わったのに 直していなかった。★30 を 使う道が 無かったので 誰も 気づかなかった★
+       （前の 分け方は 均等に 配るので 30 まで 届かなかった）。
+     ★数を 変えたら _hakaru-mid-rows.mjs で 測り直す★ */
+  var MID_ROWS = 28;
   function planPages(n, midRows, lastRows) {
     var total = Math.max(0, Math.trunc(Number(n) || 0));
     var mid = Math.max(1, Math.trunc(Number(midRows) || 1));
-    /* ★0 も許す＝「最後の紙は締めだけ（明細を1本も載せない）」★
-       控除が多い・区分が多い・ページが多い紙は、締めだけで A4 を使い切る。
-       そこへ無理に1行 押し込むと ★黙って はみ出す★（実測 −193px）。 */
     var last = Math.max(0, Math.trunc(Number(lastRows) || 0));
     if (total <= last) return [Math.max(total, 0)];          // 1枚で収まる
-    var rest = total - last;                                  // 途中の紙へ回す分
-    var midPages = Math.ceil(rest / mid);
-    var per = Math.ceil(rest / midPages);                     // ★均等に配る★
     var plan = [];
-    var left = rest;
-    for (var i = 0; i < midPages; i++) {
-      var take = Math.min(per, left);
-      plan.push(take); left -= take;
-    }
-    plan.push(total - (rest - left));                         // 最後の紙（残り全部）
+    var left = total;
+    /* ★前の紙から 順に いっぱいまで★＝残りが「最後の紙の枠」に 収まるまで 途中の紙を 足す */
+    while (left > last) { var take = Math.min(mid, left); plan.push(take); left -= take; }
+    plan.push(left);                                          // 最後の紙（0〜last）
     return plan;
   }
   /* 明細を「ページごとの本数」で切り分ける（★黙って切らない★＝全部どこかの紙に載る） */
@@ -668,11 +677,14 @@
     var carry = o.carry || null;    // ★繰越（前回の残り）★
     /* ★ページごとに載る本数が違う★（司さん 2026-08-16）
          最後の紙 … 控除・締め・振込先・（内訳）が乗る＝frameRows（実測して決めた数）
-         途中の紙 … それらが無い＝★MID_ROWS（実測30行）★まで載る
+         途中の紙 … それらが無い＝★MID_ROWS（実測28行・2026-09-10）★まで載る
        ＝途中の紙の余白ぶん 紙が増えるのをやめる。
        ★会社が枠を決めている時（paperRows）は その数を全ページで使う★（毎月おなじ顔） */
     var laid = planOf(inv, planInput);        // ★数えるのは1か所★（画面もこれを呼ぶ）
     frameRows = laid.frameRows;
+    /* ★途中の紙の 枠★＝planOf が 決めた 数（会社が 行数を 決めている時は その数）。
+       ★MID_ROWS を 直に 使わない★＝会社の 決めた 行数が 効かなくなる。 */
+    var midRows = laid.midRows || MID_ROWS;
     var plan = laid.plan;
     var pages = plan ? splitByPlan(lines, plan) : paginate(lines, o.page);
     if (!pages.length) pages = [[]];
@@ -680,7 +692,11 @@
     /* そのページの枠（空の行を何本 出すか）＝そのページに配った本数 */
     function frameOfPage(idx, isLast) {
       if (!plan) return frameRows;
-      return isLast ? frameRows : (plan[idx] || frameRows);
+      /* ★途中の紙も 枠は いっぱい★（司さん 2026-09-10「おかしかろが」）
+         ＝前は「その紙に 配った本数」を そのまま 枠に していたので、
+           16本しか 載らない紙は ★表が 途中で 終わって 下 4割が 真っ白★だった。
+         最後の紙と 同じで ★足りない行は 空の枠のまま 残す★（詰めない・罫線を消さない）。 */
+      return isLast ? frameRows : midRows;
     }
 
     /* 明細の見出し（items のとおり・その順） */
@@ -1330,7 +1346,14 @@
              控除が多い／区分が多い／ページが多い紙は、締めだけで A4 を使い切る。
              そこに ★中身0行の表と「このページの小計 ¥0」★ を出すと、
              「なぜ0円のページがあるのか」になる＝表ごと出さない。 */
-          if (last && multi && !pageLines.length && !frameOfPage(idx, true)) return '' + deductBlock();
+          /* ★2026-09-10★ 前は「枠も 0 の時だけ」外していた（&& !frameOfPage(...)）。
+             分け方を「前の紙から 順に いっぱいまで」に した ので、
+             ★最後の紙に 明細が 1本も 来ない★事が ふつうに 起きる（明細17本＝1枚目に 全部）。
+             その紙に 空の表を 出すと ★「明細がまだ1行もありません」「このページの小計 0」★
+             が 出た（実測）。★中身が 0本なら 表ごと 出さない★＝
+             最後の紙は ご請求金額・合計・お振込先だけの ★まとめの紙★に する
+             （見本＝代行請求 daikou-seikyu.html:4560「複数ページは 最終に サマリーページを 足す」）。 */
+          if (last && multi && !pageLines.length) return '' + deductBlock();
           var itemsBlk = '<div class="blk blk-items">'
             + '<table class="items"><thead><tr>' + headHtml + '</tr></thead>'
             + '<tbody>' + rowsHtmlOf(pageLines, offset, frameOfPage(idx, last)) + '</tbody>' + foot + '</table>'

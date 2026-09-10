@@ -13,11 +13,11 @@
  *   ② 白い地の 判子を 通すと ★本当に 透ける★（白が 減り 透けが 増える）
  *   ③ ★透けている 判子は 触らない★（余計な いじりを しない）
  *   ④ 空振りしない（作り物が 本当に 白い地／道具が 本当に 在る）
- *   ⑥ ★スマホの 写真（300KBを 超える）を 選んでも 断らない★（2026-09-10 司さん
- *      「判子の ファイルや 画像が ★300KB以下にしてって出る★けど 正常か？」）
- *      ＝正常では なかった。★縮める前の 大きさで 断って★ いた（順番が 逆）。
- *      ★代行請求（daikou-seikyu.html）には 上限が そもそも 無い★＝あちらでは 出ない。
- *   ⑦ ★そろえた後は 上限に 収まる★（人に「小さくしてから 入れ直せ」と 言わない）
+ *   ⑥ ★大きさで 断らない★（2026-09-10 司さん
+ *      「判子の ファイルや 画像が 300KB以下にしてって出るけど 正常か？」
+ *       →「★判子も 上限きめんなや★」）
+ *      ＝上限そのものを 外した。★代行請求（daikou-seikyu.html）にも 上限は 無い★。
+ *   ⑦ ★大きい 写真は こちらで 小さくする★（人に「小さくしてから 入れ直せ」と 言わない）
  *
  * ★実ブラウザで 測る★＝canvas の 画素を 数えるので jsdom では 測れない。
  * 使い方: node seikyu/tests/hanko-touka.mjs [--self-test]
@@ -99,7 +99,7 @@ const r = await pg.evaluate(async () => {
   out.mite_suketa = await SEAL.shiroiKa(suketa);
 
   /* ★スマホで 撮った 判子★＝白い紙の上に 朱の 角印、大きく、少しざらつく。
-     ★上限（300KB）を 超えている事を 先に 測る★＝超えていなければ この検査は 何も 見ていない。 */
+     ★十分 大きい事を 先に 測る★＝小さい 作り物では この検査は 何も 見ていない。 */
   const shashin = (() => {
     const N = 1500;
     const c = document.createElement('canvas'); c.width = N; c.height = N;
@@ -129,8 +129,11 @@ const r = await pg.evaluate(async () => {
     return Math.floor(b64.length * 3 / 4) - pad;
   };
   const DOC = window.SeikyuDoc;
-  out.max = DOC.SEAL_MAX_BYTES;
   out.shashin_byte = bytes(shashin);
+  /* ★上限そのものが 無い★＝大きいまま 通る（形だけ 見る） */
+  out.ookii_toru = DOC.validateSeal(shashin).ok;
+  out.soto = DOC.validateSeal('https://example.com/hanko.png').ok;
+  out.svg = DOC.validateSeal('data:image/svg+xml;base64,PHN2Zz4=').ok;
   /* ★お客さんが 通る道★＝ファイルを 選んだ時と 同じ（_pickSealUrl は それを 呼ぶだけ） */
   const A = window.SeikyuApp;
   A._go('scr-set');
@@ -180,20 +183,25 @@ T('★③ もう 透けている 判子は「白い地」と 言わない（余�
   console.log('     透けた判子 … 白 ' + r.mite_suketa.shiro + '% ／ 透け ' + r.mite_suketa.suke + '% → 触らない');
 });
 
-T('★⑥ スマホの 写真（上限を 超える）を 選んでも 断らない', () => {
-  ok(r.shashin_byte > r.max,
-    '★作り物が 上限を 超えていない＝この検査は 何も 見ていない★ '
-    + Math.round(r.shashin_byte / 1024) + 'KB ≤ ' + Math.round(r.max / 1024) + 'KB');
-  console.log('     選んだ 写真 … ' + Math.round(r.shashin_byte / 1024) + 'KB'
-    + '（上限 ' + Math.round(r.max / 1024) + 'KB）');
+T('★⑥ 大きさで 断らない（上限そのものが 無い）', () => {
+  /* ★司さん 2026-09-10「★判子も 上限きめんなや★」★
+     ＝形（PNG/JPEG か）だけ 見る。大きさは 断る材料に しない。 */
+  ok(r.shashin_byte > 1024 * 1024,
+    '★作り物が 小さすぎ＝この検査は 何も 見ていない★ ' + Math.round(r.shashin_byte / 1024) + 'KB');
+  console.log('     選んだ 写真 … ' + Math.round(r.shashin_byte / 1024) + 'KB');
+  ok(r.ookii_toru, '★大きいだけで 断っている（上限が 残っている）★');
   ok(!r.kotowatta, '★選んだ その場で 断っている★');
   ok(!r.err, '★赤い 知らせが 出ている★: ' + r.err);
+  /* ★形では 断る★＝ここまで 素通りに なっていないか */
+  ok(!r.soto, '★外のURLまで 通っている＝形も 見ていない★');
+  ok(!r.svg, '★PNG/JPEG でない物まで 通っている★');
 });
 
-T('★⑦ そろえた後は 上限に 収まる（人に 小さくさせない）', () => {
+T('★⑦ 大きい 写真は こちらで 小さくする（人に 小さくさせない）', () => {
   ok(r.deta_byte > 0, '★下見に 何も 出ていない★');
-  ok(r.deta_byte <= r.max,
-    '★そろえても 上限を 超えている★ ' + Math.round(r.deta_byte / 1024) + 'KB');
+  ok(r.deta_byte < r.shashin_byte / 10,
+    '★ほとんど 小さく なっていない★ ' + Math.round(r.shashin_byte / 1024) + 'KB → '
+    + Math.round(r.deta_byte / 1024) + 'KB');
   ok(!r.err_ato, '★そろえた後に 赤い 知らせが 出ている★: ' + r.err_ato);
   console.log('     ' + Math.round(r.shashin_byte / 1024) + 'KB → ★'
     + Math.round(r.deta_byte / 1024) + 'KB★（そろえた後）');
@@ -206,11 +214,10 @@ T('★⑧ 判子を 受け取る 道は 1本（見張り用の 別の道を 作�
   ok(app.indexOf('function sealUrlPicked(url) {') > 0, '★受け取る 道が 無い★');
   ok(app.indexOf('_pickSealUrl: function (url) { return sealUrlPicked(url); }') > 0,
     '★見張り用の 入口が 別の道を 通っている★');
-  /* ★形だけ 見る所は 1か所★＝大きさで 断る所が 選んだ 直後に 戻っていないか */
-  const i = app.indexOf('function sealUrlPicked(url) {');
-  const j = app.indexOf('function applySealTools', i);
-  ok(app.slice(i, j).indexOf('maxBytes: Infinity') > 0,
-    '★選んだ 直後に また 大きさで 断っている★');
+  /* ★大きさで 断る 決まりが どこにも 残っていない★（司さん「上限きめんなや」） */
+  const lib = fs.readFileSync(path.join(ROOT, 'seikyu', 'lib', 'seikyu-doc.js'), 'utf8');
+  ok(lib.indexOf('SEAL_MAX_BYTES') < 0, '★上限が まだ 在る★');
+  ok(lib.indexOf('画像が大きすぎます') < 0, '★大きすぎると 断る 言い方が 残っている★');
 });
 
 T('★⑤ 設定を 開いた時に 呼んでいる（作っただけで 使っていない を 止める）', () => {
