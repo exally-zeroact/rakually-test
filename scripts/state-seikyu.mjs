@@ -253,7 +253,20 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
      一覧は ★<button class="row" data-open="…"> で 描かれている★＝
      ★行が 何通 在っても 永久に 0行★と出る物差しだった（倉庫を空にしていた事も 重なっていた）。
      ＝[[feedback_doubt_your_own_ruler_first]]／★描かれた物を 数える★ */
-  const drawn = () => Array.from(doc.querySelectorAll('#list-body [data-open]'));
+  /* ★物差しが また 古くなっていた（2026-09-09 実測）★
+     ここは `[data-open]` の 字を 読んでいたが、2026-09-08 に 一覧を 作り直して
+     ★[data-open] は カードの 中の「修正」ボタン★に なった＝
+     読んでいたのは ★「修正 ／ 修正 ／ 修正」★。
+     ⇒ 相手の名前も 金額も ★永久に「出ない」★と 出る 物差しだった
+       （画面には ちゃんと 出ている＝★嘘の 半分★）。
+     ★数えるのは 行（=1通のカード）／字を 読むのは カードの 中身★。
+     コメントに 前科（2026-09-02）を 書いておきながら 同じ穴を 踏んだ。 */
+  const drawn = () => {
+    const cards = Array.from(doc.querySelectorAll('#list-body .iv-card'));
+    if (cards.length) return cards;
+    /* 作りが また 変わった時の 受け皿＝★押す物が 1つ 在る単位★を 行と 数える */
+    return Array.from(doc.querySelectorAll('#list-body [data-look], #list-body [data-open]'));
+  };
   const rows = drawn();
   N.一覧の行 = rows.length;
   const txt = rows.map((r) => (r.textContent || '').replace(/\s+/g, ' ')).join(' ／ ');
