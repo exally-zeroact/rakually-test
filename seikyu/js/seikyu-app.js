@@ -3415,7 +3415,6 @@
       $('s-sumsorder').value = (st.sumsOrder === 'B') ? 'B' : '';
       $('s-yen').value = (st.yenMark === false) ? 'off' : '';
       $('s-zeikomi').value = (st.zeikomiTag === false) ? 'off' : '';
-      $('s-bankline').value = (st.bankOneLine === true) ? 'one' : '';
       $('s-subject').value = (st.subjectOn === true) ? 'on' : '';
       if ($('s-no')) $('s-no').value = (st.noOn === false) ? 'off' : '';
       $('s-taxnote').value = st.taxNote || '';
@@ -4245,7 +4244,6 @@
         if ($('s-sumsorder').value === 'B') o.sumsOrder = 'B';
         if ($('s-yen').value === 'off') o.yenMark = false;
         if ($('s-zeikomi').value === 'off') o.zeikomiTag = false;
-        if ($('s-bankline').value === 'one') o.bankOneLine = true;
         if ($('s-subject').value === 'on') o.subjectOn = true;
         /* ★出す時は 何も 書かない★（既定＝出す）／切った時だけ false を 持つ */
         if ($('s-no') && $('s-no').value === 'off') o.noOn = false;
