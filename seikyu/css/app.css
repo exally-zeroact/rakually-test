@@ -212,6 +212,16 @@
   border: 0; opacity: 0; overflow: hidden; clip-path: inset(50%); pointer-events: none;
 }
 
+/* ── 確認の画面の 戻る道（上に 貼り付く）──────────────────
+   ★代行請求は かぶせ（modal）の「閉じる」で どこからでも 戻れる★＝
+     うちも ★転がしても 戻るが 消えない★ようにする（司さん 2026-09-10）。
+   ★文を flex の 子に 直接 置かない★（1文字ずつ 縦に 割れる 事故を 作らない）。 */
+.lv-top {
+  position: sticky; top: 0; z-index: 5; background: #FFFFFF;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 6px 0 10px; margin-bottom: 4px;
+}
+
 /* ★出したが まだ 渡していない★（2026-09-10）
    ★色そのものが 意味★＝注意の 色（.warn と 同じ #92500A）を 使う。 */
 .iv-mada { color: #92500A; font-weight: 700; }
