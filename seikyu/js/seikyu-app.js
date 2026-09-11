@@ -53,8 +53,7 @@
          その時の 成功／失敗を ★入力画面の 箱に 書くと 誰も 読めない★。
        ★確認の 箱が 出ている 間だけ そちらへ 回す★（口は 増やさない）。 */
     if (id === 'edit-err' || id === 'edit-ok') {
-      var lv = $('scr-look');
-      if (lv && lv.classList.contains('active')) id = (id === 'edit-err') ? 'lv-err' : 'lv-ok';
+      if (lookOpened()) id = (id === 'edit-err') ? 'lv-err' : 'lv-ok';
     }
     var e = $(id); if (!e) return;
     var t = String(text == null ? '' : text);
@@ -82,6 +81,30 @@
   }
 
   /* ═══ 画面の切り替え ═══ */
+  /* ★★紙を 見る かぶせ（代行請求と 同じ形）★★（司さん 2026-09-10「同じように やれや」）
+     見本＝Exally-test/daikou-seikyu.html:3490（modal-ov / modal）と closeModal()。
+     ★画面（screen）では ない★＝一覧の 上に かぶせるので、
+       閉じれば ★一覧が そのまま 残っている★（描き直さない・場所も そのまま）。 */
+  function lookOpen() {
+    var ov = $('lv-ov'); if (!ov) return;
+    ov.classList.add('open');
+    /* ★いつも 頭から 見せる★＝前に 開いた 時の 転がした 場所が 残ると
+       ★出す ボタンが 貼り付いた 頭の 下に 隠れる★（実測で そうなった） */
+    var md = ov.querySelector('.lv-modal');
+    if (md) { try { md.scrollTop = 0; } catch (e) { /* 端末差 */ } }
+    /* ★後ろが 動かないように★（かぶせの 中だけ 転がす） */
+    try { global.document.body.style.overflow = 'hidden'; } catch (e) { /* 端末差 */ }
+  }
+  function lookClose() {
+    var ov = $('lv-ov'); if (!ov) return;
+    ov.classList.remove('open');
+    try { global.document.body.style.overflow = ''; } catch (e) { /* 端末差 */ }
+  }
+  function lookOpened() {
+    var ov = $('lv-ov');
+    return !!(ov && ov.classList.contains('open'));
+  }
+
   function goScreen(id) {
     /* ★★入力の 画面から ★出る時だけ★ しまう★★（2026-09-10）
        下タブは 親指の すぐ下＝★打っている 最中に いちばん 当たりやすい★。
@@ -93,13 +116,15 @@
     if (deru) { try { jidoHozon(); } catch (e) { /* しまえなくても 画面は 切り替える */ } }
     /* ★画面の一覧は 1か所★＝ここに足し忘れると ★タブは光るのに 中身が真っ白★
        （2026-08-31 実際にそうなった＝請求/集計を足した日） */
-    ['scr-list', 'scr-edit', 'scr-set', 'scr-bill', 'scr-look'].forEach(function (s) {
+    /* ★scr-look は 画面では なくなった★（2026-09-10 かぶせに した＝代行請求と 同じ） */
+    ['scr-list', 'scr-edit', 'scr-set', 'scr-bill'].forEach(function (s) {
       var el = $(s); if (el) el.classList.toggle('active', s === id);
     });
-    /* ★scr-look は 下のタブに 無い★（一覧から「確認」で 来る画面）。
-       ここで 何も 光らせないと ★4つとも 消えて 今どこか 分からなくなる★ので、
-       ★来た元（一覧）を 光らせたまま★に する。 */
-    var hikaru = (id === 'scr-look') ? 'scr-list' : id;
+    /* ★紙を 見る 物は かぶせ★（2026-09-10）＝画面は 変わらないので
+       タブの 光りも そのまま。ここで 場合分けは 要らない。 */
+    var hikaru = id;
+    /* ★画面を 変えたら かぶせは 閉じる★（後ろだけ 変わって かぶさったまま、を 作らない） */
+    lookClose();
     Array.prototype.forEach.call(document.querySelectorAll('.bn'), function (b) {
       b.classList.toggle('on', b.getAttribute('data-scr') === hikaru);
     });
@@ -778,13 +803,12 @@
     /* srcdoc は 端末によって load が 来ない事が 在るので 時間でも 1度 合わせる（入力と 同じ） */
     global.setTimeout(fitLook, 260);
     setText('lv-h', (v.no || '（未採番）') + '　' + partnerName(v));
-    /* ★別の 画面へ 行く★（2026-09-09 司さん「確認押したら 違うページにいって」）
-       ＝前は 一覧の 中に 箱を 出していたので、取引先が 増えると 紙が 割り込んで
-         ★一覧が 一覧で なくなっていた★。 */
-    goScreen('scr-look');
+    /* ★一覧の 上に かぶせる★（2026-09-10 司さん「代行請求と 同じように やれや」）
+       ＝前は 別の 画面へ 行っていたので、閉じると 一覧を 描き直して
+         ★見ていた 場所まで 戻らなかった★。かぶせなら 一覧は そのまま 残る。 */
+    lookOpen();
     applyPaperGate();                 /* ★出せない紙の ボタンは 押させない★（入力と 同じ門） */
     box('lv-err', ''); box('lv-ok', '');
-    /* 画面を 移ると goScreen が 上へ 戻す＝ここで もう一度 動かさない */
   }
 
   /* ★一覧から 消す★＝下書きは 削除／発行済は 取り消し。
@@ -4671,7 +4695,16 @@
     /* ★確認で 出した 紙の ボタン★＝作り方は 入力画面と 同じ 1本（doPdf/doPrint）。
        ★S.cur は lookPaper が すでに その1通に している★ので そのまま 使える。 */
     /* ★戻る道は 1つ★＝「← 一覧へ戻る」。下のタブの「一覧」でも 戻れる。 */
-    if ($('b-lv-back')) $('b-lv-back').onclick = function () { goScreen('scr-list'); };
+    if ($('b-lv-back')) $('b-lv-back').onclick = function () { lookClose(); };
+    /* ★暗い所を 押しても 閉じる★（代行請求 daikou-seikyu.html:3491 と 同じ）
+       ＝中（紙）を 押した時は 閉じない（event.target === this の 形） */
+    if ($('lv-ov')) {
+      $('lv-ov').onclick = function (e) { if (e.target === this) lookClose(); };
+    }
+    /* Esc でも 閉じる（パソコンで 見る人の為。押す物は 増やさない） */
+    global.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && lookOpened()) lookClose();
+    });
 
 
     $('e-partner').onchange = function () {
@@ -5039,6 +5072,7 @@
        倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
     _bindForTest: function () { return bind(); },
     _paperBtnsForTest: function () { return PAPER_BTNS.slice(); },   // テスト用: 門を掛ける相手の一覧
+    _lookOpenedForTest: function () { return lookOpened(); },        // テスト用: かぶせが 出ているか
     /* テスト用: 最後に PDF に した 紙（2026-09-10 ブラウザの印刷を やめたので
        「開いた窓の中身」では もう 見られない＝ここで 見る） */
     _lastPaperHtmlForTest: function () { return lastPaperHtml; },

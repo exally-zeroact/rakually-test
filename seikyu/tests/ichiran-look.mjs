@@ -14,9 +14,15 @@
  *
  * 見る物:
  *   ① 一覧の 中に ★紙は 出ない★（何件 在っても 割り込まない）
- *   ② 「確認」を 押すと ★画面が 変わる★（一覧が 消えて 紙の画面が 出る）
- *   ③ 紙の画面から ★一覧へ 戻れる★
- *   ④ 紙の画面でも ★下のタブは「一覧」が 光ったまま★（今どこか 分かる）
+ *   ② 「確認」を 押すと ★紙が かぶさって 出る★（一覧は 後ろに 残る）
+ *   ③ ★「閉じる」で 戻れる★／★暗い所を 押しても 閉じる★
+ *   ④ かぶさっている 間も ★下のタブは「一覧」が 光ったまま★（今どこか 分かる）
+ *
+ * ★★2026-09-10 別の画面 → かぶせ（modal）に しました★★
+ *   司さん「代行請求書アプリが どんなに しよるか 見てこいやぼけ」→「同じように やれや」
+ *   ★見てきた★ Exally-test/daikou-seikyu.html:3490（modal-ov / modal）
+ *     ＝詳しい物は ★かぶせで 出して「閉じる」1つで 戻る★。暗い所を 押しても 閉じる。
+ *   ★別の画面だと 閉じた時に 一覧を 描き直す★＝見ていた 場所まで 戻らなかった。
  *   ⑤ ★何年何月分で しぼれる★（在る月だけ・新しい順・全部は value=""）
  *   ⑥ ★件数と 合計を 出す★／絞り込み中は そう 書く
  *   ⑦⑧ 取引先でも・両方 一緒にも しぼれる
@@ -114,11 +120,11 @@ console.log('     作った 紙 … ' + S.invoices.length + '通（取引先 ' +
 if (SELF) {
   const app = fs.readFileSync(path.join(ROOT, 'seikyu', 'js', 'seikyu-app.js'), 'utf8');
   const kowasu = [
-    ['確認で 画面を 変えない', "goScreen('scr-look');"],
+    ['確認で かぶせを 出さない', '    lookOpen();'],
     ['月で しぼらない', "if (lm && lm.value) rows = rows.filter(function (v) { return billYm(v) === lm.value; });"],
     ['件数と 合計を 出さない', "setText('list-sum', rows.length + '件'"],
     ['戻る道を 消す', "if ($('b-lv-back')) $('b-lv-back').onclick"],
-    ['一覧タブを 光らせない', "var hikaru = (id === 'scr-look') ? 'scr-list' : id;"],
+    ['暗い所を 押しても 閉じない', "      $('lv-ov').onclick = function (e) { if (e.target === this) lookClose(); };"],
   ];
   kowasu.forEach(([na, a]) => ok(app.split(a).length === 2,
     '★壊す所が 1つ 見つからない★ ' + na + ' … ' + a));
@@ -132,23 +138,37 @@ T('★① 一覧の 中に 紙は 出ない（何件 在っても 割り込ま�
   ok($('scr-list').innerHTML.indexOf('id="lv"') < 0, '★一覧の 中に 紙の iframe が 在る★');
 });
 
-T('★② 「確認」を 押すと 画面が 変わる（一覧が 消えて 紙の画面）', () => {
-  ok(deteru('scr-list') && !deteru('scr-look'), '押す前の 画面が おかしい');
+const kabuse = () => A._lookOpenedForTest();
+
+T('★② 「確認」を 押すと 紙が かぶさって 出る（一覧は 後ろに 残る）', () => {
+  ok(deteru('scr-list') && !kabuse(), '押す前の 画面が おかしい');
   osu('#list-body [data-look]');
-  ok(deteru('scr-look'), '★紙の画面が 出ていない★＝同じ画面のまま … 知らせ「' + txt('list-err')
+  ok(kabuse(), '★紙が かぶさっていない★ … 知らせ「' + txt('list-err')
     + '」／計算「' + txt('edit-err') + '」');
-  ok(!deteru('scr-list'), '★一覧が 出たまま★＝重なって 見える');
+  /* ★一覧は 後ろに 残る★＝閉じたら そのまま 続きから（描き直さない） */
+  ok(deteru('scr-list'), '★一覧が 消えている★（かぶせなのに 画面を 変えている）');
   ok(txt('lv-h').length > 0, '★どの紙かを 出していない★');
   console.log('     ' + txt('lv-h'));
 });
 
-T('★③ 紙の画面から 一覧へ 戻れる', () => {
-  ok($('b-lv-back'), '★戻る物が 無い★');
+T('★③ 「閉じる」で 戻れる／暗い所を 押しても 閉じる', () => {
+  ok($('b-lv-back'), '★閉じる物が 無い★');
   osu('#b-lv-back');
-  ok(deteru('scr-list') && !deteru('scr-look'), '★戻っていない★');
+  ok(!kabuse() && deteru('scr-list'), '★閉じていない★');
+  /* ★暗い所★＝かぶせの 外側を 押した時（代行請求と 同じ event.target === this） */
+  osu('#list-body [data-look]');
+  ok(kabuse(), '開き直せていない');
+  const ov = $('lv-ov');
+  ov.dispatchEvent(Object.assign(new win.MouseEvent('click', { bubbles: true }), {}));
+  ok(!kabuse(), '★暗い所を 押しても 閉じない★');
+  /* ★中（紙）を 押した時は 閉じない★＝読んでいる 途中で 消えない */
+  osu('#list-body [data-look]');
+  $('lv-h').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  ok(kabuse(), '★中を 押したら 閉じた★（読んでいる 途中で 消える）');
+  osu('#b-lv-back');
 });
 
-T('★④ 紙の画面でも 下のタブは「一覧」が 光ったまま', () => {
+T('★④ かぶさっている 間も 下のタブは「一覧」が 光ったまま', () => {
   osu('#list-body [data-look]');
   const on = [...doc.querySelectorAll('.bn')].filter((b) => b.classList.contains('on'));
   eq(on.length, 1, '★光っている タブの 数★（0だと 今どこか 分からない）');
@@ -202,7 +222,8 @@ T('★⑧ 取引先と 月を 一緒に しぼれる（代行請求と 同じ）
 T('★⑨ 空振りしていない（押す道が 本当に 在る）', () => {
   ok(S.invoices.length >= 20, '★紙が 少なすぎ＝多い時を 見ていない★ ' + S.invoices.length);
   ok(gyo() >= 20, '★確認の ボタンが 描かれていない★');
-  ok(html.indexOf('id="scr-look"') > 0, '★紙の画面が 画面の一覧に 無い★');
+  ok(html.indexOf('id="lv-ov"') > 0, '★紙の かぶせが 画面に 無い★');
+  ok(html.indexOf('id="scr-look"') < 0, '★古い 別画面が まだ 残っている★（2か所に なる）');
 });
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

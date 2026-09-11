@@ -212,10 +212,30 @@
   border: 0; opacity: 0; overflow: hidden; clip-path: inset(50%); pointer-events: none;
 }
 
-/* ── 確認の画面の 戻る道（上に 貼り付く）──────────────────
-   ★代行請求は かぶせ（modal）の「閉じる」で どこからでも 戻れる★＝
-     うちも ★転がしても 戻るが 消えない★ようにする（司さん 2026-09-10）。
-   ★文を flex の 子に 直接 置かない★（1文字ずつ 縦に 割れる 事故を 作らない）。 */
+/* ── 紙を 見る（かぶせ）────────────────────────────────
+   ★代行請求と 同じ形★（司さん 2026-09-10「同じように やれや」）
+     Exally-test/daikou-seikyu.html の .modal-ov / .modal / .modal-hd（CSS 2633-2675）。
+   ・下から 出る／中だけ 転がる（max-height 88vh）
+   ・頭の「閉じる」は ★貼り付いて 消えない★
+   ・暗い所を 押しても 閉じる（JS 側）
+   ・広い画面（560px以上）では 真ん中に 出す
+   ★色は 代行請求と 同じ rgba(20,36,61,.45)★＝こちらで 勝手に 決めない。 */
+.lv-ov {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(20, 36, 61, .45);
+  align-items: flex-end; justify-content: center;
+}
+.lv-ov.open { display: flex; }
+.lv-modal {
+  background: #FFFFFF; width: 100%; max-width: 520px;
+  border-radius: 18px 18px 0 0; max-height: 88vh; overflow-y: auto;
+  padding: 14px 14px 24px;
+}
+@media (min-width: 560px) {
+  .lv-ov { align-items: center; }
+  .lv-modal { border-radius: 18px; }
+}
+/* ★文を flex の 子に 直接 置かない★（1文字ずつ 縦に 割れる 事故を 作らない） */
 .lv-top {
   position: sticky; top: 0; z-index: 5; background: #FFFFFF;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;

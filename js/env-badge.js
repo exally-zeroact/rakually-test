@@ -103,6 +103,18 @@
       var cs = global.getComputedStyle(el);
       if (cs.position !== 'sticky') continue;
       if (cs.top !== '0px' && el.getAttribute('data-envbar-top') !== '1') continue;
+      /* ★★被せ物（fixed）の 中の 貼り付きは 動かさない★★（2026-09-10 実測）
+         ＝帯は ★画面の いちばん上★に 在る。被せ物は その上に 全面を 覆うので、
+           中の 貼り付きは ★帯に 隠れない★。なのに 下げると
+           ★被せの 頭が 46px 下がって、すぐ下の ボタンが その裏に 隠れる★
+           （請求書の「紙を見る」かぶせで 実際に そうなった＝
+             出す ボタン（PDF・印刷）の 上半分が 見えなかった）。 */
+      var oya = el.parentElement, fixedNaka = false;
+      while (oya && oya !== d.body) {
+        if (global.getComputedStyle(oya).position === 'fixed') { fixedNaka = true; break; }
+        oya = oya.parentElement;
+      }
+      if (fixedNaka) continue;
       el.style.top = h + 'px';
       el.setAttribute('data-envbar-top', '1');   // 幅が変わった時に測り直せるよう印を残す
     }

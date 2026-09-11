@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=7eed92a3">
-<link rel="stylesheet" href="css/app.css?v=7eed92a3">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=545f115d">
+<link rel="stylesheet" href="css/app.css?v=545f115d">
 </head>
 <body>
 
@@ -120,25 +120,27 @@
        司さん 2026-08-31「代行請求書アプリのように 請求書／集計を作って 見せ方も一緒にしろ
                         なにがどこにあるとか ごちゃごちゃで分かりにくい」
        ＝月と相手を選ぶ → その紙が すぐ出る → PDF／印刷／Excel。★探し回らせない★ -->
-  <!-- ═══ ★紙を 見る（別の画面）★ ═══
+  <!-- ═══ ★紙を 見る（かぶせ）★ ═══
        2026-09-09 司さん「一覧の件は こうゆうことやなくて ★確認押したら 違うページにいって★
          このやり方やったら 請求書先が 多くなったら ごちゃごちゃするやろ」
        ＝前は 一覧の 中に 紙の箱を 出していたので、紙が 一覧に 割り込んでいた。
-       ★代行請求も 請求書そのものは 別画面★（下部ナビの「請求/集計」）。
-       ★下のタブには 出さない★＝一覧から「確認」で 来て、戻る道は 1つ。 -->
-  <section class="screen" id="scr-look">
-    <div class="card">
-      <!-- ★★2026-09-10 戻る道を 上に 貼り付けました★★
-           司さん「確認してから ★この画面から かちっと 戻れんやろが★」
-           ★代行請求（Exally-test/daikou-seikyu.html:3496）を 見てきた★＝
-             詳しい 画面は ★かぶせ（modal）で 出して「閉じる」1つで 戻る★形。
-             ＝どこまで 転がしても ★閉じるが 消えない★。
-           うちは 別の画面（scr-look）に して 戻るを 札の 頭に 置いていたので、
-           紙を 見に 下へ 転がすと ★戻るが 上へ 消えていた★。
-           ⇒ 作りは 変えず（画面は そのまま）、★戻る だけ 上に 貼り付ける★。 -->
+
+       ★★2026-09-10 司さん「代行請求書アプリが どんなに しよるか 見てこいやぼけ」
+            →「★同じように やれや★」★★
+       ★見てきた★（Exally-test/daikou-seikyu.html:3490-3499・CSS 2633-2675）
+         ＝詳しい 画面は ★別の画面では なく かぶせ（modal-ov / modal）★。
+           ・下から 出る 紙（角丸・max-height 88vh・中だけ 転がる）
+           ・頭に ★題と「閉じる」★＝どこまで 転がしても 消えない
+           ・★暗い所を 押しても 閉じる★（event.target === this）
+           ・広い画面では 真ん中に 出す（min-width:560px）
+       ⇒ うちも 同じ形に する。★画面（screen）を 1つ 減らす★＝
+         一覧の 上に かぶせるので、閉じれば ★一覧が そのまま 残っている★
+         （前は 別の画面に 行っていたので 戻ると 一覧を 描き直していた）。 -->
+  <div class="lv-ov" id="lv-ov">
+    <div class="lv-modal">
       <div class="lv-top">
         <span class="card-h" id="lv-h">紙の中身</span>
-        <button class="btn-ghost" type="button" id="b-lv-back">← 一覧へ戻る</button>
+        <button class="btn-ghost" type="button" id="b-lv-back">閉じる</button>
       </div>
       <!-- ★入力から 移してきた 本物のボタン（id も 中身も そのまま）★
            ＝新しい 出し口を 作らない（作ると 片方だけ 直る事故に なる）。 -->
@@ -156,7 +158,7 @@
       <div class="ok" id="lv-ok" style="display:none"></div>
       <div class="pv-wrap" id="lv-wrap"><iframe class="pv" id="lv" title="請求書の紙"></iframe></div>
     </div>
-  </section>
+  </div>
 
   <section class="screen" id="scr-bill">
     <div class="card">
@@ -949,61 +951,61 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="../js/supa-config.js?v=7eed92a3"></script>
-<script src="../lib/xlsx.full.min.js?v=7eed92a3"></script>
-<script src="../js/file-out.js?v=7eed92a3"></script>
-<script src="../js/suite-data.js?v=7eed92a3"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=7eed92a3"></script>
+<script src="../js/supa-config.js?v=545f115d"></script>
+<script src="../lib/xlsx.full.min.js?v=545f115d"></script>
+<script src="../js/file-out.js?v=545f115d"></script>
+<script src="../js/suite-data.js?v=545f115d"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=545f115d"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=7eed92a3"></script>
-<script src="lib/seikyu-tax.js?v=7eed92a3"></script>
-<script src="lib/seikyu-gensen.js?v=7eed92a3"></script>
-<script src="lib/seikyu-carry.js?v=7eed92a3"></script>
-<script src="lib/seikyu-cols.js?v=7eed92a3"></script>
-<script src="lib/seikyu-templates.js?v=7eed92a3"></script>
-<script src="../lib/toroku-no.js?v=7eed92a3"></script>
-<script src="lib/seikyu-doc.js?v=7eed92a3"></script>
-<script src="lib/seikyu-partner-ask.js?v=7eed92a3"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=545f115d"></script>
+<script src="lib/seikyu-tax.js?v=545f115d"></script>
+<script src="lib/seikyu-gensen.js?v=545f115d"></script>
+<script src="lib/seikyu-carry.js?v=545f115d"></script>
+<script src="lib/seikyu-cols.js?v=545f115d"></script>
+<script src="lib/seikyu-templates.js?v=545f115d"></script>
+<script src="../lib/toroku-no.js?v=545f115d"></script>
+<script src="lib/seikyu-doc.js?v=545f115d"></script>
+<script src="lib/seikyu-partner-ask.js?v=545f115d"></script>
 <!-- ★字体を 軽くする（使う字だけ 形を 残す）★（司さん 2026-09-05「重すぎるやろが」）
      ★seikyu-pdf.js より 先に 読む★＝後だと 1通目だけ 丸ごとの 重い紙が 出る -->
-<script src="../lib/font-slim.js?v=7eed92a3"></script>
-<script src="lib/seikyu-pdf.js?v=7eed92a3"></script>
+<script src="../lib/font-slim.js?v=545f115d"></script>
+<script src="lib/seikyu-pdf.js?v=545f115d"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=7eed92a3"></script>
-<script src="lib/seikyu-seal.js?v=7eed92a3"></script>
+<script src="../js/hanko.js?v=545f115d"></script>
+<script src="lib/seikyu-seal.js?v=545f115d"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=7eed92a3"></script>
+<script src="lib/seikyu-report.js?v=545f115d"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=7eed92a3"></script>
+<script src="lib/seikyu-items.js?v=545f115d"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=7eed92a3"></script>
+<script src="lib/seikyu-recurring.js?v=545f115d"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=7eed92a3"></script>
+<script src="lib/seikyu-find.js?v=545f115d"></script>
 <!-- ★自社のExcelを そのまま使う★（読む・当てる・書く）
      ＝2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★（司さん 2026-08-31） -->
-<script src="../lib/zip-surgeon.js?v=7eed92a3"></script>
-<script src="../lib/xlsx-edit.js?v=7eed92a3"></script>
-<script src="lib/seikyu-book.js?v=7eed92a3"></script>
-<script src="lib/seikyu-scope.js?v=7eed92a3"></script>
-<script src="../lib/kikan.js?v=7eed92a3"></script>
-<script src="lib/seikyu-invoice-ask.js?v=7eed92a3"></script>
-<script src="lib/seikyu-paper-ask.js?v=7eed92a3"></script>
-<script src="lib/seikyu-name.js?v=7eed92a3"></script>
-<script src="lib/seikyu-paper.js?v=7eed92a3"></script>
-<script src="lib/seikyu-aoa.js?v=7eed92a3"></script>
-<script src="js/seikyu-store.js?v=7eed92a3"></script>
-<script src="js/seikyu-out.js?v=7eed92a3"></script>
-<script src="js/seikyu-app.js?v=7eed92a3"></script>
-<script src="../js/rakunally-login.js?v=7eed92a3"></script>
-<script src="js/auth.js?v=7eed92a3"></script>
+<script src="../lib/zip-surgeon.js?v=545f115d"></script>
+<script src="../lib/xlsx-edit.js?v=545f115d"></script>
+<script src="lib/seikyu-book.js?v=545f115d"></script>
+<script src="lib/seikyu-scope.js?v=545f115d"></script>
+<script src="../lib/kikan.js?v=545f115d"></script>
+<script src="lib/seikyu-invoice-ask.js?v=545f115d"></script>
+<script src="lib/seikyu-paper-ask.js?v=545f115d"></script>
+<script src="lib/seikyu-name.js?v=545f115d"></script>
+<script src="lib/seikyu-paper.js?v=545f115d"></script>
+<script src="lib/seikyu-aoa.js?v=545f115d"></script>
+<script src="js/seikyu-store.js?v=545f115d"></script>
+<script src="js/seikyu-out.js?v=545f115d"></script>
+<script src="js/seikyu-app.js?v=545f115d"></script>
+<script src="../js/rakunally-login.js?v=545f115d"></script>
+<script src="js/auth.js?v=545f115d"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=7eed92a3"></script>
+<script src="../js/env-badge.js?v=545f115d"></script>
 </body>
 </html>
