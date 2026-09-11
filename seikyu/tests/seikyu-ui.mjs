@@ -617,19 +617,24 @@ await TA('3. ★別の1通に切り替えたら、前の紙の下見は消える
    ★勧める名前を そのまま 使い、人には 聞かない★。
    ⇒ここは「名前を 見せる」ではなく ★「聞かずに 正しい題名で 出る」★を 見る。
    （PDFで保存／Excel は 今までどおり 聞く＝下の 試験が 見ている） */
-await TA('3. ★印刷は 名前を聞かずに「紙だけの新しい窓」に書かれる', async () => {
-  const n0 = opened.length;
+await TA('3. ★印刷は ブラウザの印刷を 使わない（紙に URL が 刷り込まれる）', async () => {
+  /* ★★2026-09-10 司さん「印刷するのに この左下のやつ 消えてない／
+       なんで 他のアプリで ちゃんと やれとんのに」★★
+     ＝ブラウザの 印刷は ★端末が 勝手に URL と 日付と ページ番号を 足す★。
+       司さんの 実物で 確認＝紙の 左下に「https://rakually.vercel.app/seikyu/」。
+       ★CSS では 消せない★（端末の 印刷の 設定）。
+     ⇒ 給与（kyuyo/meisai.html の註）と 同じに ★自前の PDF★ を 開く。
+     ★見たい事は 同じ★＝名前を 聞かず、紙の 中身が 正しく、アプリの 画面が 混ざらない。 */
   $('b-print').click();
   await sleep(10);
   ok(!$('fn-ov').classList.contains('open'), '★印刷なのに 名前を 聞いている★');
   await sleep(1200);
-  ok(opened.length === n0 + 1, '新しい窓が開かない');
-  const w = opened[opened.length - 1];
-  ok(/<!DOCTYPE html>/.test(w._html), '紙が書かれていない');
-  ok(/請　求　書/.test(w._html), '紙の見出しが無い');
-  ok(!/botnav|appbar|b-issue|<script/i.test(w._html), 'アプリの画面/スクリプトが紙の窓に混ざっている');
-  ok(w._printed, '印刷が呼ばれていない');
-  eq(w.document.title, '20260930_藤原建設株式会社_請求書_346.pdf', 'PDFの既定の名前が窓の題名になっていない');
+  const html = win.SeikyuApp._lastPaperHtmlForTest();
+  ok(/<!DOCTYPE html>/.test(html), '紙が作られていない');
+  ok(/請　求　書/.test(html), '紙の見出しが無い');
+  ok(!/botnav|appbar|b-issue|<script/i.test(html), 'アプリの画面/スクリプトが紙に混ざっている');
+  /* ★ブラウザの 印刷の 窓を 開いていない★（開くと URL が 刷り込まれる） */
+  ok(!opened.some((w) => w._printed), '★まだ ブラウザの 印刷を 呼んでいる★');
 });
 
 await TA('3. ★Excelは正しい種類で落ちる（iPhoneで開けない octet-stream にしない）', async () => {
@@ -1649,21 +1654,21 @@ await TA('12-e. ★★入金の1行から領収書が出る（枝番つき・受
   ok(/領収書/.test($('fn-input').value), '名前が中身から作られていない: ' + $('fn-input').value);
   ok(/20000|20,000/.test($('fn-input').value), '名前に受け取った額が入っていない: ' + $('fn-input').value);
   $('fn-ok').click(); await sleep(60);
-  ok(opened.length > before, '★紙だけの新しい窓が開いていない★');
-  const w = opened[opened.length - 1];
-  const flat = w._html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  /* ★2026-09-10 領収書も 自前の PDF に した★（ブラウザの印刷は 紙に URL を 刷り込む）
+     ＝「開いた窓の 中身」では もう 見られないので、作った 紙を そのまま 見る。 */
+  const flat = win.SeikyuApp._lastPaperHtmlForTest().replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   ok(/領\s*収\s*書/.test(flat), '領収書になっていない: ' + flat.slice(0, 120));
   ok(flat.includes(invNo + '-1'), '★枝番つきの領収番号が出ていない★: ' + flat.slice(0, 200));
   ok(/¥20,000/.test(flat), '★受け取った額が出ていない★');
   ok(!/¥66,000/.test(flat), '★受け取っていない請求額が領収書に載っている★');
   ok(/上記正に領収いたしました/.test(flat), '受け取った文言が無い');
   ok(/9月分 運転代行（お見積）/.test(flat), '但し書きが件名から作られていない');
-  ok(!/botnav|appbar|b-issue/.test(w._html), 'アプリの画面が紙に混ざっている');
+  ok(!/botnav|appbar|b-issue/.test(win.SeikyuApp._lastPaperHtmlForTest()), 'アプリの画面が紙に混ざっている');
 
   // ★2回目は -2
   $('pay-list').querySelectorAll('[data-rcp]')[1].click(); await sleep(30);
   $('fn-ok').click(); await sleep(60);
-  const f2 = opened[opened.length - 1]._html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const f2 = win.SeikyuApp._lastPaperHtmlForTest().replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   ok(f2.includes(invNo + '-2'), '★2回目の枝番が -2 になっていない★');
   // ★全額を受け取った回ではないので、消費税額を区分して書かない（按分＝嘘を作らない）
   ok(!/税抜金額/.test(f2), '★一部入金なのに消費税額を区分して書いている（按分＝嘘）★');
@@ -1681,7 +1686,7 @@ await TA('12-e2. ★消した入金から領収書は出せない／枝番は使
   const btns = $('pay-list').querySelectorAll('[data-rcp]');
   btns[btns.length - 1].click(); await sleep(30);
   $('fn-ok').click(); await sleep(60);
-  const f3 = opened[opened.length - 1]._html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const f3 = win.SeikyuApp._lastPaperHtmlForTest().replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   ok(f3.includes(invNo + '-3'), '★消した入金の枝番を使い回している（同じ番号の紙が2枚 出る）★: ' + f3.slice(0, 200));
   // ★合計は生きている2件だけ★（消した物を混ぜない）＝20,000を消したので 46,000+10,000＝56,000
   ok($('pay-sum').textContent.includes('56,000'), '★消した入金を合計に混ぜている★: ' + $('pay-sum').textContent);

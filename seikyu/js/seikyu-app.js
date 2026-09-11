@@ -1585,14 +1585,13 @@
       grandTotal: Number(rc.amount), ext: 'pdf',
     });
   }
+  /* ★2026-09-10 領収書も ブラウザの 印刷を やめた★
+     ＝請求書だけ 直すと ★領収書の 紙にだけ URL が 残る★（作る道が 2本 在る時は 両方 直す）。 */
   function doReceipt(rcId, name) {
     var pi = receiptPaperInput(rcId);
     if (!pi) return;
     var built = PAPER.build(Object.assign({}, pi, { title: name }));
-    var r = OUT.print(built.html, name);
-    if (!r.ok) { box('pay-err', r.reason); return; }
-    box('pay-ok', '領収書 ' + pi.receipt.no + ' を、紙だけの新しい窓で開きました。'
-      + 'PDFにする時は、送信先を「PDFに保存」にしてください。');
+    pdfDase(built.html, name, 'open', '領収書', 'pay-ok', 'pay-err');
   }
 
   /* ═══ ★入金（1回＝1行。上書きしない）★ ═══
@@ -2467,12 +2466,22 @@
     box('edit-ok', '下の枠が、そのまま刷られる紙です（画面に収まるよう小さくして出しています）。');
   }
 
+  /* ★★2026-09-10 ブラウザの 印刷を 使うのを やめました★★
+     司さん「印刷するのに ★この左下のやつ 消えてない★／
+       なんで 他のアプリで ちゃんと やれとんのに 確認しながら やらんのど」
+     ★実物で 確かめた★（司さんの 写真）＝出来た 紙の
+       左下に「https://rakually.vercel.app/seikyu/」
+       右下に「2026/09/11 12:53 ／ 1 / 1ページ」
+     ＝これは ★ブラウザが 印刷の時に 勝手に 足す 頭と足★。
+       ★CSS では 消せません★（端末の 印刷の 設定なので こちらから 触れない）。
+       ＝お客さんに 渡す 請求書に ★うちの URL が 刷り込まれていた★。
+     ★給与（kyuyo/meisai.html）は 前から これを 避けていた★
+       「PDF保存=jsPDFで自前生成(A4ぴったり1ページ・ブラウザのフッター無し)。
+         iOSのwebページ印刷は必ずURL/日付フッターが付き…ため不使用。」
+     ⇒ ★うちも 自前の PDF を 開く★（PDFは もう 自前で 作れている＝doPdf）。
+       印刷は その PDF の 共有ボタンから する。 */
   function doPrint(name) {
-    var pi = paperInput(); if (!pi) return;
-    var built = PAPER.build(Object.assign({}, pi, { title: name }));
-    var r = OUT.print(built.html, name);
-    if (!r.ok) box('edit-err', r.reason);
-    else box('edit-ok', '紙だけの新しい窓を開きました。PDFにする時は、送信先を「PDFに保存」にしてください。');
+    doPdf(name, 'open', null, '印刷');
   }
 
   /* ★自作PDF★（司さん 2026-08-30「自作PDFのやり方しか指示してないわ」）
@@ -2481,34 +2490,47 @@
      ・★出せない時は 黙らない★（なぜ出せないかを 1行 出す） */
   /** ★PDFを 落とす／開く★（作り方は 1つ。最後の1歩だけ 違う）
    *  how = 'save'（落とす）／'open'（iPhoneのビューアで開く→共有からメール） */
-  function doPdf(name, how, docKind) {
-    var pi = paperInput();
-    if (!pi) { box('edit-err', '中身がまだ整っていないので、PDFが作れません。上の赤い印を直してください。'); return; }
+  /** ★紙を PDF に して 出す 道は 1本★（2026-09-10）
+   *  ＝請求書も 納品書も 領収書も ここを 通る。
+   *    ★ブラウザの 印刷は 使わない★＝紙に URL と 日付が 刷り込まれる（司さんの 実物で 確認）。
+   *  html … PAPER.build が 作った 紙 ／ how … 'open'（開く）/'save'（落とす）
+   *  yobi … 画面に 出す 呼び名 ／ okId・errId … 知らせを 出す 箱 */
+  var lastPaperHtml = '';        /* ★最後に PDF に した 紙★（見張りが 中身を 見る為） */
+  function pdfDase(html, name, how, yobi, okId, errId) {
+    lastPaperHtml = String(html || '');
     var PDF = global.SeikyuPdf;
-    if (!PDF) { box('edit-err', 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
-    /* ★納品書は 同じ1通を 別の顔で出すだけ★（棚は増やさない） */
-    var built = PAPER.build(Object.assign({}, pi, { title: name },
-      docKind ? { docKind: docKind } : {}));
+    if (!PDF) { box(errId, 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
     var open = (how === 'open');
-    var kindName = docKind === 'delivery' ? '納品書' : 'PDF';
-    box('edit-ok', kindName + 'を作っています…（字を紙に埋め込むので 少し待ちます）');
-    PDF.build(built.html, { base: '../' }).then(function (bytes) {
+    box(okId, yobi + 'を作っています…（字を紙に埋め込むので 少し待ちます）');
+    PDF.build(html, { base: '../' }).then(function (bytes) {
       var bad = PDF.lastBadImages ? PDF.lastBadImages() : [];
       var miss = PDF.lastMissing ? PDF.lastMissing() : [];
       return (open ? OUT.pdfOpen(bytes, name) : OUT.pdf(bytes, name)).then(function (r) {
-        box('edit-ok', (open
+        box(okId, (open
           ? ((r && r.fellBack)
-            ? 'この端末では 新しい窓が開けなかったので、' + kindName + 'を 落としました。'
+            ? 'この端末では 新しい窓が開けなかったので、' + yobi + 'を 落としました。'
               + '（ブラウザの ポップアップの設定を 見てください）'
-            : kindName + 'を 別の窓で 開きました。その画面の 共有ボタンから メールなどで 送れます。')
-          : kindName + 'を作りました。')
+            : yobi + 'を 別の窓で 開きました。その画面の 共有ボタンから'
+              + (yobi === '印刷' ? ' 印刷できます（プリンタを 選びます）。' : ' メールなどで 送れます。'))
+          : yobi + 'を作りました。')
           + (miss.length ? 'この字は 字体に無いので 〓 で出しました：' + miss.join('') : '')
           + (bad.length ? '出せなかった絵が ' + bad.length + '件 あります' : ''));
       });
     }).catch(function (e) {
-      box('edit-err', 'PDFが作れませんでした（' + (e && e.message) + '）。'
-        + '「印刷 / PDF保存」なら 今すぐ出せます。');
+      /* ★逃げ道に ブラウザの 印刷を 出さない★＝紙に URL が 刷り込まれる */
+      box(errId, 'PDFが作れませんでした（' + (e && e.message) + '）。'
+        + '画面を 開き直して もう一度 お試しください。');
     });
+  }
+
+  function doPdf(name, how, docKind, yobi) {
+    var pi = paperInput();
+    if (!pi) { box('edit-err', '中身がまだ整っていないので、PDFが作れません。上の赤い印を直してください。'); return; }
+    /* ★納品書は 同じ1通を 別の顔で出すだけ★（棚は増やさない） */
+    var built = PAPER.build(Object.assign({}, pi, { title: name },
+      docKind ? { docKind: docKind } : {}));
+    pdfDase(built.html, name, how, yobi || (docKind === 'delivery' ? '納品書' : 'PDF'),
+      'edit-ok', 'edit-err');
   }
 
   function doExcel(name) {
@@ -5017,6 +5039,9 @@
        倉庫の無い試験からは 押せない＝「ボタンが在る」で 終わらせない為の 穴） */
     _bindForTest: function () { return bind(); },
     _paperBtnsForTest: function () { return PAPER_BTNS.slice(); },   // テスト用: 門を掛ける相手の一覧
+    /* テスト用: 最後に PDF に した 紙（2026-09-10 ブラウザの印刷を やめたので
+       「開いた窓の中身」では もう 見られない＝ここで 見る） */
+    _lastPaperHtmlForTest: function () { return lastPaperHtml; },
     _pickBookForTest: function (bytes, nm) {                 // テスト用: 読む所だけ 走らせる
       var B = bookLib(); if (!B) return Promise.resolve(null);
       return Promise.resolve(B.inspect(bytes)).then(function (info) {

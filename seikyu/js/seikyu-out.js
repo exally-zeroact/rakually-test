@@ -32,27 +32,16 @@
     return { ok: true, win: w };
   }
 
-  /* 印刷（PDFで保存も同じ窓から）。
-     ★書いた直後に print すると、端末によっては書式が当たる前に刷られる★ので
-     読み込みが終わってから呼ぶ。 */
-  function print(html, title) {
-    var r = openPaper(html, title);
-    if (!r.ok) return r;
-    var w = r.win;
-    var fired = false;
-    function go() {
-      if (fired) return;
-      fired = true;
-      try { w.focus(); w.print(); } catch (e) { /* 窓は開いている＝人が手で刷れる */ }
-    }
-    try {
-      if (w.document.readyState === 'complete') global.setTimeout(go, 120);
-      else w.addEventListener('load', function () { global.setTimeout(go, 120); });
-    } catch (e) { global.setTimeout(go, 300); }
-    // 保険（load が来ない端末でも刷れるように）
-    global.setTimeout(go, 900);
-    return { ok: true };
-  }
+  /* ★★2026-09-10 ブラウザの 印刷は 外しました★★
+     司さん「印刷するのに ★この左下のやつ 消えてない★／
+       なんで 他のアプリで ちゃんと やれとんのに」
+     ＝ブラウザの 印刷は ★端末が 勝手に URL・日付・ページ番号を 足す★。
+       実物で 確認＝紙の 左下に「https://rakually.vercel.app/seikyu/」。
+       ★CSS では 消せない★（端末の 印刷の 設定）。
+     ⇒ ★紙は 自前の PDF に して 出す★（seikyu-app.js の pdfDase 1本）。
+       印刷は その PDF の 共有ボタンから する。
+     ★見張り★ seikyu/tests/insatsu-url.mjs が
+       「アプリの どこも window.print() を 呼ばない」を 機械で 見ている。
 
   /* 中身を見るだけ（刷らない） */
   function preview(html, title) { return openPaper(html, title); }
@@ -85,6 +74,6 @@
     return global.FileOut.openInViewer(bytes, filename);
   }
 
-  global.SeikyuOut = { print: print, preview: preview, excel: excel, openPaper: openPaper,
+  global.SeikyuOut = { preview: preview, excel: excel, openPaper: openPaper,
     pdf: pdf, pdfOpen: pdfOpen };
 })(typeof window !== 'undefined' ? window : globalThis);

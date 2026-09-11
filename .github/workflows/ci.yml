@@ -445,6 +445,10 @@ jobs:
       #   「ごちゃごちゃするから 設定で 詳細いじるのは 少しにしろよ／シンプルで分かりやすく」）
       - name: ★設定 (読むだけ/書くだけの欄が無い/誰も読まない決めを作らない/死んだ設定が無い)
         run: node seikyu/tests/shinda-settei.mjs
+      - name: ★紙にURLを刷り込まない (ブラウザの印刷を呼ばない/紙を出す道は1本/領収書も同じ道)
+        run: node seikyu/tests/insatsu-url.mjs
+      - name: ★同 (印刷が別の道を通る で赤になるかの自己確認)
+        run: node seikyu/tests/insatsu-url.mjs --self-test
       - name: ★打った物が消えない・画面が嘘を言わない (少し待ってしまう/画面を変える時/窓を隠した時/相手が決まる前は しまわない)
         run: node seikyu/tests/kiechatta.mjs
       - name: ★同 (しまうのをやめる/倉庫がまた明細を固める で赤になるかの自己確認)
