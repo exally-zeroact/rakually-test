@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=6a79a182">
-<link rel="stylesheet" href="css/app.css?v=6a79a182">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=72c54967">
+<link rel="stylesheet" href="css/app.css?v=72c54967">
 </head>
 <body>
 
@@ -250,23 +250,6 @@
          ★引き継ぐ中身（guessFrom / applyGuess）は 1文字も 捨てていない★
            ＝押させるのを やめただけ。 -->
 
-    <!-- ★この相手のことを ここで1問ずつ聞く★（司さん 2026-08-17「ささっと」）
-         ＝★設定の画面へ行かせない★。まだ答えていない事が在る時だけ出る。
-           答え終われば 自分で消える（答えた人の画面に空欄を残さない）。 -->
-    <div class="card" id="pt-ask-card" style="display:none">
-      <div class="card-h" id="pt-ask-card-h">この相手のこと、教えてください</div>
-      <div id="pt-ask-edit"></div>
-    </div>
-
-    <!-- ★この1通のことを ここで1問ずつ聞く★（司さん 2026-08-16「聞いてあげる。埋めさせない」）
-         ＝件名・支払期限を ★空欄で並べない★。まだ答えていない事が在る時だけ出て、
-           答え終われば 自分で消える。★別ウィザードは作らない★＝下の「細かく決める」と
-           ★同じ値の 2つの見え方★（聞く形／ぜんぶ見る）。 -->
-    <div class="card" id="inv-ask-card" style="display:none">
-      <div class="card-h">この請求書のこと、教えてください</div>
-      <div id="inv-ask"></div>
-    </div>
-
     <div class="card">
       <div class="card-h">なにを</div>
       <div class="lines-scroll">
@@ -307,6 +290,32 @@
       <div class="tot" id="tot-box"></div>
       <div class="bad" id="edit-err" style="display:none"></div>
       <div class="warn" id="edit-warn" style="display:none"></div>
+    </div>
+
+    <!-- ★★2026-09-10 聞く形を 本題の 下へ 移しました★★
+         司さん「本題の 前の 8問（うち 3問が 飛ばせない）」
+         ★前は★ 品名・金額（なにを）より ★上★に 2枚の 質問カードが 在り、
+           取引先6問＋この1通2〜3問＝★最大8問が 本題の 前に 立ちはだかっていた★。
+           しかも 敬称・支払いの約束・源泉徴収は ★飛ばす ボタンが 無く★
+           答えるまで 消えなかった（＝源泉徴収の 意味が 分からない人は そこで 止まる）。
+         ⇒ ★本題（なにを → 控除 → 締め）を 先に★、聞く形は ★その下★へ。
+           ★消していない★＝答えれば 紙に 効く。答えなくても 発行は できる。
+           ★どの問いも「あとで」で 飛ばせる★ように した（値は 作らない）。 -->
+    <!-- ★この相手のことを ここで1問ずつ聞く★（司さん 2026-08-17「ささっと」）
+         ＝★設定の画面へ行かせない★。まだ答えていない事が在る時だけ出る。
+           答え終われば 自分で消える（答えた人の画面に空欄を残さない）。 -->
+    <div class="card" id="pt-ask-card" style="display:none">
+      <div class="card-h" id="pt-ask-card-h">この相手のこと、教えてください</div>
+      <div id="pt-ask-edit"></div>
+    </div>
+
+    <!-- ★この1通のことを ここで1問ずつ聞く★（司さん 2026-08-16「聞いてあげる。埋めさせない」）
+         ＝件名・支払期限を ★空欄で並べない★。まだ答えていない事が在る時だけ出て、
+           答え終われば 自分で消える。★別ウィザードは作らない★＝下の「細かく決める」と
+           ★同じ値の 2つの見え方★（聞く形／ぜんぶ見る）。 -->
+    <div class="card" id="inv-ask-card" style="display:none">
+      <div class="card-h">この請求書のこと、教えてください</div>
+      <div id="inv-ask"></div>
     </div>
 
     <!-- ═══ 入金（★1回＝1行。上書きしない★） ═══
@@ -937,61 +946,61 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="../js/supa-config.js?v=6a79a182"></script>
-<script src="../lib/xlsx.full.min.js?v=6a79a182"></script>
-<script src="../js/file-out.js?v=6a79a182"></script>
-<script src="../js/suite-data.js?v=6a79a182"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=6a79a182"></script>
+<script src="../js/supa-config.js?v=72c54967"></script>
+<script src="../lib/xlsx.full.min.js?v=72c54967"></script>
+<script src="../js/file-out.js?v=72c54967"></script>
+<script src="../js/suite-data.js?v=72c54967"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=72c54967"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=6a79a182"></script>
-<script src="lib/seikyu-tax.js?v=6a79a182"></script>
-<script src="lib/seikyu-gensen.js?v=6a79a182"></script>
-<script src="lib/seikyu-carry.js?v=6a79a182"></script>
-<script src="lib/seikyu-cols.js?v=6a79a182"></script>
-<script src="lib/seikyu-templates.js?v=6a79a182"></script>
-<script src="../lib/toroku-no.js?v=6a79a182"></script>
-<script src="lib/seikyu-doc.js?v=6a79a182"></script>
-<script src="lib/seikyu-partner-ask.js?v=6a79a182"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=72c54967"></script>
+<script src="lib/seikyu-tax.js?v=72c54967"></script>
+<script src="lib/seikyu-gensen.js?v=72c54967"></script>
+<script src="lib/seikyu-carry.js?v=72c54967"></script>
+<script src="lib/seikyu-cols.js?v=72c54967"></script>
+<script src="lib/seikyu-templates.js?v=72c54967"></script>
+<script src="../lib/toroku-no.js?v=72c54967"></script>
+<script src="lib/seikyu-doc.js?v=72c54967"></script>
+<script src="lib/seikyu-partner-ask.js?v=72c54967"></script>
 <!-- ★字体を 軽くする（使う字だけ 形を 残す）★（司さん 2026-09-05「重すぎるやろが」）
      ★seikyu-pdf.js より 先に 読む★＝後だと 1通目だけ 丸ごとの 重い紙が 出る -->
-<script src="../lib/font-slim.js?v=6a79a182"></script>
-<script src="lib/seikyu-pdf.js?v=6a79a182"></script>
+<script src="../lib/font-slim.js?v=72c54967"></script>
+<script src="lib/seikyu-pdf.js?v=72c54967"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=6a79a182"></script>
-<script src="lib/seikyu-seal.js?v=6a79a182"></script>
+<script src="../js/hanko.js?v=72c54967"></script>
+<script src="lib/seikyu-seal.js?v=72c54967"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=6a79a182"></script>
+<script src="lib/seikyu-report.js?v=72c54967"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=6a79a182"></script>
+<script src="lib/seikyu-items.js?v=72c54967"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=6a79a182"></script>
+<script src="lib/seikyu-recurring.js?v=72c54967"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=6a79a182"></script>
+<script src="lib/seikyu-find.js?v=72c54967"></script>
 <!-- ★自社のExcelを そのまま使う★（読む・当てる・書く）
      ＝2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★（司さん 2026-08-31） -->
-<script src="../lib/zip-surgeon.js?v=6a79a182"></script>
-<script src="../lib/xlsx-edit.js?v=6a79a182"></script>
-<script src="lib/seikyu-book.js?v=6a79a182"></script>
-<script src="lib/seikyu-scope.js?v=6a79a182"></script>
-<script src="../lib/kikan.js?v=6a79a182"></script>
-<script src="lib/seikyu-invoice-ask.js?v=6a79a182"></script>
-<script src="lib/seikyu-paper-ask.js?v=6a79a182"></script>
-<script src="lib/seikyu-name.js?v=6a79a182"></script>
-<script src="lib/seikyu-paper.js?v=6a79a182"></script>
-<script src="lib/seikyu-aoa.js?v=6a79a182"></script>
-<script src="js/seikyu-store.js?v=6a79a182"></script>
-<script src="js/seikyu-out.js?v=6a79a182"></script>
-<script src="js/seikyu-app.js?v=6a79a182"></script>
-<script src="../js/rakunally-login.js?v=6a79a182"></script>
-<script src="js/auth.js?v=6a79a182"></script>
+<script src="../lib/zip-surgeon.js?v=72c54967"></script>
+<script src="../lib/xlsx-edit.js?v=72c54967"></script>
+<script src="lib/seikyu-book.js?v=72c54967"></script>
+<script src="lib/seikyu-scope.js?v=72c54967"></script>
+<script src="../lib/kikan.js?v=72c54967"></script>
+<script src="lib/seikyu-invoice-ask.js?v=72c54967"></script>
+<script src="lib/seikyu-paper-ask.js?v=72c54967"></script>
+<script src="lib/seikyu-name.js?v=72c54967"></script>
+<script src="lib/seikyu-paper.js?v=72c54967"></script>
+<script src="lib/seikyu-aoa.js?v=72c54967"></script>
+<script src="js/seikyu-store.js?v=72c54967"></script>
+<script src="js/seikyu-out.js?v=72c54967"></script>
+<script src="js/seikyu-app.js?v=72c54967"></script>
+<script src="../js/rakunally-login.js?v=72c54967"></script>
+<script src="js/auth.js?v=72c54967"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=6a79a182"></script>
+<script src="../js/env-badge.js?v=72c54967"></script>
 </body>
 </html>

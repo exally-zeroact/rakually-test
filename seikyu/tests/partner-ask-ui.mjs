@@ -316,6 +316,30 @@ await TA('14. ★最後まで JS が1つも落ちていない', async () => {
   eq(errs.length, 0, errs.join(' / '));
 });
 
+await TA('★どの問いも 飛ばせる（答えるまで 消えない 問いを 作らない）', () => {
+  /* ★★2026-09-10 専門家の 審査★★
+     ★実測★ 飛ばす ボタンを 描いていたのは ★打つ形（text）だけ★で、
+       選ぶ形（敬称・支払いの約束）と はい/いいえ（源泉徴収）は
+       ★答えるまで カードが 消えなかった★＝
+       意味の 分からない 問い（源泉徴収）の 前で 手が 止まる。
+     ★飛ばしても 値は 作らない★＝
+       支払いの約束を 空で 入れると ★期限の 出ない紙★に なる。 */
+  const src = fs.readFileSync(path.join(ROOT, 'seikyu', 'js', 'seikyu-app.js'), 'utf8');
+  ok(src.indexOf('var skipBtn = function (qq) {') > 0, '★飛ばす ボタンを 作る 所が 無い★');
+  ok(src.split('h += skipBtn(q);').length - 1 >= 2,
+    '★選ぶ形・はい/いいえ の どちらかに 付いていない★');
+  ok(src.indexOf('if (tobasu) return ptAskSave(p.id, {}, key);') > 0,
+    '★飛ばした時に 値を 作っている★（空の 約束・空の 敬称が 残る）');
+  ok(src.indexOf("ptAskAnswer(where, skip.dataset.paskSkip, '', true);") > 0,
+    '★飛ばすを 押しても 飛ばした事に なっていない★');
+  /* ★本題が 先★＝品名・金額の カードより 下に 聞く形が 在る */
+  const h2 = fs.readFileSync(path.join(ROOT, 'seikyu', 'index.html'), 'utf8');
+  const naniwo = h2.indexOf('<div class="card-h">なにを</div>');
+  const ptask = h2.indexOf('id="pt-ask-card"');
+  ok(naniwo > 0 && ptask > 0, '★見る物が 見つからない★');
+  ok(naniwo < ptask, '★聞く形が 本題（なにを）より 上に 在る★');
+});
+
 console.log('\n── ★押した物（一覧に出した物を全部）★ ' + inventory.length + '個 ──');
 console.log('   ' + [...new Set(inventory.map((x) => x.what))].join(' / '));
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

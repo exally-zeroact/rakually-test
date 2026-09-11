@@ -3827,6 +3827,12 @@
     var h = '<div class="pask" data-pask-where="' + esc(where) + '">';
     h += '<div class="pask-prog">' + esc(name) + '　<b>' + r.total + '問のうち ' + r.done + '問 答えました</b></div>';
 
+    /* ★飛ばす ボタン（どの 問いにも 付ける）★
+       ★字は 問いが 決めた 物が 先★（「出さない」「入れない」等）。無ければ「あとで」。 */
+    var skipBtn = function (qq) {
+      return '<div class="pask-row"><button class="pask-skip btn-ghost" type="button" data-pask-skip="'
+        + esc(qq.key) + '">' + esc(qq.skipLabel || 'あとで') + '</button></div>';
+    };
     var q = r.next;
     if (!q) {
       h += '<p class="pask-fin">この相手のことは ぜんぶ決まっています。</p>';
@@ -3843,6 +3849,13 @@
           return '<button class="pask-o ' + (on ? 'on btn-primary' : 'btn-ghost') + '" type="button" data-pask-pick="'
             + esc(q.key) + '" data-v="' + esc(o.v) + '">' + esc(o.t) + '</button>';
         }).join('') + '</div>';
+        /* ★★どの問いも 飛ばせる★★（2026-09-10 専門家の 審査）
+           ★実測★ 飛ばす ボタンを 描いていたのは ★打つ形（text）だけ★。
+             選ぶ形（敬称・支払いの約束）と はい/いいえ（源泉）は
+             ★答えるまで カードが 消えなかった★＝本題（品名・金額）の 前に
+             ★意味の 分からない 問い（源泉徴収）が 立ちはだかっていた★。
+           ⇒ ★あとで を どの問いにも 付ける★（答えは 空のまま・もう 聞かない）。 */
+        h += skipBtn(q);
         if (q.key === 'payTerm' && (q.now === 'days' || q.now === 'nextDay')) {
           h += '<div class="pask-n"><input class="finput num" id="pask-n" type="text" inputmode="numeric" '
             + 'placeholder="日数" value="' + esc((d.payTerm && d.payTerm.n) || '') + '">'
@@ -3853,6 +3866,7 @@
           + '<button class="pask-o ' + (q.now === 'yes' ? 'on btn-primary' : 'btn-ghost') + '" type="button" data-pask-pick="' + esc(q.key) + '" data-v="yes">する</button>'
           + '<button class="pask-o ' + (q.now === 'no' ? 'on btn-primary' : 'btn-ghost') + '" type="button" data-pask-pick="' + esc(q.key) + '" data-v="no">しない</button>'
           + '</div>';
+        h += skipBtn(q);
       } else {
         var val = q.now || (q.guess ? q.guess.value : '');
         h += '<input class="finput" id="pask-t" type="text" value="' + esc(val) + '">';
@@ -4194,10 +4208,16 @@
     });
   }
 
-  function ptAskAnswer(where, key, v) {
+  function ptAskAnswer(where, key, v, tobasu) {
     var p = ptAskPartner(where); if (!p) return Promise.resolve();
     var d = p.data || {};
     var add = {}, markOk = key;
+    /* ★★飛ばした時は 値を 作らない★★（2026-09-10 どの問いも 飛ばせるように した）
+       ＝「あとで」で 空を 入れると
+         ・支払いの約束 … kind:'' の 約束が できて ★期限が 出ない紙★に なる
+         ・源泉徴収 … しない と 同じに なる（それは 答えた事に なってしまう）
+       ⇒ ★答えた印だけ 付けて 中身は 触らない★（もう 聞かない・値は そのまま）。 */
+    if (tobasu) return ptAskSave(p.id, {}, key);
     if (key === 'honor') { add.honor = v; add.keisho = v; }
     else if (key === 'gensen') { add.gensen = (v === 'yes'); }
     else if (key === 'payTerm') {
@@ -4240,7 +4260,7 @@
           return;
         }
         var skip = t.closest && t.closest('[data-pask-skip]');
-        if (skip) { ptAskAnswer(where, skip.dataset.paskSkip, ''); return; }
+        if (skip) { ptAskAnswer(where, skip.dataset.paskSkip, '', true); return; }
         var again = t.closest && t.closest('[data-pask-again]');
         if (again) {
           var key = again.dataset.paskAgain;
