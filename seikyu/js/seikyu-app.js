@@ -117,7 +117,9 @@
     /* ★画面の一覧は 1か所★＝ここに足し忘れると ★タブは光るのに 中身が真っ白★
        （2026-08-31 実際にそうなった＝請求/集計を足した日） */
     /* ★scr-look は 画面では なくなった★（2026-09-10 かぶせに した＝代行請求と 同じ） */
-    ['scr-list', 'scr-edit', 'scr-set', 'scr-bill'].forEach(function (s) {
+    /* ★2026-09-10 「請求/集計」を 外した★（司さん「同じことが できるなら いらんことないか？」）
+       ＝一覧の 一部だった（集計の 計算・絞り込み・出す ボタンが 二重）。 */
+    ['scr-list', 'scr-edit', 'scr-set'].forEach(function (s) {
       var el = $(s); if (el) el.classList.toggle('active', s === id);
     });
     /* ★紙を 見る 物は かぶせ★（2026-09-10）＝画面は 変わらないので
@@ -328,10 +330,14 @@
       partners: S.partners || [], month: month, kind: S.kind || 'invoice', doc: DOC });
   }
   function renderReport() {
-    var REP = global.SeikyuReport, sumEl = $('rep-sum'), box = $('rep-box');
-    if (!sumEl || !box || !REP) return;
+    /* ★2026-09-10 集計は 一覧の 頭に 出しっぱなし★（引き出し rep-box は 外した）
+       ＝出し入れするのは ★合計の1行・月の欄・取引先の表★の 3つ。 */
+    var REP = global.SeikyuReport, sumEl = $('rep-sum');
+    var mrow = $('rep-month') && $('rep-month').parentElement, body = $('rep-body');
+    if (!sumEl || !body || !REP) return;
     var isInv = (S.kind || 'invoice') === 'invoice';
-    show(sumEl, isInv); show(box, isInv);
+    show(sumEl, isInv); show(body, isInv);
+    if (mrow) show(mrow, isInv);
     if (!isInv) return;
 
     var months = REP.monthsOf((S.invoices || []).filter(function (v) {
@@ -428,7 +434,6 @@
      ＝★月と相手を選ぶ → その紙が すぐ出る → PDF／印刷／Excel★。探し回らせない。
      ・出す物は ★もう作った請求書★（ここで 新しく作りはしない）
      ・数え方は seikyu-report が唯一の正（ここでは 1つも数え直さない） */
-  var billPick = { ym: null, pid: null };
 
   function billList() {
     return (S.invoices || []).filter(function (v) {
@@ -439,114 +444,18 @@
     var t = String((v && v.issue_ymd) || '');
     return /^\d{4}-\d{2}/.test(t) ? t.slice(0, 7) : '';
   }
-  /** 今 選ばれている1通（無ければ null） */
-  function billCurrent() {
-    var rows = billList().filter(function (v) {
-      if (billPick.ym && billYm(v) !== billPick.ym) return false;
-      if (billPick.pid && String(v.partner_id || '') !== billPick.pid) return false;
-      return true;
-    });
-    rows.sort(function (a, b) { return String(b.issue_ymd || '').localeCompare(String(a.issue_ymd || '')); });
-    return { row: rows[0] || null, n: rows.length };
-  }
-  function renderBill() {
-    var host = $('bill-month'); if (!host) return;
-    var rows = billList();
-    /* 月の一覧（新しい順）＝出した紙が在る月だけ */
-    var yms = [], seen = {};
-    rows.forEach(function (v) { var m = billYm(v); if (m && !seen[m]) { seen[m] = 1; yms.push(m); } });
-    yms.sort().reverse();
-    if (billPick.ym === null) billPick.ym = yms[0] || '';
-    host.innerHTML = '<option value="">月をぜんぶ</option>' + yms.map(function (m) {
-      return '<option value="' + esc(m) + '"' + (m === billPick.ym ? ' selected' : '') + '>'
-        + esc(m.slice(0, 4) + '年' + String(Number(m.slice(5, 7))) + '月') + '</option>';
-    }).join('');
-    host.value = billPick.ym || '';
-
-    /* 相手の一覧＝出した紙が在る相手だけ */
-    var ps = [], pseen = {};
-    rows.forEach(function (v) {
-      var id = String(v.partner_id || '');
-      if (!id || pseen[id]) return;
-      pseen[id] = 1; ps.push({ id: id, name: partnerName(v) });
-    });
-    var sel = $('bill-partner');
-    sel.innerHTML = '<option value="">相手をぜんぶ</option>' + ps.map(function (x) {
-      return '<option value="' + esc(x.id) + '"' + (x.id === billPick.pid ? ' selected' : '') + '>'
-        + esc(x.name) + '</option>';
-    }).join('');
-    sel.value = billPick.pid || '';
-
-    /* 集計（数え方は seikyu-report が唯一の正） */
-    var REP = global.SeikyuReport;
-    if (REP) {
-      var s2 = REP.summarize({ invoices: S.invoices || [], receipts: S.receipts,
-        partners: S.partners || [], month: billPick.ym || '', kind: 'invoice', doc: DOC });
-      var unk = (s2.totals.paid === null);
-      setText('bill-sum', (billPick.ym ? (billPick.ym.slice(0, 4) + '年' + Number(billPick.ym.slice(5, 7)) + '月')
-        : 'ぜんぶ') + '　請求 ' + yen(s2.totals.total) + ' 円'
-        + '　入金 ' + (unk ? '（未確認）' : yen(s2.totals.paid) + ' 円')
-        + '　残り ' + (unk ? '（未確認）' : yen(s2.totals.remain) + ' 円')
-        + '　（' + s2.totals.count + '通）');
-    }
-
-    /* 紙 */
-    var cur = billCurrent();
-    var fr = $('bill-paper');
-    var acts = $('bill-acts');
-    if (!cur.row) {
-      show(acts, false);
-      fr.srcdoc = '<!doctype html><meta charset="utf-8"><body style="margin:0;font:13px sans-serif;'
-        + 'color:#6E6E6E;display:flex;align-items:center;justify-content:center;height:100%;'
-        + 'text-align:center;padding:12px;box-sizing:border-box">'
-        + (rows.length ? 'この月・この相手の請求書は まだありません' : 'まだ請求書がありません')
-        + '</body>';
-      setText('bill-note', rows.length ? '別の月か 別の相手を選んでください。' : '「入力」から 1通 作ってください。');
-      return;
-    }
-    show(acts, true);
-    /* ★選んだ1通で 紙を作る★＝作りかけの1通を 壊さない様に 一時的に 差し替えて 戻す
-       （紙の作り方は paperInput 1本＝2つ目の作り方を 作らない） */
-    var v = cur.row, keep = S.cur, pi = null;
-    S.cur = v;
-    try { pi = paperInput(); } finally { S.cur = keep; }
-    if (!pi) {
-      show(acts, false);
-      setText('bill-note', 'この' + DOC.docLabel((S.cur && S.cur.doc_type) || S.docType || 'invoice') + 'は 中身がまだ整っていないので 紙が出せません。');
-      return;
-    }
-    var html = fitInFrame(PAPER.build(pi).html);
-    if (fr.getAttribute('data-h') !== String(html.length)) {
-      fr.setAttribute('data-h', String(html.length));
-      fr.srcdoc = html;
-    }
-    setText('bill-note', esc(v.no || '（未採番）') + '　' + esc(partnerName(v)) + '　'
-      + esc(v.issue_ymd || '日付なし')
-      /* ★言っていない事を 言わない★＝相手を選んでいない時に「この相手で」と書かない */
-      + (cur.n > 1 ? '　※' + (billPick.ym ? 'この月' : '') + (billPick.pid ? 'この相手' : '')
-        + (billPick.ym || billPick.pid ? 'で ' : '') + cur.n + '通あります（新しい1通を出しています）'
-        + (billPick.pid ? '' : '　相手を選ぶと 1通に しぼれます') : ''));
-  }
-  /** 選んだ1通で 出す（作りかけの1通に 手を出さない＝一時的に 差し替えて 戻す） */
-  function billDo(how) {
-    var cur = billCurrent();
-    if (!cur.row) { box('bill-err', 'この月・この相手の請求書がありません。'); return; }
-    var keep = S.cur;
-    var ext = (how === 'xlsx') ? 'xlsx' : 'pdf';
-    S.cur = cur.row;                                   /* 名前も 紙も この1通で 作る */
-    var n = suggestName(ext);
-    S.cur = keep;
-    if (!n) { box('bill-err', 'この' + DOC.docLabel((S.cur && S.cur.doc_type) || S.docType || 'invoice') + 'は 中身がまだ整っていないので 出せません。'); return; }
-    askNameWith(n, ext, function (name) {
-      var k2 = S.cur;
-      S.cur = cur.row;
-      try {
-        if (how === 'pdf') doPdf(name, 'open');
-        else if (how === 'print') doPrint(name);
-        else doExcel(name);
-      } finally { S.cur = k2; }
-    });
-  }
+  /* ★★2026-09-10 「請求/集計」の 画面を 外しました★★
+     司さん「一覧と集計の差は なんなん 同じことが できるなら いらんことないか？」
+     ★数えて 確かめた★
+       ・集計の 計算 … ★同じ REP.summarize を 2か所で★ 呼んでいた（reportOf と ここ）
+       ・絞り込みの 欄 … 2組（l-partner/l-month と bill-partner/bill-month）
+       ・出す ボタン … ★2組で 中身が ちがう★（一覧5個／集計3個）
+         ＝★納品書は 請求/集計からは 出せなかった★（同じ紙なのに 入口で できる事が 変わる）
+       ・分ける 理由は「選ぶだけで 紙が すぐ出る」だけ だったが、
+         2026-09-10 に 確認を かぶせに したので ★1回 押すだけ★に なった。
+     ★消したのは 画面と 二重の 計算だけ★＝数字も 倉庫も 1つも 触っていない。
+     ★billList / billYm は 残す★＝一覧の 月の しぼり込みが 使っている
+       （★月の 読み方は 1本★＝2か所で 別々に 切らない）。 */
 
   function renderList() {
     renderRecurring();
@@ -4649,7 +4558,6 @@
         var t = b.getAttribute('data-scr');
         if (t === 'scr-edit' && !S.cur) { newInvoice(); return; }
         if (t === 'scr-set') fillSettings();
-        if (t === 'scr-bill') renderBill();          /* ★請求/集計＝開いたら すぐ描く★ */
         /* ★設定を変えて戻ってきた時、古い案内を残さない★
            （紙の行数を20行にしたのに「紙は2枚になります」と言ったまま＝
              人は「直っていない」と見る。2026-08-15 実UIで実際に出た） */
@@ -4902,15 +4810,6 @@
       drawSealStage();
     };
     /* ★請求 / 集計★ 月・相手を変えたら すぐ 紙も 集計も 変える */
-    if ($('bill-month')) $('bill-month').onchange = function () {
-      billPick.ym = $('bill-month').value; renderBill();
-    };
-    if ($('bill-partner')) $('bill-partner').onchange = function () {
-      billPick.pid = $('bill-partner').value; renderBill();
-    };
-    if ($('b-bill-pdf')) $('b-bill-pdf').onclick = function () { billDo('pdf'); };
-    if ($('b-bill-print')) $('b-bill-print').onclick = function () { billDo('print'); };
-    if ($('b-bill-xlsx')) $('b-bill-xlsx').onclick = function () { billDo('xlsx'); };
     /* ★自社のExcel★ 読む・使う・やめる */
     if ($('book-file')) $('book-file').onchange = function (e) {
       var f = e.target.files && e.target.files[0];
@@ -5051,11 +4950,6 @@
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える
     _saveDraftForTest: function () { return saveDraft(); },          // テスト用: 下書き保存を そのまま走らせる
     _renderListForTest: function () { return renderList(); },        // テスト用: 一覧を 描き直す
-    _renderBillForTest: function (ym, pid) {                         // テスト用: 請求/集計を 描く
-      if (ym !== undefined) billPick.ym = ym;
-      if (pid !== undefined) billPick.pid = pid;
-      return renderBill();
-    },
     _reportForTest: function (m) { return reportOf(m); },            // テスト用: 集計の数だけ取る
     /* テスト用: ★本物の紙★を そのまま返す（見張りが 紙の中身を数える為。
        ★画面と同じ道を通す★＝紙だけ別の作り方をしない） */

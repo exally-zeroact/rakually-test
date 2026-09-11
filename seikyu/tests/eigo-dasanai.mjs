@@ -18,7 +18,7 @@
  *      ⇒ ★1px の 透明（.file-kakusu）★＝開かれても 大きくならない・字も 出ない。
  *   ② ★日本語の ボタンから 選べる★（押すと 隠れた 欄が 呼ばれる）
  *   ③ ★選んだ ファイルの 名前を 自分で 出す★（「No file chosen」を 見せない）
- *   ④ ★4つの 画面に 思わぬ 英語が 出ていない★（許す物は 下に 名指し）
+ *   ④ ★どの 画面にも 思わぬ 英語が 出ていない★（許す物は 下に 名指し）
  *   ⑤ 空振りしない（本当に 画面の 字を 拾えている）
  *
  * ★実ブラウザで 測る★＝ブラウザが 作る 字は jsdom には 出ない。
@@ -112,7 +112,8 @@ const hirou = () => pg.evaluate(() => {
   return out;
 });
 
-const GAMEN = [['設定', 'scr-set'], ['入力', 'scr-edit'], ['一覧', 'scr-list'], ['請求/集計', 'scr-bill']];
+/* ★2026-09-10 「請求/集計」を 外した★（一覧の 一部だった＝司さんの 判じ） */
+const GAMEN = [['設定', 'scr-set'], ['入力', 'scr-edit'], ['一覧', 'scr-list']];
 const mita = [];
 for (const [na, sel] of GAMEN) {
   await pg.click('.bn[data-scr="' + sel + '"]');
@@ -186,7 +187,7 @@ T('★③ 選んだ ファイルの 名前を 自分で 出す', () => {
   });
 });
 
-T('★④ 4つの 画面に 思わぬ 英語が 出ていない', () => {
+T('★④ どの 画面にも 思わぬ 英語が 出ていない', () => {
   const yaru = (t) => String(t).split(/[\s　、。（）()「」／/,]+/).filter((w) => {
     if (!w) return false;
     if (!/[A-Za-z]/.test(w)) return false;

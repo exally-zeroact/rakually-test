@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=545f115d">
-<link rel="stylesheet" href="css/app.css?v=545f115d">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=6a79a182">
+<link rel="stylesheet" href="css/app.css?v=6a79a182">
 </head>
 <body>
 
@@ -53,6 +53,22 @@
       <!-- ★何件に 絞ったか・いくらか を 必ず出す★（代行請求の #listSum と 同じ）
            ＝「消えた」と 思わせない。 -->
       <p class="hint" id="list-sum"></p>
+      <!-- ★★2026-09-10 「請求/集計」の タブを 外して ここへ 寄せました★★
+           司さん「一覧と集計の差は なんなん 同じことが できるなら いらんことないか？」
+           ★数えて 確かめた★＝請求/集計は 一覧の 一部で、新しい事は 1つも しない。
+             ・集計の 計算は ★同じ REP.summarize を 2か所で★ 呼んでいた
+             ・絞り込みの 欄も 2組（l-partner/l-month と bill-partner/bill-month）
+             ・出す ボタンは ★2組で 中身が ちがう★（一覧5個／集計3個）＝
+               ★納品書は 請求/集計からは 出せなかった★
+             ・分ける 理由は「選ぶだけで 紙が すぐ出る」だけ だったが、
+               2026-09-10 に 確認を かぶせに したので ★1回 押すだけ★に なった。
+           ★集計は 引き出し2枚の 下に 隠れていた★（もっと ▸ 集計）ので、
+           ★ここに 出しっぱなし★に する（毎月 いちばん 見る 数）。 -->
+      <div class="rep-sum" id="rep-sum"></div>
+      <div class="fil-row">
+        <select class="finput" id="rep-month" aria-label="集計する月"></select>
+      </div>
+      <div id="rep-body"></div>
       <!-- ★この字は JS（seikyu-app.js の drawDocWords）が 必ず 上書きする★
            ＝2か所で 別々に 直すと 片方が 残る。ここは 出るまでの つなぎ。 -->
       <p class="hint" id="list-hint">出した請求書も、あとから中身を直せます。番号は同じ物を二度使いません。</p>
@@ -105,14 +121,6 @@
         <p class="hint" id="q-hint"></p>
       </details>
       <div id="rec-box"></div>
-      <div class="rep-sum" id="rep-sum"></div>
-      <details class="more" id="rep-box">
-        <summary class="more-s" id="rep-sum-s">集計（月ごと・取引先ごとに いくら請求／入金／残り）</summary>
-        <div class="fil-row">
-          <select class="finput" id="rep-month" aria-label="集計する月"></select>
-        </div>
-        <div id="rep-body"></div>
-      </details>
     </details>
   </section>
 
@@ -160,27 +168,6 @@
     </div>
   </div>
 
-  <section class="screen" id="scr-bill">
-    <div class="card">
-      <p class="hint">月と相手を選ぶと、その請求書が下に出ます。そのまま PDF・印刷・Excel にできます。</p>
-      <div class="bill-pick">
-        <select class="finput" id="bill-month" aria-label="月"></select>
-        <select class="finput" id="bill-partner" aria-label="相手"></select>
-      </div>
-      <div class="btn-row" id="bill-acts">
-        <button class="btn-primary" type="button" id="b-bill-pdf">PDFで保存 / 送る</button>
-        <button class="btn-ghost" type="button" id="b-bill-print">印刷</button>
-        <button class="btn-ghost" type="button" id="b-bill-xlsx">Excelに書き出し</button>
-      </div>
-      <div class="ok" id="bill-ok" style="display:none"></div>
-      <div class="bad" id="bill-err" style="display:none"></div>
-      <p class="hint" id="bill-sum"></p>
-    </div>
-    <div class="card bill-pv-card">
-      <div class="bill-pv"><iframe class="bill-pv-f" id="bill-paper" title="請求書の下見" tabindex="-1"></iframe></div>
-      <p class="hint" id="bill-note"></p>
-    </div>
-  </section>
 
   <!-- ═══ ② 入力（★打つ前に選ばせない★） ═══
        ・税の入れ方／円未満の丸め方／紙の様式は「設定」で1回 決める（ここでは聞かない）
@@ -931,7 +918,6 @@
   <button class="bn" type="button" data-scr="scr-set"><span class="bn-i">⚙</span><span class="bn-l">設定</span></button>
   <button class="bn on" type="button" data-scr="scr-edit"><span class="bn-i">✎</span><span class="bn-l">入力</span></button>
   <button class="bn" type="button" data-scr="scr-list"><span class="bn-i">▤</span><span class="bn-l">一覧</span></button>
-  <button class="bn" type="button" data-scr="scr-bill"><span class="bn-i">🧾</span><span class="bn-l">請求/集計</span></button>
 </nav>
 
 <!-- ★落とす前に「中身から作った名前」を出して直させる（司さんの決まり）★ -->
@@ -951,61 +937,61 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="../js/supa-config.js?v=545f115d"></script>
-<script src="../lib/xlsx.full.min.js?v=545f115d"></script>
-<script src="../js/file-out.js?v=545f115d"></script>
-<script src="../js/suite-data.js?v=545f115d"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=545f115d"></script>
+<script src="../js/supa-config.js?v=6a79a182"></script>
+<script src="../lib/xlsx.full.min.js?v=6a79a182"></script>
+<script src="../js/file-out.js?v=6a79a182"></script>
+<script src="../js/suite-data.js?v=6a79a182"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=6a79a182"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=545f115d"></script>
-<script src="lib/seikyu-tax.js?v=545f115d"></script>
-<script src="lib/seikyu-gensen.js?v=545f115d"></script>
-<script src="lib/seikyu-carry.js?v=545f115d"></script>
-<script src="lib/seikyu-cols.js?v=545f115d"></script>
-<script src="lib/seikyu-templates.js?v=545f115d"></script>
-<script src="../lib/toroku-no.js?v=545f115d"></script>
-<script src="lib/seikyu-doc.js?v=545f115d"></script>
-<script src="lib/seikyu-partner-ask.js?v=545f115d"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=6a79a182"></script>
+<script src="lib/seikyu-tax.js?v=6a79a182"></script>
+<script src="lib/seikyu-gensen.js?v=6a79a182"></script>
+<script src="lib/seikyu-carry.js?v=6a79a182"></script>
+<script src="lib/seikyu-cols.js?v=6a79a182"></script>
+<script src="lib/seikyu-templates.js?v=6a79a182"></script>
+<script src="../lib/toroku-no.js?v=6a79a182"></script>
+<script src="lib/seikyu-doc.js?v=6a79a182"></script>
+<script src="lib/seikyu-partner-ask.js?v=6a79a182"></script>
 <!-- ★字体を 軽くする（使う字だけ 形を 残す）★（司さん 2026-09-05「重すぎるやろが」）
      ★seikyu-pdf.js より 先に 読む★＝後だと 1通目だけ 丸ごとの 重い紙が 出る -->
-<script src="../lib/font-slim.js?v=545f115d"></script>
-<script src="lib/seikyu-pdf.js?v=545f115d"></script>
+<script src="../lib/font-slim.js?v=6a79a182"></script>
+<script src="lib/seikyu-pdf.js?v=6a79a182"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=545f115d"></script>
-<script src="lib/seikyu-seal.js?v=545f115d"></script>
+<script src="../js/hanko.js?v=6a79a182"></script>
+<script src="lib/seikyu-seal.js?v=6a79a182"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=545f115d"></script>
+<script src="lib/seikyu-report.js?v=6a79a182"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=545f115d"></script>
+<script src="lib/seikyu-items.js?v=6a79a182"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=545f115d"></script>
+<script src="lib/seikyu-recurring.js?v=6a79a182"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=545f115d"></script>
+<script src="lib/seikyu-find.js?v=6a79a182"></script>
 <!-- ★自社のExcelを そのまま使う★（読む・当てる・書く）
      ＝2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★（司さん 2026-08-31） -->
-<script src="../lib/zip-surgeon.js?v=545f115d"></script>
-<script src="../lib/xlsx-edit.js?v=545f115d"></script>
-<script src="lib/seikyu-book.js?v=545f115d"></script>
-<script src="lib/seikyu-scope.js?v=545f115d"></script>
-<script src="../lib/kikan.js?v=545f115d"></script>
-<script src="lib/seikyu-invoice-ask.js?v=545f115d"></script>
-<script src="lib/seikyu-paper-ask.js?v=545f115d"></script>
-<script src="lib/seikyu-name.js?v=545f115d"></script>
-<script src="lib/seikyu-paper.js?v=545f115d"></script>
-<script src="lib/seikyu-aoa.js?v=545f115d"></script>
-<script src="js/seikyu-store.js?v=545f115d"></script>
-<script src="js/seikyu-out.js?v=545f115d"></script>
-<script src="js/seikyu-app.js?v=545f115d"></script>
-<script src="../js/rakunally-login.js?v=545f115d"></script>
-<script src="js/auth.js?v=545f115d"></script>
+<script src="../lib/zip-surgeon.js?v=6a79a182"></script>
+<script src="../lib/xlsx-edit.js?v=6a79a182"></script>
+<script src="lib/seikyu-book.js?v=6a79a182"></script>
+<script src="lib/seikyu-scope.js?v=6a79a182"></script>
+<script src="../lib/kikan.js?v=6a79a182"></script>
+<script src="lib/seikyu-invoice-ask.js?v=6a79a182"></script>
+<script src="lib/seikyu-paper-ask.js?v=6a79a182"></script>
+<script src="lib/seikyu-name.js?v=6a79a182"></script>
+<script src="lib/seikyu-paper.js?v=6a79a182"></script>
+<script src="lib/seikyu-aoa.js?v=6a79a182"></script>
+<script src="js/seikyu-store.js?v=6a79a182"></script>
+<script src="js/seikyu-out.js?v=6a79a182"></script>
+<script src="js/seikyu-app.js?v=6a79a182"></script>
+<script src="../js/rakunally-login.js?v=6a79a182"></script>
+<script src="js/auth.js?v=6a79a182"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=545f115d"></script>
+<script src="../js/env-badge.js?v=6a79a182"></script>
 </body>
 </html>
