@@ -126,21 +126,23 @@ create index if not exists idx_pay_receipts_inv  on kyuyo.pay_receipts (account_
 create or replace function kyuyo.pay_invoices_freeze() returns trigger
 language plpgsql as $$
 begin
+  -- ★★2026-09-10 固まる列を 3つに 減らした★★（司さん 2026-09-09
+  --   「★発行とゆう概念が めんどくさい★／いつでも 編集できるようにする／
+  --     ★請求日を いつでも 触れるように★する」）
+  --   ★前は 12列 固めていた★＝アプリ側だけ「いつでも直せる」に 変えたのに
+  --   ここが そのままで、発行済みを 直して 保存すると ★必ず ここで 落ちていた★
+  --   （画面の中は 直った値・倉庫は 古い値＝紙と 台帳が 食い違う）。
+  --   ★残す3列★
+  --     doc_type  … 請求書↔見積書が 入れ替わると 番号の 系列が 壊れる
+  --     no        … 同じ番号を 二度 使わない／欠番を 作らない（台帳の 芯）
+  --     issued_at … いつ 出したかの 記録（後から 書き換えない）
+  --   ★消せない★（下の no_delete）は そのまま＝取り消しは status で 残す。
   if old.status <> 'draft' then
     if new.doc_type    is distinct from old.doc_type
     or new.no          is distinct from old.no
-    or new.partner_id  is distinct from old.partner_id
-    or new.issue_ymd   is distinct from old.issue_ymd
-    or new.due_ymd     is distinct from old.due_ymd
-    or new.tax_mode    is distinct from old.tax_mode
-    or new.rounding    is distinct from old.rounding
-    or new.lines       is distinct from old.lines
-    or new.totals      is distinct from old.totals
-    or new.snapshot    is distinct from old.snapshot
-    or new.template_id is distinct from old.template_id
     or new.issued_at   is distinct from old.issued_at
     then
-      raise exception '発行済みの請求書は直せません（取り消して作り直してください）: no=%', old.no
+      raise exception '発行済みの請求書は、種類・番号・発行した時刻だけ 変えられません（中身は 直せます）: no=%', old.no
         using errcode = 'check_violation';
     end if;
     -- ★ここは "is distinct from" を使わない★

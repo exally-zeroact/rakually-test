@@ -164,6 +164,8 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
   font-family: inherit; font-size: 14px; font-weight: 700;
   padding: 12px 16px; border-radius: 12px; border: 1px solid transparent;
   cursor: pointer; white-space: nowrap;
+  /* ★指で 押せる 大きさ★（2026-09-10 実測＝高さ 約41px で 44px に 足りなかった） */
+  min-height: 44px;
 }
 .btn-primary { background: #3D9E72; color: #FFFFFF; border: none; box-shadow: 0 3px 12px rgba(61,158,114,.32); }
 .btn-primary:hover { background: #357F5F; }
@@ -175,19 +177,28 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
 
 /* 丸い切り替え（チップ／セグメント） */
 .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+/* ★指で 押せる 大きさ★（2026-09-10 実測 約34px） */
 .seg-b {
   font-family: inherit; font-size: 13px; font-weight: 700;
   padding: 8px 14px; border-radius: 999px;
   border: 1px solid #C8ECD8; background: #FFFFFF; color: #2E7D54;
   cursor: pointer; white-space: nowrap;
+  min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
 }
 /* ★選ばれている物は 本命と同じ緑★（2026-08-29 統一＝2つの緑を作らない） */
 .seg-b.on { background: #3D9E72; border-color: #3D9E72; color: #FFFFFF; }
 .seg-b:disabled { opacity: .5; cursor: default; }
+/* ★★2026-09-10 指で 押せる 大きさに した★★
+   ★実測★ 前は 高さ 約23px（11px×1.2 ＋ 上下4px ＋ 枠2px）＝★44px の 半分★。
+     ボタンは UA が font を 一括で 決め直すので、body の line-height:1.7 は 届かない。
+   ★入金の 所だけ 40px に 直してあった★（seikyu/css/app.css の .pay-quick .mini・
+     註に「実測40px」）＝★残り 14か所は 23px の まま★だった。ここで 一度に 直す。
+   ★字は 1文字も 変えない★＝見た目は ほぼ そのまま、当たりだけ 大きくする。 */
 .mini {
   font-family: inherit; font-size: 11px; font-weight: 700;
   padding: 4px 9px; border-radius: 999px;
   border: 1px solid #C8ECD8; background: #FFFFFF; color: #2E7D54; cursor: pointer;
+  min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
 }
 /* ★選ばれている物は必ず見て分かるようにする（押したのに何も変わらない、に見せない） */
 /* ★選ばれている物は 本命と同じ緑★（2026-08-29 統一＝2つの緑を作らない） */

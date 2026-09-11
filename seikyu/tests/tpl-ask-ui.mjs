@@ -170,6 +170,15 @@ async function bootSet(appSrc, tane) {
   ok(tab, '設定のタブが 無い');
   tab.click();
   await sleep(400);
+  /* ★2026-09-10 6枚の 絵は 畳みました★（設定の 先頭 1,289px＝1.5画面ぶんを 占めていた）
+     ＝今の紙は 1行で 見え、「変える」を 押した時だけ 絵が 出る。
+     ★お客さんと 同じ道を 通す★＝ここで その ボタンを 押す。 */
+  const hiraku = r.doc.getElementById('b-tpl-open');
+  if (hiraku && r.doc.getElementById('s-tpl-box')
+    && r.doc.getElementById('s-tpl-box').style.display === 'none') {
+    hiraku.click();
+    await sleep(300);
+  }
   return r;
 }
 
@@ -273,7 +282,17 @@ const TPL_N = (function () {
       ok(s2.sw <= s2.w + 2 && s2.sh <= s2.h + 2,
         '★' + (i + 1) + '枚目の紙が 枠から出ている★ ' + s2.sw + '×' + s2.sh);
     });
-    ok(j.shots[1].top < 844, '★2枚目が 画面の外＝スクロールしないと気づけない★（top ' + j.shots[1].top + '）');
+    /* ★★2026-09-10 見方を 変えました★★
+       前は「画面の 上から 844px 以内」＝★見本が 設定の 先頭に 出しっぱなし★の 時の 決め。
+       今は ★「変える」を 押した時だけ 出る★（先頭の 1,289px＝1.5画面ぶんを 畳んだ）ので、
+       画面の どこで 押したかで 位置は 変わる。
+       ★見たい事は 同じ★＝「押した その場に 見本が 並んでいて、1枚目と 2枚目が 同じ高さ」。
+       ＝★横に 2枚 並んでいるか★（1行に 2枚。縦に 1列だと 6画面ぶん スクロールする）。 */
+    ok(Math.abs(j.shots[1].top - j.shots[0].top) < 8,
+      '★1枚目と 2枚目が 同じ 高さに 並んでいない（縦1列に なっている）★ '
+      + j.shots[0].top + ' / ' + j.shots[1].top);
+    ok(j.shots.length >= 4 && Math.abs(j.shots[3].top - j.shots[2].top) < 8,
+      '★3枚目と 4枚目が 同じ 高さに 並んでいない★');
     console.log('      枠 ' + j.shots.map((x) => x.w + '×' + x.h).join(' / ')
       + '　紙 ' + j.shots.map((x) => x.pw + '×' + x.ph).join(' / '));
   });

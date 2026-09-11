@@ -41,11 +41,17 @@
   /* ★発行したら固まる列★
      倉庫のトリガ(kyuyo.pay_invoices_freeze)と同じ並びでなければ赤になる
      （seikyu/tests/schema-contract.test.mjs が突き合わせる）。
-     status/sent_at/deleted_at は入っていない＝取り消し・送った記録は後から入る。 */
-  var FROZEN_FIELDS = [
-    'doc_type', 'no', 'partner_id', 'issue_ymd', 'due_ymd',
-    'tax_mode', 'rounding', 'lines', 'totals', 'snapshot', 'template_id', 'issued_at',
-  ];
+     status/sent_at/deleted_at は入っていない＝取り消し・送った記録は後から入る。
+     ★★2026-09-10 12列 → 3列★★（司さん 2026-09-09「いつでも 編集できるように／
+       請求日を いつでも 触れるように」）
+     ★前は canEdit だけ true に して 倉庫を 直していなかった★＝
+       発行済みを 直して 保存すると ★倉庫が 必ず 断って★ いた
+       （画面の中は 直った値・倉庫は 古い値＝紙と 台帳が 食い違う）。
+     ★残す3列の 訳★
+       doc_type  … 請求書↔見積書が 入れ替わると 番号の 系列が 壊れる
+       no        … 同じ番号を 二度 使わない／欠番を 作らない
+       issued_at … いつ 出したかの 記録 */
+  var FROZEN_FIELDS = ['doc_type', 'no', 'issued_at'];
 
   /* 番号の形。★「自分で決める(manual)」も許す（司さん指示）★ */
   var NUMBER_FORMATS = [

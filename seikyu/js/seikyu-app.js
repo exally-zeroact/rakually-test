@@ -83,6 +83,14 @@
 
   /* ═══ 画面の切り替え ═══ */
   function goScreen(id) {
+    /* ★★入力の 画面から ★出る時だけ★ しまう★★（2026-09-10）
+       下タブは 親指の すぐ下＝★打っている 最中に いちばん 当たりやすい★。
+       前は ここで 何もせず 切り替えていたので ★打った明細が 黙って 消えた★。
+       ★入る時に 走らせては いけない★＝collect() は ★画面の 字を 読む★ので、
+         まだ 描き直していない ★前の1通の 値★を 新しい1通として しまってしまう
+         （2026-09-10 実測＝試験が 8本 落ちた）。 */
+    var deru = (id !== 'scr-edit') && $('scr-edit') && $('scr-edit').classList.contains('active');
+    if (deru) { try { jidoHozon(); } catch (e) { /* しまえなくても 画面は 切り替える */ } }
     /* ★画面の一覧は 1か所★＝ここに足し忘れると ★タブは光るのに 中身が真っ白★
        （2026-08-31 実際にそうなった＝請求/集計を足した日） */
     ['scr-list', 'scr-edit', 'scr-set', 'scr-bill', 'scr-look'].forEach(function (s) {
@@ -588,7 +596,10 @@
         + '<span class="iv-name">' + esc(partnerName(v)) + '</span></div>'
         + '<div class="iv-sub">' + esc(v.issue_ymd || '請求日なし')
         + (v.due_ymd ? '　期限 ' + esc(v.due_ymd) : '')
-        + '　' + esc(payLabel(v)) + '</div>'
+        + '　' + esc(payLabel(v))
+        /* ★出したが まだ 渡していない★（2026-09-10）＝送り漏れが 一覧で 見える */
+        + (DOC.statusOf(v) === 'issued' && !v.sent_at ? '　<b class="iv-mada">まだ渡していません</b>' : '')
+        + '</div>'
         + '<div class="iv-sub"><span class="iv-amt">'
         + (waiting
           ? '金額まだ ' + waiting + '行'
@@ -615,7 +626,11 @@
   function drawKind() {
     var lb = DOC.docLabel(S.docType);
     var b = $('b-new'); if (b) b.textContent = '＋ 新しい' + lb;
-    setText('list-hint', '発行した' + lb + 'は、あとから中身を直せません（取り消して作り直します）。'
+    /* ★★2026-09-10 画面が 嘘を 言っていた★★
+     司さん 2026-09-09「発行とゆう概念が めんどくさい／★いつでも 編集できるように★」
+     ＝canEdit は true に したのに ★この字を 直していなかった★（3か所・231文字）。
+     読んだ人は「もう 直せん」と 思って ★直せる紙を わざわざ 取り消して 作り直す★。 */
+    setText('list-hint', '出した' + lb + 'も、あとから中身を直せます。'
       + '番号は同じ物を二度使いません（' + DOC.docLabel('invoice') + 'と' + DOC.docLabel('quote') + 'は別の系列です）。');
     Array.prototype.forEach.call(document.querySelectorAll('#kind-seg [data-kind]'), function (x) {
       x.classList.toggle('on', x.getAttribute('data-kind') === S.docType);
@@ -720,6 +735,34 @@
      「押したらPDFが見えたり修正できたりでええやろ」）
      ★入力画面へ 飛ばさない★＝一覧に 居たまま 中身が 見える。
      紙の 作り方は ★doPreview と 同じ 1本（PAPER.build）★＝2つの 紙を 作らない。 */
+  /* ★発行した 直後だけ 出す★＝下書きに 戻った時・別の1通を 開いた時は 消す */
+  function drawAfterIssue() {
+    var ai = $('after-issue'); if (!ai) return;
+    var v = S.cur;
+    ai.style.display = (v && v.id && DOC.statusOf(v) === 'issued') ? '' : 'none';
+  }
+
+  /* ★★「送った」記録★★（2026-09-10 専門家の 審査で 出た）
+     ★実測★ 倉庫には markSent が 在るのに ★呼んでいる人が 0人★だった。
+       画面は「PDFを開く（★送る★）」と 書いてあるのに 何も 残らない。
+     ＝毎月 十数社に 出す 会社で ★「発行したが まだ 送っていない」が 見えない★
+       ＝送り漏れを 目で 数えるしか なく、催促の 時に「そもそも 送ったか」に 答えられない。
+     ★出した紙を 渡す 道（PDFで保存・PDFを開く・印刷）を 通ったら 記録する★。
+     ★sent_at は 固まる列では ない★（発行後でも 入る＝seikyu-doc.js の註）。 */
+  function okutta() {
+    var v = S.cur;
+    if (!v || !v.id) return;
+    if (DOC.statusOf(v) !== 'issued') return;      /* 下書きの 下見は 送ったに しない */
+    if (v.sent_at) return;                          /* 何度 押しても 最初の1回だけ */
+    if (!S.store || !S.store.invoices || !S.store.invoices.markSent) return;
+    var at = new Date().toISOString();
+    v.sent_at = at;
+    S.store.invoices.markSent(v.id, at).then(function (r) {
+      if (!r || !r.ok) { v.sent_at = ''; return; }  /* しまえなければ 印も 戻す（嘘を 残さない） */
+      return loadList();
+    }).catch(function () { v.sent_at = ''; });
+  }
+
   function lookPaper(id) {
     var v = null;
     for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === id) v = S.invoices[i];
@@ -1103,7 +1146,9 @@
     /* ★1問ごと保存★（下書きだけ。発行済みは触らない） */
     /* 日付と番号がそろっている下書きだけ その場で保存する
        （そろう前に保存を呼ぶと「請求日を入れてください」の赤が出る＝まだ聞いていない事で怒らない） */
-    if (v.issue_ymd && v.no) { try { saveDraft(); } catch (e) { /* 知らせは画面に出る */ } }
+    /* ★しまう 決めは jidoHozon 1か所★（2026-09-10。相手が 決まる前は しまわない） */
+    S.dirty = true;
+    jidoHozon(true);
     return true;
   }
 
@@ -1309,10 +1354,10 @@
           + '</div>';
       }).join('');
       Array.prototype.forEach.call(host.querySelectorAll('[data-dn]'), function (el) {
-        el.oninput = function () { deductions()[+el.getAttribute('data-dn')].name = el.value; S.dirty = true; recalc(); };
+        el.oninput = function () { deductions()[+el.getAttribute('data-dn')].name = el.value; S.dirty = true; jidoYoyaku(); recalc(); };
       });
       Array.prototype.forEach.call(host.querySelectorAll('[data-da]'), function (el) {
-        el.oninput = function () { deductions()[+el.getAttribute('data-da')].amount = el.value; S.dirty = true; recalc(); };
+        el.oninput = function () { deductions()[+el.getAttribute('data-da')].amount = el.value; S.dirty = true; jidoYoyaku(); recalc(); };
       });
       Array.prototype.forEach.call(host.querySelectorAll('[data-dd]'), function (b) {
         b.onclick = function () { deductions().splice(+b.getAttribute('data-dd'), 1); S.dirty = true; renderDeductions(); recalc(); };
@@ -1850,6 +1895,7 @@
           S.cur.lines[i].extra[el.getAttribute('data-x')] = el.value;
         }
         S.dirty = true;
+        jidoYoyaku();                    /* ★打ったら 少し 待って しまう★ */
         recalc();
       };
     });
@@ -1876,6 +1922,7 @@
         S.cur.lines.splice(i, 1);
         if (!S.cur.lines.length) S.cur.lines.push(blankLine());
         S.dirty = true;
+        jidoYoyaku();
         renderLines(); recalc(); lockInputs();
       };
     });
@@ -1885,6 +1932,7 @@
       if (to < 0 || to >= L.length) return;
       var x = L[from]; L[from] = L[to]; L[to] = x;
       S.dirty = true;
+      jidoYoyaku();
       renderLines(); recalc(); lockInputs();
     }
     Array.prototype.forEach.call(host.querySelectorAll('[data-up]'), function (b) {
@@ -2496,6 +2544,69 @@
     return v;
   }
 
+  /* ★★打った物が 消えないように する★★（2026-09-10 専門家の 審査で 出た）
+     ★実測で 分かった事★
+       ・明細を 打つと S.dirty＝true を 立てるだけ。
+         ★この印は 14か所で 書かれて 1か所も 読まれていなかった★。
+       ・画面を 切り替える goScreen は 保存を 呼ばない。
+       ・窓を 閉じる時の 保険（beforeunload）も 無い。
+       ⇒ 明細を 5行 打って ★下タブに 指が 当たった 瞬間 消える★。
+         下タブは 親指の すぐ下＝いちばん 当たりやすい 所。
+     ★新しい 道具は 作らない★＝saveDraft は もう 在る。呼ぶ所を 3つ 足すだけ。
+     ★打っている 最中に 倉庫へ 行かない★＝最後の 打鍵から 1.5秒 待つ。 */
+  var jidoTimer = null;
+  var JIDO_MACHI = 1500;
+  /* tsukuruYoi … ★まだ 倉庫に 無い 紙を 新しく 作ってよいか★
+       true  … 打鍵が 止まった時（人が 本当に 打っている）
+       false … 画面を 変えた時・窓を 隠した時＝★もう在る 紙を 直すだけ★
+               （ここで 作ると 触っただけの 空の紙が 一覧に 増える＝実測で 試験が 9本 落ちた） */
+  function jidoHozon(tsukuruYoi) {
+    if (jidoTimer) { clearTimeout(jidoTimer); jidoTimer = null; }
+    if (!S.dirty) return;
+    /* ★出せる形に なっていない物は 触らない★＝日付も 番号も 無い間は しまわない
+       （saveDraft が 赤い 知らせを 出してしまう） */
+    var v = null;
+    try { v = collect(); } catch (e) { return; }
+    if (!v || !v.issue_ymd || !v.no) return;
+    /* ★中身が 何も 無い 紙は しまわない★（2026-09-10）
+       ＝質問カードを 1つ 押しただけで
+         「（取引先が未選択）0円」の 下書きが 倉庫に たまっていた
+         （司さんの 一覧の 絵に その行が 8件 並んでいた）。
+       ★決め★
+         ・★もう 倉庫に 在る 紙★（id が 在る）… いつでも しまう
+           ＝人が 一度 保存した物は、その後の 直しを 落とさない。
+         ・★まだ 倉庫に 無い 紙★… ★相手と 中身が そろってから★ しまう
+           ＝新しい 空の紙を 勝手に 増やさない
+             （ゆるく すると 一覧に 0円の 行が 増える。
+               きつく すると 打った物を 落とす＝実測で 試験が 9本 落ちた）。 */
+    var naka = (v.lines || []).some(function (l) {
+      return String((l && l.name) || '').trim() || String((l && l.amount) || '').trim()
+        || String((l && l.price) || '').trim();
+    });
+    if (!(S.cur && S.cur.id) && !(tsukuruYoi && v.partner_id && naka)) return;
+    if (!S.store || !S.store.invoices || !S.store.invoices.saveDraft) return;
+    /* ★★静かに しまう★★（2026-09-10）
+       ★saveDraft を そのまま 呼ばない★＝あれは 終わった後に
+         loadList → fillEdit で ★画面を 描き直す★。
+         打っている 最中に 描き直すと ★指の下で 欄が 入れ替わる★（実測で 試験も 落ちた）。
+       ⇒ ここは ★倉庫へ 書くだけ★。画面は 触らない。
+         知らせも 出さない（人が 押していないので「保存しました」は 余計）。 */
+    var t = null;
+    try { t = recalc(); } catch (e) { return; }
+    v.lines = cleanLines(v.lines);
+    v.totals = (t && t.ok) ? totalsOf(t) : {};
+    try {
+      S.store.invoices.saveDraft(v).then(function (r) {
+        if (r && r.ok) { if (S.cur) S.cur.id = r.id; S.dirty = false; }
+      }).catch(function () { /* しまえなくても 画面は そのまま（次の 打鍵で また 試す） */ });
+    } catch (e) { /* 同上 */ }
+  }
+  /* 打っている 間は 先延ばし、手が 止まったら しまう */
+  function jidoYoyaku() {
+    if (jidoTimer) clearTimeout(jidoTimer);
+    jidoTimer = setTimeout(function () { jidoTimer = null; jidoHozon(true); }, JIDO_MACHI);
+  }
+
   function saveDraft() {
     var v = collect();
     var t = recalc();
@@ -2558,6 +2669,7 @@
     b.disabled = !!why;
     b.textContent = why ? ('発行する（' + why + '）') : '発行する';
     b.title = why || '';
+    drawAfterIssue();          /* ★発行した後は「紙を見る」が 出る★ */
   }
 
   function issue() {
@@ -2606,7 +2718,10 @@
       S.cur.snapshot = snap; S.cur.totals = row.totals;
       box('edit-ok', '請求書 ' + r.no + ' を発行しました。'
         + (r.bumped ? '（同じ番号が先に使われていたので ' + r.bumped + ' つ進めました）' : '')
-        + ' これで中身は固まります。');
+        /* ★固まるのは 番号だけ★（中身は あとからでも 直せる） */
+        + ' 中身は あとからでも 直せます。');
+      /* ★次の 一手を その場に 出す★（2026-09-10）＝一覧へ 歩かせない */
+      var ai = $('after-issue'); if (ai) ai.style.display = '';
       return loadList().then(function () { fillEdit(); });
     });
   }
@@ -2669,6 +2784,8 @@
       host.className = 'tpl-list';
       renderTplPicks(host, current, onPick);
       if (noteId) setText(noteId, '');            /* 説明は 札の中に 書いてある＝2回 言わない */
+      /* ★今の紙を 1行で★（2026-09-10＝6枚の 絵は 畳んだ 中） */
+      setText('s-tpl-now', TPL.getOrDefault(current).label);
       return;
     }
     host.innerHTML = TPL.list().map(function (t) {
@@ -3526,10 +3643,11 @@
     /* ★紙の書き方（会社ごと）★＝空なら 様式の既定（何も選ばなければ 今までどおり） */
     (function () {
       var st = s.paperStyle || {};
+      /* ★★2026-09-10 ここを 7つ → 2つに しました★★
+         外した5つ（¥記号・（税込）・件名を紙に出す・控除の見出し・控除の合計の呼び名）は
+         ★倉庫に 残っている 値は 消していません★＝すでに 入れた 会社の 紙は そのまま。
+         画面から 触れなくなるだけ（司さん「設定で 詳細いじるのは 少しにしろ」）。 */
       $('s-sumsorder').value = (st.sumsOrder === 'B') ? 'B' : '';
-      $('s-yen').value = (st.yenMark === false) ? 'off' : '';
-      $('s-zeikomi').value = (st.zeikomiTag === false) ? 'off' : '';
-      $('s-subject').value = (st.subjectOn === true) ? 'on' : '';
       if ($('s-no')) $('s-no').value = (st.noOn === false) ? 'off' : '';
       $('s-taxnote').value = st.taxNote || '';
       /* ★率は lib が唯一の正★＝画面の見本の文にも 数字を直書きしない
@@ -3583,8 +3701,9 @@
           }
         }
       })();
-      $('s-dedhead').value = st.dedHead || '';
-      $('s-dedsum').value = st.dedSum || '';
+      /* ★控除の 見出し・合計の 呼び名は 画面から 外しました★（2026-09-10）
+         ＝様式が すでに 持っている／合計の 呼び名は 半分しか 効いていなかった。
+           倉庫の 値は 消していないので、入れてある 会社の 紙は そのまま。 */
     })();
     rowsHint();
     settingsHint();
@@ -4072,8 +4191,14 @@
     renderInvAsk();
     /* ★1問ごと保存★（最後まで行かないと保存されない、にしない）。
        ★下書きにできない時（請求日や番号が空）は 黙って何もしない★＝
-       「保存しました」と嘘を言わない。その時は 下の「下書き保存」で残る。 */
-    if (v.issue_ymd && v.no && S.store && S.store.invoices) { saveDraft(); }
+       「保存しました」と嘘を言わない。その時は 下の「下書き保存」で残る。
+       ★★2026-09-10 相手が 決まる前は しまわない★★
+         ＝質問カードを 1つ 押しただけで
+           「（取引先が未選択）0円」の 下書きが 倉庫に たまっていた
+           （司さんの 一覧の 絵に その行が 8件 並んでいた）。
+         ★しまう 決めは jidoHozon と 同じ★（2か所で 別々に 決めない）。 */
+    S.dirty = true;                 /* ★答えた＝直った★（jidoHozon は 印が 無いと 動かない） */
+    jidoHozon(true);
   }
 
   function renderPtAsk() {
@@ -4355,15 +4480,17 @@
       /* ★選ばなかった物は 持たない★＝様式の既定が効く（空の値を保存して 既定を上書きしない） */
       invoiceStyle: (function () {
         var o = {};
+        var st0 = (settings().paperStyle) || {};      /* ★今 倉庫に 入っている 決め★ */
         if ($('s-sumsorder').value === 'B') o.sumsOrder = 'B';
-        if ($('s-yen').value === 'off') o.yenMark = false;
-        if ($('s-zeikomi').value === 'off') o.zeikomiTag = false;
-        if ($('s-subject').value === 'on') o.subjectOn = true;
+        /* ★外した 5つは 倉庫の 値を そのまま 引き継ぐ★
+           ＝保存を 押した とたんに ★前に 入れた 決めが 消える★のを 止める
+             （画面から 外した＝その人の 紙を 変えてよい、では ない）。 */
+        ['yenMark', 'zeikomiTag', 'subjectOn', 'dedHead', 'dedSum'].forEach(function (k) {
+          if (st0[k] !== undefined) o[k] = st0[k];
+        });
         /* ★出す時は 何も 書かない★（既定＝出す）／切った時だけ false を 持つ */
         if ($('s-no') && $('s-no').value === 'off') o.noOn = false;
         if (String($('s-taxnote').value || '').trim()) o.taxNote = String($('s-taxnote').value).trim();
-        if (String($('s-dedhead').value || '').trim()) o.dedHead = String($('s-dedhead').value).trim();
-        if (String($('s-dedsum').value || '').trim()) o.dedSum = String($('s-dedsum').value).trim();
         return o;
       })(),
     };
@@ -4650,14 +4777,22 @@
     $('fn-cancel').onclick = fnClose;
 
     $('b-save').onclick = function () { return saveDraft(); };
-    if ($('b-pdf')) $('b-pdf').onclick = function () { askName('pdf', function (n) { doPdf(n, 'save'); }); };
+    if ($('b-pdf')) $('b-pdf').onclick = function () { askName('pdf', function (n) { doPdf(n, 'save'); okutta(); }); };
     /* ★開く★＝iPhoneのビューアへ渡す（そこの共有ボタンで メールに乗る） */
-    if ($('b-pdfopen')) $('b-pdfopen').onclick = function () { askName('pdf', function (n) { doPdf(n, 'open'); }); };
+    if ($('b-pdfopen')) $('b-pdfopen').onclick = function () { askName('pdf', function (n) { doPdf(n, 'open'); okutta(); }); };
     /* ★納品書★＝同じ1通を 納品書の顔で PDFにして 開く（送るところまで 同じ道） */
     /* ★納品書は 納品書の 名前で 落とす★（2026-09-05 実測＝「請求書」の名前で 落ちていた） */
     if ($('b-delivery')) $('b-delivery').onclick = function () {
       askName('pdf', function (n) { doPdf(n, 'open', 'delivery'); }, 'delivery');
     };
+    /* ★印刷も「出した」うち★＝紙で 渡す 会社も 在る */
+    if ($('b-print')) {
+      var motoPrint = $('b-print').onclick;
+      $('b-print').onclick = function (e) {
+        if (motoPrint) motoPrint.call(this, e);
+        okutta();
+      };
+    }
     $('b-issue').onclick = function () { return issue(); };
 
     /* ★入金★ 打つたびに「押せる/押せない」を塗り直す（黙って無反応にしない） */
@@ -4755,6 +4890,22 @@
       var k = $('s-pterm').value;
       show($('s-ptermn'), k === 'days' || k === 'nextDay');
     };
+    /* ★様式の 6枚の 絵は 押した時だけ★（2026-09-10＝設定の 先頭 1,289px を 畳んだ） */
+    if ($('b-after-look')) $('b-after-look').onclick = function () {
+      if (S.cur && S.cur.id) lookPaper(S.cur.id);
+    };
+    if ($('b-tpl-open')) $('b-tpl-open').onclick = function () {
+      var box = $('s-tpl-box'); if (!box) return;
+      var aku = (box.style.display === 'none');
+      box.style.display = aku ? '' : 'none';
+      $('b-tpl-open').setAttribute('aria-expanded', aku ? 'true' : 'false');
+      $('b-tpl-open').textContent = aku ? '閉じる' : '変える';
+      /* ★開いた 絵が 画面の外だと 気づけない★（2026-08-26 司さんの 指摘と 同じ型）
+         ＝押した その場に 見本を 持ってくる。 */
+      if (aku) {
+        try { $('s-tpl-card').scrollIntoView({ block: 'start' }); } catch (e) { /* 端末によっては 動かない */ }
+      }
+    };
     if ($('b-bank-add')) $('b-bank-add').onclick = function () {
       drawBankRows(true);
       var host = $('s-bank-list');
@@ -4771,6 +4922,19 @@
 
     // 画面を回した・幅が変わった時も、下見が切れないように合わせ直す
     global.addEventListener('resize', fitPreview);
+    /* ★窓を 閉じる・別のアプリへ 行く時も しまう★（2026-09-10）
+       ★visibilitychange を 使う★＝スマホは 窓を 閉じる合図（beforeunload）が
+       来ない事が ある（ホームに 戻した・別のアプリに 切り替えた）。
+       ★人に 聞かない★＝「保存しますか」の 窓は 出さず、黙って しまう
+       （司さんの 決め「1押し＝1件」に 余計な 問いを 足さない）。 */
+    global.addEventListener('visibilitychange', function () {
+      if (global.document && global.document.visibilityState === 'hidden') {
+        try { jidoHozon(); } catch (e) { /* 落ちても 画面は そのまま */ }
+      }
+    });
+    global.addEventListener('pagehide', function () {
+      try { jidoHozon(); } catch (e) { /* 同上 */ }
+    });
   }
 
   /* ログインが済んでから呼ばれる（seikyu/js/auth.js） */

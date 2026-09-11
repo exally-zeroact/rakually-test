@@ -222,12 +222,23 @@ T('★いつでも直せる。消せるのは下書きだけ・発行済みは�
 });
 
 T('★固まる列の一覧が在る（倉庫のトリガと突き合わせる元になる）', () => {
-  ok(D.FROZEN_FIELDS.length >= 8, '固まる列が少なすぎる');
-  for (const f of ['no', 'partner_id', 'issue_ymd', 'due_ymd', 'lines', 'totals', 'snapshot', 'tax_mode', 'rounding']) {
+  /* ★★2026-09-10 12列 → 3列★★（司さん 2026-09-09「いつでも 編集できるように」）
+     ★台帳の 芯だけ 固める★＝種類・番号・発行した時刻。
+     ★中身（明細・合計・請求日・期限・税の入れ方・様式・相手）は 直せる★ */
+  for (const f of ['doc_type', 'no', 'issued_at']) {
     ok(D.FROZEN_FIELDS.indexOf(f) >= 0, f + ' が固まる列に入っていない');
+  }
+  for (const f of ['lines', 'totals', 'issue_ymd', 'due_ymd', 'partner_id',
+    'tax_mode', 'rounding', 'template_id', 'snapshot']) {
+    ok(D.FROZEN_FIELDS.indexOf(f) < 0,
+      '★' + f + ' を 固めている＝「いつでも直せる」と 画面が 言うのに 倉庫が 断る★');
   }
   ok(D.FROZEN_FIELDS.indexOf('status') < 0, 'status は取り消しのため変えられる必要がある');
   ok(D.FROZEN_FIELDS.indexOf('sent_at') < 0, 'sent_at は送った記録なので後から入る');
+  /* ★画面の 決めと 倉庫の 決めが 同じ向きか★（片方だけ 直した事故の 再発を 止める） */
+  ok(D.canEdit({ status: 'issued' }) === true, '★画面は 直せると 言っている★前提');
+  ok(D.FROZEN_FIELDS.indexOf('lines') < 0,
+    '★画面は「直せる」・倉庫は「明細を 固める」＝必ず 落ちる★');
 });
 
 T('★発行の写し(snapshot)に、紙に出る物が全部入る', () => {

@@ -96,9 +96,11 @@ if (process.argv.includes('--self-test')) {
   });
 
   S('★トリガから1列 抜くと赤になる', () => {
-    const broken = SQL.replace(/\s*or new\.lines\s+is distinct from old\.lines\n/i, '\n');
+    /* ★2026-09-10 固まる列が 12→3 に なった★（司さん「いつでも 編集できるように」）
+       ＝lines は もう 固まっていないので、★今 在る 列★で 壊す（no＝台帳の 芯）。 */
+    const broken = SQL.replace(/\s*or new\.no\s+is distinct from old\.no\n/i, '\n');
     const c = contractOf(broken);
-    if (c.frozen.includes('lines')) throw new Error('壊せていない（テストの作り物が効いていない）');
+    if (c.frozen.includes('no')) throw new Error('壊せていない（テストの作り物が効いていない）');
     if (c.frozen.length === DOC.FROZEN_FIELDS.length) throw new Error('抜いたのに数が同じ＝赤にならない');
   });
 

@@ -42,6 +42,8 @@
 /* ★行の並べ替え（▲▼）★ 消して打ち直させないための物。
    端の行では その向きを出さないので、幅は1つぶんでも足りる形にする。 */
 .l-ord { width: 34px; min-width: 34px; white-space: nowrap; }
+/* ★指で 押せる 大きさ★（2026-09-10 実測 28×22px） */
+.l-mv { min-width: 34px; min-height: 34px; }
 .l-mv {
   display: block; width: 30px; height: 26px; margin: 0 auto 2px;
   background: #FFFFFF; border: 1px solid #C8ECD8; border-radius: 999px;
@@ -210,6 +212,20 @@
   border: 0; opacity: 0; overflow: hidden; clip-path: inset(50%); pointer-events: none;
 }
 
+/* ★出したが まだ 渡していない★（2026-09-10）
+   ★色そのものが 意味★＝注意の 色（.warn と 同じ #92500A）を 使う。 */
+.iv-mada { color: #92500A; font-weight: 700; }
+
+/* ── 今の紙（1行）───────────────────────────────────
+   ★入力画面の .tpl-strip と 同じ 形★＝新しい 見た目を 作らない。
+   ★文を flex の 子に 直接 置かない★（1文字ずつ 縦に 割れる 事故を 作らない）。 */
+.tpl-now { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tpl-now-k { font-size: 11px; font-weight: 700; color: #333333; }
+.tpl-now-v {
+  flex: 1 1 140px; min-width: 0; font-size: 13px; font-weight: 700; color: #333333;
+  white-space: normal; word-break: normal; overflow-wrap: break-word;
+}
+
 /* ── 判子の 撮り方（3つ）─────────────────────────────────
    ★文を flex/grid の 子に 直接 置かない★（1文字ずつ 縦に 割れる 事故を 作らない）
    ＝ふつうの 箇条書きに する。 */
@@ -279,7 +295,12 @@
   .lines td.l-ord, .lines td.l-x:last-child {
     position: absolute; top: 6px; padding: 0; width: auto; text-align: right;
   }
-  .lines td.l-ord { right: 40px; }
+  /* ★★2026-09-10 消す×と 並べ替え▼を 離した★★
+     ★実測★ × は 右6〜38px（幅32）／▼ は 右40〜68px（幅28）＝★すき間 2px★。
+       手袋・濡れた指の 接触面は 10〜15mm（38〜57px）＝★狙って 外す方が 難しい★。
+       しかも 消すのに 確認が 無い＝並べ替えの つもりで 行が 消え、打ち直しに なる。
+     ⇒ ★間を 18px 空ける★（40 → 56）。 */
+  .lines td.l-ord { right: 56px; }
   .lines td.l-x:last-child { right: 6px; }
   .lines td.l-ord::before, .lines td.l-x::before { display: none; }
   .l-mv { width: 28px; height: 22px; margin-bottom: 1px; }

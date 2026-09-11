@@ -445,6 +445,10 @@ jobs:
       #   「ごちゃごちゃするから 設定で 詳細いじるのは 少しにしろよ／シンプルで分かりやすく」）
       - name: ★設定 (読むだけ/書くだけの欄が無い/誰も読まない決めを作らない/死んだ設定が無い)
         run: node seikyu/tests/shinda-settei.mjs
+      - name: ★打った物が消えない・画面が嘘を言わない (少し待ってしまう/画面を変える時/窓を隠した時/相手が決まる前は しまわない)
+        run: node seikyu/tests/kiechatta.mjs
+      - name: ★同 (しまうのをやめる/倉庫がまた明細を固める で赤になるかの自己確認)
+        run: node seikyu/tests/kiechatta.mjs --self-test
       - name: ★お振込先 (1口座＝1つの欄/＋で足せる/×で消せる/空の欄はしまわない/紙は1行)
         run: node seikyu/tests/bank-ran.mjs
       - name: ★お振込先 (足しても増えない/また勝手に割る/番号を目立たせない で赤になるかの自己確認)

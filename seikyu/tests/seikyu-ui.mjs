@@ -1535,11 +1535,13 @@ await TA('12-a. ★一覧に「請求書／見積書」の切替が在り、言�
   /* ★同じ字が縦に3つ出ない事★（ロゴ＝請求書／見出し＝請求書／切替＝請求書 だった）
      見出しは消した。言葉がそろって変わる事は 注意書きと ボタンで見る。 */
   ok(!$('list-h'), '★カード見出しが戻っている＝ロゴ・切替と同じ字が縦に3つ出る★');
-  ok(/発行した請求書/.test($('list-hint').textContent), '注意書き: ' + $('list-hint').textContent);
+  /* ★2026-09-10 言葉を 直した★＝canEdit は true なのに「直せません」と 言っていた。
+     ここで 見たいのは ★種類に つれて 言葉が そろって 変わるか★（中身の 字では ない）。 */
+  ok(/出した請求書/.test($('list-hint').textContent), '注意書き: ' + $('list-hint').textContent);
   ok(/新しい請求書/.test($('b-new').textContent), 'ボタンの言葉: ' + $('b-new').textContent);
   doc.querySelector('#kind-seg [data-kind="quote"]').click(); await sleep(60);
   eq(win.SeikyuApp._state.docType, 'quote', '種類が切り替わらない');
-  ok(/発行した見積書/.test($('list-hint').textContent), '★注意書きが「請求書」のまま★: ' + $('list-hint').textContent);
+  ok(/出した見積書/.test($('list-hint').textContent), '★注意書きが「請求書」のまま★: ' + $('list-hint').textContent);
   ok(/新しい見積書/.test($('b-new').textContent), '★ボタンが「請求書」のまま★: ' + $('b-new').textContent);
   ok(doc.querySelector('#kind-seg [data-kind="quote"]').classList.contains('on'), '押した物に印が付かない');
 });
