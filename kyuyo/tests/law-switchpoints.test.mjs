@@ -157,7 +157,9 @@ T('★賃金要件の撤廃点は今も未確定(null)＝未確定の将来法�
 T('★law は領域ごとに年度を持つ（1枚の札で貼らない）＋全領域に出典URLがある', function () {
   const L = op.law;
   /* ★札は lib から 作る（打ち込まない）★＝lib の年度と 合っている事だけ 見る */
-  eq(L.saiteiChingin.nendo, '令和' + (SAI.NENDO_YEAR - 2018) + '年度（' + SAI.todofuken.tokyo.hatsuko + ' 発効）');
+  /* ★予定の間は 札にも「・予定」が 付く（2026-09-12）★ */
+  eq(L.saiteiChingin.nendo, '令和' + (SAI.NENDO_YEAR - 2018) + '年度（' + SAI.todofuken.tokyo.hatsuko + ' 発効'
+     + (SAI.HATSUKO_MITEI ? '・予定' : '') + '）');
   if (/令和9/.test(L.saiteiChingin.nendo)) throw new Error('未確定の令和9年度最賃を書いてはいけない');
   if (!/令和8年分/.test(L.incomeTax.nendo)) throw new Error('所得税: ' + L.incomeTax.nendo);
   if (!/令和8年度/.test(L.shahoKenko.nendo)) throw new Error('健保: ' + L.shahoKenko.nendo);
