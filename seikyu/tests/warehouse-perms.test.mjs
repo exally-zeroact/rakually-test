@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SQL_PATH = path.join(ROOT, 'supabase/schema-seikyu.sql');
 
-/* ★請求書が触る棚：この8つで全部★（2026-08-14 実測）
+/* ★請求書が触る棚：この9つで全部★（2026-08-14 実測／2026-09-11 に statutory を1つ足した）
    defined … この repo の supabase/*.sql に定義が在るか（在る物だけ静的に検査できる）
    room    … 部屋（schema）。★10月の改名で見直す。今は動かさない★ */
 const TABLES = [
@@ -40,6 +40,14 @@ const TABLES = [
   { name: 'pay_employees', room: 'kyuyo', defined: false, rls: true, policies: 1, invoker: true, note: '給与の従業員（共有データ層が読む）' },
   { name: 'pay_ledger', room: 'kyuyo', defined: false, rls: true, policies: 1, invoker: true, note: '台帳（共有データ層が読む）' },
   { name: 'exally_entitlements', room: 'exally', defined: false, rls: true, policies: 4, invoker: true, note: '利用権。★請求書の関所は課金11月なので今は読むだけ★' },
+  /* ★2026-09-11 指示役1＝消費税を 中央から 流し込む為に 足した（seikyu-app.js hydrateShouhizei）★
+     ★他の8つと 性質が ちがう★＝
+       ・会社ごとの データでは ない ★全国で1つの 法定の表★（public 部屋・全アプリ共通）
+       ・★読むだけ★（select のみ。請求書から 書く道は 無い）
+       ・だから ★account_id は 無く、RLS は「誰でも読める」1本★＝他の棚と 同じ物差しで 測れない
+     ⇒ ★なぜ足したか★＝これが 無いと ★中央で 税率を 直しても 請求書だけ 古いまま★だった
+     ※この棚の 権限は この repo の sql に 定義が 無い（別の部屋）＝静的には 見ない側 */
+  { name: 'statutory', room: 'public', defined: false, rls: true, policies: 1, invoker: true, note: '★法定の数値（全国で1つ・読むだけ）★。中央を直せば客に届く為に読む' },
 ];
 const MEASURED_AT = '2026-08-14';
 
@@ -163,10 +171,10 @@ console.log('\n[請求書が触る棚の権限]');
 const used = tablesUsedBy(SCANNED, ROOT);
 const G = grantsOf(SQL), V = viewsOf(SQL), R = rlsOf(SQL);
 
-T('★画面が叩く棚は、この8つで全部（1つ増えたら赤）', () => {
+T('★画面が叩く棚は、この9つで全部（1つ増えたら赤）', () => {
   ok(used.length > 0, '.from(...) を1つも拾えていない＝何も見ていない');
   eqSet(used, TABLES.map((t) => t.name), '画面が叩く棚と、この検査の表');
-  eq(TABLES.length, 8, '表の本数');
+  eq(TABLES.length, 9, '表の本数');   /* ★2026-09-11 statutory を足して 8→9★（1つ増えたら赤＝わざと。増やす時は 上の表に 理由を書く） */
 });
 
 T('★この repo が定義している棚は、棚と窓の両方に権限が在る（窓だけにしない）', () => {
@@ -195,9 +203,9 @@ T('★RLS が有効で、決まりが1本ずつ在る', () => {
   }
 });
 
-T('★この repo に定義が無い6つは「静的には見ていない」と分かる形で残っている', () => {
+T('★この repo に定義が無い7つは「静的には見ていない」と分かる形で残っている', () => {
   const outside = TABLES.filter((x) => !x.defined);
-  eq(outside.length, 6, 'この repo の外に在る棚の数');
+  eq(outside.length, 7, 'この repo の外に在る棚の数');   /* ★2026-09-11 statutory(public・全国で1つ)を足して 6→7★ */
   for (const t of outside) {
     ok(!G[t.room + '.' + t.name], t.name + ' は この repo の SQL に無いはずなのに grant が在る（表が古い）');
     ok(t.rls === true, t.name + ' の実測（RLS）が表に無い');
