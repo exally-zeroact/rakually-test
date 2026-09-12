@@ -22,9 +22,22 @@
 
 const SAITEI_CHINGIN = {
 
-  NENDO: '令和7年度（2025年度）',
+  /* ★2026-09-12＝字を 手で 持つのを やめた（経営者1が 見つけた）★
+     ここに NENDO: '令和7年度（2025年度）' と ★字で 持っていた★ため、
+     令和8の 額を 入れても ★字だけ 令和7 のまま★＝
+     ★客が 読む所に「令和7年度の最低賃金は 1,280円」という 嘘が 出た★（本番と 中央にも 出した）。
+     ★数字(NENDO_YEAR)だけ 持ち、字は そこから 作る★＝もう ずれない。
+     HATSUKO_KIKAN も 同じ（今は どこからも 使われていないが、次に 誰かが 使うと 嘘が 出る）。
+     発効日は ★県ごとに 違う★ので、期間は 実物の 47県から 作る。 */
   NENDO_YEAR: 2026,      // 収録している最賃の年度(会計年度・令和8年度=2026-10〜2027-09発効)。★次年度を足したらここも更新★
-  HATSUKO_KIKAN: '2025年10月1日〜2026年3月31日（順次）',
+  get NENDO() { return '令和' + (this.NENDO_YEAR - 2018) + '年度（' + this.NENDO_YEAR + '年度）'; },
+  get HATSUKO_KIKAN() {
+    var ks = Object.keys(this.todofuken || {});
+    if (!ks.length) return '';
+    var ds = ks.map(function (k) { return this.todofuken[k].hatsuko; }, this).filter(Boolean).sort();
+    var f = function (iso) { return (+iso.slice(5, 7)) + '月' + (+iso.slice(8, 10)) + '日'; };
+    return (+ds[0].slice(0, 4)) + '年' + f(ds[0]) + '〜' + (+ds[ds.length - 1].slice(0, 4)) + '年' + f(ds[ds.length - 1]) + '（順次）';
+  },
   ZENKOKU_HEIKIN: 1177,  // 全国加重平均
 
   // ----------------------------------------------------------------
@@ -111,7 +124,16 @@ const SAITEI_CHINGIN = {
       return null;
     }).call(this);
     if (typeof chuoNendo === 'number' && typeof this.NENDO_YEAR === 'number' && chuoNendo < this.NENDO_YEAR) {
-      return;   /* ★中央の方が 古い＝流し込まない（lib の 新しい値を 守る）★ */
+      /* ★中央の方が 古い＝流し込まない（lib の 新しい値を 守る）★
+         ★ただし 黙るな★（2026-09-12 経営者1の指摘）＝
+         黙って 何もしないと ★中央が 何年 古くても 誰も 気づかない★＝今日の穴と 同じ形に なる。
+         ⇒ ★止めた事を 残す★。門(verify-statutory)は もともと ずれを 赤にするので そこで 出る。 */
+      this.hydrateSkipped = { chuoNendo: chuoNendo, libNendo: this.NENDO_YEAR, at: new Date().toISOString().slice(0, 19) };
+      try { if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[saitei-chingin] ★中央が 古いので 流し込みを 止めました★ 中央=' + chuoNendo + '年度 / lib=' + this.NENDO_YEAR + '年度'
+          + '（中央を 新しくするまで lib の値で 動きます）');
+      } } catch (e) { /* 画面が無い所でも 落ちない */ }
+      return;
     }
     if (typeof chuoNendo === 'number' && chuoNendo > this.NENDO_YEAR) this.NENDO_YEAR = chuoNendo;
     if (data.todofuken && typeof data.todofuken === 'object' && Object.keys(data.todofuken).length >= 40) {
