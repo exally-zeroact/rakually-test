@@ -3,6 +3,14 @@
 //  週次cron(GitHub Actions)から呼ぶ。reminder有り: exit 10(呼出側でIssue作成)。無し: exit 0。
 //  ★役所HTMLのスクレイプは様式変更で壊れやすいので採用しない。これは日付+lib introspectionのみ=堅牢。
 //  テスト/CI決定性のため STATUTORY_TODAY=YYYY-MM で「今日」を上書き可。
+//
+// ★2026-09-11 payslip-app から ここへ 移した（指示役1・司さんの指示）★
+//   移した訳＝★この見張りを 持っていたのは 凍結して 客0人の payslip-app だけ★だった。
+//   ★あの repo を 消すと 法定の年度更新に 誰も 気づけなくなる★。
+//   ★中身の 判定は 1行も 変えていない★（読む lib のパスと、直した後の 案内だけ 今の形に）。
+//   ★この見張りと 週1の門(statutory-weekly.yml)は 別の物★：
+//     ・ここ             … ★そもそも 数値が 古くなっていないか★（役所の改定時期を 日付で見る）
+//     ・verify-statutory … ★中央と lib が ずれていないか★
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const SHH = require('../lib/shakaihoken-hyo.js');
@@ -23,24 +31,24 @@ const { y, m } = today();
 // 最低賃金: 会計年度10月適用・答申8〜9月。9月以降は当年度が必要。lib(SAI.saiteiStale)で未収録判定。
 { const need = (m >= 9 ? y : y - 1);
   if (SAI.saiteiStale && SAI.saiteiStale(need + '-10'))
-    reminders.push('最低賃金 ' + reikan(need) + '度(' + need + ')が未収録。厚労省の答申額を確認 → lib/saitei-chingin.js 47県+NENDO_YEAR更新 → seed-statutory.mjs。'); }
+    reminders.push('最低賃金 ' + reikan(need) + '度(' + need + ')が未収録。厚労省の答申額を確認 → kyuyo/lib/saitei-chingin.js 47県+NENDO_YEAR更新 → 管理画面の法定データタブで[反映]。'); }
 // 健保/介護(協会けんぽ): 社保年度3月適用・公表2月。2月以降は当年が必要。getKenko(..).staleで判定。
 { const need = (m >= 2 ? y : y - 1); const k = SHH.getKenko && SHH.getKenko('tokyo', need + '-06');
   if (k && k.stale)
-    reminders.push('社会保険料率(健保/介護) ' + reikan(need) + '(' + need + ')が未収録。協会けんぽ料率表を確認 → lib/shakaihoken-hyo.js更新 → seed。'); }
+    reminders.push('社会保険料率(健保/介護) ' + reikan(need) + '(' + need + ')が未収録。協会けんぽ料率表を確認 → kyuyo/lib/shakaihoken-hyo.js更新 → 管理画面の[反映]。'); }
 // 雇用保険: 労働保険年度4月適用・公表3月。lib(KOYO.RATES)の収録最新年と比較。
 { const need = (m >= 3 ? y : y - 1); const latest = Math.max.apply(null, Object.keys(KOYO.RATES).map(Number));
   if (need > latest)
-    reminders.push('雇用保険料率 ' + reikan(need) + '度(' + need + ')が未収録。厚労省の料率を確認 → lib/koyo-hoken.js更新 → seed。'); }
+    reminders.push('雇用保険料率 ' + reikan(need) + '度(' + need + ')が未収録。厚労省の料率を確認 → kyuyo/lib/koyo-hoken.js更新 → 管理画面の[反映]。'); }
 // 所得税(源泉/年末調整): 税制改正大綱12月・翌暦年分。densan PARAMS の収録最新年と比較。
 { const need = (m >= 12 ? y + 1 : y); const latest = Math.max.apply(null, Object.keys(D.PARAMS).map(Number));
   if (need > latest)
-    reminders.push('所得税(源泉/年末調整) ' + need + '年分(' + reikan(need) + ')が未収録。税制改正大綱/国税庁あらましを確認 → densan/nenmatsu更新 → seed。'); }
+    reminders.push('所得税(源泉/年末調整) ' + need + '年分(' + reikan(need) + ')が未収録。税制改正大綱/国税庁あらましを確認 → densan/nenmatsu更新 → 管理画面の[反映]。'); }
 
 if (reminders.length) {
   console.log('STATUS=REMINDER (更新が必要な法定データがあります・対象月 ' + y + '-' + ('0' + m).slice(-2) + ')');
   reminders.forEach((r) => console.log('TODO: ' + r));
-  console.log('\n手順: 一次情報で照合(捏造禁止) → lib修正+実数値テスト → node scripts/seed-statutory.mjs で中央statutory更新 → CIのドリフトガードが緑を確認。');
+  console.log('\n手順: 一次情報で照合(捏造禁止) → lib修正+実数値テスト → 管理画面(kyuyo/admin.html)の「法定データ」タブで[反映]（★書けるのは管理者だけ★） → CIのドリフトガードが緑を確認。');
   process.exit(10);
 }
 console.log('STATUS=OK (' + y + '-' + ('0' + m).slice(-2) + '時点で更新が必要な法定データはありません)');
