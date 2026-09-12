@@ -46,3 +46,5 @@ jobs:
         run: node kyuyo/scripts/pull-statutory.mjs --check
       - name: ★出典URLを実際に取って、その中に47県の額が在るか（ドメインだけ見ても足りない）
         run: node kyuyo/tests/saitei-source.test.mjs --strict
+      - name: ★最賃の公示（確定版）が出たかを機械で拾う（出たら赤＝予定を確定に直す合図）
+        run: node kyuyo/tests/saitei-koji.test.mjs --strict
