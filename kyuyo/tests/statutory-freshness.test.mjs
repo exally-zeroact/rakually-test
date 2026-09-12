@@ -84,12 +84,17 @@ if (process.argv.includes('--self-test')) {
     } finally { libs.SHH.KENKO_2026.tokyo = keep; }
   });
 
+  /* ★年を 手で 書かない★（2026-09-12・今日5つ目の同じ形）＝ここに 'saitei_chingin:2025' と
+     打ち込んで あった為、令和8へ 進めた途端 ★わざと壊しても 赤に ならない＝見逃し★ に なった。
+     ⇒ ★lib が 持つ 年度★ から 作る。 */
+  const SAI_KEY = () => 'saitei_chingin:' + libs.SAI.NENDO_YEAR;
+
   T('★最賃を1県だけ変えても赤', () => {
     const keep = libs.SAI.todofuken.tokyo.chingin;
     try {
       libs.SAI.todofuken.tokyo.chingin = 1227;
       const bad = checkAgainstCentral(SR.buildStatutoryRows(libs), SM.get);
-      if (!bad.filter(b => b.key === 'saitei_chingin:2025').length) throw new Error('赤になっていない');
+      if (!bad.filter(b => b.key === SAI_KEY()).length) throw new Error('赤になっていない');
     } finally { libs.SAI.todofuken.tokyo.chingin = keep; }
   });
 
@@ -98,7 +103,7 @@ if (process.argv.includes('--self-test')) {
     try {
       libs.SAI.todofuken.akita.hatsuko = '2025-10-01';
       const bad = checkAgainstCentral(SR.buildStatutoryRows(libs), SM.get);
-      if (!bad.filter(b => b.key === 'saitei_chingin:2025').length) throw new Error('★発効日のズレを拾えていない');
+      if (!bad.filter(b => b.key === SAI_KEY()).length) throw new Error('★発効日のズレを拾えていない');
     } finally { libs.SAI.todofuken.akita.hatsuko = keep; }
   });
 
@@ -107,7 +112,7 @@ if (process.argv.includes('--self-test')) {
     try {
       libs.SAI.todofuken.gunma.prev = 900;
       const bad = checkAgainstCentral(SR.buildStatutoryRows(libs), SM.get);
-      if (!bad.filter(b => b.key === 'saitei_chingin:2025').length) throw new Error('前年額のズレを拾えていない');
+      if (!bad.filter(b => b.key === SAI_KEY()).length) throw new Error('前年額のズレを拾えていない');
     } finally { libs.SAI.todofuken.gunma.prev = keep; }
   });
 
