@@ -44,3 +44,5 @@ jobs:
         run: node kyuyo/scripts/verify-statutory.mjs --strict
       - name: ★中央から作る写し（出典・確認日・最賃47県）がズレていないか
         run: node kyuyo/scripts/pull-statutory.mjs --check
+      - name: ★出典URLを実際に取って、その中に47県の額が在るか（ドメインだけ見ても足りない）
+        run: node kyuyo/tests/saitei-source.test.mjs --strict
