@@ -48,6 +48,13 @@ function eq(label, a, b) { if (canon(a) !== canon(b)) diffs.push(label + ': lib=
 
 function row(rows, kind, year) { const r = rows.find(x => x.kind === kind && x.year === year); return r ? r.data : null; }
 
+/* ★この門は 2段★（2026-09-11）
+ *   ★本体＝下の「手で並べない網」★… buildStatutoryRows の あるべき行を 全kind 突き合わせる。
+ *     ★種類が 増えても 自動で 見る／中央にしか無い行も 出す（逆も見る）★
+ *   ★おまけ＝この下の 手書きの列★… 「雇用2026」「densan.zeiKo」の様に ★人が読める名前で 鍵ごと★ 見る。
+ *     ★どの lib の どの定数が ずれたか★ が 早く分かる ので 残してある。
+ *   ★手書きの列に 足し忘れても 網が 守ります★。
+ *   ⇒ ★種類を 増やした時に 手書きの列だけ 直して 満足しない事★（2026-09-11 に それで 労災を 見落とした） */
 function verify(rows) {
   // ── 社保(健保47県total/介護total) 令和7/令和8 ──
   for (const year of [2025, 2026]) {

@@ -25,6 +25,14 @@ T('buildStatutoryRows: 14行・想定の(kind,year)を網羅', function () {
   eq(keys, want, 'kind:year 集合');
 });
 
+T('★名簿(ALLOWED_KINDS)と 作る行は 両方向で 一致★（名簿に足せば直ると思い込ませない）', function () {
+  /* ★2026-09-11＝今まで「作った行の kind が 名簿に在るか」の片方向しか 見ていなかった。
+     ⇒ ★在りもしない kind を 名簿に 足しても 緑★だった＝「名簿に足せば直る」と 思い込ませる。 */
+  var made = rows.map(function (r) { return r.kind; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).sort().join(',');
+  var list = SR.ALLOWED_KINDS.slice().sort().join(',');
+  eq(made, list, '作る行の kind 集合 == 名簿');
+});
+
 T('各行: data非空・source_url有り・kindは許可集合内', function () {
   rows.forEach(function (r) {
     ok(r.data && typeof r.data === 'object' && Object.keys(r.data).length > 0, r.kind + ' data非空');

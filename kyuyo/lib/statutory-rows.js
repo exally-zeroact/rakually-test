@@ -72,6 +72,18 @@
        年度＝附則「この省令は、★令和六年四月一日★から施行する」＋第二条（別表第一の規定）
        ★年は lib から 取る★（打ち込まない＝2026-09-04 に 最賃で 踏んだ 穴と 同じ型）
        ★RR を 渡していない repo では 行を 足さない★＝労災を 持たない アプリを 赤に しない */
+    /* ★2026-09-11 指示役1＝ここが 今日の穴 3つの 根っこでした★
+       11本の lib のうち ★RR(労災)だけ 渡し忘れても 黙って 1行 減る★（他10本は その場で止まる）。
+       ⇒ 試験も verify も RR を 渡し忘れ、★労災が 一度も 見られない のに 緑★ だった。
+       ★「持っていない」と「渡し忘れ」を 分ける★＝
+         RR === undefined … ★渡し忘れ＝その場で止める★
+         RR === null      … ★この repo は 労災を 持たない（payslip-app 等）＝行を足さずに 進む★
+       ※元の作りは「RRが無ければ黙って飛ばす」だった。労災を持たないアプリを赤にしない為の
+         わざとの緩さだが、★渡し忘れまで 一緒に 許していた★。 */
+    if (RR === undefined) {
+      throw new Error('buildStatutoryRows: RR(lib/rousai-ritsu.js)が渡されていません。'
+        + '労災を持たない repo では 明示的に RR: null を渡してください（渡し忘れと区別する為）');
+    }
     if (RR && RR.TABLE && RR.NENDO_YEAR) {
       rows.push({ kind: 'rousai_ritsu', year: RR.NENDO_YEAR,
         data: { hyo: RR.TABLE, senpaku_permil: RR.SENPAKU_PERMIL, higyomu_permil: RR.HIGYOMU_PERMIL },
