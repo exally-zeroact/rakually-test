@@ -152,7 +152,14 @@ const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export function findHardcoded(files, table) {
   const pats = patternsFor(table);
   const hits = [];
-  for (const [rel, src] of Object.entries(files)) {
+  for (const [rel, src0] of Object.entries(files)) {
+    /* ★2026-09-12＝刻印(?v=内容ハッシュ)を 先に 消す★
+       ★実際に 誤検知した★＝刻印が ?v=677f1103 の回に、HTML の
+       `<script src="lib/shotokuzei-densan.js?v=677f1103">` の ★1103 を「最低賃金1103円」と 読んだ★。
+       ・近くに saitei-chingin.js の 行が 在るので「分野の言葉が 近い」と 判定されてしまう
+       ・刻印は ★機械が 内容から 作る 16進の字★＝法定の額では ない
+       ⇒ ★同じ長さの x に 置き換えて 消す★（位置と 行番号を 崩さない）。 */
+    const src = String(src0).replace(/\?v=[0-9a-f]{6,}/g, (m) => '?v=' + 'x'.repeat(m.length - 3));
     for (const p of pats) {
       p.re.lastIndex = 0;
       let m;

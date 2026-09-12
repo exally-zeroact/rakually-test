@@ -616,6 +616,14 @@
     if(!g) return null;
     return { url:g.source_url||'', at:g.verified_at||'', note:g.note||'' };
   }
+  /* ★出典の 年を lib から 出す★（2026-09-12・今日9つ目の同じ形）
+     askSource に 年を 手で 書くと ★額は 新しいのに 出典だけ 去年のまま★ に なる。
+     額と違って ★出典は 誰も 見比べないので 一番 気づきにくい★。 */
+  function shahoYearNow(){ var H=SHH(); try { return (H&&H.shahoYearOf) ? H.shahoYearOf(todayYm()) : 2026; } catch(e){ return 2026; } }
+  function densanYearNow(){ var D=(typeof ShotokuzeiDensan!=='undefined'?ShotokuzeiDensan:window.ShotokuzeiDensan);
+    try { return (D&&D.PARAMS) ? Math.max.apply(null, Object.keys(D.PARAMS).map(Number)) : 2026; } catch(e){ return 2026; } }
+  function todayYm(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
+
   /* 休みの曜日＋1日の時間から「年間休日・週の所定」を機械で出す（★決定論・法定ではない計算★） */
   function askWeekCalc(c){
     var wd=(c.holidays||[]).length;
@@ -681,7 +689,10 @@
           var S=SAI(); if(!S) return { text:prefNameOf(c.pref)+' で登録しました。' };
           var gaku=S.chinginOn(c.pref, askToday()), hat=S.hatsukoOf(c.pref);
           return { text:'★'+prefNameOf(c.pref)+'の最低賃金は '+askYen(gaku)+'円★（'+askJpDate(hat)+'から）。時給がこれを下回ると赤で止めます。',
-                   guessed:true, src:askSource('saitei_chingin', 2025) };
+                   /* ★2026-09-12＝出典の年を 手で 書かない（今日9つ目の 同じ形）★
+                      2025 固定だった為、libを 令和8に しても ★客に 出る 出典だけ 令和7のまま★ に なる所だった。
+                      額と発効日は chinginOn で 正しく 出ていたので ★出典だけが 取り残される★＝一番 気づきにくい。 */
+                   guessed:true, src:askSource('saitei_chingin', S.NENDO_YEAR) };
         } },
 
       { key:'gyoshu', q:'何の仕事ですか？', sub:'雇用保険の率がこれで決まります',
@@ -692,7 +703,7 @@
           var r=employRateOf(c.gyoshu);
           if(!(r>0)) return null;
           return { text:'★雇用保険（本人が払う分）は '+(r*1000).toFixed(1)+'／1000★ で計算します。',
-                   guessed:true, src:askSource('koyo', 2026) };
+                   guessed:true, src:askSource('koyo', (KH()&&KH().LATEST)||2026) };   /* ★年を手で書かない（2026-09-12）★ */
         } },
 
       /* ★「何回 払いますか？」★（司さん 2026-08-28「隔週・4週ごとが入れられない」）
@@ -1493,7 +1504,7 @@
         answer:function(){
           if(!e.birthYmd) return null;
           var f=empAgeFacts(e); if(!f.length) return null;
-          return { text:f.map(function(x){return x.t;}).join('／'), guessed:true, src:askSource('shakaihoken', 2026) };
+          return { text:f.map(function(x){return x.t;}).join('／'), guessed:true, src:askSource('shakaihoken', shahoYearNow()) };   /* ★年を手で書かない（2026-09-12）★ */
         } },
 
       { key:'pay', q:'給料の決め方を そのまま書いてください', sub:'例「月給25万、残業は別」「時給1,200円」「日給12,000円＋歩合3%」',
@@ -1524,8 +1535,8 @@
         answer:function(){
           if(!e.taxClass) return null;
           return e.taxClass==='ko'
-            ? { text:'所得税は ★甲欄★ で計算します（扶養の人数で列が決まります）。', guessed:true, src:askSource('shotokuzei_densan', 2026) }
-            : { text:'所得税は ★乙欄★ で計算します（掛け持ちの方など。扶養の人数は使いません）。', guessed:true, src:askSource('shotokuzei_densan', 2026) };
+            ? { text:'所得税は ★甲欄★ で計算します（扶養の人数で列が決まります）。', guessed:true, src:askSource('shotokuzei_densan', densanYearNow()) }
+            : { text:'所得税は ★乙欄★ で計算します（掛け持ちの方など。扶養の人数は使いません）。', guessed:true, src:askSource('shotokuzei_densan', densanYearNow()) };
         } },
 
       { key:'fuyou', q:'扶養は何人ですか？', sub:'税額表の「列」が決まります（16歳未満は数えません）',
