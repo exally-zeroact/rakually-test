@@ -609,6 +609,12 @@
   function prefNameOf(code){ var S=SHH(); var K=(S&&S.KENKO_RITSU)||{}; return (K[code]&&K[code].name)||''; }
   function askJpDate(iso){ var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(+m[1]+'年'+(+m[2])+'月'+(+m[3])+'日'):''; }
   function askYen(n){ return (Number(n)||0).toLocaleString('ja-JP'); }
+  /* 発効日の 前日（「今は いつまで」を 言う為）。★UTCで 足し引き★＝地域の 夏時間で 1日 ずれない */
+  function askZenjitsu(iso){
+    var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return '';
+    var d=new Date(Date.UTC(+m[1],(+m[2])-1,+m[3])); d.setUTCDate(d.getUTCDate()-1);
+    return d.toISOString().slice(0,10);
+  }
 
   /* 当てた物の根拠（押すと出す）。法定データは ★中央の出典・確認日★ をそのまま見せる。 */
   function askSource(kind, year){
@@ -687,8 +693,28 @@
         answer:function(){
           if(!c.pref) return null;
           var S=SAI(); if(!S) return { text:prefNameOf(c.pref)+' で登録しました。' };
-          var gaku=S.chinginOn(c.pref, askToday()), hat=S.hatsukoOf(c.pref);
-          return { text:'★'+prefNameOf(c.pref)+'の最低賃金は '+askYen(gaku)+'円★（'+askJpDate(hat)+'から）。時給がこれを下回ると赤で止めます。',
+          /* ★★額と 日付を 別々の物で 並べない（2026-09-13 実測・司さん決定「案3で」）★★
+             ★前は こう 出ていた★（★数は ここに 写さない★＝去年の数が 残る 形＝
+               no-hardcoded-statutory が これを 赤に する。実測の 数は commit の 本文へ）
+               「★◯◯県の最低賃金は ＜今の額＞円★（＜新額の 発効日＞から）。」
+             前の額は chinginOn（★今 効いている 旧額★）、
+             日付は  hatsukoOf（★新額が 始まる日★）＝
+             ★別々の物を 1つの文に 並べていた★＝「旧額が その日から」と 読める。
+             ★計算は 正しかった＝字だけが 嘘★（だから 誰も 気づかなかった）。
+             しかも HATSUKO_MITEI=true なのに ★「予定」が この字に 1つも 出ていなかった★。
+             ⇒ ★発効前は 2行に 分ける★＝「今 … 旧額」「発効日から … 新額（予定）」。
+               発効日を 過ぎた後は ★額と 日付が 同じ物★に なるので 1行のまま。 */
+          var ima=S.chinginOn(c.pref, askToday()), hat=S.hatsukoOf(c.pref);
+          var p=(S.todofuken||{})[c.pref]||{}, shin=p.chingin;
+          var mae=!!(hat && askToday()<hat && shin!=null && shin!==ima);   /* まだ 発効前で 額が 変わる */
+          var yotei=S.HATSUKO_MITEI?'（予定）':'';
+          var shime='時給がこれを下回ると赤で止めます。';
+          var honbun = mae
+            ? '★'+prefNameOf(c.pref)+'の最低賃金★<br>'
+              +'今（'+askJpDate(askZenjitsu(hat))+'まで）　… '+askYen(ima)+'円<br>'
+              +askJpDate(hat)+'から　… '+askYen(shin)+'円'+yotei+'<br>'+shime
+            : '★'+prefNameOf(c.pref)+'の最低賃金は '+askYen(ima)+'円★（'+askJpDate(hat)+'から）。'+shime;
+          return { text:honbun,
                    /* ★2026-09-12＝出典の年を 手で 書かない（今日9つ目の 同じ形）★
                       2025 固定だった為、libを 令和8に しても ★客に 出る 出典だけ 令和7のまま★ に なる所だった。
                       額と発効日は chinginOn で 正しく 出ていたので ★出典だけが 取り残される★＝一番 気づきにくい。 */

@@ -507,6 +507,12 @@ jobs:
         run: node kyuyo/tests/company-ask.test.mjs
       - name: ★会社マスタ7問 (わざと戻して赤になるかの自己確認・4通り)
         run: node kyuyo/tests/company-ask.test.mjs --self-test
+      # ★最低賃金の 客に出る1行★（2026-09-13 実測＝旧額の隣に 新額の発効日を 並べていた）
+      #   ★計算は 正しく 字だけが 嘘★＝数の見張りは 1本も 赤に ならなかった。
+      - name: ★最賃の客に出る1行 (47県ぜんぶ・額と日付が別々の物になっていない/予定が出る)
+        run: node kyuyo/tests/saitei-ask-bun.test.mjs
+      - name: ★最賃の客に出る1行 (わざと戻して赤になるかの自己確認・4通り)
+        run: node kyuyo/tests/saitei-ask-bun.test.mjs --self-test
       # ★従業員マスタ7問（1人ずつ聞く）★ 甲乙と扶養は別々の2問（指示役 2026-08-18 の訂正）
       - name: ★従業員マスタ7問 (7つ在る/年齢で決まる物/給料は押すまで入れない/マイカーの非課税はlib/県は会社から継ぐ)
         run: node kyuyo/tests/emp-ask.test.mjs
