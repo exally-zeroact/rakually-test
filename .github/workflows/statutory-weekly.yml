@@ -38,6 +38,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: ★PDFを字にする道具を入れる（手元には在るが GitHubの走る所には無い＝実測で踏んだ）
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils && pdftotext -v
       - name: ★門そのものが空振りしていないか（種類を数えて出す・先に走らせる）
         run: node kyuyo/tests/run.js 2>&1 | grep -E "中央の種類|hydrate-wired|passed," || true
       - name: ★lib == 中央statutory（全kind・取れなかった回も赤＝--strict）
