@@ -22,6 +22,7 @@
     'nenmatsu:2026': { source_url: "https://www.nta.go.jp/users/gensen/2026kaisei/index.htm", verified_at: "2026-07-09", fingerprint: '4f3b1829' },
     'rousai_ritsu:2024': { source_url: "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000008", verified_at: "2026-09-04", fingerprint: 'db8cc232' },
     'saitei_chingin:2025': { source_url: "https://www.mhlw.go.jp/content/11200000/001571192.pdf", verified_at: "2026-08-03", fingerprint: '5566dc03' },
+    'saitei_chingin:2026': { source_url: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/minimumichiran/", verified_at: "2026-09-12", fingerprint: 'd8f8e252' },
     'shakaihoken:2025': { source_url: "https://www.kyoukaikenpo.or.jp/g7/cat330/", verified_at: "2026-07-08", fingerprint: 'c8dda132' },
     'shakaihoken:2026': { source_url: "https://www.kyoukaikenpo.or.jp/about/business/insurance_rate/rate_prefectures/r08/index.html", verified_at: "2026-08-03", fingerprint: '4554fe20' },
     'shotokuzei_densan:2025': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/nencho2025/pdf/03.pdf", verified_at: "2026-07-09", fingerprint: '2e37e55a' },

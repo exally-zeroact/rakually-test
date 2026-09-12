@@ -89,8 +89,12 @@ function warekiToIso(s) {
 }
 
 function saiteiDiffs(rows) {
-  const row = rows.find(r => r.kind === 'saitei_chingin' && r.year === 2025);
-  if (!row) return ['saitei_chingin:2025 が中央に無い'];
+  /* ★年を 手で 書かない★（2026-09-12）＝ここに 2025 と 書いてあった為、
+     令和8を 中央へ 入れた後も ★古い行を 見に行って 永久に 赤★ に なっていた。
+     ⇒ ★中央に 在る 一番 新しい 年★ を 使う（年度が 変わっても 直さなくてよい）。 */
+  const saiNen = Math.max(...rows.filter(r => r.kind === 'saitei_chingin').map(r => r.year));
+  const row = rows.find(r => r.kind === 'saitei_chingin' && r.year === saiNen);
+  if (!row) return ['saitei_chingin が中央に無い'];
   const c = row.data.todofuken || {};
   const out = [];
   for (const k of Object.keys(SAI.todofuken)) {
@@ -106,7 +110,8 @@ function saiteiDiffs(rows) {
 }
 
 function writeSaitei(rows) {
-  const c = rows.find(r => r.kind === 'saitei_chingin' && r.year === 2025).data.todofuken;
+  const saiNen2 = Math.max(...rows.filter(r => r.kind === 'saitei_chingin').map(r => r.year));
+  const c = rows.find(r => r.kind === 'saitei_chingin' && r.year === saiNen2).data.todofuken;
   const p = path.join(ROOT, 'lib/saitei-chingin.js');
   let src = fs.readFileSync(p, 'utf8');
   let n = 0;

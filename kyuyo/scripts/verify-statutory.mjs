@@ -68,7 +68,10 @@ function verify(rows) {
     eq('介護' + year, SHH.getKaigo(year + '-06').total, d.kaigo_total);
   }
   // ── 最賃47県 ──
-  const sai = row(rows, 'saitei_chingin', 2025);
+  /* ★年を 手で 書かない★（2026-09-12）＝ここに 2025 と 書いてあった為、
+     令和8を 入れた後も ★古い行を 見に行って 永久に 赤★ に なっていた。
+     ⇒ ★lib が 持っている 年度★ を 使う（lib が 正しく 新しい年度に なった時だけ 通る）。 */
+  const sai = row(rows, 'saitei_chingin', SAI.NENDO_YEAR);
   // ★中央へ送る形(名前と額)で比べる。lib が持つ発効日/前年額はまだ中央へ配信していない
   //   （中央の表を変えるのは本番データの操作＝指示をもらってから seed-statutory で入れる）。
   if (sai) { eq('最賃todofuken', SR.saiteiForCentral(SAI), sai.todofuken); eq('最賃全国平均', SAI.ZENKOKU_HEIKIN, sai.zenkoku_heikin); } else diffs.push('saitei_chingin 中央に無し');
@@ -105,8 +108,21 @@ function verify(rows) {
     diffs.push('★全kind網★ ' + w.kind + '/' + w.year + ' 違う鍵=[' + bad.join(', ') + ']'
       + bad.map((k) => '\n' + '      ' + k + ': lib=' + cut(w.data[k]) + '\n' + '      ' + k + ': 中央=' + cut(d[k])).join(''));
   });
+  /* ★中央にしか無い行★ を 出す（逆も見る）。
+     ★ただし「過去の年度」は 赤に しない★（2026-09-12）＝
+     法定は 年度ごとに 行が 増える物で、★古い年度の 行は 履歴として 残すのが 正しい★。
+     令和8を 入れた途端 令和7の行が「中央にしか無い」で 赤に なった＝★狼少年に なる★。
+     ⇒ ★同じ kind で より新しい年の行が 中央に 在るなら、その古い行は 見逃す★。
+        本当に危ないのは ★libが 一度も 作らない kind★（配線の抜け）なので そちらは 赤のまま。 */
+  const chuoSaishin = {};
+  rows.forEach(function (r) { if (!(r.kind in chuoSaishin) || r.year > chuoSaishin[r.kind]) chuoSaishin[r.kind] = r.year; });
+  const libKind = {};
+  desired.forEach(function (w) { libKind[w.kind] = 1; });
   rows.forEach(function (r) {
-    if (!seen[r.kind + '/' + r.year]) diffs.push('★中央にしか無い★ ' + r.kind + '/' + r.year + '（libが作っていない）');
+    if (seen[r.kind + '/' + r.year]) return;
+    if (!libKind[r.kind]) { diffs.push('★中央にしか無い kind★ ' + r.kind + '（libが 1つも 作っていない＝配線の抜け）'); return; }
+    if (r.year < chuoSaishin[r.kind]) return;      /* 過去の年度＝履歴。赤にしない */
+    diffs.push('★中央にしか無い★ ' + r.kind + '/' + r.year + '（libが作っていない・最新の年）');
   });
   console.log('  （網で見た行: あるべき ' + desired.length + '行 / 中央 ' + rows.length + '行）');
 }
