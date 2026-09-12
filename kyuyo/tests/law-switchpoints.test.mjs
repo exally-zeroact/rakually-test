@@ -11,7 +11,7 @@
  *  子ども・子育て支援金 0.23%    … https://www.cfa.go.jp/policies/kodomokosodateshienkinseido
  *  雇用保険 R8 一般 5/1000       … https://jsite.mhlw.go.jp/yamagata-roudoukyoku/koyouhoken-20260316.html
  *  最低賃金 R7 東京1,226円       … https://www.mhlw.go.jp/content/11200000/001571192.pdf
- *  R8最賃は目安答申のみ(未確定)  … https://www.mhlw.go.jp/stf/newpage_74920.html
+ *  R8最賃 47県の実額(2026-09-03 答申) … https://www.mhlw.go.jp/content/11302000/001745621.pdf
  *  適用拡大の要件・撤廃予定      … https://www.nenkin.go.jp/service/kounen/tekiyo/jigyosho/tanjikan.html
  */
 import path from 'node:path';
@@ -94,20 +94,25 @@ T('雇用保険の実控除=総支給×率（境界の前後で率が切り替�
 });
 
 // ── 最低賃金（最賃年度=10月起算） ──
-T('★最賃: 収録は令和7年度(2025-10発効)。東京=1,226円（厚労省 全国一覧）', function () {
-  eq(SAI.NENDO_YEAR, 2025);
-  eq(SAI.getChingin('tokyo'), 1226);
+/* ★2026-09-12＝前提が 変わった★
+   ここは「★令和8は 目安答申のみで 実額未確定だから 書かない★」という 前提で 書かれていた。
+   ★2026-09-03 に 47県すべての 実額が 答申された★（全国加重平均1,177円）ので、
+   実額を 一次情報から 機械で 入れた。⇒ 前提ごと 令和8に 直す。
+   出典＝https://www.mhlw.go.jp/content/11302000/001745621.pdf */
+T('★最賃: 収録は令和8年度(2026-10発効)。東京=1,280円（厚労省 答申状況）', function () {
+  eq(SAI.NENDO_YEAR, 2026);
+  eq(SAI.getChingin('tokyo'), 1280);
 });
-T('★最賃年度の境界: 2025-09 は未収録年度=暫定(stale) / 2025-10 は収録年度', function () {
-  eq(SAI.saiteiStale('2025-09'), true);
-  eq(SAI.saiteiStale('2025-10'), false);
-  eq(SAI.saiteiStale('2026-09'), false);
+T('★最賃年度の境界: 2026-09 は未収録年度=暫定(stale) / 2026-10 は収録年度', function () {
+  eq(SAI.saiteiStale('2026-09'), true);
+  eq(SAI.saiteiStale('2026-10'), false);
+  eq(SAI.saiteiStale('2027-09'), false);
 });
-T('★令和8年度の最賃は書かない: 2026-10以降は stale=true で黄警告（目安答申のみ・実額未確定）', function () {
-  eq(SAI.saiteiStale('2026-10'), true);
-  const w = op.engine({ month: '2026-10', company: CO, employees: [EMP] }).warnings;
+T('★令和9年度の最賃は書かない: 2027-10以降は stale=true で黄警告（まだ答申が無い）', function () {
+  eq(SAI.saiteiStale('2027-10'), true);
+  const w = op.engine({ month: '2027-10', company: CO, employees: [EMP] }).warnings;
   const has = w.some(x => x.code === 'STATUTORY_STALE');
-  if (!has) throw new Error('2026-10 で STATUTORY_STALE が出ていない（推測値で黙って計算してはいけない）');
+  if (!has) throw new Error('2027-10 で STATUTORY_STALE が出ていない（推測値で黙って計算してはいけない）');
 });
 
 // ── provenance に「実際に選ばれた年度」が出ること ──
@@ -151,8 +156,9 @@ T('★賃金要件の撤廃点は今も未確定(null)＝未確定の将来法�
 });
 T('★law は領域ごとに年度を持つ（1枚の札で貼らない）＋全領域に出典URLがある', function () {
   const L = op.law;
-  eq(L.saiteiChingin.nendo, '令和7年度（2025-10-03 発効）');
-  if (/令和8/.test(L.saiteiChingin.nendo)) throw new Error('未確定の令和8年度最賃を書いてはいけない');
+  /* ★札は lib から 作る（打ち込まない）★＝lib の年度と 合っている事だけ 見る */
+  eq(L.saiteiChingin.nendo, '令和' + (SAI.NENDO_YEAR - 2018) + '年度（' + SAI.todofuken.tokyo.hatsuko + ' 発効）');
+  if (/令和9/.test(L.saiteiChingin.nendo)) throw new Error('未確定の令和9年度最賃を書いてはいけない');
   if (!/令和8年分/.test(L.incomeTax.nendo)) throw new Error('所得税: ' + L.incomeTax.nendo);
   if (!/令和8年度/.test(L.shahoKenko.nendo)) throw new Error('健保: ' + L.shahoKenko.nendo);
   for (const k of ['incomeTax', 'shahoKenko', 'shahoKosei', 'kaigo', 'shienkin', 'koyo', 'saiteiChingin', 'roukiho', 'tekiyoKakudai']) {

@@ -534,11 +534,21 @@ T('★中央から取り込んでも発効日・前年額を落とさない（�
       const p = keep[k];
       central[k] = { name: p.name, chingin: p.chingin, prev: p.prev, hatsuko: SAI.toWarekiHatsuko(p.hatsuko) };
     });
-    SAI.hydrate({ todofuken: central, zenkoku_heikin: 1121 });
-    eq(SAI.todofuken.akita.hatsuko, '2026-03-31', '★発効日がISOで入る（和暦のままだと日付比較が壊れる）');
-    eq(SAI.todofuken.akita.prev, 951, '★前年額が落ちていない');
-    eq(SAI.todofuken.akita.chingin, 1031, '額が落ちていない');
-    eq(SAI.monthSplit('akita', '2026-03').split, true, '取り込み後も月内で分かれる判定が効く');
+    /* ★2026-09-12＝期待値を 打ち込まない★
+       ここに '2026-03-31'/951/1031 と 令和7の数字を 打ち込んで あった為、
+       令和8へ 進めた途端 落ちた（★今日6つ目の 同じ形★）。
+       ⇒ ★流し込む前の lib の 実物を そのまま 期待値に する★＝
+          「和暦で 出して ISOで 戻る」「落ちない」を 見る のが この試験の 狙いなので、
+          ★どの年度でも 成り立つ★ 書き方に する。 */
+    const mae = JSON.parse(JSON.stringify(keep.akita));
+    SAI.hydrate({ todofuken: central, zenkoku_heikin: SAI.ZENKOKU_HEIKIN }, SAI.NENDO_YEAR);
+    eq(SAI.todofuken.akita.hatsuko, mae.hatsuko, '★発効日がISOで入る（和暦のままだと日付比較が壊れる）');
+    eq(SAI.todofuken.akita.prev, mae.prev, '★前年額が落ちていない');
+    eq(SAI.todofuken.akita.chingin, mae.chingin, '額が落ちていない');
+    /* ★発効日が 月の途中の 県で「月内で 分かれる」事を 見る（秋田は 令和8も 10/14＝途中） */
+    const ym = mae.hatsuko.slice(0, 7);
+    eq(SAI.monthSplit('akita', ym).split, /-01$/.test(mae.hatsuko) ? false : true,
+       '取り込み後も月内で分かれる判定が効く（' + mae.hatsuko + '）');
   } finally { SAI.todofuken = keep; }
 });
 

@@ -131,6 +131,9 @@
   var LAW_KAIGO_PCT = pctOf(SHH.getKaigo('2026-06').total, 2);          // 介護 全体率（社保年度=3月起算）
   var LAW_SHIENKIN_PCT = pctOf(SHH.SHIENKIN_TOTAL_FROM_2026_04, 2);     // 子育て支援金 全体率
   var LAW_KOYO_Y = KoyoHoken.LATEST;
+  var LAW_SAITEI_Y = (SAI && SAI.NENDO_YEAR) || null;
+  /* ★札に 出す 発効日＝東京の物を 使う（県ごとに 違うので note に その事を 書く）★ */
+  var LAW_SAITEI_HATSUKO = (SAI && SAI.todofuken && SAI.todofuken.tokyo && SAI.todofuken.tokyo.hatsuko) || '';
   var LAW_KOYO_PER1000 = String(Math.round(KoyoHoken.RATES[LAW_KOYO_Y].ippan * 1000 * 10) / 10); // 告示の書き方(◯/1000)
   // 適用拡大：要件も人数も lib(ShahoKanyu) から組み立てる（撤廃・段階引下げで文だけ古くならないように）
   var LAW_TEKIYO_CURRENT = SK.kakudaiReqText() + ' / 特定適用事業所(被保険者' + SK.TOKUTEI_MIN_NOW + '人以上)';
@@ -150,10 +153,15 @@
       source: 'https://www.cfa.go.jp/policies/kodomokosodateshienkinseido' },
     koyo: { basis: '雇用保険法', nendo: '令和' + (LAW_KOYO_Y - 2018) + '年度（' + LAW_KOYO_Y + '-04〜' + (LAW_KOYO_Y + 1) + '-03）一般 労働者負担 ' + LAW_KOYO_PER1000 + '/1000', appliedBy: '労働保険年度=4月起算',
       source: 'https://jsite.mhlw.go.jp/yamagata-roudoukyoku/koyouhoken-20260316.html' },
-    saiteiChingin: { basis: '最低賃金法', nendo: '令和7年度（2025-10-03 発効）', appliedBy: '最賃年度=10月起算',
-      source: 'https://www.mhlw.go.jp/content/11200000/001571192.pdf',
-      note: '令和8年度は目安答申（2026-07-28）のみで実額未確定＝未収録。対象月が令和8年度に入ると STATUTORY_STALE で黄警告を出す（推測値を入れない）。',
-      noteSource: 'https://www.mhlw.go.jp/stf/newpage_74920.html' },
+    /* ★2026-09-12＝年度を 手で 書かない★（隣の koyo は 前から lib から 作っていた）
+       ここに '令和7年度（2025-10-03 発効）' と 打ち込んで あった為、
+       lib を 令和8に しても ★札だけ 令和7 のまま★ に なる所だった。 */
+    saiteiChingin: { basis: '最低賃金法',
+      nendo: '令和' + (LAW_SAITEI_Y - 2018) + '年度（' + LAW_SAITEI_HATSUKO + ' 発効）',
+      appliedBy: '最賃年度=10月起算',
+      source: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/minimumichiran/',
+      note: '発効日は県ごとに違う（令和8年度は10/1〜12/2に順次）。対象月が未収録年度なら STATUTORY_STALE で黄警告を出す（推測値を入れない）。',
+      noteSource: 'https://www.mhlw.go.jp/content/11302000/001745621.pdf' },
     roukiho: { basis: '労働基準法 26条(休業手当)/27条(保障給)/32条(法定労働時間)/36条(時間外上限)/37条(割増)/60・61条(年少者)',
       source: 'https://laws.e-gov.go.jp/law/322AC0000000049' },
     tekiyoKakudai: { basis: '健康保険法・厚生年金保険法（短時間労働者の適用拡大）',
@@ -271,9 +279,21 @@
     if (SHH && SHH.KOSEI_NENKIN_RITSU_JUGYOIN != null) snap.kosei = Object.assign({ jugyoin: SHH.KOSEI_NENKIN_RITSU_JUGYOIN }, originOf('shakaihoken', shahoY, src));
     if (KoyoHoken && KoyoHoken.employRate) snap.koyo = { gyoshu: (ctx.company || {}).gyoshu || 'ippan', rate: KoyoHoken.employRate((ctx.company || {}).gyoshu, KoyoHoken.employYearOfYm(ym)), fy: KoyoHoken.employYearOfYm(ym) }; snap.koyo = Object.assign(snap.koyo, originOf('koyo', koyoY, src));
     /* 最賃も 同じ＝★県ごと★（1人目の県で 全員を 判定しない） */
+    /* ★2026-09-12＝発効日を 見る関数に 直した★
+       ここは ★getChingin（発効日を 見ない＝今の額を そのまま 返す）★ を 使っていた。
+       ⇒ 新しい年度を 入れた後、★発効前の月の 給与に 新年度の額が 出る★（例＝10月発効の県で 6月分）。
+          判定の 方は monthSplit を 使っていたので ★札と 判定が 食い違う★ 状態だった。
+       ⇒ ★その月に 実際に 効く額（monthSplit）★ を 出す。月内で 分かれる月は before/after も 出す。 */
+    var kikuGaku = function (p) {
+      if (SAI.monthSplit) { var m = SAI.monthSplit(p, ym); if (m && m.split) return m.after; if (m) return m.chingin; }
+      return SAI.getChingin(p);
+    };
+    var wakareru = function (p) { var m = SAI.monthSplit ? SAI.monthSplit(p, ym) : null; return (m && m.split) ? m : null; };
     if (SAI && SAI.getChingin) snap.saitei = Object.assign({ pref: (prefList.length === 1 ? pref : null),
-      prefs: prefList.map(function (p) { return { pref: p, chingin: SAI.getChingin(p) }; }),
-      chingin: (prefList.length === 1 ? SAI.getChingin(pref) : null), nendo: SAI.NENDO, stale: SAI.saiteiStale ? SAI.saiteiStale(ym) : false }, originOf('saitei_chingin', saiY, src));
+      prefs: prefList.map(function (p) { var w = wakareru(p); return { pref: p, chingin: kikuGaku(p), split: w ? { hatsukoYmd: w.hatsukoYmd, before: w.before, after: w.after } : null }; }),
+      chingin: (prefList.length === 1 ? kikuGaku(pref) : null),
+      split: (prefList.length === 1 ? (function () { var w = wakareru(pref); return w ? { hatsukoYmd: w.hatsukoYmd, before: w.before, after: w.after } : null; })() : null),
+      nendo: SAI.NENDO, stale: SAI.saiteiStale ? SAI.saiteiStale(ym) : false }, originOf('saitei_chingin', saiY, src));
     return snap;
   }
 
