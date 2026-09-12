@@ -15,6 +15,12 @@ const NI = require('../lib/shotokuzei-nichi.js');
 const SZ = require('../lib/shoyo-zei.js');
 const N = require('../lib/nenmatsu.js');
 const WM = require('../lib/warimashi.js');
+/* ★2026-09-11 指示役1＝この門は「全kind」と言いながら ★9種しか 見ていなかった★。
+ *   中央は 11種（rousai_ritsu と shouhizei が 抜けていた）。
+ *   原因＝★あるべき行を作る道具 buildStatutoryRows が 在るのに 使わず 手書きで 並べていた★。
+ *   ⇒ 下に ★道具で 全kind を 突き合わせる網★ を 足した。手書きの分も 残す（細かい所を 見ているので）。 */
+const SHZ = require('../lib/shouhizei-ritsu.js');
+const RR = require('../lib/rousai-ritsu.js');
 
 // ★ここだけは「アプリの倉庫(js/supa-config.js)」ではなく【中央statutory】を見る（意図的・2026-08-01）★
 //   理由: statutory は法定データ(健保料率・最賃・所得税表…)＝全国で1つの表であって、
@@ -70,6 +76,28 @@ function verify(rows) {
   { const d = row(rows, 'nenmatsu', 2026); if (d) { eq('nen.kyuyoKojo', N.P.kyuyoKojo, d.kyuyoKojo); eq('nen.kisoKojo', N.P.kisoKojo, d.kisoKojo); eq('nen.sanshutu', N.P.sanshutu, d.sanshutu); eq('nen.fuyoKojo', N.P.fuyoKojo, d.fuyoKojo); } else diffs.push('nenmatsu 無し'); }
   // ── 割増(warimashi) 基本率 ──
   { const d = row(rows, 'warimashi', 2023); if (d) { ['ot', 'holiday', 'night', 'over60Add'].forEach(k => eq('warimashi.' + k, WM.RATE[k], d[k])); } else diffs.push('warimashi 無し'); }
+
+  /* ★★手で並べない網★★（2026-09-11）
+     buildStatutoryRows が作る「あるべき行」を 1行ずつ 中央と 突き合わせる。
+     ★種類が増えても 自動で見る★＝手書きの列に 足し忘れても 落ちない。
+     ★中央にしか無い行★ も 出す（逆も見る）。
+     ★差は 丸ごと出さない★＝労災の53業種で 画面が埋まり 読めなくなるので 鍵の名前と 先頭120字だけ。 */
+  const desired = SR.buildStatutoryRows({ SHH, SAI, KOYO, D, H, NI, SZ, N, WM, SHZ, RR });
+  const seen = {};
+  const cut = (v) => { const t = canon(v); return t.length > 120 ? t.slice(0, 120) + '…(' + t.length + '字)' : t; };
+  desired.forEach(function (w) {
+    seen[w.kind + '/' + w.year] = 1;
+    const d = row(rows, w.kind, w.year);
+    if (!d) { diffs.push('★中央に無し★ ' + w.kind + '/' + w.year); return; }
+    if (canon(w.data) === canon(d)) return;
+    const bad = Object.keys(Object.assign({}, w.data, d)).filter((k) => canon(w.data[k]) !== canon(d[k]));
+    diffs.push('★全kind網★ ' + w.kind + '/' + w.year + ' 違う鍵=[' + bad.join(', ') + ']'
+      + bad.map((k) => '\n' + '      ' + k + ': lib=' + cut(w.data[k]) + '\n' + '      ' + k + ': 中央=' + cut(d[k])).join(''));
+  });
+  rows.forEach(function (r) {
+    if (!seen[r.kind + '/' + r.year]) diffs.push('★中央にしか無い★ ' + r.kind + '/' + r.year + '（libが作っていない）');
+  });
+  console.log('  （網で見た行: あるべき ' + desired.length + '行 / 中央 ' + rows.length + '行）');
 }
 
 const run = async () => {
@@ -89,6 +117,6 @@ const run = async () => {
     console.log('→ どちらかが古い。一次情報で正を確認し、lib修正 + scripts/seed-statutory.mjs で中央を揃える。');
     process.exitCode = 3; return;
   }
-  console.log('OK: 全kind lib==中央statutory 一致(ドリフトなし)。');
+  console.log('OK: lib==中央statutory 一致(ドリフトなし)。★手書きの列 ＋ 全kind網 の 両方で 見た★');
 };
 run().catch(e => { console.log('ERROR ' + e.message); process.exitCode = 2; });
