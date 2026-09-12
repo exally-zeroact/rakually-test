@@ -151,10 +151,25 @@ T('★出典URLと確認日が全行に入っている（中央から来てい�
 });
 
 T('中央の行と lib の行が1対1（増えても減っても気づける）', () => {
+  /* ★2026-09-12＝「過去の年度」は 不整合に しない★
+     法定は ★年度ごとに 行が 増える★物で、古い年度の行は ★中央に 履歴として 残す★のが正しい。
+     令和8を 中央へ 入れた途端 令和7(saitei_chingin:2025)が「中央にあってlibに無い」で 赤に なった
+     ＝★狼少年に なる★。
+     ⇒ ★同じ kind で より新しい年が 在るなら、その古い行は 見逃す★。
+        ★libに 一度も 出てこない kind（配線の抜け）と、
+          libに在るのに 中央に無い（入れ忘れ）は 赤のまま★＝ここが 本当に危ない所。 */
   const rowKeys = rows.map(r => r.kind + ':' + r.year).sort();
   const metaKeys = SM.keys();
+  const libKind = {};
+  rows.forEach(r => { libKind[r.kind] = Math.max(libKind[r.kind] || 0, r.year); });
   const missing = rowKeys.filter(k => metaKeys.indexOf(k) < 0);
-  const extra = metaKeys.filter(k => rowKeys.indexOf(k) < 0);
+  const extra = metaKeys.filter(k => {
+    if (rowKeys.indexOf(k) >= 0) return false;
+    const kind = k.slice(0, k.lastIndexOf(':'));
+    const year = +k.slice(k.lastIndexOf(':') + 1);
+    if (!(kind in libKind)) return true;            /* libが 1つも 作らない kind＝配線の抜け */
+    return year >= libKind[kind];                   /* 最新か それ以降なら 赤（過去は 履歴） */
+  });
   if (missing.length || extra.length) {
     throw new Error('不整合: libにあって中央に無い=' + (missing.join(', ') || 'なし') + ' / 中央にあってlibに無い=' + (extra.join(', ') || 'なし'));
   }
