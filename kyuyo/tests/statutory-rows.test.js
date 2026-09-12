@@ -12,15 +12,16 @@ var SZ = require('../lib/shoyo-zei.js');
 var N = require('../lib/nenmatsu.js');
 var WM = require('../lib/warimashi.js');
 var SHZ = require('../lib/shouhizei-ritsu.js');
+var RR = require('../lib/rousai-ritsu.js');   /* ★労災も 渡す＝渡さないと 労災の行が 作られず ALLOWED_KINDS の穴が 緑のままに なる（2026-09-11）★ */
 
-var rows = SR.buildStatutoryRows({ SHH: SHH, SAI: SAI, KOYO: KOYO, D: D, H: H, NI: NI, SZ: SZ, N: N, WM: WM, SHZ: SHZ });
+var rows = SR.buildStatutoryRows({ SHH: SHH, SAI: SAI, KOYO: KOYO, D: D, H: H, NI: NI, SZ: SZ, N: N, WM: WM, SHZ: SHZ, RR: RR });
 
-T('buildStatutoryRows: 13行・想定の(kind,year)を網羅', function () {
-  eq(rows.length, 13, '行数');
+T('buildStatutoryRows: 14行・想定の(kind,year)を網羅', function () {
+  eq(rows.length, 14, '行数');
   var keys = rows.map(function (r) { return r.kind + ':' + r.year; }).sort().join(',');
   var want = ['saitei_chingin:2025', 'shakaihoken:2025', 'shakaihoken:2026', 'koyo:2025', 'koyo:2026',
     'shotokuzei_densan:2025', 'shotokuzei_densan:2026', 'shotokuzei_hei:2026', 'shotokuzei_nichi:2026',
-    'shoyo:2026', 'nenmatsu:2026', 'warimashi:2023', 'shouhizei:2019'].sort().join(',');
+    'shoyo:2026', 'nenmatsu:2026', 'warimashi:2023', 'shouhizei:2019', 'rousai_ritsu:2024'].sort().join(',');
   eq(keys, want, 'kind:year 集合');
 });
 
@@ -54,7 +55,7 @@ T('最賃: todofuken/全国平均/年度をlibから写す', function () {
 });
 
 T('diffRows: 未収録=new / 一致=same / 相違=changed を判定', function () {
-  var desired = SR.buildStatutoryRows({ SHH: SHH, SAI: SAI, KOYO: KOYO, D: D, H: H, NI: NI, SZ: SZ, N: N, WM: WM, SHZ: SHZ });
+  var desired = SR.buildStatutoryRows({ SHH: SHH, SAI: SAI, KOYO: KOYO, D: D, H: H, NI: NI, SZ: SZ, N: N, WM: WM, SHZ: SHZ, RR: RR });
   // 中央が空 → 全行 new
   var allNew = SR.diffRows(desired, []);
   ok(allNew.every(function (d) { return d.status === 'new'; }), '空中央=全new');
