@@ -30,7 +30,22 @@ const SAITEI_CHINGIN = {
      HATSUKO_KIKAN も 同じ（今は どこからも 使われていないが、次に 誰かが 使うと 嘘が 出る）。
      発効日は ★県ごとに 違う★ので、期間は 実物の 47県から 作る。 */
   NENDO_YEAR: 2026,      // 収録している最賃の年度(会計年度・令和8年度=2026-10〜2027-09発効)。★次年度を足したらここも更新★
-  get NENDO() { return '令和' + (this.NENDO_YEAR - 2018) + '年度（' + this.NENDO_YEAR + '年度）'; },
+
+  /* ★★発効日は まだ「予定」＝確定では ない★★（2026-09-12・経営者1が 見つけた）
+     出どころの PDF に ★厚労省自身が こう 書いている★（原文を そのまま 写す）：
+       表題   「令和8年度　地域別最低賃金　答申状況」
+       列名   「発効日（予定）　(※２)」
+       ※２   「発効日は、答申公示後の異議の申出の状況等により変更となる可能性有」
+     ⇒ ★アプリが「予定」を 確定として 客に 出しては いけない★。
+     ★労働局に 当たっても 今 取れるのは 同じ「予定」だけ＝確定は 公示まで 出ない★。
+     ★額は ほぼ 変わらない★が、★日付は 変わり得る★＝月内で分かれる判定に 直に 効く。
+     ⇒ ここを true の間は ★字に「予定」と 出す★。公示で 確定したら false にする。 */
+  HATSUKO_MITEI: true,
+  HATSUKO_MITEI_RIYU: '発効日は、答申公示後の異議の申出の状況等により変更となる可能性有（厚生労働省「令和8年度 地域別最低賃金 答申状況」※2）',
+  get NENDO() {
+    return '令和' + (this.NENDO_YEAR - 2018) + '年度（' + this.NENDO_YEAR + '年度）'
+      + (this.HATSUKO_MITEI ? '・発効日は予定' : '');
+  },
   get HATSUKO_KIKAN() {
     var ks = Object.keys(this.todofuken || {});
     if (!ks.length) return '';
@@ -128,7 +143,10 @@ const SAITEI_CHINGIN = {
          ★ただし 黙るな★（2026-09-12 経営者1の指摘）＝
          黙って 何もしないと ★中央が 何年 古くても 誰も 気づかない★＝今日の穴と 同じ形に なる。
          ⇒ ★止めた事を 残す★。門(verify-statutory)は もともと ずれを 赤にするので そこで 出る。 */
-      this.hydrateSkipped = { chuoNendo: chuoNendo, libNendo: this.NENDO_YEAR, at: new Date().toISOString().slice(0, 19) };
+      /* ★時刻は 入れない★（2026-09-12）＝headless の 見張りが 正しく 捕まえた。
+         lib は ★今の時刻に 頼らない★（頼ると 試験が 日付で 変わる／同じ入力で 違う出力）。
+         いつ 止めたかは ★呼んだ側（画面）が 知っている★ので ここでは 数だけ 持つ。 */
+      this.hydrateSkipped = { chuoNendo: chuoNendo, libNendo: this.NENDO_YEAR, count: ((this.hydrateSkipped || {}).count || 0) + 1 };
       try { if (typeof console !== 'undefined' && console.warn) {
         console.warn('[saitei-chingin] ★中央が 古いので 流し込みを 止めました★ 中央=' + chuoNendo + '年度 / lib=' + this.NENDO_YEAR + '年度'
           + '（中央を 新しくするまで lib の値で 動きます）');

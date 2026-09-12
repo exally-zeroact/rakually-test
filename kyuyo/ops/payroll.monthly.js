@@ -157,10 +157,12 @@
        ここに '令和7年度（2025-10-03 発効）' と 打ち込んで あった為、
        lib を 令和8に しても ★札だけ 令和7 のまま★ に なる所だった。 */
     saiteiChingin: { basis: '最低賃金法',
-      nendo: '令和' + (LAW_SAITEI_Y - 2018) + '年度（' + LAW_SAITEI_HATSUKO + ' 発効）',
+      nendo: '令和' + (LAW_SAITEI_Y - 2018) + '年度（' + LAW_SAITEI_HATSUKO + ' 発効'
+        + ((SAI && SAI.HATSUKO_MITEI) ? '・予定' : '') + '）',
       appliedBy: '最賃年度=10月起算',
       source: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/minimumichiran/',
-      note: '発効日は県ごとに違う（令和8年度は10/1〜12/2に順次）。対象月が未収録年度なら STATUTORY_STALE で黄警告を出す（推測値を入れない）。',
+      note: '発効日は県ごとに違う（' + ((SAI && SAI.HATSUKO_KIKAN) || '') + '）。対象月が未収録年度なら STATUTORY_STALE で黄警告を出す（推測値を入れない）。'
+        + ((SAI && SAI.HATSUKO_MITEI) ? ' ★' + SAI.HATSUKO_MITEI_RIYU + '★' : ''),
       noteSource: 'https://www.mhlw.go.jp/content/11302000/001745621.pdf' },
     roukiho: { basis: '労働基準法 26条(休業手当)/27条(保障給)/32条(法定労働時間)/36条(時間外上限)/37条(割増)/60・61条(年少者)',
       source: 'https://laws.e-gov.go.jp/law/322AC0000000049' },

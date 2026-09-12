@@ -65,8 +65,9 @@ T('最賃: todofuken/全国平均/年度をlibから写す', function () {
      「令和7年度（2025年度）」のまま 通り、★客に 嘘が 出た★。
      ⇒ ★数字(NENDO_YEAR)から 作った字と 突き合わせる★＝手書きと 数字の ずれが 赤に なる。 */
   eq(r.data.nendo, SAI.NENDO, '年度（中央とlibで同じ）');
-  eq(r.data.nendo, '令和' + (SAI.NENDO_YEAR - 2018) + '年度（' + SAI.NENDO_YEAR + '年度）',
-     '★年度の字が 数字(NENDO_YEAR)と 合っている（字だけ 古いまま を 弾く）★');
+  eq(r.data.nendo, '令和' + (SAI.NENDO_YEAR - 2018) + '年度（' + SAI.NENDO_YEAR + '年度）'
+     + (SAI.HATSUKO_MITEI ? '・発効日は予定' : ''),
+     '★年度の字が 数字(NENDO_YEAR)と 合っている（字だけ 古いまま を 弾く）／予定の間は そう 書く★');
 });
 
 T('diffRows: 未収録=new / 一致=same / 相違=changed を判定', function () {
