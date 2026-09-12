@@ -115,7 +115,25 @@
   }
   function rateOf(shurui) { var p = permilOf(shurui); return (p == null) ? null : p / 1000; }
 
-  return { TABLE: TABLE, list: list, bunruiList: bunruiList, permilOf: permilOf, rateOf: rateOf,
+  /* ★中央(statutory)から 流し込む口★（2026-09-11 指示役1）
+       他の法定lib 10本は 前から hydrate を 持っていたが ★労災だけ 無かった★。
+       ⇒ ★中央を 直しても 客に 届かない★＝ファイルを 直して 配信するまで 変わらなかった。
+       形は koyo-hoken.js の hydrate に 合わせる（★自分で 設計しない★）。
+       中央の行 = { hyo:[{bunrui,shurui,permil}...], senpaku_permil, higyomu_permil }
+       ★中身が 揃っていない時は 触らない★＝壊れた行で 表を 空にしない。 */
+  function hydrate(year, data) {
+    if (!data || typeof data !== 'object') return;
+    /* ★数字は this（返す物 そのもの）を 書き換える★＝中の var を 書き換えても
+       返した時点で 写しに なっているので 外へ 出ない（shouhizei-ritsu.js と 同じ形）。
+       ★表(TABLE)は 同じ入れ物を 中身だけ 入れ替える★＝他が 掴んでいる 参照を 切らない。 */
+    if (Array.isArray(data.hyo) && data.hyo.length) { TABLE.length = 0; data.hyo.forEach(function (r) { TABLE.push(r); }); }
+    if (typeof data.senpaku_permil === 'number') { SENPAKU_PERMIL = data.senpaku_permil; this.SENPAKU_PERMIL = data.senpaku_permil; }
+    if (typeof data.higyomu_permil === 'number') { HIGYOMU_PERMIL = data.higyomu_permil; this.HIGYOMU_PERMIL = data.higyomu_permil; }
+    if (year) { NENDO_YEAR = year; this.NENDO_YEAR = year; }
+    this.COUNT = TABLE.length;
+  }
+
+  return { TABLE: TABLE, list: list, bunruiList: bunruiList, permilOf: permilOf, rateOf: rateOf, hydrate: hydrate,
     SENPAKU_PERMIL: SENPAKU_PERMIL, HIGYOMU_PERMIL: HIGYOMU_PERMIL,
     NENDO_YEAR: NENDO_YEAR,
     FINGERPRINT: FINGERPRINT, SOURCE_URL: SOURCE_URL, LAW_NAME: LAW_NAME, COUNT: TABLE.length };

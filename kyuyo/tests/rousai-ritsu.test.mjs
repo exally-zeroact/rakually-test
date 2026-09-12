@@ -30,6 +30,7 @@ const fp = (rows) => crypto.createHash('sha256').update(JSON.stringify(
   rows.slice().sort((a, b) => (a.shurui < b.shurui ? -1 : a.shurui > b.shurui ? 1 : 0))
     .map((r) => [r.bunrui, r.shurui, r.permil]))).digest('hex').slice(0, 8);
 
+const NISE_HOZON = R.TABLE.map((r) => ({ bunrui: r.bunrui, shurui: r.shurui, permil: r.permil })); /* ★流し込みの試験で 元へ戻す為の 控え★ */
 console.log('\n[rousai-ritsu] 労災保険率表（別表第１）… ★外は 叩かない★');
 
 T('★① 53業種 在る（2列の 行を 落とすと 41に 減る）', () => {
@@ -98,6 +99,34 @@ if (SELF) {
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
   console.log('  ★5通り ぜんぶ 思った通り★');
 }
+
+/* ── ★中央(statutory)からの 流し込み★（2026-09-11 指示役1）────────────────
+   ★なぜ 要るか★＝他の法定lib 10本は 前から hydrate を 持っていたのに ★労災だけ 無かった★。
+   ⇒ ★中央を 直しても 客に 届かない★＝ファイルを 直して 配信するまで 変わらなかった。
+   ★口が 消えても 誰も 気づかない★ので 試験で 縛る。 */
+T('★hydrate が 在る★（中央から 客へ 届く口）', () => {
+  ok(typeof R.hydrate === 'function', 'hydrate が 無い＝中央を直しても 客に届かない');
+});
+T('hydrate: 表・船舶・非業務・年度が 書き換わり、計算にも 効く', () => {
+  const before = { n: R.TABLE.length, sen: R.SENPAKU_PERMIL, hi: R.HIGYOMU_PERMIL, y: R.NENDO_YEAR };
+  R.hydrate(2099, { hyo: [{ bunrui: '試し', shurui: '試しの事業', permil: 99 }], senpaku_permil: 43, higyomu_permil: 0.7 });
+  ok(R.TABLE.length === 1, '表が 入れ替わらない');
+  ok(R.SENPAKU_PERMIL === 43, '★船舶が 外に 出ていない（中の var だけ 書き換えている）★');
+  ok(R.HIGYOMU_PERMIL === 0.7, '非業務が 外に 出ていない');
+  ok(R.NENDO_YEAR === 2099, '年度が 外に 出ていない');
+  ok(R.permilOf('試しの事業') === 99, '★流し込みが 計算に 効いていない★');
+  R.hydrate(before.y, { hyo: NISE_HOZON, senpaku_permil: before.sen, higyomu_permil: before.hi });
+  ok(R.TABLE.length === before.n, '戻せない');
+  ok(R.permilOf('林業') === 52, '戻した後の 値が 違う');
+});
+T('hydrate: 壊れた行では 表を 壊さない（フォールバック）', () => {
+  const n = R.TABLE.length, sen = R.SENPAKU_PERMIL;
+  R.hydrate(2099, { hyo: [], senpaku_permil: 'へんな字' });
+  ok(R.TABLE.length === n, '★空の表で 業種が 消えた★');
+  ok(R.SENPAKU_PERMIL === sen, '★字を 入れられた★');
+  R.hydrate(2099, null); ok(R.TABLE.length === n, 'null で 壊れた');
+  R.hydrate(2099, undefined); ok(R.TABLE.length === n, 'undefined で 壊れた');
+});
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

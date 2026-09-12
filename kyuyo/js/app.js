@@ -5806,6 +5806,11 @@
       var sz=(typeof SZ==='function'?SZ():(window.ShoyoZei));
       var nn=(typeof Nen_==='function'?Nen_():(window.Nenmatsu));
       var wm=(typeof Warimashi!=='undefined'?Warimashi:window.Warimashi);
+      /* ★2026-09-11 指示役1＝労災だけ 流し込む口が 無かった★
+         他9種は 中央を 直せば 次に 客が 開いた時に 届くのに、★労災だけ 届かなかった★
+         ＝ファイルを 直して 配信するまで 変わらない 状態だった。
+         （労災は index.html:201 で 読み込み済・計算でも rousaiPermilOf が 使っている） */
+      var rr=(typeof RousaiRitsu!=='undefined'?RousaiRitsu:window.RousaiRitsu);
       rows.forEach(function(r){ try{
         if(r.kind==='saitei_chingin' && sa&&sa.hydrate){ sa.hydrate(r.data); applied++; }
         else if(r.kind==='shakaihoken' && sh&&sh.hydrate){ sh.hydrate(r.year, r.data); applied++; }
@@ -5816,6 +5821,7 @@
         else if(r.kind==='shoyo' && sz&&sz.hydrate){ sz.hydrate(r.year, r.data); applied++; }
         else if(r.kind==='nenmatsu' && nn&&nn.hydrate){ nn.hydrate(r.year, r.data); applied++; }
         else if(r.kind==='warimashi' && wm&&wm.hydrate){ wm.hydrate(r.data); applied++; }
+        else if(r.kind==='rousai_ritsu' && rr&&rr.hydrate){ rr.hydrate(r.year, r.data); applied++; }
         // shouhizei(消費税)は給与明細では未使用(請求/見積=Exally側)
       }catch(e){} });
       if(applied){ var act=$('.screen.active'); if(act&&act.id) showScreen(act.id); } // 値が変わった可能性→表示中を再描画
