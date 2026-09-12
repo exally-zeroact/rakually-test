@@ -5822,7 +5822,11 @@
         else if(r.kind==='nenmatsu' && nn&&nn.hydrate){ nn.hydrate(r.year, r.data); applied++; }
         else if(r.kind==='warimashi' && wm&&wm.hydrate){ wm.hydrate(r.data); applied++; }
         else if(r.kind==='rousai_ritsu' && rr&&rr.hydrate){ rr.hydrate(r.year, r.data); applied++; }
-        // shouhizei(消費税)は給与明細では未使用(請求/見積=Exally側)
+        /* ★2026-09-11 司さんの指摘で 直した★＝ここには「請求/見積=Exally側」と 書いてあったが ★誤り★。
+           ★請求書は Rakunally の 中に 在る（rakually/seikyu/）★。率の 唯一の正も
+           kyuyo/lib/shouhizei-ritsu.js を 請求書側が そのまま 読んでいる（seikyu/lib/seikyu-tax.js）。
+           ⇒ 消費税の 流し込みは ★請求書の画面側（seikyu/js/seikyu-app.js の hydrateShouhizei）★で やる。
+           給与明細では 消費税を 使わないので ここでは 流し込まない（それ自体は そのまま）。 */
       }catch(e){} });
       if(applied){ var act=$('.screen.active'); if(act&&act.id) showScreen(act.id); } // 値が変わった可能性→表示中を再描画
       return applied>0;

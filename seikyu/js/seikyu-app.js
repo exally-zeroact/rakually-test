@@ -4911,11 +4911,34 @@
     });
   }
 
+  /* ★中央(statutory)の 消費税を 請求書にも 流し込む★（2026-09-11 指示役1）
+     ★なぜ★＝率の 唯一の正は kyuyo/lib/shouhizei-ritsu.js（seikyu-tax.js が そこから 取る）。
+       給与の画面は 中央から 流し込んでいたのに ★請求書の画面には その口が 無かった★
+       ＝★中央で 税率を 直しても 請求書だけ 古いまま★（配信し直すまで 変わらない）。
+     ★取れない時は 何もしない★＝lib の 値のまま（オフライン・DB無しでも 止めない）。
+     ★率の数字は ここに 書かない★＝書いた瞬間 法が変わった日に 嘘をつく。 */
+  function hydrateShouhizei(sb) {
+    try {
+      var SR = global.ShouhizeiRitsu;
+      if (!sb || !SR || typeof SR.hydrate !== 'function') return Promise.resolve(false);
+      return Promise.resolve(sb.from('statutory').select('kind,year,data').eq('kind', 'shouhizei'))
+        .then(function (r) {
+          var rows = (r && r.data) || [];
+          if (!rows.length) return false;
+          rows.sort(function (a, b) { return (b.year || 0) - (a.year || 0); });
+          SR.hydrate(rows[0].data);
+          return true;
+        })
+        .catch(function () { return false; });
+    } catch (e) { return Promise.resolve(false); }
+  }
+
   /* ログインが済んでから呼ばれる（seikyu/js/auth.js） */
   function attach(sb) {
     S.sb = sb;
     S.suite = global.SuiteData.create({ client: sb });
     S.store = global.SeikyuStore.create({ client: sb, suite: S.suite });
+    hydrateShouhizei(sb);
     bind();
     return loadMasters().then(function () { return loadList(); }).then(function () {
       /* ★開いた所が「入力」なので、白紙の1通をここで作っておく★
