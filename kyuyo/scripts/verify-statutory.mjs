@@ -37,6 +37,7 @@ const STATUTORY_CENTRAL_URL = 'https://tnfwipbgfgjaymlszeid.supabase.co';
 const SUPA_URL = STATUTORY_CENTRAL_URL;
 const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRuZndpcGJnZmdqYXltbHN6ZWlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1Nzk4MzQsImV4cCI6MjA5NzE1NTgzNH0.zhKPLSlW4zxsdjsXNvqDHvtP3wBqp-EKaxbjqLGW_ek';
 
+const STRICT = process.argv.includes('--strict');   /* ★週1の定時で 使う＝取れない回を 赤にする★ */
 const diffs = [];
 // キー順は不問(Postgres jsonbはキーを並べ替える)・配列順は有意(ブラケット順)。オブジェクトのキーをソートして正規化比較。
 function canon(x) {
@@ -114,6 +115,17 @@ const run = async () => {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     rows = await res.json();
   } catch (e) {
+    /* ★--strict を付けた時は 赤にする★（2026-09-11 指示役1・経営者1の条件1）
+       ふだん（push の CI・手元）は ★オフラインで 赤にしない★＝
+         外の都合で push が止まると、人は 赤を 無視する様に なる。
+       だが ★週1の 定時★ は 「中央を 見に行く」事 そのものが 仕事なので、
+       ★取れなかった回を 緑で 通すと 門が 無い週が 生まれる★。
+       ⇒ 定時だけ --strict を 付けて ★取れない＝赤★ に する。 */
+    if (STRICT) {
+      console.log('★赤★ 中央statutoryを 取得できなかった（--strict）。理由: ' + e.message);
+      console.log('  ⇒ 週1の 見張りは「中央を 見に行く」のが 仕事＝取れない回を 緑にしない。');
+      process.exitCode = 4; return;
+    }
     console.log('SKIP: 中央statutoryを取得できず(オフライン等)=検証スキップ。理由: ' + e.message);
     process.exit(0); // オフラインは赤くしない
   }

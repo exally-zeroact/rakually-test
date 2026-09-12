@@ -1,0 +1,46 @@
+name: 法定の中央を毎週見に行く（週1・手動）
+
+# ★なぜ 要るか（2026-09-11 指示役1・経営者1の条件2）★
+#   法定の数値（健保・雇用・所得税・最賃・労災…）の ★正は 中央(Supabase statutory)★。
+#   アプリは 画面を開くたび 中央から 流し込む＝★中央を 直せば 全国の客に 届く★。
+#   ドリフトの門（lib == 中央）は ci.yml にも 在るが ★push した時しか 走らない★。
+#   ⇒ ★人が 中央だけ 直したら、次に 誰かが push するまで 誰も 気づかない★。
+#   ここで ★週1で 必ず 門を 通す★＝遅くとも1週間で 赤になり、lib を 合わせる事になる。
+#
+# ★ci.yml に入れない理由★（hosts.yml / source-urls.yml と同じ）
+#   中央は 外(Supabase)。向こうの都合で 赤くなると うちのコードは 壊れていないのに
+#   push が止まり、そして ★自分のせいでない赤が続くと 人は 赤を 無視する様になる★。
+#   だから【別ワークフロー】で 週1＋手動。★落ちても push は 止まらない★。
+#
+# ★--strict を 付ける理由★
+#   ふだんの CI は 中央に 届かない時 ★緑（SKIP）★ で 通す＝オフラインで止めない為。
+#   だが ここは ★「中央を 見に行く」事 そのものが 仕事★なので、
+#   ★取れなかった回を 緑にすると 門が 無い週が 生まれる★。だから 取れない＝赤。
+#
+# ★誰が見るか★
+#   落ちたら その週のうちに 実装セッションが 気づき、次の報告に
+#   ★「法定の門 OK／NG」の1行★ を 載せる（落ちていない週も 数字を出す＝
+#   ★ワークフロー自体が 止まっているのが 一番 危ない★ため）。
+#
+# ★お金★ … この repo は public ＝ GitHub Actions は ★無料・分数の上限なし★。
+#   Vercel は 1回も 叩かない（配信は push の時だけ）。中央は ★週1回 読むだけ★。
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'      # 毎週月曜 00:00 UTC = 日本時間 月曜9時（他の週1と同じ枠）
+  workflow_dispatch:
+
+jobs:
+  statutory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: ★門そのものが空振りしていないか（種類を数えて出す・先に走らせる）
+        run: node kyuyo/tests/run.js 2>&1 | grep -E "中央の種類|hydrate-wired|passed," || true
+      - name: ★lib == 中央statutory（全kind・取れなかった回も赤＝--strict）
+        run: node kyuyo/scripts/verify-statutory.mjs --strict
+      - name: ★中央から作る写し（出典・確認日・最賃47県）がズレていないか
+        run: node kyuyo/scripts/pull-statutory.mjs --check
