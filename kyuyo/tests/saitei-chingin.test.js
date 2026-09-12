@@ -96,11 +96,14 @@ T('★発効日が まだ「予定」の間は 字に 出す（確定として �
         ＝月内で 分かれる判定に 直に 効く。 */
   ok(typeof SC.HATSUKO_MITEI === 'boolean', 'HATSUKO_MITEI が 無い');
   ok(typeof SC.HATSUKO_MITEI_RIYU === 'string' && SC.HATSUKO_MITEI_RIYU.length > 10, '理由が 書いていない');
+  /* ★年度の欄には 混ぜない★＝年度は 年度だけ（去年の行と 同じ形） */
+  ok(!/予定/.test(SC.NENDO), '★年度の欄に 発効日の話を 混ぜている: ' + SC.NENDO + '★');
   if (SC.HATSUKO_MITEI) {
-    ok(/予定/.test(SC.NENDO), '★予定なのに 字に 出ていない: ' + SC.NENDO + '★');
+    ok(/予定/.test(SC.HATSUKO_CHUI), '★予定なのに 注意の欄に 出ていない: ' + SC.HATSUKO_CHUI + '★');
+    ok(/変わる事/.test(SC.HATSUKO_CHUI), '★「予定」だけでは 弱い＝「変わる事が あります」まで 書く★');
     ok(/変更となる可能性/.test(SC.HATSUKO_MITEI_RIYU), '★理由が 原文と 合っていない★');
   } else {
-    ok(!/予定/.test(SC.NENDO), '★確定なのに 予定と 出ている★');
+    ok(SC.HATSUKO_CHUI === '', '★確定なのに 注意が 残っている★');
   }
 });
 

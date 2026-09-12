@@ -42,10 +42,14 @@ const SAITEI_CHINGIN = {
      ⇒ ここを true の間は ★字に「予定」と 出す★。公示で 確定したら false にする。 */
   HATSUKO_MITEI: true,
   HATSUKO_MITEI_RIYU: '発効日は、答申公示後の異議の申出の状況等により変更となる可能性有（厚生労働省「令和8年度 地域別最低賃金 答申状況」※2）',
-  get NENDO() {
-    return '令和' + (this.NENDO_YEAR - 2018) + '年度（' + this.NENDO_YEAR + '年度）'
-      + (this.HATSUKO_MITEI ? '・発効日は予定' : '');
-  },
+  /* ★2026-09-12＝年度の欄に 発効日の話を 混ぜない（経営者1が 見つけた）★
+     一度 '令和8年度（2026年度）・発効日は予定' と ★1つの欄に 2つの事★ を 入れた。
+     ⇒ ★去年の行（'令和7年度（2025年度）'）と 形が 揃わない★／
+        ★門番の「年度の字が 数字と 合っているか」が 前方一致でしか 見られず 緩む★。
+     ⇒ ★年度は 年度だけ★。注意は 下の HATSUKO_CHUI（別の欄）へ。
+        公示で 確定したら ★HATSUKO_MITEI を false にするだけ／NENDO は 一度も 触らない★ */
+  get NENDO() { return '令和' + (this.NENDO_YEAR - 2018) + '年度（' + this.NENDO_YEAR + '年度）'; },
+  get HATSUKO_CHUI() { return this.HATSUKO_MITEI ? '発効日は予定（変わる事が あります）' : ''; },
   get HATSUKO_KIKAN() {
     var ks = Object.keys(this.todofuken || {});
     if (!ks.length) return '';
