@@ -21,7 +21,7 @@ import { createRequire } from 'node:module';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require_ = createRequire(path.join(ROOT, 'package.json'));
 const SAI = require_(path.join(ROOT, 'lib/saitei-chingin.js'));
-const OFF = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/fixtures/saitei-official-r7.json'), 'utf8'));
+const OFF = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/fixtures/saitei-official-r8.json'), 'utf8'));
 
 let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };

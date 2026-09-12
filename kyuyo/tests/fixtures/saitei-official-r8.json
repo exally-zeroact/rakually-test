@@ -1,0 +1,301 @@
+{
+ "note": "★厚労省『令和8年度 地域別最低賃金 答申状況』(別紙) (https://www.mhlw.go.jp/content/11302000/001745621.pdf) から機械で抜き出した47県の実額。2026-09-12取得。pdftotext -raw でテキスト化し、表の行から 改定額 / 前年額 / 発効日 を取った。★-layout は発効日の行がずれる（実測）ので使わない★。",
+ "why": "★2026-07-10、Exallyの最賃が47県中38県で誤値だった事故がある(北海道1107誤/1075正 等)。値は直っているが【直っていることを機械で示せていなかった】。この一覧を真値として固定し、libとの差を毎回CIで見る。",
+ "order_evidence": "並び(都道府県コード順)は、元PDF本文の『北海道 B 56 1,131 （ 1,075 ) 56 ±0 令和8年10月1日 → 青　森 C 56 1,090 （ 1,029 ) 61 ＋5 令和8年10月29日 → …』をそのまま順に読んだもの。★キーは 令和7の真値ファイルの並びを そのまま 使い、名前で つなぎ直した★。",
+ "cross_checks": [
+  "47県ある",
+  "最高=東京1280（厚労省の発表と一致）",
+  "最低=宮崎1085（一致）",
+  "改定額-前年=引上げ額 が47県とも一致",
+  "引上げ額 54〜65（発表と一致）",
+  "東京 1,280・令和8年10月1日（東京労働局の発表と一致）",
+  "高知 1,086・令和8年10月29日（高知労働局の発表と一致）",
+  "★PDFの前年額が、令和7の真値ファイル(saitei-official-r7.json)の47県と1円も違わない★＝並びが正しい最終証拠"
+ ],
+ "nendo": "令和8年度(2026)",
+ "zenkoku_heikin": 1177,
+ "prefs": {
+  "hokkaido": {
+   "name": "北海道",
+   "chingin": 1131,
+   "prev": 1075,
+   "hatsuko": "令和8年10月1日"
+  },
+  "aomori": {
+   "name": "青森県",
+   "chingin": 1090,
+   "prev": 1029,
+   "hatsuko": "令和8年10月29日"
+  },
+  "iwate": {
+   "name": "岩手県",
+   "chingin": 1090,
+   "prev": 1031,
+   "hatsuko": "令和8年12月1日"
+  },
+  "miyagi": {
+   "name": "宮城県",
+   "chingin": 1098,
+   "prev": 1038,
+   "hatsuko": "令和8年10月1日"
+  },
+  "akita": {
+   "name": "秋田県",
+   "chingin": 1090,
+   "prev": 1031,
+   "hatsuko": "令和8年10月14日"
+  },
+  "yamagata": {
+   "name": "山形県",
+   "chingin": 1092,
+   "prev": 1032,
+   "hatsuko": "令和8年10月30日"
+  },
+  "fukushima": {
+   "name": "福島県",
+   "chingin": 1094,
+   "prev": 1033,
+   "hatsuko": "令和8年10月16日"
+  },
+  "ibaraki": {
+   "name": "茨城県",
+   "chingin": 1136,
+   "prev": 1074,
+   "hatsuko": "令和8年10月18日"
+  },
+  "tochigi": {
+   "name": "栃木県",
+   "chingin": 1125,
+   "prev": 1068,
+   "hatsuko": "令和8年10月1日"
+  },
+  "gunma": {
+   "name": "群馬県",
+   "chingin": 1120,
+   "prev": 1063,
+   "hatsuko": "令和8年10月3日"
+  },
+  "saitama": {
+   "name": "埼玉県",
+   "chingin": 1196,
+   "prev": 1141,
+   "hatsuko": "令和8年10月1日"
+  },
+  "chiba": {
+   "name": "千葉県",
+   "chingin": 1195,
+   "prev": 1140,
+   "hatsuko": "令和8年10月1日"
+  },
+  "tokyo": {
+   "name": "東京都",
+   "chingin": 1280,
+   "prev": 1226,
+   "hatsuko": "令和8年10月1日"
+  },
+  "kanagawa": {
+   "name": "神奈川県",
+   "chingin": 1279,
+   "prev": 1225,
+   "hatsuko": "令和8年10月1日"
+  },
+  "niigata": {
+   "name": "新潟県",
+   "chingin": 1108,
+   "prev": 1050,
+   "hatsuko": "令和8年10月1日"
+  },
+  "toyama": {
+   "name": "富山県",
+   "chingin": 1119,
+   "prev": 1062,
+   "hatsuko": "令和8年10月1日"
+  },
+  "ishikawa": {
+   "name": "石川県",
+   "chingin": 1113,
+   "prev": 1054,
+   "hatsuko": "令和8年10月3日"
+  },
+  "fukui": {
+   "name": "福井県",
+   "chingin": 1112,
+   "prev": 1053,
+   "hatsuko": "令和8年10月4日"
+  },
+  "yamanashi": {
+   "name": "山梨県",
+   "chingin": 1113,
+   "prev": 1052,
+   "hatsuko": "令和8年11月1日"
+  },
+  "nagano": {
+   "name": "長野県",
+   "chingin": 1117,
+   "prev": 1061,
+   "hatsuko": "令和8年10月2日"
+  },
+  "gifu": {
+   "name": "岐阜県",
+   "chingin": 1121,
+   "prev": 1065,
+   "hatsuko": "令和8年10月1日"
+  },
+  "shizuoka": {
+   "name": "静岡県",
+   "chingin": 1154,
+   "prev": 1097,
+   "hatsuko": "令和8年10月15日"
+  },
+  "aichi": {
+   "name": "愛知県",
+   "chingin": 1195,
+   "prev": 1140,
+   "hatsuko": "令和8年10月1日"
+  },
+  "mie": {
+   "name": "三重県",
+   "chingin": 1143,
+   "prev": 1087,
+   "hatsuko": "令和8年10月1日"
+  },
+  "shiga": {
+   "name": "滋賀県",
+   "chingin": 1136,
+   "prev": 1080,
+   "hatsuko": "令和8年10月3日"
+  },
+  "kyoto": {
+   "name": "京都府",
+   "chingin": 1180,
+   "prev": 1122,
+   "hatsuko": "令和8年11月16日"
+  },
+  "osaka": {
+   "name": "大阪府",
+   "chingin": 1231,
+   "prev": 1177,
+   "hatsuko": "令和8年10月1日"
+  },
+  "hyogo": {
+   "name": "兵庫県",
+   "chingin": 1172,
+   "prev": 1116,
+   "hatsuko": "令和8年10月1日"
+  },
+  "nara": {
+   "name": "奈良県",
+   "chingin": 1107,
+   "prev": 1051,
+   "hatsuko": "令和8年10月4日"
+  },
+  "wakayama": {
+   "name": "和歌山県",
+   "chingin": 1101,
+   "prev": 1045,
+   "hatsuko": "令和8年10月3日"
+  },
+  "tottori": {
+   "name": "鳥取県",
+   "chingin": 1090,
+   "prev": 1030,
+   "hatsuko": "令和8年10月3日"
+  },
+  "shimane": {
+   "name": "島根県",
+   "chingin": 1092,
+   "prev": 1033,
+   "hatsuko": "令和8年10月10日"
+  },
+  "okayama": {
+   "name": "岡山県",
+   "chingin": 1104,
+   "prev": 1047,
+   "hatsuko": "令和8年10月2日"
+  },
+  "hiroshima": {
+   "name": "広島県",
+   "chingin": 1141,
+   "prev": 1085,
+   "hatsuko": "令和8年10月11日"
+  },
+  "yamaguchi": {
+   "name": "山口県",
+   "chingin": 1101,
+   "prev": 1043,
+   "hatsuko": "令和8年10月8日"
+  },
+  "tokushima": {
+   "name": "徳島県",
+   "chingin": 1103,
+   "prev": 1046,
+   "hatsuko": "令和8年11月1日"
+  },
+  "kagawa": {
+   "name": "香川県",
+   "chingin": 1092,
+   "prev": 1036,
+   "hatsuko": "令和8年10月1日"
+  },
+  "ehime": {
+   "name": "愛媛県",
+   "chingin": 1093,
+   "prev": 1033,
+   "hatsuko": "令和8年11月1日"
+  },
+  "kochi": {
+   "name": "高知県",
+   "chingin": 1086,
+   "prev": 1023,
+   "hatsuko": "令和8年10月29日"
+  },
+  "fukuoka": {
+   "name": "福岡県",
+   "chingin": 1114,
+   "prev": 1057,
+   "hatsuko": "令和8年10月4日"
+  },
+  "saga": {
+   "name": "佐賀県",
+   "chingin": 1095,
+   "prev": 1030,
+   "hatsuko": "令和8年11月15日"
+  },
+  "nagasaki": {
+   "name": "長崎県",
+   "chingin": 1087,
+   "prev": 1031,
+   "hatsuko": "令和8年11月2日"
+  },
+  "kumamoto": {
+   "name": "熊本県",
+   "chingin": 1092,
+   "prev": 1034,
+   "hatsuko": "令和8年12月1日"
+  },
+  "oita": {
+   "name": "大分県",
+   "chingin": 1096,
+   "prev": 1035,
+   "hatsuko": "令和8年11月1日"
+  },
+  "miyazaki": {
+   "name": "宮崎県",
+   "chingin": 1085,
+   "prev": 1023,
+   "hatsuko": "令和8年10月24日"
+  },
+  "kagoshima": {
+   "name": "鹿児島県",
+   "chingin": 1090,
+   "prev": 1026,
+   "hatsuko": "令和8年10月25日"
+  },
+  "okinawa": {
+   "name": "沖縄県",
+   "chingin": 1086,
+   "prev": 1023,
+   "hatsuko": "令和8年12月2日"
+  }
+ }
+}
