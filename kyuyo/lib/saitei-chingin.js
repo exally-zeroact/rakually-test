@@ -23,62 +23,62 @@
 const SAITEI_CHINGIN = {
 
   NENDO: '令和7年度（2025年度）',
-  NENDO_YEAR: 2025,      // 収録している最賃の年度(会計年度・令和7年度=2025-10〜2026-09発効)。★次年度を足したらここも更新★
+  NENDO_YEAR: 2026,      // 収録している最賃の年度(会計年度・令和8年度=2026-10〜2027-09発効)。★次年度を足したらここも更新★
   HATSUKO_KIKAN: '2025年10月1日〜2026年3月31日（順次）',
-  ZENKOKU_HEIKIN: 1121,  // 全国加重平均
+  ZENKOKU_HEIKIN: 1177,  // 全国加重平均
 
   // ----------------------------------------------------------------
   // 都道府県別最低賃金（時給・円）
   // 出典：厚生労働省「令和7年度地域別最低賃金 全国一覧」公式PDF(001571192.pdf)を機械抽出して照合(2026-07)
   // ----------------------------------------------------------------
   todofuken: {
-    hokkaido:  { name: "北海道", chingin: 1075, prev: 1010, hatsuko: '2025-10-04' },
-    aomori:    { name: "青森県", chingin: 1029, prev: 953, hatsuko: '2025-11-21' },
-    iwate:     { name: "岩手県", chingin: 1031, prev: 952, hatsuko: '2025-12-01' },
-    miyagi:    { name: "宮城県", chingin: 1038, prev: 973, hatsuko: '2025-10-04' },
-    akita:     { name: "秋田県", chingin: 1031, prev: 951, hatsuko: '2026-03-31' },
-    yamagata:  { name: "山形県", chingin: 1032, prev: 955, hatsuko: '2025-12-23' },
-    fukushima: { name: "福島県", chingin: 1033, prev: 955, hatsuko: '2026-01-01' },
-    ibaraki:   { name: "茨城県", chingin: 1074, prev: 1005, hatsuko: '2025-10-12' },
-    tochigi:   { name: "栃木県", chingin: 1068, prev: 1004, hatsuko: '2025-10-01' },
-    gunma:     { name: "群馬県", chingin: 1063, prev: 985, hatsuko: '2026-03-01' },
-    saitama:   { name: "埼玉県", chingin: 1141, prev: 1078, hatsuko: '2025-11-01' },
-    chiba:     { name: "千葉県", chingin: 1140, prev: 1076, hatsuko: '2025-10-03' },
-    tokyo:     { name: "東京都", chingin: 1226, prev: 1163, hatsuko: '2025-10-03' },
-    kanagawa:  { name: "神奈川県", chingin: 1225, prev: 1162, hatsuko: '2025-10-04' },
-    niigata:   { name: "新潟県", chingin: 1050, prev: 985, hatsuko: '2025-10-02' },
-    toyama:    { name: "富山県", chingin: 1062, prev: 998, hatsuko: '2025-10-12' },
-    ishikawa:  { name: "石川県", chingin: 1054, prev: 984, hatsuko: '2025-10-08' },
-    fukui:     { name: "福井県", chingin: 1053, prev: 984, hatsuko: '2025-10-08' },
-    yamanashi: { name: "山梨県", chingin: 1052, prev: 988, hatsuko: '2025-12-01' },
-    nagano:    { name: "長野県", chingin: 1061, prev: 998, hatsuko: '2025-10-03' },
-    gifu:      { name: "岐阜県", chingin: 1065, prev: 1001, hatsuko: '2025-10-18' },
-    shizuoka:  { name: "静岡県", chingin: 1097, prev: 1034, hatsuko: '2025-11-01' },
-    aichi:     { name: "愛知県", chingin: 1140, prev: 1077, hatsuko: '2025-10-18' },
-    mie:       { name: "三重県", chingin: 1087, prev: 1023, hatsuko: '2025-11-21' },
-    shiga:     { name: "滋賀県", chingin: 1080, prev: 1017, hatsuko: '2025-10-05' },
-    kyoto:     { name: "京都府", chingin: 1122, prev: 1058, hatsuko: '2025-11-21' },
-    osaka:     { name: "大阪府", chingin: 1177, prev: 1114, hatsuko: '2025-10-16' },
-    hyogo:     { name: "兵庫県", chingin: 1116, prev: 1052, hatsuko: '2025-10-04' },
-    nara:      { name: "奈良県", chingin: 1051, prev: 986, hatsuko: '2025-11-16' },
-    wakayama:  { name: "和歌山県", chingin: 1045, prev: 980, hatsuko: '2025-11-01' },
-    tottori:   { name: "鳥取県", chingin: 1030, prev: 957, hatsuko: '2025-10-04' },
-    shimane:   { name: "島根県", chingin: 1033, prev: 962, hatsuko: '2025-11-17' },
-    okayama:   { name: "岡山県", chingin: 1047, prev: 982, hatsuko: '2025-12-01' },
-    hiroshima: { name: "広島県", chingin: 1085, prev: 1020, hatsuko: '2025-11-01' },
-    yamaguchi: { name: "山口県", chingin: 1043, prev: 979, hatsuko: '2025-10-16' },
-    tokushima: { name: "徳島県", chingin: 1046, prev: 980, hatsuko: '2026-01-01' },
-    kagawa:    { name: "香川県", chingin: 1036, prev: 970, hatsuko: '2025-10-18' },
-    ehime:     { name: "愛媛県", chingin: 1033, prev: 956, hatsuko: '2025-12-01' },
-    kochi:     { name: "高知県", chingin: 1023, prev: 952, hatsuko: '2025-12-01' },
-    fukuoka:   { name: "福岡県", chingin: 1057, prev: 992, hatsuko: '2025-11-16' },
-    saga:      { name: "佐賀県", chingin: 1030, prev: 956, hatsuko: '2025-11-21' },
-    nagasaki:  { name: "長崎県", chingin: 1031, prev: 953, hatsuko: '2025-12-01' },
-    kumamoto:  { name: "熊本県", chingin: 1034, prev: 952, hatsuko: '2026-01-01' },
-    oita:      { name: "大分県", chingin: 1035, prev: 954, hatsuko: '2026-01-01' },
-    miyazaki:  { name: "宮崎県", chingin: 1023, prev: 952, hatsuko: '2025-11-16' },
-    kagoshima: { name: "鹿児島県", chingin: 1026, prev: 953, hatsuko: '2025-11-01' },
-    okinawa:   { name: "沖縄県", chingin: 1023, prev: 952, hatsuko: '2025-12-01' },
+    hokkaido:  { name: "北海道", chingin: 1131, prev: 1075, hatsuko: '2026-10-01' },
+    aomori:    { name: "青森県", chingin: 1090, prev: 1029, hatsuko: '2026-10-29' },
+    iwate:     { name: "岩手県", chingin: 1090, prev: 1031, hatsuko: '2026-12-01' },
+    miyagi:    { name: "宮城県", chingin: 1098, prev: 1038, hatsuko: '2026-10-01' },
+    akita:     { name: "秋田県", chingin: 1090, prev: 1031, hatsuko: '2026-10-14' },
+    yamagata:  { name: "山形県", chingin: 1092, prev: 1032, hatsuko: '2026-10-30' },
+    fukushima: { name: "福島県", chingin: 1094, prev: 1033, hatsuko: '2026-10-16' },
+    ibaraki:   { name: "茨城県", chingin: 1136, prev: 1074, hatsuko: '2026-10-18' },
+    tochigi:   { name: "栃木県", chingin: 1125, prev: 1068, hatsuko: '2026-10-01' },
+    gunma:     { name: "群馬県", chingin: 1120, prev: 1063, hatsuko: '2026-10-03' },
+    saitama:   { name: "埼玉県", chingin: 1196, prev: 1141, hatsuko: '2026-10-01' },
+    chiba:     { name: "千葉県", chingin: 1195, prev: 1140, hatsuko: '2026-10-01' },
+    tokyo:     { name: "東京都", chingin: 1280, prev: 1226, hatsuko: '2026-10-01' },
+    kanagawa:  { name: "神奈川県", chingin: 1279, prev: 1225, hatsuko: '2026-10-01' },
+    niigata:   { name: "新潟県", chingin: 1108, prev: 1050, hatsuko: '2026-10-01' },
+    toyama:    { name: "富山県", chingin: 1119, prev: 1062, hatsuko: '2026-10-01' },
+    ishikawa:  { name: "石川県", chingin: 1113, prev: 1054, hatsuko: '2026-10-03' },
+    fukui:     { name: "福井県", chingin: 1112, prev: 1053, hatsuko: '2026-10-04' },
+    yamanashi: { name: "山梨県", chingin: 1113, prev: 1052, hatsuko: '2026-11-01' },
+    nagano:    { name: "長野県", chingin: 1117, prev: 1061, hatsuko: '2026-10-02' },
+    gifu:      { name: "岐阜県", chingin: 1121, prev: 1065, hatsuko: '2026-10-01' },
+    shizuoka:  { name: "静岡県", chingin: 1154, prev: 1097, hatsuko: '2026-10-15' },
+    aichi:     { name: "愛知県", chingin: 1195, prev: 1140, hatsuko: '2026-10-01' },
+    mie:       { name: "三重県", chingin: 1143, prev: 1087, hatsuko: '2026-10-01' },
+    shiga:     { name: "滋賀県", chingin: 1136, prev: 1080, hatsuko: '2026-10-03' },
+    kyoto:     { name: "京都府", chingin: 1180, prev: 1122, hatsuko: '2026-11-16' },
+    osaka:     { name: "大阪府", chingin: 1231, prev: 1177, hatsuko: '2026-10-01' },
+    hyogo:     { name: "兵庫県", chingin: 1172, prev: 1116, hatsuko: '2026-10-01' },
+    nara:      { name: "奈良県", chingin: 1107, prev: 1051, hatsuko: '2026-10-04' },
+    wakayama:  { name: "和歌山県", chingin: 1101, prev: 1045, hatsuko: '2026-10-03' },
+    tottori:   { name: "鳥取県", chingin: 1090, prev: 1030, hatsuko: '2026-10-03' },
+    shimane:   { name: "島根県", chingin: 1092, prev: 1033, hatsuko: '2026-10-10' },
+    okayama:   { name: "岡山県", chingin: 1104, prev: 1047, hatsuko: '2026-10-02' },
+    hiroshima: { name: "広島県", chingin: 1141, prev: 1085, hatsuko: '2026-10-11' },
+    yamaguchi: { name: "山口県", chingin: 1101, prev: 1043, hatsuko: '2026-10-08' },
+    tokushima: { name: "徳島県", chingin: 1103, prev: 1046, hatsuko: '2026-11-01' },
+    kagawa:    { name: "香川県", chingin: 1092, prev: 1036, hatsuko: '2026-10-01' },
+    ehime:     { name: "愛媛県", chingin: 1093, prev: 1033, hatsuko: '2026-11-01' },
+    kochi:     { name: "高知県", chingin: 1086, prev: 1023, hatsuko: '2026-10-29' },
+    fukuoka:   { name: "福岡県", chingin: 1114, prev: 1057, hatsuko: '2026-10-04' },
+    saga:      { name: "佐賀県", chingin: 1095, prev: 1030, hatsuko: '2026-11-15' },
+    nagasaki:  { name: "長崎県", chingin: 1087, prev: 1031, hatsuko: '2026-11-02' },
+    kumamoto:  { name: "熊本県", chingin: 1092, prev: 1034, hatsuko: '2026-12-01' },
+    oita:      { name: "大分県", chingin: 1096, prev: 1035, hatsuko: '2026-11-01' },
+    miyazaki:  { name: "宮崎県", chingin: 1085, prev: 1023, hatsuko: '2026-10-24' },
+    kagoshima: { name: "鹿児島県", chingin: 1090, prev: 1026, hatsuko: '2026-10-25' },
+    okinawa:   { name: "沖縄県", chingin: 1086, prev: 1023, hatsuko: '2026-12-02' },
   },
 
   // ----------------------------------------------------------------
@@ -93,8 +93,27 @@ const SAITEI_CHINGIN = {
   // 対象月の最賃年度が未収録(=収録年度と不一致)なら true。true時は直近収録値で暫定=公式公表後に更新が必要。
   saiteiStale: function(ym) { if (!ym) return false; return this.saiteiNendoOf(ym) !== this.NENDO_YEAR; },
   // 中央(Supabase statutory)の値で上書き。取れない/不正なら何もしない=ハードコードのまま(フォールバック)。
-  hydrate: function (data) {
+  hydrate: function (data, year) {
     if (!data || typeof data !== 'object') return;
+    /* ★★中央が 古い時に 新しい lib を 潰させない★★（2026-09-11 指示役1）
+       中央は「唯一の正」だが ★人が 中央を 直すまでの 間★、lib の方が 新しい事が 起きる。
+       そこへ そのまま 流し込むと ★客の画面が 古い額に 戻る★。
+       2026-09-12 実測＝lib に 令和8(東京1,280)を 入れた状態で 中央(令和7)を 流し込むと
+       ★NENDO_YEAR は 2026 のまま 額だけ 1,226 に 戻った＝一番 危ない 噛み合わせ★。
+       ⇒ ★中央の年度が lib より 古ければ 何もしない★。
+       年度は 引数 year（中央の行の year）か、無ければ 発効日から 見る。 */
+    var chuoNendo = (typeof year === 'number' && year) ? year : (function () {
+      var t = data.todofuken || {}, ks = Object.keys(t);
+      for (var i = 0; i < ks.length; i++) {
+        var iso = (typeof this.toIsoHatsuko === 'function') ? this.toIsoHatsuko(t[ks[i]].hatsuko) : null;
+        if (iso) return (typeof this.saiteiNendoOf === 'function') ? this.saiteiNendoOf(iso.slice(0, 7)) : null;
+      }
+      return null;
+    }).call(this);
+    if (typeof chuoNendo === 'number' && typeof this.NENDO_YEAR === 'number' && chuoNendo < this.NENDO_YEAR) {
+      return;   /* ★中央の方が 古い＝流し込まない（lib の 新しい値を 守る）★ */
+    }
+    if (typeof chuoNendo === 'number' && chuoNendo > this.NENDO_YEAR) this.NENDO_YEAR = chuoNendo;
     if (data.todofuken && typeof data.todofuken === 'object' && Object.keys(data.todofuken).length >= 40) {
       // ★中央は発効日を和暦(令和8年3月31日)で持つ。判定は日付比較なので ISO に直して取り込む。
       //   直さずに入れると chinginOn/monthSplit の比較が壊れる＝発効日が効かなくなる。

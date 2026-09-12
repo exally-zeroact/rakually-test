@@ -5812,7 +5812,7 @@
          （労災は index.html:201 で 読み込み済・計算でも rousaiPermilOf が 使っている） */
       var rr=(typeof RousaiRitsu!=='undefined'?RousaiRitsu:window.RousaiRitsu);
       rows.forEach(function(r){ try{
-        if(r.kind==='saitei_chingin' && sa&&sa.hydrate){ sa.hydrate(r.data); applied++; }
+        if(r.kind==='saitei_chingin' && sa&&sa.hydrate){ sa.hydrate(r.data, r.year); applied++; }   /* ★年度も渡す＝古い中央で 新しいlibを 潰さない（2026-09-11）★ */
         else if(r.kind==='shakaihoken' && sh&&sh.hydrate){ sh.hydrate(r.year, r.data); applied++; }
         else if(r.kind==='koyo' && kh&&kh.hydrate){ kh.hydrate(r.year, r.data); applied++; }
         else if(r.kind==='shotokuzei_densan' && dn&&dn.hydrate){ dn.hydrate(r.year, r.data); applied++; }

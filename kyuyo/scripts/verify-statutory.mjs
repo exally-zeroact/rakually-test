@@ -45,7 +45,10 @@ function canon(x) {
   if (x && typeof x === 'object') return '{' + Object.keys(x).sort().map(k => JSON.stringify(k) + ':' + canon(x[k])).join(',') + '}';
   return JSON.stringify(x);
 }
-function eq(label, a, b) { if (canon(a) !== canon(b)) diffs.push(label + ': lib=' + canon(a) + ' 中央=' + canon(b)); }
+/* ★差は 丸ごと 出さない★（2026-09-11）＝最賃47県・労災53業種を そのまま 出すと
+   ★1行が 数千字に なって 読めない★。★先頭120字だけ★ 見せて 長さを 添える。 */
+function mijikaku(v) { const t = canon(v); return t.length > 120 ? t.slice(0, 120) + '…(' + t.length + '字)' : t; }
+function eq(label, a, b) { if (canon(a) !== canon(b)) diffs.push(label + ': lib=' + mijikaku(a) + ' 中央=' + mijikaku(b)); }
 
 function row(rows, kind, year) { const r = rows.find(x => x.kind === kind && x.year === year); return r ? r.data : null; }
 

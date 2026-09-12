@@ -73,7 +73,7 @@ T('★県が空だと 健保は東京に倒れ、最賃は判定できない（�
   eq(k.total, SH.getKenko('tokyo', '2026-09').total, '空なのに東京の率で計算される');
   var SA = require('../lib/saitei-chingin.js');
   eq(SA.getChingin(''), null, '最賃は引けない');
-  eq(SA.getChingin('ehime'), 1033, '愛媛は引ける(令和7年度)');
+  eq(SA.getChingin('ehime'), 1093, '愛媛は引ける(令和8年度)');
 });
 
 T('★prefStats: 未選択の人を数える／東京のままの人も数える（書き換えない）', function () {

@@ -248,8 +248,9 @@ T('産休育休は apply で社保オフ(=0)になる(免除・継続徴収と�
 /* 最低賃金テーブル(配線=index.htmlに読込・dead code解消の回帰防止) */
 var Saitei = require('../lib/saitei-chingin.js');
 var W2 = require('../lib/warimashi.js');
-T('最低賃金: getChingin(tokyo)=1226 / 未知prefはnull', function () {
-  eq(Saitei.getChingin('tokyo'), 1226); eq(Saitei.getChingin('osaka'), 1177); eq(Saitei.getChingin('xxx'), null);
+T('最低賃金: getChingin(tokyo)=1280 / 未知prefはnull', function () {
+  /* ★2026-09-12 令和8年度へ更新（東京1226→1280・大阪1177→1231）★ */
+  eq(Saitei.getChingin('tokyo'), 1280); eq(Saitei.getChingin('osaka'), 1231); eq(Saitei.getChingin('xxx'), null);
 });
 T('最低賃金チェック: 時給<最賃で割れ判定(warimashi.minWageOk)', function () {
   ok(W2 && W2.minWageOk(1100 * 160, 160 * 60, 1226) === false, '時給1100は東京1226を下回る=NG');
