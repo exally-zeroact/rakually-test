@@ -32,49 +32,28 @@
  */
 
 /* ══════════ 何を正とするか（ここだけが「答え」） ══════════ */
-export const PROD_REF = 'tnfwipbgfgjaymlszeid';
-export const TEST_REF = 'khawdrnvssdenumbiwfg';
+/* ★倉庫の 名前は 持たない★＝scripts/_souko-ref.mjs 1枚だけが 持つ（2026-09-14）
+   ここに 直書きすると ★2か所に 増える★。借りて そのまま 配る（前の 呼び方を 壊さない）。 */
+export { PROD_REF, TEST_REF } from './_souko-ref.mjs';
+import { PROD_REF, TEST_REF } from './_souko-ref.mjs';
 
 /* アプリ × 本番/テスト。★url は「向き先が書いてある物」を直接指す★ */
 const APPS = [
-  /* ★Rakunally（2026-08-17 に立てた）★ 給与と請求書は同じ設定ファイルを見る（1つの器）。
-     ★本番は今「枠だけ」＝Deployment Protection が入っているので 401 が返る＝🟡未測定として出る★
-     （0件・異常なしにしない）。保護を外した日に 200 で測れるようになる。 */
+/* ★自分の repo の 行だけを 持つ★（2026-09-14 指示役1 の裁定・司さん「Rakunallyに集中しろ」）
+   前は 他アプリを 含めて ★APPS 16行 / BATCH_REPOS 11行★ 見ていた。
+   それを やめた 理由＝★rakually の CI が 赤に なっても 他アプリの 悪い push は 止まらない★。
+   ＝★門の 顔を して 他人の repo を 見ていた★。直せるのは その repo の 席だけ。
+   ★横断は 1本だけ★＝指示役1 が zeroact-memory で 持つ（種＝この 16行版）。
+   ★消した 14行は git に 残っている★＝git show 12e7a48:scripts/check-warehouse-pointers.mjs */
   { app: 'Rakunally',      env: 'テスト', host: 'https://rakually-test.vercel.app',                 cfg: '/js/supa-config.js',  want: TEST_REF },
   { app: 'Rakunally',      env: '本番',   host: 'https://rakually.vercel.app',                      cfg: '/js/supa-config.js',  want: PROD_REF, note: '★枠だけ（保護ON）＝401なら🟡未測定。中身は見た目OKの後に運ぶ' },
-  { app: 'Exally',        env: '本番',   host: 'https://exally.vercel.app',                        cfg: '/js/supa-config.js',  want: PROD_REF },
-  { app: 'Exally',        env: 'テスト', host: 'https://exally-zeroact.github.io/exally-staging',  cfg: '/js/supa-config.js',  want: TEST_REF },
-  // ★2026-08-07 Vercel版の staging は畳んだ（司さんOK）★
-  //   git連携が無く手打ちでしか更新されない＝黙って古くなる形だった。テストの配信は github.io の1本。
-  //   ここに残すと「消えた住所」を毎週叩いて 🟡 が鳴り続けるので、行ごと外す。
-  { app: '給与 kyuyo',    env: '本番',   host: 'https://exally.vercel.app',                        cfg: '/js/supa-config.js',  want: PROD_REF, note: 'Exallyと同居（同じ設定ファイル）' },
-  { app: '給与 kyuyo',    env: 'テスト', host: 'https://exally-zeroact.github.io/exally-staging',  cfg: '/js/supa-config.js',  want: TEST_REF, note: 'Exallyと同居（同じ設定ファイル）' },
-  { app: '代行請求',      env: '本番',   host: 'https://daikou-seikyu.vercel.app',                 cfg: '/daikou-seikyu.html', want: PROD_REF, owner: 'ダイコメ' },
-  { app: '代行請求',      env: 'テスト', host: null, want: null, owner: 'ダイコメ', note: '★テスト環境は無い（ダイコメの製品・Exallyは触らない）' },
-  { app: 'ダイコメ',      env: '本番',   host: 'https://daikou-app.vercel.app',                    cfg: '/js/dk-config.js',    want: PROD_REF, owner: 'ダイコメ' },
-  { app: 'ダイコメ',      env: 'テスト', host: 'https://daikou-app-test.vercel.app',               cfg: '/js/dk-config.js',    want: TEST_REF, owner: 'ダイコメ' },
-  { app: 'ダイコメ事務所', env: '本番',  host: 'https://daikome-jimusho.vercel.app',               cfg: '/js/dk-config.js',    want: PROD_REF, owner: 'ダイコメ' },
-  { app: 'ダイコメ事務所', env: 'テスト', host: 'https://daikome-jimusho-test.vercel.app',         cfg: '/js/dk-config.js',    want: TEST_REF, owner: 'ダイコメ' },
-  { app: '飲み屋',        env: '本番',   host: 'https://nomiya-app.vercel.app',                    cfg: '/js/supa-config.js',  want: PROD_REF, owner: '飲み屋' },
-  { app: '飲み屋',        env: 'テスト', host: 'https://nomiya-app-test.vercel.app',               cfg: '/js/supa-config.js',  want: TEST_REF, owner: '飲み屋' },
-  // ★アマかせは repo に住所を持たない。Vercelの環境変数が /api/config に出てくる＝ここが①と②を兼ねる
-  { app: 'アマかせ',      env: '本番',   host: 'https://amazon-ads-automation-lyart.vercel.app',   cfg: '/api/config',         want: PROD_REF, owner: 'アマかせ', viaEnv: true },
-  { app: 'アマかせ',      env: 'テスト', host: 'https://amazon-ads-automation-test.vercel.app',    cfg: '/api/config',         want: TEST_REF, owner: 'アマかせ', viaEnv: true },
 ];
 
 /* ③ バッチ。repo と、そのrepoが向くべき倉庫 */
 const BATCH_REPOS = [
+  /* ★ここも 自分の 2本だけ★（上の APPS と 同じ 理由） */
   { repo: 'exally-zeroact/rakually',                   want: PROD_REF, env: '本番' },
   { repo: 'exally-zeroact/rakually-test',              want: TEST_REF, env: 'テスト' },
-  { repo: 'exally-zeroact/exally',                     want: PROD_REF, env: '本番' },
-  { repo: 'exally-zeroact/exally-staging',             want: TEST_REF, env: 'テスト' },
-  { repo: 'exally-zeroact/daikou-seikyu',              want: PROD_REF, env: '本番', owner: 'ダイコメ' },
-  { repo: 'exally-zeroact/Daikou-app',                 want: PROD_REF, env: '本番', owner: 'ダイコメ' },
-  { repo: 'exally-zeroact/Daikou-app-test',            want: TEST_REF, env: 'テスト', owner: 'ダイコメ' },
-  { repo: 'exally-zeroact/nomiya-app',                 want: PROD_REF, env: '本番', owner: '飲み屋' },
-  { repo: 'exally-zeroact/nomiya-app-test',            want: TEST_REF, env: 'テスト', owner: '飲み屋' },
-  { repo: 'exally-zeroact/amazon-ads-automation',      want: PROD_REF, env: '本番', owner: 'アマかせ', private: true },
-  { repo: 'exally-zeroact/amazon-ads-automation-test', want: TEST_REF, env: 'テスト', owner: 'アマかせ', private: true },
 ];
 
 /* ★引っ越しの日★ これより前に登録された Supabase系の鍵は「引っ越し前」の疑い */
@@ -167,7 +146,22 @@ export function isStale(updatedAt, day = MIGRATION_DAY) {
 }
 
 /* ══════════ ここから外に出る（全部 GET） ══════════ */
-const argv = process.argv.slice(2);
+/* ★★自分が「呼ばれた本人」の時だけ 動く★★（2026-09-14 実測で 踏んだ）
+   ここが 無かったので、★別の 見張りが この道具を import した だけで
+   `--self-test` を 拾って ★相手の 自己確認に すり替わった★★
+   （tests/supa-config-env-matches-repo が PROD_REF/TEST_REF を 借りた時に 起きた＝
+     私の 自己確認の 代わりに この道具の 自己確認が 走り、私の 16本は 1本も 見られていなかった）。
+   ＝repo-env.mjs が 2026-08-26 に 同じ前科を 書き残している 型。
+   ＝[[feedback_global_tool_must_not_judge_itself_by_argv]]
+   ⇒ ★import された 時は 定数を 配るだけ★（外へも 出ない）。 */
+const IS_MAIN = (() => {
+  const run = String(process.argv[1] || '');
+  if (!run) return false;
+  /* Windows の 逆斜線・大小文字を 揃えてから 比べる（file:// の url を 素の道に 直す） */
+  const naosu = (s) => s.replace(/^file:\/\/\//, '').split('\\').join('/').replace(/%20/g, ' ').toLowerCase();
+  return naosu(import.meta.url).endsWith(naosu(run).replace(/^[a-z]:\//, ''));
+})();
+const argv = IS_MAIN ? process.argv.slice(2) : [];
 const JSON_OUT = argv.includes('--json');
 
 async function get(url, headers = {}, timeout = 25000) {
@@ -389,29 +383,6 @@ async function measureEdge() {
    　 後から慌てて足す形にすると、本物の直書きも一緒に通る（no-hardcoded-supa と同じ考え方）。
    mark:'🟢' = 設計として正しい ／ mark:'🟡' = 直すべきだが担当が他にある（★緑にはしない★） */
 export const TOOL_ALLOWED = {
-  'exally-zeroact/exally|tests/dbtest-seed.mjs': {
-    mark: '🟢', why: 'DB-testに固定した手動ツール。本番refは「そこへ向いていたら即中止」の見張りとして持っている',
-  },
-  'exally-zeroact/exally-staging|tests/dbtest-seed.mjs': {
-    mark: '🟢', why: '本番repoと同じ物。DB-testに固定した手動ツールで、本番refは「そこへ向いていたら即中止」の見張り',
-  },
-  'exally-zeroact/exally|scripts/check-warehouse-pointers.mjs': {
-    mark: '🟢', why: '★この見張り自身★。本番とテストの両方のrefを「正解」として持たないと、何とも突き合わせられない',
-  },
-  'exally-zeroact/exally-staging|scripts/check-warehouse-pointers.mjs': {
-    mark: '🟢', why: '同上（この見張り自身。両repoに同じ物を置く）',
-  },
-  'exally-zeroact/exally-staging|tests/pages-hosting.test.mjs': {
-    mark: '🟢', why: 'わざと本番refを混ぜた作り物を通して、Pages配信の見張りが赤くなることを確かめる検査',
-  },
-  'exally-zeroact/exally-staging|kyuyo/scripts/pull-statutory.mjs': {
-    mark: '🟢', why: '法定データ(最低賃金・保険料率)は★本番の中央倉庫が正★。テスト側から読んでも本番を見るのが設計',
-  },
-  'exally-zeroact/exally-staging|kyuyo/scripts/verify-statutory.mjs': { mark: '🟢', why: '同上（法定データは本番中央が正）' },
-  'exally-zeroact/exally-staging|kyuyo/scripts/check-source-urls.mjs': { mark: '🟢', why: '同上（法定データは本番中央が正）' },
-  /* ★Rakunally（rakually / rakually-test）の 道具★（2026-09-08 に 1本ずつ 実物を 読んで 載せた）
-     ★理由を 書かずに 載せない★＝載せた分だけ「見なくなる」ので、なぜ 見なくてよいかを 残す。
-     Exally 側には 同じ物が 既に 載っていた（Rakunallyへ 運んだ時に 載せ忘れていただけ）。 */
   'exally-zeroact/rakually|tests/dbtest-seed.mjs': {
     mark: '🟢', why: '★テスト倉庫に 固定した 手で走らせる道具★（種まき／片づけ）。'
       + '実物を 読んで 確かめた＝①URLは khaw… の 直書き ②起動時に「本番refを 指していたら 即中止」'
@@ -448,13 +419,6 @@ export const TOOL_ALLOWED = {
   },
   'exally-zeroact/rakually-test|scripts/seikyu-sql-guard.mjs': {
     mark: '🟢', why: '★倉庫に 当てる前の 門番★。どの倉庫の 設計図かを 見分ける為に 両方の ref を 持つ（当てるのは 人）',
-  },
-  'exally-zeroact/Daikou-app-test|scripts/check-hosts.mjs': {
-    mark: '🟡', why: '★ダイコメの物。2026-08-07に指示役へ報告し、ダイコメセッションへ引き継ぎ済み。'
-      + 'Exally側では直さない。直ったらこの行を消す★',
-  },
-  'exally-zeroact/Daikou-app-test|scripts/auth-mail-otp.mjs': {
-    mark: '🟡', why: '★ダイコメの物。両対応へ直す作業が進行中（2026-08-07 時点で未コミット）。入ったらこの行を消す★',
   },
 };
 
