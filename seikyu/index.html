@@ -540,7 +540,7 @@
       <summary class="more-s">詳しい設定（紙の行数・明細の列）</summary>
 
       <div class="sub-h">紙の行数</div>
-      <p class="hint">明細が少ない月でも、枠の分だけ空の行を残して刷ります。毎月おなじ場所に おなじ物が来るので、探し直しになりません。</p>
+      <p class="hint">明細が少ない月でも、枠の分だけ空の行を残して刷ります。</p>
       <div class="frow2">
         <div class="frow">
           <div class="flabel">明細の枠（行）</div>
@@ -611,7 +611,7 @@
           <select class="finput" id="s-round"></select>
         </div>
       </div>
-      <p class="hint">消費税は、税率ごとに合計してから1回だけ丸めます（国税庁の定め）。丸め方だけが会社ごとの決めごとです。</p>
+      <p class="hint">決めるのは 丸め方だけです（税率ごとの合計は 国の定めどおり）。</p>
       <div class="frow">
         <label class="check"><input type="checkbox" id="s-carry"><span>紙に「繰越」を出す（前回請求額・入金額・繰越額）</span></label>
         <p class="hint" id="s-carry-hint">毎月まとめて払われる相手に使います。入金が読めない時は、0と書かず「未確認」と出します。</p>
@@ -716,7 +716,7 @@
         <div class="frow">
           <div class="flabel">住所</div>
           <input class="finput" id="s-paddr" type="text" placeholder="例：愛媛県今治市○○1-1">
-          <p class="hint">ふだんの紙（PDF）のあて名の下には出しません。自社の Excel の様式を使う時だけ出ます。</p>
+          <p class="hint">自社の Excel の様式を使う時だけ 出ます。</p>
         </div>
         <!-- ★聞く順からは外したが 画面からは消さない★（指示役 2026-08-18）
              ＝入れてある会社が「無くなった」と思う／郵送・電話に使う人が居る。
@@ -733,7 +733,7 @@
             <input class="finput" id="s-ptel" type="tel" placeholder="例：0898-00-0000">
           </div>
         </div>
-        <p class="hint">郵便番号と電話番号は 紙にも Excel にも出ません（連絡用の控えです）。だから聞きません。</p>
+        <p class="hint">郵便番号と電話番号は 出ません（連絡用の控えです）。</p>
         <div class="frow2">
           <div class="frow">
             <div class="flabel">取引先コード</div>
@@ -748,7 +748,7 @@
         <div class="frow">
           <div class="flabel">この相手のインボイス登録番号</div>
           <input class="finput" id="s-pinvoice" type="text" inputmode="numeric" placeholder="T のあと 13桁">
-          <p class="hint" id="s-pinvoice-hint">紙には出ません（適格請求書に要るのは 出す側＝自社の登録番号です）。控えとして持っておく欄です。</p>
+          <p class="hint" id="s-pinvoice-hint">紙には出ません。控えとして持っておく欄です。</p>
         </div>
         <div class="frow">
           <label class="check"><input type="checkbox" id="s-pgensen"><span>この取引先は源泉徴収の対象（新しく作る1通に最初から入る）</span></label>
