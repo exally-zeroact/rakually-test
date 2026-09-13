@@ -1249,6 +1249,19 @@
     var YAME_SONO = [['', '（選んでください）'], ['1', '死亡'], ['2', '就職'], ['3', '収入増加'], ['4', '75歳到達'], ['5', '障害認定'], ['6', 'その他']];
     /* ★異動の別★＝原文 項番21（該当'1' / 非該当'2' / 変更'3'） */
     var IDOU_T = [['1', '増えた（扶養に 入った）'], ['2', '減った（扶養から 外れた）'], ['3', '変わった（中身を 直す）']];
+    /* ★姓と 名の 分け方／繋ぎ方★（2026-09-14）
+       ★前から 在る データは kanji/kana に まとめて 入っている★ので、
+       ★見せる時は 空白で 割る★（全角・半角・どちらでも）。打ち直させない。
+       繋ぐ時の 区切りは ★漢字＝全角スペース／カナ＝半角スペース★（原文の 相関）。 */
+    var KZ_SEP = { kanji: '　', kana: ' ' };
+    var kzWari = function (s) {
+      var t = String(s == null ? '' : s).replace(/[　\s]+/g, ' ').trim();
+      if (!t) return ['', ''];
+      var i = t.indexOf(' ');
+      return (i < 0) ? [t, ''] : [t.slice(0, i), t.slice(i + 1)];
+    };
+    var kzSei = function (k, na) { return (k[na === 'kana' ? 'seiKana' : 'seiKanji'] != null) ? k[na === 'kana' ? 'seiKana' : 'seiKanji'] : kzWari(k[na])[0]; };
+    var kzMei = function (k, na) { return (k[na === 'kana' ? 'meiKana' : 'meiKanji'] != null) ? k[na === 'kana' ? 'meiKana' : 'meiKanji'] : kzWari(k[na])[1]; };
     var gKazoku = (function () {
       var list = e.kazoku || [];
       var h = '<div class="ri-note" style="margin:0 2px 8px">健康保険の <b>被扶養者(異動)届</b>（様式2202700）に使います。'
@@ -1269,10 +1282,20 @@
           + '<b style="font-size:13px">' + esc(k.kanji || ('家族 ' + (ki + 1))) + '</b>'
           + (isHai ? '<span class="hint2">配偶者として出します</span>' : '')
           + '<button class="b-del m-del" data-kzdel="' + i + ':' + ki + '" aria-label="この家族を削除" style="margin-left:auto">×</button></div>'
-          + '<div class="frow2"><div class="frow"><div class="flabel">氏名（漢字）</div>'
-          + '<input class="finput" ' + pre + 'kanji" value="' + attr(k.kanji) + '" placeholder="年金 太郎"></div>'
-          + '<div class="frow"><div class="flabel">氏名（カナ）<span class="hint2">半角カナ・姓名の間に空白</span></div>'
-          + '<input class="finput" ' + pre + 'kana" value="' + attr(k.kana) + '" placeholder="ﾈﾝｷﾝ ﾀﾛｳ"></div></div>'
+          /* ★★姓と 名を 分けて 打たせる（2026-09-14 司さん）★★
+             ★区切りは 人に 打たせない★＝届出の 決まりは
+               漢字＝★全角スペース 1個★／カナ＝★半角スペース 1個★（原文 項番72・71 の 相関）。
+             1つの 欄に まとめて 打たせると ★半角と 全角を 間違える★／★2つ続く★で
+             年金機構に 弾かれる。⇒ ★分けて 受け取り、こちらで 繋ぐ★。
+             ★2行に する★＝見出しが 長くて 折り返す（左右の ずれの 元）のも 同時に 消える。 */
+          + '<div class="frow2"><div class="frow"><div class="flabel">姓（漢字）</div>'
+          + '<input class="finput" ' + pre + 'seiKanji" value="' + attr(kzSei(k, 'kanji')) + '" placeholder="年金"></div>'
+          + '<div class="frow"><div class="flabel">名（漢字）</div>'
+          + '<input class="finput" ' + pre + 'meiKanji" value="' + attr(kzMei(k, 'kanji')) + '" placeholder="太郎"></div></div>'
+          + '<div class="frow2"><div class="frow"><div class="flabel">姓（カナ）<span class="hint2">半角カナ</span></div>'
+          + '<input class="finput" ' + pre + 'seiKana" value="' + attr(kzSei(k, 'kana')) + '" placeholder="ﾈﾝｷﾝ"></div>'
+          + '<div class="frow"><div class="flabel">名（カナ）<span class="hint2">半角カナ</span></div>'
+          + '<input class="finput" ' + pre + 'meiKana" value="' + attr(kzMei(k, 'kana')) + '" placeholder="ﾀﾛｳ"></div></div>'
           + '<div class="frow2"><div class="frow"><div class="flabel">生年月日</div>'
           + '<input class="finput" ' + pre + 'birthYmd" type="date" value="' + attr(k.birthYmd) + '"></div>'
           + '<div class="frow"><div class="flabel">性別</div><select class="finput" ' + pre + 'seibetsu">'
@@ -5180,7 +5203,7 @@
          被扶養者(異動)届に 要る＝人数では 出せない。★空の1人ぶんを 足すだけ★（勝手に 埋めない）。 */
       var kzA = ev.target.closest('[data-kzadd]');
       if (kzA) { var ea = state.employees[+kzA.dataset.kzadd];
-        if (ea) { ea.kazoku = ea.kazoku || []; ea.kazoku.push({ kanji: '', kana: '', birthYmd: '', seibetsu: '', zokugara: '', doukyo: null, zip: '', jusho: '', shunyu: '', shokugyo: '', nattaYmd: '', nattaRiyu: '' });
+        if (ea) { ea.kazoku = ea.kazoku || []; ea.kazoku.push({ kanji: '', kana: '', seiKanji: '', meiKanji: '', seiKana: '', meiKana: '', birthYmd: '', seibetsu: '', zokugara: '', doukyo: null, zip: '', jusho: '', shunyu: '', shokugyo: '', nattaYmd: '', nattaRiyu: '', idou: '1', yametaYmd: '', yametaRiyu: '', bikou: '' });
           renderEmpMaster(); if (window.persistSaveDebounced) persistSaveDebounced(); }
         return; }
       var kzD = ev.target.closest('[data-kzdel]');
@@ -5225,6 +5248,19 @@
           if(fld==='doukyo') ke.kazoku[+kp[1]].doukyo = (v==='')?null:(v==='1');
           else if(fld==='shunyu') ke.kazoku[+kp[1]].shunyu = String(v).replace(/[^0-9]/g,'');
           else ke.kazoku[+kp[1]][fld]=v;
+          /* ★★姓と 名を こちらで 繋ぐ（2026-09-14 司さん）★★
+             届出の 決まり＝漢字は ★全角スペース 1個★・カナは ★半角スペース 1個★。
+             ★人に 区切りを 打たせない★＝打ったのは 姓と 名だけ。ここで 組み立てる。
+             ★片方だけの 時は 区切りを 入れない★（空白で 終わる字を 送らない）。 */
+          if(/^(sei|mei)(Kanji|Kana)$/.test(fld)){
+            var kk=ke.kazoku[+kp[1]];
+            [['Kanji','kanji','　'],['Kana','kana',' ']].forEach(function(z){
+              var se=String(kk['sei'+z[0]]!=null?kk['sei'+z[0]]:'').trim();
+              var me=String(kk['mei'+z[0]]!=null?kk['mei'+z[0]]:'').trim();
+              if(kk['sei'+z[0]]==null && kk['mei'+z[0]]==null) return;  /* まだ 分けていない人は 触らない */
+              kk[z[1]] = (se&&me)?(se+z[2]+me):(se||me);
+            });
+          }
         /* ★続柄を 変えると 職業と 理由の 選択肢が 変わる★（配偶者 4つ・それ以外 6つ）
            描き直さないと 前の 表のままで ★年金機構に 弾かれる値★が 残る。
            打つ欄（名前・住所）では 描き直さない＝★打っている 途中で 消える★のを 避ける。 */
