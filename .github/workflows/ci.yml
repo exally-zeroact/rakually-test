@@ -45,6 +45,15 @@ jobs:
         run: node tests/env-badge.test.mjs
       - name: ★テスト環境の帯 (ホスト名で決める作りに戻すと赤になるかの自己確認)
         run: node tests/env-badge.test.mjs --self-test
+      # ★2026-09-13 実測＝09-12 の 本番投入で テスト線の supa-config が 本番へ 紛れ込み、
+      #   客に「テスト環境」の帯が 出て、書き込み先も 試験用の倉庫を 向いていた。
+      #   ship-all の 守り(NEVER_SHIP)は 在ったが ★その回は ship-all を 通していなかった★。
+      #   ⇒ ★運ぶ道具だけでなく「置かれた結果」を CI で 見る★。素性は git origin の名前で 決める
+      #     （supa-config の env を 見て 判定すると 見張る物で 判定する 堂々巡りに なる）。
+      - name: ★repo の素性と supa-config の名札が 合っているか (本番に test の名札を 置いたら赤)
+        run: node tests/supa-config-env-matches-repo.test.mjs
+      - name: ★repo の素性 (わざと 食い違わせたら 赤になるかの自己確認・7通り)
+        run: node tests/supa-config-env-matches-repo.test.mjs --self-test
       - name: ★配信ガード (href="/…" 等の絶対パス・本番倉庫への誤接続を止める)
         run: node tests/pages-hosting.test.mjs
       - name: ★配信ガード (わざと壊して赤になるかの自己確認・6通り)
