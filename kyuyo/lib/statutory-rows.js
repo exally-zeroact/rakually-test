@@ -59,16 +59,16 @@
         去年(2025)は PDFを 直接 指していた。同じ形に 揃える。 */
       SAI.SOURCE_URL },   /* ★出典は libに 1か所（手で 書かない）★ */
       { kind: 'shakaihoken', year: 2025, data: shakaihokenRow(SHH, 2025), source_url: 'https://www.kyoukaikenpo.or.jp/g7/cat330/' },
-      { kind: 'shakaihoken', year: 2026, data: shakaihokenRow(SHH, 2026), source_url: 'https://www.kyoukaikenpo.or.jp/g7/cat330/' },
-      { kind: 'koyo', year: 2025, data: KOYO.RATES[2025], source_url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyouhoken_ryouritsu.html' },
-      { kind: 'koyo', year: 2026, data: KOYO.RATES[2026], source_url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyouhoken_ryouritsu.html' },
-      { kind: 'shotokuzei_densan', year: 2025, data: { fuyouKojo: D.PARAMS[2025].fuyouKojo, kyuyo: D.PARAMS[2025].kyuyo, kiso: D.PARAMS[2025].kiso }, source_url: 'https://www.nta.go.jp/users/gensen/' },
+      { kind: 'shakaihoken', year: 2026, data: shakaihokenRow(SHH, 2026), source_url: 'https://www.kyoukaikenpo.or.jp/about/business/insurance_rate/rate_prefectures/r08/index.html' },
+      { kind: 'koyo', year: 2025, data: KOYO.RATES[2025], source_url: 'https://www.mhlw.go.jp/content/001401966.pdf' },
+      { kind: 'koyo', year: 2026, data: KOYO.RATES[2026], source_url: 'https://jsite.mhlw.go.jp/aichi-hellowork/list/okazaki/news/koyouhokennryouR08.html' },
+      { kind: 'shotokuzei_densan', year: 2025, data: { fuyouKojo: D.PARAMS[2025].fuyouKojo, kyuyo: D.PARAMS[2025].kyuyo, kiso: D.PARAMS[2025].kiso }, source_url: 'https://www.nta.go.jp/publication/pamph/gensen/nencho2025/pdf/03.pdf' },
       { kind: 'shotokuzei_densan', year: 2026, data: { fuyouKojo: D.PARAMS[2026].fuyouKojo, kyuyo: D.PARAMS[2026].kyuyo, kiso: D.PARAMS[2026].kiso, zeiKo: D.ZEI_KO, zeiOtsu: D.ZEI_OTSU }, source_url: 'https://www.nta.go.jp/users/gensen/2026kaisei/index.htm' },
       { kind: 'shotokuzei_hei', year: 2026, data: { start: heiTable.start, step: heiTable.step, arr: heiTable.arr }, source_url: 'https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/02.htm' },
       { kind: 'shotokuzei_nichi', year: 2026, data: { start: nichiTable.start, step: nichiTable.step, ko: nichiTable.ko, otsu: nichiTable.otsu, koOver: nichiTable.koOver, otsuLowRate: nichiTable.otsuLowRate, otsuOver: nichiTable.otsuOver }, source_url: 'https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/data/08-14.pdf' },
       { kind: 'shoyo', year: 2026, data: { rates: SZ.RATES, kou: SZ.KOU_BY_YEAR[2026], otsu: SZ.OTSU_BY_YEAR[2026], kenpo_year_cap: SZ.KENPO_YEAR_CAP, kosei_per_cap: SZ.KOSEI_PER_CAP, kosei_ritsu_jugyoin: SZ.KOSEI_RITSU_JUGYOIN }, source_url: 'https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/03.htm' },
       { kind: 'nenmatsu', year: 2026, data: N.P, source_url: 'https://www.nta.go.jp/users/gensen/2026kaisei/index.htm' },
-      { kind: 'warimashi', year: 2023, data: WM.RATE, source_url: 'https://www.mhlw.go.jp/hourei/doc/kouji/K060000-A5.pdf' },
+      { kind: 'warimashi', year: 2023, data: WM.RATE, source_url: 'https://jsite.mhlw.go.jp/wakayama-roudoukyoku/newpage_00470.html' },
       { kind: 'shouhizei', year: 2019, data: { hyojun: SHZ.hyojun, keigen: SHZ.keigen }, source_url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6101.htm' }
     ];
     /* ★労災保険率表（別表第１・53業種）★（2026-09-04）

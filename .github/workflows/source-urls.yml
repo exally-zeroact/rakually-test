@@ -47,6 +47,16 @@ jobs:
       - name: ★中央statutoryの出典URLが全部生きているか（404なら赤・ただしCIは止めない）
         run: node kyuyo/scripts/check-source-urls.mjs
 
+      # ★2026-09-13＝lib 側の 出典は 誰も 見ていなかった（実測で 3本 404）★
+      #   koyo:2025 / koyo:2026 の 一覧ページ、warimashi:2023 の PDF。
+      #   上の check-source-urls は ★中央★ を 見る。中央が 正なので lib を 中央へ 合わせたが、
+      #   ★次に lib へ 手で 出典を 書いた人が また 死んだ URL を 入れられる★ので ここで 見る。
+      #   ★URL は この道具に 1本も 書かない★＝buildStatutoryRows（lib）から 取る。
+      - name: ★lib が持つ出典URLが全部生きているか（全kind・404なら赤）
+        run: node scripts/check-shutten-mukai.mjs
+      - name: ★lib の出典 (物差しそのものの自己確認・7通り)
+        run: node scripts/check-shutten-mukai.mjs --self-test
+
       # ★社保 適用拡大の賃金要件(月88,000円)が法令から消えたか＝e-Gov法令データを実際に叩いて数える。
       #   撤廃は「令和8年10月」予定だが施行日は政令事項＝まだ動く。人が読むページは「予定」としか書かない。
       #   ここが赤(exit 3)＝★切替が要る合図★。★期限 2026-09-15★ までに人が見て判断する。

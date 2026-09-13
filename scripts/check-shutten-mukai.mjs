@@ -1,16 +1,23 @@
-/* check-shutten-mukai.mjs — ★出典は「一覧」か「実物」か＝実際に 取って 数字が 在るかで 決める★
+/* check-shutten-mukai.mjs — ★lib が 持つ 出典を 全部 実際に 開いて 生きているか 見る★
  * =============================================================================
  * ★なぜ（2026-09-13 実測）★
- *   lib（statutory-rows.js）が 持つ 出典と、中央(statutory)が 持つ 出典が ★5件 食い違っていた★。
- *   中央の 方が PDF直リンク・年度ページで 具体的に 見えたが、
- *   ★「具体的」と「正しい」は 別★（地方の 労働局の ページも 混ざっている）。
- *   ⇒ ★どちらが 正か 決める前に、10本 ぜんぶ 実際に 取って 数字が 在るかを 見る★。
- *   （09-12 の 決まり「出典は 一覧では なく 直接 指す＝開いても 数字が 確かめられない物は 出典で ない」）
+ *   lib（kyuyo/lib/statutory-rows.js）が 持つ 出典のうち ★3本が 404★ だった。
+ *     koyo:2025 / koyo:2026 の 一覧ページ、warimashi:2023 の PDF
+ *   ＝「確認日だけ 残って 辿れない」＝★なぜ その金額かを 客や 社労士に 示せない★。
+ *   既に在る kyuyo/scripts/check-source-urls.mjs は ★中央(statutory)の 出典★を 見る。
+ *   ★lib 側は 誰も 見ていなかった★＝ここが その穴。
+ *   （指示役1 2026-09-13「saitei-source は 最賃だけ＝他の kind にも 広げてほしい」）
  *
- * ★測る事★ ①生きているか(HTTP) ②その年度の 字が 在るか ③★その kind の 実数が 字で 在るか★
- * ★PDF は 字に できない時は「読めない」と 言う★（読めない物を 緑に しない）
+ * ★2026-09-13 作り直し★
+ *   前の版は ★URL を この道具の 中に 焼き込んでいた★＝lib を 直しても
+ *   ★古い URL を 見て「まだ 死んでいる」と 言い続けた★（実際に 踏んだ）。
+ *   ⇒ ★出典は lib（buildStatutoryRows）から 取る★。ここには 1本も 書かない。
  *
- * 使い方: node scripts/check-shutten-mukai.mjs
+ * ★どこで 回すか★＝外を 叩くので ★週1（.github/workflows/source-urls.yml）★。
+ *   毎回のCIには 入れない（向こうの 都合で 赤くなると 人が 赤を 見なくなる）。
+ *
+ * 使い方: node scripts/check-shutten-mukai.mjs          … 死んでいれば 終わり値 3
+ *         node scripts/check-shutten-mukai.mjs --self-test … わざと 壊して 赤に なるか
  */
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -18,65 +25,68 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require_ = createRequire(import.meta.url);
-const K = require_(path.join(ROOT, 'kyuyo/lib/koyo-hoken.js'));
-const SHH = require_(path.join(ROOT, 'kyuyo/lib/shakaihoken-hyo.js'));
-const D = require_(path.join(ROOT, 'kyuyo/lib/shotokuzei-densan.js'));
-const WM = require_(path.join(ROOT, 'kyuyo/lib/warimashi.js'));
+const SELF = process.argv.includes('--self-test');
 
-/* ★探す字は lib から 作る★（打ち込まない＝年が 変わっても ついてくる） */
-const permil = (r) => (r * 1000).toFixed(1).replace(/\.0$/, '');   /* 0.0055 → 5.5 */
-const pct = (r) => (r * 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+/* ★物差しそのもの★＝返事を 渡すと「生きているか」を 返す（外へ 出ずに 確かめられる） */
+export function ikiteru(code) { return Number(code) >= 200 && Number(code) < 400; }
 
-const MI = [
-  { kind: 'koyo', year: 2025,
-    sagasu: [permil(K.RATES[2025].ippan), permil(K.RATES[2025].kensetsu), '令和7'],
-    chuo: 'https://www.mhlw.go.jp/content/001401966.pdf',
-    lib: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyouhoken_ryouritsu.html' },
-  { kind: 'koyo', year: 2026,
-    sagasu: [permil(K.RATES[2026].ippan), permil(K.RATES[2026].kensetsu), '令和8'],
-    chuo: 'https://jsite.mhlw.go.jp/aichi-hellowork/list/okazaki/news/koyouhokennryouR08.html',
-    lib: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyouhoken_ryouritsu.html' },
-  { kind: 'shakaihoken', year: 2026,
-    sagasu: ['令和8', '都道府県'],
-    chuo: 'https://www.kyoukaikenpo.or.jp/about/business/insurance_rate/rate_prefectures/r08/index.html',
-    lib: 'https://www.kyoukaikenpo.or.jp/g7/cat330/' },
-  { kind: 'shotokuzei_densan', year: 2025,
-    sagasu: [String(D.PARAMS[2025].fuyouKojo), '令和7'],
-    chuo: 'https://www.nta.go.jp/publication/pamph/gensen/nencho2025/pdf/03.pdf',
-    lib: 'https://www.nta.go.jp/users/gensen/' },
-  { kind: 'warimashi', year: 2023,
-    sagasu: [String(Math.round(WM.RATE.ot * 100)), String(Math.round(WM.RATE.over60 * 100))],
-    chuo: 'https://jsite.mhlw.go.jp/wakayama-roudoukyoku/newpage_00470.html',
-    lib: 'https://www.mhlw.go.jp/hourei/doc/kouji/K060000-A5.pdf' },
-];
+if (SELF) {
+  console.log('\n[check-shutten-mukai --self-test] ★物差しそのもの★（外へ 出ない）');
+  let ng = 0;
+  const iu = (nm, good) => { if (!good) ng++; console.log('  ' + (good ? '✓' : '✗') + ' ' + nm + (good ? '' : '  ★思っていたのと 違う★')); };
+  iu('200 は 生きている', ikiteru(200));
+  iu('301 は 生きている（引っ越しは 追う）', ikiteru(301));
+  iu('404 は ★死んでいる★', !ikiteru(404));
+  iu('500 は ★死んでいる★', !ikiteru(500));
+  iu('0（つながらない）は ★死んでいる★', !ikiteru(0));
+  /* ★出典を 1本も 持たない lib を 食わせたら 赤に なるか★＝空振りを 緑に しない */
+  iu('出典が 0本なら ★赤★（空振りを 緑に しない）', kazoeru([]).akai);
+  iu('全部 生きていれば 緑', !kazoeru([{ kind: 'a', year: 1, url: 'u', code: 200 }]).akai);
+  console.log(ng ? '\n★自己確認 ' + ng + '件 おかしい★' : '\n自己確認 OK');
+  process.exit(ng ? 1 : 0);
+}
 
-async function toru(u) {
+/* 数え方も 1か所（自己確認から 呼べる形） */
+export function kazoeru(kekka) {
+  const shinda = kekka.filter((r) => !ikiteru(r.code));
+  return { zen: kekka.length, shinda, akai: kekka.length === 0 || shinda.length > 0 };
+}
+
+/* ★出典は lib から 取る★（この道具には 1本も 書かない） */
+const L = {
+  SHH: require_(path.join(ROOT, 'kyuyo/lib/shakaihoken-hyo.js')),
+  SAI: require_(path.join(ROOT, 'kyuyo/lib/saitei-chingin.js')),
+  KOYO: require_(path.join(ROOT, 'kyuyo/lib/koyo-hoken.js')),
+  D: require_(path.join(ROOT, 'kyuyo/lib/shotokuzei-densan.js')),
+  H: require_(path.join(ROOT, 'kyuyo/lib/shotokuzei-hei.js')),
+  NI: require_(path.join(ROOT, 'kyuyo/lib/shotokuzei-nichi.js')),
+  SZ: require_(path.join(ROOT, 'kyuyo/lib/shoyo-zei.js')),
+  N: require_(path.join(ROOT, 'kyuyo/lib/nenmatsu.js')),
+  WM: require_(path.join(ROOT, 'kyuyo/lib/warimashi.js')),
+  SHZ: require_(path.join(ROOT, 'kyuyo/lib/shouhizei-ritsu.js')),
+  RR: require_(path.join(ROOT, 'kyuyo/lib/rousai-ritsu.js')),
+};
+const SR = require_(path.join(ROOT, 'kyuyo/lib/statutory-rows.js'));
+const rows = SR.buildStatutoryRows(L);
+
+async function tataku(u) {
   try {
     const r = await fetch(u, { headers: { 'User-Agent': 'rakunally-shutten-check' }, redirect: 'follow' });
-    const ct = (r.headers.get('content-type') || '').toLowerCase();
-    if (!r.ok) return { ok: false, code: r.status, ct, ji: null };
-    const buf = Buffer.from(await r.arrayBuffer());
-    if (ct.indexOf('pdf') >= 0 || buf.slice(0, 4).toString() === '%PDF') {
-      return { ok: true, code: r.status, ct: 'pdf', ji: null, byte: buf.length };   /* ★字に できない＝読めない★ */
-    }
-    return { ok: true, code: r.status, ct, ji: buf.toString('utf8'), byte: buf.length };
-  } catch (e) { return { ok: false, code: 0, ct: '', ji: null, naze: String(e.message || e).slice(0, 60) }; }
+    return r.status;
+  } catch (e) { return 0; }
 }
 
-console.log('\n[check-shutten-mukai] 出典を 実際に 取って 数字が 在るか 見る');
-for (const m of MI) {
-  console.log('\n■ ' + m.kind + ':' + m.year + '  探す字 … ' + m.sagasu.join(' / '));
-  for (const [na, u] of [['中央', m.chuo], ['lib ', m.lib]]) {
-    const r = await toru(u);
-    let iu;
-    if (!r.ok) iu = '★死んでいる★ ' + (r.code || r.naze);
-    else if (r.ji === null) iu = '🟡 PDF＝この道具では ★字に できない（読めない）★ ' + r.byte + 'バイト';
-    else {
-      const atta = m.sagasu.filter((s) => r.ji.indexOf(s) >= 0);
-      iu = (atta.length === m.sagasu.length ? '★全部 在る★' : atta.length ? '一部だけ ' + atta.length + '/' + m.sagasu.length : '★1つも 無い★')
-        + '（' + atta.join(',') + '）';
-    }
-    console.log('   ' + na + ' ' + iu + '\n        ' + u);
-  }
+console.log('\n[check-shutten-mukai] lib が 持つ 出典を 実際に 開く（' + rows.length + '本）');
+const kekka = [];
+for (const r of rows) {
+  const code = await tataku(r.source_url);
+  kekka.push({ kind: r.kind, year: r.year, url: r.source_url, code });
+  console.log('  ' + (ikiteru(code) ? '✓' : '✗') + ' ' + (r.kind + ':' + r.year).padEnd(24)
+    + String(code || 'つながらない').padStart(4) + '  ' + String(r.source_url).slice(0, 78));
 }
-console.log('\n★PDF は この道具では 読めない＝「一覧に 数字が 無い」だけを 根拠に 向きを 決めない★');
+const m = kazoeru(kekka);
+console.log('\n── 実測 ──');
+console.log('  生きている: ' + (m.zen - m.shinda.length) + ' / 死んでいる: ' + m.shinda.length + '（全 ' + m.zen + '本）');
+if (m.zen === 0) console.log('  ★出典を 1本も 見ていない＝空振り。緑に しない★');
+for (const s of m.shinda) console.log('  ★死んでいる★ ' + s.kind + ':' + s.year + '  ' + s.code + '  ' + s.url);
+process.exit(m.akai ? 3 : 0);

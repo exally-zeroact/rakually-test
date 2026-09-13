@@ -30,7 +30,13 @@ import os from 'node:os';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const JIBUN = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');   /* この道具が 住んでいる repo */
+/* ★どの repo の 向き先へ 当てるか★＝既定は 自分の repo。--root で 別の repo を 指せる。
+   ★自分の repo 以外へ 書く時は --honban が 要る★（速度の こぶ＝手が すべらない為）。 */
+const ROOT_ARG = (() => { const i = process.argv.indexOf('--root'); return i > 0 ? process.argv[i + 1] : ''; })();
+const ROOT = ROOT_ARG ? path.resolve(ROOT_ARG) : JIBUN;
+const YOSO = path.resolve(ROOT) !== path.resolve(JIBUN);       /* 自分の repo では ない */
+const HONBAN = process.argv.includes('--honban');
 const require_ = createRequire(import.meta.url);
 const DDL = process.argv.includes('--ddl');
 const WRITE = process.argv.includes('--write');
@@ -40,9 +46,13 @@ const WRITE = process.argv.includes('--write');
    ⇒ ★値が 無い/違う 行だけ 書く★。出典を 直すなら 中身を 見てから --urls を 付ける。 */
 const URLS = process.argv.includes('--urls');
 
-/* ★別のアプリの 倉庫の 名前を ここに 書かない★（no-hardcoded-supa に 捕まった＝見張りの 言い分が 正しい）
-   ＝★向き先の 字は 1か所だけが 持つ★。門番が 既に 持っている物を 借りる。 */
-import { PROD_WAREHOUSE_REF as EXALLY_REF } from './seikyu-sql-guard.mjs';
+/* ★★2026-09-13 私の 思い込みを 見張りに 書いていた（直した）★★
+   ここに ★「PROD_WAREHOUSE_REF＝Exally＝別のアプリの倉庫＝当てるな」★ と 書いていた。
+   ★間違い★＝それは ★Rakunally の 本番の 倉庫★ だった（倉庫は A/B の 2つ在る）。
+   ⇒ 本番の repo から 走らせた 時に ★自分の 思い込みが 自分を 止めた★。
+   [[feedback_mihari_ga_jibun_no_omoikomi_wo_mamotte_iru]] そのもの。
+   ★今の 守り★＝向き先は ★--root の repo の js/supa-config.js だけ★（元から そう）＋
+   ★自分の repo 以外を 当てる時は --honban を 明示★（速度の こぶを 残す）。 */
 
 /* ── 向き先（この repo が 指している 倉庫だけ）───────────────── */
 function refFromRepo() {
@@ -63,7 +73,13 @@ function token() {
   throw new Error('鍵が 見つかりません（%TEMP%/nomiya-db-url-prod.json）＝司さんに 作り直しを 頼む');
 }
 const REF = refFromRepo();
-if (REF === EXALLY_REF) { console.log('★中止★ Exally の 倉庫を 指しています: ' + REF); process.exit(1); }
+if (YOSO && (DDL || WRITE) && !HONBAN) {
+  console.log('★中止★ 自分の repo では ない所へ 書こうとしています。');
+  console.log('  道具が 住む repo … ' + JIBUN);
+  console.log('  当てようとした repo … ' + ROOT + '（倉庫 ' + REF + '）');
+  console.log('  ★書くなら --honban を 付ける★（指示役／司さんの 一言が 在る時だけ）');
+  process.exit(1);
+}
 const TOK = token();
 
 async function sql(q) {
@@ -122,7 +138,8 @@ if (DDL) {
   const raw = fs.readFileSync(path.join(ROOT, 'supabase/statutory-admin.sql'), 'utf8');
   const warui = [];
   if (/\b(drop|truncate|delete\s+from|alter\s+table)\b/i.test(raw.replace(/--[^\n]*/g, ''))) warui.push('消す/作り替える 命令が 混ざっている');
-  if (raw.indexOf(EXALLY_REF) >= 0) warui.push('別のアプリの 倉庫の 名前が 混ざっている');
+  /* ★SQL の 中に 倉庫の 名前が 書いてあったら 止める★（当てる先は --root の supa-config だけが 決める） */
+  if (/[a-z0-9]{20}\.supabase\.co/.test(raw)) warui.push('SQL の 中に 倉庫の 名前が 書いてある');
   if (raw.indexOf('statutory_upsert') < 0) warui.push('statutory_upsert が 出てこない（別の物を 当てようとしている）');
   if (warui.length) { console.log('  ★門番で 止めました★ … ' + warui.join(' / ')); process.exit(1); }
   await sql(raw);

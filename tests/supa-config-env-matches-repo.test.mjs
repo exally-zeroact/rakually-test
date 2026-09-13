@@ -62,6 +62,34 @@ if (SELF) {
   iu('origin が 読めない … 赤（★未測定を 緑に しない★）', !au('', 'prod').ok);
   iu('本番 × prod … 緑（★狼少年に しない★）', au('rakually', 'prod').ok);
   iu('テスト線 × test … 緑', au('rakually-test', 'test').ok);
+
+  /* ★★指示役1 の 注文（2026-09-13）＝「git archive / tar で 運んだ時も 捕まるか 試せ」★★
+     ＝それが ★09-12 に 実際に 使われた 手★（ship-all を 通らないので NEVER_SHIP が 効かない）。
+     ⇒ ★字で 真似るのでは なく、本当に その手で 運んで から 見張りを 走らせる★。 */
+  const os = await import('node:os'), fsp = await import('node:fs');
+  const Q = String.fromCharCode(39);   /* ' … 入れ子で 書かない（repo-env.mjs と 同じ理由） */
+  const tmp = fsp.mkdtempSync(path.join(os.tmpdir(), 'supacfg-'));
+  const mk = (dir, origin, env) => {
+    fsp.mkdirSync(path.join(dir, 'js'), { recursive: true });
+    fsp.writeFileSync(path.join(dir, 'js', 'supa-config.js'),
+      'window.SUPA = {' + String.fromCharCode(10) + '  env: ' + Q + env + Q + String.fromCharCode(10) + '};' + String.fromCharCode(10));
+    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', dir, 'remote', 'add', 'origin', 'https://github.com/x/' + origin + '.git'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', dir, 'add', '-A'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', dir, '-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '-q', '-m', 'x'], { stdio: 'ignore' });
+  };
+  const tesuto = path.join(tmp, 'rakually-test'), honban = path.join(tmp, 'rakually');
+  mk(tesuto, 'rakually-test', 'test');
+  mk(honban, 'rakually', 'prod');
+  iu('運ぶ前の 本番は 緑', au(originName(honban), envOf(fsp.readFileSync(path.join(honban, 'js/supa-config.js'), 'utf8'))).ok);
+  /* ★09-12 に 使われた 手そのもの★ */
+  /* ★Windows の 逆斜線を sh に 渡すな★＝逃がし記号と 見なされて 落ちる（実測）。C:/… に 直す。 */
+  const sl = (p) => p.split(path.sep).join('/');
+  execFileSync('sh', ['-c', 'git -C "' + sl(tesuto) + '" archive HEAD | tar -x -C "' + sl(honban) + '"'], { stdio: 'ignore' });
+  const ato = envOf(fsp.readFileSync(path.join(honban, 'js/supa-config.js'), 'utf8'));
+  iu('★git archive | tar で 運ぶと 本番の 名札が test に なる（事故の 再現）★', ato === 'test');
+  iu('★その後に この見張りを 走らせると 赤★（09-12 を 捕まえられる）', !au(originName(honban), ato).ok);
+  fsp.rmSync(tmp, { recursive: true, force: true });
   console.log(ng ? '\n★自己確認 ' + ng + '件 おかしい★' : '\n自己確認 OK（わざと 食い違わせると 赤に なる）');
   process.exit(ng ? 1 : 0);
 }
