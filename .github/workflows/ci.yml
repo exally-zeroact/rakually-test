@@ -5,9 +5,14 @@ name: CI
 #  ・元は exally / exally-staging の2本のCIを並べた物。★実行方式は変えていない★。
 #  ・kyuyo/ と seikyu/ は内部レイアウトをそのまま持ち込んでいるので、相対パスは無改変で通る。
 #
-# ★このリポジトリ(rakually-test)は Rakunally のテスト線★（倉庫＝DB-test）。本番は rakually。
-#   ・配信は Vercel（rakually-test.vercel.app）。★github.io は使わない★
-#   ・テスト線にしか無い物＝★テスト環境の帯★と★配信ガード(本番倉庫への誤接続を止める)★。
+# ★この ci.yml は テスト線(rakually-test)と 本番(rakually)の ★両方★ で 走る★（ship-all が 運ぶ）
+#   ⇒ ★ここに「この repo は テスト線」と 書かない★＝本番に 運ばれた 字が 嘘に なる。
+#     2026-09-12〜09-13 に 実際に そうなっていた（本番の ci.yml が「rakually-test」と 名乗っていた）。
+#   ★どちらの 線かは js/supa-config.js の 名札が 持つ★（運ばれない 唯一のファイル）。
+#     合っているかは tests/supa-config-env-matches-repo.test.mjs が 見る（origin の名前で 判定）。
+#   ・配信は Vercel。★github.io は使わない★
+#   ・倉庫は 2つ＝PROD 本番（全アプリ）／TEST 試験（全アプリ）。中で アプリごとに 部屋(schema)。
+#   ・テスト線にしか出ない物＝★テスト環境の帯★（名札 env:'test' の時だけ 出る）。
 #     どちらも【テストの厚み】であって、本番に無い画面や機能ではない。
 #
 # ★2026-08-17 rakually-test を立てた時に外したステップ（外した物は必ずここに書く）★
