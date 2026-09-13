@@ -6,3 +6,4 @@ tests/xlsx-harness/golden/pending-*.json
 .shot-saitei-an/
 .shot-youshiki/
 .shot-obi/
+.shot-fuyo/

@@ -1162,6 +1162,33 @@
 
     var b1 = sonotaBlock(sono[0]), b2 = sonotaBlock(sono[1]);
     for (var i2 = 0; i2 < 33; i2++) { r[69 + i2] = b1[i2]; r[102 + i2] = b2[i2]; }
+
+    /* ★★異動の別で「省略する」欄を 空に する（2026-09-14）★★
+       ★私が 決めた 規則では ない★＝lib/todokede-check.js（年金機構の チェック仕様の 写し）が
+       ★名指しで 言った 物だけ★を ここに 書く。3通りの 行を 実際に 作って 通し、
+       ★何番が 何と 言われたか★を 見てから 足した（当て推量 0）。
+         該当'1' / 変更'3' … 「でなくなった日・理由」は 省略
+         非該当'2' / 変更'3' … 「同居・別居」「になった理由」「職業」「収入」は 省略
+         非該当'2'          … 「になった日」も 省略
+       ★空に するだけ★＝画面に 入れた 値は 消さない。 */
+    var IDOU = String(inp.idou || '');
+    var kara = function (ns) { ns.forEach(function (n) { r[n] = ''; }); };
+    if (IDOU === '1' || IDOU === '3') {
+      kara([49, 50, 51, 52]);        /* 50-53 配偶者 でなくなった日・理由 */
+      kara([96, 97, 98, 99]);        /* 97-100 その他1（69+27〜69+30） */
+      kara([129, 130, 131, 132]);    /* 同 その他2（102+27〜102+30） */
+    }
+    if (IDOU === '2' || IDOU === '3') {
+      kara([16]);                    /* 17 被保険者の収入 */
+      kara([34, 45, 46, 47, 48, 68]); /* 35 同居別居 / 46-47 になった理由 / 48 職業 / 49 収入 / ★69 配偶者の年間収入★ */
+      kara([78, 91, 93, 94, 95]);    /* 79 / 92 / 94 / 95-96（その他1） */
+      kara([111, 124, 126, 127, 128]); /* 同（その他2） */
+    }
+    if (IDOU === '2') {
+      kara([43, 44]);                /* 44-45 配偶者 になった日 */
+      kara([89, 90]);                /* 90-91 その他1 */
+      kara([122, 123]);              /* 同 その他2 */
+    }
     r[135] = '';                                            /* 136 届出意思確認済＝★省略する★ */
     r[136] = inp.shoumeiHai ? '1' : '';                     /* 137 資格確認書発行要否（配偶者） */
     r[137] = (sono[0] && sono[0].shoumei) ? '1' : '';       /* 138 同（その他１） */
@@ -1225,13 +1252,42 @@
         if (String(o.x.zip || '').replace(/[^0-9]/g, '').length < 7) naze.push(o.na + 'の 郵便番号が まだです（同居でも 要ります）');
         if (!String(o.x.jusho || '').trim()) naze.push(o.na + 'の 住所が まだです（同居でも 要ります）');
         if (!String(o.x.shokugyo || '').trim()) naze.push(o.na + 'の 職業が まだです');
-        if (!o.x.nattaYmd) naze.push(o.na + 'の 「扶養に 入った日」が まだです');
-        if (!String(o.x.nattaRiyu || '').trim()) naze.push(o.na + 'の 「扶養に 入った理由」が まだです');
+        /* ★★異動の別で 聞く物が 変わる（2026-09-14）★★
+           前は ★どの異動でも「入った日／入った理由」を 要求★していた＝
+           減った（非該当）の時に ★要らない物を 求め、要る物（やめた日／やめた理由）を 求めなかった★。
+           ★何が 要るかは 私が 決めない★＝lib/todokede-check.js（年金機構の 写し）が 言う物に 合わせる。 */
+        var ido = String(inp.idou || '');
+        if (ido === '1') {
+          if (!o.x.nattaYmd) naze.push(o.na + 'の 「扶養に 入った日」が まだです');
+          if (!String(o.x.nattaRiyu || '').trim()) naze.push(o.na + 'の 「扶養に 入った理由」が まだです');
+        }
+        if (ido === '2') {
+          if (!o.x.yametaYmd) naze.push(o.na + 'の 「扶養から 外れた日」が まだです');
+          if (!String(o.x.yametaRiyu || '').trim()) naze.push(o.na + 'の 「扶養から 外れた理由」が まだです');
+        }
+        if (ido === '3') {
+          if (!String(o.x.bikou || '').trim()) naze.push(o.na + 'の 「何を 変えたか」が まだです（変更前の 中身も 書く）');
+        }
         if (o.x.doukyo == null) naze.push(o.na + 'の 同居／別居が まだです');
         if (o.x.shunyu == null || o.x.shunyu === '') naze.push(o.na + 'の 年間収入が まだです（0円なら 0）');
         if (!String(o.x.seibetsu || '').trim()) naze.push(o.na + 'の 性別が まだです');
       });
     if (sono.length > 2) naze.push('1回に 出せるのは 配偶者1人＋家族2人までです（' + sono.length + '人 入っています）');
+    /* ★★ボタンと 門の 口裏を 合わせる（2026-09-14）★★
+       2026-09-08 に ★「出せます」と 出たのに 押したら 5件 断られた★。
+       ⇒ ★人の 言葉で 先に 言う★のは 上の 一覧、
+         ★最後は 本物の 検め（139項目の 相関）を そのまま 通す★＝二度と 口裏が ずれない。
+       ＝[[feedback_botan_to_mon_no_kuchiura]]
+       ★Check が 無い repo でも 落ちない★＝在る時だけ 通す（上の 一覧は そのまま 効く）。 */
+    if (!naze.length && CHECK && typeof CHECK.fuyo === 'function') {
+      var row = null;
+      try { row = fuyoRow(inp); } catch (err) { naze.push('行を 作れませんでした（' + (err && err.message) + '）'); }
+      if (row) {
+        (CHECK.fuyo(row, inp.kyou) || []).forEach(function (x) {
+          naze.push('項番' + x.no + ' ' + x.name + '＝' + x.why);
+        });
+      }
+    }
     return { ok: !naze.length, naze: naze };
   }
 

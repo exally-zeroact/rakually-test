@@ -1242,6 +1242,13 @@
     var SHOKU_HAI = [['', '（選んでください）'], ['1', '無職'], ['2', 'パート'], ['3', '年金受給者'], ['4', 'その他']];
     var RIYU_SONO = [['', '（選んでください）'], ['1', '出生'], ['2', '離職'], ['3', '収入減'], ['4', '同居'], ['5', 'その他']];
     var RIYU_HAI = [['', '（選んでください）'], ['1', '配偶者の就職'], ['2', '婚姻'], ['3', '離職'], ['4', '収入減少'], ['5', 'その他']];
+    /* ★扶養から 外れた理由★（2026-09-14 に 画面を 足した）
+       ★配偶者と その他で 別の 表★＝原文 項番52 と 項番99（kyuyo/docs/fuyo-2202700.md の 写し）。
+       ★2番が 違う★（配偶者＝離婚／その他＝就職）＝使い回すと ずれる。 */
+    var YAME_HAI = [['', '（選んでください）'], ['1', '死亡'], ['2', '離婚'], ['3', '就職・収入増加'], ['4', '75歳到達'], ['5', '障害認定'], ['6', 'その他']];
+    var YAME_SONO = [['', '（選んでください）'], ['1', '死亡'], ['2', '就職'], ['3', '収入増加'], ['4', '75歳到達'], ['5', '障害認定'], ['6', 'その他']];
+    /* ★異動の別★＝原文 項番21（該当'1' / 非該当'2' / 変更'3'） */
+    var IDOU_T = [['1', '増えた（扶養に 入った）'], ['2', '減った（扶養から 外れた）'], ['3', '変わった（中身を 直す）']];
     var gKazoku = (function () {
       var list = e.kazoku || [];
       var h = '<div class="ri-note" style="margin:0 2px 8px">健康保険の <b>被扶養者(異動)届</b>（様式2202700）に使います。'
@@ -1291,6 +1298,22 @@
           + '<input class="finput" ' + pre + 'nattaYmd" type="date" value="' + attr(k.nattaYmd) + '"></div></div>'
           + '<div class="frow"><div class="flabel">扶養に入った理由</div>'
           + '<select class="finput" ' + pre + 'nattaRiyu">' + erabi(riyuT, k.nattaRiyu) + '</select></div>'
+          /* ★★異動の別＝この人を どう 届けるか（2026-09-14）★★
+             前は ★「増えた」しか 出せなかった★（画面が 無かっただけで 土台は 3つとも 作れた）。
+             ★人ごとに 選ぶ★＝同じ月に「1人 増えて 1人 減った」が 起きるので、
+             届書は ★異動の別ごとに 分けて 出す★（1枚に 混ぜられない＝原文 項番21 は 1枚に1つ）。 */
+          + '<div class="frow"><div class="flabel">この人の 届出<span class="hint2">増えた／減った／変わった</span></div>'
+          + '<select class="finput" ' + pre + 'idou">' + erabi(IDOU_T, String(k.idou || '1')) + '</select></div>'
+          + (String(k.idou || '1') === '2'
+            ? '<div class="frow2"><div class="frow"><div class="flabel">扶養から 外れた日</div>'
+              + '<input class="finput" ' + pre + 'yametaYmd" type="date" value="' + attr(k.yametaYmd) + '"></div>'
+              + '<div class="frow"><div class="flabel">外れた理由</div>'
+              + '<select class="finput" ' + pre + 'yametaRiyu">' + erabi(isHai ? YAME_HAI : YAME_SONO, k.yametaRiyu) + '</select></div></div>'
+            : '')
+          + (String(k.idou || '1') === '3'
+            ? '<div class="frow"><div class="flabel">何を 変えたか<span class="hint2">変更前の 中身も 書く（届出に そのまま 出ます）</span></div>'
+              + '<input class="finput" ' + pre + 'bikou" value="' + attr(k.bikou) + '" placeholder="氏名変更（旧：年金　一朗）"></div>'
+            : '')
           + '</div>'; }).join('');
       h += '<div class="addcustom"><button class="btn-ghost ac-btn" data-kzadd="' + i + '" style="padding:10px 12px">＋ 家族を足す</button></div>';
       return h;
@@ -3401,16 +3424,28 @@
     var moto={ jimusho:fuyoJimusho(),
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'',
         seibetsu:e.seibetsu||'', zip:e.zip||'', jushoKanji:e.address||'', kisoNenkin:e.kisoNenkin||'' },
-      idou:'1',                        /* ★増えた（該当）★＝この画面が 出すのは 増えた時だけ */
       ukeYmd:kyou, kyou:kyou };
+    /* ★★異動の別ごとに 分ける（2026-09-14）★★
+       ★1枚の 届書に 入る 異動の別は 1つ★（原文 項番21）。
+       同じ月に「1人 増えて 1人 減った」は ふつうに 起きるので、
+       ★人ごとの 選び★を 束ねて ★増えた／減った／変わった の 3束★に 分け、
+       それぞれを 配偶者1＋その他2 で 切る。
+       前は ここが idou:'1' の 決め打ちで ★増えた時しか 出せなかった★。 */
+    var idouOf=function(k){ var v=String((k&&k.idou)||'1'); return (v==='2'||v==='3')?v:'1'; };
     var out=[], k2;
-    if(!sono.length){ k2=Object.assign({}, moto); k2.hai=hai; k2.sonota=[]; return [k2]; }
-    for(var s=0;s<sono.length;s+=2){
-      k2=Object.assign({}, moto);
-      k2.hai=(s===0)?hai:null;         /* ★配偶者は 1枚目だけ★＝2枚 出すと 二重に 届け出る */
-      k2.sonota=sono.slice(s,s+2);
-      out.push(k2);
-    }
+    ['1','2','3'].forEach(function(ido){
+      var h=(hai && idouOf(hai)===ido)?hai:null;
+      var ss=sono.filter(function(k){ return idouOf(k)===ido; });
+      if(!h && !ss.length) return;
+      if(!ss.length){ k2=Object.assign({}, moto); k2.idou=ido; k2.hai=h; k2.sonota=[]; out.push(k2); return; }
+      for(var s=0;s<ss.length;s+=2){
+        k2=Object.assign({}, moto);
+        k2.idou=ido;
+        k2.hai=(s===0)?h:null;         /* ★配偶者は 1枚目だけ★＝2枚 出すと 二重に 届け出る */
+        k2.sonota=ss.slice(s,s+2);
+        out.push(k2);
+      }
+    });
     return out;
   }
   function fuyoTodoke(){
@@ -5193,7 +5228,10 @@
         /* ★続柄を 変えると 職業と 理由の 選択肢が 変わる★（配偶者 4つ・それ以外 6つ）
            描き直さないと 前の 表のままで ★年金機構に 弾かれる値★が 残る。
            打つ欄（名前・住所）では 描き直さない＝★打っている 途中で 消える★のを 避ける。 */
-        if(fld==='zokugara'){ renderEmpMaster(); }
+        /* ★異動の別を 変えると 聞く欄が 変わる★（2026-09-14）
+           減った→「外れた日／外れた理由」／変わった→「何を 変えたか」。
+           描き直さないと ★選んだのに 欄が 出てこない★＝出せない物を 出せると 見せる形に なる。 */
+        if(fld==='zokugara'||fld==='idou'){ renderEmpMaster(); }
           if(window.persistSaveDebounced)persistSaveDebounced(); }
         return; }
       if(ev.target.classList.contains('sh-days')){ renderEmpMaster(); return; }
