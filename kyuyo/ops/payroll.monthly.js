@@ -160,7 +160,10 @@
       nendo: '令和' + (LAW_SAITEI_Y - 2018) + '年度（' + LAW_SAITEI_HATSUKO + ' 発効'
         + ((SAI && SAI.HATSUKO_MITEI) ? '・予定' : '') + '）',
       appliedBy: '最賃年度=10月起算',
-      source: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/minimumichiran/',
+      /* ★2026-09-12＝出典も lib から 取る（経営者1が 見つけた）★
+         ここに 一覧ページを 手で 書いていた＝★開いても 令和8の数字が 1つも 無い★。
+         ★同じ札の 中で nendo は lib から 作るのに source だけ 手打ち＝直し漏れ★だった。 */
+      source: (SAI && SAI.SOURCE_URL) || '',
       note: '発効日は県ごとに違う（' + ((SAI && SAI.HATSUKO_KIKAN) || '') + '）。対象月が未収録年度なら STATUTORY_STALE で黄警告を出す（推測値を入れない）。'
         + ((SAI && SAI.HATSUKO_MITEI) ? ' ★' + SAI.HATSUKO_MITEI_RIYU + '★' : ''),
       noteSource: 'https://www.mhlw.go.jp/content/11302000/001745621.pdf' },

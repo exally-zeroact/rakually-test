@@ -53,6 +53,19 @@ const toru = async (url) => {
 console.log('\n[saitei-source] 最賃の 出典URLを 実際に 取って 中身を 数える');
 console.log('  出典 = ' + row.source_url);
 
+/* ★出典URLを 持つ所が 3つ在る＝全部 同じか 先に 見る★（2026-09-12・経営者1が 見つけた）
+   ★実際に 起きた★＝中央だけ 直して ops の札は 一覧ページのまま＝
+   ★同じ札の中に 正しいURLと 裏付けないURLが 並んでいた★。
+   ★この見張りは 中央の source_url しか 見ていなかった＝ops は 一度も 見られていない★。
+   ⇒ ★外を 叩く前に、中で 揃っているかを 数える★（ここは 外に 出ないので 必ず 走る）。 */
+const OPS = (() => { try { return require_('../ops/payroll.monthly.js').law.saiteiChingin.source || ''; } catch (e) { return '(opsが読めない)'; } })();
+const LIB = SAI.SOURCE_URL || '(libが持っていない)';
+console.log('  出典を持つ所 … lib=' + LIB + ' / ops=' + OPS + ' / 中央行=' + row.source_url);
+if (!(LIB === OPS && OPS === row.source_url)) {
+  console.log('  NG ★出典URLが 3か所で 揃っていない★（どれかが 古い＝開いても 数字が 無い事が 起きる）');
+  fail++;
+} else { pass++; console.log('  OK ★出典URLは lib・ops・中央行 の 3か所とも 同じ★'); }
+
 const main = async () => {
   let honbun = null;
   try { honbun = await toru(row.source_url); }

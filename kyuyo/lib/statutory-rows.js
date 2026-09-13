@@ -57,7 +57,7 @@
         一覧ページを 実際に 取って 数えたら ★1,280 も 1,177 も 令和8年度 も 0回★＝
         ★出典を 開いても 数字が 確かめられない＝出典として 成立していない★。
         去年(2025)は PDFを 直接 指していた。同じ形に 揃える。 */
-      'https://www.mhlw.go.jp/content/11302000/001745621.pdf' },
+      SAI.SOURCE_URL },   /* ★出典は libに 1か所（手で 書かない）★ */
       { kind: 'shakaihoken', year: 2025, data: shakaihokenRow(SHH, 2025), source_url: 'https://www.kyoukaikenpo.or.jp/g7/cat330/' },
       { kind: 'shakaihoken', year: 2026, data: shakaihokenRow(SHH, 2026), source_url: 'https://www.kyoukaikenpo.or.jp/g7/cat330/' },
       { kind: 'koyo', year: 2025, data: KOYO.RATES[2025], source_url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyouhoken_ryouritsu.html' },
