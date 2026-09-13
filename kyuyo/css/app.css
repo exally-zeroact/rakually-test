@@ -44,6 +44,17 @@ input,select,textarea{font-size:16px;}
 .frow{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;min-width:0;}
 .frow2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .frow2>*{min-width:0;}
+/* ★★2つ並びの 入力欄は 下で 揃える（2026-09-14 司さんの 指摘）★★
+   左右の 見出しの 長さが 違うと ★片方だけ 2行に 折り返して 入力欄が ずれる★。
+   実物＝「氏名（カナ）半角カナ・姓名の間に空白」が 390px で 2行に なり、
+   左の「氏名（漢字）」の 欄と 高さが 合っていなかった。
+   ⇒ 見出しの 高さを 揃えるのでは なく ★入力欄を 下に 揃える★＝
+     見出しが 何行に なっても ずれない（字の 長さに 頼らない）。 */
+.frow2>.frow{justify-content:flex-end;}
+/* ★見出しも 上で 揃える（2026-09-14）★＝下で 揃えるだけだと
+   ★短い方の 見出しが 下に 落ちて 左右で 高さが 揃わない★（実測の絵で 見えた）。
+   ⇒ 見出しは ★2つ並びの 中では 上に 固定★し、入力欄だけ 下に 揃える。 */
+.frow2>.frow>.flabel{margin-bottom:auto;}
 .frow2 label,.frow label,.flabel{font-size:11px;font-weight:700;color:#333333;line-height:1.7;}
 .flabel .hint2{font-weight:400;color:#333333;font-size:10px;margin-left:4px;line-height:1.7;}
 .finput{width:100%;min-width:0;padding:10px 12px;border:1.5px solid #d4eae0;border-radius:10px;font-size:14px;color:#333333;background:#fff;-webkit-appearance:none;appearance:none;}

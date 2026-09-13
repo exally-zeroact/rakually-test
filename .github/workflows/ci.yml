@@ -523,6 +523,11 @@ jobs:
         run: node kyuyo/tests/company-ask.test.mjs --self-test
       # ★最低賃金の 客に出る1行★（2026-09-13 実測＝旧額の隣に 新額の発効日を 並べていた）
       #   ★計算は 正しく 字だけが 嘘★＝数の見張りは 1本も 赤に ならなかった。
+      # ★2026-09-14 司さんが 絵で 指した＝2つ並びの 入力欄が 左右で ずれていた★
+      #   右の見出しが 390px で 2行に 折り返し、右の 入力欄だけ 下へ ずれる。
+      #   ★印(class)では なく 実際の place を 測る★／戻すと 19px ずれる事まで 見る。
+      - name: ★2つ並びの入力欄が左右で揃っているか (実際にplaceを測る・戻すと赤)
+        run: node kyuyo/tests/frow2-soroi.test.mjs
       - name: ★最賃の客に出る1行 (47県ぜんぶ・額と日付が別々の物になっていない/予定が出る)
         run: node kyuyo/tests/saitei-ask-bun.test.mjs
       - name: ★最賃の客に出る1行 (わざと戻して赤になるかの自己確認・4通り)
