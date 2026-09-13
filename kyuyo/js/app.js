@@ -1305,28 +1305,38 @@
           + '</select></div></div>'
           + '<div class="frow2"><div class="frow"><div class="flabel">続柄<span class="hint2">届出の区分</span></div>'
           + '<select class="finput" ' + pre + 'zokugara">' + erabi(ZOKU, k.zokugara) + '</select></div>'
-          + '<div class="frow"><div class="flabel">同居／別居</div><select class="finput" ' + pre + 'doukyo">'
-          + [['', '（選んでください）'], ['1', '同居'], ['0', '別居']].map(function (z) {
-            return '<option value="' + z[0] + '"' + (String(k.doukyo == null ? '' : (k.doukyo ? '1' : '0')) === z[0] ? ' selected' : '') + '>' + esc(z[1]) + '</option>'; }).join('')
-          + '</select></div></div>'
-          + '<div class="frow2"><div class="frow"><div class="flabel">郵便番号<span class="hint2">同居でも要る</span></div>'
-          + '<input class="finput" ' + pre + 'zip" value="' + attr(k.zip) + '" placeholder="100-8580"></div>'
-          + '<div class="frow"><div class="flabel">年間収入（見込み）<span class="hint2">円</span></div>'
-          + '<input class="finput num" ' + pre + 'shunyu" inputmode="numeric" value="' + attr(k.shunyu) + '" placeholder="0"></div></div>'
+          + '<div class="frow"><div class="flabel">郵便番号<span class="hint2">同居でも要る</span></div>'
+          + '<input class="finput" ' + pre + 'zip" value="' + attr(k.zip) + '" placeholder="100-8580"></div></div>'
           + '<div class="frow"><div class="flabel">住所<span class="hint2">同居でも要る・都道府県から</span></div>'
           + '<input class="finput" ' + pre + 'jusho" value="' + attr(k.jusho) + '" placeholder="東京都千代田区霞が関1-2-2"></div>'
-          + '<div class="frow2"><div class="frow"><div class="flabel">職業<span class="hint2">届出に要る</span></div>'
-          + '<select class="finput" ' + pre + 'shokugyo">' + erabi(shokuT, k.shokugyo) + '</select></div>'
-          + '<div class="frow"><div class="flabel">扶養に入った日</div>'
-          + '<input class="finput" ' + pre + 'nattaYmd" type="date" value="' + attr(k.nattaYmd) + '"></div></div>'
-          + '<div class="frow"><div class="flabel">扶養に入った理由</div>'
-          + '<select class="finput" ' + pre + 'nattaRiyu">' + erabi(riyuT, k.nattaRiyu) + '</select></div>'
+          /* ★★届出を 先に 選ばせ、その場合の 欄だけ 出す（2026-09-14 司さん「分かりやすくして」）★★
+             前は ★「減った」を 選んでいるのに「扶養に入った理由」が 出たまま★で 矛盾して 見えた。
+             ★どの場合に 何が 要るかは 実測で 出した★＝1つずつ 欄を 欠けさせて 門に 聞いた：
+               増えた   … 続柄 / 同居別居 / 郵便番号 / 住所 / 職業 / 年間収入 / 入った日 / 入った理由 / 性別
+               減った   … 続柄 / 郵便番号 / 住所 / ★外れた日 / 外れた理由★ / 性別
+               変わった … 続柄 / 郵便番号 / 住所 / ★何を 変えたか★ / 性別
+             ＝職業・年間収入・同居別居・入った日/理由は ★2と3では 紙に 出ない★ので 聞かない。 */
+          + '<div class="ri-note" style="margin:10px 2px 6px;font-weight:700">この人の 届出</div>'
+          + '<div class="frow"><div class="flabel">今回は どれですか<span class="hint2">選ぶと 下の 欄が 変わります</span></div>'
+          + '<select class="finput" ' + pre + 'idou">' + erabi(IDOU_T, String(k.idou || '1')) + '</select></div>'
+          + (String(k.idou || '1') === '1'
+            ? '<div class="frow2"><div class="frow"><div class="flabel">同居／別居</div><select class="finput" ' + pre + 'doukyo">'
+              + [['', '（選んでください）'], ['1', '同居'], ['0', '別居']].map(function (z) {
+                return '<option value="' + z[0] + '"' + (String(k.doukyo == null ? '' : (k.doukyo ? '1' : '0')) === z[0] ? ' selected' : '') + '>' + esc(z[1]) + '</option>'; }).join('')
+              + '</select></div>'
+              + '<div class="frow"><div class="flabel">年間収入（見込み）<span class="hint2">円</span></div>'
+              + '<input class="finput num" ' + pre + 'shunyu" inputmode="numeric" value="' + attr(k.shunyu) + '" placeholder="0"></div></div>'
+              + '<div class="frow2"><div class="frow"><div class="flabel">職業</div>'
+              + '<select class="finput" ' + pre + 'shokugyo">' + erabi(shokuT, k.shokugyo) + '</select></div>'
+              + '<div class="frow"><div class="flabel">扶養に入った日</div>'
+              + '<input class="finput" ' + pre + 'nattaYmd" type="date" value="' + attr(k.nattaYmd) + '"></div></div>'
+              + '<div class="frow"><div class="flabel">扶養に入った理由</div>'
+              + '<select class="finput" ' + pre + 'nattaRiyu">' + erabi(riyuT, k.nattaRiyu) + '</select></div>'
+            : '')
           /* ★★異動の別＝この人を どう 届けるか（2026-09-14）★★
              前は ★「増えた」しか 出せなかった★（画面が 無かっただけで 土台は 3つとも 作れた）。
              ★人ごとに 選ぶ★＝同じ月に「1人 増えて 1人 減った」が 起きるので、
              届書は ★異動の別ごとに 分けて 出す★（1枚に 混ぜられない＝原文 項番21 は 1枚に1つ）。 */
-          + '<div class="frow"><div class="flabel">この人の 届出<span class="hint2">増えた／減った／変わった</span></div>'
-          + '<select class="finput" ' + pre + 'idou">' + erabi(IDOU_T, String(k.idou || '1')) + '</select></div>'
           + (String(k.idou || '1') === '2'
             ? '<div class="frow2"><div class="frow"><div class="flabel">扶養から 外れた日</div>'
               + '<input class="finput" ' + pre + 'yametaYmd" type="date" value="' + attr(k.yametaYmd) + '"></div>'

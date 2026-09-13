@@ -1251,7 +1251,10 @@
            設定に関わらず、省略不可とする」＝★同居でも 要る★ */
         if (String(o.x.zip || '').replace(/[^0-9]/g, '').length < 7) naze.push(o.na + 'の 郵便番号が まだです（同居でも 要ります）');
         if (!String(o.x.jusho || '').trim()) naze.push(o.na + 'の 住所が まだです（同居でも 要ります）');
-        if (!String(o.x.shokugyo || '').trim()) naze.push(o.na + 'の 職業が まだです');
+        /* ★職業・同居／別居・年間収入は ★増えた（該当）の時だけ★ 要る（2026-09-14）★
+           2/3 では 紙に 出ない（この lib が 空に する＝検める側が そう 言っている）。
+           ★出ない物を 求めるのは 狼少年★＝画面でも 聞かない。 */
+        if (String(inp.idou || '') === '1' && !String(o.x.shokugyo || '').trim()) naze.push(o.na + 'の 職業が まだです');
         /* ★★異動の別で 聞く物が 変わる（2026-09-14）★★
            前は ★どの異動でも「入った日／入った理由」を 要求★していた＝
            減った（非該当）の時に ★要らない物を 求め、要る物（やめた日／やめた理由）を 求めなかった★。
@@ -1268,8 +1271,8 @@
         if (ido === '3') {
           if (!String(o.x.bikou || '').trim()) naze.push(o.na + 'の 「何を 変えたか」が まだです（変更前の 中身も 書く）');
         }
-        if (o.x.doukyo == null) naze.push(o.na + 'の 同居／別居が まだです');
-        if (o.x.shunyu == null || o.x.shunyu === '') naze.push(o.na + 'の 年間収入が まだです（0円なら 0）');
+        if (String(inp.idou || '') === '1' && o.x.doukyo == null) naze.push(o.na + 'の 同居／別居が まだです');
+        if (String(inp.idou || '') === '1' && (o.x.shunyu == null || o.x.shunyu === '')) naze.push(o.na + 'の 年間収入が まだです（0円なら 0）');
         if (!String(o.x.seibetsu || '').trim()) naze.push(o.na + 'の 性別が まだです');
       });
     if (sono.length > 2) naze.push('1回に 出せるのは 配偶者1人＋家族2人までです（' + sono.length + '人 入っています）');
