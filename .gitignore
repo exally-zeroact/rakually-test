@@ -5,3 +5,4 @@ tests/xlsx-harness/golden/pending-*.json
 .sweep-red/
 .shot-saitei-an/
 .shot-youshiki/
+.shot-obi/
