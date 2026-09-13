@@ -32,8 +32,16 @@ const Q = String.fromCharCode(39);      /* ' … 入れ子で書かないため�
 /* ★中身(window.SUPA = { ... })だけを見る★＝覚書に書いた名札は拾わない */
 export function envOf(src) {
   const s = String(src == null ? '' : src);
-  const i = s.indexOf('window.SUPA');
-  if (i < 0) return '';
+  /* ★★2026-09-14 実測で 踏んだ★★
+     前は s.indexOf('window.SUPA') で 始めていた。
+     ⇒ ★覚書に「window.SUPA」と 書いただけで そこから 始まり、
+        その先の 覚書の env:'prod' を 拾った★（私が 本番の 紙に 書いて 実際に 起きた）。
+     ＝この道具の 頭の 決まり「覚書の中の env は 数えない」が、
+       ★覚書に 目印の 字を 書かれた だけで 破れた★。
+     ⇒ ★代入の 形（window.SUPA = {）だけを 目印に する★。覚書の 中の 字は 当たらない。 */
+  const m0 = s.match(new RegExp('window\\.SUPA\\s*=\\s*\\{'));
+  if (!m0) return '';
+  const i = m0.index;
   const close = s.indexOf('}', i);
   const body = s.slice(i, close < 0 ? s.length : close);
   const m = body.match(new RegExp('env\\s*:\\s*' + Q + '([a-z]+)' + Q));

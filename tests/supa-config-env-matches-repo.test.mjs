@@ -73,8 +73,11 @@ export function au(name, env, url) {
 /* url の 1行を 取り出す（window.SUPA の 中だけ＝覚書の行を 拾わない） */
 export function urlOf(src) {
   const s = String(src == null ? '' : src);
-  const i = s.indexOf('window.SUPA');
-  if (i < 0) return '';
+  /* ★覚書に「window.SUPA」と 書かれても 当たらない★＝代入の形だけを 目印に する
+     （2026-09-14 実測＝envOf が 同じ所で 破れた。私が 本番の 紙に その字を 書いた為） */
+  const m0 = s.match(/window\.SUPA\s*=\s*\{/);
+  if (!m0) return '';
+  const i = m0.index;
   const close = s.indexOf('}', i);
   const body = s.slice(i, close < 0 ? s.length : close);
   const m = body.match(/https:\/\/[a-z0-9]{20}\.supabase\.co/);
@@ -87,6 +90,7 @@ if (SELF) {
   const iu = (nm, good) => { if (!good) ng++; console.log('  ' + (good ? '✓' : '✗') + ' ' + nm + (good ? '' : '  ★思っていたのと 違う★')); };
   const PROD = 'https://' + PROD_REF + '.supabase.co';
   const TEST = 'https://' + TEST_REF + '.supabase.co';
+  const Q = String.fromCharCode(39);   /* ' … 入れ子で 書かない（repo-env.mjs と 同じ理由） */
   iu('本番に テスト線の 名札（★09-12 に 起きた 形★）… 赤', !au('rakually', 'test', TEST).ok);
   iu('テスト線に 本番の 名札 … 赤', !au('rakually-test', 'prod', PROD).ok);
   iu('名札が 空 … 赤', !au('rakually', '', PROD).ok);
@@ -100,11 +104,26 @@ if (SELF) {
   iu('倉庫の 名前が 読めない … 赤', !au('rakually', 'prod', 'https://example.com').ok);
   iu('テスト線 × test … 緑', au('rakually-test', 'test', TEST).ok);
 
+  /* ★★2026-09-14 実測で 踏んだ＝覚書に 目印の 字を 書かれても 破れないか★★
+     本番の 紙の 覚書に 私が 「window.SUPA」と 書き、その先の 覚書に env:'prod' が 在った。
+     ⇒ ★読み取りが 覚書から 始まり、本当の 値（env:'test'）では なく 覚書を 読んだ★
+     ⇒ 門は 緑に なった（★壊したのに 赤に ならない★）。 */
+  const wana = [
+    '/* ref の 字は 下の window.SUPA だけが 持つ',
+    ' *   ★本番の supa-config.js は env:' + Q + 'prod' + Q + '★ */',
+    'window.SUPA = {',
+    "  url: '" + TEST + "',",
+    '  env: ' + Q + 'test' + Q,
+    '};',
+  ].join(String.fromCharCode(10));
+  iu('★覚書に「window.SUPA」と 書かれても 本当の 値を 読む（env）★', envOf(wana) === 'test');
+  iu('★同じく url も 本当の 値を 読む★', urlOf(wana) === TEST);
+  iu('★その紙で 本番を 名乗ったら 赤★', !au('rakually', envOf(wana), urlOf(wana)).ok);
+
   /* ★★指示役1 の 注文（2026-09-13）＝「git archive / tar で 運んだ時も 捕まるか 試せ」★★
      ＝それが ★09-12 に 実際に 使われた 手★（ship-all を 通らないので NEVER_SHIP が 効かない）。
      ⇒ ★字で 真似るのでは なく、本当に その手で 運んで から 見張りを 走らせる★。 */
   const os = await import('node:os'), fsp = await import('node:fs');
-  const Q = String.fromCharCode(39);   /* ' … 入れ子で 書かない（repo-env.mjs と 同じ理由） */
   const tmp = fsp.mkdtempSync(path.join(os.tmpdir(), 'supacfg-'));
   const mk = (dir, origin, env) => {
     fsp.mkdirSync(path.join(dir, 'js'), { recursive: true });
