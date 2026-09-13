@@ -69,7 +69,14 @@ const L = {
 const SR = require_(path.join(ROOT, 'kyuyo/lib/statutory-rows.js'));
 const rows = SR.buildStatutoryRows(L);
 
+/* ★わざと 全部 つながらなくする★（--tsunaganai）
+   ＝指示役1 の 注文「材料が 無い時に 緑を 返さないか 1回 確かめて」（2026-09-13）。
+   ★定時の 見張りが 材料 無しで 緑を 返すと、その日から 見張りは 死ぬ★
+   （[[feedback_teiji_de_karamawari_midori_wa_ryouhou_no_repo_de_tomeru]]）。
+   ⇒ ★外へ 出ずに 丸ごと 空振りさせて、終わり値が 3（赤）に なる事を 実際に 見る★。 */
+const TSUNAGANAI = process.argv.includes('--tsunaganai');
 async function tataku(u) {
+  if (TSUNAGANAI) return 0;
   try {
     const r = await fetch(u, { headers: { 'User-Agent': 'rakunally-shutten-check' }, redirect: 'follow' });
     return r.status;

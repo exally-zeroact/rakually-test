@@ -56,6 +56,11 @@ jobs:
         run: node scripts/check-shutten-mukai.mjs
       - name: ★lib の出典 (物差しそのものの自己確認・7通り)
         run: node scripts/check-shutten-mukai.mjs --self-test
+      # ★材料が 無い時に 緑を 返さないか★（指示役1 の注文 2026-09-13）
+      #   定時の見張りが 空振りで 緑を 返すと、その日から 見張りは 死ぬ。
+      #   ⇒ ★1本も つながらない回を わざと 作って、赤(3)で 止まる事を 毎回 確かめる★
+      - name: ★lib の出典 (1本もつながらない回は 赤で止まるか＝空振りを緑にしない)
+        run: 'if node scripts/check-shutten-mukai.mjs --tsunaganai > /dev/null 2>&1; then echo "★空振りなのに 緑★"; exit 1; else echo "空振りは 赤で 止まった（正しい）"; fi'
 
       # ★社保 適用拡大の賃金要件(月88,000円)が法令から消えたか＝e-Gov法令データを実際に叩いて数える。
       #   撤廃は「令和8年10月」予定だが施行日は政令事項＝まだ動く。人が読むページは「予定」としか書かない。
