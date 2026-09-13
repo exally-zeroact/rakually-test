@@ -125,6 +125,17 @@ if (SELF) {
      ⇒ ★字で 真似るのでは なく、本当に その手で 運んで から 見張りを 走らせる★。 */
   const os = await import('node:os'), fsp = await import('node:fs');
   const tmp = fsp.mkdtempSync(path.join(os.tmpdir(), 'supacfg-'));
+  /* ★★仮フォルダを 置き土産に しない★★（2026-09-14 Castally1 が 見つけた＝
+     %TEMP% に supacfg-* が ★3つ★ 残っていた。1つは ★途中で 殺された 形★）
+     ⇒ ★最後の rmSync だけでは 足りない★（落ちた／殺された 時に 通らない）。
+       ・try/finally で 必ず 消す
+       ・終わり方（Ctrl+C・kill）でも 消す
+     ＝[[feedback_teiji_de_karamawari_midori_wa_ryouhou_no_repo_de_tomeru]] とは 別の、
+       ★自分の ゴミは 自分で 片付ける★の 話。 */
+  const katazuke = () => { try { fsp.rmSync(tmp, { recursive: true, force: true }); } catch (e) { /* もう 無い */ } };
+  process.on('exit', katazuke);
+  for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(s, () => { katazuke(); process.exit(130); });
+  try {
   const mk = (dir, origin, env) => {
     fsp.mkdirSync(path.join(dir, 'js'), { recursive: true });
     fsp.writeFileSync(path.join(dir, 'js', 'supa-config.js'),
@@ -145,7 +156,9 @@ if (SELF) {
   const ato = envOf(fsp.readFileSync(path.join(honban, 'js/supa-config.js'), 'utf8'));
   iu('★git archive | tar で 運ぶと 本番の 名札が test に なる（事故の 再現）★', ato === 'test');
   iu('★その後に この見張りを 走らせると 赤★（09-12 を 捕まえられる）', !au(originName(honban), ato, TEST).ok);
-  fsp.rmSync(tmp, { recursive: true, force: true });
+  } finally { katazuke(); }
+  /* ★片付いた事も 数える★＝「消したつもり」を 緑に しない */
+  iu('★仮フォルダを 残していない★', !fsp.existsSync(tmp));
   console.log(ng ? '\n★自己確認 ' + ng + '件 おかしい★' : '\n自己確認 OK（わざと 食い違わせると 赤に なる）');
   process.exit(ng ? 1 : 0);
 }
