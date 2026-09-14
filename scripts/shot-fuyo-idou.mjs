@@ -43,7 +43,7 @@ function card(idou) {
     + '<div class="frow"><div class="flabel">名（カナ）<span class="hint2">半角カナ</span></div>'
     + '<input class="finput" value="ｲﾁﾛｳ"></div></div>'
     + '<div class="frow2"><div class="frow"><div class="flabel">続柄<span class="hint2">届出の区分</span></div>'
-    + '<select class="finput"><option>子</option></select></div>'
+    + '<select class="finput"><option>子（実子・養子）</option></select></div>'
     + '<div class="frow"><div class="flabel">郵便番号<span class="hint2">同居でも要る</span></div>'
     + '<input class="finput" value="100-8580"></div></div>'
     + '<div class="frow"><div class="flabel">住所<span class="hint2">同居でも要る・都道府県から</span></div>'
