@@ -108,8 +108,16 @@ console.log(NL + '[maboroshi-ui] 幻の『従業員 1』が ★孤児を 作ら�
   const { repoSupa } = await import('../../tests/repo-supa.mjs');
   const { ref, url } = repoSupa();
   console.log('  ★向き先★ … ' + url + '（ref ' + ref + '）');
-  if (ref === 'tnfwipbgfgjaymlszeid') {
-    console.log('  ✗ ★本番の 倉庫を 指しています＝1文字も 触りません★');
+  /* ★★本番の 名前を この紙に 書かない（2026-09-15 見張りが 捕まえた・今日 2回目）★★
+     守りの つもりで ★本番の ref を 直に 書いた★＝★見張りが 赤に した★＝正しい 赤。
+     訳＝★本番の repo へ 運ばれたら 直書きは そのまま 付いてくる★（tests/repo-supa.mjs の 覚書）。
+     ⇒ ★名前で 照らさず「この repo が 試験線か」で 決める★
+       ＝tests/_hairu.mjs の kagiAru と 同じ 決め方（★repo の 向き先で 決める★）。
+     ★この紙の 頭で 既に kagiAru を 通っている★ので、ここは ★念のための 二重の 門★。 */
+  const { repoEnv } = await import('../../scripts/repo-env.mjs');
+  const env = repoEnv(ROOT);
+  if (env !== 'test') {
+    console.log('  ✗ ★試験線では ありません（' + env + '）＝1文字も 触りません★');
     await b.close(); srv.close(); process.exit(1);
   }
 }
