@@ -586,11 +586,15 @@
   // はじめかたガイドの各ステップの達成判定(freee/MF流のライブToDo)。全完了で自動的に消える。
   function onboardSteps(){
     var emps=state.employees||[];
-    /* ★★はじめかたガイドの 判じ（2026-09-15 直した）★★
-       ★前は「1人 入っている」前提★＝★山田 太郎／日払 太郎 以外が 居れば 済み★と 見ていた。
-       ⇒ ★初めから 0人★に したので ★1人でも 居れば 済み★が 正しい。
-       ★名前で 判じない★＝[[feedback_sagasu_mae_ni_kotae_wo_kimeruna]]（字で 決めると 答えが 決まる）。 */
-    var realEmp=emps.length>0;
+    /* ★★はじめかたガイドの 判じ（2026-09-15）★★
+       ★初めから 0人★に したので「1人でも 居れば 済み」で よいと 一度 書いたが、
+       ★総なめが 赤に して 止めた★（integration.mjs「★サンプルのみ→②未完★」）。
+       ★試験の 方が 正しい★＝★見本の 名前のままでは「済み」に しない★
+         ＝会社名も 同じ 決め（既定の 見本のままなら ①も 未完）＝★対称★。
+       ⇒ ★0人なら 未完★（前は length>1 で 0人の 時に 誤って 済みに なり得た）
+         ＋★見本の 名前だけの 時も 未完★（＝元の 決めを 残す）。
+       ★見本の 名前は 移行（buildEmpFromRow）でも 使われる★ので 字は そのまま 見る。 */
+    var realEmp=emps.some(function(e){ return e.name && !/^(山田 太郎|日払 太郎)$/.test(String(e.name).trim()); });
     var conf=state.confirmed&&state.confirmed[state.month]; var inputDone=!!(conf&&Object.keys(conf).length);
     return [
       { done: !!(state.company&&String(state.company.name||'').trim() && !/^合同会社Rakunally$/.test(String(state.company.name).trim())), label:'会社情報を入れる', sub:'設定▸会社情報 の「会社の情報を直す」から（会社の設定で1か所）', go:'company' },
