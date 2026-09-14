@@ -467,7 +467,10 @@ try {
 /* ★本当の 判じは 倉庫★＝画面の 数では 見ない */
 {
   const sou = await AWASERU(soukoMae, 20);
-  if (sou.han === 'はかれない' || sou.han === '未測定') { mi++; console.log('  🟡 ★はかれない★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
+  /* ★この環境では 測れない（鍵が 無い）★＝★緑で 通すが 数は 出す★（他の 4本と 同じ 決め方）
+     ★直し漏らし 2本目★＝1本ずつ 直すと 必ず 漏れる。★同じ 決め方を 使う 所を 先に 数える★。 */
+  if (sou.han === '環境') { mi++; console.log('  ' + sou.iu); }
+  else if (sou.han === 'はかれない' || sou.han === '未測定') { mi++; console.log('  🟡 ★はかれない★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
   else if (sou.han === '緑') { pass++; console.log('  ✓ ★後始末＝★倉庫の 行数★が 元に 戻った'); console.log('       ' + sou.iu); }
   else { fail++; console.log('  ✗ ★後始末＝★倉庫の 行数★が 元に 戻った — ' + sou.iu); }
 }
