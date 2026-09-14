@@ -266,10 +266,44 @@
   var PS_KEY = 'payslip_payslips_v1';
   function psAll(){ return readList(PS_KEY); }
   function psWrite(arr){ writeList(PS_KEY, arr); }
+  /* ★★保存の 入口は 2本（2026-09-15）★★
+     (a) Store.cloudSaveState … 設定・従業員（★2026-09-03 から 保留に 掛かっている★）
+     (b) Store.savePayslip    … 明細（★ここが 素通りだった★）
+     ⇒ ★作る道が 2本 在るのに 片方だけ 直していた★＝今日 見つけた 害の 元。
+
+     ★何が 起きていたか（実測）★
+       ログインの 直後、state は まだ ★初期値の『従業員 1』1人★（app.js の 初期値）。
+       そこで persistSave が 走ると、★末尾の saveMonthlyPayslips が 待たずに★ (b) を 呼び、
+       ★幻の『従業員 1』の 明細を 倉庫に 書く★。
+       後から 読み込みが 着いて state が 入れ替わる → 幻の人は 消える
+       → ★書かれた 明細だけ 持ち主を 失う＝孤児★。
+       数えた … 試験の 倉庫 ★孤児 3,599行（うち『従業員 1』3,466行・毎回 別 id）★
+               ★本番の 倉庫 明細 12行中 9行が 孤児★（＝過去に 起きている）
+
+     ★(a) の 真似を そのまま しては いけない★
+       (a) は 解ける時に ★中身を 取り直して★ 書く。
+       ところが ★明細は 人を 名指しして 書く★ので、そのまま 書き直すと
+       ★幻の人の 明細を 改めて 書く★＝★直すつもりで 同じ物を 作る★。
+       ⇒ ★解けた後に「その人が まだ 居るか」を 見てから 書く★。
+         ・居る … 書く（★本物を 落とさない★）
+         ・居ない … ★書かない★（＝幻＝孤児を 作らない）
+         ・読めていない（cloudLoaded=false）… ★書く★（消す より 安全側・(a) と 同じ 決め方） */
   Store.savePayslip = function(ym, employeeId, data, kind){
     kind = (kind==='bonus')?'bonus':'monthly';
     var id = (kind==='bonus'?'psb_':'ps_')+ym+'_'+employeeId;
     var d = data||{}; d.kind = kind; // 取得側フィルタ用に用途を記録
+    if(saveHold){
+      return saveHold.then(function(){ return null; }, function(){ return null; }).then(function(){
+        if(!cloudLoaded) return doSavePayslip(id, ym, employeeId, d);   /* 読めていない＝安全側 */
+        var fresh = (typeof Store._snapFn==='function') ? Store._snapFn() : null;
+        var iru = !!(fresh && (fresh.employees||[]).some(function(e){ return e && e.id===employeeId; }));
+        if(!iru) return { ok:false, reason:'held-skipped-maboroshi' };  /* ★幻＝書かない★ */
+        return doSavePayslip(id, ym, employeeId, d);
+      });
+    }
+    return doSavePayslip(id, ym, employeeId, d);
+  };
+  function doSavePayslip(id, ym, employeeId, d){
     if(hasSupa){
       return sb.auth.getUser().then(function(r){ var uid=r.data&&r.data.user&&r.data.user.id; if(!uid) return null;
         return sb.from('pay_payslips').upsert({ id:id, account_id:uid, ym:ym, employee_id:employeeId, data:d, updated_at:new Date().toISOString() });
@@ -277,7 +311,7 @@
     }
     var arr=psAll(); var i=arr.findIndex(function(x){ return x.id===id; }); var row={ id:id, ym:ym, employee_id:employeeId, data:d };
     if(i>=0) arr[i]=row; else arr.push(row); psWrite(arr); return Promise.resolve(row);
-  };
+  }
   Store.getPayslipsByYm = function(ymFrom, ymTo){
     if(hasSupa){
       return fetchAllQ(function(a,b){ return sb.from('pay_payslips').select('ym,employee_id,data',{count:'exact'}).gte('ym',ymFrom).lte('ym',ymTo).range(a,b); })
