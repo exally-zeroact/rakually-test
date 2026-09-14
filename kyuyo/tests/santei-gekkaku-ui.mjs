@@ -232,15 +232,25 @@ try {
     if (t) t.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   }, CARD).catch(() => null);
   await machi(900);
-  /* ★変動月の 欄は ★隠れている★（type=hidden・data-ym）＝fill() では 入らない。
-     ⇒ 対象月の 欄と 同じ手＝★値を 入れて change を 出す★（お客さんは カレンダーから 選ぶ所）。
-     ★これは 打ち込みの 道であって 測る所では ない★ので JS で 入れる。 */
-  const zHenko = await pg.evaluate((a2) => {
-    const c = document.querySelector(a2.c); if (!c) return false;
-    const e = c.querySelector('.sh-henko'); if (!e) return false;
-    e.value = a2.v; e.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  }, { c: CARD, v: '2026-04' }).catch(() => false);
+  /* ★★変動月は「隠れた 欄」では なく「選ぶ箱」で 入れる（2026-09-14 読んで 分かった）★★
+     input は type=hidden だが、★js/ym-picker.js が その 隣に select（.ym-one）を 作る★
+     （enhance()＝input[data-ym] を 見つけて 箱を 差し込む・MutationObserver で 描き直しにも 追う）。
+     ⇒ ★客は ちゃんと 入れられる★＝★項番8・従前の改定月と 同じ型では なかった★。
+       （★私の 打ち方が 隠れた 方を 触っていた★＝試験の 側の 誤り）
+     ⇒ ★お客さんと 同じ 箱（.ym-one）を 選ぶ★＝これが 本物の 道。 */
+  /* ★開いているかを 数で 見る★＝★当て推量で 打たない★（今日の 決まり） */
+  const zSugata = await pg.evaluate((sel) => {
+    const c = document.querySelector(sel); if (!c) return { err: '札が 無い' };
+    const mode = Array.from(c.querySelectorAll('.sh-mode')).map((e) => e.getAttribute('data-mode') + (e.className.indexOf('on') >= 0 ? '★' : ''));
+    return { shd: c.querySelectorAll('[data-shd]').length, mode,
+      zk: c.querySelectorAll('.zk-inp').length,
+      ymOne: c.querySelectorAll('.ym-one').length,
+      henko: c.querySelectorAll('.sh-henko').length,
+      prev: c.querySelectorAll('.sh-prevhyojun').length,
+      fixed: c.querySelectorAll('[data-shfixed]').length };
+  }, CARD).catch((e) => ({ err: String(e).slice(0, 60) }));
+  console.log('       随時改定の 姿 … ' + JSON.stringify(zSugata));
+  const zHenko = await utsu(pg, CARD + ' .zk-inp .ym-one', '2026-04');
   await machi(800);
   const zPrev = await utsu(pg, CARD + ' .sh-prevhyojun', '220000');
   await pg.evaluate((sel) => {
@@ -381,10 +391,12 @@ try {
   console.log('  ── 月額変更届 … ボタン「' + g.fuda + '」／押せない ' + g.osenai);
   if (g.chui.length) console.log('       画面の 言い分 … ' + g.chui.join(' ／ ').slice(0, 200));
   if (g.osenai === false) await osuToOchiru('#b-gekkaku-csv', '2221700', '月額変更届', 49);
-  else MI('月額変更届', '★随時改定の 材料を 画面から 入れられていない★'
-    + '＝★私の 打ち方が 届いていない★（変動月は 隠れた 欄・従前は 入った）。'
-    + '★アプリの 穴とは まだ 言えません★＝★出せない事を 測ったのでは ない★。'
-    + '★次にやる事★＝随時改定の かたまりが 開いているかを 数で 見る（今は 中を 読めていない）');
+  else MI('月額変更届', '★材料は 入ったのに 画面に ボタンが 1つも 出ない★'
+    + '（実測＝随時改定 ON ／ 変動月 入った ／ 従前の標準報酬 入った ／ 固定給変動の ボタン 2個 在り）。'
+    + '★どちらとも まだ 言えません★＝'
+    + '①この 組み合わせでは 出ないのが 正しい（該当しない）か ②出るべきなのに 出ないか。'
+    + '★次にやる事★＝gekkakuRows が 人を 落とす 条件（在籍月・3か月の 確定明細・2等級差）を '
+    + '1つずつ 欠けさせて 数える＝★どこで 落ちたかを 名指しする★');
 } catch (e) {
   if (e && e.message !== 'skip') { fail++; console.log('  ✗ 途中で 止まった … ' + (e && e.message)); }
 } finally {
