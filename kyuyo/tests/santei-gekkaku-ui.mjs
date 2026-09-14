@@ -217,8 +217,23 @@ try {
   T('★① 被保険者整理番号の 欄に 打てる', await utsu(pg, CARD + ' [data-f="hokenshaNo"]', SEIRI), '欄が 無い／打てない');
   /* ★従前の 改定月★＝★これも 今日 作った 欄★（無いと 算定も 月変も 1枚も 出ない）
      原文＝どちらの 様式も ★項番15〜17「従前改定年月」＝必須★ */
+  /* ★★選ぶ箱で 入れる（2026-09-14 見張りに 直させられた）★★
+     はじめ type="month" で 作ったが ★iPhone の Safari は 持っていない★＝見張りが 赤に した。
+     ⇒ 変動月と 同じ ★data-ym★に した＝ym-picker が ★隣に 選ぶ箱（.ym-one）を 作る★。
+     ⇒ ★試験も お客さんと 同じ 箱を 選ぶ★（隠れた 方を 触らない＝今日の 学び）。 */
   await hiraku(CARD + ' [data-f="zenzenKaiteiYmd"]');
-  T('★①-2 従前の 改定月の 欄に 打てる', await utsu(pg, CARD + ' [data-f="zenzenKaiteiYmd"]', '2025-09'), '欄が 無い／打てない');
+  const zenzenRan = CARD + ' [data-f="zenzenKaiteiYmd"]';
+  const zenzenHako = await pg.evaluate((sel) => {
+    const e = document.querySelector(sel);
+    const w = e && e.previousElementSibling;
+    const sel2 = w && w.querySelector ? w.querySelector('.ym-one') : null;
+    if (!sel2) return null;
+    sel2.setAttribute('data-zenzen-hako', '1');
+    return true;
+  }, zenzenRan).catch(() => null);
+  T('★①-2 従前の 改定月に ★選ぶ箱★が 在る（iPhone でも 選べる）', !!zenzenHako, '箱が 作られていない');
+  T('★①-3 その 箱で 選べる',
+    zenzenHako ? await utsu(pg, CARD + ' [data-zenzen-hako]', '2025-09') : false, '選べない');
 
   /* ── 月額変更届の 材料（随時改定）を 画面から 入れる ──────────────
      ★随時改定＝給料が 変わった時★＝要る物は 3つ（app.js の 画面が そう 聞いている）:

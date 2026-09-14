@@ -23,9 +23,22 @@
  */
 import fs from 'node:fs';
 
-/* ★試験の 倉庫の ref★＝ここだけが 持つ（本番の ref は 1文字も 書かない）。
-   ★万一 本番を 渡されたら 止める★ので、照らす 為に 名前で 持つ。 */
-const TEST_REF = 'khawdrnvssdenumbiwfg';
+/* ★★向き先を 直書きしない（2026-09-14 見張りが 捕まえた）★★
+   私は ★試験の 倉庫の ref を この紙に 直に 書いた★。★見張りが 赤に した★＝正しい 赤。
+   訳（tests/repo-supa.mjs の 覚書そのもの）＝
+     ★本番の repo に 持って行かれた時、直書きは そのまま 付いてくる★
+     ＝★テストの つもりで 本番の 倉庫を 触る★という 最悪の 事故に なる。
+     ★この紙は 消す 仕掛けを 持っている★ので、なおさら 危ない。
+   ⇒ ★repo が 向いている 先を 機械に 決めさせる★（js/supa-config.js 1か所から 読む）。
+     ＝★本番の repo で 走らせたら 本番を 指す★＝★下の 門で その場で 止まる★。 */
+import { repoSupa } from '../../tests/repo-supa.mjs';
+
+/* ★試験の 倉庫でなければ 1文字も 書かない★＝名前では なく ★repo の 向き先★で 決める。
+   ★この紙は delete を 持つ★＝★取り違えたら 客の データが 消える★ので 門を 置く。 */
+function souko() {
+  const { ref } = repoSupa();
+  return ref;
+}
 const TOKEN_FILE = process.env.TEMP
   ? process.env.TEMP.replace(/\\/g, '/') + '/nomiya-db-url-prod.json'
   : 'C:/Users/zeroa/AppData/Local/Temp/nomiya-db-url-prod.json';
@@ -38,7 +51,10 @@ async function toi(sql) {
   const t = kagi();
   if (!t) return { ok: false, naze: '鍵の 紙が 読めない（' + TOKEN_FILE + '）' };
   try {
-    const r = await fetch('https://api.supabase.com/v1/projects/' + TEST_REF + '/database/query', {
+    const ref = souko();
+    /* ★書く 道具が 本番を 指していたら その場で 止める★（読むだけの 時も 同じ 門で 止める＝安全側） */
+    if (!ref) return { ok: false, naze: '★repo の 向き先を 読めない★＝触りません' };
+    const r = await fetch('https://api.supabase.com/v1/projects/' + ref + '/database/query', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json', 'User-Agent': 'rakunally-souko-kazoeru' },
       body: JSON.stringify({ query: sql }),

@@ -1405,7 +1405,11 @@
          ★しかも 断る 字が 違った★＝押すと「支払基礎日数が 足りず」と 出る（本当は この 欄）。
            ⇒ ★欄と 同じ 1件で 訳の 字も 直す★（欄だけ 作ると 嘘が 残る）。 */
       +'<div class="frow"><div class="flabel">従前の 改定月<span class="hint2">前に 標準報酬月額が 決まった 月・算定基礎届と 月額変更届に 要ります</span></div>'
-        +'<input class="finput m-f" data-f="zenzenKaiteiYmd" type="month" value="'+attr(String(e.zenzenKaiteiYmd||'').slice(0,7))+'"></div>'
+        /* ★type="month" は 使わない★（2026-09-14 見張りが 捕まえた）
+           ＝★iPhone の Safari は 持っていない★＝ただの 文字入力に なって 選べない。
+           ⇒ ★他の 月の 欄と 同じ 仕掛け★＝data-ym を 付けて ym-picker.js に 選ぶ箱を 作らせる
+             （今日 読んだ 仕掛け＝input[data-ym] の 隣に select を 差し込む）。 */
+        +'<input class="finput m-f" data-f="zenzenKaiteiYmd" type="hidden" data-ym value="'+attr(String(e.zenzenKaiteiYmd||'').slice(0,7))+'"></div>'
       +'<div class="frow"><div class="flabel">振込先<span class="hint2">明細に表示・任意</span></div><input class="finput m-f" data-f="bank" value="'+attr(e.bank)+'" placeholder="○○銀行 普通 1234567"></div>'
       +'<div class="sec-lb" style="border-top:1px dashed #d4eae0">総合振込データ用<span class="hint2">銀行に送る全銀ファイル用・任意</span></div>'
       +'<div class="frow2"><div class="frow"><div class="flabel">銀行名</div><input class="finput m-f" data-f="furiBankName" value="'+attr(e.furiBankName)+'" placeholder="ﾐｽﾞﾎ"></div>'
