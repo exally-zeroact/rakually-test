@@ -113,8 +113,10 @@ const pg = await ctx.newPage();
    前は ★画面の 札の 数★だけで「ゴミ0」と 緑を 出していた＝★倉庫には 残っていた★。
    ★「前」は ログインの 前に 数える★＝ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれ、
    後から 読み直しで 消えるので、後に 数えると 1人 減って 見える（今日 実測）。 */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU } = await import('./_souko-kazoeru.mjs');
-const HAJIME = new Date(Date.now() - 60000).toISOString();
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA } = await import('./_souko-kazoeru.mjs');
+/* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
+   ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
+const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000).toISOString()));
 const soukoMae = await KAZOERU();
 console.log('  倉庫（前） … ' + (soukoMae.ok
   ? '人 ' + soukoMae.hito + ' ／ 明細 ' + soukoMae.meisai

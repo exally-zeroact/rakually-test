@@ -138,9 +138,11 @@ if (process.argv.includes('--self-test')) {
 console.log(NL + '[santei-gekkaku-ui] 算定基礎届／月額変更届を ★実ブラウザで お客さんの道どおり★ 出す');
 
 /* ★「前」は ログインの 前に 数える★（ログインした 途端に 幻の『従業員 1』が 倉庫に 書かれる） */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, sujiKesu: SUJI_KESU, konkaiNoMeisaiKesu: MEISAI_KESU }
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, konkaiNoMeisaiKesu: MEISAI_KESU }
   = await import('./_souko-kazoeru.mjs');
-const HAJIME = new Date(Date.now() - 60000).toISOString();
+/* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
+   ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
+const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000).toISOString()));
 const soukoMae = await KAZOERU();
 console.log('  倉庫（前） … ' + (soukoMae.ok
   ? '人 ' + soukoMae.hito + ' ／ 明細 ' + soukoMae.meisai

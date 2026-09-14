@@ -131,8 +131,10 @@ const pg = await ctx.newPage();
    訳＝★ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれる★（今日 見つけた 幻の人）。
      その後 読み直しが 着いて 消えるので、★後に 数えると 1人 減って 見える★。
    ⇒ ★1行も 触っていない 時の 数★を 土台に する。 */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU } = await import('./_souko-kazoeru.mjs');
-const HAJIME = new Date(Date.now() - 60000).toISOString();
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA } = await import('./_souko-kazoeru.mjs');
+/* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
+   ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
+const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000).toISOString()));
 const soukoMae = await KAZOERU();
 console.log('  倉庫（前） … ' + (soukoMae.ok
   ? '人 ' + soukoMae.hito + ' ／ 明細 ' + soukoMae.meisai

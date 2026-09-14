@@ -73,6 +73,18 @@ export async function kazoeru() {
   return { ok: true, hito: Number(x.hito), meisai: Number(x.meisai) };
 }
 
+/* ★★「今」は ★倉庫の 時計★に 聞く（2026-09-14 総なめで 捕まった）★★
+   前は ★手元の 時計から 60秒 手前★を 始まりに していた（時計の ずれを 見込んで）。
+   ⇒ 総なめで 試験が 続けて 走ると ★直前の 試験の ゴミまで 60秒の 窓に 入る★
+     ＝★自分が 作っていない 物まで 消す★＝★土台より 減って 赤★に なった（明細 -4）。
+   ⇒ ★倉庫の 時計を そのまま 使う★＝★ずれは 元から 無い★＝窓を 広げる 要が ない。
+   ★読むだけ★（1文字も 書かない）。 */
+export async function ima() {
+  const r = await toi('select now() as t');
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, t: String((r.gyo[0] || {}).t || '') };
+}
+
 /* ★前と 後を 突き合わせる★
    mae … kazoeru() の 戻り ／ byo … 何秒 待つか（消えるのを 待つ）
    返り … { han:'緑'|'赤'|'未測定', ... } ＋ 人が 読める 一言 */
@@ -123,8 +135,14 @@ export async function meisaiKesu(employeeId) {
      ＝★前から 在る 孤児 3,596行には 1行も 触りません★。
    ★テスト倉庫だけ★／★片づけ専用★（測る所では 使わない）。 */
 export async function konkaiNoGomiKesu(hajimeIso) {
-  const t = String(hajimeIso || '').replace(/[^0-9TZ:.+-]/g, '');    /* ★字を そのまま 埋めない★ */
-  if (!/^\d{4}-\d{2}-\d{2}T/.test(t)) return { ok: false, naze: '始めた時の 形が 違う（' + t + '）' };
+  /* ★空きも 残す★＝倉庫の 時計は「日付 空き 時刻」で 来る。ここで 空きを 落とすと 門に 届かない（2026-09-14 実測） */
+  const t = String(hajimeIso || '').replace(/[^0-9TZ:.+ -]/g, '').trim();
+  /* ★★形は 2通り 来る（2026-09-14 実測で 直した）★★
+     手元の 時計 … 2026-09-14T13:31:57.626Z（★T 付き★）
+     倉庫の 時計 … 2026-09-14 13:31:57.626+00（★空きで 区切る★）
+     ★前は T 付きしか 通さず★、倉庫の 時計に 替えた 途端 ★1件も 消さなくなった★。
+     ★掃除の 字から 空きを 落としていた★のも 同じ日に 踏んだ（2026-09-1413:34 に なっていた）。 */
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]/.test(t)) return { ok: false, naze: '始めた時の 形が 違う（' + t + '）' };
   const r = await toi(
     "delete from kyuyo.pay_payslips p where p.updated_at >= '" + t + "'"
     + " and not exists (select 1 from kyuyo.pay_employees e where e.id = p.employee_id)");
@@ -141,8 +159,14 @@ export async function konkaiNoGomiKesu(hajimeIso) {
      ★数が 土台より 減って 赤に なる★＝★自分で 気づける★形に してある。
    ★テスト倉庫だけ★／★片づけ専用★。 */
 export async function konkaiNoMeisaiKesu(hajimeIso, yms) {
-  const t = String(hajimeIso || '').replace(/[^0-9TZ:.+-]/g, '');
-  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(t)) return { ok: false, naze: '始めた時の 形が 違う' };
+  /* ★空きも 残す★＝倉庫の 時計は「日付 空き 時刻」で 来る。ここで 空きを 落とすと 門に 届かない（2026-09-14 実測） */
+  const t = String(hajimeIso || '').replace(/[^0-9TZ:.+ -]/g, '').trim();
+  /* ★★形は 2通り 来る（2026-09-14 実測で 直した）★★
+     手元の 時計 … 2026-09-14T13:31:57.626Z（★T 付き★）
+     倉庫の 時計 … 2026-09-14 13:31:57.626+00（★空きで 区切る★）
+     ★前は T 付きしか 通さず★、倉庫の 時計に 替えた 途端 ★1件も 消さなくなった★。
+     ★掃除の 字から 空きを 落としていた★のも 同じ日に 踏んだ（2026-09-1413:34 に なっていた）。 */
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]/.test(t)) return { ok: false, naze: '始めた時の 形が 違う（' + t + '）' };
   /* ★★触った 月だけに 絞る（2026-09-14 実測で 足した）★★
      月を 絞らずに 消したら ★前から 在った 別の 月の 行まで 消えて 土台より 減った★
      ＝★数が 土台を 下回って 赤★に なった（★物差しが 自分で 気づいた★）。
