@@ -1,0 +1,411 @@
+/* santei-gekkaku-ui.mjs — ★算定基礎届／月額変更届を 実ブラウザで 押す★
+ * =============================================================================
+ * ★なぜ（2026-09-14）★
+ *   この 2つは ★一度も 実ブラウザで 押していなかった★。
+ *   訳＝★確定した 明細が 要る★ので、これまでの 試験（確定させない）では 材料が 作れなかった。
+ *   ★今日 被保険者整理番号の 欄が 出来た★＝項番8 が 埋まる＝出せる 見込みが 立った。
+ *
+ * ★確定させる 事について（2026-09-14 指示役1 が 決めた）★
+ *   ・元の 決めは ★確定させない（A案）★だった。
+ *   ・★曲げたのは 指示役1★＝訳「★テスト倉庫には 本物の 賃金が 1件も 無い★
+ *     ＝年末調整・賃金台帳の 話は そもそも 起きない」。
+ *   ・条件 … ★確定用は 別の人・名前に 印★／★後始末は 倉庫から 直に★
+ *     （★確定した人は 画面から 消せない★＝app.js の 門が そう している）。
+ *
+ * ★様式コード（原文の 写しから 読んだ・記憶で 書いていない）★
+ *   算定基礎届 … 2225700 ／ 53項目（lib/todokede-csv.js 138行）
+ *   月額変更届 … 2221700 ／ 49項目（同 462行「算定 2225700・53項目とは 別物」）
+ *
+ * ★測る事★
+ *   ①4〜6月を ★画面から 入れて 確定★（お客さんの 道）
+ *   ②算定基礎届の 画面で ★ボタンが 押せる★
+ *   ③押したら ★SHFD0006.CSV が 本当に 落ちる★／★様式 2225700・53列・ずれ0★
+ *   ④★被保険者整理番号の 字★が 紙に 入っている（今日 作った 欄が 効いているか）
+ *   ⑤月額変更届も 同じく（★2221700・49列★）。材料が 無ければ ★赤では なく はかれない★
+ *   ⑥★倉庫の 行数が 元に 戻る★（新しい 物差し・画面の 数では 見ない）
+ *
+ * 使い方: node kyuyo/tests/santei-gekkaku-ui.mjs
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import http from 'node:http';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+{
+  const { kagiAru } = await import('../../tests/_hairu.mjs');
+  if (!(await kagiAru(ROOT))) {
+    console.log('  — ★この repo（本番）には 試験の 鍵が 無いので ここでは 測れません★'
+      + '（★テスト線で 測っています★／戻す条件＝本番CIに 鍵を 置いた日）');
+    process.exit(0);
+  }
+}
+
+let borrow, pwLaunch, hairu, osu;
+try {
+  ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
+  ({ hairu, osu } = await import('../../tests/_hairu.mjs'));
+} catch (e) { console.log('🟡 ★はかれない★ 道具が 読めない … ' + (e && e.message)); process.exit(2); }
+const wk = await borrow('santei-gekkaku', 'webkit');
+if (!wk) { console.log('🟡 ★はかれない★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
+
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
+const srv = http.createServer((rq, rs) => {
+  const url = decodeURIComponent(rq.url.split('?')[0]);
+  let p = path.join(ROOT, url);
+  if (fs.existsSync(p) && fs.statSync(p).isDirectory()) p = path.join(p, 'index.html');
+  if (!fs.existsSync(p)) { rs.writeHead(404); rs.end('x'); return; }
+  rs.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
+  rs.end(fs.readFileSync(p));
+});
+await new Promise((r) => srv.listen(0, r));
+const PORT = srv.address().port;
+const b = await pwLaunch('santei-gekkaku', wk);
+
+let pass = 0, fail = 0, mi = 0;
+const NL = String.fromCharCode(10);            /* ★逃がし字を 使わない★（今日 3回 落ちた） */
+const Z = String.fromCharCode(12288);          /* 全角スペース＝姓名の 区切り */
+const T = (n, c, m) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ ' + n + (m ? ' — ' + m : '')); } };
+const MI = (n, m) => { mi++; console.log('  🟡 ★はかれない★ ' + n + (m ? ' … ' + m : '')); };
+const machi = (ms) => new Promise((r) => setTimeout(r, ms));
+const sha = (x) => crypto.createHash('sha256').update(x).digest('hex').slice(0, 12);
+
+process.on('exit', () => { try { srv.close(); } catch (e) { /* もう 閉じている */ } });
+for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(s, () => { try { srv.close(); } catch (e) { /* 同上 */ } process.exit(130); });
+
+/* ★打った値が 本当に 入ったか 見てから 次へ★（今日 CIが 教えてくれた 形） */
+async function utsu(pg, sel, val, kai = 3) {
+  const nozomi = String(val);
+  for (let i = 0; i < kai; i++) {
+    const el = await pg.$(sel);
+    if (!el) { await machi(250); continue; }
+    let tag = 'input';
+    try { tag = await el.evaluate((e) => e.tagName.toLowerCase()); } catch (e) { await machi(250); continue; }
+    try {
+      if (tag === 'select') await el.selectOption(nozomi);
+      else await el.fill(nozomi);
+      await el.evaluate((e) => { e.dispatchEvent(new Event('change', { bubbles: true })); });
+    } catch (e) { await machi(300); continue; }
+    await machi(180);
+    const ima = await pg.$(sel).then((e2) => (e2 ? e2.inputValue() : null)).catch(() => null);
+    if (ima === nozomi) return true;
+    await machi(320);
+  }
+  return false;
+}
+
+/* ★落ちた CSV を 読む★（様式コード・列の数・ずれ・整理番号）
+   ★Shift_JIS の 2バイト目は カンマ(0x2C)に ならない★ので 列を 数えるだけなら latin1 で よい。
+   ★字を 出す 所では 使わない★＝整理番号は 半角数字なので そのまま 読める。 */
+export function csvMiru(text, yoshiki) {
+  const gyo = String(text || '').split(String.fromCharCode(13) + NL).filter((x) => x.length);
+  const data = gyo.filter((x) => x.indexOf(yoshiki) === 0);
+  const retsu = data.map((x) => x.split(',').length);
+  return { gyo: gyo.length, data: data.length, retsu: retsu[0] || 0,
+    zure: retsu.filter((n) => n !== (yoshiki === '2225700' ? 53 : 49)).length,
+    /* ★★整理番号の 項番は 様式ごとに 違う（2026-09-14 実測で 直した）★★
+       私は ★被扶養者届の 項番8 を そのまま 持ち込んで★ 列を 1つ 間違えた
+       （出た 字は '5'＝別の 列を 読んでいた）。
+       ★原文の 写しから 読み直した★（lib/todokede-csv.js）:
+         271行 算定 2225700 … r[4] ＝★項番5★
+         550行 月変 2221700 … r[4] ＝★項番5★
+        1114行 被扶養 2202700 … r[7] ＝項番8
+       ⇒ ★様式ごとに 項番を 持つ★＝★1つの 番号で 使い回さない★。 */
+    seiri: data.map((x) => x.split(',')[4]) };     /* 算定・月変とも ★項番5★（0始まりで 4） */
+}
+
+if (process.argv.includes('--self-test')) {
+  console.log(NL + '[santei-gekkaku-ui] ★自己確認★（★物差しそのもの★・ブラウザを 使わない）');
+  let ng = 0;
+  const iu = (nm, good) => { if (!good) ng++; console.log('  ' + (good ? '✓' : '✗') + ' ' + nm + (good ? '' : '  ★思っていたのと 違う★')); };
+  const CR = String.fromCharCode(13) + NL;
+  const mk = (code, n) => [code].concat(new Array(n - 1).fill('')).join(',');
+  const a = mk('2225700', 53);
+  iu('算定＝データ行 1本', csvMiru('管理' + CR + a + CR, '2225700').data === 1);
+  iu('算定＝53列・ずれ 0', csvMiru(a + CR, '2225700').retsu === 53 && csvMiru(a + CR, '2225700').zure === 0);
+  iu('★1列 減らしたら ずれと 数える★', csvMiru(mk('2225700', 52) + CR, '2225700').zure === 1);
+  const g = mk('2221700', 49);
+  iu('月変＝49列・ずれ 0', csvMiru(g + CR, '2221700').retsu === 49 && csvMiru(g + CR, '2221700').zure === 0);
+  const s2 = a.split(','); s2[4] = '77';
+  iu('整理番号（★項番5★）を 読める', csvMiru(s2.join(',') + CR, '2225700').seiri[0] === '77');
+  iu('空なら 0本', csvMiru('', '2225700').data === 0);
+  console.log(ng ? NL + '★自己確認 ' + ng + '件 おかしい★' : NL + '自己確認 OK');
+  process.exit(ng ? 1 : 0);
+}
+
+console.log(NL + '[santei-gekkaku-ui] 算定基礎届／月額変更届を ★実ブラウザで お客さんの道どおり★ 出す');
+
+/* ★「前」は ログインの 前に 数える★（ログインした 途端に 幻の『従業員 1』が 倉庫に 書かれる） */
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, sujiKesu: SUJI_KESU, konkaiNoMeisaiKesu: MEISAI_KESU }
+  = await import('./_souko-kazoeru.mjs');
+const HAJIME = new Date(Date.now() - 60000).toISOString();
+const soukoMae = await KAZOERU();
+console.log('  倉庫（前） … ' + (soukoMae.ok
+  ? '人 ' + soukoMae.hito + ' ／ 明細 ' + soukoMae.meisai
+  : '🟡 ★読めない★ ' + soukoMae.naze));
+
+const ctx = await b.newContext({ viewport: { width: 1200, height: 1500 }, acceptDownloads: true });
+const pg = await ctx.newPage();
+const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-settings"]');
+if (!h.haitta) {
+  console.log('  🟡 ★はかれない★ ' + h.kai + '回 試して 入れなかった');
+  await b.close(); srv.close(); process.exit(2);
+}
+await machi(700);
+
+/* ★名前に 印★＝次に 掃除する人が 迷わない（指示役1 の 条件） */
+/* ★姓と名の 間は 全角スペース 1つ★（原文 項番7「１個以上の連続しない全角スペース」）＝
+   ★印は 残す★（次に 掃除する人が 迷わない）＝姓に 印・名に 日付 */
+const NA = '確定テスト' + Z + '九一四';
+/* ★項番5 被保険者整理番号＝6バイト以内★（押した後の 門が そう 言った・原文の 検め）
+   ⇒ ★5桁★に する。★紙の 中で 探す 字★（今日 作った 欄に 打つ） */
+const SEIRI = '86753';
+
+try {
+  /* ── 人を 1人 足して 埋める ──────────────────────────── */
+  await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(500);
+  await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(800);
+  await osu(pg, '#b-add-emp'); await machi(900);
+  const IDX = await pg.evaluate(() => {
+    const c = Array.from(document.querySelectorAll('#emp-list .mco'));
+    return c.length ? c[c.length - 1].getAttribute('data-i') : null;
+  });
+  if (IDX === null) { MI('従業員の 札が 1枚も 無い'); throw new Error('skip'); }
+  const CARD = '#emp-list .mco[data-i="' + IDX + '"]';
+
+  const nage = (c, sel) => pg.evaluate((a) => {
+    const card = document.querySelector(a.c);
+    const el = card && card.querySelector(a.sel);
+    if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    return !!el;
+  }, { c, sel }).catch(() => false);
+  const aruka = (sel) => pg.evaluate((x) => !!document.querySelector(x), sel).catch(() => false);
+  const dsAkeru = async () => {
+    for (let i = 0; i < 3; i++) {
+      if (await aruka(CARD + ' [data-dsub]')) return true;
+      await nage(CARD, '.emp-dtgl[data-dtoggle]'); await machi(900);
+    }
+    return aruka(CARD + ' [data-dsub]');
+  };
+  const akeru = async (k) => {
+    await pg.evaluate((x) => {
+      const card = document.querySelector(x.c); if (!card) return;
+      const t = Array.from(card.querySelectorAll('[data-dsub]')).find((e) => String(e.getAttribute('data-dsub')).endsWith(':' + x.k));
+      if (t) t.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }, { c: CARD, k }).catch(() => null);
+    await machi(700);
+  };
+  const hiraku = async (sel) => {
+    for (const k of ['zaiseki', 'zei', 'shaho', 'teate', 'kazoku']) {
+      if (await aruka(sel)) break;
+      await akeru(k);
+    }
+    return aruka(sel);
+  };
+
+  await dsAkeru();
+  for (const [f, v] of [['name', NA], ['kana', 'ｶｸﾃｲ ﾃｽﾄ'], ['birthYmd', '1985-05-15'],
+    ['joinYmd', '2025-04-01'], ['seibetsu', 'male'], ['zip', '790-0001'],
+    ['address', '愛媛県松山市1-2-3'], ['kisoNenkin', '1234-567890'], ['base', '260000']]) {
+    await hiraku(CARD + ' [data-f="' + f + '"]');
+    if (!(await utsu(pg, CARD + ' [data-f="' + f + '"]', v))) console.log('       🟡 欄が 無い … ' + f);
+  }
+  /* ★今日 作った 欄★＝ここに 打った 字が 紙まで 届くかを 見る */
+  await hiraku(CARD + ' [data-f="hokenshaNo"]');
+  T('★① 被保険者整理番号の 欄に 打てる', await utsu(pg, CARD + ' [data-f="hokenshaNo"]', SEIRI), '欄が 無い／打てない');
+  /* ★従前の 改定月★＝★これも 今日 作った 欄★（無いと 算定も 月変も 1枚も 出ない）
+     原文＝どちらの 様式も ★項番15〜17「従前改定年月」＝必須★ */
+  await hiraku(CARD + ' [data-f="zenzenKaiteiYmd"]');
+  T('★①-2 従前の 改定月の 欄に 打てる', await utsu(pg, CARD + ' [data-f="zenzenKaiteiYmd"]', '2025-09'), '欄が 無い／打てない');
+
+  /* ── 月額変更届の 材料（随時改定）を 画面から 入れる ──────────────
+     ★随時改定＝給料が 変わった時★＝要る物は 3つ（app.js の 画面が そう 聞いている）:
+       ・変動があった月（.sh-henko）　・従前の標準報酬月額（.sh-prevhyojun）
+       ・固定的賃金の 変動が 在ったか（[data-shfixed]）
+     ★これを 入れないと 月額変更届の 画面に ボタン自体が 出ない★（実測＝「（無い）」だった）。 */
+  await nage(CARD, '[data-shd]'); await machi(800);
+  await pg.evaluate((sel) => {
+    const c = document.querySelector(sel); if (!c) return;
+    const t = Array.from(c.querySelectorAll('.sh-mode')).find((e) => e.getAttribute('data-mode') === 'zuiji');
+    if (t) t.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  }, CARD).catch(() => null);
+  await machi(900);
+  /* ★変動月の 欄は ★隠れている★（type=hidden・data-ym）＝fill() では 入らない。
+     ⇒ 対象月の 欄と 同じ手＝★値を 入れて change を 出す★（お客さんは カレンダーから 選ぶ所）。
+     ★これは 打ち込みの 道であって 測る所では ない★ので JS で 入れる。 */
+  const zHenko = await pg.evaluate((a2) => {
+    const c = document.querySelector(a2.c); if (!c) return false;
+    const e = c.querySelector('.sh-henko'); if (!e) return false;
+    e.value = a2.v; e.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }, { c: CARD, v: '2026-04' }).catch(() => false);
+  await machi(800);
+  const zPrev = await utsu(pg, CARD + ' .sh-prevhyojun', '220000');
+  await pg.evaluate((sel) => {
+    const c = document.querySelector(sel); if (!c) return;
+    const t = Array.from(c.querySelectorAll('[data-shfixed]')).find((e) => e.getAttribute('data-v') === '1');
+    if (t) t.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  }, CARD).catch(() => null);
+  await machi(900);
+  /* ★入ったかを 倉庫の 形で 見る★＝★押したつもり★で 次へ 進まない */
+  const zIma = await pg.evaluate((n) => {
+    const K = window.Kyuyo || {}; const st = K.state || window.state || {};
+    const e = (st.employees || [])[n] || {};
+    const s2 = e.shaho || {};
+    return { mode: s2.mode, henko: s2.henkoYm, prev: s2.prevHyojun, fixed: s2.fixedChanged };
+  }, Number(IDX)).catch((er) => ({ err: String(er).slice(0, 60) }));
+  console.log('       随時改定の 材料 … ' + JSON.stringify(zIma)
+    + '（打てた? 変動月 ' + zHenko + ' ／ 従前 ' + zPrev + '）');
+
+  /* 会社の 都道府県（保険料の 表に 要る） */
+  await osu(pg, '#set-seg .seg-b[data-set="company"]'); await machi(700);
+  await utsu(pg, '#c-pref', 'ehime');
+
+  /* ── 4〜6月を 画面から 入れて 確定（お客さんの 道） ──────────── */
+  const tsukiIreru = async (ym) => {
+    await osu(pg, '.bn[data-scr="scr-input"]'); await machi(700);
+    const kae = await pg.evaluate((v) => {
+      const m = document.querySelector('.scr-month');
+      if (!m) return false;
+      m.value = v; m.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }, ym).catch(() => false);
+    if (!kae) return { ok: false, naze: '対象月の 欄が 無い' };
+    await machi(1400);
+    /* ★★勤怠を 入れる（2026-09-14 実測で 足した）★★
+       入れずに 確定したら、押した後の 門が こう 言った:
+         「★4〜6月とも 支払基礎日数が 足りず、電子申請に 出せる人が いませんでした★」
+       ＝★算定基礎届は 支払基礎日数 17日以上が 要る★（原文の 相関）。
+       ⇒ 画面の ★「カレンダーから 入れる」ボタン★を 押す＝★お客さんも これを 押す★。 */
+    const fill = await pg.$('[data-fillsche]');
+    if (fill) {
+      await fill.click({ timeout: 8000 }).catch(() => null);
+      await machi(900);
+      await pg.evaluate(() => {
+        const y = Array.from(document.querySelectorAll('button')).find((e) => e.offsetParent && /^(OK|はい|入れる|上書き)$/.test(e.textContent.trim()));
+        if (y) y.click();
+      }).catch(() => null);
+      await machi(1400);
+    } else console.log('       🟡 ' + ym + ' … カレンダーから 入れる ボタンが 無い');
+    /* ★入ったかを 数で 見る★＝★押したつもり★で 次へ 進まない */
+    const nissu = await pg.evaluate(() => {
+      const K = window.Kyuyo || {};
+      const ins = Array.from(document.querySelectorAll('#scr-input input, #view-input input'));
+      const atai = ins.map((e) => e.value).filter((v) => /^[0-9]{1,2}$/.test(v)).map(Number);
+      return { ran: ins.length, ookii: atai.length ? Math.max.apply(null, atai) : 0 };
+    }).catch(() => ({ ran: -1, ookii: -1 }));
+    console.log('       ' + ym + ' … 入力の 欄 ' + nissu.ran + '個 ／ 一番 大きい 数 ' + nissu.ookii);
+    /* ★本物の click★＝ここは 測る所 */
+    const btn = await pg.$('[data-confirm-month]');
+    if (!btn) return { ok: false, naze: '「今月を確定」の ボタンが 無い' };
+    const osenai = await btn.evaluate((e) => e.disabled);
+    if (osenai) {
+      const fuda = await btn.evaluate((e) => e.textContent.replace(/\s+/g, ' ').trim());
+      return { ok: false, naze: '確定の ボタンが 押せない（' + fuda.slice(0, 60) + '）' };
+    }
+    await btn.click({ timeout: 8000 }).catch(() => null);
+    await machi(900);
+    /* 確認の 一枚が 出たら OK を 押す */
+    await pg.evaluate(() => {
+      const y = Array.from(document.querySelectorAll('button')).find((e) => e.offsetParent && /^(OK|はい|確定)$/.test(e.textContent.trim()));
+      if (y) y.click();
+    }).catch(() => null);
+    await machi(1400);
+    return { ok: true };
+  };
+
+  let ireta = 0;
+  for (const ym of ['2026-04', '2026-05', '2026-06']) {
+    const r = await tsukiIreru(ym);
+    if (r.ok) { ireta++; console.log('       ' + ym + ' … 確定した'); }
+    else console.log('       🟡 ' + ym + ' … ' + r.naze);
+  }
+  if (ireta < 3) MI('4〜6月の 確定', '★' + ireta + '/3 か月しか 確定できていない＝算定は 測れません★');
+
+  /* ── 算定基礎届 ─────────────────────────────────── */
+  const chohyo = async (which, btnId) => {
+    await osu(pg, '.bn[data-scr="scr-list"]'); await machi(600);
+    await osu(pg, '.seg-b[data-view="cho"]'); await machi(600);
+    await osu(pg, '.seg-b[data-cho="' + which + '"]'); await machi(1600);
+    return pg.evaluate((id) => {
+      const btn = document.querySelector(id);
+      const c = document.querySelector('#view-cho');
+      return { fuda: btn ? btn.textContent.trim() : '（無い）', osenai: btn ? btn.disabled : null,
+        chui: Array.from(c ? c.querySelectorAll('.cr-warn') : []).map((x) => x.textContent.replace(/\s+/g, ' ').trim()).slice(0, 2) };
+    }, btnId);
+  };
+
+  const osuToOchiru = async (btnId, yoshiki, na, retsuHazu) => {
+    const [dl] = await Promise.all([
+      pg.waitForEvent('download', { timeout: 25000 }).catch(() => null),
+      pg.click(btnId, { timeout: 8000 }).catch(() => null),
+    ]);
+    if (!dl) {
+      /* ★落ちない時は ★画面が 何と 言ったか★を 読む★＝
+         押した後の 門は uiAlert で 訳を 出す（[[feedback_botan_to_mon_no_kuchiura]]）。 */
+      const iiwake = await pg.evaluate(() => {
+        const t = Array.from(document.querySelectorAll('.ui-alert, .modal, .ov, [role="dialog"]'))
+          .map((e) => e.textContent.replace(/\s+/g, ' ').trim()).filter((x) => x).join(' ／ ');
+        return t.slice(0, 420);
+      }).catch(() => '');
+      T('★' + na + '＝押したら 本当に 落ちる', false,
+        'ファイルが 落ちてこない' + (iiwake ? '　★押した後の 言い分★ … ' + iiwake : '　（画面も 何も 言っていない）'));
+      return;
+    }
+    T('★' + na + '＝押したら 本当に 落ちる', true);
+    const fp = await dl.path();
+    const buf = fp ? fs.readFileSync(fp) : Buffer.alloc(0);
+    const m = csvMiru(buf.toString('latin1'), yoshiki);
+    console.log('       落ちた … ' + dl.suggestedFilename() + ' ' + buf.length + 'バイト sha256 ' + sha(buf)
+      + ' ／ 行' + m.gyo + ' データ' + m.data + ' 列' + m.retsu + ' ずれ' + m.zure
+      + ' 整理番号[' + m.seiri.join(' ') + ']');
+    T('★' + na + '＝名前が SHFD0006.CSV', dl.suggestedFilename() === 'SHFD0006.CSV', '落ちた 名前は ' + dl.suggestedFilename());
+    T('★' + na + '＝様式 ' + yoshiki + ' の 行が 1本以上', m.data >= 1, 'データ行 ' + m.data + '本');
+    T('★' + na + '＝' + retsuHazu + '列（ずれ 0）', m.retsu === retsuHazu && m.zure === 0, '列 ' + m.retsu + '／ずれ ' + m.zure);
+    T('★' + na + '＝★今日 作った 欄の 字（' + SEIRI + '）が 紙に 入っている', m.seiri.indexOf(SEIRI) >= 0,
+      '紙の 項番5 は [' + m.seiri.join(' ') + ']');
+  };
+
+  if (ireta >= 3) {
+    const s = await chohyo('santei', '#b-santei-csv');
+    console.log('  ── 算定基礎届 … ボタン「' + s.fuda + '」／押せない ' + s.osenai);
+    if (s.chui.length) console.log('       画面の 言い分 … ' + s.chui.join(' ／ ').slice(0, 200));
+    if (s.osenai === false) await osuToOchiru('#b-santei-csv', '2225700', '算定基礎届', 53);
+    else T('★算定基礎届＝ボタンが 押せる', false, '押せない（上の 言い分を 見る）');
+  } else MI('算定基礎届', '4〜6月が 揃っていない＝材料が 無い（★アプリの 穴では ない★）');
+
+  /* ── 月額変更届 ─────────────────────────────────── */
+  const g = await chohyo('gekkaku', '#b-gekkaku-csv');
+  console.log('  ── 月額変更届 … ボタン「' + g.fuda + '」／押せない ' + g.osenai);
+  if (g.chui.length) console.log('       画面の 言い分 … ' + g.chui.join(' ／ ').slice(0, 200));
+  if (g.osenai === false) await osuToOchiru('#b-gekkaku-csv', '2221700', '月額変更届', 49);
+  else MI('月額変更届', '★随時改定の 材料を 画面から 入れられていない★'
+    + '＝★私の 打ち方が 届いていない★（変動月は 隠れた 欄・従前は 入った）。'
+    + '★アプリの 穴とは まだ 言えません★＝★出せない事を 測ったのでは ない★。'
+    + '★次にやる事★＝随時改定の かたまりが 開いているかを 数で 見る（今は 中を 読めていない）');
+} catch (e) {
+  if (e && e.message !== 'skip') { fail++; console.log('  ✗ 途中で 止まった … ' + (e && e.message)); }
+} finally {
+  /* ★後始末は 倉庫から 直に★＝★確定した人は 画面から 消せない★（app.js の 門） */
+  const kesu = await SUJI_KESU(NA);
+  if (!kesu.ok) console.log('       🟡 印の 人を 消せなかった … ' + kesu.naze);
+  else console.log('       片づけ … 印「' + NA + '」の 人と 明細を 消した');
+  await GOMI_KESU(HAJIME);
+  /* ★確定は 在籍者 全員に 付く★＝この回で 書かれた 明細を まとめて 消す */
+  const mk = await MEISAI_KESU(HAJIME, ['2026-04', '2026-05', '2026-06']);
+  if (!mk.ok) console.log('       🟡 この回の 明細を 消せなかった … ' + mk.naze);
+  await b.close().catch(() => null);
+  srv.close();
+}
+
+/* ★本当の 判じは 倉庫★＝画面の 数では 見ない */
+{
+  const sou = await AWASERU(soukoMae, 20);
+  if (sou.han === 'はかれない' || sou.han === '未測定') { mi++; console.log('  🟡 ★はかれない★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
+  else if (sou.han === '緑') { pass++; console.log('  ✓ ★後始末＝★倉庫の 行数★が 元に 戻った'); console.log('       ' + sou.iu); }
+  else { fail++; console.log('  ✗ ★後始末＝★倉庫の 行数★が 元に 戻った — ' + sou.iu); }
+}
+console.log(NL + pass + ' passed, ' + fail + ' failed, ' + mi + ' はかれない');
+process.exit(fail ? 1 : 0);

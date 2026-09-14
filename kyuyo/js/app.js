@@ -1394,6 +1394,18 @@
          ⇒ ここで お預かりする。★他の 3つの 届出にも そのまま 効く★。 */
       +'<div class="frow"><div class="flabel">被保険者整理番号<span class="hint2">健康保険証・資格確認書に載っている番号・届出に使います</span></div>'
         +'<input class="finput m-f" data-f="hokenshaNo" inputmode="numeric" value="'+attr(e.hokenshaNo)+'" placeholder="1"></div>'
+      /* ★★従前の 改定月（2026-09-14）★★
+         ★入れる 欄が 1つも 無かった★（この 印を 持つ input … app.js 0個 / index.html 0個）。
+         ★ここに その 印の 字を そのまま 書かない★＝字で 数える 道具が コメントを 数えて しまう
+         （今日 同じ型を 2回 踏んだ）。
+         ★読む所は 2つ★＝算定基礎届と 月額変更届の CSV を 作る 所（e.zenzenKaiteiYmd）。
+         ★原文★＝どちらも ★項番15〜17「従前改定年月」＝必須★
+           （lib/todokede-csv.js 278行＝算定／557行＝月変。覚書「15〜17 従前の改定月＝必須」）。
+         ⇒ ★欄が 無い＝算定も 月額変更も 1枚も 出せない★（実測＝倉庫に 持つ人 本番0人・試験0人）。
+         ★しかも 断る 字が 違った★＝押すと「支払基礎日数が 足りず」と 出る（本当は この 欄）。
+           ⇒ ★欄と 同じ 1件で 訳の 字も 直す★（欄だけ 作ると 嘘が 残る）。 */
+      +'<div class="frow"><div class="flabel">従前の 改定月<span class="hint2">前に 標準報酬月額が 決まった 月・算定基礎届と 月額変更届に 要ります</span></div>'
+        +'<input class="finput m-f" data-f="zenzenKaiteiYmd" type="month" value="'+attr(String(e.zenzenKaiteiYmd||'').slice(0,7))+'"></div>'
       +'<div class="frow"><div class="flabel">振込先<span class="hint2">明細に表示・任意</span></div><input class="finput m-f" data-f="bank" value="'+attr(e.bank)+'" placeholder="○○銀行 普通 1234567"></div>'
       +'<div class="sec-lb" style="border-top:1px dashed #d4eae0">総合振込データ用<span class="hint2">銀行に送る全銀ファイル用・任意</span></div>'
       +'<div class="frow2"><div class="frow"><div class="flabel">銀行名</div><input class="finput m-f" data-f="furiBankName" value="'+attr(e.furiBankName)+'" placeholder="ﾐｽﾞﾎ"></div>'
@@ -2975,7 +2987,7 @@
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
       tekiyoYm: year+'-09',
-      zenzen:{ health:x.prevH||0, pension:x.prevP||0, kaiteiYmd:e.zenzenKaiteiYmd||'' },
+      zenzen:{ health:x.prevH||0, pension:x.prevP||0, kaiteiYmd:zenzenKaiteiOf(e) },
       months: m.map(function(mm){ return { days:mm.days||0, tsuka:(mm.pay||0)-(mm.genbutsu||0), genbutsu:mm.genbutsu||0 }; }),
       /* ★日数の 線は 画面と 同じ物を 渡す★（2026-09-04 指示役＝決まりを 2か所に 書かない）
          ＝santeiRule(e)：短時間 11/0・パート 17/15・一般 17/0。
@@ -3068,8 +3080,18 @@
         ? ('<div class="cr-warn" style="margin:8px 0 0">⚠ <b>まだ 出せません</b><br>'+tomeru.map(esc).join('<br>')+nigemichi+'</div>')
         : '<p class="hint" style="margin:8px 0 0">ファイル名は <b>SHFD0006.CSV</b>（電子申請の 決まり）。'
           +'この ファイルを e-Gov で 出します（送るのは お客さまです）。</p>')
-      +'<div style="margin-top:10px"><button class="btn-primary" id="b-santei-csv"'+(tomeru.length?' disabled':'')+'>'
-      +(tomeru.length?'CSVを作る（'+tomeru.length+'件 直してから）':'CSVを作る（'+rows.length+'人・SHFD0006.CSV）')+'</button></div></div>';
+      /* ★★ボタンの 数は「門が 通す 数」に する（2026-09-14）★★
+         ★前は rows.length＝★見た 人の 数★を 出していた★。
+         実測 … ボタンは「2人」と 言うのに 押したら ★0人★（従前の 改定月が 空で 弾かれる）。
+         ＝★出せると 見せて 出ない★＝[[feedback_botan_to_mon_no_kuchiura]]。
+         ⇒ ★門（dasuKa）に 聞いてから 数を 出す★＝★押す前と 後で 同じ物を 見る★。 */
+      +(function(){
+        var toori=rows.filter(function(x){ return x.hasData && TodokedeCsv.dasuKa(santeiCsvInput(x, year)); });
+        var dame=(tomeru.length>0)||(toori.length===0);
+        return '<div style="margin-top:10px"><button class="btn-primary" id="b-santei-csv"'+(dame?' disabled':'')+'>'
+          +(tomeru.length?'CSVを作る（'+tomeru.length+'件 直してから）'
+            :(toori.length?'CSVを作る（'+toori.length+'人・SHFD0006.CSV）':'出せる人が いません'))+'</button></div>';
+      })()+'</div>';
   }
   function renderSantei(sub){ var host=$('#view-cho'); var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
     if(!(window.Store&&Store.getPayslipsByYm)){ host.innerHTML=noStoreHTML(sub); return; }
@@ -3116,7 +3138,7 @@
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
       henkoYm: x.henko||'',
       zenzen:{ health:num(hp.prevHyojun)||num(s.prevHyojun)||0, pension:num(pp.prevHyojun)||num(s.prevHyojun)||0,
-        kaiteiYmd:e.zenzenKaiteiYmd||'' },
+        kaiteiYmd:zenzenKaiteiOf(e) },
       months: m.map(function(mm){ return { days:mm.days||0, tsuka:(mm.pay||0)-(mm.genbutsu||0), genbutsu:mm.genbutsu||0 }; }),
       bikou:{ tanjikan: stType(e)==='tanjikan', over70: isOver70(e, ymAddLocal(x.henko,3)) }
     };
@@ -3464,6 +3486,18 @@
      ★1枚の 届書に 入るのは 配偶者1人＋その他2人まで★（原文 項番22〜135）。
        3人目からは ★行を 分ける★＝同じ 被保険者で 2行目・3行目を 作る（原文どおり）。
      ★配偶者は その他の 表に 居ない★＝画面の 続柄で 'haigusha' を 選んだ人を 振り分ける。 */
+  /* ★★従前の 改定月を 届出の 形に 直す 1か所（2026-09-14）★★
+     画面の 欄は ★月（2026-04）★で 聞く＝人に 日まで 打たせない。
+     ところが lib の gengoOf は ★年月日（2026-04-01）でないと 何も 返さない★
+     （todokede-csv.js 49-52「読めない日付は 何も 返さない」）。
+     ⇒ ★1日を 足して 渡す★。★2か所（算定・月変）で 別々に 書かない★
+        （今日 何度も 踏んだ＝★作る道が 2本 在る時は 必ず ずれる★）。
+     ★空なら 空のまま★＝門が「まだです」と 言うのを 邪魔しない。 */
+  function zenzenKaiteiOf(e){
+    var v=String((e&&e.zenzenKaiteiYmd)||'').trim();
+    if(/^\d{4}-\d{2}$/.test(v)) return v+'-01';
+    return v;                                   /* 既に 年月日／空 は そのまま */
+  }
   function fuyoJimusho(){
     var c=state.company||{};
     var sk=(window.TodokedeCsv&&TodokedeCsv.splitSeiriKigou)?TodokedeCsv.splitSeiriKigou(c.seiriKigou):null;
@@ -4909,8 +4943,25 @@
            ＝4〜6月とも 支払基礎日数が 足りない人＝★総計・平均額に 書く数字が 未測定★
              知らせる 文（santeiWarn）で「入れていません」と 言っている以上、★本当に 入れない★ */
         var iru=rw.filter(function(x){ return TodokedeCsv.dasuKa(santeiCsvInput(x, yr2)); });
-        if(!iru.length){ uiAlert('4〜6月とも 支払基礎日数が 足りず、電子申請に 出せる人が いませんでした。'
-          +String.fromCharCode(10)+'従前の 標準報酬月額の まま 決まります（年金事務所へ ご確認ください）。'); return; }
+        /* ★★断る 訳は「門が 弾いた 訳」を そのまま 出す（2026-09-14）★★
+           ★前は 訳を 決め打ちで「支払基礎日数が 足りず」と 言っていた★。
+           ところが 実測では ★従前の 改定月が 空★で 弾かれていた（日数は 足りていた）。
+           ⇒ 客は ★勤怠を 直しに 行き、いくら 直しても 出ない★＝★自力で たどり着けない★。
+           ⇒ ★訳を 2か所に 書かない★＝門（dasuKa）と 同じ 材料から 作る
+              ＝santeiWarn（lib）が 既に 人ごとの 字を 持っている。それを 並べる。
+           ＝[[feedback_botan_to_mon_no_kuchiura]] の 裏返し。 */
+        if(!iru.length){
+          var naze=[];
+          rw.forEach(function(x){
+            var inp2=santeiCsvInput(x, yr2);
+            (TodokedeCsv.santeiWarn(inp2)||[]).forEach(function(w){ naze.push(w); });
+          });
+          uiAlert('電子申請に 出せる人が いませんでした（'+rw.length+'人 見ました）。'
+            +String.fromCharCode(10)+(naze.length
+              ? naze.slice(0,8).map(function(w){ return '・'+w; }).join(String.fromCharCode(10))
+                + (naze.length>8?(String.fromCharCode(10)+'…ほか '+(naze.length-8)+'件'):'')
+              : '訳が 出せませんでした（年金事務所へ ご確認ください）。'));
+          return; }
         var rows2=iru.map(function(x){ return TodokedeCsv.santeiRow(santeiCsvInput(x, yr2)); });
         var tsu=Number(co2.baitaiTsuban||0);
         var f2=TodokedeCsv.santeiCsv({ jimusho:santeiCsvInput(iru[0], yr2).jimusho,

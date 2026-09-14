@@ -188,3 +188,8 @@ jobs:
       # ★後始末の 物差し そのもの★＝倉庫を 読むだけ・★赤が 出る事★を 自分で 見る
       - name: ★置き土産の 物差しの 自己確認（わざと ずらして 赤が 出るか）
         run: node kyuyo/tests/_souko-kazoeru.mjs
+      # ★算定基礎届（2225700・53項目）を 実ブラウザで 押す（2026-09-14）
+      #   ★4〜6月を 画面から 入れて 確定★してから 押す＝★確定した 明細が 要る 届出★。
+      #   月額変更届は ★随時改定の 材料を 画面から 入れられていない＝はかれない★（緑に しない）。
+      - name: ★算定基礎届が 本当に 落ちる（実ブラウザ・53列・整理番号の 字まで）
+        run: node kyuyo/tests/santei-gekkaku-ui.mjs --self-test && node kyuyo/tests/santei-gekkaku-ui.mjs

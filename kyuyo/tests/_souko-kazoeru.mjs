@@ -115,6 +115,45 @@ export async function konkaiNoGomiKesu(hajimeIso) {
   return r.ok ? { ok: true } : { ok: false, naze: r.naze };
 }
 
+/* ★★この回で 書かれた 明細を 消す（後始末だけ）★★
+   ★なぜ 要るか（2026-09-14 実測）★
+     「今月を確定」は ★その月の 在籍者 全員★を 確定する＝
+     ★印を 付けた 人だけでは 片づかない★（幻の『従業員 1』にも 確定明細が 付く）。
+     実測 … 印の 人を 消しても ★明細が +3 残った★（4/5/6月ぶん）。
+   ★この回（updated_at ≧ 始めた時）の 行だけ★＝★前から 在る 3,599行には 触りません★。
+   ★前から 在った 行が 書き直されていたら 一緒に 消える★＝その時は
+     ★数が 土台より 減って 赤に なる★＝★自分で 気づける★形に してある。
+   ★テスト倉庫だけ★／★片づけ専用★。 */
+export async function konkaiNoMeisaiKesu(hajimeIso, yms) {
+  const t = String(hajimeIso || '').replace(/[^0-9TZ:.+-]/g, '');
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(t)) return { ok: false, naze: '始めた時の 形が 違う' };
+  /* ★★触った 月だけに 絞る（2026-09-14 実測で 足した）★★
+     月を 絞らずに 消したら ★前から 在った 別の 月の 行まで 消えて 土台より 減った★
+     ＝★数が 土台を 下回って 赤★に なった（★物差しが 自分で 気づいた★）。
+     ⇒ ★この回で 触った 月★の 行だけ 消す。 */
+  const m = (yms || []).map((x) => String(x).replace(/[^0-9-]/g, '')).filter((x) => /^[0-9]{4}-[0-9]{2}$/.test(x));
+  if (!m.length) return { ok: false, naze: '月を 渡していない（月を 絞らずには 消しません）' };
+  const r = await toi("delete from kyuyo.pay_payslips where updated_at >= '" + t + "'"
+    + " and ym in ('" + m.join("','") + "')");
+  return r.ok ? { ok: true } : { ok: false, naze: r.naze };
+}
+
+/* ★★印を 付けた 人を 名前で 消す（後始末だけ）★★
+   ★なぜ 要るか★＝★確定した 明細が 在る人は 画面から 消せない★（app.js の 門が そう している）。
+     ＝算定/月変を 測る 回は ★画面の 道では 片づけられない★。
+   ★条件（2026-09-14 指示役1）★＝★確定用は 別の人・名前に 印★。その 印で 狙う。
+   ★明細 → 従業員 の 順★／★テスト倉庫だけ★／★片づけ専用★（測る所では 使わない）。 */
+export async function sujiKesu(shirushi) {
+  const na = String(shirushi || '');
+  if (!/^[^']{4,60}$/.test(na)) return { ok: false, naze: '印の 形が 違う' };   /* ★字を そのまま 埋めない★ */
+  const j = "(data->>'name') = '" + na + "'";
+  const a = await toi("delete from kyuyo.pay_payslips p where exists"
+    + " (select 1 from kyuyo.pay_employees e where e.id = p.employee_id and " + j + ")");
+  if (!a.ok) return { ok: false, naze: a.naze };
+  const b2 = await toi("delete from kyuyo.pay_employees where " + j);
+  return b2.ok ? { ok: true } : { ok: false, naze: b2.naze };
+}
+
 /* ★自己確認★＝この道具が ★赤を 出せる★事を 先に 見る（ブラウザ 不要） */
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('_souko-kazoeru.mjs')) {
   console.log('\n[_souko-kazoeru] ★自己確認★（倉庫を 読むだけ・1文字も 書かない）');
