@@ -388,6 +388,23 @@ try {
 
   /* ── 月額変更届 ─────────────────────────────────── */
   const g = await chohyo('gekkaku', '#b-gekkaku-csv');
+  /* ★★どこで 落ちたかを 名指しする（2026-09-14・★切り替えた 後に 測る★）★★
+     gekkakuRows（app.js 3109）が 人を 落とす 条件は 3つ:
+       ①isActiveInMonth(e, state.month)   ②s.henkoYm が 在る
+       ③s.fixedChanged か prevHyojun>0
+     ★「ボタンが 出ない」だけでは ①か②か③か 分からない★＝1つずつ 数える。 */
+  const ochita = await pg.evaluate(() => {
+    const K = window.Kyuyo || {};
+    const rows = (K.gekkakuRows && K.state) ? null : null;
+    /* ★state を 外に 出していない★ので、画面に 出ている 字から 数える */
+    const c = document.querySelector('#view-cho');
+    const hyou = c ? Array.from(c.querySelectorAll('table')) : [];
+    return { hako: c ? c.querySelectorAll('.card').length : -1,
+      hyouKazu: hyou.length,
+      midashi: hyou.map((t) => Array.from(t.querySelectorAll('th')).slice(0, 2).map((x) => x.textContent.trim()).join('/')),
+      ji: c ? c.textContent.replace(/\s+/g, ' ').trim().slice(0, 160) : '' };
+  }).catch((e) => ({ err: String(e).slice(0, 60) }));
+  console.log('       月額変更の 画面 … ' + JSON.stringify(ochita));
   console.log('  ── 月額変更届 … ボタン「' + g.fuda + '」／押せない ' + g.osenai);
   if (g.chui.length) console.log('       画面の 言い分 … ' + g.chui.join(' ／ ').slice(0, 200));
   if (g.osenai === false) await osuToOchiru('#b-gekkaku-csv', '2221700', '月額変更届', 49);
