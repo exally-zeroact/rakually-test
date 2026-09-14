@@ -151,3 +151,7 @@ jobs:
       #   ★足した人は 必ず 消す★（前後の 人数を 数えて 合わない時は 赤）。
       - name: ★被扶養者(異動)届が 3通りとも 本当に 落ちる（実ブラウザ・139列・異動の別）
         run: node kyuyo/tests/fuyo-ui.mjs --self-test && node kyuyo/tests/fuyo-ui.mjs
+      # ★被保険者整理番号が 画面から 入り 紙まで 届くか（2026-09-14）
+      #   ★入れる欄が 1つも 無いのに 6本の CSV が e.hokenshaNo を 読んでいた★所の 見張り。
+      - name: ★被保険者整理番号が 表と Excel まで 届く（実ブラウザ・出た字で 見る）
+        run: node kyuyo/tests/seirino-ui.mjs

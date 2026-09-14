@@ -2660,6 +2660,15 @@
   // 賞与支払届(被保険者賞与支払届): 当月の賞与から 賞与額(通貨=社保対象賞与)・標準賞与額(1000円未満切捨) を届の一覧に。
   //  出典=日本年金機構「被保険者賞与支払届」。整理番号は各自入力・マイナンバーは扱わない(届は整理番号/基礎年金番号)。現物は通貨のみ。
   var BONUS_HARAU_COLS=['被保険者整理番号','氏名','生年月日','賞与支払年月日','賞与額(通貨)','賞与額(現物)','合計','標準賞与額','備考'];
+  /* ★★被保険者整理番号を 出口へ 流す 1か所（2026-09-14）★★
+     ★これを 入れる 前は 6つの 出口が すべて '' の 決め打ち★だった。
+     ★電子申請の CSV 側は 前から e.hokenshaNo を 読んでいた★（項番8 ほか）ので、
+     ★同じ画面が 出す CSV と 表/Excel で 中身が ずれる★形に なっていた。
+     ⇒ ★取り出しは ここ 1か所★。★2か所に 書くと 必ず ずれる★
+        （[[feedback_mihon_no_michi_ga_futatsu_aru_toki_katahou_dake_naosu_na]]）。
+     ★この時点では 入れる 欄が まだ 無い★＝どの人も 空＝★出る物は 1文字も 変わらない★。
+     （欄は 次の 1本で 足す＝どの 時点で 止まっても 客に 嘘が 出ない 順番） */
+  function seiriNoOf(x){ return (x && x.emp && x.emp.hokenshaNo) || ''; }
   function bonusHarauRows(){
     var ym=bonusYmOf(), payDay=String((state.bonus&&state.bonus.payDay)||'').trim();
     return state.employees.filter(function(e){ return isActiveInMonth(e,ym) && num(bonusEntry(e).amount)>0; }).map(function(e){
@@ -2711,7 +2720,7 @@
       +'<div style="margin-top:10px"><button class="btn-primary" id="b-shoyo-csv"'+(deru.length?'':' disabled')+'>'
       +(deru.length?('CSVを作る（'+deru.length+'人・SHFD0006.CSV）'):'出せる人が いません')+'</button></div></div>';
   }
-  function bonusHarauAoa(rows){ var aoa=[BONUS_HARAU_COLS]; rows.forEach(function(x){ aoa.push(['', x.name, x.birthYmd, x.payDate, x.tsuka||'', x.genbutsu||0, x.goukei||'', x.hyojun||'', x.note]); }); return aoa; }
+  function bonusHarauAoa(rows){ var aoa=[BONUS_HARAU_COLS]; rows.forEach(function(x){ aoa.push([seiriNoOf(x), x.name, x.birthYmd, x.payDate, x.tsuka||'', x.genbutsu||0, x.goukei||'', x.hyojun||'', x.note]); }); return aoa; }
   function downloadBonusHarau(){ if(!window.PayslipXlsx) return; var rows=bonusHarauRows(); if(!rows.length){ uiAlert('賞与額が入力された従業員がいません。'); return; }
     PayslipXlsx.downloadSheets([{name:'賞与支払届', aoa:bonusHarauAoa(rows)}], { filename:'賞与支払届_'+bonusYmOf()+'.xlsx' }); }
   function renderInputArea(){
@@ -2898,7 +2907,7 @@
     opt = opt || {}; var m = x.months, r = x.r;
     var n = function (v) { return v ? (opt.yen ? yen(v) : v) : ''; };
     var mo = function (i) { return [ (m[i].days || ''), n(m[i].tsuka), n(m[i].genbutsu), n(m[i].pay) ]; };
-    return ['', x.name, x.birthYmd, n(x.prevH), n(x.prevP), (x.henkoTsuki || ''), (x.shokyu || ''), n(x.sokyu)]
+    return [seiriNoOf(x), x.name, x.birthYmd, n(x.prevH), n(x.prevP), (x.henkoTsuki || ''), (x.shokyu || ''), n(x.sokyu)]
       .concat(mo(0)).concat(mo(1)).concat(mo(2))
       .concat([ n(r.soukei), n(r.heikin), '', n(r.decHealth), (r.decHealthGrade || ''), n(r.decPension), (r.decPensionGrade || ''), '', x.note ]);
   }
@@ -3075,7 +3084,7 @@
   }
   function gekkakuAoa(rows){
     var aoa=[GEKKAKU_COLS]; rows.forEach(function(x){ var m=x.months, z=x.z||{}, hp=z.health||{}, pp=z.pension||{}; var soukei=(m[0].pay||0)+(m[1].pay||0)+(m[2].pay||0);
-      aoa.push(['', x.name, x.birthYmd, x.henko, hp.prevHyojun||'', pp.prevHyojun||'', m[0].days||'', m[0].pay||'', m[1].days||'', m[1].pay||'', m[2].days||'', m[2].pay||'', soukei||'', z.avg||'', hp.newHyojun||'', hp.newGrade||'', pp.newHyojun||'', pp.newGrade||'', z.applyYm||'', z.eligible?'該当':'非該当', x.note]); });
+      aoa.push([seiriNoOf(x), x.name, x.birthYmd, x.henko, hp.prevHyojun||'', pp.prevHyojun||'', m[0].days||'', m[0].pay||'', m[1].days||'', m[1].pay||'', m[2].days||'', m[2].pay||'', soukei||'', z.avg||'', hp.newHyojun||'', hp.newGrade||'', pp.newHyojun||'', pp.newGrade||'', z.applyYm||'', z.eligible?'該当':'非該当', x.note]); });
     return aoa;
   }
   /* ★月額変更届の 電子申請 CSV に 渡す物★（2026-09-04）
@@ -3118,7 +3127,7 @@
     if(!rows.length) return note+'<div class="card"><p class="hint">随時改定の候補がいません。従業員マスタで対象者の社会保険を「給料が変わった（随時改定）」にし、変動月・従前の標準報酬を入力してください。</p></div>';
     var head='<tr>'+GEKKAKU_COLS.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr>';
     var body=rows.map(function(x){ var m=x.months, z=x.z||{}, hp=z.health||{}, pp=z.pension||{}; var soukei=(m[0].pay||0)+(m[1].pay||0)+(m[2].pay||0);
-      var cells=['', x.name, x.birthYmd, x.henko, hp.prevHyojun?yen(hp.prevHyojun):'', pp.prevHyojun?yen(pp.prevHyojun):'', (m[0].days||''), (m[0].pay?yen(m[0].pay):''), (m[1].days||''), (m[1].pay?yen(m[1].pay):''), (m[2].days||''), (m[2].pay?yen(m[2].pay):''), yen(soukei), z.avg?yen(z.avg):'', hp.newHyojun?yen(hp.newHyojun):'', (hp.newGrade||''), pp.newHyojun?yen(pp.newHyojun):'', (pp.newGrade||''), (z.applyYm||''), (z.eligible?'該当':'非該当'), x.note];
+      var cells=[seiriNoOf(x), x.name, x.birthYmd, x.henko, hp.prevHyojun?yen(hp.prevHyojun):'', pp.prevHyojun?yen(pp.prevHyojun):'', (m[0].days||''), (m[0].pay?yen(m[0].pay):''), (m[1].days||''), (m[1].pay?yen(m[1].pay):''), (m[2].days||''), (m[2].pay?yen(m[2].pay):''), yen(soukei), z.avg?yen(z.avg):'', hp.newHyojun?yen(hp.newHyojun):'', (hp.newGrade||''), pp.newHyojun?yen(pp.newHyojun):'', (pp.newGrade||''), (z.applyYm||''), (z.eligible?'該当':'非該当'), x.note];
       return '<tr'+(z.eligible?' style="background:#EAF7EF"':'')+'>'+cells.map(function(c,i){ return '<td class="'+((i>=4&&i<=17)?'num':'')+'">'+esc(String(c))+'</td>'; }).join('')+'</tr>';
     }).join('');
     return note+'<div class="card"><div class="card-h">月額変更届（随時改定）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+gekkakuCsvBox(rows);
@@ -3334,7 +3343,7 @@
   }
   function shikakuAoa(rows){
     var aoa=[['健康保険・厚生年金保険 被保険者 資格取得届／資格喪失届'], [(state.company||{}).name||''], [], SHIKAKU_COLS.slice()];
-    rows.forEach(function(x){ aoa.push([ x.kind, '', x.name, x.birthYmd, x.date, x.decH||'', x.decHGrade||'', x.decP||'', x.decPGrade||'', x.reason, x.note ]); });
+    rows.forEach(function(x){ aoa.push([ x.kind, seiriNoOf(x), x.name, x.birthYmd, x.date, x.decH||'', x.decHGrade||'', x.decP||'', x.decPGrade||'', x.reason, x.note ]); });
     aoa.push([]); aoa.push(['※ 資格取得日＝入社日、資格喪失日＝退職日の翌日。標準報酬は取得時の見込み（届出後に決定通知）。被保険者整理番号・基礎年金番号は各自記入。マイナンバーは扱いません（各自記入）。']);
     return aoa;
   }
@@ -3529,7 +3538,7 @@
     if(!rows.length) return note+'<div class="card"><p class="hint">入社日・退職日が入力された従業員がいません。従業員マスタの「在籍・勤務」で入社日／退職日を入れてください。</p></div>';
     var head='<tr>'+SHIKAKU_COLS.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr>';
     var body=rows.map(function(x){ var isLoss=(x.kind==='喪失');
-      var cells=[x.kind, '', x.name, x.birthYmd, x.date, (x.decH?yen(x.decH):''), (x.decHGrade||''), (x.decP?yen(x.decP):''), (x.decPGrade||''), x.reason, x.note];
+      var cells=[x.kind, seiriNoOf(x), x.name, x.birthYmd, x.date, (x.decH?yen(x.decH):''), (x.decHGrade||''), (x.decP?yen(x.decP):''), (x.decPGrade||''), x.reason, x.note];
       return '<tr'+(isLoss?' style="background:#FCF3F2"':'')+'>'+cells.map(function(c,i){ return '<td class="'+((i>=5&&i<=8)?'num':'')+'">'+esc(String(c))+'</td>'; }).join('')+'</tr>';
     }).join('');
     return note+'<div class="card"><div class="card-h">資格取得届／喪失届</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+shutokuCsvBox(rows)+soshitsuCsvBox(rows);
