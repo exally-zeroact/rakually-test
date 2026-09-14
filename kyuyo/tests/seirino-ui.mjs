@@ -74,15 +74,34 @@ const katazuke = async () => { if (katazukeSuru) { const f = katazukeSuru; kataz
 process.on('exit', () => { try { srv.close(); } catch (e) { /* もう 閉じている */ } });
 for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(s, () => { try { srv.close(); } catch (e) { /* 同上 */ } process.exit(130); });
 
-async function utsu(pg, sel, val) {
-  const el = await pg.$(sel);
-  if (!el) return false;
-  const tag = await el.evaluate((e) => e.tagName.toLowerCase());
-  if (tag === 'select') await el.selectOption(String(val));
-  else { await el.fill(''); await el.type(String(val)); }
-  await el.evaluate((e) => { e.dispatchEvent(new Event('change', { bubbles: true })); });
-  await machi(140);
-  return true;
+/* ★★打った値が「本当に 入ったか」を 見てから 次へ進む（2026-09-14 CIで 実測）★★
+   ★手元(Windows の WebKit)では 緑・CI(Linux の WebKit)では 赤★に なった。
+   落ちた 中身は ★日付の 欄だけ★＝「本人の 生年月日が まだです」「扶養に 入った日が まだです」。
+   訳 … input[type=date] に ★1字ずつ 打って いた★（type()）。
+        日付の 欄は ★engine と 土地の 決まりで 打ち方が 変わる★ので、1字ずつは 当てに ならない。
+   ⇒ ①★fill() で 入れる★（date も そのまま 入る）
+     ②★入れた後に 読み返して 見比べる★／違えば ★開き直して もう一度★（既定 3回）
+     ③それでも 違えば ★false を 返す★＝呼んだ側が 🟡で 言う（★黙って 次へ進まない★）
+   ★これは shutoku-ui / soshitsu-ui を CI から 外している 訳（戻す条件）と 同じ物★。 */
+async function utsu(pg, sel, val, kai = 3) {
+  const nozomi = String(val);
+  for (let i = 0; i < kai; i++) {
+    const el = await pg.$(sel);
+    if (!el) { await machi(250); continue; }
+    let tag = 'input';
+    try { tag = await el.evaluate((e) => e.tagName.toLowerCase()); } catch (e) { await machi(250); continue; }
+    try {
+      if (tag === 'select') await el.selectOption(nozomi);
+      else await el.fill(nozomi);
+      await el.evaluate((e) => { e.dispatchEvent(new Event('change', { bubbles: true })); });
+    } catch (e) { await machi(300); continue; }
+    await machi(180);
+    /* ★描き直った後の 物を 見る★＝掴んだ 古い 物では ない */
+    const ima = await pg.$(sel).then((e2) => (e2 ? e2.inputValue() : null)).catch(() => null);
+    if (ima === nozomi) return true;
+    await machi(320);
+  }
+  return false;
 }
 
 console.log('\n[seirino-ui] 被保険者整理番号が ★画面から 入り 紙まで 届くか★'
