@@ -304,7 +304,33 @@ try {
   };
   await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(500);
   await osu(pg, '#set-seg .seg-b[data-set="company"]'); await machi(700);
-  await utsu(pg, '#c-pref', 'ehime');
+  if (!(await utsu(pg, '#c-pref', 'ehime'))) console.log('       🟡 県の 欄に 打てない');
+  /* ★★会社の 住所は「ログインの 後に 遅れて 届く 写し」（2026-09-14 CIで 実測）★★
+     給与の 会社情報は ★入口の 共有データが 持ち主★で、ここに 在るのは 写し。
+     写しは window.PayslipSyncOrg() が ★ログインの 後に 1回だけ★ 取りに行く。
+     ★手元は 速いので 届いた後に 触っていた／CI では 届く前に 判じていた★
+       ＝「⚠ まだ 出せません／事業所所在地が まだです」で ★3通りとも 赤★に なった。
+       ＝★アプリの 穴では なく 私が 待っていなかった★。
+     ⇒ ★住所が 画面に 出るまで 待つ★（お客さんも 出るまでは 押せない）。
+       ★届かなければ ✗では なく 🟡未測定★＝★測れていない事を 測れたと 言わない★。 */
+  const jushoMatsu = async (byo) => {
+    for (let i = 0; i < byo * 2; i++) {
+      const t = await pg.evaluate(() => {
+        const e = document.querySelector('#c-addr-ro');
+        return e ? e.textContent.trim() : null;
+      }).catch(() => null);
+      if (t && t !== '—' && t.indexOf('入っていません') < 0) return t;
+      await machi(500);
+    }
+    return null;
+  };
+  const jusho = await jushoMatsu(20);
+  if (jusho) console.log('       会社の 住所が 届いた … ' + jusho);
+  else {
+    mihakari++;
+    console.log('  🟡 ★未測定★ 会社の 住所が 20秒 待っても 届かない'
+      + '（＝この先の 届出は 測れない。★赤では なく 未測定★）');
+  }
   await chohyo();
   for (const [k, v] of [['seiriKigou', '01-ｱｲ'], ['jigyoshoNo', '12345'],
     ['zip', '790-0001'], ['tel', '089-123-4567'], ['nushi', '健保' + Z + '良一']]) {
@@ -333,6 +359,10 @@ try {
     return chohyo();
   };
   for (const [v, na] of [['1', '増えた'], ['2', '減った'], ['3', '変わった']]) {
+    /* ★材料（会社の 住所）が 届いていないなら ★赤では なく 未測定★★
+       ＝★押せない 訳が アプリの 側に 在るのか 私の 側に 在るのか 分からない★時に
+         赤を 出すと ★狼少年★に なる（[[feedback_mimisokutei_to_kikai_ga_maikai_mite_inai_wa_betsumono]]）。 */
+    if (!jusho) { mihakari++; console.log('  🟡 ★未測定★ ' + na + ' … 会社の 住所が 届いていない'); continue; }
     const r = await idouKae(v);
     console.log('  ── 異動の別「' + na + '」 … ボタン「' + r.fuda + '」／押せない ' + r.osenai);
     if (r.chui.length) console.log('       画面の 言い分 … ' + r.chui.join(' ／ ').slice(0, 220));

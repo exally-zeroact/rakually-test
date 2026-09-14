@@ -42,10 +42,27 @@
     gateCheck().then(function(gate){
       if(gate && !gate.ok){ showLock(); return; } // 停止アカウント=アプリを触らせない
       hide();
-      if(window.PayslipReloadCloud) window.PayslipReloadCloud().then(function(loaded){ if(!loaded && window.PayslipPersistSave) window.PayslipPersistSave(); /* 新規=今のローカルを初回アップ */ });
-      /* ★会社名・住所を「会社の設定」から読み直す★（2026-08-28）
-         ＝持ち主は入口の 共有データ▸会社。★給与は読むだけ★（読めなくても写しは消さない）。 */
-      if(window.PayslipSyncOrg) window.PayslipSyncOrg();
+      /* ★★順番を 決める（2026-09-14 実測で 直した）★★
+         ★前は 2つを 同時に 走らせていた★＝
+           ①PayslipReloadCloud() … 倉庫から state を まるごと 読み直す（非同期）
+           ②PayslipSyncOrg()     … 会社の設定から 会社名・住所を 取って state に 入れ、保存する
+         ★①を 待たずに ②を 走らせていた★ので、★後から 着いた ①が ②の 入れた 住所を 消していた★。
+         ⇒ 画面は ずっと「（入っていません・任意）」のまま／倉庫の 写しも 空で 保存される。
+         ⇒ ★害★＝電子申請の 届出は 事業所所在地が 必須なので ★1枚も 出せない★
+           （会社の設定には ちゃんと 入っているのに）。
+         ★実測（2026-09-14）★
+           ・生きた画面で 16秒 見張って 1/3/6/10/16秒 とも「（入っていません・任意）」
+           ・手で PayslipSyncOrg() を 呼ぶと {ok:true,found:true,changed:true} で 住所が 出た
+             ＝★仕掛けは 動く／自動が 効いていない★
+           ・倉庫を 読んだら ★本番 5口とも 写しが 空★（うち 4口は 会社の設定に 住所が 在る）
+         ⇒ ★①が 終わってから ②★＝順番を 1本に する。
+           ★①が 転んでも ②は やる★（写しの 読み直しは 倉庫の 読み直しと 別の 話）。 */
+      var _yomi = window.PayslipReloadCloud ? window.PayslipReloadCloud() : Promise.resolve(true);
+      _yomi.then(function(loaded){ if(!loaded && window.PayslipPersistSave) window.PayslipPersistSave(); /* 新規=今のローカルを初回アップ */ })
+        .catch(function(){ /* 読めなくても 下の 読み直しは する */ })
+        /* ★会社名・住所を「会社の設定」から読み直す★（2026-08-28）
+           ＝持ち主は入口の 共有データ▸会社。★給与は読むだけ★（読めなくても写しは消さない）。 */
+        .then(function(){ if(window.PayslipSyncOrg) return window.PayslipSyncOrg(); });
       showLogout();
     });
   }
