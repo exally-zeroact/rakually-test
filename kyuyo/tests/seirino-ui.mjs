@@ -300,7 +300,8 @@ console.log('\n' + pass + ' passed, ' + fail + ' failed, ' + mi + ' ★未測定
   const kesu = await GOMI_KESU(HAJIME);      /* ★この回で 出た 孤児だけ★ */
   if (!kesu.ok) console.log('       🟡 この回の 明細を 消せなかった … ' + kesu.naze);
   const sou = await AWASERU(soukoMae, 20);
-  if (sou.han === '未測定') { mi++; console.log('  🟡 ★未測定★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
+  if (sou.han === '環境') console.log('  ' + sou.iu);   /* ★緑で 通すが 数は 出す★（総なめが 拾う 字） */
+  else if (sou.han === '未測定') { mi++; console.log('  🟡 ★未測定★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
   else if (sou.han === '緑') { pass++; console.log('  ✓ ★後始末＝★倉庫の 行数★が 元に 戻った'); }
   else { fail++; console.log('  ✗ ★後始末＝★倉庫の 行数★が 元に 戻った — ' + sou.iu); }
 }

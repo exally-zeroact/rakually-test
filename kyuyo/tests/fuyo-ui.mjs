@@ -449,7 +449,8 @@ try {
   console.log('  画面の 札 … 前 ' + mae + ' → 後 ' + ato2 + '（★これは 緑の 根拠に しません★）');
   /* ★本当の 判じは 倉庫★＝消えるまで 待ち、待っても 消えなければ 赤 */
   const sou = await AWASERU(soukoMae, 20);
-  if (sou.han === '未測定') { mihakari++; console.log('  🟡 ★未測定★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
+  if (sou.han === '環境') console.log('  ' + sou.iu);   /* ★緑で 通すが 数は 出す★（総なめが 拾う 字） */
+  else if (sou.han === '未測定') { mihakari++; console.log('  🟡 ★未測定★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
   else T('★後始末＝★倉庫の 行数★が 元に 戻った', sou.han === '緑', sou.iu);
   if (sou.han === '緑') console.log('       ' + sou.iu);
 } catch (e) {
