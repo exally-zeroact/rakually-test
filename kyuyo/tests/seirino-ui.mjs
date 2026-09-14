@@ -217,6 +217,21 @@ try {
     const buf = fp ? fs.readFileSync(fp) : Buffer.alloc(0);
     console.log('       ★落ちた Excel★ … ' + dl.suggestedFilename() + ' ' + buf.length + 'バイト sha256 ' + sha(buf));
     T('③★Excel が 本当に 落ちる', buf.length > 0, '0バイト');
+    /* ★★中の 字を 読む（2026-09-14 指示役1 の 注文 ㋑②）★★
+       ★「空でない」で 緑に しない★＝★打った 字と 出た 字を 突き合わせる★。
+       この xlsx は ★縮めずに 入っている★ので 生の バイトに 字が そのまま 在る。
+       ★縮められていたら 探せない★＝その時は 🟡未測定と 言う（黙って 緑に しない）。 */
+    if (UTSU) {
+      const nama = buf.toString('utf8');
+      const nakaAru = nama.indexOf('<t>' + UTSU + '</t>') >= 0 || nama.indexOf('>' + UTSU + '<') >= 0;
+      const naiHazu = String(Number(UTSU) + 1);   /* ★居ないはず の 字★＝探し方が 甘くない事を 見る */
+      const usoAru = nama.indexOf('<t>' + naiHazu + '</t>') >= 0;
+      if (nama.indexOf('sheet1.xml') < 0) MI('Excel の 中の 字', '★縮めて 入っている＝生では 読めない★');
+      else {
+        T('⑤★Excel の 中に 打った 字が 在る（' + UTSU + '）', nakaAru, '★中に 見つからない★');
+        T('⑤-2★居ないはず の 字（' + naiHazu + '）は 無い', !usoAru, '★探し方が 甘い＝何でも 当たる★');
+      }
+    }
   }
 
   MI('賞与支払届・算定基礎届・月額変更届', '★確定した明細が 要る＝この回は 1度も 押していない★');

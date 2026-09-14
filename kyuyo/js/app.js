@@ -1381,6 +1381,19 @@
          ★1つの 欄で 聞いて 中で 割る★（4桁-6桁）＝2回 聞かない */
       +'<div class="frow"><div class="flabel">基礎年金番号<span class="hint2">4桁-6桁（年金手帳・ねんきん定期便）・退社の届出に使います</span></div>'
         +'<input class="finput m-f" data-f="kisoNenkin" value="'+attr(e.kisoNenkin)+'" placeholder="1234-567890"></div>'
+      /* ★★被保険者整理番号（2026-09-14 司さん「作ってええ」）★★
+         ★入れる 欄が 1つも 無かった★（この 印を 持つ input … app.js 0個 / index.html 0個）。
+         ★ここに その 印の 字を そのまま 書かない★＝★字で 数える 道具が コメントを 数えて しまう★
+         （2026-09-14 私自身が 踏んだ＝欄を 消す つもりで ★このコメントを 掴んだ★。
+          同じ型を supa-config.js でも 踏んでいる＝[[feedback_sagasu_mae_ni_kotae_wo_kimeruna]]）。
+         読む所は ★6か所★（賞与支払届・算定基礎届・月額変更届・資格取得届・喪失届・被扶養者届）在り、
+         画面は ★「被保険者整理番号は 各自入力」★＝出した表に 後で 手で 書かせていた。
+         ★実測で 分かった 害★＝被扶養者(異動)届の
+           「減った（非該当）」「変わった（変更）」は ★項番8 が 必須★（年金機構の チェック仕様）。
+           ⇒ ★欄が 無い＝画面から 一生 出せない★（増えた だけは 空でも 通るので 気づかなかった）。
+         ⇒ ここで お預かりする。★他の 3つの 届出にも そのまま 効く★。 */
+      +'<div class="frow"><div class="flabel">被保険者整理番号<span class="hint2">健康保険証・資格確認書に載っている番号・届出に使います</span></div>'
+        +'<input class="finput m-f" data-f="hokenshaNo" inputmode="numeric" value="'+attr(e.hokenshaNo)+'" placeholder="1"></div>'
       +'<div class="frow"><div class="flabel">振込先<span class="hint2">明細に表示・任意</span></div><input class="finput m-f" data-f="bank" value="'+attr(e.bank)+'" placeholder="○○銀行 普通 1234567"></div>'
       +'<div class="sec-lb" style="border-top:1px dashed #d4eae0">総合振込データ用<span class="hint2">銀行に送る全銀ファイル用・任意</span></div>'
       +'<div class="frow2"><div class="frow"><div class="flabel">銀行名</div><input class="finput m-f" data-f="furiBankName" value="'+attr(e.furiBankName)+'" placeholder="ﾐｽﾞﾎ"></div>'
@@ -2635,7 +2648,7 @@
         +'<div style="margin-top:8px;display:flex;justify-content:flex-end"><button class="btn-ghost" data-bonus-harau="1" style="padding:8px 12px;font-size:12px">賞与支払届をExcel出力</button></div>'
         /* ★電子申請の CSV★（2026-09-05）＝Excel の 下に 出す */
         +shoyoCsvBox(bonusHarauRows())
-        +'<p class="hint" style="margin:8px 0 0">確定すると、この賞与（'+esc(ym)+'）を年末調整の自動集計と賃金台帳に反映します。あとで直せます。<b>定時決定（4〜6月の標準報酬）や前月比には賞与は含めません</b>（法令どおり）。<br>「賞与支払届」＝年金機構提出用（標準賞与額＝1,000円未満切捨・健保 年度573万／厚年1回150万上限）。被保険者整理番号は各自入力。</p></div>'
+        +'<p class="hint" style="margin:8px 0 0">確定すると、この賞与（'+esc(ym)+'）を年末調整の自動集計と賃金台帳に反映します。あとで直せます。<b>定時決定（4〜6月の標準報酬）や前月比には賞与は含めません</b>（法令どおり）。<br>「賞与支払届」＝年金機構提出用（標準賞与額＝1,000円未満切捨・健保 年度573万／厚年1回150万上限）。被保険者整理番号は 従業員マスタ ▸ 詳細設定 ▸ 社会保険 に入れた番号が出ます（未入力なら空欄）。</p></div>'
       : '';
     host.innerHTML=bonusItemSuggestHTML()+head+(cards||'<p class="hint">対象の従業員がいません。</p>')+footer;
   }
@@ -2658,7 +2671,7 @@
     });
   }
   // 賞与支払届(被保険者賞与支払届): 当月の賞与から 賞与額(通貨=社保対象賞与)・標準賞与額(1000円未満切捨) を届の一覧に。
-  //  出典=日本年金機構「被保険者賞与支払届」。整理番号は各自入力・マイナンバーは扱わない(届は整理番号/基礎年金番号)。現物は通貨のみ。
+  //  出典=日本年金機構「被保険者賞与支払届」。整理番号は従業員マスタの hokenshaNo・マイナンバーは扱わない(届は整理番号/基礎年金番号)。現物は通貨のみ。
   var BONUS_HARAU_COLS=['被保険者整理番号','氏名','生年月日','賞与支払年月日','賞与額(通貨)','賞与額(現物)','合計','標準賞与額','備考'];
   /* ★★被保険者整理番号を 出口へ 流す 1か所（2026-09-14）★★
      ★これを 入れる 前は 6つの 出口が すべて '' の 決め打ち★だった。
@@ -3065,7 +3078,7 @@
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
   // 月額変更届(被保険者報酬月額変更届): 固定的賃金が変わった人を、変動月からの確定明細3か月で随時改定判定→該当者を届に。
   //  出典=日本年金機構(随時改定・被保険者報酬月額変更届)。要件=①固定的賃金の変動 ②変動月から継続3か月すべて支払基礎日数17日(短時間11日)以上 ③従前と2等級以上差。適用=変動月の4か月目。
-  //  ★変動月・従前の標準報酬・固定給変動の有無は従業員設定(随時改定)から、実際の報酬は確定明細から。マイナンバー不使用(整理番号は各自入力)。
+  //  ★変動月・従前の標準報酬・固定給変動の有無は従業員設定(随時改定)から、実際の報酬は確定明細から。マイナンバー不使用(整理番号は従業員マスタの hokenshaNo)。
   var GEKKAKU_COLS=['被保険者整理番号','氏名','生年月日','変動月','従前(健保)','従前(厚年)','①日数','①報酬','②日数','②報酬','③日数','③報酬','総計','平均額','改定 標準報酬(健保)','等級(健保)','改定 標準報酬(厚年)','等級(厚年)','適用月','該当','備考'];
   function ymAddLocal(ym,n){ var mo=/^(\d{4})-(\d{1,2})$/.exec(String(ym||'')); if(!mo)return ''; var y=+mo[1], m=+mo[2]+n; while(m>12){m-=12;y++;} while(m<1){m+=12;y--;} return y+'-'+('0'+m).slice(-2); }
   function gekkakuRows(recs, emps){
@@ -3123,7 +3136,7 @@
       +(deru.length?('CSVを作る（'+deru.length+'人・SHFD0006.CSV）'):'出せる人が いません')+'</button></div></div>';
   }
   function gekkakuHTML(rows){
-    var note='<p class="hint" style="margin:0 0 10px">従業員設定で<b>随時改定（変動月・従前の標準報酬・固定給変動）</b>を入れた人を、<b>変動月からの確定明細3か月</b>で判定。2等級以上差＋3か月17日（短時間11日）以上＋固定給変動で「該当」＝届出対象（変動月の4か月目〜適用）。<span class="help-i" data-help="toukyu">💡</span>被保険者整理番号は各自入力。横スクロール可。<button class="btn-ghost" data-choxlsx="gekkaku" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel（該当者）</button></p>';
+    var note='<p class="hint" style="margin:0 0 10px">従業員設定で<b>随時改定（変動月・従前の標準報酬・固定給変動）</b>を入れた人を、<b>変動月からの確定明細3か月</b>で判定。2等級以上差＋3か月17日（短時間11日）以上＋固定給変動で「該当」＝届出対象（変動月の4か月目〜適用）。<span class="help-i" data-help="toukyu">💡</span>被保険者整理番号は 従業員マスタ ▸ 詳細設定 ▸ 社会保険 に入れた番号が出ます（未入力なら空欄）。横スクロール可。<button class="btn-ghost" data-choxlsx="gekkaku" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel（該当者）</button></p>';
     if(!rows.length) return note+'<div class="card"><p class="hint">随時改定の候補がいません。従業員マスタで対象者の社会保険を「給料が変わった（随時改定）」にし、変動月・従前の標準報酬を入力してください。</p></div>';
     var head='<tr>'+GEKKAKU_COLS.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr>';
     var body=rows.map(function(x){ var m=x.months, z=x.z||{}, hp=z.health||{}, pp=z.pension||{}; var soukei=(m[0].pay||0)+(m[1].pay||0)+(m[2].pay||0);
@@ -3318,7 +3331,7 @@
       state._roudouSum=roudouSummary(recs, fy, state.employees); host.innerHTML=sub+roudouHTML(state._roudouSum, fy); })
       .catch(function(){ host.innerHTML=sub+'<div class="card"><p class="hint">読込に失敗しました。</p></div>'; }); }
   // 資格取得届・喪失届(健康保険・厚生年金保険 被保険者資格取得届/喪失届): 入社日=資格取得日、退職日翌日=資格喪失日。
-  //  取得は標準報酬(取得時見込み=shahoBase)、喪失は喪失日＋理由(退職)。出典=日本年金機構。★マイナンバー不使用(基礎年金番号/整理番号は各自)★。
+  //  取得は標準報酬(取得時見込み=shahoBase)、喪失は喪失日＋理由(退職)。出典=日本年金機構。★マイナンバー不使用(基礎年金番号・整理番号は 従業員マスタの kisoNenkin / hokenshaNo)★。
   function ymdPlus1(ymd){ var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd||'')); if(!m) return ''; // 資格喪失日=退職日の翌日(暦日繰上げ・月末/年末対応)
     var y=+m[1], mo=+m[2], d=+m[3], dim=new Date(y, mo, 0).getDate(); d++; if(d>dim){ d=1; mo++; if(mo>12){ mo=1; y++; } }
     return y+'-'+('0'+mo).slice(-2)+'-'+('0'+d).slice(-2); }
@@ -3344,7 +3357,7 @@
   function shikakuAoa(rows){
     var aoa=[['健康保険・厚生年金保険 被保険者 資格取得届／資格喪失届'], [(state.company||{}).name||''], [], SHIKAKU_COLS.slice()];
     rows.forEach(function(x){ aoa.push([ x.kind, seiriNoOf(x), x.name, x.birthYmd, x.date, x.decH||'', x.decHGrade||'', x.decP||'', x.decPGrade||'', x.reason, x.note ]); });
-    aoa.push([]); aoa.push(['※ 資格取得日＝入社日、資格喪失日＝退職日の翌日。標準報酬は取得時の見込み（届出後に決定通知）。被保険者整理番号・基礎年金番号は各自記入。マイナンバーは扱いません（各自記入）。']);
+    aoa.push([]); aoa.push(['※ 資格取得日＝入社日、資格喪失日＝退職日の翌日。標準報酬は取得時の見込み（届出後に決定通知）。被保険者整理番号は従業員マスタ（詳細設定→社会保険）に入れた番号。基礎年金番号は各自記入。マイナンバーは扱いません（各自記入）。']);
     return aoa;
   }
   /* ★資格取得届の 電子申請 CSV に 渡す物★（2026-09-05）
@@ -3534,7 +3547,7 @@
         :(deru.length?('CSVを作る（'+deru.length+'枚・SHFD0006.CSV）'):'出せる人が いません'))+'</button></div></div>';
   }
   function shikakuHTML(rows){
-    var note='<p class="hint" style="margin:0 0 10px">従業員マスタの<b>入社日＝資格取得日</b>、<b>退職日の翌日＝資格喪失日</b>から一覧化。標準報酬は取得時の見込み。<span class="help-i" data-help="shaho">💡</span>被保険者整理番号は各自入力。横スクロール可。<button class="btn-ghost" data-choxlsx="shikaku" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel</button></p>';
+    var note='<p class="hint" style="margin:0 0 10px">従業員マスタの<b>入社日＝資格取得日</b>、<b>退職日の翌日＝資格喪失日</b>から一覧化。標準報酬は取得時の見込み。<span class="help-i" data-help="shaho">💡</span>被保険者整理番号は 従業員マスタ ▸ 詳細設定 ▸ 社会保険 に入れた番号が出ます（未入力なら空欄）。横スクロール可。<button class="btn-ghost" data-choxlsx="shikaku" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel</button></p>';
     if(!rows.length) return note+'<div class="card"><p class="hint">入社日・退職日が入力された従業員がいません。従業員マスタの「在籍・勤務」で入社日／退職日を入れてください。</p></div>';
     var head='<tr>'+SHIKAKU_COLS.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr>';
     var body=rows.map(function(x){ var isLoss=(x.kind==='喪失');
