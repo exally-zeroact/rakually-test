@@ -169,7 +169,25 @@ try {
   /* ── 人を 1人 足して 埋める ──────────────────────────── */
   await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(500);
   await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(800);
-  await osu(pg, '#b-add-emp'); await machi(900);
+  /* ★★札が 増えるのを 待つ（2026-09-14 CIで 捕まった）★★
+     前は ★足して 0.9秒 待つだけ★で 一番 後ろの 札を 読んでいた。
+     ★CI は 遅い★ので 描き直しが 間に合わず、★増える前の 札★を 掴んだ:
+       「（はじめに 居た 人 1人 → 今 足した 人＝★札 0番目★）」
+       ⇒ その後 ★欄が 1つも 見つからない★（name/kana/… 全部）＝赤。
+     ＝★手元は 緑・CIは 赤★の 一番 見つけにくい 形（今日 3回目）。
+     ⇒ ★数が 増えた事を 見てから 読む★（★時間では なく 数で 待つ★）。 */
+    {
+      const kazuMae = await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length);
+      await osu(pg, '#b-add-emp');
+      let fueta = false;
+      for (let i = 0; i < 40; i++) {                 /* 20秒 */
+        const n = await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length).catch(() => -1);
+        if (n > kazuMae) { fueta = true; break; }
+        await machi(500);
+      }
+      if (!fueta) console.log('       🟡 ★札が 増えない★（20秒 待った）＝この先は 当てに ならない');
+      await machi(400);
+    }
   const IDX = await pg.evaluate(() => {
     const c = Array.from(document.querySelectorAll('#emp-list .mco'));
     return c.length ? c[c.length - 1].getAttribute('data-i') : null;
