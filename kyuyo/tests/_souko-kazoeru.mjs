@@ -226,6 +226,18 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('_souko-kazo
 
   const ima = await kazoeru();
   if (!ima.ok) {
+    /* ★★ここも 分ける（2026-09-14 CIが 捕まえた・直し漏らし）★★
+       この 自己確認は ★倉庫を 読むだけ★＝★CI には 鍵が 無いので 元から 測れない★。
+       それを 終わり値 2（赤）に していた＝★毎回 必ず 鳴る 赤★。
+       ⇒ 上の awaseru と ★同じ 決め方★に 揃える:
+         ・鍵が 無い … ★緑（0）で 通す／ただし 未測定として 数を 出す★
+         ・鍵は 在るのに 読めない … ★今までどおり 赤（2）★ */
+    if (String(ima.naze).indexOf('鍵の 紙が 読めない') >= 0) {
+      console.log('  🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い）');
+      console.log('     ＝★手元の テスト線で 数えています★／戻す条件＝CIに 鍵を 置いた日');
+      console.log('     ★0件＝合格 とは 書きません★');
+      process.exit(0);
+    }
     console.log('  🟡 ★未測定★ 倉庫を 読めない … ' + ima.naze);
     console.log('     ★0件＝合格 とは 書きません★');
     process.exit(2);
