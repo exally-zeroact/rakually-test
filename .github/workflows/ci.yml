@@ -619,6 +619,11 @@ jobs:
         run: node kyuyo/tests/rls-tanin.mjs --self-test
       - name: ★被扶養者(異動)届（様式2202700）の土台＝139項目ちょうど／個人番号は空で住所を出す
         run: node kyuyo/tests/fuyo-todokede.test.mjs
+      # ★門が 要るのに 画面に 欄が 無い 物を 先回りで 数える（2026-09-14）
+      #   今日 ★同じ型の 欠陥を 2つ★ 押して 初めて 見つけた（項番8 被保険者整理番号／従前の 改定月）。
+      #   ★このままだと 押すたびに 1つずつ 出る★ので、★押さずに 突き合わせる★。
+      - name: ★門が 要るのに 画面に 欄が 無い 物が 0件（6つの 届出・先回り）
+        run: node kyuyo/tests/mon-to-ran.test.mjs --self-test && node kyuyo/tests/mon-to-ran.test.mjs
       - name: ★賞与の紙の年月日（支給日を月次と同じ和暦で／読めない賞与月を紙に焼かない）
         run: node kyuyo/tests/shoyo-kami-hizuke.test.mjs
       - name: ★同 直す前の姿に戻すと赤になるか（自己確認）
