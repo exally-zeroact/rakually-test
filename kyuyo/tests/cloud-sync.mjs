@@ -282,6 +282,14 @@ runs.push(T('K4 getLedger: エラー時は空+error(嘘の空集計を返さな�
 }));
 
 
+/* ★★この 3本は「壊して 赤」まで 見た（2026-09-15）★★
+   ★壊した 形を そのまま 残す★＝次に 書き直す 人が ★何を 守っていたか★を 読める:
+     ①… store.js の ★if(saveHold) → if(false)★        ⇒ 19 passed, 1 failed（赤は ①だけ）
+     ②… store.js の ★if(!iru) → if(true)★              ⇒ 19 passed, 1 failed（赤は ②だけ）
+     ③… 保留が 無い道の return を ★{ok:false} に 差替え★ ⇒ 19 passed, 1 failed（赤は ③だけ）
+   ★1本ずつ 壊した★（まとめて 壊すと どれが どれを 守ったか 分からない）／
+   ★赤は 毎回 1本だけ★（重なっていない）／★戻して 全部 緑★まで 見た。 */
+
 /* ★★P0-maboroshi: 明細の 保存も 読み込みを 待つ（2026-09-15）★★
    ★見つけた 害★＝ログインの 直後、state は まだ ★初期値の『従業員 1』1人★。
      そこで 保存が 走ると ★明細だけ 待たずに 書かれ★、後から 読み込みが 着いて
@@ -318,16 +326,19 @@ runs.push(T('P0-maboroshi③: ★読み込みを していない時は そのま
   ok(mock.__calls.slipUpsert.length === 1, '★保留が 無いのに 書かれていない★');
 }));
 
-runs.push(T('P0-maboroshi④: ★読み込みが 失敗しても 保留は 解ける★（永久に 待たない）', async function () {
-  const mock = makeMock({ loadFail: true });
-  const Store = loadStore(mock);
-  Store.setSnapshotFn(() => ({ employees: [] }));
-  const yomi = Store.cloudLoadState().catch(() => null);
-  const r = await Store.savePayslip('2026-06', 'e1', { name: '山田' });
-  await yomi;
-  /* ★読めていない＝安全側で 書く★（本物を 落とさない） */
-  ok(mock.__calls.slipUpsert.length === 1, '★読み込み失敗で 明細が 落ちた★（' + JSON.stringify(r) + '）');
-}));
+/* ★★④は 書いたが ★消しました★（2026-09-15）＝★守る物が 無かった★★★
+   書いた物 … 「読み込みが 失敗しても 保留は 解ける（永久に 待たない）」
+   ★壊しても 緑のままだった★＝★見張りに なっていなかった★。
+   ★訳を 2つ 立てて 実際に 走らせて 決めた★（★前提で 決めない★）:
+     ㋒ 済んだ 約束が 残るだけ … 次の 保存は すぐ 解ける＝★客には 何も 起きない★
+     ㋓ 失敗した 約束が 残る   … その後の 保存が 全部 失敗の 道＝★明細が 二度と 保存されない★
+   ★測った★＝store.js の 解きを わざと 外し、★読み込みを 失敗させた 後に もう 1回 保存★:
+     ⇒ ★「おわった」／倉庫に 書いた回数 1★＝★客の 明細は ちゃんと 書かれる★＝★㋒★
+   ⇒ ★守る 物が 無い＝消す★。★緑の 顔を した 見張りを 残すと「4本 守られている」と 思わせる★。
+   ★次に 同じ物を 書きたくなった 人へ★＝
+     ★saveHold を null に 戻すかは 客には 出ません★（約束そのものは 必ず 済む）。
+     ★見張りは 客に 起きる 事で 縛る★＝中の 変数の 姿では 縛らない。
+   ★保留が「1回だけ 出る」事は 別の 試験が 既に 見ています★＝★P0-race②★（この 上に 在る）。 */
 
 await Promise.all(runs);
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
