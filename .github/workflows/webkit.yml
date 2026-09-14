@@ -19,6 +19,14 @@ on:
       # ★見た目に関わる所を触った時★＝直した日に その場で分かる
       - 'seikyu/**'
       - 'kyuyo/css/**'
+      # ★★2026-09-14 足した＝★足した 見張りが 引き金に 入っていなかった★★★
+      #   この 仕事に ★客の 画面を 押す 見張り★を 2本 載せた（fuyo-ui / seirino-ui）のに、
+      #   ★その 画面を 作る kyuyo/js/** も 見張り本体の kyuyo/tests/** も 引き金に 無かった★。
+      #   ＝js を 直しても ★刻印が kyuyo/index.html を 書き換えた ついで★でしか 走らず、
+      #     ★試験だけ 直した 回は 押した その場では 走らない★（週1の cron まで 遅れる）。
+      #   ＝★門としては 死んでいる★（押した回に 止められない）ので 引き金に 自分を 入れる。
+      - 'kyuyo/js/**'
+      - 'kyuyo/tests/**'
       - 'kyuyo/index.html'
       - 'kyuyo/admin.html'
       - 'kyuyo/meisai.html'
@@ -38,6 +46,14 @@ on:
     paths:
       - 'seikyu/**'
       - 'kyuyo/css/**'
+      # ★★2026-09-14 足した＝★足した 見張りが 引き金に 入っていなかった★★★
+      #   この 仕事に ★客の 画面を 押す 見張り★を 2本 載せた（fuyo-ui / seirino-ui）のに、
+      #   ★その 画面を 作る kyuyo/js/** も 見張り本体の kyuyo/tests/** も 引き金に 無かった★。
+      #   ＝js を 直しても ★刻印が kyuyo/index.html を 書き換えた ついで★でしか 走らず、
+      #     ★試験だけ 直した 回は 押した その場では 走らない★（週1の cron まで 遅れる）。
+      #   ＝★門としては 死んでいる★（押した回に 止められない）ので 引き金に 自分を 入れる。
+      - 'kyuyo/js/**'
+      - 'kyuyo/tests/**'
       - 'kyuyo/index.html'
       - 'kyuyo/admin.html'
       - 'kyuyo/meisai.html'
