@@ -367,7 +367,23 @@
   function curYm(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
   var state={ company: defCompany(),
     month:curYm(), prefer:'col2_1', theme:{accent:'#6f5a3e',line:'#cfc9b8',ink:'#23261f'}, depts:['営業部'], roles:['課長','主任','一般'],
-    employees:[defEmp('従業員 1')], open:{},
+    /* ★★初めから 1人 入れない（2026-09-15）★★
+       ★ここが 幻の『従業員 1』の 種★＝ログインの 直後、読み込みが 着く 前に
+       ★この 1人が 倉庫へ 書かれ★、後から 本物が 着いて 消える
+       ⇒ ★書かれた 明細だけ 持ち主を 失う（孤児）★。
+       数えた … 試験 孤児 3,716行／★本番 明細 12行中 9行★（＝過去に 起きている）。
+       ★これは「新しく 決める」では なく ★元の 形に 戻す★★＝
+         ★0人の 画面は 元から 作り込まれていた★（実測・絵で 見た）:
+           「まだ 人がいません」「1人ずつ 聞いていきます（7問）」「★1人目を足す★」
+           ＋「＋ 従業員を追加」「他ソフトから移行」
+         ＝★誰かが 0人を 想定して 作っていた／既定で 1人 入れる 方が 食い違っていた★。
+       ★次の 人へ★＝★ここに 1人 戻さないで ください★（戻すと 孤児が また 増えます）。
+       ★測った★ … 総なめ ci.yml 225本 ★赤0★／倉庫まわり 19本 緑／
+                  ★0人で undefined に なる 道 0か所★（employees[0] は 全部 守られている）／
+                  ★幻が 生まれた 数 15分で 0行★（今朝までは ★1分に 5件★）。
+       ★種は ここ 1か所だけ★（defEmp を 呼ぶ 7か所を 1つずつ 読んだ）。
+       ★322 の 既定名★は ★x に name が 無い時だけ 残る★＝mergeEmp の 道＝新しい 幻は 作らない。 */
+    employees:[], open:{},
     inputMode:'monthly', printMode:'monthly', empFilter:'active', bonus:{ payYm:'', payDay:'', byEmp:{} }, confirmed:{}, nencho:{}, onboardDone:false, onboardOutput:false, payPatterns:[], dailySlipLayout:'1col', inputView:'card' };
 
   function carCommuteNonTax(km){ return PM().carCommuteNonTax(km); }
@@ -570,11 +586,15 @@
   // はじめかたガイドの各ステップの達成判定(freee/MF流のライブToDo)。全完了で自動的に消える。
   function onboardSteps(){
     var emps=state.employees||[];
-    var realEmp=emps.length>1 || emps.some(function(e){ return e.name && !/^(山田 太郎|日払 太郎)$/.test(String(e.name).trim()); });
+    /* ★★はじめかたガイドの 判じ（2026-09-15 直した）★★
+       ★前は「1人 入っている」前提★＝★山田 太郎／日払 太郎 以外が 居れば 済み★と 見ていた。
+       ⇒ ★初めから 0人★に したので ★1人でも 居れば 済み★が 正しい。
+       ★名前で 判じない★＝[[feedback_sagasu_mae_ni_kotae_wo_kimeruna]]（字で 決めると 答えが 決まる）。 */
+    var realEmp=emps.length>0;
     var conf=state.confirmed&&state.confirmed[state.month]; var inputDone=!!(conf&&Object.keys(conf).length);
     return [
       { done: !!(state.company&&String(state.company.name||'').trim() && !/^合同会社Rakunally$/.test(String(state.company.name).trim())), label:'会社情報を入れる', sub:'設定▸会社情報 の「会社の情報を直す」から（会社の設定で1か所）', go:'company' },
-      { done: realEmp, label:'従業員を追加する', sub:'サンプルの山田太郎は書き換え/削除でOK', go:'emp' },
+      { done: realEmp, label:'従業員を追加する', sub:'「1人目を足す」から 7問に 答えるだけ', go:'emp' },   /* ★居ない人（サンプルの山田太郎）を 指さない★＝0人から 始まる為 */
       { done: inputDone, label:'当月を入力して確認', sub:'勤怠を入れて「今月を確定」', go:'input' },
       { done: !!state.onboardOutput, label:'明細を出力する', sub:'PDF/Web明細/Excel/振込データ', go:'print' }
     ];
