@@ -43,28 +43,7 @@ const EXCLUDED = {
       + 'その時に js/rakunally-login.js を item C 版へ差し替え、このテストをCIへ戻す。',
     owner: '司さん（SMTP設定）＋ 実装セッション',
   },
-  'kyuyo/tests/soshitsu-ui.mjs': {
-    reason: '★実ブラウザで お客さんの道どおり 資格喪失届を 出す★（取得届の shutoku-ui と 同じ形）。'
-      + 'DB-test の 倉庫へ 実接続して ログインする。'
-      + '★手元では 9本とも 緑★＝SHFD0006.CSV 240バイト・27列・ずれ0（自分で 押して 確かめた）。'
-      + '★CIでは 打った値が 次の 描き直しに 間に合わず 落ちる★（★アプリの 穴では なく 私の 待ち方★）。'
-      + '★中身は 別の 見張りに 落としてある★＝kyuyo/tests/soshitsu-csv.test.mjs（18本＋自己確認8/8）と '
-      + 'kyuyo/tests/integration.mjs（90本・配線は 2通り わざと壊して 赤を 見た）。',
-    restoreWhen: '★打った値が 本当に 入った事を 見てから 次へ進む★ように 待ち方を 直し、CIで 9本 緑に なった日。',
-    owner: '給与セッション',
-  },
-  'kyuyo/tests/shutoku-ui.mjs': {
-    reason: '★実ブラウザで お客さんの道どおり 資格取得届を 出す（人を足す→欄を埋める→押す→ファイルが落ちる）★。'
-      + 'DB-test の 倉庫へ 実接続して ログインする。'
-      + '★手元では 9本とも 緑★＝SHFD0006.CSV 294バイト・34列・ずれ0（自分で 押して 確かめた）。'
-      + '★CIでは 欄に 打った 値が 次の 描き直しに 間に合わず ②③が 落ちる★'
-      + '（★アプリの 穴では なく 私の 待ち方が 足りない＝未測定★）。'
-      + '★この試験が 見つけた 中身は 別の 見張りに 落としてある★＝'
-      + 'kyuyo/tests/shutoku-csv.test.mjs（16本＋自己確認6/6）と kyuyo/tests/integration.mjs（89本・配線は2通り わざと壊して赤を見た）。',
-    restoreWhen: '★打った値が 本当に 入った事を 見てから 次へ進む★ように 待ち方を 直し、CIで 9本 緑に なった日。',
-    owner: '給与セッション',
-  },
-  'kyuyo/tests/load-before-delete-live.mjs': {
+      'kyuyo/tests/load-before-delete-live.mjs': {
     reason: '★DB-test の 倉庫へ 実接続して「まっさらな端末で 何回 開いたら 従業員が 減るか」を 数える道具★。'
       + '鍵（テスト用の ログイン）と ブラウザが 要り、CIには 鍵が 無い。'
       + '★同じ中身を 倉庫なしで 見る 見張りは CIに 在る★＝kyuyo/tests/load-before-delete.test.mjs（作りを見る）と '
@@ -154,9 +133,9 @@ T('★除外リストの各項目に「理由」と「戻す条件」が書か�
     if (!fs.existsSync(path.join(ROOT, f))) throw new Error(f + ': 除外リストにあるがファイルが無い（消したなら除外リストからも消す）');
   }
 });
-T('★除外は5本だけ（増えていたら、ここが赤になって気づける）', function () {
+T('★除外は3本だけ（増えていたら、ここが赤になって気づける）', function () {
   const n = Object.keys(EXCLUDED).length;
-  if (n !== 5) throw new Error(`除外が ${n} 本あります。増やすなら、この本数もここで更新して意図を示すこと: ` + Object.keys(EXCLUDED).join(', '));
+  if (n !== 3) throw new Error(`除外が ${n} 本あります。増やすなら、この本数もここで更新して意図を示すこと: ` + Object.keys(EXCLUDED).join(', '));
 });
 T('検査が空振りしていない（テストファイルを実際に数えている）', function () {
   if (covered.length < 50) throw new Error('CIが回しているテストが少なすぎます: ' + covered.length);

@@ -109,6 +109,17 @@ console.log('\n[seirino-ui] 被保険者整理番号が ★画面から 入り �
 
 const ctx = await b.newContext({ viewport: { width: 1200, height: 1400 }, acceptDownloads: true });
 const pg = await ctx.newPage();
+/* ★★置き土産は ★倉庫の 行数★ で 数える（2026-09-14 私の 不始末）★★
+   前は ★画面の 札の 数★だけで「ゴミ0」と 緑を 出していた＝★倉庫には 残っていた★。
+   ★「前」は ログインの 前に 数える★＝ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれ、
+   後から 読み直しで 消えるので、後に 数えると 1人 減って 見える（今日 実測）。 */
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU } = await import('./_souko-kazoeru.mjs');
+const HAJIME = new Date(Date.now() - 60000).toISOString();
+const soukoMae = await KAZOERU();
+console.log('  倉庫（前） … ' + (soukoMae.ok
+  ? '人 ' + soukoMae.hito + ' ／ 明細 ' + soukoMae.meisai
+  : '🟡 ★読めない★ ' + soukoMae.naze));
+
 const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-settings"]');
 if (!h.haitta) {
   console.log('  🟡 ★未測定★ ' + h.kai + '回 試して 入れなかった … ' + (h.naze || '（無し）'));
@@ -264,4 +275,14 @@ try {
   srv.close();
 }
 console.log('\n' + pass + ' passed, ' + fail + ' failed, ' + mi + ' ★未測定★');
+/* ★本当の 判じは 倉庫★＝画面の 数では ない */
+{
+  const kesu = await GOMI_KESU(HAJIME);      /* ★この回で 出た 孤児だけ★ */
+  if (!kesu.ok) console.log('       🟡 この回の 明細を 消せなかった … ' + kesu.naze);
+  const sou = await AWASERU(soukoMae, 20);
+  if (sou.han === '未測定') { mi++; console.log('  🟡 ★未測定★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
+  else if (sou.han === '緑') { pass++; console.log('  ✓ ★後始末＝★倉庫の 行数★が 元に 戻った'); }
+  else { fail++; console.log('  ✗ ★後始末＝★倉庫の 行数★が 元に 戻った — ' + sou.iu); }
+}
+console.log(String.fromCharCode(10) + '★締め★ ' + pass + ' passed, ' + fail + ' failed, ' + mi + ' はかれない');
 process.exit(fail ? 1 : 0);

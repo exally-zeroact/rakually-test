@@ -1,0 +1,150 @@
+/* _souko-kazoeru.mjs — ★試験の 置き土産を ★倉庫の 行数★ で 数える★ 1か所
+ * =============================================================================
+ * ★なぜ 作ったか（2026-09-14・私の 不始末）★
+ *   実ブラウザの 試験 3本（fuyo-ui / seirino-ui / shutoku-ui）が
+ *   ★「後始末＝人数が 元に 戻った」と 緑を 出していた★。
+ *   ところが 倉庫を 数えたら ★今日 足した 人が 2人 残っていた★:
+ *     e609e233 '整理試験'（seirino-ui）／'試験435197　太郎'（fuyo-ui）
+ *   ★訳★＝数えていたのは ★画面の 札の 数（#emp-list .mco）だけ★。
+ *     ・画面から 消えた → 緑
+ *     ・倉庫は ★保存が 後から 走って 書き戻る／消しが 届かない★ → 残る
+ *   ＝★今日 ずっと 潰してきた「測ったつもり」を 私の 後始末が やっていた★。
+ *
+ * ★決まり（2026-09-14 指示役1）★
+ *   ★「置き土産 0」は ★倉庫の 行数★で 数える★（画面の 数では ない）。
+ *
+ * ★この 道具が する事★
+ *   ・押す前と 後で ★kyuyo.pay_employees と kyuyo.pay_payslips の 行数★を 数える
+ *   ・合わなければ ★消えるまで 待つ★（既定 20秒）／待っても 合わなければ ★赤★
+ *   ・★鍵が 読めない時は 未測定★（0件＝合格 とは 書かない）
+ *   ・★テスト倉庫だけ★＝本番の ref を 渡されたら ★その場で 止める★
+ *
+ * ★1か所に 置く 訳★＝3本が 写しを 持つと ★1本 直して 2本 古いまま★に なる。
+ */
+import fs from 'node:fs';
+
+/* ★試験の 倉庫の ref★＝ここだけが 持つ（本番の ref は 1文字も 書かない）。
+   ★万一 本番を 渡されたら 止める★ので、照らす 為に 名前で 持つ。 */
+const TEST_REF = 'khawdrnvssdenumbiwfg';
+const TOKEN_FILE = process.env.TEMP
+  ? process.env.TEMP.replace(/\\/g, '/') + '/nomiya-db-url-prod.json'
+  : 'C:/Users/zeroa/AppData/Local/Temp/nomiya-db-url-prod.json';
+
+function kagi() {
+  try { return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8')).token; } catch (e) { return null; }
+}
+
+async function toi(sql) {
+  const t = kagi();
+  if (!t) return { ok: false, naze: '鍵の 紙が 読めない（' + TOKEN_FILE + '）' };
+  try {
+    const r = await fetch('https://api.supabase.com/v1/projects/' + TEST_REF + '/database/query', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json', 'User-Agent': 'rakunally-souko-kazoeru' },
+      body: JSON.stringify({ query: sql }),
+    });
+    if (!r.ok) return { ok: false, naze: '倉庫が ' + r.status + ' を 返した' };
+    return { ok: true, gyo: await r.json() };
+  } catch (e) { return { ok: false, naze: String(e && e.message || e).slice(0, 90) }; }
+}
+
+/* ★今の 行数★（2つの 棚）。読めなければ null（★0では ない★＝未測定） */
+export async function kazoeru() {
+  const r = await toi('select (select count(*) from kyuyo.pay_employees) as hito,'
+    + ' (select count(*) from kyuyo.pay_payslips) as meisai');
+  if (!r.ok) return { ok: false, naze: r.naze };
+  const x = r.gyo[0] || {};
+  return { ok: true, hito: Number(x.hito), meisai: Number(x.meisai) };
+}
+
+/* ★前と 後を 突き合わせる★
+   mae … kazoeru() の 戻り ／ byo … 何秒 待つか（消えるのを 待つ）
+   返り … { han:'緑'|'赤'|'未測定', ... } ＋ 人が 読める 一言 */
+export async function awaseru(mae, byo = 20) {
+  if (!mae || !mae.ok) return { han: '未測定', iu: '★前を 数えられていない★＝' + ((mae && mae.naze) || '（訳 不明）') };
+  for (let i = 0; i <= byo * 2; i++) {
+    const ato = await kazoeru();
+    if (!ato.ok) return { han: '未測定', iu: '★後を 数えられない★＝' + ato.naze };
+    if (ato.hito === mae.hito && ato.meisai === mae.meisai) {
+      return { han: '緑', mae, ato, matta: i * 0.5,
+        iu: '倉庫の 行数が 元に 戻った（人 ' + mae.hito + ' ／ 明細 ' + mae.meisai + '）'
+          + (i ? '　★' + (i * 0.5) + '秒 待った★' : '') };
+    }
+    if (i < byo * 2) await new Promise((r) => setTimeout(r, 500));
+    else {
+      return { han: '赤', mae, ato,
+        iu: '★倉庫に 置き土産が 残っている★　人 ' + mae.hito + '→' + ato.hito
+          + '（' + (ato.hito - mae.hito >= 0 ? '+' : '') + (ato.hito - mae.hito) + '）'
+          + ' ／ 明細 ' + mae.meisai + '→' + ato.meisai
+          + '（' + (ato.meisai - mae.meisai >= 0 ? '+' : '') + (ato.meisai - mae.meisai) + '）'
+          + '　★' + byo + '秒 待っても 消えず★' };
+    }
+  }
+  return { han: '未測定', iu: '（ここには 来ない）' };
+}
+
+/* ★★その人の 明細を 倉庫から 直に 消す（後始末だけ）★★
+   ★なぜ 要るか（2026-09-14 実測）★
+     画面の「削除」は ★従業員を 消すだけ★で ★明細は 残る★（app.js 5264-5274）。
+     倉庫側も ★pay_employees の 差分削除だけ★（store.js 203-207）＝
+     ⇒ ★消した人の 明細が 孤児に なる★。実測 … 試験の 倉庫に ★孤児 3,596行★。
+   ★これは 片づけ専用★＝★測る所では 使わない★
+     （測る所は 本物の click＝[[feedback_js_dispatched_event_is_not_the_customer_path]] と 同じ 線引き）。
+   ★テスト倉庫だけ★（この 紙が 持つ ref は 試験の 1つだけ）。 */
+export async function meisaiKesu(employeeId) {
+  const id = String(employeeId || '').replace(/[^A-Za-z0-9_-]/g, '');   /* ★字を そのまま 埋めない★ */
+  if (!id) return { ok: false, naze: 'id が 空' };
+  const r = await toi("delete from kyuyo.pay_payslips where employee_id = '" + id + "'");
+  return r.ok ? { ok: true } : { ok: false, naze: r.naze };
+}
+
+/* ★★この回で 出た 孤児だけ 消す（後始末だけ）★★
+   ★なぜ id では ないか（2026-09-14 実測）★
+     足した人の id を 画面から 取ろうとしたが ★取れなかった★（state を 外に 出していない）。
+     ⇒ ★人の 物に 触らない★為に、★2つとも 満たす 行だけ★に 絞る:
+        ① ★pay_employees に 持ち主が 居ない（孤児）★
+        ② ★この回が 始まった 後に 書かれた★（updated_at ≧ 始めた時）
+     ＝★前から 在る 孤児 3,596行には 1行も 触りません★。
+   ★テスト倉庫だけ★／★片づけ専用★（測る所では 使わない）。 */
+export async function konkaiNoGomiKesu(hajimeIso) {
+  const t = String(hajimeIso || '').replace(/[^0-9TZ:.+-]/g, '');    /* ★字を そのまま 埋めない★ */
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(t)) return { ok: false, naze: '始めた時の 形が 違う（' + t + '）' };
+  const r = await toi(
+    "delete from kyuyo.pay_payslips p where p.updated_at >= '" + t + "'"
+    + " and not exists (select 1 from kyuyo.pay_employees e where e.id = p.employee_id)");
+  return r.ok ? { ok: true } : { ok: false, naze: r.naze };
+}
+
+/* ★自己確認★＝この道具が ★赤を 出せる★事を 先に 見る（ブラウザ 不要） */
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('_souko-kazoeru.mjs')) {
+  console.log('\n[_souko-kazoeru] ★自己確認★（倉庫を 読むだけ・1文字も 書かない）');
+  let ng = 0;
+  const iu = (n, good, m) => { if (!good) ng++; console.log('  ' + (good ? '✓' : '✗') + ' ' + n + (good ? '' : '  ★' + (m || '思っていたのと 違う') + '★')); };
+
+  const ima = await kazoeru();
+  if (!ima.ok) {
+    console.log('  🟡 ★未測定★ 倉庫を 読めない … ' + ima.naze);
+    console.log('     ★0件＝合格 とは 書きません★');
+    process.exit(2);
+  }
+  console.log('  今の 倉庫 … 人 ' + ima.hito + ' ／ 明細 ' + ima.meisai);
+  iu('① 今の 数を 読める', ima.hito >= 0 && ima.meisai >= 0);
+
+  /* ★同じ数なら 緑★ */
+  const a = await awaseru(ima, 1);
+  iu('② 同じなら 緑', a.han === '緑', '出たのは ' + a.han);
+
+  /* ★★わざと ずらしたら 赤★★＝★これが 出ないと この道具は 嘘を つく★
+     （2026-09-14 私の 後始末が まさに ★ずれているのに 緑★でした） */
+  const b = await awaseru({ ok: true, hito: ima.hito - 1, meisai: ima.meisai }, 1);
+  iu('③ ★人が 1人 多ければ 赤★', b.han === '赤', '出たのは ' + b.han);
+  const c = await awaseru({ ok: true, hito: ima.hito, meisai: ima.meisai - 1 }, 1);
+  iu('④ ★明細が 1行 多ければ 赤★', c.han === '赤', '出たのは ' + c.han);
+
+  /* ★前を 数えられていない時は 未測定（緑にも 赤にも しない）★ */
+  const d = await awaseru({ ok: false, naze: 'わざと' }, 1);
+  iu('⑤ 前が 無ければ 未測定', d.han === '未測定', '出たのは ' + d.han);
+
+  console.log(ng ? '\n★自己確認 ' + ng + '件 おかしい★' : '\n自己確認 OK（★赤が 出る事まで 見た★）');
+  process.exit(ng ? 1 : 0);
+}

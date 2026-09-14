@@ -79,10 +79,11 @@ if (SELF) {
     process.exit(0);
   }
 }
-let borrow, pwLaunch, hairu, osu;
+let borrow, pwLaunch, hairu, osu, KAZOERU, AWASERU, GOMI_KESU;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
   ({ hairu, osu } = await import('../../tests/_hairu.mjs'));
+  ({ kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU } = await import('./_souko-kazoeru.mjs'));
 } catch (e) { console.log('🟡 ★未測定★ 道具が 読めない … ' + (e && e.message)); process.exit(2); }
 const wk = await borrow('fuyo-ui', 'webkit');
 if (!wk) { console.log('🟡 ★未測定★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
@@ -145,6 +146,17 @@ console.log('\n[fuyo-ui] 被扶養者(異動)届を ★実ブラウザで お客
 
 const ctx = await b.newContext({ viewport: { width: 1000, height: 1400 }, acceptDownloads: true });
 const pg = await ctx.newPage();
+/* ★★「前」は ★ログインの 前★に 数える（2026-09-14 実測で 直した）★★
+   ログインの 後に 数えたら ★人 4→3（-1）★で 赤に なった。
+   訳＝★ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれる★（今日 見つけた 幻の人）。
+     その後 読み直しが 着いて 消えるので、★後に 数えると 1人 減って 見える★。
+   ⇒ ★1行も 触っていない 時の 数★を 土台に する。 */
+const HAJIME = new Date(Date.now() - 60000).toISOString();  /* ★この回の 始まり★＝これ以降の 孤児だけ 消す */
+  const soukoMae = await KAZOERU();
+  console.log('  倉庫（前） … ' + (soukoMae.ok
+    ? '人 ' + soukoMae.hito + ' ／ 明細 ' + soukoMae.meisai
+    : '🟡 ★読めない★ ' + soukoMae.naze));
+
 const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-settings"]');
 if (!h.haitta) {
   console.log('  🟡 ★未測定★ ' + h.kai + '回 試して 入れなかった … ' + (h.naze || '（無し）'));
@@ -157,7 +169,14 @@ try {
   await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(500);
   await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(800);
   const mae = await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length);
-  await osu(pg, '#b-add-emp'); await machi(900);
+  /* ★★置き土産は ★倉庫の 行数★ で 数える（2026-09-14 私の 不始末）★★
+     前は ★画面の 札の 数★だけを 見て「ゴミ0」と 緑を 出していた。
+     ところが 倉庫には ★今日 足した 人が 2人 残っていた★
+       （画面からは 消えた／★保存が 後から 走って 書き戻る・消しが 届かない★）。
+     ＝★今日 ずっと 潰してきた「測ったつもり」を 私の 後始末が やっていた★。
+     ⇒ ★倉庫の pay_employees と pay_payslips の 行数を 前後で 突き合わせる★。
+       ★画面から 消えた は 緑の 根拠に しない★。 */
+    await osu(pg, '#b-add-emp'); await machi(900);
   const IDX = await pg.evaluate(() => {
     const c = Array.from(document.querySelectorAll('#emp-list .mco'));
     return c.length ? c[c.length - 1].getAttribute('data-i') : null;
@@ -197,6 +216,12 @@ try {
       if (y) y.click();
     }).catch(() => null);
     await machi(1000);
+    /* ★★明細も 消す（2026-09-14 実測で 足した）★★
+       画面の「削除」は ★従業員を 消すだけ★＝★明細は 倉庫に 残る★（孤児に なる）。
+       実測 … 人 5→5 なのに ★明細が +1★で 赤に なった（新しい 物差しが 捕まえた）。
+       ⇒ ★片づけ専用として 倉庫から 直に 消す★（測る所では 使わない）。 */
+    const kesu = await GOMI_KESU(HAJIME);
+    if (!kesu.ok) console.log('       🟡 明細を 消せなかった … ' + kesu.naze);
   };
 
   console.log('  ★この先は 後始末つき★（殺されても 足した 人を 消す）');
@@ -401,8 +426,12 @@ try {
   await katazuke();
   await machi(400);
   const ato2 = await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length);
-  T('★後始末＝人数が 元に 戻った（ゴミを 残していない）', ato2 === mae,
-    '前 ' + mae + '人 → 後 ' + ato2 + '人  ★増えた分＝私の ゴミ★');
+  console.log('  画面の 札 … 前 ' + mae + ' → 後 ' + ato2 + '（★これは 緑の 根拠に しません★）');
+  /* ★本当の 判じは 倉庫★＝消えるまで 待ち、待っても 消えなければ 赤 */
+  const sou = await AWASERU(soukoMae, 20);
+  if (sou.han === '未測定') { mihakari++; console.log('  🟡 ★未測定★ 後始末を 倉庫で 数えられない … ' + sou.iu); }
+  else T('★後始末＝★倉庫の 行数★が 元に 戻った', sou.han === '緑', sou.iu);
+  if (sou.han === '緑') console.log('       ' + sou.iu);
 } catch (e) {
   fail++; console.log('  ✗ 途中で 止まった … ' + (e && e.message));
 } finally {
