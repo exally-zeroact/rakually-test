@@ -64,6 +64,12 @@ async function toi(sql) {
   } catch (e) { return { ok: false, naze: String(e && e.message || e).slice(0, 90) }; }
 }
 
+/* ★★倉庫へ 1本 問う（★ここが 唯一の 入口★）★★
+   ★倉庫を 触る 測りは 全部 これを 使う★＝★鍵を 自分で 読まない★
+   ＝★09-14 の 決め（鍵が 無い／読めない／段の 名）が ★必ず★ 当たる★。
+   ★見張り★＝`kyuyo/tests/souko-mon.test.mjs`（鍵を 直に 読む 測りが 在れば 赤）。 */
+export async function toiawase(sql) { return toi(sql); }
+
 /* ★今の 行数★（2つの 棚）。読めなければ null（★0では ない★＝未測定） */
 export async function kazoeru() {
   const r = await toi('select (select count(*) from kyuyo.pay_employees) as hito,'
@@ -71,6 +77,32 @@ export async function kazoeru() {
   if (!r.ok) return { ok: false, naze: r.naze };
   const x = r.gyo[0] || {};
   return { ok: true, hito: Number(x.hito), meisai: Number(x.meisai) };
+}
+
+/* ★★★鍵が 無い（＝この環境では 倉庫を 数えない）を 決める 門＝ここ 1か所★★★
+   ★なぜ 1か所に したか（2026-09-15・★同じ型を 3回 踏んだ★）★
+     ①`_souko-kazoeru`（09-14 に 決めた）
+     ②`maboroshi-ui`（★自分で 鍵を 読んでいた★＝写し忘れ）
+     ③`shutoku-ui`（★新しく 足した 測りに 当てなかった★）
+   ⇒ ★決めは 知っていた／新しく 足す 時に 当てなかった★＝★人の 記憶で 保つ 形★
+   ⇒ ★★倉庫を 触る 測りは 全部 ここを 通す★★
+     ＝★★呼ぶ側は「鍵が 無い」を 知らなくてよい（知らないから 忘れる）★★
+   ★09-14 指示役1 の 決め（3つ）★
+     ①鍵が 無い … ★緑(0)で 通す／ただし 数は 出す／0件＝合格 と 書かない★
+     ②鍵は 在るのに 読めない … ★赤★
+     ③★仕事の 段の 名に「CIでは 倉庫を 数えていない」と 書く★
+   ★戻す条件★＝★CI に 試験倉庫の 鍵を 置いた日★
+   ★見張り★＝`kyuyo/tests/souko-mon.test.mjs`（★鍵を 直に 読む 測りが 在れば 赤★）。 */
+export function kankyoKa(naze) {
+  return String(naze || '').indexOf('鍵の 紙が 読めない') >= 0;
+}
+
+/* ★★その時 出す 字も 1か所★★（呼ぶ側で 書き写さない＝ずれない） */
+export function kankyoIu(nanNoHanashi) {
+  console.log('  🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い）'
+    + (nanNoHanashi ? '／' + nanNoHanashi : ''));
+  console.log('     ＝★手元の テスト線で 数えています★／戻す条件＝CIに 鍵を 置いた日');
+  console.log('     ★0件＝合格 とは 書きません★');
 }
 
 /* ★★名前から その人の id を 引く★★（読むだけ・2026-09-15）

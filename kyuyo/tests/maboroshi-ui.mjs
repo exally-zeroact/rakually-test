@@ -52,32 +52,23 @@ try {
 const wk = await borrow('maboroshi-ui', 'webkit');
 if (!wk) { console.log('🟡 ★はかれない★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
 
-const { kazoeru: KAZOERU, awaseru: AWASERU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU, sujiKesu: SUJI_KESU, ima: IMA }
+const { kazoeru: KAZOERU, awaseru: AWASERU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU, sujiKesu: SUJI_KESU, ima: IMA, kankyoKa: KANKYO, kankyoIu: KANKYO_IU, toiawase: TOI }
   = await import('./_souko-kazoeru.mjs');
 
 /* ★孤児を 数える★＝①の 定義を そのまま 字に した 1本の 問い */
 async function kojiKazoeru() {
-  const { repoSupa } = await import('../../tests/repo-supa.mjs');
-  const ref = repoSupa().ref;
-  const TOKEN_FILE = (process.env.TEMP ? process.env.TEMP.replace(/\\/g, '/') : 'C:/Users/zeroa/AppData/Local/Temp')
-    + '/nomiya-db-url-prod.json';
-  let tok = null;
-  try { tok = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8')).token; } catch (e) { return { ok: false, naze: '鍵の 紙が 読めない' }; }
   const sql = 'select (select count(*) from kyuyo.pay_payslips) as zenbu,'
     + ' (select count(*) from kyuyo.pay_payslips p'
     + '  where not exists (select 1 from kyuyo.pay_employees e where e.id=p.employee_id)) as koji,'
     + " (select count(*) from kyuyo.pay_employees) as hito,"
     + " (select count(*) from kyuyo.pay_employees where (data->>'name')='従業員 1') as maboroshi";
-  try {
-    const r = await fetch('https://api.supabase.com/v1/projects/' + ref + '/database/query', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json', 'User-Agent': 'rakunally-koji' },
-      body: JSON.stringify({ query: sql }),
-    });
-    if (!r.ok) return { ok: false, naze: '倉庫が ' + r.status + ' を 返した' };
-    const x = (await r.json())[0] || {};
-    return { ok: true, zenbu: Number(x.zenbu), koji: Number(x.koji), hito: Number(x.hito), maboroshi: Number(x.maboroshi) };
-  } catch (e) { return { ok: false, naze: String(e && e.message || e).slice(0, 80) }; }
+  /* ★★鍵は 自分で 読まない★★（2026-09-15・★ここが 写し忘れの 元だった★）
+     前は ★この紙が 自分で 鍵の 紙を 開いて いた★＝★09-14 に 決めた 3つが 当たらない★
+     ⇒ ★倉庫を 触る 測りは 全部 `_souko-kazoeru` の 門を 通す★（見張り souko-mon が 赤に する）。 */
+  const r = await TOI(sql);
+  if (!r.ok) return { ok: false, naze: r.naze };
+  const x = (r.gyo || [])[0] || {};
+  return { ok: true, zenbu: Number(x.zenbu), koji: Number(x.koji), hito: Number(x.hito), maboroshi: Number(x.maboroshi) };
 }
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
@@ -145,9 +136,7 @@ if (!mae.ok) {
   MI('押す前の 数', mae.naze);
   await b.close(); srv.close();
   if (String(mae.naze).indexOf('鍵の 紙が 読めない') >= 0) {
-    console.log('  🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い）');
-    console.log('     ＝★手元の テスト線で 数えています★／戻す条件＝CIに 鍵を 置いた日');
-    console.log('     ★0件＝合格 とは 書きません★');
+    KANKYO_IU();   /* ★字は 門 1か所★＝呼ぶ側で 書き写さない（写すと ずれる） */
     process.exit(0);
   }
   process.exit(2);

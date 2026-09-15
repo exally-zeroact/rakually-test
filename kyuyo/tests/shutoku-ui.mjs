@@ -131,7 +131,7 @@ const pg = await ctx.newPage();
    訳＝★ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれる★（今日 見つけた 幻の人）。
      その後 読み直しが 着いて 消えるので、★後に 数えると 1人 減って 見える★。
    ⇒ ★1行も 触っていない 時の 数★を 土台に する。 */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, hitoNoId: HITO_ID, hitoNoMeisai: HITO_MEISAI } = await import('./_souko-kazoeru.mjs');
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, hitoNoId: HITO_ID, hitoNoMeisai: HITO_MEISAI, kankyoKa: KANKYO, kankyoIu: KANKYO_IU } = await import('./_souko-kazoeru.mjs');
 const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
@@ -344,10 +344,15 @@ if (ato.osenai === false) {
   while (Date.now() - hajimari < MACHI_UE) {
     EID = await HITO_ID(NA_FULL);
     if (EID.ok) break;
+    /* ★★答えが 変わり得ない 時は 待たない★★（2026-09-15 CI が 捕まえた）
+       ★鍵が 読めない★は「まだ 来ない」では なく「★そもそも 読めない★」＝
+       ★1秒おきに 20回 同じ 答えを 聞くだけ★＝★毎回 20秒 まるごと 無駄★。 */
+    if (KANKYO(EID.naze)) break;
     await machi(1000);
   }
   const matta = ((Date.now() - hajimari) / 1000).toFixed(1);
   if (EID.ok) console.log('       倉庫に 現れた … ' + matta + '秒（上限 ' + (MACHI_UE / 1000) + '秒）');
+  else if (KANKYO(EID.naze)) console.log('       — 倉庫を 数えません（試験の 鍵が 無い）＝★' + matta + '秒で 抜けました★');
   else console.log('       🟡 ' + matta + '秒 待っても 倉庫に 現れない（上限 ' + (MACHI_UE / 1000) + '秒）… ' + EID.naze);
   const meisaiMae = EID.ok ? await HITO_MEISAI(EID.id) : { ok: false, naze: matta + '秒 待っても 現れない（' + EID.naze + '）' };
   if (meisaiMae.ok) console.log('       消す前 … 「' + NA_FULL + '」の 明細 ' + meisaiMae.n + '行');
@@ -361,7 +366,12 @@ if (ato.osenai === false) {
     '「' + NA + '」が ' + nokori + '人 残っている（' + (r.naze || 'ok') + '）');
 
   /* ★★消した 後に もう一度 数える★★＝★人は 消えたが 明細は 残る★が 直ったかの 1点 */
-  if (!meisaiMae.ok || !EID.ok) {
+  if (KANKYO(EID.naze) || KANKYO(meisaiMae.naze)) {
+    /* ★★鍵が 無い＝★環境★（★未測定では ない★）★★＝09-14 の 決め①
+       ★`未測定も 赤` は そのまま★＝★本当の 未測定（測れるはずなのに 測れない）は 今までどおり 赤★。
+       ⇒ ★ここは 数えない／★字は 出す★★（★0件＝合格 とは 書かない★）。 */
+    KANKYO_IU('人を 消した後の 明細を 数えていません');
+  } else if (!meisaiMae.ok || !EID.ok) {
     mihakari++;
     console.log('  🟡 ★はかれない★ その人の 明細を 倉庫で 数えられない … ' + (meisaiMae.naze || EID.naze));
   } else if (meisaiMae.n === 0) {
