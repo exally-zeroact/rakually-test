@@ -123,6 +123,7 @@ const pg = await ctx.newPage();
      その後 読み直しが 着いて 消えるので、★後に 数えると 1人 減って 見える★。
    ⇒ ★1行も 触っていない 時の 数★を 土台に する。 */
 const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA } = await import('./_souko-kazoeru.mjs');
+const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
 const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000).toISOString()));
@@ -286,34 +287,24 @@ if (ato.osenai === false) {
   }
 } else { mihakari++; console.log('  🟡 ★未測定★ ボタンが 押せないので ファイルまで 行けていない'); }
 
-/* ── ★後始末★＝この 試験が 足した 人を 自分で 消す ───────────────
+/* ── ★後始末＝★客の 道で★ 片づける★ ───────────────────────
    ★前は 消していなかった★＝走らせる たびに 1人 増え、★19人 溜めた★（私が 作った ゴミ）。
-   ★消すのは 今 足した 人だけ★（名前で 確かめてから 押す＝他の 人には 触らない）。
-   ★確定した 明細が 在る人は アプリが 消させない★＝今 足てた 人には 無いので 通る。 */
+   ★2026-09-15 裏口を 閉じた★
+     前は ここで ★JSで イベントを 投げて★ .m-del-emp を 叩いていた
+     ＝[[feedback_js_dispatched_event_is_not_the_customer_path]]＝★門を 迂回していた★。
+     しかも ★札が 閉じていると 何も せず「（消す ボタンが 出ていない）」で 終わって いた★
+     ＝★片づけたつもり★。
+   ★実測（2026-09-15・本物の click 1回）★
+     札を 開く → 詳細設定 → 削除 → 確認 の ★4段とも 本物の click で 通った★（人 4→3）。
+   ★消すのは 今 足した 人だけ★（名前で 引く＝他の 人には 触らない）。
+   ★アプリが 消させないなら ok:false で 返る★＝★裏口で 抜けない★。 */
 {
-  await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(600);
-  await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(800);
-  const keshita = await pg.evaluate((na) => {
-    const c = Array.from(document.querySelectorAll('#emp-list .mco'))
-      .find((x) => ((x.querySelector('.mco-nm') || {}).textContent || '').indexOf(na) >= 0);
-    if (!c) return '（札が 無い）';
-    const btn = c.querySelector('.m-del-emp');
-    if (!btn) return '（消す ボタンが 出ていない＝札が 閉じている）';
-    btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    return 'ok';
-  }, NA);
-  await machi(900);
-  /* アプリが「本当に 消しますか」と 聞くので はいを 押す */
-  await pg.evaluate(() => {
-    const ov = document.querySelector('.ui-modal-ov'); if (!ov) return;
-    const y = Array.from(ov.querySelectorAll('button')).find((e) => /はい|削除|OK/.test(e.textContent || ''));
-    if (y) y.click();
-  });
-  await machi(1200);
+  const r = await KATAZUKERU(pg, { na: NA, machi, osu });
+  r.michi.forEach((m) => console.log('       片づけ … ' + m));
   const nokori = await pg.evaluate((na) => Array.from(document.querySelectorAll('#emp-list .mco'))
     .filter((x) => ((x.querySelector('.mco-nm') || {}).textContent || '').indexOf(na) >= 0).length, NA);
-  T('★⑤ 後始末＝この 試験が 足した 人を 消した（ゴミを 残さない）', nokori === 0,
-    '「' + NA + '」が ' + nokori + '人 残っている（' + keshita + '）');
+  T('★⑤ 後始末＝この 試験が 足した 人を ★客の 道で★ 消した（ゴミを 残さない）', nokori === 0,
+    '「' + NA + '」が ' + nokori + '人 残っている（' + (r.naze || 'ok') + '）');
 }
 
 /* ★本当の 判じは 倉庫★＝画面の 数では ない */

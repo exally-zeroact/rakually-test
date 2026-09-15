@@ -79,11 +79,12 @@ if (SELF) {
     process.exit(0);
   }
 }
-let borrow, pwLaunch, hairu, osu, KAZOERU, AWASERU, GOMI_KESU, IMA;
+let borrow, pwLaunch, hairu, osu, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
   ({ hairu, osu } = await import('../../tests/_hairu.mjs'));
   ({ kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA } = await import('./_souko-kazoeru.mjs'));
+  ({ katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs'));
 } catch (e) { console.log('🟡 ★未測定★ 道具が 読めない … ' + (e && e.message)); process.exit(2); }
 const wk = await borrow('fuyo-ui', 'webkit');
 if (!wk) { console.log('🟡 ★未測定★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
@@ -205,41 +206,29 @@ try {
   const CARD = '#emp-list .mco[data-i="' + IDX + '"]';
   console.log('  （はじめに 居た 人 ' + mae + '人 → 今 足した 人＝札 ' + IDX + '番目）');
   katazukeSuru = async () => {
-    /* ★★後始末の 作り（2026-09-14・5回 直した）★★
-       実測で 分かった 事：
-         ・足した 直後 札は ★開いている★（open:true / .mco-body 1個）
-         ・しかし ★.m-del-emp は 0個★＝削除ボタンは ★詳細設定の 中★に 在る
-         ・その 詳細設定（.emp-dtgl[data-dtoggle]）は ★本物の click では 掴めなかった★
-       ⇒ ★片づけだけは 手本(shutoku-ui.mjs)と 同じく JSで 投げる★。
-         ★測る所（被扶養者届が 本当に 出るか）は 本物の click★＝ここは 分けている
-         （[[feedback_js_dispatched_event_is_not_the_customer_path]]）。 */
-    const nage = (c, sel) => pg.evaluate((a) => {
-      const card = document.querySelector(a.c);
-      const el = card && card.querySelector(a.sel);
-      if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      return !!el;
-    }, { c, sel }).catch(() => false);
+    /* ★★片づけは 客の 道で★★（2026-09-15・裏口を 閉じた）
+       前は ここで ★JSで イベントを 投げて★ 削除ボタンを 叩いていた
+       ＝[[feedback_js_dispatched_event_is_not_the_customer_path]] の 通り ★門を 迂回する★。
+       実物で 測り直した ところ ★4段とも 本物の click で 通りました★
+       （札を 開く → 詳細設定 → 削除 → 確認）。⇒ ★裏口は 要らない★。
+       ★名前では なく 札の 番号で 渡す★＝この 試験は ★人を 足してから 後で 名前を 打つ★ので、
+       途中で 落ちた 時は まだ 名前が 無い。 */
+    const r = await KATAZUKERU(pg, { ban: IDX, machi, osu });
+    r.michi.forEach((m) => console.log('       片づけ … ' + m));
+    if (!r.ok) console.log('       🟡 ★客の 道で 消せなかった★ … ' + r.naze);
 
-    const aru = () => pg.evaluate((c) => {
-      const card = document.querySelector(c);
-      return card ? card.querySelectorAll('.m-del-emp').length : -1;
-    }, CARD).catch(() => -1);
-
-    if (await aru() === 0) { await nage(CARD, '.emp-dtgl[data-dtoggle]'); await machi(900); }
-    console.log('       片づけ … 削除ボタン ' + (await aru()) + '個');
-    await nage(CARD, '.m-del-emp');
-    await machi(700);
-    /* 確認は uiConfirm の ★「OK」★（実測） */
-    await pg.evaluate(() => {
-      const y = Array.from(document.querySelectorAll('button'))
-        .find((e) => e.offsetParent && e.textContent.trim() === 'OK');
-      if (y) y.click();
-    }).catch(() => null);
-    await machi(1000);
-    /* ★★明細も 消す（2026-09-14 実測で 足した）★★
-       画面の「削除」は ★従業員を 消すだけ★＝★明細は 倉庫に 残る★（孤児に なる）。
-       実測 … 人 5→5 なのに ★明細が +1★で 赤に なった（新しい 物差しが 捕まえた）。
-       ⇒ ★片づけ専用として 倉庫から 直に 消す★（測る所では 使わない）。 */
+    /* ★★ここは 裏口を 残す（2026-09-15・指示役1 と 決めた）★★
+       ★訳＝アプリに 明細を 消す 道が 無い★（字で 数えた）:
+         ・app.js 5355〜 の「この従業員を削除」は ★state.employees から 抜くだけ★
+         ・store.js:206 が pay_employees の 行は 本当に 消す
+         ・★pay_payslips を delete している 所は 1か所も 無い★
+           （消しているのは payslip_batches:87 と pay_meisai_docs:448 だけ）
+       ⇒ ★人は 消える／明細は 倉庫に 残る＝孤児に なる★。★実測★（2026-09-15・本物の click 1回）
+         … 人 4→3 なのに ★孤児 3,716→3,717＝+1★。
+       ⇒ ★これは 客にも 起きる 欠陥＝別件（司さん待ち・指示役1 が 持つ）★。
+       ★★この 裏口を 外す 条件★★
+         ＝★アプリが 削除の時に その人の pay_payslips も 消すように なったら★ ここを 消す。
+       ★条件を 書かない 裏口は 永久に 残る★ので、必ず この 3行を 一緒に 動かす事。 */
     const kesu = await GOMI_KESU(HAJIME);
     if (!kesu.ok) console.log('       🟡 明細を 消せなかった … ' + kesu.naze);
   };
@@ -255,7 +244,11 @@ try {
     return !!el;
   }, { c, sel }).catch(() => false);
   /* ★かたまりは 1つずつ 閉じている★＝本人の 欄も 家族も その中（実測で 6欄 見つからなかった）。
-     ⇒ ★この札の かたまりを 全部 開く★（片づけと 同じく JS投げ＝測る所では ない）。 */
+     ⇒ ★この札の かたまりを 全部 開く★。
+     ★ここの JS投げが 許される 訳（2026-09-15 に 線を 引き直した）★
+       ＝★開け閉めは ★打ち込みの 道★／★測る所（届が 本当に 出るか）は 本物の click★
+       ＝★門を 迂回しない★のが 決まりの 訳で、「JSを 一切 使うな」では ない。
+     ★注意★＝★片づけは もう JS投げでは ありません★（客の道＝_kyaku_no_michi_de_katazukeru.mjs）。 */
   /* ★★開く つもりが 閉じていた（2026-09-14 実測）★★
      かたまりの 印は ★切り替え★なので、★既に 開いている 物を 押すと 閉じる★。
      1回目で 家族が 開き、2回目で 家族が 閉じ 本人の 欄が 開いた＝★毎回 どこかが 欠けた★。

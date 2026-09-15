@@ -9,8 +9,12 @@
  *   ・元の 決めは ★確定させない（A案）★だった。
  *   ・★曲げたのは 指示役1★＝訳「★テスト倉庫には 本物の 賃金が 1件も 無い★
  *     ＝年末調整・賃金台帳の 話は そもそも 起きない」。
- *   ・条件 … ★確定用は 別の人・名前に 印★／★後始末は 倉庫から 直に★
- *     （★確定した人は 画面から 消せない★＝app.js の 門が そう している）。
+ *   ・条件 … ★確定用は 別の人・名前に 印★
+ *   ・★2026-09-15 直した★＝前は「★後始末は 倉庫から 直に★」と していた。
+ *     訳は「確定した人は 画面から 消せない」だったが、★アプリには 逃げ道が 在った★
+ *     ＝★「この月の確定を取り消す」（app.js 2417・2026-09-07 司さんが 足させた 物）★。
+ *     ⇒ ★在るのに 使っていなかった★。今は ★客の 道で 取り消して から 消す★。
+ *     ★倉庫から 直に 消すのは 客の 道で 消せなかった時だけ／使ったら 大きく 出す★。
  *
  * ★様式コード（原文の 写しから 読んだ・記憶で 書いていない）★
  *   算定基礎届 … 2225700 ／ 53項目（lib/todokede-csv.js 138行）
@@ -137,12 +141,21 @@ if (process.argv.includes('--self-test')) {
 
 console.log(NL + '[santei-gekkaku-ui] 算定基礎届／月額変更届を ★実ブラウザで お客さんの道どおり★ 出す');
 
+const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★「前」は ログインの 前に 数える★（ログインした 途端に 幻の『従業員 1』が 倉庫に 書かれる） */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, konkaiNoMeisaiKesu: MEISAI_KESU }
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU }
   = await import('./_souko-kazoeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
 const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000).toISOString()));
+
+/* ★★この回で 触る 月の 明細の id を ★走る前に★ 控える（2026-09-15）★★
+   ★前は 時刻で「この回の 行」を 決めていた★
+   ⇒ 確定／確定の取り消しは ★その月の 明細を 書き直す★＝★前から 在った 行の 時刻が 動く★
+   ⇒ ★一緒に 消して 実物が 1行 減った★（webkit 総なめ 2026-09-15 … 明細 3,721→3,720）
+   ⇒ ★★控えに 無い id だけ 消す★★＝★前から 在った 行は 触りようが ない★。 */
+const TSUKI3 = ['2026-04', '2026-05', '2026-06'];
+const MEISAI_MAE = await MEISAI_HIKAE(TSUKI3);
 const soukoMae = await KAZOERU();
 console.log('  倉庫（前） … ' + (soukoMae.ok
   ? '人 ' + soukoMae.hito + ' ／ 明細 ' + soukoMae.meisai
@@ -452,13 +465,39 @@ try {
 } catch (e) {
   if (e && e.message !== 'skip') { fail++; console.log('  ✗ 途中で 止まった … ' + (e && e.message)); }
 } finally {
-  /* ★後始末は 倉庫から 直に★＝★確定した人は 画面から 消せない★（app.js の 門） */
-  const kesu = await SUJI_KESU(NA);
-  if (!kesu.ok) console.log('       🟡 印の 人を 消せなかった … ' + kesu.naze);
-  else console.log('       片づけ … 印「' + NA + '」の 人と 明細を 消した');
+  /* ★★後始末＝まず 客の 道で★★（2026-09-15・裏口を 閉じた）
+     前は ★いきなり 倉庫から 直に 消して★ いた（訳＝「確定した人は 画面から 消せない」）。
+     ⇒ ★アプリには 逃げ道が 在った★＝★「この月の確定を取り消す」（app.js 2417）★
+        ＝2026-09-07 司さん「やって」で 足した 物を ★在るのに 使っていなかった★。
+     ★`data-undo-month` は 今 選んでいる 1か月だけ★（app.js 5461 `var ym=state.month;`）
+     ⇒ この 試験は ★4・5・6月の 3か月★を 確定するので ★3回 取り消す★（tsuki で 渡す）。 */
+  const kt = await KATAZUKERU(pg, { na: NA, machi, osu, tsuki: TSUKI3 });
+  kt.michi.forEach((m) => console.log('       片づけ … ' + m));
+  if (!kt.ok) {
+    /* ★★裏口＝ここだけ 残す（2026-09-15・指示役1 と 決めた）★★
+       ★客の 道で 消せなかった時だけ 使う／使ったら 必ず 大きく 出す★
+       ＝★黙って 使うと「片づけたつもり」に なる★（今日 何度も 出た型）。
+       ★この 裏口を 外す 条件★＝★客の 道で 毎回 消えるように なったら★ この if ごと 消す。 */
+    console.log('       🟡🟡 ★客の 道で 消せなかった＝裏口を 使いました★ … ' + kt.naze);
+    const kesu = await SUJI_KESU(NA);
+    if (!kesu.ok) console.log('       🟡 印の 人を 消せなかった … ' + kesu.naze);
+    else console.log('       片づけ … 印「' + NA + '」の 人と 明細を ★倉庫から 直に★ 消した');
+  }
+  /* ★★ここは 裏口を 残す（2026-09-15・指示役1 と 決めた）★★
+     ★訳＝アプリに 明細を 消す 道が 無い★（字で 数えた）:
+       ・app.js 5355〜 の「この従業員を削除」は ★state.employees から 抜くだけ★
+       ・store.js:206 が pay_employees の 行は 本当に 消す
+       ・★pay_payslips を delete している 所は 1か所も 無い★
+         （消しているのは payslip_batches:87 と pay_meisai_docs:448 だけ）
+     ⇒ ★人は 消える／明細は 倉庫に 残る＝孤児に なる★。
+       ★実測（2026-09-15・本物の click 1回）★ … 人 4→3 なのに ★孤児 3,716→3,717＝+1★。
+     ⇒ ★客にも 起きる 欠陥＝別件（司さん待ち・指示役1 が 持つ）★。
+     ★★この 裏口を 外す 条件★★
+       ＝★アプリが 削除の時に その人の pay_payslips も 消すように なったら★ ここを 消す。
+     ★条件を 書かない 裏口は 永久に 残る★。 */
   await GOMI_KESU(HAJIME);
-  /* ★確定は 在籍者 全員に 付く★＝この回で 書かれた 明細を まとめて 消す */
-  const mk = await MEISAI_KESU(HAJIME, ['2026-04', '2026-05', '2026-06']);
+  /* ★確定は 在籍者 全員に 付く★＝この回で 書かれた 明細を まとめて 消す（同じ 外す条件） */
+  const mk = await MEISAI_KESU(MEISAI_MAE, TSUKI3);
   if (!mk.ok) console.log('       🟡 この回の 明細を 消せなかった … ' + mk.naze);
   await b.close().catch(() => null);
   srv.close();

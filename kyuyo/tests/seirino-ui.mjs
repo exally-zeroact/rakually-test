@@ -114,6 +114,7 @@ const pg = await ctx.newPage();
    ★「前」は ログインの 前に 数える★＝ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれ、
    後から 読み直しで 消えるので、後に 数えると 1人 減って 見える（今日 実測）。 */
 const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA } = await import('./_souko-kazoeru.mjs');
+const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
 const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000).toISOString()));
@@ -168,15 +169,16 @@ try {
     return !!el;
   }, { c, sel }).catch(() => false);
   katazukeSuru = async () => {
-    const aru = () => pg.evaluate((c) => { const d = document.querySelector(c); return d ? d.querySelectorAll('.m-del-emp').length : -1; }, CARD).catch(() => -1);
-    if (await aru() === 0) { await nage(CARD, '.emp-dtgl[data-dtoggle]'); await machi(900); }
-    await nage(CARD, '.m-del-emp'); await machi(700);
-    await pg.evaluate(() => {
-      const y = Array.from(document.querySelectorAll('button')).find((e) => e.offsetParent && e.textContent.trim() === 'OK');
-      if (y) y.click();
-    }).catch(() => null);
-    await machi(1000);
+    /* ★★片づけは 客の 道で★★（2026-09-15・裏口を 閉じた）
+       前は ここで ★JSで イベントを 投げて★ 削除ボタンを 叩いていた＝★門を 迂回していた★
+       （[[feedback_js_dispatched_event_is_not_the_customer_path]]）。
+       実物で 測り直したら ★札を 開く→詳細設定→削除→確認 の 4段とも 本物の click で 通った★。
+       ⇒ ★裏口は 要らない★／★消せないなら それ自体が 客の 困り事★＝そのまま 出す。 */
+    const r = await KATAZUKERU(pg, { na: NA, machi, osu });
+    r.michi.forEach((m) => console.log('       片づけ … ' + m));
+    if (!r.ok) console.log('       🟡 ★客の 道で 消せなかった★ … ' + r.naze);
   };
+
   console.log('  ★この先は 後始末つき★（殺されても 足した 人を 消す）');
 
   const aruka = (sel) => pg.evaluate((x) => !!document.querySelector(x), sel).catch(() => false);

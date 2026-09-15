@@ -52,7 +52,7 @@ try {
 const wk = await borrow('maboroshi-ui', 'webkit');
 if (!wk) { console.log('🟡 ★はかれない★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
 
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoMeisaiKesu: MEISAI_KESU, sujiKesu: SUJI_KESU, ima: IMA }
+const { kazoeru: KAZOERU, awaseru: AWASERU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU, sujiKesu: SUJI_KESU, ima: IMA }
   = await import('./_souko-kazoeru.mjs');
 
 /* ★孤児を 数える★＝①の 定義を そのまま 字に した 1本の 問い */
@@ -129,6 +129,24 @@ console.log('  ★押す前★ … 明細 ' + mae.zenbu + '行 中 ★孤児 ' +
   + ' ／ 従業員 ' + mae.hito + '人（うち『従業員 1』' + mae.maboroshi + '人）');
 
 const HAJIME = await IMA().then((x) => (x.ok ? x.t : null));
+
+/* ★★この回で 触る 月の 明細の id を ★走る前に★ 控える（2026-09-15）★★
+   ★前は 時刻で「この回の 行」を 決めていた★
+   ⇒ 確定／取り消しは ★その月の 明細を 書き直す★＝★前から 在った 行の 時刻が 動く★
+   ⇒ ★一緒に 消して 実物が 減る★（webkit 総なめ 2026-09-15 … 明細 3,721→3,720＝-1）
+   ⇒ ★★控えに 無い id だけ 消す★★＝★前から 在った 行は 触りようが ない★。 */
+/* ★★対象月は ★画面から 読む★（2026-09-15 絵が 見せた）★★
+   ★前は ★手元の 時計から 今日の 月★を 作って 消しに 行っていた★。
+   （★その 字は ここに 書きません★＝字で 数える 道具が 覚書を 拾う＝今日 2回 踏んだ 型）
+   ★絵（.sweep-red/maboroshi-ui.png・2026-09-15 10:38）に 写っていたのは ★2026年6月★★
+   ＝★書いた 月と 消す 月が 違う＝自分が 書いた 行を 1度も 消していなかった★。
+   ★それでも 緑だった 訳★＝確定が ★元から 在る 行を 書き直しただけ★で
+     ★新しい 行が 出来なかった★＝明細 +0＝★まぐれの 緑★。
+   ⇒ ★試験に「今日が 何月か」を 持ち込まない★（[[feedback_tests_must_not_depend_on_todays_date]]）
+   ⇒ ★ログインして 画面が 出てから 対象月を 読む★＝控えも 消しも ★その月★で 揃える。
+   ★読む所★＝`.ym-one`（客が 触る 箱）／無ければ `.scr-month`（隠れた 欄）。 */
+let YM_KONKAI = null;
+let MEISAI_MAE = null;
 const ctx = await b.newContext({ viewport: { width: 1100, height: 1300 } });
 const pg = await ctx.newPage();
 
@@ -139,6 +157,19 @@ try {
 
   /* ── ★お客さんの 道で 明細を 1本 出す★（JS で イベントを 投げない） ── */
   await osu(pg, '.bn[data-scr="scr-input"]'); await machi(1200);
+
+  /* ★★対象月を 画面から 読み、その月の 控えを 取る（押す 前に）★★ */
+  YM_KONKAI = await pg.evaluate(() => {
+    const one = Array.from(document.querySelectorAll('.ym-one')).find((x) => x.offsetParent);
+    if (one && /^[0-9]{4}-[0-9]{2}$/.test(one.value || '')) return one.value;
+    const h = document.querySelector('.scr-month');
+    return (h && /^[0-9]{4}-[0-9]{2}$/.test(h.value || '')) ? h.value : null;
+  }).catch(() => null);
+  if (!YM_KONKAI) { MI('対象月', '★画面から 読めない★＝どの月を 片づければ よいか 分からない'); throw new Error('skip'); }
+  console.log('  ★画面の 対象月★ … ' + YM_KONKAI + '（★今日の 月では なく 画面から 読んだ★）');
+  MEISAI_MAE = await MEISAI_HIKAE([YM_KONKAI]);
+  if (!MEISAI_MAE.ok) console.log('       🟡 控えを 取れなかった … ' + MEISAI_MAE.naze);
+  else console.log('       控え … ' + YM_KONKAI + ' の 明細 ' + MEISAI_MAE.ids.length + '行');
   /* ★カレンダーから 入れる＝客が 押す ボタン★ */
   const fill = await pg.$('[data-fillsche]');
   if (fill) {
@@ -208,9 +239,8 @@ else {
 }
 
 /* ★後始末★＝この回で 書いた 明細を 消す（触った 月だけ） */
-if (HAJIME) {
-  const ym = new Date().toISOString().slice(0, 7);
-  const k = await MEISAI_KESU(HAJIME, [ym]);
+if (HAJIME && YM_KONKAI) {
+  const k = await MEISAI_KESU(MEISAI_MAE, [YM_KONKAI]);
   if (!k.ok) console.log('       🟡 この回の 明細を 消せなかった … ' + k.naze);
 }
 

@@ -59,6 +59,7 @@ const NOT_TESTS = {
   'tests/_hairu.mjs': '★ブラウザの見張りが アプリに入る（ログイン・覆いを閉じる・押す）手順★。3本に写していた物を1か所にした部品（テストではない）',
   'kyuyo/tests/run.js': 'ランナー本体',
   'tests/fake-supa.js': 'テスト用のSupabaseモック（他テストが読む部品）',
+  'kyuyo/tests/_kyaku_no_michi_de_katazukeru.mjs': '★試験が 足した 人を「客の 道」で 片づける 手順★（確定を取り消す→札を開く→詳細設定→削除・全部 本物のclick）。5本の 実ブラウザ試験が 読む 部品で、単体では 走らない（ブラウザが 要る）。★中身は 5本が 走るたび 実際に 使われる＝走っていない 紙では ない★。_hairu.mjs と 同じ扱い。',
   'tests/repo-supa.mjs': 'このリポジトリの接続先(js/supa-config.js)を返す部品。実DBに触る道具が読む（テストではない）',
   'tests/dbtest-seed.mjs': 'DB-testに種データを入れる手動ツール（CIから叩かない）',
   'tests/live-seed.mjs': '実DBに種を入れる手動ツール（CIから叩かない）',
