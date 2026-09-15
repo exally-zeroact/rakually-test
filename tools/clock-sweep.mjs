@@ -10,6 +10,13 @@
  *   FROM/TO … ci.yml の何番目から何番目か（1回が長すぎる時に 区切る）
  *   SKIP    … 走らせない命令（例 SKIP="self-test"）★外したら 報告に必ず書く★
  *   SAVE    … 走らせた物と結果を 書き出す（次に 突き合わせる為）
+ *   SWEEP_OUT … ★緑も 含めて 1本ずつの 出しを 全部 書く★（2026-09-15 に 足した）
+ *             ★なぜ 要るか★＝ここは ★赤の 中身しか 控えていなかった★。
+ *               ⇒ ★緑の 中に 書いてある 事（どの道を 通ったか・何月を 選んだか）が 読めない★
+ *               ⇒ ★確かめる為に もう1回 走らせる★事に なっていた（★二度手間・お金も 時間も★）。
+ *             ★置き場は 消える所（作業場）に する★＝★repo に 入れない★
+ *               （出しには ★url・id・人の 名前★が 混ざる事が 在る）。
+ *             例 SWEEP_OUT=/tmp/sweep-out
  *   BASE    … 前の SAVE と 突き合わせ、★減った物・増えた物を 名前で出す★
  *             （Timeally が 853→844→853 と 揺れた。★数だけ見ると 気づけない★）
  */
@@ -37,6 +44,29 @@ const skip = process.env.SKIP ? new RegExp(process.env.SKIP) : null;
 const red = [], mihakari = [], skipped = [];
 const result = {};
 let n = 0;
+/* ★全部の 出しを 書く 置き場★（SWEEP_OUT）。★repo の 中を 指されたら 止める★
+   ＝出しには url・id・人の 名前が 混ざる事が 在る＝★commit に 紛れ込ませない★ */
+const OUT_DIR = process.env.SWEEP_OUT || null;
+if (OUT_DIR) {
+  const YEN = String.fromCharCode(92);   /* 逆斜線（字で 作る＝便りで 落ちない） */
+  const koko = process.cwd().split(YEN).join('/').toLowerCase();
+  const soko = OUT_DIR.split(YEN).join('/').toLowerCase();
+  if (soko.indexOf(koko) === 0) {
+    console.log('  ✗ ★SWEEP_OUT が repo の 中を 指しています★ … ' + OUT_DIR);
+    console.log('     ★出しには url・id・人の 名前が 混ざる事が 在る＝repo の 外（作業場）に 置いて ください★');
+    process.exit(2);
+  }
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+}
+function zenbuKaku(i, c, out) {
+  if (!OUT_DIR) return;
+  try {
+    const NL = String.fromCharCode(10);
+    fs.writeFileSync(OUT_DIR + '/' + String(i) + '.txt',
+      '# ' + c + NL + '# ' + new Date().toISOString() + NL + NL + out, 'utf8');
+  } catch (_) { console.log('  🟡 出しを 書けません #' + i); }
+}
+
 for (let i = from; i <= Math.min(to, all.length); i++) {
   const c = all[i - 1];
   if (skip && skip.test(c)) { skipped.push('#' + i + ' ' + c); continue; }
@@ -58,6 +88,7 @@ for (let i = from; i <= Math.min(to, all.length); i++) {
   }
   /* ★字で拾っている事を 隠さない★＝拾った行を そのまま 見せる。
      実測 2026-09-02 … 11本のうち 5本は ★『未測定 0件』と書いてある行★＝中身は 0だった */
+  zenbuKaku(i, c, out);
   if (/未測定/.test(out)) {
     const hit = out.split('\n').filter((l) => /未測定/.test(l)).slice(0, 2)
       .map((l) => l.trim()).join(' ／ ');
