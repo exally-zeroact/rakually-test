@@ -252,13 +252,33 @@ try {
   /* ★★開く つもりが 閉じていた（2026-09-14 実測）★★
      かたまりの 印は ★切り替え★なので、★既に 開いている 物を 押すと 閉じる★。
      1回目で 家族が 開き、2回目で 家族が 閉じ 本人の 欄が 開いた＝★毎回 どこかが 欠けた★。
-     ⇒ ★欲しい 欄が 出るまで 押す★（最大 3回）＝★開いたか どうかは 欄の 有無で 決める★
+     ⇒ ★欲しい 欄が 出るまで 押す★＝★開いたか どうかは ★欄の 有無★で 決める★
        （印が 付いたかでは 見ない＝会社の 決まり）。 */
   const aruka = (sel) => pg.evaluate((x) => !!document.querySelector(x), sel).catch(() => false);
-  /* ★★一括で 押すと 開け閉めが 打ち消し合う（2026-09-14 実測）★★
-     かたまりの 印は ★切り替え★。全部 押すと ★開いていた 物が 閉じる★＝3回 押しても 揃わなかった。
-     ⇒ ★手本(shutoku-ui.mjs)と 同じく 名前を 決めて 1回ずつ★ 開く。
-       ★開いたかは 欄の 有無で 見る★（印が 付いたかでは 見ない＝会社の 決まり）。 */
+
+  /* ★★時間では なく ★数★で 待つ（2026-09-15・CI で 4回中 2回 落ちた）★★
+     ★落ちていた 形★ … 押した 後 ★決まった 秒（700ms）だけ 待って★ 欄が 在るかを 見て いた。
+       ⇒ ★CI は 手元より 遅い★＝★まだ 出ていない のに「無い」と 判じ★、
+         次の かたまりを 押して ★開いていた 物を 閉じる★（印は 切り替え）
+       ⇒ ★増えた/減った/変わった の 3つとも「ボタンが 押せない」で 赤★。
+       ★数★ … 手元 3回とも 緑／CI ★2勝2敗★（258027e緑・067c35e赤・b4148ae緑・55367c2赤）
+     ⇒ ★★欲しい 欄が 何本 出たかを 数え、★増えるまで★ 待つ★★（上限つき）。
+     ★待った 秒を 出す★＝★上限が 妥当かを 次の 人が 直せる★（今日 何度も 使った 形）。
+     ★★『上限 ◯秒』は『◯秒で 止まる』では ない★★＝1回の 見に 時間が 掛かる ぶん はみ出す。 */
+  const kazoeru2 = async (hoshii) => {
+    let n = 0;
+    for (const sel of hoshii) { if (await aruka(sel)) n++; }
+    return n;
+  };
+  const matsu = async (hoshii, mae, ue) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ue) {
+      const n = await kazoeru2(hoshii);
+      if (n > mae || n === hoshii.length) return { n, matta: (Date.now() - t0) / 1000 };
+      await machi(300);
+    }
+    return { n: await kazoeru2(hoshii), matta: (Date.now() - t0) / 1000 };
+  };
   const akeru = async (k) => {
     await pg.evaluate((x) => {
       const card = document.querySelector(x.c); if (!card) return;
@@ -266,18 +286,27 @@ try {
         .find((e) => String(e.getAttribute('data-dsub')).endsWith(':' + x.k));
       if (t) t.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     }, { c: CARD, k }).catch(() => null);
-    await machi(700);
   };
   const hiraku = async (hoshii) => {
+    let mae = await kazoeru2(hoshii);
+    let mattaKei = 0;
     for (const k of ['zaiseki', 'zei', 'shaho', 'teate', 'kazoku']) {
-      const nokori = [];
-      for (const sel of hoshii) { if (!(await aruka(sel))) nokori.push(sel); }
-      if (!nokori.length) break;
+      if (mae === hoshii.length) break;
       await akeru(k);
+      const r = await matsu(hoshii, mae, 6000);   /* ★増えるまで 待つ（1つ ぶん 6秒）★ */
+      mattaKei += r.matta;
+      mae = r.n;
+    }
+    if (mae !== hoshii.length) {
+      /* ★最後に もう一度 まとめて 待つ★＝★遅い 機械で 出そろう のを 逃さない★ */
+      const r2 = await matsu(hoshii, mae - 1, 12000);
+      mattaKei += r2.matta;
+      mae = r2.n;
     }
     const nokori2 = [];
     for (const sel of hoshii) { if (!(await aruka(sel))) nokori2.push(sel); }
-    return { nokori: nokori2.length, doko: nokori2.map((x) => x.replace(/^.*\[data-/, '[data-')) };
+    return { nokori: nokori2.length, matta: mattaKei.toFixed(1) + '秒',
+      doko: nokori2.map((x) => x.replace(/^.*\[data-/, '[data-')) };
   };
 
   /* ★★詳細設定の 印は「切り替え」＝押すたび 開いたり 閉じたり（2026-09-14 実測で 踏んだ）★★
@@ -285,12 +314,17 @@ try {
      ★増えた の 5欄（職業/同居/収入/入った日/理由）だけ 打てず★「出せる人が いません」に なった。
      ⇒ ★開いているかは『中の 欄が 在るか』で 見る★（印が 付いたかでは 見ない＝会社の 決まり）。 */
   const dsAkeru = async () => {
+    /* ★ここも 時間では なく 数で 待つ★（上と 同じ 訳） */
+    const t0 = Date.now();
     for (let i = 0; i < 3; i++) {
       if (await aruka(CARD + ' [data-dsub]')) return true;
       await nage(CARD, '.emp-dtgl[data-dtoggle]');
-      await machi(900);
+      const r = await matsu([CARD + ' [data-dsub]'], 0, 6000);
+      if (r.n > 0) return true;
     }
-    return aruka(CARD + ' [data-dsub]');
+    const ok = await aruka(CARD + ' [data-dsub]');
+    if (!ok) console.log('       🟡 詳細設定が ' + ((Date.now() - t0) / 1000).toFixed(1) + '秒 待っても 開かない');
+    return ok;
   };
   await dsAkeru();
   const HON = ['seibetsu', 'zip', 'address', 'kisoNenkin', 'hokenshaNo'].map((f) => CARD + ' [data-f="' + f + '"]');
