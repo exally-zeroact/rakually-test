@@ -312,6 +312,62 @@
     var arr=psAll(); var i=arr.findIndex(function(x){ return x.id===id; }); var row={ id:id, ym:ym, employee_id:employeeId, data:d };
     if(i>=0) arr[i]=row; else arr.push(row); psWrite(arr); return Promise.resolve(row);
   }
+  /* ★★消した 従業員の 給与明細を 倉庫からも 消す（2026-09-15 司さん「いらん従業員なら 消せや 倉庫に 残すな」）★★
+     ★何が 起きていたか★
+       「この従業員を削除」は state.employees から 抜くだけ。
+       cloudSaveState の 同期が pay_employees の 行は 消すが、
+       ★pay_payslips を 消す 所が 1か所も 無かった★（消していたのは payslip_batches と pay_meisai_docs だけ）。
+       ⇒ ★人は 消える／明細は 倉庫に 残る＝孤児★。
+       実測（2026-09-15）… 客の道で 1人 消したら ★孤児 3,716→3,717＝+1★。
+                          本番の 明細 12行中 ★9行が 孤児★／試験の 倉庫は 3,717行。
+     ★消してよい 訳★＝★消せるのは ★確定した 明細が 1か月も 無い人★だけ★（app.js の 門）
+       ⇒ ★その人の 明細は 全部 未確定★＝★賃金台帳として 残す 義務が かかる 物では ない★
+         （労基法108条で 残すのは ★確定した★ 賃金台帳。2026-08-09 に そう 決めて ある）
+       ⇒ 実測でも ★本番の 孤児 9行は 確定済み 0行★。
+     ★ここで 消さない 物★
+       ・`pay_meisai_docs`（従業員が 見る 紙）… ★物理削除しない★＝既に 在る 決め（store.js の すぐ下）
+         ⇒ ★Store.unpublishMeisai で 認証情報だけ 無効化する★（＝リンクを 殺す）
+       ・`pay_ledger`（Exally台帳）… 別の 棚・別の 決め
+     ★★なぜ account_id で 絞っていないか（2026-09-15 実測・★絞り忘れでは ありません★）★★
+       ★倉庫の 側で 絞っています（RLS）★＝実測:
+         ・kyuyo.pay_payslips … ★RLS ON★／決まり `own_pay_payslips`＝★cmd ALL・(account_id = auth.uid())★
+         ・列 account_id … ★空 不可・既定値 auth.uid()★
+       ⇒ ★他の 会社の 行は そもそも 見えない／消せない★＝★家の 作法（絞りは RLS に 任せる）★
+       ⇒ ★★ここに account_id を 足さないで ください★★（足しても 害は ないが、
+          ★「絞り忘れ」と 思って 直す のを 止める 為に 書いています★）
+       ★同じ 作法の 隣★ … Store.unpublishMonth（pay_meisai_docs）も 同じ（実測で RLS ON・同じ 決まり）。
+       ★★ただし RLS が 守るのは「別の 口」＝★鍵の 種類で 素通りします★★★
+         ・`anon`／`authenticated` の 鍵 … ★守られる★（auth.uid() が 入る）
+         ・★`service_role` の 鍵 … ★RLS を 素通り★★＝★auth.uid() が 無い★
+           ⇒ ★`employee_id` だけ／`ym` だけ の 絞りが ★全部の 口に 当たる★★
+         ★実測（2026-09-15・呼ぶ所を 全部 数えた）★
+           ・この道を 呼ぶ所 … ★画面（app.js）1か所だけ★
+           ・unpublishMonth を 呼ぶ所 … 画面 1か所＋試験 1本（jsdom の ローカル層＝倉庫に 触らない）
+           ・repo 全体で `service_role` を 使う所 … ★0件★（★調べた 0件★／
+             出て来た 鍵 3本は 中を 開いて ★role=anon★ と 確かめた）
+         ⇒ ★★この道は anon／authenticated からだけ 呼ぶ事★★
+           ＝★★道具・バッチ・Edge Function など service_role から 呼ばないで ください★★
+           （呼ぶなら ★account_id で 自分で 絞る★＝ここの 絞りでは 足りません）
+
+     ★返り★ { ok, n }。★n は 消した 行数★＝★「消しました」と 言って 消えていない を 作らない★為。
+     ★倉庫が 無い（オフライン/未ログイン）★… ★手元の 控えだけ 消して ok:true, souko:false★
+       ＝★「次の 同期で 消える」とは 言わない★（★同期は 明細を 消さない★＝嘘に なる）。 */
+  Store.deletePayslipsOf = function(employeeId){
+    if(!employeeId) return Promise.resolve({ ok:false, n:0, naze:'だれの 分か 分からない' });
+    if(hasSupa){
+      return sb.from('pay_payslips').delete().eq('employee_id', employeeId).select('id').then(function(r){
+        if(r.error) return { ok:false, n:0, naze:r.error.message };
+        return { ok:true, n:(r.data||[]).length, souko:true };
+      }).catch(function(e){ return { ok:false, n:0, naze:String(e&&e.message||e) }; });
+    }
+    try{
+      var arr=psAll(), mae=arr.length;
+      var nokoru=arr.filter(function(x){ return x.employee_id!==employeeId; });
+      psWrite(nokoru);
+      return Promise.resolve({ ok:true, n:mae-nokoru.length, souko:false });
+    }catch(e){ return Promise.resolve({ ok:false, n:0, naze:String(e&&e.message||e) }); }
+  };
+
   Store.getPayslipsByYm = function(ymFrom, ymTo){
     if(hasSupa){
       return fetchAllQ(function(a,b){ return sb.from('pay_payslips').select('ym,employee_id,data',{count:'exact'}).gte('ym',ymFrom).lte('ym',ymTo).range(a,b); })

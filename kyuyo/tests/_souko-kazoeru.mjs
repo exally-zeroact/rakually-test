@@ -73,6 +73,33 @@ export async function kazoeru() {
   return { ok: true, hito: Number(x.hito), meisai: Number(x.meisai) };
 }
 
+/* ★★名前から その人の id を 引く★★（読むだけ・2026-09-15）
+   ★なぜ 要るか★＝★消した 後は 名簿から 居なく なる★ので、
+     ★消す前に id を 控えて おかないと「その人の 明細」を 数えられない★。
+   ★画面からは 取れません★（app.js は 従業員の id を 外へ 出していない＝実測）。 */
+export async function hitoNoId(na) {
+  const n = String(na || '');
+  if (!/^[^']{2,60}$/.test(n)) return { ok: false, naze: '名前の 形が 違う' };
+  const r = await toi("select id from kyuyo.pay_employees where (data->>'name') = '" + n + "'");
+  if (!r.ok) return { ok: false, naze: r.naze };
+  const ids = (r.gyo || []).map((x) => String(x.id));
+  if (ids.length !== 1) return { ok: false, naze: 'その名前の 人が ' + ids.length + '人 居ます（1人でないと 取り違えます）' };
+  return { ok: true, id: ids[0] };
+}
+
+/* ★★その人の 明細が 倉庫に 何行 在るか★★（読むだけ・2026-09-15）
+   ★なぜ 要るか★＝「消したら 明細も 消える」を 測るのに ★全体の 行数では 足りない★。
+     全体は ★他の 試験が 同時に 書く★ので ±0 に 見えたり する（今日 それで 1度 騙された）。
+   ⇒ ★その人の id で 数える★＝★消える 所を まっすぐ 見る★。
+   ★分母にも 使う★＝★消す前に N行 出来ていたか★（0行なら ★消える所を 見ていない＝はかれない★）。 */
+export async function hitoNoMeisai(employeeId) {
+  const id = String(employeeId || '');
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { ok: false, naze: 'id の 形が 違う' };
+  const r = await toi("select count(*) as n from kyuyo.pay_payslips where employee_id = '" + id + "'");
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, n: Number((r.gyo[0] || {}).n) };
+}
+
 /* ★★「今」は ★倉庫の 時計★に 聞く（2026-09-14 総なめで 捕まった）★★
    前は ★手元の 時計から 60秒 手前★を 始まりに していた（時計の ずれを 見込んで）。
    ⇒ 総なめで 試験が 続けて 走ると ★直前の 試験の ゴミまで 60秒の 窓に 入る★

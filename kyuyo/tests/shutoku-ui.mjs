@@ -131,7 +131,7 @@ const pg = await ctx.newPage();
    訳＝★ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれる★（今日 見つけた 幻の人）。
      その後 読み直しが 着いて 消えるので、★後に 数えると 1人 減って 見える★。
    ⇒ ★1行も 触っていない 時の 数★を 土台に する。 */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA } = await import('./_souko-kazoeru.mjs');
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, hitoNoId: HITO_ID, hitoNoMeisai: HITO_MEISAI } = await import('./_souko-kazoeru.mjs');
 const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
@@ -222,7 +222,15 @@ async function chohyo() {
    ⇒ ★pay_employees と pay_payslips の 行数を 前後で 突き合わせる★。
      ★画面から 消えた は 緑の 根拠に しない★。 */
 
-const NA = '試験' + String(Date.now()).slice(-6);   /* ★氏名（漢字）は 姓と名の 間に 全角スペース1つ★（項番8） */
+const NA = '試験' + String(Date.now()).slice(-6);
+/* ★★倉庫に 入る 名は これ★★（2026-09-15・webkit で 2度 外した）
+   ★氏名（漢字）は ★姓と 名の 間に 全角スペース1つ★★（項番8＝届の 決まり）。
+   ★★画面に 打つ のも 倉庫から 引く のも ★この 字★を 使う★★＝★字を 1か所に する★。
+   ★なぜ 1か所か★＝前は 下の 一覧で `NA + '　太郎'` を 打ち、
+     ★引く時は `NA` だけ★で 探して いた ⇒ ★倉庫には 居るのに 0人★＝★21.6秒 待っても 現れない★。
+     ＝★同じ 字が 2か所に 在ると ずれる★。
+   ★★`NA` で 引かないで ください★★（★素直に 見えますが 倉庫の 名は これでは ありません★）。 */
+const NA_FULL = NA + '　太郎';
 await utsu(pg, CARD + ' [data-f="name"]', NA);
 await utsu(pg, CARD + ' [data-f="joinYmd"]', '2026-04-01');
 const mae = await chohyo();
@@ -235,7 +243,7 @@ T('★② 足りない 物を 名前つきで 言う（氏名カナ）',
 
 await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(600);
 await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(700);
-for (const [f, v] of [['name', NA + '　太郎'], ['kana', 'ﾔﾏﾀﾞ ﾀﾛｳ'], ['birthYmd', '1985-05-15'],
+for (const [f, v] of [['name', NA_FULL], ['kana', 'ﾔﾏﾀﾞ ﾀﾛｳ'], ['birthYmd', '1985-05-15'],
   ['joinYmd', '2026-04-01'], ['seibetsu', 'male'], ['zip', '790-0001'],
   ['address', '愛媛県松山市1-2-3'], ['jushoKana', 'ｴﾋﾒｹﾝ ﾏﾂﾔﾏｼ 1-2-3'], ['base', '260000']]) {
   if (!(await utsu(pg, CARD + ' [data-f="' + f + '"]', v))) console.log('       🟡 欄が 無い … ' + f);
@@ -306,12 +314,69 @@ if (ato.osenai === false) {
    ★消すのは 今 足した 人だけ★（名前で 引く＝他の 人には 触らない）。
    ★アプリが 消させないなら ok:false で 返る★＝★裏口で 抜けない★。 */
 {
+  /* ★★本当の 証し＝★その人の 明細が 倉庫から 消えるか★★（2026-09-15 司さん「倉庫に 残すな」）
+     ★全体の 行数では 足りない★＝他の 試験が 同時に 書くので ★±0 に 見える★事が 在る
+     （今日 1度 それで 騙された）。⇒ ★その人の id で 数える★。
+     ★id は 消す前に 控える★＝消した 後は 名簿から 居なく なる（画面は id を 出さない）。
+     ★分母★＝★消す前に 何行 出来ていたか★。0行なら ★消える所を 見ていない＝はかれない★。 */
+  /* ★★倉庫に 届くのを ★数で★ 待つ（2026-09-15 webkit で 1度 外した）★★
+     ★外した 訳★＝人を 足すと まず ★既定の 名「従業員 1」★で 作られ、
+       その後 名前を 打つ。★保存は 間を 置いて 走る（debounce）★ので
+       ★打った 名前が 倉庫に 届く 前に 引いて「0人」に なった★。
+       ＝★今日 何度も 言った「時間では なく 数で 待つ」を 自分の 新しい 道具で 踏んだ★。
+     ★★待った 量を 出す★★＝★上限 20秒が 妥当かは 今 誰も 知らない★ので
+       ★毎回 何秒で 現れたかを 出す★＝★次の 人が 上限を 直せる★。
+     ★上限に 当たったら「20秒 待っても 現れない」と 書く★＝★どれだけ 待ったかを 残す★。
+     ★★『上限 20秒』は『20秒で 止まる』では ありません★★（2026-09-15 実測 ★21.6秒★）
+       ＝★1回の 引き（倉庫への 問い）が 終わってから 上限を 見る★ので ★最後の 1回ぶん はみ出す★。
+       ⇒ ★出す 秒は ★実際に 待った 秒★（上限では ない）★＝だから 21.6 と 出る。
+     ★★実測 0.8秒★★（2026-09-15・webkit）＝★上限 20秒は 25倍の 余裕★。
+       ★★それでも 上限は 縮めません★★（2026-09-15 指示役1）:
+         ・★0.8秒は ★1回の 目★★＝★1点で 判じない★
+         ・★上限は ★安い 保険★★＝★当たらない 限り 1秒も 損しない★
+         ・★21.6秒 掛かったのは 上限の せいでは ない★（名前が 違って 一生 見つからなかった）
+           ＝★縮めても 速く なりません★
+         ・★縮めると 機械が 混んだ 日に 🟡 が 出る＝★偽の 未測定★★
+       ⇒ ★縮めたく なったら ★この 実測（0.8秒）を もう1回 取り直して から★★。 */
+  const MACHI_UE = 20000;
+  const hajimari = Date.now();
+  let EID = { ok: false, naze: 'まだ 引いていない' };
+  while (Date.now() - hajimari < MACHI_UE) {
+    EID = await HITO_ID(NA_FULL);
+    if (EID.ok) break;
+    await machi(1000);
+  }
+  const matta = ((Date.now() - hajimari) / 1000).toFixed(1);
+  if (EID.ok) console.log('       倉庫に 現れた … ' + matta + '秒（上限 ' + (MACHI_UE / 1000) + '秒）');
+  else console.log('       🟡 ' + matta + '秒 待っても 倉庫に 現れない（上限 ' + (MACHI_UE / 1000) + '秒）… ' + EID.naze);
+  const meisaiMae = EID.ok ? await HITO_MEISAI(EID.id) : { ok: false, naze: matta + '秒 待っても 現れない（' + EID.naze + '）' };
+  if (meisaiMae.ok) console.log('       消す前 … 「' + NA_FULL + '」の 明細 ' + meisaiMae.n + '行');
+  else console.log('       🟡 消す前の 明細を 数えられない … ' + meisaiMae.naze);
+
   const r = await KATAZUKERU(pg, { na: NA, machi, osu });
   r.michi.forEach((m) => console.log('       片づけ … ' + m));
   const nokori = await pg.evaluate((na) => Array.from(document.querySelectorAll('#emp-list .mco'))
     .filter((x) => ((x.querySelector('.mco-nm') || {}).textContent || '').indexOf(na) >= 0).length, NA);
   T('★⑤ 後始末＝この 試験が 足した 人を ★客の 道で★ 消した（ゴミを 残さない）', nokori === 0,
     '「' + NA + '」が ' + nokori + '人 残っている（' + (r.naze || 'ok') + '）');
+
+  /* ★★消した 後に もう一度 数える★★＝★人は 消えたが 明細は 残る★が 直ったかの 1点 */
+  if (!meisaiMae.ok || !EID.ok) {
+    mihakari++;
+    console.log('  🟡 ★はかれない★ その人の 明細を 倉庫で 数えられない … ' + (meisaiMae.naze || EID.naze));
+  } else if (meisaiMae.n === 0) {
+    mihakari++;
+    console.log('  🟡 ★はかれない★ 消す前に 明細が 0行＝★消える所を 見ていません★（分母 0）');
+  } else {
+    await machi(2500);
+    const meisaiAto = await HITO_MEISAI(EID.id);
+    if (!meisaiAto.ok) { mihakari++; console.log('  🟡 ★はかれない★ 消した後を 数えられない … ' + meisaiAto.naze); }
+    else {
+      console.log('       消した後 … 「' + NA_FULL + '」の 明細 ' + meisaiAto.n + '行（消す前 ' + meisaiMae.n + '行）');
+      T('★⑤-2 ★消した 人の 給与明細が 倉庫から 消えた★（' + meisaiMae.n + '行 → ' + meisaiAto.n + '行）',
+        meisaiAto.n === 0, '★' + meisaiAto.n + '行 残っている＝孤児に なりました★');
+    }
+  }
 }
 
 /* ★本当の 判じは 倉庫★＝画面の 数では ない */
