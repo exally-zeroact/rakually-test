@@ -121,7 +121,16 @@ T('随時改定モード: 3か月+従前+固定給変動を入力すると該当
   qa('#emp-list .sh-pay').forEach((el, k) => set(el, [280000, 285000, 282000][k]));
   qa('#emp-list .sh-days').forEach(el => set(el, 20));
   set(q('#emp-list .sh-prevhyojun'), '200000');
-  set(q('#emp-list .sh-henko'), '2026-06');
+  /* ★★変動があった月は ★change★ で 送る（2026-09-16 直した）★★
+     ★前は `input` で 送って いた★＝アプリも `input` で 受けて いたので ★この試験だけ 緑★。
+     ★実際の お客さんの 画面は 壊れて いた★（欄は `type=hidden`＋`data-ym`＝
+       js/ym-picker.js が 隣に 作る select が ★`change` しか 出さない★）
+     ⇒ ★試験が 間違った 合図で 通って いた＝欠陥を 隠して いた★
+     ⇒ ★本物の 道（change）に 揃える★。見張り＝kyuyo/tests/ym-hozon.test.mjs */
+  (function () {
+    const el = q('#emp-list .sh-henko');
+    if (el) { el.value = '2026-06'; el.dispatchEvent(new win.Event('change', { bubbles: true })); }
+  })();
   const chip = q('#emp-list [data-shfixed]'); ok(chip, '固定給変動チップ'); chip.click();
   const box = q('#emp-list .zk-box'); ok(box, '随時改定 判定ボックス');
   ok(/該当します/.test(box.textContent), '該当表示（' + box.textContent.slice(0, 30) + '）');

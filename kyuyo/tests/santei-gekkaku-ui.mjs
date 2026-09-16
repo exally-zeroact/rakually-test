@@ -317,6 +317,27 @@ try {
   console.log('       随時改定の 材料 … ' + JSON.stringify(zIma)
     + '（打てた? 変動月 ' + zHenko + ' ／ 従前 ' + zPrev + '）');
 
+  /* ★★state に 入ったかを ★描き直して 読み戻す★ で 測る（2026-09-16）★★
+     ★訳★＝app.js は state を 外に 出していない（zIma が {} に なる）。
+     ⇒ ★画面を 1度 離れて 戻す★＝札は state から 描き直される
+       ⇒ ★その時 欄に 出る 字＝state の 中身★。
+     ＝★「打てた（DOMに 字が 入った）」と「state に 入った」を 分ける★
+       （今までは 前者しか 見て いなかった＝★月額変更が はかれない の 正体かも★）。 */
+  await osu(pg, '.bn[data-scr="scr-input"]'); await machi(700);
+  await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(600);
+  await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(900);
+  const zNokori = await pg.evaluate((sel) => {
+    const c = document.querySelector(sel); if (!c) return { err: '札が 無い' };
+    const one = c.querySelector('.zk-inp .ym-one');
+    const hid = c.querySelector('.sh-henko');
+    const pv = c.querySelector('.sh-prevhyojun');
+    const fx = Array.from(c.querySelectorAll('[data-shfixed]')).map((e) => e.getAttribute('data-v') + (e.className.indexOf('on') >= 0 ? '★' : ''));
+    const md = Array.from(c.querySelectorAll('.sh-mode')).map((e) => e.getAttribute('data-mode') + (e.className.indexOf('on') >= 0 ? '★' : ''));
+    return { henkoHyoji: one ? one.value : '(箱が無い)', henkoKakure: hid ? hid.value : '(欄が無い)',
+      prev: pv ? pv.value : '(欄が無い)', fixed: fx, mode: md };
+  }, CARD).catch((e) => ({ err: String(e).slice(0, 60) }));
+  console.log('       ★描き直した 後★（＝state の 中身）… ' + JSON.stringify(zNokori));
+
   /* 会社の 都道府県（保険料の 表に 要る） */
   await osu(pg, '#set-seg .seg-b[data-set="company"]'); await machi(700);
   await utsu(pg, '#c-pref', 'ehime');

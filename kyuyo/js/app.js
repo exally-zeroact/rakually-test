@@ -5428,6 +5428,21 @@
       var prtc=ev.target.closest('[data-prtier]'); if(prtc){ prTierSet(emp,prtc.dataset.prtier,prtc.value); refreshShaho(i); return; } // 段の下限/率(change)
       if(ev.target.dataset.prfixed!=null){ ensurePayRule(emp).fixed=String(num(ev.target.value)); renderEmpMaster(); return; }
       var pra=ev.target.closest('[data-pramt]'); if(pra){ var _pa=ensurePayRule(emp).variable.parts[+String(pra.dataset.pramt).split(':')[1]]; if(_pa)_pa.amount=String(num(pra.value)); renderEmpMaster(); return; }
+      /* ★★変動があった月（随時改定）は ここで 受ける（2026-09-16）★★
+         ★前は `input` の 側に 書いて いた★＝★1度も 保存されて いなかった★。
+         訳＝この欄は `type=hidden`＋`data-ym` で、★js/ym-picker.js が 隣に 作る select★が
+           `change` を 出す（ym-picker.js 100行）。★`input` は 出ません★。
+         ⇒ ★選んでも state に 入らない★
+           ⇒ gekkakuRows（3146）の 門「s.henkoYm が 在る」で ★全員 落ちる★
+           ⇒ ★★月額変更届が 誰も 出せない★★（実測 2026-09-16・描き直すと 欄が 空に 戻る）
+         ★同じ 形を 3つ 数えた★ … 賞与支給月（data-bn・5098 change）＝効く／
+           従前の 改定月（data-f・この listener）＝効く／★変動月だけ input 側＝壊れて いた★
+         ★見張り★＝kyuyo/tests/ym-hozon.test.mjs（data-ym の 欄が change 側に 在るか） */
+      if(ev.target.classList.contains('sh-henko')){
+        var _c=ev.target.closest('.mco'); if(_c){ var _i=+_c.dataset.i, _e=state.employees[_i];
+          if(_e){ if(!_e.shaho)_e.shaho={months:[]}; _e.shaho.henkoYm=ev.target.value; refreshZuiji(_i);
+            if(window.persistSaveDebounced)persistSaveDebounced(); } }
+        return; }
       var f=ev.target.dataset.f; if(!f)return;
       if((f==='dept'||f==='role')&&ev.target.value==='__new'){ var label=f==='dept'?'部署':'役職'; var fld=f; uiPrompt('新しい'+label+'名を入力').then(function(nv){ nv=(nv||'').trim(); if(nv){ var list=fld==='dept'?state.depts:state.roles; if(list.indexOf(nv)<0)list.push(nv); emp[fld]=nv; } renderEmpMaster(); }); return; }
       emp[f]=ev.target.value; if(ev.target.classList.contains('num')){ emp[f]=String(num(ev.target.value)); ev.target.value=fmtN(emp[f]); }
@@ -5447,7 +5462,6 @@
       if(t.classList.contains('sh-mikomi')){ emp.shaho.mikomi=t.value; refreshShaho(i); return; }
       if(t.classList.contains('sh-manual')){ emp.shaho.manual=t.value; refreshShaho(i); return; }
       if(t.classList.contains('sh-prevhyojun')){ emp.shaho.prevHyojun=t.value; refreshZuiji(i); return; }
-      if(t.classList.contains('sh-henko')){ emp.shaho.henkoYm=t.value; refreshZuiji(i); return; }
       var f=t.dataset.f; if(f&&!t.matches('select')) emp[f]=t.value; var nm=card.querySelector('.mco-nm'); if(f==='name'&&nm)nm.textContent=t.value||'（無名）';
       // 基本給/時給/歩合/通勤等の変更で「社会保険(自動)」ヒーローを即再計算(タブ切替まで古い額が出るのを防ぐ)
       if(f==='base'||f==='hourly'||f==='commissionAmt'||f==='hourlyGuarantee'||f==='commute'||f==='commuteKm') refreshShaho(i); });
