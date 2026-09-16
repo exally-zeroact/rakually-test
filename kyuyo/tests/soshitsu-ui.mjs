@@ -18,6 +18,23 @@
 import fs from 'node:fs'; import path from 'node:path'; import http from 'node:http'; import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+{
+  /* ★★本番の repo では 測らない（2026-09-16 足した）★★
+     ★訳★＝この試験は ★試験用の 口で ログインする★。本番の repo には ★その 鍵が 無い★
+       ⇒ 入れない ⇒ 終わり値 2 ⇒ ★本番の WebKit が 毎回 必ず 赤★（実測 2026-09-16）。
+     ★中身の 不具合では ありません★＝★測る 場所が 違うだけ★。
+     ★数えた★ … webkit.yml に 載る 8本の うち ★この門を 持って いなかったのは 2本★
+       （shutoku-ui／soshitsu-ui）。他の 6本は 前から 持って いた。
+     ★戻す条件★＝本番CIに 試験の 鍵を 置いた日。 */
+  const { kagiAru } = await import('../../tests/_hairu.mjs');
+  if (!(await kagiAru(ROOT))) {
+    console.log('  — ★この repo（本番）には 試験の 鍵が 無いので ここでは 測れません★'
+      + '（★テスト線で 測っています★／戻す条件＝本番CIに 鍵を 置いた日）');
+    process.exit(0);
+  }
+}
+
 const SELF = process.argv.includes('--self-test');
 
 /* ★物差しそのもの★（ブラウザを 使わずに 確かめられる 形） */

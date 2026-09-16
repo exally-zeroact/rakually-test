@@ -553,6 +553,8 @@ jobs:
         run: node kyuyo/tests/cloud-sync.mjs
       - name: ★読めるまで消さない・読めるまで保存しない（2026-09-03 P0＝開いただけで従業員が消えた 6/10）
         run: node kyuyo/tests/load-before-delete.test.mjs && node kyuyo/tests/load-before-delete.test.mjs --self-test
+      - name: ★ログインする試験は「本番のrepoでは測らない」門を必ず持つ（09-16＝本番のWebKitが毎回赤だった）
+        run: node kyuyo/tests/honban-de-hakaranai.test.mjs && node kyuyo/tests/honban-de-hakaranai.test.mjs --self-test
       - name: ★月を選ぶ欄(data-ym)は change で受ける（09-16＝変動月が1度も保存されず月額変更届が誰も出せなかった）
         run: node kyuyo/tests/ym-hozon.test.mjs && node kyuyo/tests/ym-hozon.test.mjs --self-test
       - name: ★倉庫を触る測りは必ず同じ門を通る（鍵が無い時の決めを人の記憶で保たない＝09-15に同じ型を3回）

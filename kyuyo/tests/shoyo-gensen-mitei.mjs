@@ -31,6 +31,21 @@ import { borrow, launch as pwLaunch } from '../../scripts/_borrow-playwright.mjs
 import { hairu, osu, toziru } from '../../tests/_hairu.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+{
+  /* ★★本番の repo では 測らない（2026-09-16 足した）★★
+     ★訳★＝この試験は 試験用の 口で ログインする。本番の repo には ★その 鍵が 無い★
+       ⇒ 入れない ⇒ 終わり値 2 ⇒ ★本番の 検査が 毎回 必ず 赤★。★中身の 不具合では ない★。
+     ★見張り★＝kyuyo/tests/honban-de-hakaranai.test.mjs（★この門が 抜けたら 赤★）
+     ★戻す条件★＝本番CIに 試験の 鍵を 置いた日。 */
+  const { kagiAru } = await import('../../tests/_hairu.mjs');
+  if (!(await kagiAru(ROOT))) {
+    console.log('  — ★この repo（本番）には 試験の 鍵が 無いので ここでは 測れません★'
+      + '（★テスト線で 測っています★／戻す条件＝本番CIに 鍵を 置いた日）');
+    process.exit(0);
+  }
+}
+
 const SELF = process.argv.includes('--self-test');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 const srv = http.createServer((rq, rs) => {
