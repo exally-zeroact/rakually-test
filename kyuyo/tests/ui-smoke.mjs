@@ -47,18 +47,24 @@ const OSANAI_JI = [
   { ji: '印刷',        naze: '印刷ダイアログが 開く' },
   { ji: '公開',        naze: '★従業員の Web明細に 公開される★（客に 出る）' },
   { ji: 'webpub',     naze: '★Web明細の 公開★（同上・印の 側）' },
-  { ji: 'dl-',        naze: 'ファイルを 落とす' },
-  { ji: 'csvimport',  naze: 'CSV を 取り込む（中身が 書き換わる）' },
   { ji: '従業員を削除', naze: '★人が 消える★（戻せない）' },
   { ji: 'この従業員',   naze: '★人が 消える★（確認の 言い回し）' },
 ];
 const OSANAI_SHIRUSHI = [
-  { na: 'data-link',    naze: '外へ 出る リンク' },
-  { na: 'data-webpub',  naze: '★Web明細の 公開★' },
-  { na: 'data-del-emp', naze: '★人が 消える★' },
+  { na: 'data-csvimport', naze: '★CSV を 取り込む＝中身が 書き換わる★'
+    + '（2026-09-18 … 前は 字「csvimport」で 外して いたが ★実物は 印 `data-csvimport` で id も 字も 持たない★'
+    + '＝★1個 在るのに 押されて いた★＝★守って いる つもりで 守れて いなかった★）' },
+  { na: 'data-link',    naze: '外へ 出る リンク（★Web明細の リンクを 写す ボタン★＝app.js:5901）'
+    + '／★実物は 在るが この 試験は まだ 届いて いない★＝★届いた 日に 効く★ので 残す' },
   { na: 'class m-del-emp/del-emp', naze: '★人が 消える★（札の 削除ボタン）' },
 ];
-const OSANAI_HONSU = 12, OSANAI_SHIRUSHI_HONSU = 4;   /* ★超えたら 赤★ */
+const OSANAI_HONSU = 10, OSANAI_SHIRUSHI_HONSU = 3;   /* ★超えたら 赤★ */
+/* ★★外した 2本（`dl-`／`data-webpub`／`data-del-emp`）★★（2026-09-18 実測で 外した）
+     `dl-`        … ★`datalist` の id★（app.js:229/234）＝★ボタンでは ない★／5画面・札を 開いた 状態で ★0個★
+     `data-webpub`… ★アプリ全体に 0件★（実物は `#b-webpub`＝字「公開」で 当たって いる）
+     `data-del-emp`… ★アプリ全体に 0件★（実物は `class="m-del-emp"`＝下の 印で 当たって いる）
+   ⇒ ★当てずっぽうで 書いた 名前の 免除★＝★守って いる つもりで 何も 守って いない★
+   ⇒ ★外して 同じ 結果が 出るかを 測ってから 外した★（[[feedback_menjo_no_wake_wa_hazushite_hakaru_made_mitate]]） */
 /* ★どの 免除が 何回 効いたか★＝★使われて いない 免除★を 見つける為（黙って 残さない） */
 const OSANAI_KAZU = {};
 function atatta(k) { OSANAI_KAZU[k] = (OSANAI_KAZU[k] || 0) + 1; return true; }
@@ -70,9 +76,8 @@ function denied(el) {
     const j = m.ji.toLowerCase();
     if (id.toLowerCase().indexOf(j) >= 0 || t.toLowerCase().indexOf(j) >= 0) return atatta(m.ji);
   }
+  if (el.hasAttribute('data-csvimport')) return atatta('data-csvimport');
   if (el.getAttribute('data-link')) return atatta('data-link');
-  if (el.getAttribute('data-webpub')) return atatta('data-webpub');
-  if (el.hasAttribute('data-del-emp')) return atatta('data-del-emp');
   if (el.className && /m-del-emp|del-emp/.test(el.className)) return atatta('class m-del-emp/del-emp');
   return false;
 }
@@ -96,7 +101,13 @@ A.state.employees.forEach(function (e) {
   A.state.open['D' + e.id] = true;      // 詳細設定（削除ボタンは この 中）
   fudaAketa++;
 });
-console.log('  ★札を 開いた … ' + fudaAketa + '枚★（前は 0枚＝畳んだ ままで 数えて いた）');
+/* ★分母つきで 出す★＝★「2枚」だけでは 全部か 一部か 決められない★（指示役1 2026-09-18） */
+console.log('  ★札を 開いた … ' + fudaAketa + '枚／' + A.state.employees.length + '枚★'
+  + '（前は 0枚＝畳んだ ままで 数えて いた／★この紙は 倉庫では なく 自分で 置いた 見本の 人を 使う★）');
+T('★札は 全部 開いた（分母つき・開き残しが 無い）', function () {
+  ok(fudaAketa === A.state.employees.length,
+    '★開いた ' + fudaAketa + '枚／居る ' + A.state.employees.length + '枚★＝★開き残しが 在る＝まだ 届いて いない★');
+});
 
 /* ★★先に「免除が 効く」事を 1回 確かめる★★
    ★訳★＝札が 開くと ★削除の ボタンが 初めて DOM に 出る★。
@@ -115,6 +126,34 @@ T('★押す前の 門＝削除の ボタンが 出て いて、しかも 押さ
     '★削除の ボタンが 押される側に 居る★＝' + nogare.length + '/' + del.length
     + '＝★このまま 全部 押したら 人が 消えます★');
   console.log('     削除の ボタン ' + del.length + '個 … ★全部 押さない側★');
+});
+
+/* ★★危ない 印を 持つ ボタンは 全部 押さない側に 居る★★（2026-09-18 に 足した）
+   ★訳★＝★守りを 外しても 赤に ならなかった★（実測）＝★黙って 押されるだけ★
+     `data-csvimport` の 守りを 外して 走らせたら ★押した 65 → 66 に 増えて、それでも 47 passed★。
+     ⇒ ★「押さない はず」が 破れた 事を 誰も 言わない★＝★守って いる つもり★の 出来上がり。
+   ⇒ ★印を 名指しで 並べ、1個ずつ「押さない側か」を 見る★＝★外した 日に 赤に なる★。 */
+const ABUNAI_SHIRUSHI = ['data-csvimport', 'data-link', 'data-webpub', 'data-del-emp'];
+T('★危ない 印を 持つ ボタンは 全部 押さない側に 居る（守りを 外したら 赤）', function () {
+  const qa = s => [...doc.querySelectorAll(s)];
+  let mita = 0, more = 0;
+  const dame = [];
+  /* ★SCREENS は この 下で 作る★ので ここでは ★画面の 札を その場で 読む★（同じ 物・名前を 手で 並べない） */
+  const gamen = qa('.bn[data-scr]').map(b => b.getAttribute('data-scr'));
+  for (const scr of gamen) {
+    const tab = doc.querySelector('.bn[data-scr="' + scr + '"]'); if (tab) tab.click();
+    for (const b of qa('#' + scr + ' button')) {
+      for (const sh of ABUNAI_SHIRUSHI) {
+        if (!b.hasAttribute(sh)) continue;
+        mita++;
+        if (!denied(b)) dame.push(scr + ' ' + sh + ' 「' + (b.textContent || '').slice(0, 12) + '」');
+      }
+    }
+    more++;
+  }
+  console.log('     危ない 印の ボタン … ★' + mita + '個★（見た 画面 ' + more + 'つ）'
+    + (mita ? '' : '（★0個＝この回は 何も 守って いない★）'));
+  ok(dame.length === 0, '★押される側に 居る★ … ' + dame.join(' / '));
 });
 
 // ── 各画面を開いて、その画面の全ボタンをクリック(例外0) ──
