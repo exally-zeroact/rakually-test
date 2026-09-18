@@ -41,12 +41,14 @@ const OKIBA_HONSU = 3;
 /* ★★今 まだ 中身を 見て いない 紙（＝借り）★★（2026-09-19 実測）
    ★黙って 免除に しない★＝★1枚ずつ 訳を 書き、本数を 決め打つ★（souko-mon・ui-smoke と 同じ 形）
    ★これを 0に するのが 仕事★＝★増えたら 赤／減らしたら 決め打ちも 直す★ */
-const MADA = [
-  { kami: 'kyuyo/admin.html',
-    naze: '★会社の 管理の 紙★。実ブラウザで 開く 試験は 1本 在る（tests/scroll-muda.mjs）が'
-      + '★転がりだけ★＝中身を 見て いない。★次に 作る 1本★。' },
-];
-const MADA_HONSU = 1;
+const MADA = [];
+const MADA_HONSU = 0;
+/* ★★0に なった 日（2026-09-19）★★
+   ここに 1枚だけ 在った `kyuyo/admin.html` は `kyuyo/tests/admin-ui.mjs` で 中身を 見た
+   （管理者で ない 口で 開き、★他人の メールが 画面に 0・他人の 行が 0・書けた 行が 0★）。
+   ★「0本」は「誰も 見て いない」では 無かった★＝字だけ 見る 見張りは 7本 在った
+   （button-uniform／no-dead-ui／own-name／html-script-syntax／pages-hosting／shirase-iro／scroll-muda）。
+   ★増えたら また ここに 訳つきで 書く★＝黙って 免除に しない。 */
 
 function gitFiles() {
   return execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
@@ -209,8 +211,15 @@ if (!SELF) {
     ok(MADA.length === MADA_HONSU, '★まだの 紙 ' + MADA.length + '枚／決め打ち ' + MADA_HONSU + '枚★');
     ok(MADA.every((x) => x.naze && x.naze.length > 8), '★訳の 無い まだの 紙が 在る★');
   });
-  console.log('  ★まだ 中身を 見て いない 紙 ' + MADA.length + '枚★ … '
-    + MADA.map((x) => x.kami).join(' / ') + '（★これを 0に するのが 仕事★）');
+  /* ★★0枚に なった 日が 一番 危ない★★（2026-09-19 指示役1 の 注文で 足した 1行）
+     ★0枚＝全部 よく 見た★では ★ありません★＝この 道具の 弱みは 私が 自分で 書いた 通り
+     ★道が 在って id を 1つ 名指しすれば「見た」に 数える＝見た フリは 作れる★。
+     ⇒ ★0に なると 誰も もう 数えなく なる★ので ★出しに 毎回 書く★。 */
+  console.log('  ★この 道具は ★見て いない 紙を 見つける 物★です'
+    + '／★よく 見た の 証しでは ありません★（道＋id 1つで「見た」に 数える）');
+  console.log('  ★まだ 中身を 見て いない 紙 ' + MADA.length + '枚★'
+    + (MADA.length ? ' … ' + MADA.map((x) => x.kami).join(' / ') + '（★これを 0に するのが 仕事★）'
+      : '（★2026-09-19 に 0枚に なった★＝増えたら 訳つきで ここに 書く）'));
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 }

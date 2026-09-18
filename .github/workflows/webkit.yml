@@ -201,3 +201,7 @@ jobs:
         run: node kyuyo/tests/maboroshi-ui.mjs
       - name: ★従業員が 自分の 明細を 開く 道（実ブラウザ・09-19＝ここを 見る 試験が 1本も 無かった／幅と 転がりだけ 見て いた）
         run: node kyuyo/tests/meisai-ui.mjs
+      - name: ★管理者で ない 人に 他人の 一覧が 出ないか（実ブラウザ・09-19＝この紙の 中身を 見る 試験が 0本だった／守りの 本体は サーバ側の RLS）★
+        run: node kyuyo/tests/admin-ui.mjs
+      - name: ★わざと 画面の 門を 外しても サーバが 止めるか（admin-ui の 空振り止め）★
+        run: node kyuyo/tests/admin-ui.mjs --waza
