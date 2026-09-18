@@ -101,14 +101,23 @@ async function login(u) {
   const j = await r.json().catch(() => ({}));
   return j.access_token || null;
 }
-async function yomu(tana, tok) {
+/* ★★同じ「0」でも 意味が 逆（2026-09-18 指示役1）★★
+   ・★弾かれた（権限が 無い）★ … ★手が 届いて いない★＝この 検査の 外に 出してよい
+   ・★0件で 通った★        … ★手は 届いて いる★＝★行が 入った 日に 見える★＝★分母に 残す★
+   ★前は どちらも `null`／`0` で 返して いた★＝★見分けが つかなかった★。
+   ⇒ ★行を 1行も 作らずに『手が 届くか』だけ 先に 分かる★＝[[feedback_fuete_inai_ni_wa_2shurui_aru]] の 同族。
+   返り … { n:件数 or null, todoku:true/false, status:番号 } */
+async function yomu2(tana, tok) {
   const h = { apikey: KEY };
   if (tok) h.Authorization = 'Bearer ' + tok;
   const r = await fetch(URL_ + '/rest/v1/' + tana + '?select=*&limit=50', { headers: h });
   const t = await r.text();
-  try { const j = JSON.parse(t); if (Array.isArray(j)) return j.length; } catch (e) { /* 表でない */ }
-  return null;
+  let n = null;
+  try { const j = JSON.parse(t); if (Array.isArray(j)) n = j.length; } catch (e) { /* 表でない */ }
+  /* ★200 で 配列が 返った＝手は 届いて いる（0件でも）★／★401・403・404 は 届いて いない★ */
+  return { n, todoku: r.ok && Array.isArray(JSON.parse(t === '' ? '0' : t) || null) ? true : (r.ok && n !== null), status: r.status };
 }
+async function yomu(tana, tok) { return (await yomu2(tana, tok)).n; }
 
 console.log('\n[rls-tanin] 他人のデータが 見えない・書けないか（テスト線の 倉庫）');
 let ng = 0, mita = 0;
@@ -119,12 +128,24 @@ if (!tokA || !tokB) {
     + ' A=' + (tokA ? 'ok' : 'ng') + ' B=' + (tokB ? 'ok' : 'ng'));
   process.exit(2);
 }
+let todokuNoni0 = 0, todokanai = 0;
 for (const t of TANA) {
-  const a = await yomu(t, tokA), b = await yomu(t, tokB), c = await yomu(t, null);
+  const ra = await yomu2(t, tokA), rb = await yomu2(t, tokB), rc = await yomu2(t, null);
+  const a = ra.n, b = rb.n, c = rc.n;
   const r = judge(a, b, c);
   if (r.mark === '🔴') ng++;
   if (r.mark === '🟢') mita++;
-  console.log('   ' + r.mark + ' ' + t.padEnd(18) + ' ' + r.ji);
+  /* ★黄（棚が 空）の 時だけ「手が 届くか」を 足して 出す★＝★行を 作らずに 半分 分かる★ */
+  let soe = '';
+  if (r.mark === '🟡' && a === 0) {
+    if (ra.todoku) { todokuNoni0++; soe = '  ★手は 届く（' + ra.status + '）＝行が 入った 日に 見える＝★分母に 残す★★'; }
+    else { todokanai++; soe = '  ★手が 届かない（' + ra.status + '）＝給与の 鍵では 触れない＝★この検査の外★★'; }
+  }
+  console.log('   ' + r.mark + ' ' + t.padEnd(18) + ' ' + r.ji + soe);
+}
+if (todokuNoni0 || todokanai) {
+  console.log('   ★棚が 空の 内訳★ … 手は 届く ' + todokuNoni0 + '棚（★行を 作って 測る 要あり★）'
+    + ' ／ 手が 届かない ' + todokanai + '棚（★外してよい★）');
 }
 /* ★書ける／消せるか★ */
 const rows = await (await fetch(URL_ + '/rest/v1/pay_employees?select=*&limit=1',
