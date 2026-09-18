@@ -143,7 +143,7 @@ console.log(NL + '[santei-gekkaku-ui] 算定基礎届／月額変更届を ★�
 
 const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★「前」は ログインの 前に 数える★（ログインした 途端に 幻の『従業員 1』が 倉庫に 書かれる） */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU, kakuteiHikaeru: KAKUTEI_HIKAE, koukaiHikaeru: KOUKAI_HIKAE, kakuteiModosu: KAKUTEI_MODOSU, fuetaKoukaiKesu: KOUKAI_KESU, kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU }
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU, kakuteiHikaeru: KAKUTEI_HIKAE, koukaiHikaeru: KOUKAI_HIKAE, kakuteiModosu: KAKUTEI_MODOSU, fuetaKoukaiKesu: KOUKAI_KESU, kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU, shikenNa: SHIKEN_NA }
   = await import('./_souko-kazoeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
@@ -186,7 +186,12 @@ await machi(700);
 /* ★名前に 印★＝次に 掃除する人が 迷わない（指示役1 の 条件） */
 /* ★姓と名の 間は 全角スペース 1つ★（原文 項番7「１個以上の連続しない全角スペース」）＝
    ★印は 残す★（次に 掃除する人が 迷わない）＝姓に 印・名に 日付 */
-const NA = '確定テスト' + Z + '九一四';
+/* ★★名前の 頭に 席の 印を 付ける★★（2026-09-19）
+   ★訳★＝★同じ 試験の 倉庫を ★この 機械★と ★GitHub の 機械★が 使う★
+     ⇒ ★増えた 人が どちらの 物か 名前で 分かる★＝★門が 相手の 分で 赤に しない★
+     （印が 無いと ★「どちらか 決められない」＝赤★の まま＝★CI が 走る たび 赤★）
+   ★印★ … 手元＝`手` ／ 会社の 検査＝`CI`（`_souko-kazoeru.mjs` の `SEKI_SHIRUSHI`） */
+const NA = SHIKEN_NA('確定テスト' + Z + '九一四');
 /* ★項番5 被保険者整理番号＝6バイト以内★（押した後の 門が そう 言った・原文の 検め）
    ⇒ ★5桁★に する。★紙の 中で 探す 字★（今日 作った 欄に 打つ） */
 const SEIRI = '86753';

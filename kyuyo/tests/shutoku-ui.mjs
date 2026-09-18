@@ -148,7 +148,7 @@ const pg = await ctx.newPage();
    訳＝★ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれる★（今日 見つけた 幻の人）。
      その後 読み直しが 着いて 消えるので、★後に 数えると 1人 減って 見える★。
    ⇒ ★1行も 触っていない 時の 数★を 土台に する。 */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, hitoNoId: HITO_ID, hitoNoMeisai: HITO_MEISAI, hitoNoKagi: HITO_KAGI, kagiTsukuru: KAGI_TSUKURU, kamiTsukuru: KAMI_TSUKURU, hitoNoKami: HITO_KAMI, shitakuKesu: SHITAKU_KESU, kankyoKa: KANKYO, kankyoIu: KANKYO_IU } = await import('./_souko-kazoeru.mjs');
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, hitoNoId: HITO_ID, hitoNoMeisai: HITO_MEISAI, hitoNoKagi: HITO_KAGI, kagiTsukuru: KAGI_TSUKURU, kamiTsukuru: KAMI_TSUKURU, hitoNoKami: HITO_KAMI, shitakuKesu: SHITAKU_KESU, kankyoKa: KANKYO, kankyoIu: KANKYO_IU, shikenNa } = await import('./_souko-kazoeru.mjs');
 const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
@@ -239,7 +239,12 @@ async function chohyo() {
    ⇒ ★pay_employees と pay_payslips の 行数を 前後で 突き合わせる★。
      ★画面から 消えた は 緑の 根拠に しない★。 */
 
-const NA = '試験' + String(Date.now()).slice(-6);
+/* ★★名前の 頭に 席の 印を 付ける★★（2026-09-19）
+   ★訳★＝★同じ 試験の 倉庫を ★この 機械★と ★GitHub の 機械★が 使う★
+     ⇒ ★増えた 人が どちらの 物か 名前で 分かる★＝★門が 相手の 分で 赤に しない★
+     （印が 無いと ★「どちらか 決められない」＝赤★の まま＝★CI が 走る たび 赤★）
+   ★印★ … 手元＝`手` ／ 会社の 検査＝`CI`（`_souko-kazoeru.mjs` の `SEKI_SHIRUSHI`） */
+const NA = shikenNa('試験' + String(Date.now()).slice(-6));
 /* ★★倉庫に 入る 名は これ★★（2026-09-15・webkit で 2度 外した）
    ★氏名（漢字）は ★姓と 名の 間に 全角スペース1つ★★（項番8＝届の 決まり）。
    ★★画面に 打つ のも 倉庫から 引く のも ★この 字★を 使う★★＝★字を 1か所に する★。

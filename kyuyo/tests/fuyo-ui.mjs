@@ -79,12 +79,12 @@ if (SELF) {
     process.exit(0);
   }
 }
-let borrow, pwLaunch, hairu, osu, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU;
+let borrow, pwLaunch, hairu, osu, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU, SHIKEN_NA;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
   ({ hairu, osu } = await import('../../tests/_hairu.mjs'));
   ({ kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA,
-     kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU } = await import('./_souko-kazoeru.mjs'));
+     kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU, shikenNa: SHIKEN_NA } = await import('./_souko-kazoeru.mjs'));
   ({ katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs'));
 } catch (e) { console.log('🟡 ★未測定★ 道具が 読めない … ' + (e && e.message)); process.exit(2); }
 const wk = await borrow('fuyo-ui', 'webkit');
@@ -338,7 +338,12 @@ try {
   console.log('       かたまりを 開く … ' + JSON.stringify(await hiraku(HON)));
 
   /* ── ① 本人の 欄（★確定は させない★＝A案。届出に 明細の 確定は 要らない） ── */
-  const NA = '試験' + String(Date.now()).slice(-6);
+  /* ★★名前の 頭に 席の 印を 付ける★★（2026-09-19）
+     ★訳★＝★同じ 試験の 倉庫を ★この 機械★と ★GitHub の 機械★が 使う★
+       ⇒ ★増えた 人が どちらの 物か 名前で 分かる★＝★門が 相手の 分で 赤に しない★
+       （印が 無いと ★「どちらか 決められない」＝赤★の まま＝★CI が 走る たび 赤★）
+     ★印★ … 手元＝`手` ／ 会社の 検査＝`CI`（`_souko-kazoeru.mjs` の `SEKI_SHIRUSHI`） */
+  const NA = SHIKEN_NA('試験' + String(Date.now()).slice(-6));
   for (const [f, v] of [['name', NA + Z + '太郎'], ['kana', 'ｼｹﾝ ﾀﾛｳ'], ['birthYmd', '1985-05-15'],
     ['seibetsu', 'male'], ['zip', '790-0001'], ['address', '愛媛県松山市1-2-3'],
     ['kisoNenkin', '1234-567890'], ['hokenshaNo', '1']]) {
