@@ -132,15 +132,30 @@ function maruShirushi(out) {
   }
   return false;
 }
+/* ★★行数で 切らない＝出し 全部を 見る★★（2026-09-19 指示役1 の 指摘で 直した）
+   ★前★ … ★終わりの 5行★だけ 見て いた。
+   ★何が 危ないか★ … 段が 締めの 後に 6行 書いたら ★その段は 数えられない★
+     ⇒ しかも ★黙って 0 に なる★（＝「未測定 0本」に 化ける）
+     ＝★私が 今日 `tail -6` で 踏んだ のと 同じ 形★
+     ＝[[feedback_mihari_wo_kimatta_jisuu_de_kiru_na]]
+   ★直し★ … ★窓を 無くした★。出しの ★全部の 行★を 見て
+     ・★数が 語の 隣★（`N はかれない` ／ `未測定 N`・N≥1）… 未測定
+     ・行の 頭が 🟡 で 未測定/はかれない（「0」と 書いて ある物は 除く）… 未測定
+     ⇒ ★決め打ちの 数が 1つも 無い★／★黙って 落ちる 行が 無い★
+   ★どの 行で そう 決めたか も 返す★＝★根拠を 隠さない★ */
 function hontouNiMihakari(out) {
   const gyo = String(out || '').split(String.fromCharCode(10))
     .map((l) => l.trim()).filter((l) => l.length);
-  for (const l of gyo.slice(-5)) {
+  for (let i = gyo.length - 1; i >= 0; i--) {
+    const l = gyo[i];
     for (const go of ['はかれない', '未測定']) {
       const n = kazuWoHiku(l, go);
-      if (n > 0) return go + ' ' + n;
+      if (n > 0) return go + ' ' + n + '（後ろから ' + (gyo.length - i) + '行目／全 ' + gyo.length + '行）';
     }
-    if (l.indexOf('🟡') === 0 && (l.indexOf('未測定') >= 0 || l.indexOf('はかれない') >= 0)) return '段まるごと';
+    if (l.indexOf('🟡') === 0 && (l.indexOf('未測定') >= 0 || l.indexOf('はかれない') >= 0)) {
+      const n0 = kazuWoHiku(l, '未測定'), n1 = kazuWoHiku(l, 'はかれない');
+      if (n0 !== 0 && n1 !== 0) return '段まるごと（後ろから ' + (gyo.length - i) + '行目）';
+    }
   }
   return '';
 }
@@ -164,6 +179,12 @@ if (process.argv.indexOf('--self-test-kazoe') >= 0) {
       '✓ ⑤ 前が 無ければ 未測定' + N + '自己確認 OK（★赤が 出る事まで 見た★）', false],
     ['★0件は 数えない★', '見た 27通り ／ 🟡未測定 0', false],
     ['★段まるごと 未測定★', '🟡 ★未測定★ playwright を 借りられない', true],
+    /* ★締めの 後ろに 何行 在っても 見つける★（前は 5行で 切って いた＝黙って 0に なる） */
+    ['★締めの 後に 8行 在っても 見つける★',
+      '4 passed, 0 failed, 1 はかれない' + N + 'あ' + N + 'い' + N + 'う' + N + 'え' + N + 'お' + N + 'か' + N + 'き' + N + 'く', true],
+    ['★締めの 前に 何行 在っても 見つける（窓で 切らない）★',
+      'あ' + N + 'い' + N + 'う' + N + 'え' + N + 'お' + N + 'か' + N + 'き' + N + '🟡 ★はかれない★ 道具が 無い' + N
+      + 'く' + N + 'け' + N + 'こ' + N + 'さ' + N + 'し' + N + 'す' + N + 'せ', true],
   ];
   let ng = 0;
   console.log(N + '[clock-sweep] ★未測定の 数え方の 自己確認★');
