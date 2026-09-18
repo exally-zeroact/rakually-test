@@ -209,3 +209,7 @@ jobs:
         run: node kyuyo/tests/link-ji.mjs
       - name: ★わざと 置き場（/kyuyo/）を 落としたら リンクが 崩れるか（link-ji の 空振り止め）★
         run: node kyuyo/tests/link-ji.mjs --waza
+      - name: ★勤怠CSV の 文字コードの 見分け（UTF-8／Shift-JIS／BOM／英字見出し＝4通りを 本物の ファイル選択で）★
+        run: node kyuyo/tests/csv-moji.mjs
+      - name: ★わざと 前の 見分けに 戻しても 4通りとも 同じか（＝この直しは 予防だと 字で 出す）★
+        run: node kyuyo/tests/csv-moji.mjs --waza

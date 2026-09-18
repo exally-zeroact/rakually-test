@@ -44,6 +44,28 @@
   var attr=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
   var uid=function(){return 'e'+Math.abs(Date.now()%1e7).toString(36)+Math.floor(performance.now()).toString(36);};
 
+  /* ★★CSVの文字コードを決める(勤怠CSV取込／他ソフト移行の★2か所とも★ここを通す)★★(2026-09-19)
+     ★前★ 「UTF-8で読んで ★日本語らしい字(ぁ-ん ァ-ヴ 一-龠)が 無ければ★ Shift-JISで読み直す」
+     ★何が起きるか(実測)★ ★半角カナだけのUTF-8★(見出しが英字)は この判定に 掛からない
+         ⇒ Shift-JISで読み直して ★化ける★  ﾃｽﾄ ﾀﾛｳ → ??ｽｽ?? ???幢ｽｳ
+         ⇒ 氏名の完全一致で人を突き合わせる(findEmpForKintai)ので ★その人の勤怠が入らない★
+         ※ 未一致は画面に出るし 全部未一致なら取込を断るので ★黙って給与が変わる訳ではない★
+         ※ ★BOMつきUTF-8＋半角カナ★も 同じく化けていた(実測)
+     ★直し方★ ★「どんな字が入っているか」を当てるのをやめる★＝★符号として成り立つかだけで決める★
+         ①BOM(EF BB BF)が在れば UTF-8で確定
+         ②fatal:true で UTF-8として読めるか試す(通れば UTF-8／例外なら Shift-JIS)
+       ⇒ ★在る字を数え上げる形は 必ず漏れる★(々 ヶ 〆／記号だけ／英字だけ…)＝漏れが構造上出ない形にする
+     ★測った(今/直しを同じ材料で並べた)★ 半角カナUTF-8=直る／BOM付き=直る
+       Shift-JIS・漢字入りUTF-8・英数だけ・壊したバイト=★4つとも 今と同じ★ */
+  function csvMojiYomu(buf){
+    var b=new Uint8Array(buf);
+    if(b.length>=3 && b[0]===0xEF && b[1]===0xBB && b[2]===0xBF){
+      try{ return new TextDecoder('utf-8').decode(buf); }catch(e){}
+    }
+    try{ return new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+    catch(e){ try{ return new TextDecoder('shift-jis').decode(buf); }catch(_){ return ''; } }
+  }
+
   // Excelで使える色パレット(標準色+濃淡+定番)。アクセント/罫線/文字を別々に選ぶ
   var PALETTE=['#000000','#23261f','#404040','#595959','#808080','#A6A6A6','#BFBFBF','#D9D9D9','#E7E6E6','#F2F2F2',
     '#C00000','#FF0000','#E36C0A','#FFC000','#FFFF00','#92D050','#00B050','#00B0F0','#0070C0','#002060','#7030A0',
@@ -5720,8 +5742,7 @@
     (function(){ var kf=$('#kintai-file'); if(!kf) return;
       kf.addEventListener('change', function(ev){ var f=ev.target.files&&ev.target.files[0]; if(!f) return;
         var rd=new FileReader(); rd.onload=function(){ var buf=rd.result, text='';
-          try{ text=new TextDecoder('utf-8',{fatal:false}).decode(buf); if(/�/.test(text) || !/[ぁ-んァ-ヴ一-龠]/.test(text)){ text=new TextDecoder('shift-jis').decode(buf); } }
-          catch(e){ try{ text=new TextDecoder('shift-jis').decode(buf); }catch(_){ text=''; } }
+          text=csvMojiYomu(buf);   /* ★符号の見分けは 1か所(csvMojiYomu)★ */
           importKintaiCsv(text);
         }; rd.readAsArrayBuffer(f);
       });
@@ -5739,8 +5760,7 @@
           }; rd.readAsArrayBuffer(f);
         } else {
           rd.onload=function(){ var buf=rd.result, text='';
-            try{ text=new TextDecoder('utf-8',{fatal:false}).decode(buf); if(/�/.test(text)||!/[ぁ-んァ-ヴ一-龠]/.test(text)){ text=new TextDecoder('shift-jis').decode(buf); } }
-            catch(e){ try{ text=new TextDecoder('shift-jis').decode(buf); }catch(_){ text=''; } }
+            text=csvMojiYomu(buf);   /* ★符号の見分けは 1か所(csvMojiYomu)★ */
             importMigration(MigrateMap.parseCsv(text));
           }; rd.readAsArrayBuffer(f);
         }
