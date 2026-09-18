@@ -90,6 +90,22 @@ export async function toiawase(sql) { return toi(sql); }
 export function seki() {
   return (process.env.CI || process.env.GITHUB_ACTIONS) ? 'ci' : 'temoto';
 }
+/* ★★試験が 作る 人の 名前に 席を 入れる★★（2026-09-19）
+   ★訳★＝★同じ 試験の 倉庫を この 機械と GitHub の 機械が 使う★
+     ⇒ ★増えた 人が どちらの 物か 名前で 分かる★＝★相手の 分で 赤に しない★
+   ★印は 名前の 頭★＝★アプリを 通して 作るので 名前しか 使えない★（`data` に 席を 書く 道が 無い）
+   ★使い方★＝試験が `const NA = shikenNa('試験' + …)` の 形で 使う。 */
+export const SEKI_SHIRUSHI = { temoto: '手', ci: 'CI' };
+export function shikenNa(moto) {
+  return SEKI_SHIRUSHI[seki()] + String(moto || '');
+}
+/* ★その 名前は どの 席の 物か★（★分からない＝null★＝★緑に しない★） */
+export function naNoSeki(na) {
+  const t = String(na || '');
+  for (const k of Object.keys(SEKI_SHIRUSHI)) { if (t.indexOf(SEKI_SHIRUSHI[k]) === 0) return k; }
+  return null;
+}
+
 export function sekiIu() {
   return '★席★＝' + (seki() === 'ci' ? '会社の 検査（GitHub）' : '手元') + '（★同じ 試験の 倉庫を 2つの 機械が 使います★）';
 }
@@ -144,6 +160,16 @@ export function yubiMenjoIu() {
      ・`updated_at` … 前も 後も 在る ⇒ ★動かない★（雑音が 消える）
      ・`deleted_at` … 無い → 在る ⇒ ★★ずれる★★（置き土産を 捕まえる）
    ★列の 名前は ここでも 1つも 打たない★＝★部屋に「時刻の 型の 列」を 聞いて その場で 作る★。 */
+/* ★★相手の 席が 作った 人は 指紋からも 除く★★（2026-09-19）
+   ★訳★＝人の 数は 打ち消せても ★指紋（行の md5）が 残って 赤に なる★（実測）
+   ★除くのは ★相手の 席の 印で 始まる 名前の 人★だけ★
+     ⇒ ★相手が 私の 行を 触ったら 指紋は ずれる★（その行は 除かれない）＝★守りは 落ちない★
+   ★私の 席の 人は 除かない★＝★自分の 置き土産は 必ず 赤★ */
+function aiteNoJoken() {
+  const aite = Object.keys(SEKI_SHIRUSHI).filter((k) => k !== seki()).map((k) => SEKI_SHIRUSHI[k]);
+  if (!aite.length) return '';
+  return ' where ' + aite.map((x) => "coalesce(x.data->>'name','') not like '" + x + "%'").join(' and ');
+}
 function yubiSql(full, hiRetsu) {
   const nashi = "'無'::jsonb";   /* 使わないが 形を 揃える為に 置く */
   const arr = hiRetsu.length
@@ -158,9 +184,10 @@ function yubiSql(full, hiRetsu) {
     + " then (case when e.v = 'null'::jsonb then to_jsonb('無'::text) else to_jsonb('有'::text) end)"
     + ' else e.v end)'
     + ' from jsonb_each(' + moto + ') as e(k, v))';
+  const nozoku = (full === 'kyuyo.pay_employees') ? aiteNoJoken() : '';
   return "select '" + full + "' as tana,"
     + " coalesce(md5(string_agg(h, ',' order by h)), '空') as yubi"
-    + ' from (select md5(' + naka + '::text) as h from ' + full + ' x) s';
+    + ' from (select md5(' + naka + '::text) as h from ' + full + ' x' + nozoku + ') s';
 }
 
 /* ★★触る 棚 全部の 指紋を 取る★★（門の 中 1か所＝9本 全部に 効く） */
@@ -553,7 +580,12 @@ export async function awaseru(mae, byo = 20) {
   for (let i = 0; i <= byo * 2; i++) {
     const ato = await kazoeru();
     if (!ato.ok) return { han: '未測定', iu: '★後を 数えられない★＝' + ato.naze };
-    const zure = MIRU.filter((m) => ato[m.na] !== mae[m.na]);
+    /* ★相手の 席の 分は 人の 数からも 引く★＝★相手が 走る たび 赤に しない★（2026-09-19）
+       ★但し 引くのは 人だけ★＝明細・公開・紙は ★誰の 物か 分けられない★＝★赤の まま★ */
+    const maeN0 = (mae.namae || []), atoN0 = (ato.namae || []);
+    const hiku0 = (a, b) => { const c = b.slice(); return a.filter((x) => { const i = c.indexOf(x); if (i < 0) return true; c.splice(i, 1); return false; }); };
+    const aiteKazu = hiku0(atoN0, maeN0).filter((x) => { const s2 = naNoSeki(x); return s2 && s2 !== seki(); }).length;
+    const zure = MIRU.filter((m) => (m.na === 'hito' ? (ato.hito - aiteKazu) : ato[m.na]) !== mae[m.na]);
     /* ★棚が 増えた／減った★＝名簿の 外に 置き土産が 出来る道が 開いた＝★赤★ */
     const tanaZure = (ato.tana !== TANA_KAZU) || (ato.tana !== mae.tana);
     /* ★指紋の ずれ★＝★列の 名前を 1つも 見ずに 中身の 変化を 捕まえる★ */
@@ -587,8 +619,18 @@ export async function awaseru(mae, byo = 20) {
       const maeN = (mae.namae || []).slice(), atoN = (ato.namae || []).slice();
       const hiku = (a, b) => { const c = b.slice(); return a.filter((x) => { const i = c.indexOf(x); if (i < 0) return true; c.splice(i, 1); return false; }); };
       const fueta = hiku(atoN, maeN), heta = hiku(maeN, atoN);
-      if (fueta.length) iu.push('★増えた 人 ' + fueta.length + '人★ … ' + fueta.join(' / ')
-        + '（★名前の 形で どの 試験かが 分かります★）');
+      /* ★★席で 割る★★（2026-09-19）
+         ・★相手の 席の 名前★ … ★字で 出す／赤に しない★（★その分は 人の 数からも 引く★）
+         ・★自分の 席の 名前★ … ★赤★
+         ・★どちらでも ない★ … ★赤★（★分からない を 緑に しない★） */
+      const aite = fueta.filter((x) => { const s2 = naNoSeki(x); return s2 && s2 !== seki(); });
+      const jibun = fueta.filter((x) => naNoSeki(x) === seki());
+      const fumei = fueta.filter((x) => naNoSeki(x) === null);
+      if (aite.length) iu.push('★相手の 席の 分 ' + aite.length + '人★ … ' + aite.join(' / ')
+        + '＝★赤に しません（消して いません）★');
+      if (jibun.length) iu.push('★自分の 席の 分 ' + jibun.length + '人★ … ' + jibun.join(' / ') + '＝★置き土産★');
+      if (fumei.length) iu.push('★どちらか 決められない ' + fumei.length + '人★ … ' + fumei.join(' / ')
+        + '（★名前に 席が 入って いない★）＝★赤の ままに します★');
       /* ★★増えた 物は「自分」か「相手」か 決められない★★（2026-09-19）
          ★同じ 試験の 倉庫を この 機械と GitHub の 機械が 使う★
          ⇒ ★決められない 物は 緑に しない（赤の まま）／但し ★決められない と 字で 言う★★
