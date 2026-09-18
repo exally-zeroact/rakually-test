@@ -374,14 +374,50 @@ export async function kagiTsukuru(employeeId) {
      ⇒ ★鍵を 消すと ★お金の 記録まで 一緒に 消える★★。私は これを 数えずに 消し、
        テスト線の 紙を ★15行 → 2行★に して しまった。
    ⇒ 店は ★ぶら下がりが 在る 鍵は 消さない★ 形に した ⇒ ★その 守りを 実物で 測る★為の 支度。 */
-export async function kamiTsukuru(token) {
+export async function kamiTsukuru(token, opt) {
   const t = String(token || '');
   if (!/^[0-9a-fA-F-]{36}$/.test(t)) return { ok: false, naze: 'token の 形が 違う' };
+  /* ★中身を 入れられる ように した★（2026-09-19）
+     ★訳★＝★従業員の 画面に 出る 字★を 測るには ★中身が 要る★（空の 紙では 何も 出ない）。
+     ★形は 実物から 取った★ … `{ doc:{month}, theme:{}, person:{ net, kojo:[], shikyu:[] } }`
+       `person.net` ＝★差引支給額★（従業員の 画面に 出る 数）
+     ★ym／kind／net は 呼ぶ側が 決める★＝★測る 字を 呼ぶ側が 知って いる★形に する。 */
+  const o = opt || {};
+  const ym = /^[0-9]{4}-[0-9]{2}$/.test(String(o.ym || '')) ? o.ym : '2026-06';
+  const kind = /^[a-z]+$/.test(String(o.kind || '')) ? o.kind : 'monthly';
+  const net = Number(o.net) > 0 ? Math.floor(Number(o.net)) : 0;
+  const naka = o.data ? String(o.data) : JSON.stringify({
+    doc: { month: ym },
+    theme: { ink: '#23261f', line: '#cfc9b8', accent: '#6f5a3e' },
+    person: { net: net, name: String(o.na || ''), shikyu: [{ label: '基本給', value: net }], kojo: [] },
+  });
+  if (naka.indexOf('$$') >= 0) return { ok: false, naze: '中身に $$ が 在る' };
   const r = await toi('insert into kyuyo.pay_meisai_docs (id, token, account_id, ym, kind, data, published_at)'
-    + " select 'doc_test_' || substr(md5(random()::text),1,8), p.token, p.account_id, '2026-06', 'payslip',"
-    + " '{}'::jsonb, now() from kyuyo.pay_meisai_pub p where p.token = '" + t + "' returning id");
+    + " select 'doc_test_' || substr(md5(random()::text),1,8), p.token, p.account_id, '" + ym + "', '" + kind + "',"
+    + ' $$' + naka + '$$::jsonb, now() from kyuyo.pay_meisai_pub p'
+    + " where p.token = '" + t + "' returning id");
   if (!r.ok) return { ok: false, naze: r.naze };
-  return { ok: true, n: (r.gyo || []).length };
+  return { ok: true, n: (r.gyo || []).length, net, ym };
+}
+
+/* ★★試験用の 人を 1人 作る（★支度 専用★）★★（2026-09-19）
+   ★測るのは 従業員の 道（meisai.html）★／★会社側の 支度は 直に 作る★＝★線引きを 字で 書く★
+   ★名前には 席の 印を 付ける★（`shikenNa`）＝★相手の 席と 混ざらない★ */
+export async function hitoTsukuru(na) {
+  const n = String(na || '').replace(/['\;]/g, '');
+  if (!n) return { ok: false, naze: '名前が 空' };
+  const id = 'ztest_' + Math.random().toString(36).slice(2, 10);
+  const r = await toi('insert into kyuyo.pay_employees (id, account_id, data)'
+    + " select '" + id + "', e.account_id, jsonb_build_object('name','" + n + "','employmentType','employee')"
+    + ' from kyuyo.pay_employees e limit 1 returning id');
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, id };
+}
+export async function hitoKesu(id) {
+  const i = String(id || '').replace(/[^A-Za-z0-9_-]/g, '');
+  if (!i) return { ok: false, naze: 'id が 空' };
+  const r = await toi("delete from kyuyo.pay_employees where id = '" + i + "' returning id");
+  return r.ok ? { ok: true, n: (r.gyo || []).length } : { ok: false, naze: r.naze };
 }
 
 /* ★★人の 中身も 控えて 戻す（★片づけ 専用★）★★（2026-09-18 に 足した）
