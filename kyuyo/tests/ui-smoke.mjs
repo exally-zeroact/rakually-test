@@ -79,6 +79,44 @@ function denied(el) {
 
 console.log('\n[ui-smoke] 全ボタンUI検証(jsdom)');
 
+/* ★★押す前に 札（従業員カード）を 開く★★（2026-09-18 に 足した）
+   ★何が 分かったか★
+     押す段（下の『全タブ→全ボタン』）は ★札が 畳まれた ままの DOM★を 数えて いた。
+     札を 開く 字は ★ずっと 後ろ（別の 段）★に しか 無かった。
+     ⇒ ★畳んだ 中の ボタンは そもそも DOM に 居ない★＝★押しても いないし 免除も 効かない★
+     ⇒ 免除 16本の うち ★1回も 効かない 物が 9本★（うち ★削除まわり 3本★）
+        ＝★『免除が 守って いる』のでは なく『届いて いない』★
+     ⇒ 今日 追いかけた 欠陥は ★全部 削除の 周り★（鍵が 残る／紙が 道連れ／確定が 巻き込まれる）
+        ＝★一番 危ない 所に 試験が 届いて いなかった★
+   ★これを 入れると 押す 数が 変わります★＝★前の「押した 60／外した 6」は ★意味を 失います★★。 */
+A.state.open = A.state.open || {};
+let fudaAketa = 0;
+A.state.employees.forEach(function (e) {
+  A.state.open[e.id] = true;            // 札
+  A.state.open['D' + e.id] = true;      // 詳細設定（削除ボタンは この 中）
+  fudaAketa++;
+});
+console.log('  ★札を 開いた … ' + fudaAketa + '枚★（前は 0枚＝畳んだ ままで 数えて いた）');
+
+/* ★★先に「免除が 効く」事を 1回 確かめる★★
+   ★訳★＝札が 開くと ★削除の ボタンが 初めて DOM に 出る★。
+     ★そこで 免除が 効かなければ ★本当に 押して しまう★★（人が 消える）。
+   ⇒ ★全部を 押す 前に ここで 止める★。 */
+T('★押す前の 門＝削除の ボタンが 出て いて、しかも 押さない 側に 入る', function () {
+  const q = s => doc.querySelector(s), qa = s => [...doc.querySelectorAll(s)];
+  q('.bn[data-scr="scr-settings"]').click();
+  const seg = q('#set-seg .seg-b[data-set="emp"]'); if (seg) seg.click();
+  const del = qa('#scr-settings button').filter(function (b) {
+    return /m-del-emp|del-emp/.test(b.className || '') || /従業員を削除|この従業員/.test(b.textContent || '');
+  });
+  ok(del.length > 0, '★札を 開いても 削除の ボタンが 出て こない★＝開け方が 効いて いない');
+  const nogare = del.filter(function (b) { return denied(b); });
+  ok(nogare.length === del.length,
+    '★削除の ボタンが 押される側に 居る★＝' + nogare.length + '/' + del.length
+    + '＝★このまま 全部 押したら 人が 消えます★');
+  console.log('     削除の ボタン ' + del.length + '個 … ★全部 押さない側★');
+});
+
 // ── 各画面を開いて、その画面の全ボタンをクリック(例外0) ──
 const SCREENS = ['scr-settings', 'scr-input', 'scr-list', 'scr-print'];
 let clicked = 0, skipped = 0;
