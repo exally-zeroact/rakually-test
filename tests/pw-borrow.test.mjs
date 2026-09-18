@@ -201,6 +201,12 @@ T('★⑥ 空振りしていない（0件で 緑にしない）', users.length >
   '共通部品を読む物 ' + users.length + '本 ／ 見た本数 ' + files.length + '本');
 
 /* ★★⑦⑧ 字を 割って 逃げた 紙★★（逃げ道が 増えたら この 見張りは 静かに 死ぬ） */
+/* ★★見える 範囲を 先に 書く★★（2026-09-19 指示役1 の 注文）
+   ★この 門が 見る 継ぎ方は TSUGIME の ' + TSUGIME.length + '通りだけ★。
+   ★それ以外の 割り方（変数に 入れる・配列で 継ぐ・String.fromCharCode 等）は 見えません★
+   ⇒ 見えない 割り方で 逃げられた 時、本数は そのまま＝★静かに 効かなく なる★。 */
+console.log('     ★この 門が 見る 継ぎ方は ' + TSUGIME.length + '通りだけ★'
+  + '（変数に 入れる／配列で 継ぐ／文字コードで 作る 等は ★見えません★）');
 console.log('     ★字を 割って 書いている 紙 ' + watta.length + '本★ … ' + (watta.join(' / ') || '（無し）'));
 WARIJI.forEach((x) => console.log('       — 名簿 ' + x.kami + ' … ' + x.naze));
 const mei = WARIJI.map((x) => x.kami);
