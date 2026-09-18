@@ -256,6 +256,75 @@ export async function hitoNoMeisai(employeeId) {
   return { ok: true, n: Number((r.gyo[0] || {}).n) };
 }
 
+/* ★★その人の「Web明細の 鍵」を 数える★★（pay_meisai_pub＝従業員が 自分の 明細を 見る 入口）
+   ★なぜ 数えるか（2026-09-18 実測）★
+     人を 消しても ★鍵の 行は 残って いた★＝テスト線で ★公開 78行 中 73行が「もう 居ない 人」★。
+     （リンク自体は unpublishMeisai で 死んで いる＝★危険では なく 残骸★。倉庫の 入口が 断る。） */
+export async function hitoNoKagi(employeeId) {
+  const id = String(employeeId || '');
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { ok: false, naze: 'id の 形が 違う' };
+  const r = await toi("select count(*) as n from kyuyo.pay_meisai_pub where employee_id = '" + id + "'");
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, n: Number((r.gyo[0] || {}).n) };
+}
+
+/* ★★支度＝その人の 鍵を 1本 作る（★測る所では 使わない★）★★
+   ★訳★＝★分母 0 で 緑に しない★為。鍵は 本来「月を 確定＝全員に 公開」で 出来るが、
+     それは ★他人の 月まで 巻き込む★（app.js:5502 の 取り消しが その 形で 事故を 起こした）。
+   ⇒ ★支度は 直に 作る／測るのは ★客の 道で 消えるか★★＝[[feedback_js_dispatched_event_is_not_the_customer_path]] の 線引きと 同じ。
+   ★テスト線だけ★（この 紙が 持つ ref は 試験の 1つだけ）。 */
+export async function kagiTsukuru(employeeId) {
+  const id = String(employeeId || '');
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { ok: false, naze: 'id の 形が 違う' };
+  const r = await toi('insert into kyuyo.pay_meisai_pub (account_id, employee_id, init_code)'
+    + " select e.account_id, e.id, 'TESTCODE' from kyuyo.pay_employees e where e.id = '" + id + "'"
+    + ' returning token');
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, n: (r.gyo || []).length, token: ((r.gyo || [])[0] || {}).token };
+}
+
+/* ★★支度＝その鍵に「公開された 紙」を 1枚 ぶら下げる（★測る所では 使わない★）★★
+   ★訳（2026-09-18 実測で 踏んだ）★
+     `pay_meisai_docs` は `pay_meisai_pub` に ★ON DELETE CASCADE★で 繋がって いる
+     （`pay_nencho_decl`／`pay_emp_profile` も 同じ）。
+     ⇒ ★鍵を 消すと ★お金の 記録まで 一緒に 消える★★。私は これを 数えずに 消し、
+       テスト線の 紙を ★15行 → 2行★に して しまった。
+   ⇒ 店は ★ぶら下がりが 在る 鍵は 消さない★ 形に した ⇒ ★その 守りを 実物で 測る★為の 支度。 */
+export async function kamiTsukuru(token) {
+  const t = String(token || '');
+  if (!/^[0-9a-fA-F-]{36}$/.test(t)) return { ok: false, naze: 'token の 形が 違う' };
+  const r = await toi('insert into kyuyo.pay_meisai_docs (id, token, account_id, ym, kind, data, published_at)'
+    + " select 'doc_test_' || substr(md5(random()::text),1,8), p.token, p.account_id, '2026-06', 'payslip',"
+    + " '{}'::jsonb, now() from kyuyo.pay_meisai_pub p where p.token = '" + t + "' returning id");
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, n: (r.gyo || []).length };
+}
+
+/* ★★支度で 作った 鍵と 紙を 片づける（★後始末 専用・測る所では 使わない★）★★
+   ★訳★＝この 支度は ★消えては いけない 物（紙つきの 鍵）★を わざと 作る＝★自分で 片づけないと 門が 赤★。
+   ★順★＝紙 → 鍵（CASCADE だが 数を 出す 為に 順に 消す）。★テスト線だけ★。 */
+export async function shitakuKesu(employeeId) {
+  const id = String(employeeId || '');
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { ok: false, naze: 'id の 形が 違う' };
+  const d = await toi('delete from kyuyo.pay_meisai_docs d using kyuyo.pay_meisai_pub p'
+    + " where p.token = d.token and p.employee_id = '" + id + "' returning d.id");
+  if (!d.ok) return { ok: false, naze: d.naze };
+  const k = await toi("delete from kyuyo.pay_meisai_pub where employee_id = '" + id + "' returning token");
+  if (!k.ok) return { ok: false, naze: k.naze };
+  return { ok: true, kami: (d.gyo || []).length, kagi: (k.gyo || []).length };
+}
+
+/* ★その人の 鍵に ぶら下がって いる「紙」を 数える★ */
+export async function hitoNoKami(employeeId) {
+  const id = String(employeeId || '');
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { ok: false, naze: 'id の 形が 違う' };
+  const r = await toi('select count(*) as n from kyuyo.pay_meisai_docs d'
+    + ' join kyuyo.pay_meisai_pub p on p.token = d.token'
+    + " where p.employee_id = '" + id + "'");
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, n: Number((r.gyo[0] || {}).n) };
+}
+
 /* ★★「今」は ★倉庫の 時計★に 聞く（2026-09-14 総なめで 捕まった）★★
    前は ★手元の 時計から 60秒 手前★を 始まりに していた（時計の ずれを 見込んで）。
    ⇒ 総なめで 試験が 続けて 走ると ★直前の 試験の ゴミまで 60秒の 窓に 入る★

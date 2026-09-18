@@ -5314,9 +5314,21 @@
       if(window.Store&&Store.unpublishMeisai){ try{ Store.unpublishMeisai(id); }catch(_){} } // Web明細リンクを失効(docsは物理削除しない・オフラインはno-op)
       state.employees.splice(i,1); renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced();
       if(!(window.Store&&Store.deletePayslipsOf)){ toast('「'+na+'」を削除しました。給与明細は消せませんでした（画面を開き直して、もう一度お試しください）'); return; }
+      /* ★同じ 1押しで「明細」と「Web明細の 鍵」を どちらも 消す★（2026-09-18）
+         ★訳★＝unpublishMeisai(5314) は ★リンクを 殺すだけで 行は 残る★。
+           テスト線で 数えたら ★公開 78行 中 73行が「もう 居ない 人」★＝残骸が 貯まり続けて いた。
+           ⇒ ★人を 消したら 鍵も 消す★。紙(pay_meisai_docs)は ★お金の 記録＝残す★（先の 決め）。
+         ★押す回数は 増やさない★＝[[feedback_dont_add_steps_to_what_worked]]。 */
       Store.deletePayslipsOf(id).then(function(r){
-        if(r&&r.ok&&r.souko) toast('「'+na+'」を削除しました（給与明細 '+r.n+'件も消しました）');
-        else if(r&&r.ok) toast('「'+na+'」を削除しました（この端末の給与明細 '+r.n+'件も消しました）');
+        if(!(window.Store&&Store.deleteMeisaiPubOf)) return { r:r, p:{ ok:true, n:0, souko:false } };
+        return Store.deleteMeisaiPubOf(id).then(function(p){ return { r:r, p:p }; })
+          .catch(function(e){ return { r:r, p:{ ok:false, n:0, naze:String(e&&e.message||e) } }; });
+      }).then(function(x){
+        var r=x.r, p=x.p;
+        /* ★鍵が 消せなかった時は 必ず 言う★＝黙って 残さない（リンクは 失効済みなので 見られはしない） */
+        var pNG=(p&&p.ok)?'':'（Web明細の登録は消せませんでした。画面を開き直して、もう一度「削除」を押してください）';
+        if(r&&r.ok&&r.souko) toast('「'+na+'」を削除しました（給与明細 '+r.n+'件も消しました）'+pNG);
+        else if(r&&r.ok) toast('「'+na+'」を削除しました（この端末の給与明細 '+r.n+'件も消しました）'+pNG);
         else toast('「'+na+'」を削除しました。給与明細は消せませんでした（'+((r&&r.naze)||'理由不明')+'）。もう一度「削除」を押してください。');
       }).catch(function(err){
         toast('「'+na+'」を削除しました。給与明細は消せませんでした（'+((err&&err.message)||'理由不明')+'）。もう一度「削除」を押してください。');

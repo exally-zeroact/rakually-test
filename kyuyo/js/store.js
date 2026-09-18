@@ -368,6 +368,67 @@
     }catch(e){ return Promise.resolve({ ok:false, n:0, naze:String(e&&e.message||e) }); }
   };
 
+  /* ★★人を 消したら「その人の Web明細の 鍵」も 消す★★（2026-09-18）
+     ★なぜ 要るか（実測）★
+       `Store.unpublishMeisai`(524) は ★行を 消さず 認証情報だけ 空に する★
+         update({ init_code:null, pw_hash:null, device_tokens:[], consent_at:null, ... })
+       ＝★リンクは 死ぬ（倉庫の 入口が 断る）／★行は 残る★★。
+       テスト線で 数えた … ★公開 78行 中 ★73行が「もう 居ない 人」★★＝残骸。
+       ★店の コードに `pay_meisai_pub` を ★消す★ 字は 1つも 無かった★
+         （実測 … select 3か所 ／ insert 1か所 ／ update 2か所 ／ ★delete 0か所★）
+       ⇒ 司さん「いらん従業員なら 消せや 倉庫に 残すな」に ★まだ 当たって いなかった★。
+     ★紙（pay_meisai_docs）は 消さない★＝★お金の 記録は 残す★の 決めが 先に 在る（463行）。
+       ⇒ 鍵だけ 消せば ★紙は 残るが 誰も 開けない★＝辻褄は 合う。
+     ★他人の 鍵は そもそも 消せない★＝pay_meisai_pub も `account_id = auth.uid()` で 縛られて いる
+       （kyuyo/tests/souko-kengen.test.mjs が 毎回 実物の 倉庫に 聞いて いる）。
+     ★この端末だけの 時（倉庫なし）★は ★鍵の 控えを 端末に 置いて いない★ので 消す物が 無い＝0件で 成功。 */
+  /* ★★★鍵の 行を 消すと ★ぶら下がって いる 紙も 一緒に 消える★★★（2026-09-18 実測で 踏んだ）
+       倉庫の 親子（pg_constraint で 数えた）
+         pay_meisai_docs  → pay_meisai_pub … ★CASCADE★（公開された 紙＝★お金の 記録★）
+         pay_nencho_decl  → pay_meisai_pub … ★CASCADE★（年末調整の 申告＝★本人が 出した 紙★）
+         pay_emp_profile  → pay_meisai_pub … ★CASCADE★（本人が 入れた 振込先など）
+       ★私は これを 数えずに 消して、テスト線の 紙を 15行→2行に して しまった★
+       ＝★「紙は 消さない」と 書いた 当人が 紙を 消した★。
+     ⇒ ★★ぶら下がりが 1つでも 在る 鍵は 消さない★★
+        （鍵の 認証情報は `unpublishMeisai` が 先に 空に して いる＝★開けない★／★記録は 残る★）
+     ⇒ ★何も ぶら下がって いない 鍵だけ 消す★＝司さんの「倉庫に 残すな」も 満たす。 */
+  /* ★★道連れの 名簿（ここだけが 正）★★＝`kyuyo/tests/souko-kengen.test.mjs` が
+     ★倉庫に 聞いた 実物の 子★と 1本ずつ 突き合わせる。★1本でも 足りなければ 赤★。
+     ★名前は わざと 珍しくして 在る★＝他の 所で 同じ 字を 読んでも 混ざらない
+       （2026-09-18 … 「どこかに 名前が 在れば 良い」で 数えたら ★抜いても 赤に ならなかった★
+         ＝別の 所（store.js:716 の 年調の 読み出し）が 同じ 名前を 持って いた）。 */
+  var MICHIZURE_pay_meisai_pub = ['pay_meisai_docs','pay_nencho_decl','pay_emp_profile'];
+  function pubNokosu(tokens){                       /* ★残す 鍵（ぶら下がりが 在る）を 選ぶ★ */
+    if(!tokens.length) return Promise.resolve([]);
+    var tana=MICHIZURE_pay_meisai_pub;
+    return Promise.all(tana.map(function(t){
+      return sb.from(t).select('token').in('token', tokens).then(function(r){
+        if(r.error) throw new Error(t+'：'+r.error.message);
+        return (r.data||[]).map(function(x){ return x.token; });
+      });
+    })).then(function(aa){
+      var m={}; aa.forEach(function(a){ a.forEach(function(t){ m[t]=1; }); });
+      return Object.keys(m);
+    });
+  }
+  Store.deleteMeisaiPubOf = function(employeeId){
+    if(!employeeId) return Promise.resolve({ ok:false, n:0, naze:'だれの 分か 分からない' });
+    if(!hasSupa) return Promise.resolve({ ok:true, n:0, nokoshita:0, souko:false });
+    return sb.from('pay_meisai_pub').select('token').eq('employee_id', employeeId).then(function(r){
+      if(r.error) throw new Error(r.error.message);
+      var toks=(r.data||[]).map(function(x){ return x.token; });
+      if(!toks.length) return { ok:true, n:0, nokoshita:0, souko:true };
+      return pubNokosu(toks).then(function(nokosu){
+        var kesu=toks.filter(function(t){ return nokosu.indexOf(t)<0; });
+        if(!kesu.length) return { ok:true, n:0, nokoshita:nokosu.length, souko:true };
+        return sb.from('pay_meisai_pub').delete().eq('employee_id', employeeId).in('token', kesu).select('token').then(function(d){
+          if(d.error) throw new Error(d.error.message);
+          return { ok:true, n:(d.data||[]).length, nokoshita:nokosu.length, souko:true };
+        });
+      });
+    }).catch(function(e){ return { ok:false, n:0, nokoshita:0, naze:String(e&&e.message||e) }; });
+  };
+
   Store.getPayslipsByYm = function(ymFrom, ymTo){
     if(hasSupa){
       return fetchAllQ(function(a,b){ return sb.from('pay_payslips').select('ym,employee_id,data',{count:'exact'}).gte('ym',ymFrom).lte('ym',ymTo).range(a,b); })

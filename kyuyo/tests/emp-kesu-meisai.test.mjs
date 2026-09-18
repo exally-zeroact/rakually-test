@@ -89,6 +89,18 @@ T('★④ その人の 給与明細を 倉庫からも 消す（司さんの 一
   ok(/deletePayslipsOf\s*\(/.test(naka), '★倉庫の 明細を 消していない★＝孤児が また 出ます');
 });
 
+T('★④-2 その人の ★Web明細の 鍵★も 倉庫から 消す（居ない人の 鍵を 残さない）', () => {
+  /* ★2026-09-18 実測★ … `unpublishMeisai` は ★リンクを 殺すだけ／行は 残る★
+       ⇒ テスト線で ★公開 78行 中 73行が「もう 居ない 人」★＝残骸が 貯まり続けて いた
+       ⇒ 店の コードに `pay_meisai_pub` を 消す 字は ★0か所★（select 3／insert 1／update 2／delete 0）
+     ★紙（pay_meisai_docs）は 消さない★＝お金の 記録は 残す（先の 決め・⑧で 見ている）。 */
+  ok(naka, '入口が 無い');
+  ok(/deleteMeisaiPubOf\s*\(/.test(naka), '★Web明細の 鍵を 消していない★＝居ない人の 鍵が 倉庫に 残ります');
+  /* ★押す回数を 増やしていないか★＝同じ 1押し（empKesu）の 中で 消す */
+  const soto = APP.split('function empKesu(')[0];
+  ok(!/deleteMeisaiPubOf\s*\(/.test(soto), '★1押しの 外から 呼んでいる★＝押す回数が 増えます');
+});
+
 T('★⑤ ボタンも スワイプも その 1か所を 呼ぶ（2本とも 縛る）', () => {
   const yobu = [...APP.matchAll(/empKesu\s*\(/g)].length;
   /* 中身の 1件（function empKesu(）は 上で 別に 数えている＝呼ぶ所は 2つ 以上 */
@@ -121,6 +133,14 @@ T('★⑥ 消せなかった 時に「消しました」だけで 終わらせ�
   console.log('     出す 字 … ' + toasts.size + '通り（成功／失敗を 分けている）');
 });
 
+T('★⑦-2 倉庫側に その人の ★鍵★を 消す 道が 在る（employee_id で 絞る）', () => {
+  ok(/Store\.deleteMeisaiPubOf\s*=/.test(STORE), '★倉庫側の 道が 無い★');
+  const naka2 = STORE.split('Store.deleteMeisaiPubOf')[1] || '';
+  const kiru = naka2.slice(0, 900);
+  ok(/from\('pay_meisai_pub'\)[\s\S]{0,40}\.delete\(\)/.test(kiru), '★pay_meisai_pub を 消していない★');
+  ok(/\.eq\('employee_id'/.test(kiru), '★その人だけに 絞っていない★＝他人の 鍵まで 消えます');
+});
+
 T('★⑦ 倉庫側に その人の 明細を 消す 道が 在る', () => {
   ok(/Store\.deletePayslipsOf\s*=/.test(STORE), '★Store.deletePayslipsOf が 無い★');
   const i = STORE.indexOf('Store.deletePayslipsOf');
@@ -146,6 +166,17 @@ if (SELF) {
     'dx<-60){ state.employees.splice(0,1); }');
   const swipeAru = /dx\s*<\s*-60[^}]*empKesu\s*\(/.test(kowashita);
   iu('⑤ ★スワイプだけ 昔の 形に 戻すと 赤★', swipeAru === false, 'スワイプを 壊しても 見張りが 気づかない');
+
+  /* ④-2の わざと壊し … 鍵を 消す 呼び出しを 抜く */
+  const kagiNashi = APP.replace(/deleteMeisaiPubOf/g, 'nazoNoMono');
+  const kagiNaka = (kagiNashi.split('function empKesu(')[1] || '').split(String.fromCharCode(10) + '  }')[0];
+  iu('④-2 ★鍵を 消す 所を 抜くと 赤★', /nazoNoMono/.test(kagiNaka) && !/deleteMeisaiPubOf/.test(kagiNaka),
+    '鍵を 消さなくても 見張りが 気づかない');
+
+  /* ⑦-2の わざと壊し … 絞り込みを 外す（他人の 鍵まで 消える 形） */
+  const shiboranai = STORE.replace(/\.eq\('employee_id', employeeId\)\.select\('token'\)/, ".select('token')");
+  const naka3 = (shiboranai.split('Store.deleteMeisaiPubOf')[1] || '').slice(0, 900);
+  iu('⑦-2 ★絞り込みを 外すと 赤★', !/\.eq\('employee_id'/.test(naka3), '他人の 鍵まで 消しても 気づかない');
 
   /* ①の わざと壊し … 抜く 所を もう1つ 足す */
   const futatsu = APP + '\n state.employees.splice(0,1);\n';

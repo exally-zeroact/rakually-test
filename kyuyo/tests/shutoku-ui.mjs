@@ -148,7 +148,7 @@ const pg = await ctx.newPage();
    訳＝★ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれる★（今日 見つけた 幻の人）。
      その後 読み直しが 着いて 消えるので、★後に 数えると 1人 減って 見える★。
    ⇒ ★1行も 触っていない 時の 数★を 土台に する。 */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, hitoNoId: HITO_ID, hitoNoMeisai: HITO_MEISAI, kankyoKa: KANKYO, kankyoIu: KANKYO_IU } = await import('./_souko-kazoeru.mjs');
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, hitoNoId: HITO_ID, hitoNoMeisai: HITO_MEISAI, hitoNoKagi: HITO_KAGI, kagiTsukuru: KAGI_TSUKURU, kamiTsukuru: KAMI_TSUKURU, hitoNoKami: HITO_KAMI, shitakuKesu: SHITAKU_KESU, kankyoKa: KANKYO, kankyoIu: KANKYO_IU } = await import('./_souko-kazoeru.mjs');
 const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
@@ -375,6 +375,30 @@ if (ato.osenai === false) {
   if (meisaiMae.ok) console.log('       消す前 … 「' + NA_FULL + '」の 明細 ' + meisaiMae.n + '行');
   else console.log('       🟡 消す前の 明細を 数えられない … ' + meisaiMae.naze);
 
+  /* ★★支度＝この人に「Web明細の 鍵」を 1本 作る★★（2026-09-18）
+     ★訳★＝★分母 0 で 緑に しない★。鍵が 元から 0行なら「消えた」も 言えない。
+     ★作るのは 支度／測るのは ★客の 道（削除ボタン）で 消えるか★★。
+     ★本物の 鍵の 出来かた（月を 確定＝全員に 公開）は 使わない★
+       ＝★他人の 月まで 巻き込む★（app.js:5502 の 取り消しが まさに その 形で 事故を 起こした
+          ＝2026-09-18 実測 確定 4→1／元から 在った 3件を 壊した）。 */
+  /* ★鍵を ★2本★ 作る★
+       ㋐ぶら下がり 無し … ★消えるはず★
+       ㋑紙を 1枚 ぶら下げる … ★消えては いけない★（紙は CASCADE で 一緒に 消える＝お金の 記録） */
+  let kagiMae = { ok: false, n: 0, naze: '人の id が 分からない' };
+  let kamiMae = { ok: false, n: 0, naze: '人の id が 分からない' };
+  if (EID.ok) {
+    const t1 = await KAGI_TSUKURU(EID.id);                 /* ㋐裸の 鍵 */
+    const t2 = await KAGI_TSUKURU(EID.id);                 /* ㋑紙を 付ける 鍵 */
+    let kami = { ok: false, naze: '鍵が 作れて いない' };
+    if (t2.ok && t2.token) kami = await KAMI_TSUKURU(t2.token);
+    if (!t1.ok || !t2.ok) kagiMae = { ok: false, n: 0, naze: '鍵を 作れない … ' + (t1.naze || t2.naze) };
+    else kagiMae = await HITO_KAGI(EID.id);
+    kamiMae = kami.ok ? await HITO_KAMI(EID.id) : { ok: false, n: 0, naze: '紙を 作れない … ' + kami.naze };
+  }
+  if (kagiMae.ok) console.log('       消す前 … 「' + NA_FULL + '」の Web明細の 鍵 ' + kagiMae.n + '行'
+    + '（うち 紙が ぶら下がる 鍵 1本）／紙 ' + (kamiMae.ok ? kamiMae.n + '枚' : '数えられない'));
+  else console.log('       🟡 消す前の 鍵を 数えられない … ' + kagiMae.naze);
+
   const r = await KATAZUKERU(pg, { na: NA, machi, osu });
   r.michi.forEach((m) => console.log('       片づけ … ' + m));
   const nokori = await pg.evaluate((na) => Array.from(document.querySelectorAll('#emp-list .mco'))
@@ -402,6 +426,46 @@ if (ato.osenai === false) {
       console.log('       消した後 … 「' + NA_FULL + '」の 明細 ' + meisaiAto.n + '行（消す前 ' + meisaiMae.n + '行）');
       T('★⑤-2 ★消した 人の 給与明細が 倉庫から 消えた★（' + meisaiMae.n + '行 → ' + meisaiAto.n + '行）',
         meisaiAto.n === 0, '★' + meisaiAto.n + '行 残っている＝孤児に なりました★');
+    }
+  }
+
+  /* ★★⑤-3 ★消した 人の「Web明細の 鍵」も 消えた★★（2026-09-18 に 足した）
+     ★訳★＝人を 消しても 鍵の 行が 残って いた（テスト線 78行中 ★73行が 居ない人★）。
+       ★リンクは 失効して いる（unpublishMeisai）＝危険では なく 残骸★だが、
+       司さん「いらん従業員なら 消せや 倉庫に 残すな」に 当たって いなかった。
+     ★分母 0 では 緑に しない★＝作れて いなければ ★はかれない★と 言う。 */
+  if (KANKYO(kagiMae.naze || '')) {
+    KANKYO_IU('人を 消した後の Web明細の 鍵を 数えていません');
+  } else if (!kagiMae.ok) {
+    mihakari++;
+    console.log('  🟡 ★はかれない★ 消す前の 鍵を 数えられない … ' + kagiMae.naze);
+  } else if (kagiMae.n === 0) {
+    mihakari++;
+    console.log('  🟡 ★はかれない★ 消す前に 鍵が 0行＝★消える所を 見ていません★（分母 0）');
+  } else {
+    await machi(1500);
+    const kagiAto = await HITO_KAGI(EID.id);
+    if (!kagiAto.ok) { mihakari++; console.log('  🟡 ★はかれない★ 消した後の 鍵を 数えられない … ' + kagiAto.naze); }
+    else {
+      const kamiAto = await HITO_KAMI(EID.id);
+      console.log('       消した後 … 鍵 ' + kagiAto.n + '行（消す前 ' + kagiMae.n + '行）'
+        + '／紙 ' + (kamiAto.ok ? kamiAto.n + '枚' : '数えられない') + '（消す前 ' + kamiMae.n + '枚）');
+      /* ★裸の 鍵は 消える★＝2本 中 1本に なる（残る 1本は 紙が ぶら下がって いる 方） */
+      T('★⑤-3 ★裸の 鍵は 倉庫から 消えた★（鍵 ' + kagiMae.n + '行 → ' + kagiAto.n + '行）',
+        kagiAto.n === 1, kagiAto.n > 1
+          ? '★' + kagiAto.n + '行＝裸の 鍵が 消えて いません（居ない人の 鍵が 残ります）★'
+          : '★0行＝★守るはずの 鍵まで 消えました★（紙が 道連れに なります）★');
+      /* ★★紙が ぶら下がる 鍵は 消さない★★＝消すと ★お金の 記録が CASCADE で 道連れ★
+         （2026-09-18 実測 … 私が これを 数えずに 消し 紙を 15行→2行に した） */
+      T('★⑤-4 ★お金の 記録（公開された 紙）は 道連れに しない★（紙 ' + kamiMae.n + '枚 → '
+        + (kamiAto.ok ? kamiAto.n : '?') + '枚）',
+        kamiAto.ok && kamiAto.n === kamiMae.n && kamiMae.n > 0,
+        '★紙が 減った／数えられない＝鍵を 消す時に 紙まで 消えて います★');
+      /* ★支度の 後始末★＝この 試験が わざと 作った「守られる 鍵と 紙」を 自分で 片づける
+         （★守られる 物を 作った＝店は 消せない★ので ★試験が 消す★／門が 赤に して 気付かせた） */
+      const sk = await SHITAKU_KESU(EID.id);
+      console.log('       支度の 後始末 … ' + (sk.ok ? '紙 ' + sk.kami + '枚／鍵 ' + sk.kagi + '行 消した'
+        : '★消せなかった★ ' + sk.naze));
     }
   }
 }
