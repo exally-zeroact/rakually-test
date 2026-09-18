@@ -165,10 +165,37 @@ export function yubiMenjoIu() {
    ★除くのは ★相手の 席の 印で 始まる 名前の 人★だけ★
      ⇒ ★相手が 私の 行を 触ったら 指紋は ずれる★（その行は 除かれない）＝★守りは 落ちない★
    ★私の 席の 人は 除かない★＝★自分の 置き土産は 必ず 赤★ */
-function aiteNoJoken() {
-  const aite = Object.keys(SEKI_SHIRUSHI).filter((k) => k !== seki()).map((k) => SEKI_SHIRUSHI[k]);
-  if (!aite.length) return '';
-  return ' where ' + aite.map((x) => "coalesce(x.data->>'name','') not like '" + x + "%'").join(' and ');
+/* ★★相手の 席の 人に ぶら下がる 物も 除く★★（2026-09-19・棚の ⑵）
+   ★形★ … ★人の 名前の 印から 辿る★
+     明細 `pay_payslips.employee_id` → 人 ／ 公開 `pay_meisai_pub.employee_id` → 人
+     紙   `pay_meisai_docs.token` → 公開 → 人
+   ★辿れない＝親が 居ない＝孤児★ ⇒ ★除かない（＝赤の まま）★
+     ＝★席が 分からない のでは なく ★親が 居ない★★＝★私たちが ずっと 追いかけて いた 物★ */
+function aiteNoShirushi() {
+  return Object.keys(SEKI_SHIRUSHI).filter((k) => k !== seki()).map((k) => SEKI_SHIRUSHI[k]);
+}
+/* その 棚の 行が「相手の 席の 人の 物」か を 言う SQL（真＝相手の 物） */
+export function aiteNoGyo(tana, alias) {
+  const a = aiteNoShirushi();
+  if (!a.length) return 'false';
+  const na = a.map((x) => "e.data->>'name' like '" + x + "%'").join(' or ');
+  const hito = (cond) => 'exists (select 1 from kyuyo.pay_employees e where ' + cond + ' and (' + na + '))';
+  if (tana === 'kyuyo.pay_employees') return '(' + a.map((x) => "coalesce(" + alias + ".data->>'name','') like '" + x + "%'").join(' or ') + ')';
+  if (tana === 'kyuyo.pay_payslips' || tana === 'kyuyo.pay_meisai_pub') {
+    return hito('e.id = ' + alias + '.employee_id and e.account_id = ' + alias + '.account_id');
+  }
+  if (tana === 'kyuyo.pay_meisai_docs') {
+    return 'exists (select 1 from kyuyo.pay_meisai_pub p where p.token = ' + alias + '.token and '
+      + hito('e.id = p.employee_id and e.account_id = p.account_id') + ')';
+  }
+  return 'false';
+}
+const SEKI_WAKERU = ['kyuyo.pay_employees', 'kyuyo.pay_payslips', 'kyuyo.pay_meisai_pub', 'kyuyo.pay_meisai_docs'];
+function aiteNoJoken(tana) {
+  const t = tana || 'kyuyo.pay_employees';
+  if (SEKI_WAKERU.indexOf(t) < 0) return '';
+  if (!aiteNoShirushi().length) return '';
+  return ' where not ' + aiteNoGyo(t, 'x');
 }
 function yubiSql(full, hiRetsu) {
   const nashi = "'無'::jsonb";   /* 使わないが 形を 揃える為に 置く */
@@ -184,7 +211,7 @@ function yubiSql(full, hiRetsu) {
     + " then (case when e.v = 'null'::jsonb then to_jsonb('無'::text) else to_jsonb('有'::text) end)"
     + ' else e.v end)'
     + ' from jsonb_each(' + moto + ') as e(k, v))';
-  const nozoku = (full === 'kyuyo.pay_employees') ? aiteNoJoken() : '';
+  const nozoku = aiteNoJoken(full);
   return "select '" + full + "' as tana,"
     + " coalesce(md5(string_agg(h, ',' order by h)), '空') as yubi"
     + ' from (select md5(' + naka + '::text) as h from ' + full + ' x' + nozoku + ') s';
@@ -231,13 +258,19 @@ export async function kazoeru() {
        ・`koukai`         … ★従業員の Web明細に 公開が 残ったら 動く★（★人の 明細が 見える 側★）
        ・`kami`           … 公開された 紙の 数
      ★行数だけ 戻っても これが 戻らなければ ★赤★に なります★ */
+  /* ★★数からも 相手の 席の 分を 除く★★（2026-09-19・棚の ⑵）
+     ★指紋だけ 除いても 数が 残れば 赤★（人で 実測済み）＝★両方 除く★
+     ★除くのは「相手の 席の 人に ぶら下がる 物」だけ★＝★親が 居ない 物（孤児）は 残す＝赤★ */
+  const nai = (t) => ' where not ' + aiteNoGyo(t, 'x');
   const r = await toi(
-    'select (select count(*) from kyuyo.pay_employees) as hito,'
-    + " (select count(*) from kyuyo.pay_payslips) as meisai,"
-    + " (select count(*) from kyuyo.pay_employees where data->>'employmentType'='contractor') as contractor,"
-    + " (select count(*) from kyuyo.pay_payslips where coalesce(data->>'confirmed','false')='true') as kakutei,"
-    + ' (select count(*) from kyuyo.pay_meisai_pub) as koukai,'
-    + ' (select count(*) from kyuyo.pay_meisai_docs) as kami');
+    'select (select count(*) from kyuyo.pay_employees x' + nai('kyuyo.pay_employees') + ') as hito,'
+    + ' (select count(*) from kyuyo.pay_payslips x' + nai('kyuyo.pay_payslips') + ') as meisai,'
+    + " (select count(*) from kyuyo.pay_employees x" + nai('kyuyo.pay_employees')
+    + "   and coalesce(x.data->>'employmentType','employee')='contractor') as contractor,"
+    + " (select count(*) from kyuyo.pay_payslips x" + nai('kyuyo.pay_payslips')
+    + "   and coalesce(x.data->>'confirmed','false')='true') as kakutei,"
+    + ' (select count(*) from kyuyo.pay_meisai_pub x' + nai('kyuyo.pay_meisai_pub') + ') as koukai,'
+    + ' (select count(*) from kyuyo.pay_meisai_docs x' + nai('kyuyo.pay_meisai_docs') + ') as kami');
   if (!r.ok) return { ok: false, naze: r.naze };
   const x = r.gyo[0] || {};
   /* ★名指しの 6個と 指紋は ★両方 要る★★
@@ -245,7 +278,8 @@ export async function kazoeru() {
   const y = await yubimon();
   if (!y.ok) return { ok: false, naze: y.naze };
   /* ★名前も 控える★＝★増えた 人の 名前が 出れば「どの 試験か」が 1行で 分かる★ */
-  const n = await toi("select coalesce(data->>'name','(無名)') as na from kyuyo.pay_employees order by 1");
+  const n = await toi("select coalesce(x.data->>'name','(無名)') as na from kyuyo.pay_employees x"
+    + ' where not ' + aiteNoGyo('kyuyo.pay_employees', 'x') + ' order by 1');
   const namae = n.ok ? n.gyo.map((g) => g.na) : [];
   return { ok: true, hito: Number(x.hito), meisai: Number(x.meisai), namae,
     contractor: Number(x.contractor), kakutei: Number(x.kakutei),
@@ -582,10 +616,9 @@ export async function awaseru(mae, byo = 20) {
     if (!ato.ok) return { han: '未測定', iu: '★後を 数えられない★＝' + ato.naze };
     /* ★相手の 席の 分は 人の 数からも 引く★＝★相手が 走る たび 赤に しない★（2026-09-19）
        ★但し 引くのは 人だけ★＝明細・公開・紙は ★誰の 物か 分けられない★＝★赤の まま★ */
-    const maeN0 = (mae.namae || []), atoN0 = (ato.namae || []);
-    const hiku0 = (a, b) => { const c = b.slice(); return a.filter((x) => { const i = c.indexOf(x); if (i < 0) return true; c.splice(i, 1); return false; }); };
-    const aiteKazu = hiku0(atoN0, maeN0).filter((x) => { const s2 = naNoSeki(x); return s2 && s2 !== seki(); }).length;
-    const zure = MIRU.filter((m) => (m.na === 'hito' ? (ato.hito - aiteKazu) : ato[m.na]) !== mae[m.na]);
+    /* ★数は もう 相手の 分を 除いて 数えて いる★（`kazoeru` の 側）＝★ここで 引かない★
+       （2026-09-19 … 前は ここで 人だけ 引いて いた＝★二重に 引く 所だった★） */
+    const zure = MIRU.filter((m) => ato[m.na] !== mae[m.na]);
     /* ★棚が 増えた／減った★＝名簿の 外に 置き土産が 出来る道が 開いた＝★赤★ */
     const tanaZure = (ato.tana !== TANA_KAZU) || (ato.tana !== mae.tana);
     /* ★指紋の ずれ★＝★列の 名前を 1つも 見ずに 中身の 変化を 捕まえる★ */

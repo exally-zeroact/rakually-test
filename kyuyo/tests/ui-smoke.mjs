@@ -965,6 +965,14 @@ T('★押さない 物の 名簿が 決め打ちと 合う（免除は 黙って
   const kikanai = zen.filter(function (k) { return !OSANAI_KAZU[k]; });
   console.log('  ★免除 ' + zen.length + '本／効いた ' + kiita.length + '本★ … '
     + kiita.map(function (k) { return k + ' ' + OSANAI_KAZU[k] + '回'; }).join(' / '));
+  /* ★★『0回』の 訳は 4つ 在る★★（2026-09-19 に 割り切った）
+       ①効いた ②順番に 食われた（先の 印が 当たる） ③届いて いなかった（畳み・画面）
+       ★④倉庫から 描く 物★＝★この 紙では 原理的に 出ない★（21行 … `win.fetch` を わざと 断る）
+     ⇒ ★『ここでは 見ない』だけだと『どこでも 見て いない』と 区別が 付かない★ので
+        ★どこで 見て いるかも 一緒に 書く★。 */
+  console.log('  ★この 紙では 出ない 物★ … ★倉庫から 描く 物★（通信を 切って います・21行）'
+    + '＝★実ブラウザの 測り（kyuyo/tests/*-ui.mjs）で 見て います★'
+    + '（例＝`data-link`＝Web明細の リンクを 写す … 2026-09-19 に `scr-print` で 押して 確かめた）');
   console.log('  ★1回も 効かなかった 免除 ' + kikanai.length + '本★ … ' + (kikanai.join(' / ') || '（無し）')
     + '（★赤には しません／要らないかを 見る 材料★）');
 }
