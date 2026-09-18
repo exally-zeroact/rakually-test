@@ -300,6 +300,55 @@ export async function kamiTsukuru(token) {
   return { ok: true, n: (r.gyo || []).length };
 }
 
+/* ★★人の 中身も 控えて 戻す（★片づけ 専用★）★★（2026-09-18 に 足した）
+   ★なぜ 要るか（実測）★
+     年末調整の「反映」を 押すと 人の 中身に `nenchoAdj` が 入る。
+     ★アプリの「解除」は `nenchoAdj = null` に するだけ＝★キーを 消さない★★
+     ⇒ 押す前は ★キーが 無い★／解除の 後は ★null が 残る★＝★指紋が ずれる★
+     ⇒ 実測 … 押して 解除した のに ★門が 赤（kyuyo.pay_employees）★
+   ★アプリとしては 正しい★（null＝反映なし）。★戻すのは 試験の 仕事★。
+   ★会社と 同じ 形★＝★控えに 戻す／控えに 在る 物だけ★（時刻で 消さない）。 */
+export async function hitoHikaeru() {
+  const r = await toi('select id, account_id, data::text as j from kyuyo.pay_employees');
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, gyo: r.gyo };
+}
+export async function hitoModosu(mae) {
+  if (!mae || !mae.ok) return { ok: false, naze: '控えが 無い＝何も しない' };
+  let n = 0;
+  for (const g of mae.gyo) {
+    const id = String(g.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+    const j = String(g.j == null ? '' : g.j);
+    if (!id || !j) continue;
+    if (j.indexOf('$$') >= 0) return { ok: false, naze: '控えに $$ が 在る＝戻しません' };
+    const r = await toi('update kyuyo.pay_employees set data = $$' + j + '$$::jsonb'
+      + " where id = '" + id + "' and data::text is distinct from $$" + j + '$$::jsonb::text'
+      + ' returning id');
+    if (!r.ok) return { ok: false, naze: r.naze };
+    n += (r.gyo || []).length;
+  }
+  return { ok: true, n };
+}
+
+/* ★★一括＝人と 会社を まとめて 控える／戻す★★
+   ★訳★＝★押す 前に 控えるのを 忘れる★のが 一番 多い（2026-09-18 に 私が 踏んだ）
+   ⇒ ★1回 呼べば 両方★＝★忘れる 余地を 減らす★ */
+export async function zenbuHikaeru() {
+  const hito = await hitoHikaeru();
+  if (!hito.ok) return { ok: false, naze: '人：' + hito.naze };
+  const kaisha = await kaishaHikaeru();
+  if (!kaisha.ok) return { ok: false, naze: '会社：' + kaisha.naze };
+  return { ok: true, hito, kaisha };
+}
+export async function zenbuModosu(mae) {
+  if (!mae || !mae.ok) return { ok: false, naze: '控えが 無い＝何も しない' };
+  const h = await hitoModosu(mae.hito);
+  if (!h.ok) return { ok: false, naze: '人：' + h.naze };
+  const k = await kaishaModosu(mae.kaisha);
+  if (!k.ok) return { ok: false, naze: '会社：' + k.naze };
+  return { ok: true, hito: h.n, kaisha: k.n };
+}
+
 /* ★★「確定」と「公開」を ★見つけた 状態に 戻す★（★片づけ 専用★）★★（2026-09-18）
    ★なぜ 要るか（実測）★
      「今月を確定」は ★その月の 全員★を 確認済に し、★全員を Web明細に 公開★する（app.js）。
