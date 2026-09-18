@@ -34,7 +34,7 @@ export async function kagiAru(root) {
 /* pg … playwright の page ／ matsu … 入れた事の 目印（この物が 出たら 入れた）
    返り値 { haitta, matta, kai } … kai＝入れた 時の 回数（入れなければ 試した 回数） */
 export async function hairu(pg, url, matsu, kaiMax = 3) {
-  let matta = 0, naze = '';
+  let matta = 0, naze = '', kumoNi = '';   /* kumoNi＝クラウドの 覆いに 答えた 字（空＝出なかった） */
   for (let kai = 1; kai <= kaiMax; kai++) {
     await pg.goto(url, { waitUntil: 'domcontentloaded' });
     for (let i = 0; i < 60; i++) { matta++; if (await pg.$('#loginEmail, .bn[data-scr]')) break; await new Promise((r) => setTimeout(r, 250)); }
@@ -70,9 +70,45 @@ export async function hairu(pg, url, matsu, kaiMax = 3) {
         if (y) y.click();
       });
       await new Promise((r) => setTimeout(r, 600));
+      /* ★★「クラウドの 最新を 読み込みますか？」の 覆いに 答える★★（2026-09-19 実測で 足した）
+         ★何が 起きていたか★ … この 覆いは ★ログインの 少し 後に 出る★（倉庫の 返事待ち）。
+           上の 1回だけの 打ち消しでは ★間に合わない 回が 在る★。
+           覆いが 残ると ★下の ボタンに 本物の click が 届かない★
+           ⇒ `fuyo-ui` が CI で ★「家族の 欄を 出す … 30.2秒 待って 1個 足りない」★で 赤
+             （★同じ 段が 別の 回は 0.0秒★＝★遅さでは なく 覆いの 在る/無い の 2通り★）
+           ⇒ `link-ji`／`csv-moji` でも 同じ形を 踏み、★elementFromPoint で `div.ui-modal-ov` と 名指しした★
+         ★なぜ「OK（最新を 読み込む）」か★ … 覆いの 字は「クラウドに 保存済みデータが あります
+           （★まだ 読み込めて いません★）」＝★キャンセルすると 空のまま★＝試験が 支度した 物が 出ない。
+         ★お客さんの 道★ … ★本物の click★（JS で 押し替えない・消さない）。
+         ★この 覆いだけ★を 見る（他の 覆いは 上の 打ち消しに 任せる＝広げない）。 */
+      for (let i = 0; i < 24; i++) {
+        const kumo = await pg.evaluate(() => {
+          const ov = document.querySelector('.ui-modal-ov');
+          if (!ov) return false;
+          const t = String(ov.textContent || '');
+          return t.indexOf('クラウド') >= 0 || t.indexOf('最新を読み込み') >= 0;
+        }).catch(() => false);
+        if (kumo) {
+          const bs = await pg.$$('.ui-modal-btn').catch(() => []);
+          for (const btn of bs) {
+            const ji = (await btn.textContent().catch(() => '')) || '';
+            if (ji.indexOf('OK') >= 0 || ji.indexOf('はい') >= 0) {
+              if (await btn.click({ timeout: 4000 }).then(() => true).catch(() => false)) {
+                kumoNi = ji.trim().slice(0, 8);
+                await new Promise((r) => setTimeout(r, 2500));   /* ★OK は 画面を 開き直す★ */
+                for (let j = 0; j < 40; j++) { matta++; if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
+              }
+              break;
+            }
+          }
+          break;
+        }
+        matta++;
+        await new Promise((r) => setTimeout(r, 250));
+      }
     }
     const nokoru = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
-    if (!nokoru) return { haitta: true, matta, kai };
+    if (!nokoru) return { haitta: true, matta, kai, kumoNi };
     /* ★入れなかった 時は 画面の 言い分を 控える★（推し量らない＝会社の 決まり）
        CIで「3回とも 入れなかった」と だけ 出て、★理由が 分からず 手が 止まった★（2026-09-05） */
     naze = await pg.evaluate(() => {

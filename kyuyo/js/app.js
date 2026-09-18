@@ -59,10 +59,9 @@
        Shift-JIS・漢字入りUTF-8・英数だけ・壊したバイト=★4つとも 今と同じ★ */
   function csvMojiYomu(buf){
     var b=new Uint8Array(buf);
-    if(b.length>=3 && b[0]===0xEF && b[1]===0xBB && b[2]===0xBF){
-      try{ return new TextDecoder('utf-8').decode(buf); }catch(e){}
-    }
-    try{ return new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+    /* ★BOM が 在れば UTF-8 で 確定★＝厳しく しない(fatal:false)／無ければ ★厳しく 試す★ */
+    var bom=(b.length>=3 && b[0]===0xEF && b[1]===0xBB && b[2]===0xBF);
+    try{ return new TextDecoder('utf-8',{fatal:!bom}).decode(buf); }
     catch(e){ try{ return new TextDecoder('shift-jis').decode(buf); }catch(_){ return ''; } }
   }
 
