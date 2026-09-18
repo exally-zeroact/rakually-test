@@ -377,12 +377,18 @@ export async function zenbuModosu(mae) {
   if (!h.ok) return { ok: false, naze: '人：' + h.naze };
   const k = await kaishaModosu(mae.kaisha);
   if (!k.ok) return { ok: false, naze: '会社：' + k.naze };
-  /* ★確定を 控えに 戻す★＝★控えに 在ったのに 外れた 物を 立て直す★／★控えに 無いのに 付いた 物を 外す★ */
-  let kaku = { ok: true, n: 0, modoshita: 0 };
+  /* ★★「控えに 無い＝自分が 付けた」は ★2席では 成り立たない★★★（2026-09-19 実測）
+       私の 戻しが ★CI が たった今 付けた 確定 13件を 外した★。
+       ★同じ 試験の 倉庫を この 機械と GitHub の 機械が 使う★＝★控えの 後に 増えた 物は 相手の 分かも しれない★。
+     ⇒ ★★消さない／字で 言う★★＝★増えた 分は 数だけ 出す★
+     ⇒ ★立て直す（控えに 在ったのに 外れた 物）は そのまま やる★＝★これは 自分の 仕業★が 確か
+       （相手が 外す 事も 有り得るが、★立て直して 困る 相手は 居ない★＝元に 戻すだけ） */
+  let kaku = { ok: true, n: 0, modoshita: 0, yokei: 0 };
   if (mae.kakutei && mae.kakutei.ok) {
-    const nuke = await kakuteiModosu(mae.kakutei);          /* 控えに 無い のに 付いた 物を 外す */
-    if (!nuke.ok) return { ok: false, naze: '確定（外す）：' + nuke.naze };
-    kaku.n = nuke.n;
+    const ima = await kakuteiHikaeru();
+    if (!ima.ok) return { ok: false, naze: '確定（数える）：' + ima.naze };
+    const moto = new Set(mae.kakutei.id || []);
+    kaku.yokei = (ima.id || []).filter((x) => !moto.has(x)).length;   /* ★外さない★＝数えるだけ */
     const id = mae.kakutei.id || [];
     if (id.length) {
       const ji = id.map((x) => "'" + String(x).replace(/[^A-Za-z0-9_.:@+-]/g, '') + "'").join(',');
@@ -393,7 +399,11 @@ export async function zenbuModosu(mae) {
       kaku.modoshita = (r.gyo || []).length;
     }
   }
-  return { ok: true, hito: h.n, kaisha: k.n, kakuteiHazushita: kaku.n, kakuteiModoshita: kaku.modoshita };
+  return { ok: true, hito: h.n, kaisha: k.n,
+    kakuteiModoshita: kaku.modoshita,                 /* 控えに 在ったのに 外れて いた 物を 立て直した */
+    kakuteiYokei: kaku.yokei,                          /* ★控えの 後に 増えた 確定＝★外して いません★★ */
+    iu: '人 ' + h.n + '行／会社 ' + k.n + '行／確定 立て直した ' + kaku.modoshita + '件'
+      + (kaku.yokei ? '／★控えの 後に 増えた 確定 ' + kaku.yokei + '件＝★外して いません（相手の 席の 分かも）★★' : '') };
 }
 
 /* ★★「確定」と「公開」を ★見つけた 状態に 戻す★（★片づけ 専用★）★★（2026-09-18）
@@ -579,6 +589,16 @@ export async function awaseru(mae, byo = 20) {
       const fueta = hiku(atoN, maeN), heta = hiku(maeN, atoN);
       if (fueta.length) iu.push('★増えた 人 ' + fueta.length + '人★ … ' + fueta.join(' / ')
         + '（★名前の 形で どの 試験かが 分かります★）');
+      /* ★★増えた 物は「自分」か「相手」か 決められない★★（2026-09-19）
+         ★同じ 試験の 倉庫を この 機械と GitHub の 機械が 使う★
+         ⇒ ★決められない 物は 緑に しない（赤の まま）／但し ★決められない と 字で 言う★★
+         ＝★「控えに 無い＝自分が 付けた」は 2席では 成り立たない★ */
+      const fuyu = MIRU.filter((m) => ato[m.na] > mae[m.na]);
+      if (fuyu.length || fueta.length) {
+        iu.push('★増えた 物は 自分の 分か 相手の 席の 分か ★決められません★★'
+          + '（★' + (fuyu.map((m) => m.ji).join('／') || '人') + ' が 増えて います★）'
+          + '＝★消して いません／赤の ままに します★');
+      }
       if (heta.length) iu.push('★減った 人 ' + heta.length + '人★ … ' + heta.join(' / '));
       return { han: '赤', mae, ato, zure: zure.map((m) => m.na), yubiZure, tanaZure, fueta, heta,
         iu: '★倉庫に 置き土産が 残っている★　' + iu.join('　') + '　' + sekiIu()
