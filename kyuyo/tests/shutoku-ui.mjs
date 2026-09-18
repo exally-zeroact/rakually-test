@@ -384,8 +384,13 @@ if (ato.osenai === false) {
   /* ★鍵を ★2本★ 作る★
        ㋐ぶら下がり 無し … ★消えるはず★
        ㋑紙を 1枚 ぶら下げる … ★消えては いけない★（紙は CASCADE で 一緒に 消える＝お金の 記録） */
-  let kagiMae = { ok: false, n: 0, naze: '人の id が 分からない' };
-  let kamiMae = { ok: false, n: 0, naze: '人の id が 分からない' };
+  /* ★★鍵が 無い＝★環境★（★はかれない では ない）★★＝09-14 の 決め①
+       ★人の id が 分からない★と だけ 書くと ★KANKYO() に 当たらず 赤に なる★
+       （2026-09-18 … WebKit の CI が これで 赤＝★9 passed 0 failed なのに 終わり値 1★）。
+     ⇒ ★訳を そのまま 持ち越す★＝EID の 訳（鍵の 紙が 読めない…）を 渡す。 */
+  const idNashi = EID.ok ? '' : (EID.naze || '人の id が 分からない');
+  let kagiMae = { ok: false, n: 0, naze: idNashi };
+  let kamiMae = { ok: false, n: 0, naze: idNashi };
   if (EID.ok) {
     const t1 = await KAGI_TSUKURU(EID.id);                 /* ㋐裸の 鍵 */
     const t2 = await KAGI_TSUKURU(EID.id);                 /* ㋑紙を 付ける 鍵 */
