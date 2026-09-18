@@ -300,6 +300,47 @@ export async function kamiTsukuru(token) {
   return { ok: true, n: (r.gyo || []).length };
 }
 
+/* ★★「確定」と「公開」を ★見つけた 状態に 戻す★（★片づけ 専用★）★★（2026-09-18）
+   ★なぜ 要るか（実測）★
+     「今月を確定」は ★その月の 全員★を 確認済に し、★全員を Web明細に 公開★する（app.js）。
+     ⇒ 試験が 自分の 人の 為に 1回 押すだけで ★他の 人の 確定・公開まで 作られる★。
+     ⇒ 逆に 片づけで 月まとめの 取り消しを 押すと ★元から 在った 確定まで 消える★
+        （2026-09-18 実測 … ★確定 4行 → 1行★＝元から 在った 3件を 壊した）。
+   ⇒ ★★時刻で 消さない／「前に 在ったか」で 決める★★
+      （2026-09-14 … 時刻で 消して ★元から 在った 明細まで 消した★＝同じ 型を 繰り返さない）
+   ★戻し方★ … 控えに 無い 物は 元へ（確定を 外す・公開を 消す）／控えに 在る 物は ★触らない★。 */
+export async function kakuteiHikaeru() {
+  const r = await toi("select id from kyuyo.pay_payslips where coalesce(data->>'confirmed','false')='true'");
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, id: r.gyo.map((g) => g.id) };
+}
+export async function koukaiHikaeru() {
+  const d = await toi('select id from kyuyo.pay_meisai_docs');
+  if (!d.ok) return { ok: false, naze: d.naze };
+  const p = await toi('select token from kyuyo.pay_meisai_pub');
+  if (!p.ok) return { ok: false, naze: p.naze };
+  return { ok: true, kami: d.gyo.map((g) => g.id), kagi: p.gyo.map((g) => g.token) };
+}
+function ji(a) { return a.map((x) => "'" + String(x).replace(/[^A-Za-z0-9_.:@+-]/g, '') + "'").join(','); }
+export async function kakuteiModosu(mae) {
+  if (!mae || !mae.ok) return { ok: false, naze: '控えが 無い＝何も しない' };
+  const nai = mae.id.length ? " and id not in (" + ji(mae.id) + ')' : '';
+  const r = await toi("update kyuyo.pay_payslips set data = data || '{\"confirmed\":false}'::jsonb"
+    + " where coalesce(data->>'confirmed','false')='true'" + nai + ' returning id');
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, n: (r.gyo || []).length };
+}
+export async function fuetaKoukaiKesu(mae) {
+  if (!mae || !mae.ok) return { ok: false, naze: '控えが 無い＝何も しない' };
+  const naiK = mae.kami.length ? ' where id not in (' + ji(mae.kami) + ')' : '';
+  const d = await toi('delete from kyuyo.pay_meisai_docs' + naiK + ' returning id');
+  if (!d.ok) return { ok: false, naze: d.naze };
+  const naiP = mae.kagi.length ? ' where token not in (' + ji(mae.kagi) + ')' : '';
+  const p = await toi('delete from kyuyo.pay_meisai_pub' + naiP + ' returning token');
+  if (!p.ok) return { ok: false, naze: p.naze };
+  return { ok: true, kami: (d.gyo || []).length, kagi: (p.gyo || []).length };
+}
+
 /* ★★支度で 作った 鍵と 紙を 片づける（★後始末 専用・測る所では 使わない★）★★
    ★訳★＝この 支度は ★消えては いけない 物（紙つきの 鍵）★を わざと 作る＝★自分で 片づけないと 門が 赤★。
    ★順★＝紙 → 鍵（CASCADE だが 数を 出す 為に 順に 消す）。★テスト線だけ★。 */

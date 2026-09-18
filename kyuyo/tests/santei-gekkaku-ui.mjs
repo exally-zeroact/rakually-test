@@ -143,11 +143,21 @@ console.log(NL + '[santei-gekkaku-ui] 算定基礎届／月額変更届を ★�
 
 const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★「前」は ログインの 前に 数える★（ログインした 途端に 幻の『従業員 1』が 倉庫に 書かれる） */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU }
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU, kakuteiHikaeru: KAKUTEI_HIKAE, koukaiHikaeru: KOUKAI_HIKAE, kakuteiModosu: KAKUTEI_MODOSU, fuetaKoukaiKesu: KOUKAI_KESU }
   = await import('./_souko-kazoeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
 const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000).toISOString()));
+
+/* ★★走る前に「確定」と「公開」も 控える★★（2026-09-18）
+   ★訳★＝「今月を確定」は ★その月の 全員★を 確認済に し ★全員を Web明細に 公開★する。
+     ⇒ この試験が 1回 押すだけで ★他の 人の 確定・公開まで 作られる★。
+     ⇒ 逆に 片づけで 月まとめの 取り消しを 押すと ★元から 在った 確定まで 消える★
+        （2026-09-18 実測 … ★確定 4行 → 1行★＝元から 在った 3件を 壊した
+          ＝★私の 報告「労働保険 0行／支払調書 0行は 正しい」の 裏取りまで 汚した★）。
+   ⇒ ★★控えに 無い 物だけ 元へ 戻す★★＝★前から 在った 物は 触りようが ない★。 */
+const KAKUTEI_MAE = await KAKUTEI_HIKAE();
+const KOUKAI_MAE = await KOUKAI_HIKAE();
 
 /* ★★この回で 触る 月の 明細の id を ★走る前に★ 控える（2026-09-15）★★
    ★前は 時刻で「この回の 行」を 決めていた★
@@ -520,6 +530,13 @@ try {
   /* ★確定は 在籍者 全員に 付く★＝この回で 書かれた 明細を まとめて 消す（同じ 外す条件） */
   const mk = await MEISAI_KESU(MEISAI_MAE, TSUKI3);
   if (!mk.ok) console.log('       🟡 この回の 明細を 消せなかった … ' + mk.naze);
+  /* ★この回で 増えた「確定」と「公開」を 戻す★（★控えに 在る 物は 触らない★） */
+  const km = await KAKUTEI_MODOSU(KAKUTEI_MAE);
+  console.log('       片づけ … ' + (km.ok ? '★この回で 付いた 確定 ' + km.n + '件を 外した★'
+    : '🟡 確定を 戻せなかった … ' + km.naze));
+  const kk = await KOUKAI_KESU(KOUKAI_MAE);
+  console.log('       片づけ … ' + (kk.ok ? '★この回で 出来た 公開 … 紙 ' + kk.kami + '枚／鍵 ' + kk.kagi + '行を 消した★'
+    : '🟡 公開を 戻せなかった … ' + kk.naze));
   await b.close().catch(() => null);
   srv.close();
 }

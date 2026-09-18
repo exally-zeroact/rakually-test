@@ -154,9 +154,67 @@ export async function katazukeru(pg, opt) {
       michi.push('①' + ym + ' に 合わせた'
         + (honmono ? '【本物の 選択＝.ym-one】' : '【値を 入れて change＝打ち込みの 道／.ym-one で 選べなかった】'));
     }
+    /* ★★★月まとめの 取り消しは 使わない＝★その人 1人だけ★を 外す★★★（2026-09-18 に 直した）
+       ★何が 起きて いたか（実測）★
+         `data-undo-month` は app.js:5502
+           `state.employees.forEach(function(emp){ if(isActiveInMonth(emp,ym)) setConfirm(emp.id,false); });`
+         ＝★その月の ★全員★を 下書きに 戻す★（★アプリとしては 正しい★＝人が 押す 物）。
+         ⇒ santei-gekkaku-ui が 自分の 人を 片づける為に 4・5・6月を 取り消した 結果
+            ★元から 在った 3人の 確定まで 消えた★＝実測 ★確定 4行 → 1行★。
+         ⇒ ★★この 片づけが 他の 試験と 指示役1 の 報告を 汚した★★
+            （「労働保険 0行／支払調書 0行」は ★この 後の 数★＝裏が 取れて いなかった）。
+       ★正しい 道★＝`.econf`（その人の「確認済」の 印）を 外す＝app.js:5489
+         `setConfirm(emc.id,false)` ＝★その人 1人だけ★。★お客さんが 実際に 触る 物★。
+       ★月まとめは 逃げ道として だけ 残す★＝使ったら ★⚠で 出す★（黙って 広げない）。 */
+    const shirabe = await pg.evaluate((nm) => {
+      const zen = Array.from(document.querySelectorAll('input.econf'));
+      const mieru = zen.filter((c) => c.offsetParent);
+      const iri = mieru.filter((c) => c.checked);
+      /* ★★「1人ぶんの 箱」は ★class の 名前で 当てない★★（2026-09-18 実測で 外した）
+           入力の 画面の 札は `.mco` では なく、`.econf` の 親は `label.emp-conf`＝★中は「確認済」だけ★。
+           ⇒ 名前が 出て こない ⇒ ★毎回 逃げ道（月まとめ）に 落ちて いた★。
+         ⇒ ★上へ 辿って ★`.econf` を 1つだけ 含む 一番 大きい 箱★を 1人ぶんと する★
+           （2つ 含んだら そこは ★何人ぶんも 入った 入れ物★＝行き過ぎ）。 */
+      const hitoBako = (c) => {
+        let e = c.parentElement, saigo = c.parentElement;
+        for (let i = 0; i < 8 && e; i++) {
+          if (e.querySelectorAll('input.econf').length > 1) break;
+          saigo = e; e = e.parentElement;
+        }
+        return saigo;
+      };
+      const box = iri.find((c) => {
+        const oya = hitoBako(c);
+        return oya && (oya.textContent || '').indexOf(nm) >= 0;
+      });
+      if (box) box.setAttribute('data-katazuke-conf', '1');
+      /* ★見つからない 時に「何が 在ったか」を 出す★＝★分母を 出さない 緑（赤）は 嘘★ */
+      return { atta: !!box, zen: zen.length, mieru: mieru.length, iri: iri.length,
+        na: iri.slice(0, 4).map((c) => {
+          const oya = hitoBako(c);
+          return ((oya && oya.textContent) || '').replace(/[ ]+/g, ' ').slice(0, 24);
+        }) };
+    }, na).catch(() => ({ atta: false, zen: -1, mieru: -1, iri: -1, na: [] }));
+    const hitori = shirabe.atta;
+    if (hitori) {
+      await pg.click('[data-katazuke-conf]', { timeout: 8000 }).catch(() => null);
+      await machi(700);
+      const y1 = await osuByJi(pg, /^(OK|はい)$/, machi);
+      await pg.evaluate(() => {
+        const x = document.querySelector('[data-katazuke-conf]');
+        if (x) x.removeAttribute('data-katazuke-conf');
+      }).catch(() => null);
+      michi.push('①' + (ym || '今の月') + ' … ★この人 1人の「確認済」を 外した★【本物の click】'
+        + (y1.osita ? '（' + y1.ji + '）' : '（確認は 出なかった）'));
+      await machi(1200);
+      continue;
+    }
     const undo = await pg.$('[data-undo-month]');
-    if (!undo) { michi.push('①' + (ym || '今の月') + ' … 確定は 無い（取り消す ボタンが 出ていない）'); continue; }
-    michi.push('①' + (ym || '今の月') + ' … 確定を 取り消す ボタンが 在った');
+    if (!undo) { michi.push('①' + (ym || '今の月') + ' … 確定は 無い（取り消す ボタンも 「確認済」の 印も 無い）'); continue; }
+    michi.push('①' + (ym || '今の月') + ' … ⚠★この人の「確認済」を 見つけられず 月まとめで 取り消す★'
+      + '＝★同じ月の 他の 人の 確定も 一緒に 外れます★'
+      + '（econf 全 ' + shirabe.zen + '／見える ' + shirabe.mieru + '／印つき ' + shirabe.iri
+      + '／探した 名前「' + na + '」／印つきの 行 … ' + (shirabe.na || []).join(' | ') + '）');
     await undo.click({ timeout: 8000 }).catch(() => null);
     await machi(900);
     const y = await osuByJi(pg, /^(OK|はい|取り消す|確定を取り消す)$/, machi);
