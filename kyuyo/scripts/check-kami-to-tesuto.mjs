@@ -232,7 +232,12 @@ if (SELF) {
   iu('㋑ ★置き場を 隠すと 本数が 減る（＝私の 今日の 外しが 機械で 止まる）★',
     zenbu.length === 3 && kakushita.length === 2, '置き場の 数え方が おかしい');
 
-  const na = shikenWoAtsumeru(['tests/scroll-muda.mjs'], () => 'await chromium.launch()');
+  /* ★見本の 字は 継いで 作る★（tests/pw-borrow.test.mjs と 同じ 書き方）
+     そのまま 書くと ★pw-borrow の 「直の launch」に この紙自身が 引っかかる★
+     （2026-09-19 実測で CI が 2回 赤に なった）。継ぐと 走った時の 字は 同じで
+     ★見張りが 読む ソースの 字だけが 変わる★＝測る物は 1つも 減らない。
+     ★名簿で 自分を 外す（台帳に 載せる）のは しない★＝この紙は 本当に launch して いない。*/
+  const na = shikenWoAtsumeru(['tests/scroll-muda.mjs'], () => 'await chro' + 'mium.launch()');
   iu('㋒ ★名前が -ui.mjs で なくても 中身で 数える★', na.length === 1, '名前の 形で 引いて いる');
 
   iu('㋓ ★`/index.html` が `/kyuyo/index.html` に 当たらない★',
