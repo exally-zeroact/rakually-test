@@ -341,6 +341,43 @@ export async function fuetaKoukaiKesu(mae) {
   return { ok: true, kami: (d.gyo || []).length, kagi: (p.gyo || []).length };
 }
 
+/* ★★会社の 欄を 控えて、控えに 戻す（★片づけ 専用★）★★（2026-09-18）
+   ★何が 起きて いたか（手元の 総なめ #25 #31 で 出た）★
+     試験が `#c-pref` など ★会社の 欄に 打ちっぱなし★／★戻す 字が どちらにも 無い★（字で 数えた＝各 1回＝打つだけ）。
+     ⇒ 片づけの 門が ★kyuyo.pay_companies の 指紋 ずれ★で 赤に した。
+     ⇒ ★行数も 名指しの 6個も 動かない＝前の 門なら 永久に 緑★だった。
+   ★媒体通番だけは 戻さない★＝★届出CSVを 作る たび 1 上がるのが 正しい★（指紋の 免除と 揃える）。
+   ★時刻で 消さない／控えに 在る 物だけ 戻す★＝2026-09-14 の 型を 繰り返さない。 */
+export async function kaishaHikaeru() {
+  const r = await toi('select account_id, data::text as j from kyuyo.pay_companies');
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, gyo: r.gyo };
+}
+export async function kaishaModosu(mae) {
+  if (!mae || !mae.ok) return { ok: false, naze: '控えが 無い＝何も しない' };
+  let n = 0;
+  for (const g of mae.gyo) {
+    const id = String(g.account_id || '').replace(/[^0-9a-fA-F-]/g, '');
+    const j = String(g.j == null ? '' : g.j);
+    if (!id || !j) continue;
+    /* ★字を そのまま 埋めない★＝ドル囲みで 渡す（中に $$ が 在れば 触らない） */
+    if (j.indexOf('$$') >= 0) return { ok: false, naze: '控えに $$ が 在る＝戻しません' };
+    const r = await toi('update kyuyo.pay_companies c set data = case'
+      + " when c.data #> '{company,baitaiTsuban}' is not null"
+      + "  then jsonb_set($$" + j + "$$::jsonb, '{company,baitaiTsuban}', c.data #> '{company,baitaiTsuban}')"
+      + ' else $$' + j + '$$::jsonb end'
+      + " where c.account_id = '" + id + "'"
+      + ' and c.data::text is distinct from'
+      + "  (case when c.data #> '{company,baitaiTsuban}' is not null"
+      + "   then jsonb_set($$" + j + "$$::jsonb, '{company,baitaiTsuban}', c.data #> '{company,baitaiTsuban}')"
+      + ' else $$' + j + '$$::jsonb end)::text'
+      + ' returning c.account_id');
+    if (!r.ok) return { ok: false, naze: r.naze };
+    n += (r.gyo || []).length;
+  }
+  return { ok: true, n };
+}
+
 /* ★★支度で 作った 鍵と 紙を 片づける（★後始末 専用・測る所では 使わない★）★★
    ★訳★＝この 支度は ★消えては いけない 物（紙つきの 鍵）★を わざと 作る＝★自分で 片づけないと 門が 赤★。
    ★順★＝紙 → 鍵（CASCADE だが 数を 出す 為に 順に 消す）。★テスト線だけ★。 */

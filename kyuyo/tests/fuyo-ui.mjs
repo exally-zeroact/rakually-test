@@ -79,11 +79,12 @@ if (SELF) {
     process.exit(0);
   }
 }
-let borrow, pwLaunch, hairu, osu, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU;
+let borrow, pwLaunch, hairu, osu, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
   ({ hairu, osu } = await import('../../tests/_hairu.mjs'));
-  ({ kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA } = await import('./_souko-kazoeru.mjs'));
+  ({ kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA,
+     kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU } = await import('./_souko-kazoeru.mjs'));
   ({ katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs'));
 } catch (e) { console.log('🟡 ★未測定★ 道具が 読めない … ' + (e && e.message)); process.exit(2); }
 const wk = await borrow('fuyo-ui', 'webkit');
@@ -155,6 +156,9 @@ const pg = await ctx.newPage();
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
 const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000).toISOString()));  /* ★この回の 始まり★＝これ以降の 孤児だけ 消す */
+  /* ★会社の 欄も 控える★＝この試験は `#c-pref` ほか 会社の 欄に 打つ（363-380行）が ★戻す 字が 無かった★
+     ⇒ 手元の 総なめ #25 で ★kyuyo.pay_companies の 指紋 ずれ★で 赤に なった。 */
+  const KAISHA_MAE = await KAISHA_HIKAE();
   const soukoMae = await KAZOERU();
   console.log('  倉庫（前） … ' + (soukoMae.ok
     ? '人 ' + soukoMae.hito + ' ／ 明細 ' + soukoMae.meisai
@@ -231,6 +235,9 @@ try {
        ★条件を 書かない 裏口は 永久に 残る★ので、必ず この 3行を 一緒に 動かす事。 */
     const kesu = await GOMI_KESU(HAJIME);
     if (!kesu.ok) console.log('       🟡 明細を 消せなかった … ' + kesu.naze);
+    const ks = await KAISHA_MODOSU(KAISHA_MAE);
+    console.log('       片づけ … ' + (ks.ok ? '★会社の 欄を 控えに 戻した ' + ks.n + '行★（媒体通番は 戻さない）'
+      : '🟡 会社の 欄を 戻せなかった … ' + ks.naze));
   };
 
   console.log('  ★この先は 後始末つき★（殺されても 足した 人を 消す）');

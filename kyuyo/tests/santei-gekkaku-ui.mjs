@@ -143,7 +143,7 @@ console.log(NL + '[santei-gekkaku-ui] 算定基礎届／月額変更届を ★�
 
 const { katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs');
 /* ★「前」は ログインの 前に 数える★（ログインした 途端に 幻の『従業員 1』が 倉庫に 書かれる） */
-const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU, kakuteiHikaeru: KAKUTEI_HIKAE, koukaiHikaeru: KOUKAI_HIKAE, kakuteiModosu: KAKUTEI_MODOSU, fuetaKoukaiKesu: KOUKAI_KESU }
+const { kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA, sujiKesu: SUJI_KESU, meisaiIdHikaeru: MEISAI_HIKAE, fuetaMeisaiKesu: MEISAI_KESU, kakuteiHikaeru: KAKUTEI_HIKAE, koukaiHikaeru: KOUKAI_HIKAE, kakuteiModosu: KAKUTEI_MODOSU, fuetaKoukaiKesu: KOUKAI_KESU, kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU }
   = await import('./_souko-kazoeru.mjs');
 /* ★始まりは ★倉庫の 時計★に 聞く★＝手元の 時計から 遡ると
    ★直前の 試験の ゴミまで 窓に 入り、自分が 作っていない 物を 消す★（総なめで 捕まった）。 */
@@ -156,6 +156,9 @@ const HAJIME = await IMA().then((x) => (x.ok ? x.t : new Date(Date.now() - 5000)
         （2026-09-18 実測 … ★確定 4行 → 1行★＝元から 在った 3件を 壊した
           ＝★私の 報告「労働保険 0行／支払調書 0行は 正しい」の 裏取りまで 汚した★）。
    ⇒ ★★控えに 無い 物だけ 元へ 戻す★★＝★前から 在った 物は 触りようが ない★。 */
+/* ★会社の 欄も 控える★＝この試験は `#c-pref` に 打つ（351-353行）が ★戻す 字が 無かった★
+   ⇒ 手元の 総なめ #31 で ★kyuyo.pay_companies の 指紋 ずれ★で 赤に なった。 */
+const KAISHA_MAE = await KAISHA_HIKAE();
 const KAKUTEI_MAE = await KAKUTEI_HIKAE();
 const KOUKAI_MAE = await KOUKAI_HIKAE();
 
@@ -534,6 +537,9 @@ try {
   const km = await KAKUTEI_MODOSU(KAKUTEI_MAE);
   console.log('       片づけ … ' + (km.ok ? '★この回で 付いた 確定 ' + km.n + '件を 外した★'
     : '🟡 確定を 戻せなかった … ' + km.naze));
+  const ks = await KAISHA_MODOSU(KAISHA_MAE);
+  console.log('       片づけ … ' + (ks.ok ? '★会社の 欄を 控えに 戻した ' + ks.n + '行★（媒体通番は 戻さない）'
+    : '🟡 会社の 欄を 戻せなかった … ' + ks.naze));
   const kk = await KOUKAI_KESU(KOUKAI_MAE);
   console.log('       片づけ … ' + (kk.ok ? '★この回で 出来た 公開 … 紙 ' + kk.kami + '枚／鍵 ' + kk.kagi + '行を 消した★'
     : '🟡 公開を 戻せなかった … ' + kk.naze));
