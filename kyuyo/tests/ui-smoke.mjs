@@ -118,8 +118,23 @@ T('★押す前の 門＝削除の ボタンが 出て いて、しかも 押さ
 });
 
 // ── 各画面を開いて、その画面の全ボタンをクリック(例外0) ──
-const SCREENS = ['scr-settings', 'scr-input', 'scr-list', 'scr-print'];
+/* ★★画面は 5つ（4つでは 足りなかった）★★（2026-09-18 実測）
+   ★『全ボタンUI検証』と 名乗って いて ★画面が 1つ 抜けて いた★★
+     実物（kyuyo/index.html の `data-scr`）… scr-settings / scr-input / scr-list / scr-print / ★scr-furikomi★
+     この紙        … ★4つ★（`scr-furikomi`＝振込 が 無い）
+   ⇒ ★全銀（総合振込データ）の ボタンに 1度も 届いて いなかった★＝免除「全銀」が 0回だった 訳。
+   ★見る 範囲を 先に 数えて 書く★（[[feedback_mihari_no_miru_hanni_wo_saki_ni_kazoero]]）
+   ＝★名前を 手で 並べる のを やめ、★画面の 札から 読む★★＝★画面が 増えた 日に 勝手に 入る★。
+   ★本数は 決め打つ★＝★黙って 減っても 気づく★。 */
+const SCREENS = [...doc.querySelectorAll('.bn[data-scr]')].map(b => b.getAttribute('data-scr'));
+const SCREENS_HONSU = 5;
 let clicked = 0, skipped = 0;
+console.log('  ★見る 画面 … ' + SCREENS.length + 'つ★（決め打ち ' + SCREENS_HONSU + '）… ' + SCREENS.join(' / '));
+T('★見る 画面の 数が 決め打ちと 合う（画面が 増減したら 赤）', function () {
+  ok(SCREENS.length === SCREENS_HONSU,
+    '★画面 ' + SCREENS.length + 'つ／決め打ち ' + SCREENS_HONSU + 'つ★＝'
+    + '★増えたなら この紙の 決め打ちも 直す（＝差分に 出る）／減ったなら 訳を 書く★ … ' + SCREENS.join(' '));
+});
 T('全タブ→全ボタンをクリックしても例外0・各画面が描画', function () {
   const q = s => doc.querySelector(s), qa = s => [...doc.querySelectorAll(s)];
   for (const scr of SCREENS) {
