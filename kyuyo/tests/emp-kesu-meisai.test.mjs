@@ -40,6 +40,20 @@ let pass = 0, fail = 0;
 const T = (n, f) => { try { f(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
 const ok = (c, m) => { if (!c) throw new Error(m); };
 
+/* ★★「その棚を ★消して いるか★」を 1か所で 決める★★（2026-09-18）
+   ★名前が 出て きた＝消している、では ない★＝★守る 為に 名前を 書く★事が 在る
+     （`MICHIZURE_pay_meisai_pub = ['pay_meisai_docs', …]`＝★道連れに しない 為の 名簿★）。
+   ⇒ ★`from('棚')` の すぐ 後に `.delete()` が 在るか★だけを 見る。
+   ★逆斜線を 使わない★＝heredoc で 落ちて ★見張りが 動かなく なる★（同じ日に 2回 踏んだ）。 */
+const KESU_KA = (src, tana) => {
+  const q = String.fromCharCode(39);
+  const kagi = 'from(' + q + tana + q + ')';
+  for (let at = src.indexOf(kagi); at >= 0; at = src.indexOf(kagi, at + 1)) {
+    if (src.slice(at, at + 90).indexOf('.delete()') >= 0) return true;
+  }
+  return false;
+};
+
 /* ★注記を 外してから 数える★（「消す」と 書いてある 覚書が 一番 引っかかる＝今日 2回 踏んだ） */
 export function strip(src) {
   return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
@@ -151,9 +165,20 @@ T('★⑦ 倉庫側に その人の 明細を 消す 道が 在る', () => {
 });
 
 T('★⑧ 従業員に 見える 紙（pay_meisai_docs）は 物理削除しない（既に 在る 決めを 壊さない）', () => {
-  const i = STORE.indexOf('Store.deletePayslipsOf');
-  const naka2 = STORE.slice(i, i + 1200);
-  ok(!/pay_meisai_docs/.test(naka2), '★従業員に 見える 紙まで 消している★＝お金の 記録を 残す 決めを 壊した');
+  /* ★★「名前が 出て きた＝消している」では ない★★（2026-09-18 に この段が 誤って 赤に なった）
+       ★訳★＝★守る 為に 名前を 書く★事が 在る
+         （`MICHIZURE_pay_meisai_pub = ['pay_meisai_docs', ...]`＝★道連れに しない 為の 名簿★）。
+       ⇒ ★見るのは「消す 字」だけ★＝`from('pay_meisai_docs')` の すぐ 後に `.delete()` が 在るか。
+       ⇒ 場所も 決め打たない（★店の どこで 消しても 赤★）＝1200字の 窓より 強い。 */
+  /* ★★見る 範囲は ★人を 消す 道★だけ★★（2026-09-18 … 店 全部を 見て 誤って 赤に なった）
+       `Store.unpublishMonth`（store.js:565）は ★その月を Web明細から 下げる 為に 紙を 消す★
+       ＝★人を 消す 話では ない／前から 在る 決め★。★そこまで 赤に しては いけない★。 */
+  const mado = ['Store.deletePayslipsOf', 'Store.deleteMeisaiPubOf']
+    .map((k) => { const at = STORE.indexOf(k); return at < 0 ? '' : STORE.slice(at, at + 1600); }).join('');
+  ok(!KESU_KA(mado, 'pay_meisai_docs'),
+    '★人を 消す 道で 従業員に 見える 紙まで 消している★＝お金の 記録を 残す 決めを 壊した');
+  /* ★鍵は 消す／紙は 消さない★＝★片方だけ 消す事を 見る★（両方 消さない でも 通る 検査に しない） */
+  ok(KESU_KA(mado, 'pay_meisai_pub'), '★鍵を 消す 道が 無い★＝居ない人の 鍵が 残ります');
 });
 
 /* ★★自己確認＝わざと 壊して 赤が 出るか★★（★片方だけ 壊して 片方だけ 赤★まで 見る） */
@@ -174,7 +199,7 @@ if (SELF) {
     '鍵を 消さなくても 見張りが 気づかない');
 
   /* ⑦-2の わざと壊し … 絞り込みを 外す（他人の 鍵まで 消える 形） */
-  const shiboranai = STORE.replace(/\.eq\('employee_id', employeeId\)\.select\('token'\)/, ".select('token')");
+  const shiboranai = STORE.split(".eq('employee_id', employeeId)").join('');
   const naka3 = (shiboranai.split('Store.deleteMeisaiPubOf')[1] || '').slice(0, 900);
   iu('⑦-2 ★絞り込みを 外すと 赤★', !/\.eq\('employee_id'/.test(naka3), '他人の 鍵まで 消しても 気づかない');
 
@@ -188,8 +213,12 @@ if (SELF) {
   iu('④ ★倉庫の 明細を 消さなく したら 赤★', !/deletePayslipsOf\s*\(/.test(hazushita), '外しても 気づかない');
 
   /* ⑧の わざと壊し … 従業員に 見える 紙まで 消す */
-  const yarisugi = 'Store.deletePayslipsOf = function(id){ sb.from("pay_meisai_docs").delete(); }';
-  iu('⑧ ★従業員に 見える 紙まで 消したら 赤★', /pay_meisai_docs/.test(yarisugi), '行き過ぎに 気づかない');
+  const q8 = String.fromCharCode(39);
+  const yarisugi = 'sb.from(' + q8 + 'pay_meisai_docs' + q8 + ').delete().eq(1,1)';
+  iu('⑧ ★従業員に 見える 紙まで 消したら 赤★', KESU_KA(yarisugi, 'pay_meisai_docs'), '行き過ぎに 気づかない');
+  const mamoru = 'var MICHIZURE_x = [' + q8 + 'pay_meisai_docs' + q8 + '];';
+  iu('⑧-2 ★守る 為に 名前を 書いた だけなら 赤に しない★', !KESU_KA(mamoru, 'pay_meisai_docs'),
+    '守りの 名簿を 「消している」と 読む＝誤って 赤に なる');
 
   /* ⑥の わざと壊し … 失敗の 言い方を 消して 成功の 字だけに する */
   const kotoba = (naka || '').replace(/消せ(ません|ていません)/g, '消しました').replace(/もう一度/g, '');
