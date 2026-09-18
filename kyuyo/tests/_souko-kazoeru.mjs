@@ -361,7 +361,15 @@ export async function zenbuHikaeru() {
   if (!hito.ok) return { ok: false, naze: '人：' + hito.naze };
   const kaisha = await kaishaHikaeru();
   if (!kaisha.ok) return { ok: false, naze: '会社：' + kaisha.naze };
-  return { ok: true, hito, kaisha };
+  /* ★★確定も 控える★★（2026-09-19 に 足した）
+     ★訳★＝賞与の 画面を 触った だけの 走りで ★確定した 明細 25→24（-1）★に なった。
+       押したのは 賞与の 行の 足す/消すだけ／確定も 解除も 押して いない。
+       ⇒ ★描き直し＋丸ごと 保存（persistSave）が 明細を 書き直す★ 道が 在る（09-18 実測）。
+     ⇒ ★人・会社だけ 控えても 足りない★＝★確定も 一緒に 控える★
+     ★消えた 物は 戻せない★ので ★控えは「確定して いた id の 名簿」★＝★外れた 物を 戻す★。 */
+  const kakutei = await kakuteiHikaeru();
+  if (!kakutei.ok) return { ok: false, naze: '確定：' + kakutei.naze };
+  return { ok: true, hito, kaisha, kakutei };
 }
 export async function zenbuModosu(mae) {
   if (!mae || !mae.ok) return { ok: false, naze: '控えが 無い＝何も しない' };
@@ -369,7 +377,23 @@ export async function zenbuModosu(mae) {
   if (!h.ok) return { ok: false, naze: '人：' + h.naze };
   const k = await kaishaModosu(mae.kaisha);
   if (!k.ok) return { ok: false, naze: '会社：' + k.naze };
-  return { ok: true, hito: h.n, kaisha: k.n };
+  /* ★確定を 控えに 戻す★＝★控えに 在ったのに 外れた 物を 立て直す★／★控えに 無いのに 付いた 物を 外す★ */
+  let kaku = { ok: true, n: 0, modoshita: 0 };
+  if (mae.kakutei && mae.kakutei.ok) {
+    const nuke = await kakuteiModosu(mae.kakutei);          /* 控えに 無い のに 付いた 物を 外す */
+    if (!nuke.ok) return { ok: false, naze: '確定（外す）：' + nuke.naze };
+    kaku.n = nuke.n;
+    const id = mae.kakutei.id || [];
+    if (id.length) {
+      const ji = id.map((x) => "'" + String(x).replace(/[^A-Za-z0-9_.:@+-]/g, '') + "'").join(',');
+      const r = await toi("update kyuyo.pay_payslips set data = data || '{\"confirmed\":true}'::jsonb"
+        + ' where id in (' + ji + ")"
+        + " and coalesce(data->>'confirmed','false') <> 'true' returning id");
+      if (!r.ok) return { ok: false, naze: '確定（立て直す）：' + r.naze };
+      kaku.modoshita = (r.gyo || []).length;
+    }
+  }
+  return { ok: true, hito: h.n, kaisha: k.n, kakuteiHazushita: kaku.n, kakuteiModoshita: kaku.modoshita };
 }
 
 /* ★★「確定」と「公開」を ★見つけた 状態に 戻す★（★片づけ 専用★）★★（2026-09-18）
