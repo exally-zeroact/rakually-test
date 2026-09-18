@@ -54,6 +54,38 @@ export function wrapped(src) {
 export function stripComments(src) {
   return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
 }
+/* ★★字を 割って 逃げた 紙の 名簿（訳つき・本数を 決め打つ）★★（2026-09-19 指示役1 の 注文）
+   ★何が 危ないか★ … この 見張りは ★字だけ★ 見る。だから 継いで 書くと ★素通りする★。
+   ★逃げ道が 増えるほど この 見張りは 静かに 効かなく なる★
+   ＝★誰も 壊して いないのに 死ぬ★＝一番 見つけにくい 死に方。
+   ⇒ ★逃げ道を 禁じない★（見本を 書く為に 要る）★が ★本数を 決め打ち、1本ずつ 訳を 書く★。
+   ＝`kyuyo/tests/_souko-kazoeru.mjs` の `YUBI_MENJO_HONSU` と 同じ 形。 */
+const WARIJI = [
+  { kami: 'tests/pw-borrow.test.mjs',
+    naze: '★この 見張り 自身の 見本★＝そのまま 書くと 自分が 引っかかる'
+      + '（★名簿で 自分を 外す★のは 別の 穴に なるので しない）' },
+  { kami: 'kyuyo/scripts/check-kami-to-tesuto.mjs',
+    naze: '★自己確認の 見本★＝★ブラウザを 1度も 開かない 紙★が 字だけで 赤に なった'
+      + '（2026-09-19 CI が 2回 赤／29708ff・6afa3ef）' },
+];
+const WARIJI_HONSU = 2;
+
+/* ★継ぎ目を 外して 1本の 字に 戻す★
+   ★正規表現を 使わない★＝この repo で 逆斜線が 何度も 落ちている為
+   （[[feedback_nigashi_wa_heredoc_to_tayori_de_ochiru]]）。 */
+const TSUGIME = ["' + '", "'+'", "' +'", "'+ '", '" + "', '"+"', '" +"', '"+ "'];
+export function tsunaida(src) {
+  let s = stripComments(src);
+  for (const t of TSUGIME) s = s.split(t).join('');
+  return s;
+}
+/* ★割って いるか＝★継いだら 現れる★か★（継ぐ前より 数が 増えたら 割って いる） */
+export function watteIru(src) {
+  const nama = findings(src);
+  const tsu = findings(tsunaida(src));
+  return (tsu.rawLaunch > nama.rawLaunch) || (tsu.lender > nama.lender);
+}
+
 export function findings(src) {
   const s = stripComments(src);
   return {
@@ -93,17 +125,32 @@ if (SELF) {
     ['★台帳に 載っている物は try で 包んである事まで 見る', 'try { await webkit' + LA + '); } catch (e) { }',
       () => wrapped('try { await webkit' + LA + '); } catch (e) { }')],
   ];
+  /* ★★足した 門は その場で わざと 壊す★★（[[feedback_mon_wa_hikitsugarenai]]） */
+  const wariCases = [
+    ['★割って 書いたら 見つける（継いだら 現れる）',
+      'const b = await webkit' + "'" + ' + ' + "'" + '.lau' + "'" + ' + ' + "'" + 'nch(x);', true],
+    ['★割って いない 紙は 見つけない（普通の 継ぎ足し）',
+      "const s = 'あ' + 'い' + 'う';", false],
+    ['★注記の 中で 割って いても 見つけない（注記は 先に 外す）',
+      '// 昔は webkit' + "'" + ' + ' + "'" + '.lau' + "'" + ' + ' + "'" + 'nch( と 書いていた', false],
+  ];
+  wariCases.forEach(([nm, src, hazu]) => {
+    const got = watteIru(src);
+    if (got !== hazu) ng++;
+    console.log('  ' + (got === hazu ? '✓' : '✗') + ' ' + nm + (got === hazu ? '' : '  ★思っていたのと 違う★'));
+  });
+
   cases.forEach(([nm, src, ok]) => {
     const got = ok(findings(src));
     if (!got) ng++;
     console.log('  ' + (got ? '✓' : '✗') + ' ' + nm + (got ? '' : '  ★思っていたのと 違う★'));
   });
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★6通り ぜんぶ 思った通り★');
+  console.log('  ★' + (cases.length + wariCases.length) + '通り ぜんぶ 思った通り★');
 }
 
 const files = walk(ROOT).filter((p) => rel(p) !== HELPER);
-let seen = 0, ledgerSeen = 0, badLender = [], badLaunch = [], noHelper = [];
+let seen = 0, ledgerSeen = 0, badLender = [], badLaunch = [], noHelper = [], watta = [];
 files.forEach((p) => {
   const f = findings(fs.readFileSync(p, 'utf8'));
   const r = rel(p);
@@ -118,6 +165,7 @@ files.forEach((p) => {
   if (f.rawLaunch) { badLaunch.push(r + '（' + f.rawLaunch + '回）'); }
   if (f.lender || f.rawLaunch) seen++;
   if ((f.lender || f.rawLaunch) && !f.usesHelper) noHelper.push(r);
+  if (watteIru(src)) watta.push(r);
 });
 
 /* ★共通部品そのもの★ */
@@ -151,6 +199,20 @@ T('★⑤ 週1の回だけ 赤にする目印が webkit.yml の job に ★1回�
   marks === 1 && atJob, '目印 ' + marks + '回／job の中か ' + atJob);
 T('★⑥ 空振りしていない（0件で 緑にしない）', users.length >= 7 && files.length > 50,
   '共通部品を読む物 ' + users.length + '本 ／ 見た本数 ' + files.length + '本');
+
+/* ★★⑦⑧ 字を 割って 逃げた 紙★★（逃げ道が 増えたら この 見張りは 静かに 死ぬ） */
+console.log('     ★字を 割って 書いている 紙 ' + watta.length + '本★ … ' + (watta.join(' / ') || '（無し）'));
+WARIJI.forEach((x) => console.log('       — 名簿 ' + x.kami + ' … ' + x.naze));
+const mei = WARIJI.map((x) => x.kami);
+T('★⑦ 字を 割って 書いている 紙が 決め打ちと 合う（黙って 増えない）',
+  watta.length === WARIJI_HONSU && WARIJI.length === WARIJI_HONSU
+  && watta.every((x) => mei.indexOf(x) >= 0),
+  '今 ' + watta.length + '本／決め打ち ' + WARIJI_HONSU + '本 … 名簿に 無い物 '
+  + (watta.filter((x) => mei.indexOf(x) < 0).join(' / ') || '（無し）'));
+T('★⑧ 名簿の 紙は ★訳が 在り★ ★本当に 割って いる★（直したら 名簿から 外す）',
+  WARIJI.every((x) => x.naze && x.naze.length > 8) && mei.every((k) => watta.indexOf(k) >= 0),
+  '訳の 無い物／もう 割って いないのに 名簿に 残って いる物 … '
+  + (mei.filter((k) => watta.indexOf(k) < 0).join(' / ') || '（無し）'));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
