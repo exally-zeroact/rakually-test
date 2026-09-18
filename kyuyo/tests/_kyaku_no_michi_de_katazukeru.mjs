@@ -113,6 +113,25 @@ export async function katazukeru(pg, opt) {
      ⇒ ★何か月も 確定した 人は 月を 変えながら 何度も 押す★
        （santei-gekkaku-ui は 4・5・6月の 3か月を 確定する＝1回では 足りない）
      ★opt.tsuki に 月を 並べて 渡す★／渡さなければ 今の 月 1つだけ 見る。 */
+  /* ★★名前を 渡されて いない 時は ★札の 番号から 読む★★★（2026-09-18 実測で 踏んだ）
+     ★訳★＝呼ぶ側（fuyo-ui:216）は `{ ban: IDX }` だけ 渡す
+       （その試験は ★人を 足してから 後で 名前を 打つ★＝途中で 落ちた 時は まだ 名前が 無い／216行の 覚書）。
+     ★踏んだ 穴★＝名前が 空の まま 字合わせを した ⇒ `''.indexOf('') === 0` ＝★真★
+       ⇒ ★先頭の「確認済」の 人に 当たる★＝★別人の 確定を 外した★
+       ⇒ 実測（総なめ #25）… ★確定した 明細 16→15（-1）★／明細の 行数は 変わらず＝★印だけ 外れた★
+     ⇒ ★先に 札から 名前を 読む★／★読めなければ 誰にも 当てない★（上の `nm ? … : null`）。 */
+  let na2 = na;
+  if (!na2 && ban0 !== null && osu) {
+    await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(700);
+    await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(900);
+    na2 = await pg.evaluate((b) => {
+      const c = document.querySelector('#emp-list .mco[data-i="' + b + '"]');
+      if (!c) return '';
+      const nm = c.querySelector('.mco-nm');
+      return ((nm && nm.textContent) || '').trim();
+    }, ban0).catch(() => '');
+    michi.push('①札 ' + ban0 + '番目から 名前を 読んだ … 「' + (na2 || '★読めない★') + '」');
+  }
   if (osu) { await osu(pg, '.bn[data-scr="scr-input"]'); await machi(900); }
   const tsuki = (opt && opt.tsuki && opt.tsuki.length) ? opt.tsuki : [null];
   for (const ym of tsuki) {
@@ -183,18 +202,23 @@ export async function katazukeru(pg, opt) {
         }
         return saigo;
       };
-      const box = iri.find((c) => {
+      /* ★★名前が 空なら 誰にも 当てない★★（2026-09-18 実測で 踏んだ）
+           `''.indexOf('')` は ★0★＝`>= 0` が ★真★ ⇒ ★先頭の 確認済の 人に 当たる★
+           ⇒ `fuyo-ui` は `{ ban: IDX }` だけ 渡す（名前 無し）⇒ ★別人の 確認済を 外して いた★
+           ⇒ 実測 … 総なめ #25 で ★確定した 明細 16→15（-1）★（明細の 行数は 変わらず＝印だけ 外れた） */
+      const box = nm ? iri.find((c) => {
         const oya = hitoBako(c);
         return oya && (oya.textContent || '').indexOf(nm) >= 0;
-      });
+      }) : null;
       if (box) box.setAttribute('data-katazuke-conf', '1');
+      const ateta = box ? (((hitoBako(box) || {}).textContent) || '').replace(/[ ]+/g, ' ').slice(0, 30) : '';
       /* ★見つからない 時に「何が 在ったか」を 出す★＝★分母を 出さない 緑（赤）は 嘘★ */
-      return { atta: !!box, zen: zen.length, mieru: mieru.length, iri: iri.length,
+      return { atta: !!box, ateta: ateta, namaeNashi: !nm, zen: zen.length, mieru: mieru.length, iri: iri.length,
         na: iri.slice(0, 4).map((c) => {
           const oya = hitoBako(c);
           return ((oya && oya.textContent) || '').replace(/[ ]+/g, ' ').slice(0, 24);
         }) };
-    }, na).catch(() => ({ atta: false, zen: -1, mieru: -1, iri: -1, na: [] }));
+    }, na2).catch(() => ({ atta: false, zen: -1, mieru: -1, iri: -1, na: [] }));
     const hitori = shirabe.atta;
     if (hitori) {
       await pg.click('[data-katazuke-conf]', { timeout: 8000 }).catch(() => null);
@@ -205,6 +229,7 @@ export async function katazukeru(pg, opt) {
         if (x) x.removeAttribute('data-katazuke-conf');
       }).catch(() => null);
       michi.push('①' + (ym || '今の月') + ' … ★この人 1人の「確認済」を 外した★【本物の click】'
+        + '（★外した 人＝「' + shirabe.ateta + '」／探した 名前＝「' + (na2 || '★空★') + '」★）'
         + (y1.osita ? '（' + y1.ji + '）' : '（確認は 出なかった）'));
       await machi(1200);
       continue;
@@ -213,6 +238,7 @@ export async function katazukeru(pg, opt) {
     if (!undo) { michi.push('①' + (ym || '今の月') + ' … 確定は 無い（取り消す ボタンも 「確認済」の 印も 無い）'); continue; }
     michi.push('①' + (ym || '今の月') + ' … ⚠★この人の「確認済」を 見つけられず 月まとめで 取り消す★'
       + '＝★同じ月の 他の 人の 確定も 一緒に 外れます★'
+      + (shirabe.namaeNashi ? '★呼ぶ側が 名前を 渡して いない★／' : '')
       + '（econf 全 ' + shirabe.zen + '／見える ' + shirabe.mieru + '／印つき ' + shirabe.iri
       + '／探した 名前「' + na + '」／印つきの 行 … ' + (shirabe.na || []).join(' | ') + '）');
     await undo.click({ timeout: 8000 }).catch(() => null);
