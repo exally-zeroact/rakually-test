@@ -205,3 +205,7 @@ jobs:
         run: node kyuyo/tests/admin-ui.mjs
       - name: ★わざと 画面の 門を 外しても サーバが 止めるか（admin-ui の 空振り止め）★
         run: node kyuyo/tests/admin-ui.mjs --waza
+      - name: ★従業員に 渡る リンクの 字（実ブラウザ・09-19＝この 字を 見る 試験が 0本だった／3か所と 全員QR の 4つが 揃うか）★
+        run: node kyuyo/tests/link-ji.mjs
+      - name: ★わざと 置き場（/kyuyo/）を 落としたら リンクが 崩れるか（link-ji の 空振り止め）★
+        run: node kyuyo/tests/link-ji.mjs --waza

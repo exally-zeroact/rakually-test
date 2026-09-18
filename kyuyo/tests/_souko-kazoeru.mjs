@@ -403,21 +403,53 @@ export async function kamiTsukuru(token, opt) {
 /* ★★試験用の 人を 1人 作る（★支度 専用★）★★（2026-09-19）
    ★測るのは 従業員の 道（meisai.html）★／★会社側の 支度は 直に 作る★＝★線引きを 字で 書く★
    ★名前には 席の 印を 付ける★（`shikenNa`）＝★相手の 席と 混ざらない★ */
+/* ★試験が ログインする 口★＝`tests/_hairu.mjs` が 打ち込む メールと ★同じ 物★
+   （★2か所に 同じ 字を 持たせない★為、直す 時は 両方 見る＝
+     [[feedback_mihon_no_michi_ga_futatsu_aru_toki_katahou_dake_naosu_na]]） */
+export const SHIKEN_NO_KUCHI = 'test@test.com';
+
 export async function hitoTsukuru(na) {
   const n = String(na || '').replace(/['\;]/g, '');
   if (!n) return { ok: false, naze: '名前が 空' };
-  const id = 'ztest_' + Math.random().toString(36).slice(2, 10);
+  /* ★★id は ★棚の 列★と ★data の 中★の 2か所に 要る★★（2026-09-19 実測で 捕まえた）
+     ★前★ … 列にだけ 入れて `data` に 入れて いなかった。
+     ★何が 起きたか★ … アプリは `data` を 読んで 名簿を 作る。`data.id` が 無いと
+       ★アプリが 自分の 形の id を 振り直して 保存する★（`app.js:45` の `uid()`＝`e…`）。
+       ⇒ ★倉庫の 行は 別の id に なる★
+       ⇒ `hitoKesu('ztest_…')` は ★0行 消して「ok」を 返す★＝★片づけたつもり★
+       ⇒ ★残骸が 溜まる★（2026-09-19 に 消した 14人は ★全部 `e…` の id★＝これが 出所）
+       ⇒ 鍵（pay_meisai_pub）は ★名簿に 無い 人の 物★に なり
+         `store.js:528` の 決まりで ★一覧から 消える★＝`link-ji` が「行が 出ない」で 止まった。
+     ⇒ ★アプリと 同じ 形の id★を 作り、★2か所とも 同じ 字★を 入れる。 */
+  const id = 'e' + Math.random().toString(36).slice(2, 10);
+  /* ★★口を 当てずっぽうで 選ばない★★（2026-09-19 実測で 捕まえた）
+     ★前★ … `from kyuyo.pay_employees e limit 1` ＝★どの 行が 来るかは 決まって いない★。
+     ★何が 起きたか★ … 試験用の 14人を 消した 後、この `limit 1` が
+       ★試験が ログインする 口（test@test.com）とは 別の 人の 口★を 拾った。
+       ⇒ 作った 人は ★倉庫には 居るのに 会社の 一覧に 出ない★
+       ⇒ `link-ji` が 40秒 待って 「行が 出ない」＝★アプリの 欠陥に 見えた★。
+     ⇒ ★試験が 入る 口を 名指しで 引く★（`tests/_hairu.mjs` と 同じ 口）。
+     ★見つからなければ 作らない★＝黙って 別の 口に 作らない。 */
   const r = await toi('insert into kyuyo.pay_employees (id, account_id, data)'
-    + " select '" + id + "', e.account_id, jsonb_build_object('name','" + n + "','employmentType','employee')"
-    + ' from kyuyo.pay_employees e limit 1 returning id');
+    + " select '" + id + "', u.id, jsonb_build_object('id','" + id + "','name','" + n + "','employmentType','employee')"
+    + " from auth.users u where u.email = '" + SHIKEN_NO_KUCHI + "' returning id");
   if (!r.ok) return { ok: false, naze: r.naze };
+  if (!r.gyo || !r.gyo.length) {
+    return { ok: false, naze: '★試験の 口（' + SHIKEN_NO_KUCHI + '）が 倉庫に 居ない＝人を 作りません★' };
+  }
   return { ok: true, id };
 }
 export async function hitoKesu(id) {
   const i = String(id || '').replace(/[^A-Za-z0-9_-]/g, '');
   if (!i) return { ok: false, naze: 'id が 空' };
   const r = await toi("delete from kyuyo.pay_employees where id = '" + i + "' returning id");
-  return r.ok ? { ok: true, n: (r.gyo || []).length } : { ok: false, naze: r.naze };
+  if (!r.ok) return { ok: false, naze: r.naze };
+  /* ★★0行 消えた＝「消した」では ない★★（2026-09-19 実測）
+     前は `{ ok: true, n: 0 }` を 返して いた＝★呼ぶ側は n を 見て いない★
+     ⇒ ★片づけたつもり★が 黙って 通り、残骸が 溜まった。 */
+  const n = (r.gyo || []).length;
+  if (n === 0) return { ok: false, n: 0, naze: '★0行 消えた＝その id（' + i + '）は 倉庫に 居ない★' };
+  return { ok: true, n };
 }
 
 /* ★★人の 中身も 控えて 戻す（★片づけ 専用★）★★（2026-09-18 に 足した）
