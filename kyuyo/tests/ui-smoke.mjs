@@ -31,13 +31,49 @@ A.state.employees = [A.defEmp('山田 太郎'), A.defEmp('佐藤 花子')];
 A.state.employees[0].base = '300000'; A.state.employees[1].payType = '時給'; A.state.employees[1].hourly = '1500';
 A.state.month = '2026-06';
 
-// クリックしてはいけない(破壊/DL/印刷/公開)ボタンの判定
-const DENY = /b-print|b-xlsx|データ|全銀|Excel|印刷|公開|webpub|dl-|csvimport|従業員を削除|この従業員/i;
+/* ★★押さない 物の 名簿（＝この 試験の 免除）★★（2026-09-18 に 正規表現 1本から 変えた）
+   ★前★ … `const DENY = /b-print|b-xlsx|データ|…/i` ＝★1本の 字★
+     ⇒ ★何本 外して いるか 数えられない★／★1つ 足しても 差分でしか 見えない★
+     ⇒ ★訳が 1つも 書いて いない★＝「なぜ 押さないか」が 誰にも 分からない
+   ★今★ … ★1行 1件・訳つき・本数を 決め打ち★（★黙って 増えない★）
+     ＝ souko-mon.test.mjs／_souko-kazoeru.mjs（YUBI_MENJO）と ★同じ 形★。
+   ★中身は 1つも 変えて いない★＝★同じ 物を 外し 続ける★（回帰を 入れない）。 */
+const OSANAI_JI = [
+  { ji: 'b-print',    naze: '印刷ダイアログが 開く（人の 手が 要る／止まる）' },
+  { ji: 'b-xlsx',     naze: 'Excel を 書き出す（jsdom では 落ちる／ファイルが 出る）' },
+  { ji: 'データ',      naze: 'データの 出し入れ（倉庫・ファイルに 触る）' },
+  { ji: '全銀',        naze: '全銀ファイルを 書き出す（振込の 実物）' },
+  { ji: 'Excel',      naze: 'Excel を 書き出す' },
+  { ji: '印刷',        naze: '印刷ダイアログが 開く' },
+  { ji: '公開',        naze: '★従業員の Web明細に 公開される★（客に 出る）' },
+  { ji: 'webpub',     naze: '★Web明細の 公開★（同上・印の 側）' },
+  { ji: 'dl-',        naze: 'ファイルを 落とす' },
+  { ji: 'csvimport',  naze: 'CSV を 取り込む（中身が 書き換わる）' },
+  { ji: '従業員を削除', naze: '★人が 消える★（戻せない）' },
+  { ji: 'この従業員',   naze: '★人が 消える★（確認の 言い回し）' },
+];
+const OSANAI_SHIRUSHI = [
+  { na: 'data-link',    naze: '外へ 出る リンク' },
+  { na: 'data-webpub',  naze: '★Web明細の 公開★' },
+  { na: 'data-del-emp', naze: '★人が 消える★' },
+  { na: 'class m-del-emp/del-emp', naze: '★人が 消える★（札の 削除ボタン）' },
+];
+const OSANAI_HONSU = 12, OSANAI_SHIRUSHI_HONSU = 4;   /* ★超えたら 赤★ */
+/* ★どの 免除が 何回 効いたか★＝★使われて いない 免除★を 見つける為（黙って 残さない） */
+const OSANAI_KAZU = {};
+function atatta(k) { OSANAI_KAZU[k] = (OSANAI_KAZU[k] || 0) + 1; return true; }
+
 function denied(el) {
-  if (el.id && DENY.test(el.id)) return true;
-  var t = (el.textContent || '').slice(0, 30), dl = el.getAttribute('data-link') || '', dw = el.getAttribute('data-webpub') || '';
-  if (DENY.test(t) || dl || dw) return true;
-  if (el.hasAttribute('data-del-emp') || el.className && /m-del-emp|del-emp/.test(el.className)) return true;
+  const t = (el.textContent || '').slice(0, 30);
+  const id = el.id || '';
+  for (const m of OSANAI_JI) {
+    const j = m.ji.toLowerCase();
+    if (id.toLowerCase().indexOf(j) >= 0 || t.toLowerCase().indexOf(j) >= 0) return atatta(m.ji);
+  }
+  if (el.getAttribute('data-link')) return atatta('data-link');
+  if (el.getAttribute('data-webpub')) return atatta('data-webpub');
+  if (el.hasAttribute('data-del-emp')) return atatta('data-del-emp');
+  if (el.className && /m-del-emp|del-emp/.test(el.className)) return atatta('class m-del-emp/del-emp');
   return false;
 }
 
@@ -819,5 +855,26 @@ T('UI操作を通してJS例外・window.error が0', function () {
 });
 
 console.log('  (クリックしたボタン ' + clicked + ' / 除外(破壊DL印刷公開) ' + skipped + ')');
+/* ★★免除は 黙って 増えない／黙って 残らない★★（2026-09-18）
+   ⑴ ★本数が 決め打ちと 合う★＝1つ 足したら 赤（訳を 書いて 決め打ちも 直す）
+   ⑵ ★どの 免除が 何回 効いたか を 毎回 出す★＝★0回の 免除＝もう 要らないかも しれない★
+      （★赤には しない★＝画面が 変われば 0回に なる事は 在る／ただし ★黙らせない★） */
+T('★押さない 物の 名簿が 決め打ちと 合う（免除は 黙って 増えない）', function () {
+  ok(OSANAI_JI.length === OSANAI_HONSU,
+    '★字の 免除 ' + OSANAI_JI.length + '本／決め打ち ' + OSANAI_HONSU + '本★＝増やすなら 訳を 書いて 決め打ちも 直す');
+  ok(OSANAI_SHIRUSHI.length === OSANAI_SHIRUSHI_HONSU,
+    '★印の 免除 ' + OSANAI_SHIRUSHI.length + '本／決め打ち ' + OSANAI_SHIRUSHI_HONSU + '本★');
+  ok(OSANAI_JI.every(function (m) { return m.naze && m.naze.length > 3; }), '★訳の 無い 免除が 在る★');
+  ok(OSANAI_SHIRUSHI.every(function (m) { return m.naze && m.naze.length > 3; }), '★訳の 無い 免除が 在る（印）★');
+});
+{
+  const zen = OSANAI_JI.map(function (m) { return m.ji; }).concat(OSANAI_SHIRUSHI.map(function (m) { return m.na; }));
+  const kiita = zen.filter(function (k) { return OSANAI_KAZU[k]; });
+  const kikanai = zen.filter(function (k) { return !OSANAI_KAZU[k]; });
+  console.log('  ★免除 ' + zen.length + '本／効いた ' + kiita.length + '本★ … '
+    + kiita.map(function (k) { return k + ' ' + OSANAI_KAZU[k] + '回'; }).join(' / '));
+  console.log('  ★1回も 効かなかった 免除 ' + kikanai.length + '本★ … ' + (kikanai.join(' / ') || '（無し）')
+    + '（★赤には しません／要らないかを 見る 材料★）');
+}
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
