@@ -893,9 +893,19 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('_souko-kazo
      ★誰も 使わない 月（1999-01）で やる★＝★本物の 月には 一切 触らない★。
      ★置いた 2行は この場で 片づける★（★自分の ゴミを 残さない★）。 */
   const YM_T = '1999-01';
-  const kuchi = await toi('select account_id from kyuyo.pay_payslips limit 1');
+  /* ★★口を 当てずっぽうで 選ばない★★（2026-09-19 指示役1 が 見つけた ★直し漏れ★）
+     ★前★ … `select account_id from kyuyo.pay_payslips limit 1`
+       ＝★order by が 無い＝どの 行が 来るかは 決まって いない★
+     ★ここは 読むだけの 所では ない＝★2行 書く★所★
+       ⇒ 口が 変われば ★別の 方の 口に 行を 置く★
+     ★同じ 欠陥を `hitoTsukuru` でも 踏んだ★（14人 消した 後 別の 口に 人を 作った）
+       ＝★作る道が 2本 在る時は 両方 直す★
+         [[feedback_mihon_no_michi_ga_futatsu_aru_toki_katahou_dake_naosu_na]]
+     ⇒ ★試験が 入る 口（SHIKEN_NO_KUCHI）を 名指しで★ 引く。 */
+  const kuchi = await toi('select id as account_id from auth.users where email = '
+    + qs(SHIKEN_NO_KUCHI));
   if (!kuchi.ok || !(kuchi.gyo || []).length) {
-    console.log('  🟡 ★未測定★ ⑥〜⑨ 置く 口（account_id）が 取れない … ' + (kuchi.naze || '行が 無い'));
+    console.log('  🟡 ★未測定★ ⑥〜⑨ 置く 口（' + SHIKEN_NO_KUCHI + '）が 取れない … ' + (kuchi.naze || '行が 無い'));
   } else {
     const uid = String((kuchi.gyo[0] || {}).account_id || '').replace(/[^A-Za-z0-9_-]/g, '');
     const NAKAMI = '{"name":"自己確認"}';
