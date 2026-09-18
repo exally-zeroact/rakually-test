@@ -561,6 +561,8 @@ jobs:
         run: node kyuyo/tests/souko-mon.test.mjs && node kyuyo/tests/souko-mon.test.mjs --self-test
       - name: ★人を消したら その人の給与明細も倉庫から消す／消す道は1か所（ボタンとスワイプを揃える）
         run: node kyuyo/tests/emp-kesu-meisai.test.mjs && node kyuyo/tests/emp-kesu-meisai.test.mjs --self-test
+      - name: ★客に出る紙は全部「中身を見る実ブラウザ試験」を持つ（09-19＝手で引いて2回外した／名前の形で引く・置き場を1つしか見ない）
+        run: node kyuyo/scripts/check-kami-to-tesuto.mjs && node kyuyo/scripts/check-kami-to-tesuto.mjs --self-test
       - name: ★労災の札は選んだ業種を出す（09-18＝選んでも「業種を 選んでください」のままだった／計算は合っていたので気づきにくい）
         run: node kyuyo/tests/rousai-fuda.test.mjs && node kyuyo/tests/rousai-fuda.test.mjs --self-test
       - name: ★倉庫の権限と「消すと道連れになる親」を実物に聞く（09-18＝鍵を消したらお金の記録が13枚CASCADEで消えた／CIに鍵が無ければ未測定と出して抜ける）
