@@ -106,10 +106,33 @@ T('★⑤ 外して いる 本数が 決め打ちと 合う（免除は 黙っ�
   console.log('     外して いる … ' + MENJO.length + '本（' + MENJO.join(' / ') + '）');
 });
 
+/* ★★⑥ 門が 指紋から 除けて いる 物（免除）も 黙って 増えない★★
+   ★訳★＝★免除は 1つ 足すだけで 静かに 広がる★（2026-09-18 に 媒体通番 1件を 足した）。
+   ★字で 読む★＝門を 動かさずに 数えられる ⇒ ★倉庫の 鍵が 無い CI でも 赤に なる★。 */
+T('★⑥ 指紋の 免除も 決め打ちと 合う（黙って 広がらない）', () => {
+  const src = strip(yomu(MON));
+  const m = src.match(/YUBI_MENJO_HONSU\s*=\s*(\d+)/);
+  ok(m, '★免除の 決め打ち（YUBI_MENJO_HONSU）が 無い★');
+  const kimeuchi = Number(m[1]);
+  /* ★実際の 本数＝名簿の 中の `tana:` の 数★（字で 数える） */
+  const meibo = src.slice(src.indexOf('YUBI_MENJO = ['), src.indexOf('YUBI_MENJO_HONSU'));
+  const honsu = (meibo.match(/tana:/g) || []).length;
+  ok(honsu === kimeuchi,
+    '★免除の 本数が 決め打ちと 合わない★＝決め打ち ' + kimeuchi + ' ／ 実際 ' + honsu
+    + '（★増やしたいなら 訳を 書いて 決め打ちも 直す★）');
+  /* ★免除には 必ず 訳が 要る★＝黙って 除けない */
+  const wake = (meibo.match(/naze:/g) || []).length;
+  ok(wake === honsu, '★訳(naze)の 無い 免除が 在る★＝' + wake + '/' + honsu);
+  /* ★毎回 出しに 出す★＝隠れない */
+  ok(/export function yubiMenjoIu/.test(src), '★免除を 字で 出す 所が 無い★');
+  console.log('     指紋の 免除 … ' + honsu + '件（決め打ち ' + kimeuchi + '・訳 ' + wake + '件）');
+});
+
 /* ★★自己確認＝わざと 壊して 赤が 出るか★★ */
 if (SELF) {
   console.log('\n[souko-mon] ★自己確認★（わざと 壊して 赤が 出るか）');
   let ng = 0;
+  const q = String.fromCharCode(39);
   const iu = (n, good, m) => { if (!good) ng++; console.log('  ' + (good ? '✓' : '✗') + ' ' + n + (good ? '' : '  ★' + (m || '') + '★')); };
 
   const nise = (naka) => (f) => (f === 'kyuyo/tests/nise.mjs' ? naka : yomu(f));
@@ -126,6 +149,16 @@ if (SELF) {
 
   const fueta = MENJO.concat(['kyuyo/tests/nise2.mjs']);
   iu('⑤ ★免除を 黙って 増やしたら 赤★', fueta.length !== MENJO_HONSU, '増やしても 気づかない');
+
+  /* ⑥ ★免除を 1つ 足した 名簿★を 作って 赤に なるか（★字を 組み立てる＝逆斜線を 使わない★） */
+  const meibo2 = 'YUBI_MENJO = [ { tana: ' + q + 'kyuyo.pay_companies' + q + ', naze: ' + q + 'x' + q + ' },'
+    + ' { tana: ' + q + 'kyuyo.nise' + q + ', naze: ' + q + 'x' + q + ' } ];';
+  iu('⑥ ★指紋の 免除を 黙って 増やしたら 赤★',
+    (meibo2.match(/tana:/g) || []).length !== 1, '増やしても 気づかない');
+
+  const meibo3 = 'YUBI_MENJO = [ { tana: ' + q + 'kyuyo.pay_companies' + q + ' } ];';
+  iu('⑦ ★訳(naze)の 無い 免除は 赤★',
+    (meibo3.match(/naze:/g) || []).length !== (meibo3.match(/tana:/g) || []).length, '訳が 無くても 通る');
 
   console.log(ng ? '\n★自己確認 ' + ng + '件 おかしい★' : '\n自己確認 OK（★赤が 出る事まで 見た★）');
   if (ng) process.exit(1);
