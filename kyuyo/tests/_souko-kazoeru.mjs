@@ -74,6 +74,26 @@ export async function toiawase(sql) { return toi(sql); }
 /* ★★門が 見る 物の 名簿（ここが「置き土産 0」の 意味）★★
    ★1か所に 在るので ここを 足せば ★この門を 使う 9本 全部に 効く★★
    ★足す時の 決まり★＝★試験が 触れる 所★を 足す（触らない 所を 足すと 他人の 仕業で 赤に なる）。 */
+/* ★★誰が 作ったかを 1行で 出す（席の 名札）★★（2026-09-18 夜・★丸1時間 掛かった★）
+   ★何が 起きたか★
+     手元で 押して いる 最中に 倉庫が 増えた（明細+3／公開+2／紙+6／人+1）。
+     ★この 機械の プロセスを 2つの 道具で 数えても 0本★＝★誰が 作ったか 決められなかった★。
+     ★元★＝★★GitHub の 検査（WebKit）★★。実測で 一致:
+        WebKit の 走り … 14:20:30 → ★14:28:17★ UTC
+        増えた 行 …………… ★14:27:33 〜 14:28:10★ UTC（★終わり際に ぴたり★）
+     ★なぜ 見えないか★＝★別の 機械で 走る／繋ぐ 倉庫は 同じ★
+        （CI は `tests/_hairu.mjs` の `test@test.com` と ★紙に 在る 公開鍵★で ★入って 書ける★。
+          ★門の 鍵（倉庫を 数える 鍵）は CI に 無い★＝★測れないが 書ける★＝★一番 気づきにくい★）
+   ⇒ ★プロセスを 数えても 絶対に 見えない★＝★★倉庫の 側に 名札を 残すしか 無い★★
+   ⇒ まず ★増えた/減った 人の 名前を 出す★＝★名前の 形で どの 試験かが 分かる★
+     （`試験<6桁>　太郎`＝fuyo-ui/shutoku-ui の 形／`確定テスト…`＝santei の 形） */
+export function seki() {
+  return (process.env.CI || process.env.GITHUB_ACTIONS) ? 'ci' : 'temoto';
+}
+export function sekiIu() {
+  return '★席★＝' + (seki() === 'ci' ? '会社の 検査（GitHub）' : '手元') + '（★同じ 試験の 倉庫を 2つの 機械が 使います★）';
+}
+
 export const MIRU = [
   { na: 'hito',       ji: '人' },
   { na: 'meisai',     ji: '明細' },
@@ -197,7 +217,10 @@ export async function kazoeru() {
      ＝★指紋は「ずれた」しか 言わない／6個は「何が ずれたか」を 言う★（指示役1 2026-09-18）。 */
   const y = await yubimon();
   if (!y.ok) return { ok: false, naze: y.naze };
-  return { ok: true, hito: Number(x.hito), meisai: Number(x.meisai),
+  /* ★名前も 控える★＝★増えた 人の 名前が 出れば「どの 試験か」が 1行で 分かる★ */
+  const n = await toi("select coalesce(data->>'name','(無名)') as na from kyuyo.pay_employees order by 1");
+  const namae = n.ok ? n.gyo.map((g) => g.na) : [];
+  return { ok: true, hito: Number(x.hito), meisai: Number(x.meisai), namae,
     contractor: Number(x.contractor), kakutei: Number(x.kakutei),
     koukai: Number(x.koukai), kami: Number(x.kami),
     tana: y.tana, yubi: y.yubi };
@@ -525,8 +548,16 @@ export async function awaseru(mae, byo = 20) {
         iu.push('★棚の 数が 変わった★ … 決め打ち ' + TANA_KAZU + ' ／ 前 ' + mae.tana + ' ／ 後 ' + ato.tana
           + '（★増えた 棚は 誰も 見て いない＝名簿を 直す★）');
       }
-      return { han: '赤', mae, ato, zure: zure.map((m) => m.na), yubiZure, tanaZure,
-        iu: '★倉庫に 置き土産が 残っている★　' + iu.join('　')
+      /* ★★増えた／減った 人の 名前を 出す★★＝★「誰が」を 1行で★
+         （2026-09-18 夜 … 名前が 出て いれば ★丸1時間 掛けずに 済んだ★） */
+      const maeN = (mae.namae || []).slice(), atoN = (ato.namae || []).slice();
+      const hiku = (a, b) => { const c = b.slice(); return a.filter((x) => { const i = c.indexOf(x); if (i < 0) return true; c.splice(i, 1); return false; }); };
+      const fueta = hiku(atoN, maeN), heta = hiku(maeN, atoN);
+      if (fueta.length) iu.push('★増えた 人 ' + fueta.length + '人★ … ' + fueta.join(' / ')
+        + '（★名前の 形で どの 試験かが 分かります★）');
+      if (heta.length) iu.push('★減った 人 ' + heta.length + '人★ … ' + heta.join(' / '));
+      return { han: '赤', mae, ato, zure: zure.map((m) => m.na), yubiZure, tanaZure, fueta, heta,
+        iu: '★倉庫に 置き土産が 残っている★　' + iu.join('　') + '　' + sekiIu()
           + '　★' + byo + '秒 待っても 戻らず★　' + yubiMenjoIu() };
     }
   }
