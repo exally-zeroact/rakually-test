@@ -290,5 +290,39 @@ export async function katazukeru(pg, opt) {
       .filter((x) => ((x.querySelector('.mco-nm') || {}).textContent || '').indexOf(n) >= 0).length, na).catch(() => -1)
     : (await pg.evaluate((b) => (document.querySelector('#emp-list .mco[data-i="' + b + '"]') ? 1 : 0), ban0).catch(() => -1));
   michi.push('⑤画面に 残り ' + nokori + '人');
-  return { ok: nokori === 0, michi, naze: nokori === 0 ? '' : '画面に ' + nokori + '人 残っている' };
+  if (nokori !== 0) return { ok: false, michi, naze: '画面に ' + nokori + '人 残っている' };
+
+  /* ★★⑥開き直して もう一度 数える★★（2026-09-19 実測で 足した）
+     ★「画面から 消えた」は「倉庫から 消えた」では ない★。
+     ★実測★ … CI の `fuyo-ui` が ★2回 続けて★ 人を 残した
+       （`CI試験216194　太郎`／`CI試験674905　太郎`＝2人とも ★家族つき★）。
+       片づけの 出しは 両方とも ★「⑤画面に 残り 0人」＝緑★だった。
+       残った 人は ★次の 回の CSV に 混ざり★、`fuyo-ui` の
+       「様式2202700 の 行が 1本」を ★2本★に して ★別の 試験を 赤に した★。
+     ⇒ ★画面の 数で 終わらせない★＝★開き直す（倉庫から 描き直す）★まで 見る。
+       ★これは 会社の 道の まま★（管理鍵が 要らない＝CI でも 効く）。
+     ＝[[feedback_naoshita_wa_gamen_dake_kaisha_no_dougu_ga_nokoru]]
+       ／[[feedback_jibun_no_dai_ga_shitte_iru_kazu_wa_kyaku_no_michi_de_kazoero]] */
+  let matta = 0, nokori2 = -1;
+  try {
+    await pg.reload({ waitUntil: 'domcontentloaded' });
+    for (let i = 0; i < 160; i++) {
+      matta++;
+      const r = await pg.evaluate((n) => {
+        const fuda = Array.from(document.querySelectorAll('#emp-list .mco'));
+        if (!fuda.length) return null;                    /* まだ 描いて いない */
+        return n
+          ? fuda.filter((x) => ((x.querySelector('.mco-nm') || {}).textContent || '').indexOf(n) >= 0).length
+          : 0;
+      }, na).catch(() => null);
+      if (r !== null) { nokori2 = r; break; }
+      await machi(250);
+    }
+  } catch (e) { nokori2 = -1; }
+  michi.push('⑥開き直して 数えた … 残り ' + nokori2 + '人（待った ' + matta + '回）');
+  if (nokori2 < 0) {
+    return { ok: false, michi, naze: '★開き直しても 数えられない★（0人とは 言えません）' };
+  }
+  return { ok: nokori2 === 0, michi,
+    naze: nokori2 === 0 ? '' : '★画面からは 消えたのに 開き直すと ' + nokori2 + '人 居る＝倉庫に 残った★' };
 }
