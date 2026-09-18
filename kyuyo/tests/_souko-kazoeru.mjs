@@ -217,6 +217,58 @@ function yubiSql(full, hiRetsu) {
     + ' from (select md5(' + naka + '::text) as h from ' + full + ' x' + nozoku + ') s';
 }
 
+/* ★★行ごと・列ごとの 指紋★★（2026-09-19 指示役1 の 注文）
+   ★何が 足りなかったか★ … 上の `yubiSql` は 棚ごとに ★md5 を 1つに 潰す★。
+     ⇒ ★「ずれた」しか 言えない★＝★どの 行か・どの 列か が ★構造上★ 出ない★
+     ⇒ 今日 実際に 1回 ずれて ★訳が 決められなかった★（`kyuyo.pay_employees`）。
+     ⇒ ★次に 起きても また 決められない★＝★これは「たまに 出る 赤」では なく ★言えない 見張り★★
+   ★直し★ … 控えの 時に ★行ごとに（鍵, 列→md5）★を 持ち、確かめで ★集合の 差★を 取る。
+     ★出すのは 鍵と 列の 名前だけ★＝★中身（名前・金額）は 1字も 出さない★。
+   ★鍵★ … id → token → employee_id の 順で 在る物。無ければ `(鍵無し)`。
+     ★鍵が 重なる 棚は「名指しできません」と 言う★＝黙って 当てない。 */
+function yubiGyoSql(full, hiRetsu) {
+  const arr = hiRetsu.length
+    ? 'array[' + hiRetsu.map((c) => "'" + c + "'").join(',') + ']'
+    : 'array[]::text[]';
+  const kesu = YUBI_MENJO.filter((m) => m.tana === full)
+    .map((m) => " #- '{" + m.michi.join(',') + "}'").join('');
+  const moto = '(to_jsonb(x.*)' + kesu + ')';
+  const atai = '(case when e.k = any(' + arr + ')'
+    + " then (case when e.v = 'null'::jsonb then to_jsonb('無'::text) else to_jsonb('有'::text) end)"
+    + ' else e.v end)';
+  const nozoku = aiteNoJoken(full);
+  return "select '" + full + "' as tana,"
+    + ' coalesce(' + moto + "->>'id', " + moto + "->>'token', " + moto + "->>'employee_id', '(鍵無し)') as k,"
+    + ' (select jsonb_object_agg(e.k, md5(' + atai + '::text))'
+    + ' from jsonb_each(' + moto + ') as e(k, v)) as retsu'
+    + ' from ' + full + ' x' + nozoku;
+}
+
+/* ★★控えと 今を 並べて ★どの 行が 違うか★ を 言う★★（中身は 出さない） */
+export function gyoNoChigai(maeG, imaG, tana) {
+  const m = (maeG || {})[tana] || [];
+  const i = (imaG || {})[tana] || [];
+  if (!m.length && !i.length) return ['★控えに 行の 指紋が 無い＝行を 名指しできません★'];
+  const kaburu = (a) => {
+    const mi = {};
+    for (const x of a) { if (mi[x.k]) return true; mi[x.k] = 1; }
+    return false;
+  };
+  if (kaburu(m) || kaburu(i)) {
+    return ['★鍵が 重なる 棚＝行を 名指しできません★（id/token/employee_id が 一意で ない）'];
+  }
+  const hako = (a) => { const o = {}; for (const x of a) o[x.k] = x.retsu || {}; return o; };
+  const M = hako(m), I = hako(i), deta = [];
+  Object.keys(M).forEach((k) => {
+    if (!(k in I)) { deta.push('★消えた 行★ ' + k); return; }
+    const chigau = Object.keys(M[k]).filter((c) => M[k][c] !== I[k][c])
+      .concat(Object.keys(I[k]).filter((c) => !(c in M[k])));
+    if (chigau.length) deta.push('★書き換わった 行★ ' + k + '（列 ' + chigau.join(' ') + '）');
+  });
+  Object.keys(I).forEach((k) => { if (!(k in M)) deta.push('★増えた 行★ ' + k); });
+  return deta.length ? deta : ['★行の 差は 0＝棚の 指紋だけが 違う（免除・並び以外の 訳）★'];
+}
+
 /* ★★触る 棚 全部の 指紋を 取る★★（門の 中 1か所＝9本 全部に 効く） */
 export async function yubimon() {
   /* ★門の 門★＝★免除が 黙って 増えたら 赤★ */
@@ -241,7 +293,12 @@ export async function yubimon() {
   if (!r.ok) return { ok: false, naze: r.naze };
   const yubi = {};
   for (const g of r.gyo) yubi[g.tana] = g.yubi;
-  return { ok: true, tana: kyuyo.length, yubi, kazu: Object.keys(yubi).length };
+  /* ★行ごとの 指紋も 一緒に 取る★（赤に なった 時 ★その場で★ 行を 名指しする為） */
+  const rg = await toi(zenbu.map((f) => yubiGyoSql(f, hi[f] || [])).join(' union all '));
+  const gyo = {};
+  if (rg.ok) for (const g of rg.gyo) (gyo[g.tana] = gyo[g.tana] || []).push({ k: g.k, retsu: g.retsu || {} });
+  return { ok: true, tana: kyuyo.length, yubi, gyo,
+    gyoNaze: rg.ok ? '' : rg.naze, kazu: Object.keys(yubi).length };
 }
 
 export async function kazoeru() {
@@ -284,7 +341,7 @@ export async function kazoeru() {
   return { ok: true, hito: Number(x.hito), meisai: Number(x.meisai), namae,
     contractor: Number(x.contractor), kakutei: Number(x.kakutei),
     koukai: Number(x.koukai), kami: Number(x.kami),
-    tana: y.tana, yubi: y.yubi };
+    tana: y.tana, yubi: y.yubi, gyo: y.gyo, gyoNaze: y.gyoNaze };
 }
 
 /* ★★★鍵が 無い（＝この環境では 倉庫を 数えない）を 決める 門＝ここ 1か所★★★
@@ -710,6 +767,19 @@ export async function awaseru(mae, byo = 20) {
       if (yubiZure.length) {
         iu.push('★指紋が ずれた 棚 ' + yubiZure.length + '本★ … ' + yubiZure.join(' / ')
           + (zure.length ? '' : '　★行数も 名指しの 6個も 動いて いない＝★中身だけ 変わった★★'));
+        /* ★★ずれた 棚の ★どの 行か★ を その場で 名指しする★★（2026-09-19 指示役1 の 注文）
+           ★中身は 1字も 出さない★＝鍵と 列の 名前だけ。
+           ★後から／気づかない★では なく ★その場で 訳が 決まる★ようにする。 */
+        if (!ato.gyo || !mae.gyo) {
+          iu.push('★行を 名指しできません★（行の 指紋が 取れて いない'
+            + (ato.gyoNaze || mae.gyoNaze ? '＝' + (ato.gyoNaze || mae.gyoNaze) : '') + '）');
+        } else {
+          yubiZure.forEach((t) => {
+            const d = gyoNoChigai(mae.gyo, ato.gyo, t);
+            iu.push('　— ' + t + ' … ' + d.slice(0, 6).join(' ／ ')
+              + (d.length > 6 ? ' …（他 ' + (d.length - 6) + '件）' : ''));
+          });
+        }
       }
       if (tanaZure) {
         iu.push('★棚の 数が 変わった★ … 決め打ち ' + TANA_KAZU + ' ／ 前 ' + mae.tana + ' ／ 後 ' + ato.tana
@@ -939,6 +1009,37 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('_souko-kazo
       await toi('delete from kyuyo.pay_payslips where ym = ' + qs(YM_T));   /* ★自分の ゴミを 片づける★ */
       const shimai = await kazu();
       iu('⑨ ★自己確認の ゴミを 残さない★', shimai === 0, '★' + shimai + '行 残った★');
+
+      /* ★★⑩〜⑬ 指紋が ★どの 行か★ を 言えるか（本物の 行で 4通り）★★
+         ★㋓何も しない＝0本★ を 入れないと ★何でも 名指しする 道具★に なる。 */
+      const T2 = 'kyuyo.pay_payslips';
+      const ID = 'selftest-yubi-' + Date.now();
+      const s0 = await kazoeru();
+      await ire(ID);
+      const s1 = await kazoeru();
+      const d1 = gyoNoChigai(s0.gyo, s1.gyo, T2);
+      iu('⑩ ★1行 足したら ★増えた 行★として その 鍵を 名指しする★',
+        d1.length === 1 && d1[0].indexOf('増えた') >= 0 && d1[0].indexOf(ID) >= 0, d1.join(' ／ '));
+
+      await toi('update kyuyo.pay_payslips set data = ' + qs('{"name":"自己確認2"}')
+        + ' where id = ' + qs(ID));
+      const s2 = await kazoeru();
+      const d2 = gyoNoChigai(s1.gyo, s2.gyo, T2);
+      iu('⑪ ★1行 書き換えたら ★書き換わった 行★と ★列の 名前★を 出す★',
+        d2.length === 1 && d2[0].indexOf('書き換わった') >= 0 && d2[0].indexOf(ID) >= 0
+        && d2[0].indexOf('data') >= 0, d2.join(' ／ '));
+
+      const d3 = gyoNoChigai(s2.gyo, s2.gyo, T2);
+      iu('⑫ ★何も しなければ 0本★（何でも 名指しする 道具に しない）',
+        d3.length === 1 && d3[0].indexOf('行の 差は 0') >= 0, d3.join(' ／ '));
+
+      await toi('delete from kyuyo.pay_payslips where id = ' + qs(ID));
+      const s3 = await kazoeru();
+      const d4 = gyoNoChigai(s2.gyo, s3.gyo, T2);
+      iu('⑬ ★1行 消したら ★消えた 行★として その 鍵を 名指しする★',
+        d4.length === 1 && d4[0].indexOf('消えた') >= 0 && d4[0].indexOf(ID) >= 0, d4.join(' ／ '));
+      const shimai2 = await kazu();
+      iu('⑭ ★⑩〜⑬の ゴミも 残さない★', shimai2 === 0, '★' + shimai2 + '行 残った★');
     }
   }
 
