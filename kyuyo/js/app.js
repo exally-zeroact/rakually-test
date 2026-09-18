@@ -3254,6 +3254,25 @@
        業種を 選んでいれば ★その率★（手入力より 勝つ＝同じ物を 2か所で 決めない）
        一覧に 無い 会社（細目で 決まる 等）だけ ★手入力★
        どちらも 無ければ ★null★（★0を 返さない★） */
+  /* ★★労災の 札は 選んだ 業種を 出す★★（2026-09-18 実測で 直した）
+     ★前★ … `'労災（★業種を 選んでください★）'` ＝★決め打ちの 字★
+       ⇒ ★業種を 選んだ 後も ずっと「業種を 選んでください」と 出続けて いた★
+       ⇒ 隣の 雇用保険は 「一般の事業・全体 13.5‰（…）」と ★選んだ 中身を 出して いる★
+       ⇒ ★同じ 箱の 隣同士で 片方だけ 教えて くれない★＝★客は「選べて いない」と 思う★
+       ★計算は 合って いた★（実測 … 賃金 780,000×52‰＝¥40,560／画面にも ¥40,560）
+       ＝★出ない のは 字だけ★＝★一番 気づかれにくい 形★
+     ★ついでに ★（星）を 外す★＝★客に 出る 字に 飾りを 入れない★（家の 決め）。 */
+  function rousaiFudaJi(c){
+    c=c||{};
+    var k=c.rousaiShurui||'';
+    var p=rousaiPermilOf(c);
+    if(k==='__te__') return (p>0)?('自分で 入れた 率・'+p+'‰'):'率を 自分で 入れてください';
+    if(!k) return '業種を 選んでください';
+    var RR=window.RousaiRitsu;
+    var hit=(RR?RR.list():[]).filter(function(r){ return r.shurui===k; })[0];
+    if(hit) return hit.bunrui+'／'+hit.shurui+'・'+hit.permil+'‰';
+    return k+((p!=null&&p>0)?('・'+p+'‰'):'');
+  }
   function rousaiPermilOf(c){
     c=c||{};
     var RR=window.RousaiRitsu;
@@ -3355,7 +3374,7 @@
     var ryoBox='<div class="card" style="margin-top:10px"><div class="card-h">保険料の概算</div>'
       +'<div style="display:flex;flex-wrap:wrap;gap:14px 24px;padding:4px 2px;font-size:13px">'
       +'<div><div class="hint">雇用保険（'+esc(gLabel)+'・'+koyoRateTxt+'）</div><b style="font-size:16px">'+(sum.koyoRyo!=null?yen(sum.koyoRyo):'—')+'</b></div>'
-            +'<div><div class="hint">労災（★業種を 選んでください★）</div>'
+            +'<div><div class="hint">労災（'+esc(rousaiFudaJi(state.company))+'）</div>'
         +'<select class="finput" data-rousai-shurui="1" style="max-width:320px">'
         +'<option value="">（選んでください）</option>'
         +((window.RousaiRitsu?RousaiRitsu.list():[]).map(function(r){
