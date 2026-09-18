@@ -487,8 +487,18 @@ export async function hitoTsukuru(na) {
        ⇒ `link-ji` が 40秒 待って 「行が 出ない」＝★アプリの 欠陥に 見えた★。
      ⇒ ★試験が 入る 口を 名指しで 引く★（`tests/_hairu.mjs` と 同じ 口）。
      ★見つからなければ 作らない★＝黙って 別の 口に 作らない。 */
-  const r = await toi('insert into kyuyo.pay_employees (id, account_id, data)'
-    + " select '" + id + "', u.id, jsonb_build_object('id','" + id + "','name','" + n + "','employmentType','employee')"
+  /* ★★並び番号（sort）も 入れる★★（2026-09-19 実測＝★開くだけで 動く★の 正体）
+     ★測り方★ … アプリを ★開くだけ（1回も 押さない）★で 4回 測った
+       ⇒ ★1回目だけ `kyuyo.pay_employees` の ★`sort` 列★が 4行 書き換わった★／2〜4回目は 0本
+     ★訳★ … `sort` は ★口ごとの 並び番号★。支度が 入れずに 作ると ★既定の 0★に なり、
+       既に 0 の 人と ★重なる★ ⇒ ★アプリは 開いた 時に 振り直して 保存する★
+       ⇒ ★試験は 1文字も 押して いないのに 倉庫が 動く★
+       ⇒ `awaseru` が ★「指紋が ずれた（中身だけ）」★で 赤に なる（今日 2回／約22回中）
+     ⇒ ★重ならない 番号を 自分で 入れる★＝アプリに 振り直す 仕事を 作らない。 */
+  const r = await toi('insert into kyuyo.pay_employees (id, account_id, sort, data)'
+    + " select '" + id + "', u.id,"
+    + ' coalesce((select max(e.sort) from kyuyo.pay_employees e where e.account_id = u.id), -1) + 1,'
+    + " jsonb_build_object('id','" + id + "','name','" + n + "','employmentType','employee')"
     + " from auth.users u where u.email = '" + SHIKEN_NO_KUCHI + "' returning id");
   if (!r.ok) return { ok: false, naze: r.naze };
   if (!r.gyo || !r.gyo.length) {

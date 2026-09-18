@@ -116,6 +116,39 @@ try {
   const APP = 'http://localhost:' + PORT + '/kyuyo/index.html';
   const hai = await hairu(pg, APP, '.bn[data-scr]');
   if (!hai.haitta) { MI('アプリに 入れない', hai.naze || ('試した ' + hai.kai + '回')); throw new Error('skip'); }
+  /* ★★覆いは ★画面を 移る 前★に 片づける★★
+     「OK」は `app.js:6016` で ★`location.reload()`★＝★画面が 最初に 戻る★。
+     画面を 移った 後に 答えると ★印刷の 画面から 追い出される★＝行が 出ない。 */
+  /* ★★アプリの 覆いに ★お客さんと 同じく★ 答える★★（2026-09-19 実測で 名指しした）
+     ログインの 後、アプリが ★「クラウドに この会社の 保存済みデータが あります。最新を
+     読み込みますか？」★の 覆い（`.ui-modal-ov`）を ★出す 時と 出ない 時が 在る★。
+     これが 出て いると ★下の ボタンに 本物の click が 届かない★
+     ⇒ 私は 最初 これを「揺れ」と 見た（1回目 届く／2回目 30秒 落ちる／3回目 25回 届かない）。
+     ★名指しで 数えたら 揺れでは なく「覆いが 在る／無い」の 2通りだった★。
+     ⇒ ★JS で 押し替えず・消しもせず★、★「はい（最新を 読み込む）」を 本物の click で 押す★。 */
+  const ooiNiKotaeru = async () => {
+    const aru = await pg.evaluate(() => {
+      const ov = document.querySelector('.ui-modal-ov');
+      return ov ? (ov.textContent || '').split(String.fromCharCode(10)).join(' ').trim().slice(0, 40) : '';
+    }).catch(() => '');
+    if (!aru) return '';
+    /* ★札は 覆いの 外に 在る★／★字は「OK／キャンセル」★（実測＝uiConfirm app.js:2102）
+       ⇒ ★お客さんが 押す 方（primary＝OK）★を 押す。 */
+    const bs = await pg.$$('.ui-modal-btn').catch(() => []);
+    for (const btn of bs) {
+      const ji = (await btn.textContent().catch(() => '')) || '';
+      const oya = await btn.evaluate((e) => e.className.indexOf('primary') >= 0).catch(() => false);
+      if (oya || ji.indexOf('OK') >= 0 || ji.indexOf('はい') >= 0) {
+        const ok = await btn.click({ timeout: 4000 }).then(() => true).catch(() => false);
+        if (ok) { console.log('  ★覆いに 答えた【本物の click】★ 「' + ji.trim().slice(0, 14) + '」 … ' + aru); return ji; }
+      }
+    }
+    if (!ooiGuchi) { ooiGuchi = 1; console.log('  🟡 覆いが 在るのに 答える 札が 無い … ' + aru + '（札 ' + bs.length + '個）'); }
+    return '';
+  };
+  let ooiGuchi = 0;
+  for (let i = 0; i < 24; i++) { if (await ooiNiKotaeru()) { await new Promise((r) => setTimeout(r, 2500)); break; } await new Promise((r) => setTimeout(r, 250)); }
+
   /* ★押す 前に 札の 姿を 数える★（押せない 時 「無い」と 決めつけない＝2026-09-19 実測で
      `.bn[data-scr="scr-print"]` は ★在るのに 押せず★ 30秒で 落ちた） */
   const sugata = await pg.evaluate(() => {
@@ -130,33 +163,6 @@ try {
   console.log('  ★印刷の 札★ ' + JSON.stringify(sugata));
   await pg.click('.bn[data-scr="scr-print"]', { timeout: 20000 })
     .catch(async () => { await pg.evaluate(() => document.querySelector('.bn[data-scr="scr-print"]').click()); });
-
-  /* ★★アプリの 覆いに ★お客さんと 同じく★ 答える★★（2026-09-19 実測で 名指しした）
-     ログインの 後、アプリが ★「クラウドに この会社の 保存済みデータが あります。最新を
-     読み込みますか？」★の 覆い（`.ui-modal-ov`）を ★出す 時と 出ない 時が 在る★。
-     これが 出て いると ★下の ボタンに 本物の click が 届かない★
-     ⇒ 私は 最初 これを「揺れ」と 見た（1回目 届く／2回目 30秒 落ちる／3回目 25回 届かない）。
-     ★名指しで 数えたら 揺れでは なく「覆いが 在る／無い」の 2通りだった★。
-     ⇒ ★JS で 押し替えず・消しもせず★、★「はい（最新を 読み込む）」を 本物の click で 押す★。 */
-  const ooiNiKotaeru = async () => {
-    const aru = await pg.evaluate(() => {
-      const ov = document.querySelector('.ui-modal-ov');
-      return ov ? (ov.textContent || '').split(String.fromCharCode(10)).join(' ').trim().slice(0, 40) : '';
-    }).catch(() => '');
-    if (!aru) return '';
-    const bs = await pg.$$('.ui-modal-btn').catch(() => []);   /* ★札は 覆いの 外に 在る★（実測） */
-    for (const btn of bs) {
-      const ji = (await btn.textContent().catch(() => '')) || '';
-      if (ji.indexOf('はい') >= 0 || ji.indexOf('読み込') >= 0) {
-        const ok = await btn.click({ timeout: 4000 }).then(() => true).catch(() => false);
-        if (ok) { console.log('  ★覆いに 答えた【本物の click】★ 「' + ji.trim().slice(0, 14) + '」 … ' + aru); return ji; }
-      }
-    }
-    console.log('  🟡 覆いが 在るのに 答える ボタンが 無い … ' + aru);
-    return '';
-  };
-  /* ★「はい」は ★画面を 開き直す★（app.js:6016 `location.reload()`）＝答えた後は 待ち直す */
-  for (let i = 0; i < 24; i++) { if (await ooiNiKotaeru()) { await new Promise((r) => setTimeout(r, 1500)); break; } await new Promise((r) => setTimeout(r, 250)); }
 
   /* ★リンクの 行が 出そろう まで 待つ★（時間では なく ★数★で 待つ） */
   let matta = 0, gyo = null;
