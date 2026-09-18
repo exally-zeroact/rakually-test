@@ -75,6 +75,74 @@ export function michiAru(src, kami) {
   }
   return false;
 }
+/* ★★jsdom の `url:` は ★札★。読む 紙は `path.join(ROOT,…)` の 先★★（2026-09-19 実測）
+   ★証し★ … `http://localhost/★app.html★` を 開く と 書いた 所が ★7本★
+             ⇒ ★`app.html` は この repo に 存在しない★（git で 0本）
+             ⇒ ★存在しない 紙を 7本が「開いて」いる★＝★札だから★
+   ⇒ ★札で 数えると「紙を 読んで いても 0本に 見える」／「無い 紙が 開かれて 見える」★
+   ⇒ ★読む 紙で 数える★／★札は 消さずに 別の 欄で 出す★（★偽だと 分かる 事が 値打ち★）
+   ★ROOT は 紙ごとに 違う★ ⇒ ★宣言を 読んで 解く★／解けなければ ★「決められません」★（★0本に しない★） */
+export function rootNoFukasa(src, shikenPath) {
+  /* ★逆斜線を 使わない★＝heredoc で 落ちて 効かなく なる（今日 何度も 踏んだ）
+     `const ROOT = path.join(...)` の 中の `'..'` を 数える／`fileURLToPath` が 無ければ 解けない */
+  const q = String.fromCharCode(39);
+  const at = src.indexOf('const ROOT');
+  if (at < 0) return null;
+  const owari = src.indexOf(';', at);
+  if (owari < 0) return null;
+  const naka = src.slice(at, owari);
+  if (naka.indexOf('fileURLToPath') < 0) return null;
+  let n = 0, k = 0;
+  const ten = q + '..' + q;
+  for (;;) { const x = naka.indexOf(ten, k); if (x < 0) break; n++; k = x + ten.length; }
+  return n;
+}
+export function yomuKami(src, shikenPath) {
+  /* 返り … { kami:[道…], wakaranai:[字…] } */
+  const q = String.fromCharCode(39);
+  const fukasa = rootNoFukasa(src, shikenPath);
+  const dir = shikenPath.split('/').slice(0, -1);
+  const out = { kami: [], wakaranai: [] };
+  const kagi = 'path.join(ROOT,';
+  let k = 0;
+  for (;;) {
+    const at = src.indexOf(kagi, k);
+    if (at < 0) break;
+    k = at + kagi.length;
+    const a = src.indexOf(q, k);
+    if (a < 0) break;
+    const b = src.indexOf(q, a + 1);
+    if (b < 0) break;
+    const mi = src.slice(a + 1, b);
+    if (mi.slice(-5) !== '.html') continue;
+    if (fukasa === null) { out.wakaranai.push(mi); continue; }
+    const base = dir.slice(0, Math.max(0, dir.length - fukasa));
+    out.kami.push(base.concat(mi.split('/')).join('/'));
+  }
+  return out;
+}
+/* ★札（url）★＝そのまま 出す（消さない） */
+export function fudaNoMichi(src) {
+  const out = new Set();
+  const kagi = 'localhost';
+  let k = 0;
+  for (;;) {
+    const at = src.indexOf(kagi, k);
+    if (at < 0) break;
+    k = at + kagi.length;
+    let e = k;
+    while (e < src.length && ' ' + src[e] !== '  ' && src[e] !== String.fromCharCode(39)
+      && src[e] !== String.fromCharCode(34) && src[e] !== '`' && src[e] !== ' ') e++;
+    const michi = src.slice(k, e);
+    const h = michi.indexOf('.html');
+    if (h < 0) continue;
+    const su = michi.slice(0, h + 5);
+    const sl = su.indexOf('/');
+    if (sl >= 0) out.add(su.slice(sl));
+  }
+  return [...out];
+}
+
 export function idWoToru(html) {
   const out = new Set();
   for (const m of html.matchAll(/id="([A-Za-z0-9_-]+)"/g)) out.add(m[1]);
@@ -98,14 +166,35 @@ if (!SELF) {
     ok(hoka.length === 0, '★名簿に 無い 置き場が 在る★ … ' + [...new Set(hoka.map((x) => x.replace(/\/[^/]*$/, '/')))].join(' '));
   });
 
+  /* ★読む 紙★と ★札★を 分けて 持つ（2026-09-19） */
+  for (const x of shiken) { x.y = yomuKami(x.s, x.f); x.fuda = fudaNoMichi(x.s); }
+  const wakaranai = shiken.filter((x) => x.y.wakaranai.length);
+  const nai = new Set();
+  for (const x of shiken) for (const f of x.fuda) { const t = f.replace(/^\//, ''); if (kami.indexOf(t) < 0) nai.add(t); }
+  /* ★★読む／札 が 0本 でも「見て いない」では ない★★（2026-09-19 実測で 分かった）
+     ★実ブラウザの 試験は URL を ★組み立てる★★＝`'http://localhost:' + PORT + '/kyuyo/index.html'`
+       ⇒ ★`localhost` と 道が 別の 字★＝札の 数え方では 拾えない
+       ⇒ ★道（引用符の 頭から）で 数えるのが 正しい★＝それが 「開く（どれか）」の 列
+     ★`path.join(ROOT,…)` で 紙を 読むのは jsdom／字の 試験★＝★この 名簿（実ブラウザ 39本）の 外★
+     ⇒ ★★読む／札 の 列は「どう 指して いるか」を 見る 為★★／★判じは「開く」と「中身を 見る」で する★ */
+  console.log('  ★札（url）だけで 実在しない 紙 ' + nai.size + '種★ … ' + ([...nai].join(' / ') || '（無し）')
+    + '（★jsdom の url は 札＝読む 紙とは 別物／実在しない `app.html` を 7本が「開いて」いた★）');
+  console.log('  ★読む／札 が 0本でも「見て いない」では ない★＝★実ブラウザは URL を 組み立てる★'
+    + '（`http://localhost:` ＋ PORT ＋ 道）／判じは ★開く★と ★中身を 見る★で する');
+  if (wakaranai.length) console.log('  ★ROOT が 解けない 紙 ' + wakaranai.length + '本★ … '
+    + wakaranai.map((x) => x.f.split('/').pop()).slice(0, 4).join(' / ') + '（★0本に せず「決められません」と 出す★）');
+
   const kekka = [];
   for (const k of kami) {
     const ids = idWoToru(yomu(k));
-    const aku = shiken.filter((x) => michiAru(x.s, k));
+    const yo = shiken.filter((x) => x.y.kami.indexOf(k) >= 0);              /* ★読む★ */
+    const fu = shiken.filter((x) => x.fuda.indexOf('/' + k) >= 0);          /* ★札★ */
+    const aku = shiken.filter((x) => michiAru(x.s, k) || x.y.kami.indexOf(k) >= 0 || x.fuda.indexOf('/' + k) >= 0);
     const naka = aku.filter((x) => nakaMiruKa(x.s, ids));
-    kekka.push({ k, aku: aku.length, naka: naka.length, na: naka.map((x) => x.f.split('/').pop()) });
-    console.log('  ' + k + ' … 開く ' + aku.length + '本 ／ ★中身を 見る ' + naka.length + '本★'
-      + (naka.length ? '（' + naka.map((x) => x.f.split('/').pop()).slice(0, 4).join(' / ') + (naka.length > 4 ? ' …' : '') + '）' : ''));
+    kekka.push({ k, aku: aku.length, naka: naka.length, yo: yo.length, fu: fu.length });
+    console.log('  ' + k + ' … ★読む ' + yo.length + '本★／札 ' + fu.length + '本／開く（どれか）' + aku.length + '本'
+      + ' ／ ★中身を 見る ' + naka.length + '本★'
+      + (naka.length ? '（' + naka.map((x) => x.f.split('/').pop()).slice(0, 3).join(' / ') + (naka.length > 3 ? ' …' : '') + '）' : ''));
   }
   T('★② 客に出る 紙は 全部 ★中身を 見る 試験★を 持つ（★まだの 紙は 名指しで 数える★）', () => {
     const nashi = kekka.filter((x) => x.naka === 0);
