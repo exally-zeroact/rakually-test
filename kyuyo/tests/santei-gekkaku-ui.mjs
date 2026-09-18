@@ -417,10 +417,31 @@ try {
   if (ireta < 3) MI('4〜6月の 確定', '★' + ireta + '/3 か月しか 確定できていない＝算定は 測れません★');
 
   /* ── 算定基礎届 ─────────────────────────────────── */
+  /* ★★時間では なく 数で 待つ★★（2026-09-18 CI が 赤に なって 直した）
+     ★何が 起きたか★
+       CI の WebKit で ★「算定基礎届 … ボタン「（無い）」／押せない null」★＝★押せない のでは なく 描かれて いない★。
+       ★手元は 緑★（14 passed／総なめ 32本でも 赤 0）／★前の 回の CI も 緑★
+       ⇒ ★機械の 速さの 差★＝★描き終わる 前に 見て いた★
+     ★前の 待ち★ … `machi(1600)`＝★決まった 時間★（＋600＋600）
+     ⇒ ★★「揺れ」とは 呼ばない★★＝★どれだけ 足りないかを 測る★（09-15 fuyo-ui は 0.7秒／要 18.2秒＝25倍）
+     ⇒ ★ボタンが 出るまで 待つ（数で 待つ）★＝★機械の 速さに 左右されない★
+     ⇒ ★待った 秒を 出す★＝★次に 見る 人が 比を 出せる★ */
+  const matsuMade = async (id, ue = 20000) => {
+    const t0 = Date.now();
+    for (;;) {
+      const aru = await pg.evaluate((x) => !!document.querySelector(x), id).catch(() => false);
+      if (aru) return { aru: true, byo: ((Date.now() - t0) / 1000).toFixed(1) };
+      if (Date.now() - t0 > ue) return { aru: false, byo: ((Date.now() - t0) / 1000).toFixed(1) };
+      await machi(200);
+    }
+  };
   const chohyo = async (which, btnId) => {
     await osu(pg, '.bn[data-scr="scr-list"]'); await machi(600);
     await osu(pg, '.seg-b[data-view="cho"]'); await machi(600);
-    await osu(pg, '.seg-b[data-cho="' + which + '"]'); await machi(1600);
+    await osu(pg, '.seg-b[data-cho="' + which + '"]');
+    const m = await matsuMade(btnId);
+    console.log('       ' + which + ' … ★ボタンが 出るまで ' + m.byo + '秒★'
+      + (m.aru ? '' : '（★20秒 待っても 出ない★）') + '（前は 決まった 1.6秒だけ 待って いた）');
     return pg.evaluate((id) => {
       const btn = document.querySelector(id);
       const c = document.querySelector('#view-cho');
