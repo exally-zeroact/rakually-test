@@ -561,6 +561,8 @@ jobs:
         run: node kyuyo/tests/souko-mon.test.mjs && node kyuyo/tests/souko-mon.test.mjs --self-test
       - name: ★人を消したら その人の給与明細も倉庫から消す／消す道は1か所（ボタンとスワイプを揃える）
         run: node kyuyo/tests/emp-kesu-meisai.test.mjs && node kyuyo/tests/emp-kesu-meisai.test.mjs --self-test
+      - name: ★倉庫の権限と「消すと道連れになる親」を実物に聞く（09-18＝鍵を消したらお金の記録が13枚CASCADEで消えた／CIに鍵が無ければ未測定と出して抜ける）
+        run: node kyuyo/tests/souko-kengen.test.mjs
       - name: ★県が無い時の代用を1つに揃える（2026-09-03＝同じ状態で3つの違う額が出ていた）
         run: node kyuyo/tests/pref-daiyo.test.mjs && node kyuyo/tests/pref-daiyo.test.mjs --self-test
       - name: ★直したら警告もついてくる（2026-09-03 穴②＝県を直しても警告が出たままだった）
