@@ -673,3 +673,5 @@ jobs:
         run: node kyuyo/scripts/verify-statutory.mjs
       - name: ★総なめの「未測定」の 数え方（終わりの行で数える／凡例や但し書きの字は数えない）★
         run: node tools/clock-sweep.mjs --self-test-kazoe
+      - name: ★古い 名前（exally_*）を 使って いる 所を 数える（覗き窓を 外せる 日を 機械で 決める）★
+        run: node tests/furui-namae.test.mjs --self-test
