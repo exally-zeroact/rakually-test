@@ -41,8 +41,15 @@ export const FURUI = ['exally_entitlements', 'exally_admins', 'is_exally_admin']
    ⇒ それは ★行数★ で、この 門が 数える ★件数★では ない（1行に 2つ 在る 所が 在る）。
    ⇒ ★「何を 何で 数えたか」を 揃えて いなかった★＝今日 何度も 出た 形。
    ⇒ ★この 門が 出した 数（60）を 決め打ちに する★＝★同じ 物差しで 数える★ */
-const HONSU = 60;
-const KAMI_HONSU = 11;
+const HONSU = 71;
+const KAMI_HONSU = 12;
+/* ★★この 門 自身も 数に 入って います（11件）★★（2026-09-19 実測で 踏んだ）
+   commit する 前は `git ls-files` に 無く ★60件／11枚★。
+   commit した 途端 ★71件／12枚★に なり 総なめが 赤に なった。
+   ★逃げ方は 2つ 在った★
+     ㋐ 名簿で 自分を 外す … ★しない★（★pw-borrow で 同じ 穴を 潰した ばかり★）
+     ㋑ 字を 割って 書く …… ★しない★（★今日 その 逃げ道の 本数に 門を 付けた ばかり★）
+   ⇒ ★自分の 分も 数に 入れ、★訳を 書く★★＝★数が 見える まま★／増えれば 赤の まま。 */
 
 /* ★1本ずつ 訳★＝★訳の 無い 物は 赤★（名簿を 黙って 増やさない） */
 const WAKE = {
@@ -57,6 +64,7 @@ const WAKE = {
   'tests/live-roundtrip.mjs': '実物で 1往復する 測り。同上。',
   'tests/own-name.test.mjs': '自分の 名前の 見張り。同上。',
   'tests/suite-data.test.js': '入口の 試験。同上。',
+  'tests/furui-namae.test.mjs': '★この 門 自身★＝数える 為の 字と 覚書。★名簿で 自分を 外さない／字も 割らない★ので 数に 入れて 訳を 書く。',
 };
 
 export function kazoeru(files, yomu) {
