@@ -358,6 +358,44 @@ export async function kazoeru() {
      ③★仕事の 段の 名に「CIでは 倉庫を 数えていない」と 書く★
    ★戻す条件★＝★CI に 試験倉庫の 鍵を 置いた日★
    ★見張り★＝`kyuyo/tests/souko-mon.test.mjs`（★鍵を 直に 読む 測りが 在れば 赤★）。 */
+/* ★★孤児を 数える（★親が 居ない 物★）★★（2026-09-20）
+   ★なぜ ここに 在るか★
+     ・09-20 実測 … ★鍵の 孤児 25本／鎖で 人まで 届かない 紙 18枚★が 積んで いた。
+     ・★どの 門も この 2つの 棚を 見て いなかった★（孤児を 見る 門は `maboroshi-ui` 1本で、
+       見る 棚は ★`pay_payslips` だけ★／判定も ★その回の 差★だけ）。
+     ・前に 出ていた「鍵20／紙3」とは ★物差しが 違って 比べられなかった★。
+     ⇒ ★★数え方を ここ 1か所に 置く★★＝次の 人が 同じ 字で 数え直せる。
+   ★★物差し（これを 変えたら 前の 数と 比べられません）★★
+     ・どこ … ★試験の 倉庫★／スキーマ ★kyuyo★／★全行★（席で 除かない＝★孤児は 席が 無い★）
+     ・鎖 … ★紙 → 鍵 → 人★
+     ・人との 突き合わせ … ★鍵/紙は `e.data->>'id'`★・★明細は `e.id`★
+       （★同じ 列では ない★＝09-20 実測で 両方 同じ 値だったが ★字は 別★なので 分けて 書く）
+   ★返す 物★ … ok / kagiZen kagiKoji / kamiZen kamiTodokanai / hito / meisaiZen meisaiKoji */
+export async function kojiKazoeru() {
+  const r = await toi(
+    'select (select count(*) from kyuyo.pay_meisai_pub) as kagi_zen,'
+    + ' (select count(*) from kyuyo.pay_meisai_pub p where not exists'
+    + "   (select 1 from kyuyo.pay_employees e where e.data->>'id'=p.employee_id)) as kagi_koji,"
+    + ' (select count(*) from kyuyo.pay_meisai_docs) as kami_zen,'
+    + ' (select count(*) from kyuyo.pay_meisai_docs d'
+    + '   left join kyuyo.pay_meisai_pub p on p.token=d.token'
+    + '   where p.token is null or not exists'
+    + "   (select 1 from kyuyo.pay_employees e where e.data->>'id'=p.employee_id)) as kami_todokanai,"
+    + ' (select count(*) from kyuyo.pay_employees) as hito,'
+    + ' (select count(*) from kyuyo.pay_payslips) as meisai_zen,'
+    + ' (select count(*) from kyuyo.pay_payslips p where not exists'
+    + '   (select 1 from kyuyo.pay_employees e where e.id=p.employee_id)) as meisai_koji');
+  if (!r.ok) return { ok: false, naze: r.naze };
+  const x = (r.gyo || [])[0] || {};
+  const n = (k) => Number(x[k]);
+  const kazu = { kagiZen: n('kagi_zen'), kagiKoji: n('kagi_koji'), kamiZen: n('kami_zen'),
+    kamiTodokanai: n('kami_todokanai'), hito: n('hito'), meisaiZen: n('meisai_zen'), meisaiKoji: n('meisai_koji') };
+  /* ★道具が 返した 0 を 信じない★＝1つでも 数に ならなければ ★未測定★ */
+  const warui = Object.keys(kazu).filter((k) => !Number.isFinite(kazu[k]));
+  if (warui.length) return { ok: false, naze: '数に ならない 欄 … ' + warui.join(' / ') };
+  return Object.assign({ ok: true }, kazu);
+}
+
 export function kankyoKa(naze) {
   return String(naze || '').indexOf('鍵の 紙が 読めない') >= 0;
 }
