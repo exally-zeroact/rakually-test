@@ -56,6 +56,19 @@ function emp(id, name, o) {
      ここは【凍結した入力】なので、凍結した当時と同じ 'tokyo' を fixture 側で持つ。
      ＝アプリの既定が変わっても、ゴールデンの入力は1バイトも動かない。
      （birthYmd は今までどおり base の値が勝つ＝順番を変えない） */
+  /* ★★後から アプリに 足した 欄は 凍結した 入力に 入れない★★（2026-09-19）
+     ★訳★ … 2026-09-19 に ★労働者名簿の 欄を 5つ★ 足した（司さん「たせ」）。
+       `defEmp` が それを 持つ ので、この 生成が ★凍結した 入力に 295行 足して しまい★、
+       `golden-immutable`（入力の SHA256 が 台帳と 一致）が ★赤★に なった。
+     ★増えたのは 空の 欄だけ（全部 ""）／消えた 行 0＝お金には 1円も 効かない★（実測）。
+       ⇒ ★それでも 入れない★。この 紙の 決まりは
+         「入力と ゴールデンを ★同じ commit で 凍結★」／「★既存 dataset は 書き換えない★」。
+       ⇒ ★ゴールデンは 移設前の commit(1c128e1) の ツリーでしか 作れない★＝★入力側を 合わせる★。
+     ★同じ 形の 前例★ … 上の `pref`（defEmp の 既定が 変わっても 入力は 動かさない）。
+     ★足す 時の 決まり★ … アプリに 欄を 足したら ★ここに 名前を 1つ 書く★
+       （★書かないと 凍結が 割れて 赤に なる＝黙っては 通らない★）。 */
+  const ATO_KARA = ['taishokuJiyu', 'rireki', 'gyomuShurui', 'shiboYmd', 'shiboGenin'];
+  for (const k of ATO_KARA) delete base[k];
   return Object.assign({ id, name, pref: 'tokyo', birthYmd: '1985-04-10' }, base, { pref: 'tokyo' }, o, { id, name });
 }
 // defCompany は __PAYSLIP_TEST に露出していないため、初期化直後の state.company(=defCompany()の結果)を複製して使う
