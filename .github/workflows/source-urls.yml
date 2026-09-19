@@ -84,3 +84,5 @@ jobs:
       #   取れなかった回は 🟡未測定（exit 2）＝「合っている」と 混ぜない。
       - name: ★労災保険率表が法令と合っているか（ズレたら赤＝入れ替えの合図）
         run: node kyuyo/scripts/check-rousai-ritsu.mjs
+      - name: ★社保の 率が 法令と 合うか（厚年＝一致／健保＝幅の中47県／雇用＝下限／★介護は 機械では 見られない★）★
+        run: node kyuyo/scripts/check-shaho-ritsu.mjs

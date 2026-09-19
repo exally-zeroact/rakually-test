@@ -675,3 +675,5 @@ jobs:
         run: node tools/clock-sweep.mjs --self-test-kazoe
       - name: ★古い 名前（exally_*）を 使って いる 所を 数える（覗き窓を 外せる 日を 機械で 決める）★
         run: node tests/furui-namae.test.mjs --self-test
+      - name: ★社保の 率の 読み取りの 自己確認（★外に 出ない★・漢数字と 幅の 取り方）★
+        run: node kyuyo/scripts/check-shaho-ritsu.mjs --self-test
