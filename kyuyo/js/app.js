@@ -346,6 +346,8 @@
       annualHolidays:'', dailyWorkH:'', dailyWorkM:'', workedH:'160', workedM:'0', weeklyScheduledH:'', dailyEntries:[],
       kintai:[{label:'出勤日数',value:'21'},{label:'欠勤日数',value:'0'},{label:'有給取得',value:'1'}],
       shikyu:[{label:'基本給',value:''}],
+      /* ★労働者名簿(労基法107条・労基則53条)の 欄★＝新しい 人にも 最初から 持たせる */
+      taishokuJiyu:'', rireki:'', gyomuShurui:'', shiboYmd:'', shiboGenin:'',
       apply:{}, taxClass:'ko', honninShogai:false, honninKafuHitorioya:'', honninKinrou:false, shortTimeType:'', minWageReduce:'', retired:false, workStatus:'normal', leavePay:'', leaveStartYmd:'', leaveEndYmd:'', leaveDaysInMonth:'',
       warimashi:{ mode:'easy', otH:'', otM:'', nightH:'', nightM:'', holidayH:'', holidayM:'',
         detail:{ ot:{h:'',m:''}, otNight:{h:'',m:''}, over60:{h:'',m:''}, over60Night:{h:'',m:''}, night:{h:'',m:''}, holiday:{h:'',m:''}, holidayNight:{h:'',m:''} } },
@@ -1233,6 +1235,26 @@
         +'<div class="frow"><div class="flabel">生年月日</div><input class="finput m-f" data-f="birthYmd" type="date" value="'+attr(e.birthYmd)+'"></div></div>'
       +'<div class="frow2"><div class="frow"><div class="flabel">入社日<span class="hint2">任意</span></div><input class="finput m-f" data-f="joinYmd" type="date" value="'+attr(e.joinYmd)+'"></div>'
         +'<div class="frow"><div class="flabel">退職日<span class="hint2">任意</span></div><input class="finput m-f" data-f="taishokuYmd" type="date" value="'+attr(e.taishokuYmd)+'"></div></div>'
+      /* ★★労働者名簿(労基法107条・労基則53条)に 要る 欄★★(2026-09-19 司さん「たせ」)
+         ★法の 字は 記憶で 書かず e-Gov 法令API から 原文を 取った★
+           https://laws.e-gov.go.jp/api/2/law_data/322AC0000000049 (労基法・2026-09-19 取得)
+           https://laws.e-gov.go.jp/api/2/law_data/322M40000100023 (労基則・同日)
+         ★法107条★ 氏名/生年月日/★履歴★/その他 省令で 定める事項
+         ★則53条1項★ 一 性別 二 住所 ★三 従事する業務の種類★ 四 雇入の年月日
+                      ★五 退職の年月日及びその事由(解雇の場合は その理由を含む)★
+                      ★六 死亡の年月日及びその原因★
+         ★則53条2項★ ★常時三十人未満の 労働者を 使用する 事業は 第三号を 記入することを要しない★
+         ⇒ ★欄は 作る／「30人未満は 空でよい」と 画面に 1行★(自分で 決めずに 条文の 通り) */
+      +'<div class="frow"><div class="flabel">退職の事由<span class="hint2">任意・解雇なら理由も</span></div>'
+        +'<input class="finput m-f" data-f="taishokuJiyu" value="'+attr(e.taishokuJiyu)+'" placeholder="自己都合／契約期間満了／解雇（理由）"></div>'
+      +'<div class="frow"><div class="flabel">履歴<span class="hint2">社内の異動・昇進</span></div>'
+        +'<input class="finput m-f" data-f="rireki" value="'+attr(e.rireki)+'" placeholder="2024-04 営業部／2025-10 主任"></div>'
+      +'<div class="frow"><div class="flabel">従事する業務の種類<span class="hint2">常時30人未満の事業場は記入不要（労基則53条2項）</span></div>'
+        +'<input class="finput m-f" data-f="gyomuShurui" value="'+attr(e.gyomuShurui)+'" placeholder="経理事務"></div>'
+      +'<div class="frow2"><div class="frow"><div class="flabel">死亡の年月日<span class="hint2">任意</span></div>'
+        +'<input class="finput m-f" data-f="shiboYmd" type="date" value="'+attr(e.shiboYmd)+'"></div>'
+        +'<div class="frow"><div class="flabel">死亡の原因<span class="hint2">任意</span></div>'
+        +'<input class="finput m-f" data-f="shiboGenin" value="'+attr(e.shiboGenin)+'"></div></div>'
       +'<div class="ri-note" style="margin:-4px 2px 8px">入社日・退職日を入れると、その月は<b>在籍日数で日割</b>・退職月の社保は<b>退職日が月末か否か</b>で自動判定。退職月の翌月以降は給与計算の対象から自動で外れます（日割は就業規則の定めに合わせて確認）。</div>'
       +'<div class="frow2"><div class="frow"><div class="flabel">部署</div>'+deptSelect(e)+'</div>'
         +'<div class="frow"><div class="flabel">役職</div>'+roleSelect(e)+'</div></div>'
@@ -2959,7 +2981,9 @@
     +'<button class="seg-b'+(v==='gekkaku'?' on':'')+'" data-cho="gekkaku">月額変更届</button>'
     +'<button class="seg-b'+(v==='roudou'?' on':'')+'" data-cho="roudou">労働保険</button>'
     +'<button class="seg-b'+(v==='shikaku'?' on':'')+'" data-cho="shikaku">資格取得・喪失</button>'
-    +'<button class="seg-b'+(v==='chosho'?' on':'')+'" data-cho="chosho">支払調書</button></div>'; }
+    +'<button class="seg-b'+(v==='chosho'?' on':'')+'" data-cho="chosho">支払調書</button>'
+    /* ★労働者名簿★（労基法107条・様式第十九号）＝2026-09-19 司さん「たせ」で 足した */
+    +'<button class="seg-b'+(v==='meibo'?' on':'')+'" data-cho="meibo">労働者名簿</button></div>'; }
   // 算定基礎届: 確定済みの4〜6月明細(総支給・支払基礎日数)から各人の標準報酬を決定して一覧化(年金機構提出の素)。
   /* ★様式の 欄で 出す★（2026-09-03 指示役の裁定＝D-3-1）
      一次情報＝日本年金機構「被保険者報酬月額算定基礎届（兼）70歳以上被用者算定基礎届」★様式コード 2225★
@@ -3771,7 +3795,49 @@
     else if(v==='roudou'){ host.innerHTML=sub+'<div class="card"><div class="card-h">労働保険</div><p class="hint">読込中…</p></div>'; renderRoudou(sub); }
     else if(v==='shikaku'){ renderShikaku(sub); }
     else if(v==='chosho'){ host.innerHTML=sub+'<div class="card"><div class="card-h">支払調書</div><p class="hint">読込中…</p></div>'; renderChosho(sub); }
+    else if(v==='meibo'){ host.innerHTML=sub+roudoushaMeiboHTML(); }
     else host.innerHTML=sub+shakaiListHTML(); }
+
+  /* ★★労働者名簿（労基法107条・労基則53条・様式第十九号）★★（2026-09-19 司さん「たせ」）
+     ★法の 字は 記憶で 書かず e-Gov 法令API の 原文を 引いた★（2026-09-19 取得）
+       労基法  https://laws.e-gov.go.jp/api/2/law_data/322AC0000000049
+       労基則  https://laws.e-gov.go.jp/api/2/law_data/322M40000100023
+     ★107条★「使用者は、各事業場ごとに労働者名簿を、各労働者（★日日雇い入れられる者を除く★）
+              について調製し、労働者の氏名、生年月日、★履歴★その他厚生労働省令で定める事項を
+              記入しなければならない」
+     ★則53条1項★ 一 性別／二 住所／★三 従事する業務の種類★／四 雇入の年月日／
+                  ★五 退職の年月日及びその事由（解雇の場合は その理由を含む）★／
+                  ★六 死亡の年月日及びその原因★
+     ★則53条2項★「常時★三十人未満★の労働者を使用する事業においては、前項第三号に掲げる
+                  事項を記入することを要しない」
+     ★109条★ 五年間 保存／★則56条一号★ 起算日＝★労働者の死亡、退職又は解雇の日★
+     ★出さない★ … 日日雇い入れられる者（法107条の 括弧書き）＝★条文の 通り★
+     ★決めない★ … 「30人未満なら 出さない」では なく ★欄は 出して 空でよいと 書く★ */
+  function roudoushaMeiboHTML(){
+    var emps=(state.employees||[]);
+    var nin=emps.length;
+    var miman=nin<30;   /* ★常時30人未満＝則53条2項★（★今の 名簿の 人数で 出す＝数を 隠さない★） */
+    var atama='<tr><th>氏名</th><th>生年月日</th><th>性別</th><th>住所</th><th>履歴</th>'
+      +'<th>従事する業務の種類</th><th>雇入の年月日</th><th>退職の年月日</th><th>退職の事由</th>'
+      +'<th>死亡の年月日</th><th>死亡の原因</th></tr>';
+    var karappo='<span style="color:#92500A">未記入</span>';
+    var mi=function(x){ return (x==null||x==='')?karappo:esc(String(x)); };
+    var gyo=emps.map(function(e){
+      return '<tr><td>'+mi(e.name)+'</td><td>'+mi(e.birthYmd)+'</td><td>'+mi(e.seibetsu)+'</td>'
+        +'<td>'+mi(e.address)+'</td><td>'+mi(e.rireki)+'</td>'
+        +'<td>'+(miman?'<span class="hint2">30人未満は記入不要</span>':mi(e.gyomuShurui))+'</td>'
+        +'<td>'+mi(e.joinYmd)+'</td><td>'+mi(e.taishokuYmd)+'</td><td>'+mi(e.taishokuJiyu)+'</td>'
+        +'<td>'+mi(e.shiboYmd)+'</td><td>'+mi(e.shiboGenin)+'</td></tr>'; }).join('');
+    return '<div class="card"><div class="card-h">労働者名簿'
+      +'<span class="hint2" style="margin-left:8px">労基法107条・様式第十九号</span></div>'
+      +'<p class="hint" style="margin:0 0 10px">この会社の登録人数 <b>'+nin+'人</b>'
+      +(miman?'＝<b>常時30人未満</b>なので「従事する業務の種類」は<b>記入不要</b>（労基則53条2項）。'
+             :'＝<b>30人以上</b>なので「従事する業務の種類」の記入が<b>要ります</b>（労基則53条2項）。')
+      +'<br>保存は<b>5年間</b>（労基法109条）。数えはじめる日は<b>死亡・退職・解雇の日</b>（労基則56条1号）。'
+      +'<br><b>日々雇い入れられる方</b>は名簿の対象外です（労基法107条）。この表はアプリに登録した方を全員出しています。</p>'
+      +(nin?'<div style="overflow-x:auto"><table class="tbl">'+atama+gyo+'</table></div>'
+           :'<p class="hint">従業員がまだ登録されていません。</p>')
+      +'</div>'; }
   // K3 支払調書: 業務委託の年間支払(確定済み月次のshikyuTotal)＋源泉(tax)を人ごとに集計→区分別に提出基準判定。
   function choshoPeople(recs){ var _SC=SC(); if(!_SC) return [];
     return (state.employees||[]).filter(function(e){ return e.employmentType==='contractor'; }).map(function(e){
