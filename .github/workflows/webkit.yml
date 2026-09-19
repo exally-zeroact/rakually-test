@@ -213,3 +213,7 @@ jobs:
         run: node kyuyo/tests/csv-moji.mjs
       - name: ★わざと 前の 見分けに 戻しても 4通りとも 同じか（＝この直しは 予防だと 字で 出す）★
         run: node kyuyo/tests/csv-moji.mjs --waza
+      - name: ★労働者名簿の 紙（実ブラウザ・法の11項目／30人未満の但し書き／未記入を空にしない）★
+        run: node kyuyo/tests/meibo-ui.mjs
+      - name: ★わざと 30人以上に したら「記入不要」が 消えるか（meibo-ui の 空振り止め）★
+        run: node kyuyo/tests/meibo-ui.mjs --waza

@@ -3817,13 +3817,15 @@
     var emps=(state.employees||[]);
     var nin=emps.length;
     var miman=nin<30;   /* ★常時30人未満＝則53条2項★（★今の 名簿の 人数で 出す＝数を 隠さない★） */
-    var atama='<tr><th>氏名</th><th>生年月日</th><th>性別</th><th>住所</th><th>履歴</th>'
+    /* ★表の 作りは ★賃金台帳と 同じ `dc-tab`★★＝★新しい class を 自分で 作らない★
+       （`.dc-tab` … 1列目 左寄せ・見出し 固定・横に スクロール＝名簿の 形に 合う） */
+    var atama='<thead><tr><th>氏名</th><th>生年月日</th><th>性別</th><th>住所</th><th>履歴</th>'
       +'<th>従事する業務の種類</th><th>雇入の年月日</th><th>退職の年月日</th><th>退職の事由</th>'
-      +'<th>死亡の年月日</th><th>死亡の原因</th></tr>';
+      +'<th>死亡の年月日</th><th>死亡の原因</th></tr></thead>';
     var karappo='<span style="color:#92500A">未記入</span>';
     var mi=function(x){ return (x==null||x==='')?karappo:esc(String(x)); };
     var gyo=emps.map(function(e){
-      return '<tr><td>'+mi(e.name)+'</td><td>'+mi(e.birthYmd)+'</td><td>'+mi(e.seibetsu)+'</td>'
+      return '<tr><td class="dc-lb">'+mi(e.name)+'</td><td>'+mi(e.birthYmd)+'</td><td>'+mi(e.seibetsu)+'</td>'
         +'<td>'+mi(e.address)+'</td><td>'+mi(e.rireki)+'</td>'
         +'<td>'+(miman?'<span class="hint2">30人未満は記入不要</span>':mi(e.gyomuShurui))+'</td>'
         +'<td>'+mi(e.joinYmd)+'</td><td>'+mi(e.taishokuYmd)+'</td><td>'+mi(e.taishokuJiyu)+'</td>'
@@ -3835,7 +3837,7 @@
              :'＝<b>30人以上</b>なので「従事する業務の種類」の記入が<b>要ります</b>（労基則53条2項）。')
       +'<br>保存は<b>5年間</b>（労基法109条）。数えはじめる日は<b>死亡・退職・解雇の日</b>（労基則56条1号）。'
       +'<br><b>日々雇い入れられる方</b>は名簿の対象外です（労基法107条）。この表はアプリに登録した方を全員出しています。</p>'
-      +(nin?'<div style="overflow-x:auto"><table class="tbl">'+atama+gyo+'</table></div>'
+      +(nin?'<div style="overflow-x:auto"><table class="dc-tab">'+atama+'<tbody>'+gyo+'</tbody></table></div>'
            :'<p class="hint">従業員がまだ登録されていません。</p>')
       +'</div>'; }
   // K3 支払調書: 業務委託の年間支払(確定済み月次のshikyuTotal)＋源泉(tax)を人ごとに集計→区分別に提出基準判定。
