@@ -37,8 +37,17 @@ const yml = fs.readFileSync(YML, 'utf8');
 const hirotta = [...yml.matchAll(/^\s*run:\s*(.+)$/gm)].map((m) => m[1].trim());
 const all = hirotta.filter((c) => !/^npm install/.test(c));
 const nozoita = hirotta.length - all.length;   /* 支度（npm install）＝走らせない */
+/* ★★分けて 回す 時は「合わせて 全部か」を 数で 出す★★（2026-09-19 司さん「分けてやれや」）
+   ★訳★ … 総なめが ★3度 メモリで 止められた★（235段は 1回で 走り切れない 日が 在る）。
+   ⇒ ★FROM/TO で 半分ずつ★ 回す。★但し 分けたら 隙間が 出来る★＝
+     「前半 緑・後半 緑」と 言えても ★真ん中を 誰も 走らせて いない★事が 起こり得る。
+   ⇒ ★毎回 出しに「この回は ◯〜◯／全 ◯段」を 出す★
+     ＋★分けた 時は「残りは ◯〜◯」も 出す★＝★次に 何を 回せば よいかが 字で 残る★
+   ＝[[feedback_souname_wo_tochu_de_tomeruna]] を ★守れる 形に 変えた★物
+     （★止めるな★では なく ★止めたなら どこまでかを 数で 残せ★）。 */
 const from = Number(process.env.FROM || 1);
 const to = Number(process.env.TO || all.length);
+const WAKETA = from > 1 || to < all.length;
 const skip = process.env.SKIP ? new RegExp(process.env.SKIP) : null;
 
 const red = [], mihakari = [], skipped = [], jiAri = [], maruAri = [];
@@ -214,6 +223,14 @@ console.log('\n[clock-sweep] ' + YML + ' ／ 時計 ' + (process.env.FAKE_NOW ||
   + '  （' + YML.split('/').pop() + ' #' + from + '〜#' + Math.min(to, all.length) + '／全 ' + all.length + '本）');
 /* ★1段も 走らなければ 赤★（★0段 走って 緑★を 塞ぐ＝2026-09-05 の 決まり） */
 if (n === 0) { console.log('  ★赤★ 1段も 走っていません（拾った 段 ' + hirotta.length + '）'); process.exit(1); }
+if (WAKETA) {
+  console.log('  ★★この回は 分けて 回しました★★ … ★' + from + '〜' + to + '段目★（全 ' + all.length + '段）');
+  const nokori = [];
+  if (from > 1) nokori.push('1〜' + (from - 1));
+  if (to < all.length) nokori.push((to + 1) + '〜' + all.length);
+  console.log('  ★★残り（この回で 走らせて いない）★★ … ' + (nokori.join(' と ') || '無し')
+    + '　⇒ ★ここを 回すまで「全部 緑」とは 言えません★');
+}
 console.log('  ★拾った 段 ' + hirotta.length + '★ ／ 走らせた ' + n + '本 ／ ★赤 ' + red.length + '本★ ／ ★本当に 未測定 ' + mihakari.length + '本★ ／ 🟡の 印が 出た 段 ' + maruAri.length + '本 ／ 字が 在っただけ ' + jiAri.length + '本 ／ ★旧の 数え方 ' + jiAri.length + '本★'
   + ' ／ 飛ばした ' + (nozoita + skipped.length) + '本'
   + '（支度 ' + nozoita + '＝npm install' + (skipped.length ? '／SKIP ' + skipped.length : '') + '）');
