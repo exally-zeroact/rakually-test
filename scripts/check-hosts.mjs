@@ -55,6 +55,27 @@ const OLD = [
      ★0本のまま緑にしない★＝下の実行部が「0本です」と数を出す。 */
 ];
 
+/* ★★死んだ 入口＝★死んだまま か★を 数える★★（2026-09-19）
+   ★訳（実測と 司さんの 言葉を 分けて 書く）★
+     ・`docs/HOSTS.md:43` は 「★22人が 今 使って いるので 消さずに 転送を 残す★」と 書いて いた
+       ＝★2026-08-17 の 紙★。
+     ・★実測 2026-09-19 03:23Z★ … `exally.vercel.app/kyuyo/` ＝★404／飛び先 無し★
+       （`/kyuyo/meisai.html?t=xxxxtest` も 404＝★飛ばない★）
+     ・★2026-09-19 司さん「消せや／誰も つかってないんやが」★
+       ＝★★実測では なく 司さんの 申告★★（リンクは 倉庫に 入らない／本番の 口は 私たちの 物では ない
+         ＝★私たちには 測れません★）
+   ⇒ ★転送は 打たない★＝★古い 入口は 死んだままで よい★
+   ⇒ ★但し ★生き返ったら 赤★★＝★誰かが 古い 家を 生かしたら 気づく★
+     （★古い 家が 生きると 古い 計算が 本物の 給料を 触る★＝`HOSTS.md` が 作られた 訳） */
+const SHINDA = [
+  { url: 'https://exally.vercel.app/kyuyo/',
+    naze: '2026-09-05 `091002e` で Exally から kyuyo/ を 外した。転送は 打たない（2026-09-19 司さん）。',
+    hazu: [404] },
+  { url: 'https://payslip-app-olive.vercel.app/',
+    naze: '給与の ★もっと 古い 配布先★（`kyuyo/tests/qr.test.mjs` に 字が 残って いた）。',
+    hazu: [503, 404] },
+];
+
 async function get(url) {
   try {
     const r = await fetch(url, { redirect: 'manual', headers: { 'User-Agent': 'Kyually-host-check/1.0' } });
@@ -136,11 +157,23 @@ if (process.argv.includes('--self-test')) {
     results.old.push({ ...h, status: r.status, location: r.location, landStatus, ...v });
   }
 
+  /* ★死んだままか★（生き返って いたら 赤） */
+  results.shinda = [];
+  for (const h of SHINDA) {
+    const r = await get(h.url);
+    const ikiteru = r.status >= 200 && r.status < 400;
+    results.shinda.push({ ...h, status: r.status,
+      ok: !ikiteru && h.hazu.indexOf(r.status) >= 0,
+      why: ikiteru ? '★生き返って います（HTTP ' + r.status + '）＝古い 家が 開く★'
+        : (h.hazu.indexOf(r.status) >= 0 ? null : '★死んで いますが 番号が 違います（HTTP ' + r.status + '／はず ' + h.hazu.join('・') + '）★') });
+  }
+
   const ngLive = results.live.filter(x => !x.ok);
   const ngOld = results.old.filter(x => !x.ok);
+  const ngShinda = results.shinda.filter(x => !x.ok);
 
   if (JSON_OUT) {
-    console.log(JSON.stringify({ ngLive: ngLive.length, ngOld: ngOld.length, results }, null, 1));
+    console.log(JSON.stringify({ ngLive: ngLive.length, ngOld: ngOld.length, ngShinda: ngShinda.length, results }, null, 1));
   } else {
     console.log('\n[check-hosts] 入口の生死と、古い入口の飛び先（docs/HOSTS.md と1対1）\n');
     console.log('■ 今の入口');
@@ -153,11 +186,19 @@ if (process.argv.includes('--self-test')) {
     console.log('\n── 実測 ──');
     console.log('  今の入口 OK ' + (results.live.length - ngLive.length) + ' / NG ' + ngLive.length);
     console.log('  古い入口 OK ' + (results.old.length - ngOld.length) + ' / NG ' + ngOld.length);
+    console.log('  ★死んだ入口 死んだまま ' + (results.shinda.length - ngShinda.length)
+      + ' / ★生き返った★ ' + ngShinda.length + '（全 ' + results.shinda.length + '本）');
+    results.shinda.forEach((x) => {
+      console.log('    ' + (x.ok ? '✓' : '✗') + ' HTTP ' + x.status + '  ' + x.url + (x.why ? '  ／ ' + x.why : ''));
+      console.log('        … ' + x.naze);
+    });
     /* ★0件を「見て異常なし」に見せない★＝数えた物が0本なら、そう言う */
-    if (!results.old.length) console.log('  ※ 古い入口は ★まだ0本★（Rakunally を誰にも配っていないため）。'
-      + 'Exally の kyuyo/ を転送する日に1行 足す＝それまでは「見張る物が無い」の0件。');
+    if (!results.old.length) console.log('  ※ 古い入口（★飛ぶべき★物）は ★0本★'
+      + '＝2026-09-19 司さん「消せや／誰も つかってないんやが」で ★転送は 打たない★と 決めた。'
+      + '★代わりに「死んだまま か」を 上の ' + results.shinda.length + '本で 数えて います★。');
+    if (!results.shinda.length) console.log('  ※ ★死んだ入口が0本＝この見張りは空振り★');
     if (!results.live.length) console.log('  ※ ★今の入口が0本＝この見張りは空振り★（一覧に足し忘れている）');
   }
 
-  if (ngLive.length || ngOld.length) process.exitCode = 3;
+  if (ngLive.length || ngOld.length || ngShinda.length) process.exitCode = 3;
 }

@@ -47,13 +47,13 @@ T('Web明細URL(token付)が読み取って一致する', () => {
 });
 
 T('本番想定URL(https・長いuuidトークン)も一致', () => {
-  const url = 'https://payslip-app-olive.vercel.app/meisai.html?t=3f9a1c22-7b0e-4d81-9a2b-1e4c5f6a7b88';
+  const url = 'https://rakually.vercel.app/kyuyo/meisai.html?t=3f9a1c22-7b0e-4d81-9a2b-1e4c5f6a7b88';
   const res = encodeDecode(url); ok(res, '復号できる'); eq(res.data, url, 'URL一致');
 });
 
 T('別トークンは別内容として正しく読める(取り違えなし)', () => {
-  const a = 'https://payslip-app-olive.vercel.app/meisai.html?t=aaaaaaaa-0000-0000-0000-000000000001';
-  const b = 'https://payslip-app-olive.vercel.app/meisai.html?t=bbbbbbbb-0000-0000-0000-000000000002';
+  const a = 'https://rakually.vercel.app/kyuyo/meisai.html?t=aaaaaaaa-0000-0000-0000-000000000001';
+  const b = 'https://rakually.vercel.app/kyuyo/meisai.html?t=bbbbbbbb-0000-0000-0000-000000000002';
   eq(encodeDecode(a).data, a, 'A一致'); eq(encodeDecode(b).data, b, 'B一致');
 });
 
