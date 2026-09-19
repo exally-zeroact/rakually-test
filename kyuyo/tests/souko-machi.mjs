@@ -53,6 +53,12 @@ if (SELF) {
 }
 
 /* ── ここから 実ブラウザ ───────────────────────────────── */
+/* ★★この 試験は クラウドの 覆いに 答えない（`{ kumo: false }`）★★（2026-09-19）
+   ★訳★ … ここは ★倉庫の 返事を わざと 遅らせて「読み込み中」を 作る★ 試験。
+   ログインの 道具が 覆いに OK を 押すと `location.reload()` で ★作った 状態が 消える★。
+   ★実測★ … 私が ログインの 所で 覆いに 答える 様に した 日、
+     webkit の 総なめで ★幅412 の 1件だけ 赤★（375・390 は 緑）／手元でも 1度 再現（23 passed 1 failed）。
+   ★覆いは 出る 回と 出ない 回が 在る★＝だから ★たまに 赤★に 見える。 */
 let borrow, pwLaunch, hairu, osu;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
@@ -140,7 +146,7 @@ console.log('\n[souko-machi] 倉庫の 答えが 遅れても 動かない／押
 for (const w of [375, 390, 412]) {
   const pg = await (await b.newContext({ viewport: { width: w, height: 900 } })).newPage();
   await shikomu(false)(pg);
-  const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]');
+  const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]', { kumo: false });
   if (!h.haitta) { console.log('  🟡 幅' + w + ' … ★未測定★（' + h.kai + '回 試して 入れなかった）'); mihakari++; await pg.close(); continue; }
   await osu(pg, '.bn[data-scr="scr-input"]');
   await machi(400);
@@ -175,7 +181,7 @@ for (const w of [375, 390, 412]) {
    ★直し★＝自分の 行に 出し ★空でも 1行ぶんの 場所を 取る★（案B）。 */
 for (const w of [375, 390, 412]) {
   const pg = await (await b.newContext({ viewport: { width: w, height: 900 } })).newPage();
-  const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]');
+  const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]', { kumo: false });
   if (!h.haitta) { console.log('  🟡 ⑤幅' + w + ' … ★未測定★（入れなかった）'); mihakari++; await pg.close(); continue; }
   await osu(pg, '.bn[data-scr="scr-input"]');
   await machi(3000);
@@ -204,7 +210,7 @@ for (const w of [375, 390, 412]) {
 {
   const pg = await (await b.newContext({ viewport: { width: 390, height: 900 } })).newPage();
   await shikomu(true)(pg);
-  const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]');
+  const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]', { kumo: false });
   if (!h.haitta) { console.log('  🟡 失敗の 回 … ★未測定★（入れなかった）'); mihakari++; }
   else {
     await osu(pg, '.bn[data-scr="scr-input"]');

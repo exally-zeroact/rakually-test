@@ -33,7 +33,14 @@ export async function kagiAru(root) {
 
 /* pg … playwright の page ／ matsu … 入れた事の 目印（この物が 出たら 入れた）
    返り値 { haitta, matta, kai } … kai＝入れた 時の 回数（入れなければ 試した 回数） */
-export async function hairu(pg, url, matsu, kaiMax = 3) {
+/* ★`opt`★ … 数を 渡すと 今までどおり 回数／物を 渡すと `{ kaiMax, kumo }`
+   ★`kumo: false`★ ＝★クラウドの 覆いに 答えない★
+     ＝★読み込み中の 状態を わざと 作る 試験★（`souko-machi`）は これを 使う。
+       答えると `location.reload()` で ★作った 状態が 消える★＝その試験の 測りを 壊す。
+   ★既定は 答える★（覆いが 残ると 下の ボタンに 本物の click が 届かない＝fuyo-ui が CI で 赤に なった） */
+export async function hairu(pg, url, matsu, opt = 3) {
+  const kaiMax = typeof opt === 'number' ? opt : (opt && opt.kaiMax) || 3;
+  const kumoKotaeru = typeof opt === 'number' ? true : (opt && opt.kumo !== false);
   let matta = 0, naze = '', kumoNi = '';   /* kumoNi＝クラウドの 覆いに 答えた 字（空＝出なかった） */
   for (let kai = 1; kai <= kaiMax; kai++) {
     await pg.goto(url, { waitUntil: 'domcontentloaded' });
@@ -81,7 +88,7 @@ export async function hairu(pg, url, matsu, kaiMax = 3) {
            （★まだ 読み込めて いません★）」＝★キャンセルすると 空のまま★＝試験が 支度した 物が 出ない。
          ★お客さんの 道★ … ★本物の click★（JS で 押し替えない・消さない）。
          ★この 覆いだけ★を 見る（他の 覆いは 上の 打ち消しに 任せる＝広げない）。 */
-      kumoNi = await kumoNiKotaeru(pg, matsu);
+      if (kumoKotaeru) kumoNi = await kumoNiKotaeru(pg, matsu);
     }
     const nokoru = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
     if (!nokoru) return { haitta: true, matta, kai, kumoNi };
