@@ -300,13 +300,24 @@ try {
     for (const k of ['zaiseki', 'zei', 'shaho', 'teate', 'kazoku']) {
       if (mae === hoshii.length) break;
       await akeru(k);
-      const r = await matsu(hoshii, mae, 6000);   /* ★増えるまで 待つ（1つ ぶん 6秒）★ */
+      /* ★探す ための 待ちは 短いまま（1つ ぶん 6秒）★
+         ★一度 18秒に 上げて 測ったら 手元が 18.2秒 → ★54.3秒★に なった★
+         ＝★欄が 入って いない かたまりでも 18秒 待つ★から。
+         ⇒ ★探す 待ちは 元へ戻し、下の ★まとめ待ち★だけ 長くする★（そこが 遅い 機械の 効く所）
+         ＝★外れた 見込みも 残す★[[feedback_hazureta_mikomi_wo_sutenai]] */
+      const r = await matsu(hoshii, mae, 6000);
       mattaKei += r.matta;
       mae = r.n;
     }
     if (mae !== hoshii.length) {
       /* ★最後に もう一度 まとめて 待つ★＝★遅い 機械で 出そろう のを 逃さない★ */
-      const r2 = await matsu(hoshii, mae - 1, 12000);
+      /* ★★まとめ待ち 12秒 → 36秒★★（2026-09-19 CI の 実測で 上げた）
+         ★測った★ … 同じ 機械・同じ 回で ★「かたまりを 開く」に 18.2秒★
+           次の 段は ★30.2秒 待って 1個 足りない★で 赤（★手元は 0.0秒★）。
+         ⇒ ★遅さは 手元の 何十倍★＝★12秒は 近すぎた★（「たまに 赤」の 正体）
+         ⇒ ★早く 出れば すぐ 抜ける★＝手元の 速さは 変わらない。
+         ＝[[feedback_yure_to_yobu_mae_ni_dore_dake_tarinai_ka_hakare]] */
+      const r2 = await matsu(hoshii, mae - 1, 36000);
       mattaKei += r2.matta;
       mae = r2.n;
     }
