@@ -303,23 +303,49 @@ export async function katazukeru(pg, opt) {
        ★これは 会社の 道の まま★（管理鍵が 要らない＝CI でも 効く）。
      ＝[[feedback_naoshita_wa_gamen_dake_kaisha_no_dougu_ga_nokoru]]
        ／[[feedback_jibun_no_dai_ga_shitte_iru_kazu_wa_kyaku_no_michi_de_kazoero]] */
-  let matta = 0, nokori2 = -1;
+  let matta = 0, nokori2 = -1, kumo = '';
   try {
     await pg.reload({ waitUntil: 'domcontentloaded' });
+    /* ★★開き直しただけでは ★手元の 控え★を 見て いる★★（2026-09-19 実測で 捕まえた）
+       ★何が 起きたか★ … この ⑥は ★「残り 0人」で 緑★を 出し続けたのに
+         CI は ★5人 残した★（`CI試験813256` 等・2026-09-19 実測 人 5→10）。
+       ★訳★ … 開き直した 直後の 画面は ★倉庫の 返事を 待たずに 手元の 控えから 描かれる★。
+         消した 人は 手元の 控えからは 既に 消えて いる ⇒ ★0人に 見える★。
+       ⇒ ★★「開き直した」は「倉庫から 描き直した」では ない★★
+       ⇒ ★クラウドの 読み込みに 答えてから 数える★（覆いが 出た時は それが 合図）。 */
+    const { kumoNiKotaeru } = await import('../../tests/_hairu.mjs');
+    kumo = await kumoNiKotaeru(pg, '#emp-list', 16);
+    /* ★★「出た」で 止めず ★落ち着くまで★ 数える★★（2026-09-19 実測で 直した）
+       ★前★ … 札が 1枚でも 出たら その場で 数えて いた（★待った 1回★）。
+       ★何が 起きたか★ … 開き直した 直後の 画面は ★手元の 控え★で 描かれ、
+         ★倉庫の 返事は その後に 来る★。消した 人は 手元の 控えからは 消えて いるので
+         ★0人に 見えて 緑★＝★CI は 5人 残したのに 5回とも 緑★。
+       ⇒ ★同じ 数が 3回 続くまで 待つ★（間は 0.5秒）＝★後から 来る 返事を 待つ★
+       ⇒ ★落ち着かなければ「決められません」★＝0人とは 言わない。 */
+    let mae = -2, onaji = 0, zen = -1;
     for (let i = 0; i < 160; i++) {
       matta++;
       const r = await pg.evaluate((n) => {
         const fuda = Array.from(document.querySelectorAll('#emp-list .mco'));
         if (!fuda.length) return null;                    /* まだ 描いて いない */
-        return n
-          ? fuda.filter((x) => ((x.querySelector('.mco-nm') || {}).textContent || '').indexOf(n) >= 0).length
-          : 0;
+        return {
+          zen: fuda.length,
+          na: n ? fuda.filter((x) => ((x.querySelector('.mco-nm') || {}).textContent || '').indexOf(n) >= 0).length : 0,
+        };
       }, na).catch(() => null);
-      if (r !== null) { nokori2 = r; break; }
-      await machi(250);
+      if (r !== null) {
+        if (r.zen === zen && r.na === mae) onaji++; else onaji = 0;
+        zen = r.zen; mae = r.na;
+        if (onaji >= 2) { nokori2 = r.na; break; }        /* ★同じ 数が 3回★ */
+      }
+      await machi(500);
+    }
+    if (nokori2 < 0 && mae >= 0) {
+      michi.push('⑥★落ち着きません★（札 ' + zen + '枚／この人 ' + mae + '人＝最後に 見た 数）');
     }
   } catch (e) { nokori2 = -1; }
-  michi.push('⑥開き直して 数えた … 残り ' + nokori2 + '人（待った ' + matta + '回）');
+  michi.push('⑥開き直して 数えた … 残り ' + nokori2 + '人（待った ' + matta + '回'
+    + '／クラウドの 覆い ' + (kumo ? '「' + kumo + '」を 押した' : '出なかった') + '）');
   if (nokori2 < 0) {
     return { ok: false, michi, naze: '★開き直しても 数えられない★（0人とは 言えません）' };
   }

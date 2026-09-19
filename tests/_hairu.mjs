@@ -81,31 +81,7 @@ export async function hairu(pg, url, matsu, kaiMax = 3) {
            （★まだ 読み込めて いません★）」＝★キャンセルすると 空のまま★＝試験が 支度した 物が 出ない。
          ★お客さんの 道★ … ★本物の click★（JS で 押し替えない・消さない）。
          ★この 覆いだけ★を 見る（他の 覆いは 上の 打ち消しに 任せる＝広げない）。 */
-      for (let i = 0; i < 24; i++) {
-        const kumo = await pg.evaluate(() => {
-          const ov = document.querySelector('.ui-modal-ov');
-          if (!ov) return false;
-          const t = String(ov.textContent || '');
-          return t.indexOf('クラウド') >= 0 || t.indexOf('最新を読み込み') >= 0;
-        }).catch(() => false);
-        if (kumo) {
-          const bs = await pg.$$('.ui-modal-btn').catch(() => []);
-          for (const btn of bs) {
-            const ji = (await btn.textContent().catch(() => '')) || '';
-            if (ji.indexOf('OK') >= 0 || ji.indexOf('はい') >= 0) {
-              if (await btn.click({ timeout: 4000 }).then(() => true).catch(() => false)) {
-                kumoNi = ji.trim().slice(0, 8);
-                await new Promise((r) => setTimeout(r, 2500));   /* ★OK は 画面を 開き直す★ */
-                for (let j = 0; j < 40; j++) { matta++; if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
-              }
-              break;
-            }
-          }
-          break;
-        }
-        matta++;
-        await new Promise((r) => setTimeout(r, 250));
-      }
+      kumoNi = await kumoNiKotaeru(pg, matsu);
     }
     const nokoru = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
     if (!nokoru) return { haitta: true, matta, kai, kumoNi };
@@ -120,6 +96,40 @@ export async function hairu(pg, url, matsu, kaiMax = 3) {
     await new Promise((r) => setTimeout(r, 1200 * kai));
   }
   return { haitta: false, matta, kai: kaiMax, naze: naze };
+}
+
+
+/* ★★「クラウドの 最新を 読み込みますか？」の 覆いに 答える★★（2026-09-19）
+   ★1か所に した★＝ログインの 所と ★片づけの 開き直し★の 両方が 同じ 字を 使う
+   （[[feedback_mihon_no_michi_ga_futatsu_aru_toki_katahou_dake_naosu_na]]）。
+   ★なぜ「OK（最新を 読み込む）」か★ … 覆いの 字は「クラウドに 保存済みデータが あります
+     （★まだ 読み込めて いません★）」＝★キャンセルすると 手元の 控えのまま★。
+   ★返り値★ … 押した 札の 字（空＝覆いは 出なかった）＝★黙らない★ */
+export async function kumoNiKotaeru(pg, matsu, kaiMax = 24) {
+  for (let i = 0; i < kaiMax; i++) {
+    const kumo = await pg.evaluate(() => {
+      const ov = document.querySelector('.ui-modal-ov');
+      if (!ov) return false;
+      const t = String(ov.textContent || '');
+      return t.indexOf('クラウド') >= 0 || t.indexOf('最新を読み込み') >= 0;
+    }).catch(() => false);
+    if (kumo) {
+      const bs = await pg.$$('.ui-modal-btn').catch(() => []);
+      for (const btn of bs) {
+        const ji = (await btn.textContent().catch(() => '')) || '';
+        if (ji.indexOf('OK') >= 0 || ji.indexOf('はい') >= 0) {
+          if (await btn.click({ timeout: 4000 }).then(() => true).catch(() => false)) {
+            await new Promise((r) => setTimeout(r, 2500));   /* ★OK は 画面を 開き直す★ */
+            if (matsu) for (let j = 0; j < 40; j++) { if (await pg.$(matsu)) break; await new Promise((r) => setTimeout(r, 250)); }
+            return ji.trim().slice(0, 8);
+          }
+        }
+      }
+      return '';
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return '';
 }
 
 /* ★案内の 覆いを 本物の 閉じる ボタンで 閉じる★（消す のでは ない＝お客さんの 道）
