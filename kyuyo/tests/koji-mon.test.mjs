@@ -206,7 +206,12 @@ if (!OWARI) {
   T('★分母を 出して いる（0件だけで 緑に しない）', kazu.kagiZen > 0 && kazu.kamiZen > 0,
     '鍵 ' + kazu.kagiZen + '／紙 ' + kazu.kamiZen);
   console.log('  ★この門が 見る 棚は 3つ★ … pay_meisai_pub ／ pay_meisai_docs ／ pay_payslips');
-  console.log('  ★「掃除が 終わった＝全部 0」では ありません★ … 鍵 0／紙 0／★明細は ' + kazu.meisaiKoji
+  /* ★★数を 字に 焼き付けない★★（2026-09-20 実測で 踏んだ）
+     ★前は「鍵 0／紙 0」と ★決め打ちの 字を そのまま★ 書いて いた★
+     ⇒ ★鍵1・紙3 に 増えた 回でも「鍵 0／紙 0」と 出た★＝★判じは 赤なのに 出しは 嘘★
+     ＝★今日 何度も 出た「飾りの 字に 頼った 門は 割れる」の ★自分の 出し 版★ */
+  console.log('  ★「掃除が 終わった＝全部 0」では ありません★ … 鍵 ' + kazu.kagiKoji
+    + '／紙 ' + kazu.kamiTodokanai + '／★明細は ' + kazu.meisaiKoji
     + '★（消す 許しを 貰って いない＝お金の 記録）');
   console.log('  ★明細は 2つの 門が 別の 物差しで 見ます★ … maboroshi-ui＝★その回 増えたか★／この門＝★前から 在る 数★');
   console.log('\n' + pass + ' passed, ' + fail + ' failed');

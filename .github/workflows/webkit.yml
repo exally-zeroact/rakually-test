@@ -210,6 +210,17 @@ jobs:
         run: node kyuyo/tests/koji-mon.test.mjs --self-test && node kyuyo/tests/koji-mon.test.mjs
       - name: ★わざと 孤児を 1本 足しても 赤に ならなければ 空振り（koji-mon の 空振り止め・足した 物は 必ず 消す）★
         run: node kyuyo/tests/koji-mon.test.mjs --waza
+      # ★自動計算の 行に 打った 時の 注意文（2026-09-20 司さん「1が ほれなら 注意文 出せや」）
+      #   実測 … 払い方 6通り × 基本給／通勤 ＝ 12通り すべてで ★打てる・字は残る・合計は動かない★だった。
+      #   直すのは「黙って 捨てる」所＝★文を 出す＋打った字を その場で 戻す★（効かせると 時給/日給/歩合/カスタムが 壊れる）。
+      #   出し方は 世の中を 調べて ★インライン（消えない）★＝NN/g「toast は フォームの誤りに 向かない」。
+      #   ★min-height で 場所を 先に 空ける★＝★1px も 動かない★（35px 逃げた 前科を 潰した）。
+      - name: ★自動計算の 行（基本給・通勤）に 打ったら 注意文が 出て 字が 戻る（実ブラウザ・払い方 6通り）★
+        run: node kyuyo/tests/jidou-gyou.mjs
+      - name: ★わざと 文を 消したら 赤に なるか（jidou-gyou の 空振り止め・その1）★
+        run: node kyuyo/tests/jidou-gyou.mjs --waza-bun
+      - name: ★わざと min-height を 外したら 高さが 動いて 赤に なるか（空振り止め・その2）★
+        run: node kyuyo/tests/jidou-gyou.mjs --waza-taka
       - name: ★従業員が 自分の 明細を 開く 道（実ブラウザ・09-19＝ここを 見る 試験が 1本も 無かった／幅と 転がりだけ 見て いた）
         run: node kyuyo/tests/meisai-ui.mjs
       - name: ★管理者で ない 人に 他人の 一覧が 出ないか（実ブラウザ・09-19＝この紙の 中身を 見る 試験が 0本だった／守りの 本体は サーバ側の RLS）★

@@ -1936,7 +1936,45 @@
   }
 
   /* ---------- 入力（自動計算） ---------- */
-  function rowsHTML(g,arr){
+  /* ★★自動計算の 行＝打っても 変わらない 行★★（2026-09-20 司さん「1が ほれなら 注意文 出せや」）
+     ★実測（払い方 6通り × 基本給／通勤 ＝ 12通り すべて）★
+       打てる／字は 残る／★支給合計は 動かない★／★外を 押しても 戻らない★／
+       ★画面を 出て 戻ると 社員マスタの 値に 戻る★
+     ★因★ … `payroll-monthly.js` の `compute` 1行目 `syncCommute(e); syncBasePay(e, ctx);`
+            ＝★計算の たび `e.shikyu` の /基本給/ と /通勤/ の 行を 作り直す★
+     ★直すのは「黙って 捨てる」所★（捨てる事 自体では ない＝司さんの 決め）
+     ★上書きされる 行は この 2つだけ★（`e.shikyu` を 書く 字は :102-103 と :194 の 2か所） */
+  function jidouNoteId(e,g,ri){ return 'jn-'+g+'-'+ri+'-'+((e&&e.id)||'x'); }
+  function jidouGyou(label){
+    var L = String(label||'');
+    if (/基本給/.test(L)) return 'base';
+    if (/通勤/.test(L)) return 'commute';
+    return null;
+  }
+  /* ★行き先は ★画面に 出て いる 字★で 名指しする★（2026-09-20 実物で 写した）
+     ★道順を 当て推量で 書かない★＝「設定 ▸ 従業員」は ★間違い★／実物は ★「従業員マスタ」★
+     ★行き先の 数★ … `syncBasePay` の `amt =` ★6か所★（休業中の 枝は 中で 2つ＝行き先 7通り）
+       ⇒ ★見張り★ `kyuyo/tests/jidou-gyou.test.mjs` が 本数を 決め打つ（増えた日に 赤） */
+  var JIDOU_MICHI = '〈設定 ▸ 従業員マスタ〉';
+  function jidouNote(e, kind){
+    if (kind === 'commute') {
+      return 'ここに打っても 変わりません。'+JIDOU_MICHI+'の〈通勤手当〉で直してください。'
+        + '（名前に「通勤」が入る行は すべて同じ扱いです）';
+    }
+    var atama = 'ここに打っても 変わりません。';
+    if (e && e.workStatus && e.workStatus !== 'normal') {
+      return atama + '休業中のため〈休暇中の支給額〉から計算されます。'
+        + JIDOU_MICHI+'→〈詳細設定〉→〈在籍・勤務〉の〈休暇中の支給額〉で直してください。';
+    }
+    var pt = (e && e.payType) || '月給';
+    if (pt === '時給') return atama + '〈時給単価〉×〈労働時間〉から計算されます。'+JIDOU_MICHI+'の〈時給単価〉で直してください。';
+    if (pt === '日給') return atama + '〈日給額〉×〈出勤日数〉から計算されます。'+JIDOU_MICHI+'の〈日給額〉で直してください。';
+    if (pt === '歩合') return atama + '〈歩合給額〉と〈保障給の時給〉から計算されます。'+JIDOU_MICHI+'で直してください。';
+    if (pt === '役員') return atama + JIDOU_MICHI+'の〈役員報酬〉で直してください。';
+    if (pt === 'カスタム') return atama + JIDOU_MICHI+'の〈決め方〉と〈固定給〉で直してください。';
+    return atama + JIDOU_MICHI+'の〈基本給〉で直してください。';
+  }
+  function rowsHTML(g,arr,e){
     return arr.map(function(it,ri){
       var labelAuto=/通勤|出張|旅費|宿泊|日当/.test(it.label||'');
       // 支給行は非課税を“トグル”に(任意の手当を非課税にできる)。項目名で自動判定される通勤等はON固定(自動)
@@ -1952,7 +1990,25 @@
         var isGB = (it.genbutsu===true);
         hz += '<label class="row-gb" title="社宅・食事など ★現物で 渡した物★（算定基礎届の ⑫に 入ります／お金で 渡した物は 付けない）" style="font-size:10px;color:'+(isGB?'#7A5B00':'#6E6E6E')+';font-weight:'+(isGB?'700':'400')+';white-space:nowrap;display:inline-flex;align-items:center;gap:2px;margin-left:6px"><input type="checkbox" class="ck-gb" data-g="shikyu" data-ri="'+ri+'"'+(isGB?' checked':'')+'>現物</label>';
       }
-      return '<div class="row" style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input class="finput" data-g="'+g+'" data-ri="'+ri+'" data-f="label" value="'+attr(it.label)+'" style="flex:1.3" placeholder="項目"><input class="finput num" data-g="'+g+'" data-ri="'+ri+'" data-f="value" value="'+attr(it.value)+'" style="flex:1" placeholder="'+(g==='kintai'?'値':'金額')+'">'+hz+'<button class="b-del m-del" data-g="'+g+'" data-ri="'+ri+'" aria-label="この項目を削除">×</button></div>';
+      return '<div class="row" style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input class="finput" data-g="'+g+'" data-ri="'+ri+'" data-f="label" value="'+attr(it.label)+'" style="flex:1.3" placeholder="項目"><input class="finput num"'+(g==='shikyu'&&jidouGyou(it.label)?' aria-describedby="'+jidouNoteId(e,g,ri)+'"':'')+' data-g="'+g+'" data-ri="'+ri+'" data-f="value" value="'+attr(it.value)+'" style="flex:1" placeholder="'+(g==='kintai'?'値':'金額')+'">'+hz+'<button class="b-del m-del" data-g="'+g+'" data-ri="'+ri+'" aria-label="この項目を削除">×</button></div>'
+        + (g==='shikyu' && jidouGyou(it.label)
+        /* ★★場所を 先に 空ける★★（2026-09-20）
+           ★訳★ … 欄の下に 後から 足すと ★画面が 動く★（実測＝★35px 動いて 指の下から 逃げる★／app.js の
+             「読み込み中は 押せる物を 出さない」の 注記と 同じ 型）。
+           ⇒ ★空の まま 高さだけ 取って おく★＝★字が 出ても 1pxも 動かない★。
+           ★消えない★＝toast に しない 訳（世の中の 調べ … ★消える 知らせは 見逃す／支援技術に 伝わらない★）。 */
+        /* ★★支援技術にも 伝える★★（2026-09-20）
+           ★自分で 引いた 訳に 答える★… 世の中の 調べで「消える 知らせは ★支援技術に 伝わらない★」を
+             toast を やめる 訳に した。★なら インライン側が そこに 答えて いないと 片手落ち★。
+           ★`role="status"` + `aria-live="polite"`★ … ★割り込まずに 読み上げる★
+             （`alert`＝assertive は 打つ たび 割り込む＝煩い）
+           ★`aria-describedby`★ … ★欄に 焦点が 来た 時にも 読み上げられる★＝★欄と 文を 結ぶ★
+           ★この repo で aria-live / role=alert を 使うのは ★ここが 初めて★（実測 0件）★ */
+        ? '<div class="row-note" id="'+jidouNoteId(e,g,ri)+'" data-note="'+g+':'+ri+'"'
+          + ' role="status" aria-live="polite"'
+          + ' style="min-height:15px;font-size:10.5px;line-height:1.35;'
+          + 'color:#8A5A00;margin:-2px 0 5px 2px"></div>'
+        : '');
     }).join('');
   }
   function fmtH(min){ var h=min/60; return (Math.round(h*100)/100)+'h'; }
@@ -2491,7 +2547,7 @@
           +(e.payType==='役員'?'':warimashiInputHTML(e))
           +daikyuInputHTML(e)
           +'<div class="grp"><div class="grp-h">その他の勤怠<button class="mini add" data-add="kintai" data-i="'+i+'" aria-label="勤怠項目を追加">＋</button></div><div class="rows">'+otherKinRows(e)+'</div></div>'
-          +'<div class="grp"><div class="grp-h">支給<button class="mini add" data-add="shikyu" data-i="'+i+'" aria-label="支給項目を追加">＋</button></div><div class="rows">'+rowsHTML('shikyu',e.shikyu)+'</div></div>'
+          +'<div class="grp"><div class="grp-h">支給<button class="mini add" data-add="shikyu" data-i="'+i+'" aria-label="支給項目を追加">＋</button></div><div class="rows">'+rowsHTML('shikyu',e.shikyu,e)+'</div></div>'
           +'<div class="grp"><div class="grp-h">法定外控除<button class="mini add" data-add="extraKojo" data-i="'+i+'" aria-label="控除項目を追加">＋</button></div><div class="rows">'+rowsHTML('extraKojo',e.extraKojo)+'</div></div>'
           +'<div class="calc-wrap">'+calcBoxHTML(e)+'</div></div></div>';
     }).join('');
@@ -5667,7 +5723,23 @@
       if(e.target.classList.contains('cm-f')){ emp[e.target.dataset.cmf]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
       if(e.target.classList.contains('wi-f')){ if(!emp.warimashi)emp.warimashi={}; emp.warimashi[e.target.dataset.wk]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
       if(e.target.classList.contains('wi-df')){ if(!emp.warimashi)emp.warimashi={}; if(!emp.warimashi.detail)emp.warimashi.detail={}; var wd=e.target.dataset.wd; emp.warimashi.detail[wd]=emp.warimashi.detail[wd]||{h:'',m:''}; emp.warimashi.detail[wd][e.target.dataset.dp]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
-      var g=e.target.dataset.g, ri=+e.target.dataset.ri, f=e.target.dataset.f; if(e.target.classList.contains('ck-gb')){emp[g][ri].genbutsu=e.target.checked;refreshCard(ci);return;}   /* ★現物の印★（2026-09-03） */
+      var g=e.target.dataset.g, ri=+e.target.dataset.ri, f=e.target.dataset.f;
+      /* ★★自動計算の 行に 打たれた★★（2026-09-20 司さんの 決め＝「注意文 出せや」）
+         ★前★ … 打てる／字は 残る／合計は 動かない／画面を 出て 戻るまで ★食い違ったまま★
+         ★今★ … ⑴★打った 字を その場で 戻す★（★画面と 中身を 食い違わせない★）
+                 ⑵★欄の すぐ下に 文を 出す★（★消えない／場所は 先に 取ってある＝画面が 動かない★）
+         ★出し方の 訳★ … 世の中の 調べ（NN/g）＝★消える 知らせ（toast）は フォームの 誤りに 向かない★
+           （見逃す／支援技術に 伝わらない）。★自分たちの アプリにも 同じ形は 0件だった★。 */
+      if(g==='shikyu'&&f==='value'&&emp&&emp[g]&&emp[g][ri]){
+        var _jk=jidouGyou(emp[g][ri].label);
+        if(_jk){
+          e.target.value = emp[g][ri].value;                 /* ★中の 数に 戻す★ */
+          var _nt=card.querySelector('[data-note="'+g+':'+ri+'"]');
+          if(_nt) _nt.textContent = jidouNote(emp, _jk);
+          return;
+        }
+      }
+      if(e.target.classList.contains('ck-gb')){emp[g][ri].genbutsu=e.target.checked;refreshCard(ci);return;}   /* ★現物の印★（2026-09-03） */
       if(e.target.classList.contains('ck')){emp[g][ri].hikazei=e.target.checked;refreshCard(ci);return;} if(g&&!isNaN(ri)&&f){emp[g][ri][f]=e.target.value;refreshCard(ci);} });
 
     // 一覧/集計
