@@ -29,6 +29,18 @@
  *
  * ★鍵が 無い 時★ … ★緑(0)で 通す／数は 出す／0件＝合格 と 書かない★（09-14 の 決め・kankyoIu）
  *
+ * ★★棚（次に 出た 時に ★2回目★ として 数える 為）★★（2026-09-20）
+ *   ⑴ ★倉庫が 500 を 返した 回★（この門の --waza で 消せなかった）と
+ *      ★`santei-gekkaku-ui.mjs` の 出しが 途中で 切れた 回★（"passed" が 1行も 無い）が
+ *      ★同じ 束（webkit 23〜43・2026-09-20）★で 起きた。
+ *      ⇒ ★1回だけでは 何も 言えない★。★次に 出たら 2回目★として 数える。
+ *      ⇒ 裏取り … ★倉庫の 読みは 揺れない★（書いた 直後 0ms で 新しい 値が 返る・5段で 実測）
+ *   ⑵ ★`santei-gekkaku-ui.mjs` は 2回目の 束で 緑／単独でも 緑★
+ *      ⇒ ★壊れて いるとは 言えない／無かった事にも しない★＝★1回 切れた事が 在る★
+ *   ⑶ ★`maboroshi-ui.mjs` は 回によって 未測定 2件 ⇔ 0件★（同じ 日に 両方 出た）
+ *      ⇒ ★字で 掴んだ「読み込み中は ボタンが 押せない」と 同じ 顔★
+ *      ⇒ ★★揺れを 消す 方向に 直さない★★＝★消すと 客の 症状も 見えなく なる★
+ *
  * 使い方:
  *   node kyuyo/tests/koji-mon.test.mjs --self-test   ★判定の 自己確認（倉庫 要らない）★
  *   node kyuyo/tests/koji-mon.test.mjs               ★実物を 数える★
@@ -88,6 +100,8 @@ export function handan(kazu, jou) {
    ★「終わった(exit 0)」の 知らせを 信じるな★の 裏＝★門 自身の 終わり値も 測ってから 置く★ */
 function owaru(n) { process.exitCode = n ? 1 : 0; }
 let OWARI = false;   /* ★process.exit を やめた ので「ここで 止める」を 旗で 持つ★ */
+/* ★倉庫が ★1回で 応えなかった★ 回数★＝★繰り返しで 隠さない為の 数★（2026-09-20） */
+let ICHIDO_DE_NAI = 0;
 const SELF = process.argv.includes('--self-test');
 const WAZA = process.argv.includes('--waza');
 let pass = 0, fail = 0;
@@ -149,13 +163,36 @@ if (WAZA) {
     T('★その時 この門は 終わり値 1 を 返す（赤を 機械に 渡す）',
       ko.status === 1, '終わり値 ' + ko.status + '（★赤に 見えても 素通りします★）');
   } finally {
-    const kesu = await toiawase("delete from kyuyo.pay_meisai_pub where employee_id = '" + WAZA_ID + "' returning token");
+    /* ★★1回 失敗で 諦めない★★（2026-09-20 実測＝総なめ #34 で ★倉庫が 500★ を 返し
+       ★わざとの 1本が 倉庫に 残った★＝★門 自身が 置き土産を 作った★）。
+       ★次の 回に 消したら 1回目で 通った＝一時的な 500★。
+       ⇒ ★何回 試したかを 出す★／★それでも 消えなければ ★鍵の 字★を 出して 人が 消せるように する★。 */
+    /* ★★retry で 隠さない★★（2026-09-20・指示役1 の 注文）
+       ★繰り返すだけだと「倉庫が たまに 500 を 返す」事が ★黙って 緑★に なります★
+       ⇒ ★何回目で 通ったか★／★1回で 応えなかった 回数★を ★必ず 字に 出す★
+       ⇒ ★次に santei が 途中で 切れた 時と ★数で 突き合わせられます★★ */
+    let kesu = null, kai = 0;
+    for (kai = 1; kai <= 5; kai++) {
+      kesu = await toiawase("delete from kyuyo.pay_meisai_pub where employee_id = '" + WAZA_ID + "' returning token");
+      if (kesu.ok) break;
+      ICHIDO_DE_NAI++;
+      console.log('       ★消せません（' + kai + '回目）★ … ' + kesu.naze + '（待って もう一度）');
+      await new Promise((r) => setTimeout(r, 1500));
+    }
     const modotta = await kojiKazoeru();
-    T('★わざとの 1本を 消して 元に 戻った★',
-      kesu.ok && (kesu.gyo || []).length === 1 && modotta.ok && modotta.kagiKoji === kazu.kagiKoji,
+    const ok = kesu.ok && (kesu.gyo || []).length === 1 && modotta.ok && modotta.kagiKoji === kazu.kagiKoji;
+    if (!ok && !kesu.ok) {
+      console.log('       ★★倉庫に わざとの 1本が 残って います★★'
+        + ' … kyuyo.pay_meisai_pub の employee_id = ' + WAZA_ID);
+      console.log('       ★手で 消して ください★ … delete from kyuyo.pay_meisai_pub'
+        + " where employee_id = '" + WAZA_ID + "';");
+    }
+    T('★わざとの 1本を 消して 元に 戻った（' + kai + '回目で 通った）★', ok,
       '★戻って いません★＝' + (kesu.ok ? '消した ' + (kesu.gyo || []).length + '本／今 '
-        + (modotta.ok ? modotta.kagiKoji : '?') + '本' : kesu.naze));
+        + (modotta.ok ? modotta.kagiKoji : '?') + '本' : kai + '回 試して ' + kesu.naze));
   }
+  console.log('  ★倉庫が 1回で 応えなかった … ' + ICHIDO_DE_NAI + '回★'
+    + (ICHIDO_DE_NAI ? '（★繰り返して 通したが 隠しません★／santei が 途中で 切れた 回と 突き合わせて ください）' : ''));
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   owaru(fail);
   OWARI = true;   /* ★わざとで 終わり＝本体を 二重に 数えない★（09-20 実測で 二重に 出た） */
