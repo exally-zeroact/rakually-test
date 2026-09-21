@@ -114,7 +114,14 @@ if (SELF) {
   iu('★★候補を 並べた だけの 行は 見ない★★＝_borrow-playwright の 形',
     sagasu("  'C:/Users/zeroa/Daikou-app/node_modules/playwright/index.js',").length === 0);
   iu('★相対の 道は 見ない（当てない）★',
-    sagasu("await import('../../tests/_hairu.mjs');").length === 0);
+    sagasu("await import('./_hairu.mjs');").length === 0);
+  /* ★見本の 道は ★本当に 在る 物★ に する（2026-09-21 実測で 踏んだ）
+     ★前★ … ★上へ 2つ 上がる 道★（kyuyo/tests から 見た `_hairu`）を 見本に 書いた
+     ★この 訳の 文にも その 道を そのまま 書けません★（同じ 門に また 捕まる）
+     ⇒ ★既に 在る 門「相対の require/import が 全部 実在する」が
+        ★見本の 字を 本物の 読み込みと 読んで 赤★（tests/ からは その 道は 無い）
+     ⇒ ★★門は 正しい★★＝★字だけ見る 門には 見本も 本物に 見える★
+     ⇒ ★見本にも 実在する 道を 使う★（`tests/_hairu.mjs` は 在る） */
   iu('★Users を 通らない 道は 見ない（範囲を 広げない）★',
     sagasu("await import('C:/Windows/System32/a.mjs');").length === 0);
   iu('★何行目かを 返す★', sagasu("あ\nい\nawait import('C:/Users/x')")[0].i === 3);
