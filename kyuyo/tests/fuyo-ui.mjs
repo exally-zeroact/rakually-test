@@ -617,19 +617,66 @@ try {
     const onPop = () => sakebi.push('★別の 窓が 開いた（popup）★');
     pg.on('pageerror', onErr); pg.on('console', onCon); pg.on('popup', onPop);
     let osuDame = 'OK';
-    const [dl] = await Promise.all([
-      pg.waitForEvent('download', { timeout: 25000 }).catch(() => null),
-      pg.click('#b-fuyo-csv', { timeout: 8000 }).catch((e) => {
-        osuDame = String((e && e.message) || e).split(String.fromCharCode(10)).join(' / ').slice(0, 300);
-      }),
-    ]);
+    const dlP = pg.waitForEvent('download', { timeout: DL_UE }).catch(() => null);
+    await pg.click('#b-fuyo-csv', { timeout: 8000 }).catch((e) => {
+        /* ★★また 切って いました（今日 3度目）★★（2026-09-21）
+           80字 → 400字 → ★300字★。どれも ★playwright の 訳の 手前★で 切れた。
+           ★数で 見る★ … 前回の 出しは `- e` で 終わって いた（`element ...` の 頭）
+           ⇒ ★★切らない★★＋★全何字 のうち 何字 出したかを 書く★
+              （★次に 足りたかを 数で 決められる★） */
+        const zenji2 = String((e && e.message) || e).split(String.fromCharCode(10)).join(' / ');
+        const UE2 = 2000;
+        osuDame = zenji2.slice(0, UE2) + '【全 ' + zenji2.length + '字のうち '
+          + Math.min(UE2, zenji2.length) + '字 出した'
+          + (zenji2.length > UE2 ? '＝★足りて いません★' : '＝足りて います') + '】';
+    });
+    /* ★★押せなかったのに 25秒 待って いました★★（2026-09-21）
+       ★押した 結果を 見てから 待つ★＝★赤 1回あたり 25秒 得する★
+       ★でも 待ちは 消さない★ … ★「押した OK」でも 落ちない 事が 在りうる★
+       ⇒ ★押せたなら 上限まで／押せなかったなら ★あと 1秒だけ★ 待つ★
+       （★黙って 打ち切らない★＝待った 秒を 必ず 出す） */
+    const dl = (osuDame === 'OK')
+      ? await dlP
+      : await Promise.race([dlP, new Promise((r) => setTimeout(() => r(null), 1000))]);
     const mattaDl = ((Date.now() - t0dl) / 1000).toFixed(1);
     pg.off('pageerror', onErr); pg.off('console', onCon); pg.off('popup', onPop);
     console.log('       落ちるのを 待った … 上限 ' + (DL_UE / 1000) + '秒 ／ 実測 ' + mattaDl + '秒'
       + ' ／ 余り ' + (DL_UE / 1000 - Number(mattaDl)).toFixed(1) + '秒'
       + ' ／ 押した ' + osuDame + ' ／ 画面の 叫び ' + (sakebi.length ? sakebi.join(' ／ ') : '無し')
       + ' ／ 窓の 数 ' + ctx.pages().length);
-    T('★' + na + '＝押したら 本当に 落ちる', !!dl, 'ファイルが 落ちてこない（上の 数を 見る）');
+    /* ★★押せなかった 時の 番★★（2026-09-21＝★＋ボタンと 同じ 形★）
+       ★実測★ … 1枚目だけ ★page.click: Timeout 8000ms exceeded★（2枚目・3枚目は OK）
+       ⇒ ★「落ちて こない」では なく ★押せて いない★★
+       ⇒ ★＋ボタンと 同じ ★最初の 1回が 押せない★ が 2か所★
+       ⇒ ★同じ 覚いか 別の 訳かを ここで 割る★ */
+    if (osuDame !== 'OK') {
+      const ban2 = await pg.evaluate(() => {
+        const el = document.querySelector('#b-fuyo-csv');
+        if (!el) return { nai: true };
+        const b = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const ue = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        const na3 = (nd) => nd ? (nd.tagName.toLowerCase()
+          + (nd.id ? '#' + nd.id : '')
+          + (nd.className ? '.' + String(nd.className).trim().split(/\s+/).join('.') : '')).slice(0, 70) : '(誰も 居ない)';
+        return {
+          mieru: !!(b.width && b.height) && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0',
+          hako: { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) },
+          gamen: { w: innerWidth, h: innerHeight },
+          nakaKa: b.top >= 0 && b.left >= 0 && b.bottom <= innerHeight && b.right <= innerWidth,
+          ue: na3(ue), jibunKa: ue === el || (ue && el.contains(ue)),
+          ooi: document.querySelectorAll('.ui-modal-ov, .modal, [aria-modal="true"]').length,
+          hako_no_ji: Array.prototype.slice.call(document.querySelectorAll('.ui-modal-ov')).map((o) => ({
+            dai: (o.querySelector('.ui-modal-t') || {}).textContent || '(題 無し)',
+            hon: ((o.querySelector('.ui-modal-b') || {}).textContent || '(文 無し)').slice(0, 200),
+          })),
+          pe: cs.pointerEvents, disabled: !!el.disabled,
+        };
+      }).catch((e2) => ({ dame: String((e2 && e2.message) || e2).slice(0, 80) }));
+      console.log('       ★CSVの ボタンを 押せなかった 瞬間の 番★ … ' + JSON.stringify(ban2));
+    }
+    T('★' + na + '＝押したら 本当に 落ちる', !!dl,
+      osuDame !== 'OK' ? '★押せて いません★（上の 番を 見る）' : 'ファイルが 落ちてこない（上の 数を 見る）');
     if (!dl) continue;
     const na2 = dl.suggestedFilename();
     const fp = await dl.path();
