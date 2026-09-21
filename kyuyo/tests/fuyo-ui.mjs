@@ -432,9 +432,43 @@ try {
   const kzAke = await hiraku([CARD + ' [data-kzadd]']);
   const kzBtn = await pg.evaluate((c) => document.querySelectorAll(c + ' [data-kzadd]').length, CARD);
   let kzOsu = 'OK';
-  await pg.click(CARD + ' [data-kzadd]', { timeout: 8000 }).catch((e) => { kzOsu = String((e && e.message) || e).split(String.fromCharCode(10))[0].slice(0, 80); });
+  /* ★★playwright の 「なぜ 押せないか」は ★後ろの 行に 出る★★（2026-09-21 CI で 踏んだ）
+     ★前★ … ★行を 切って 頭の 80字だけ★ ⇒ `page.click: Timeout 8000ms exceeded.` だけ 残った
+       ⇒ ★★訳（見えない／動いて いる／★覆いに 遮られて いる★）を 私が 切って 捨てて いた★★
+     ⇒ ★行を 繋げて 400字まで 残す★（★出しを 自分で 切ったら 書く★） */
+  await pg.click(CARD + ' [data-kzadd]', { timeout: 8000 }).catch((e) => {
+    kzOsu = String((e && e.message) || e).split(String.fromCharCode(10)).join(' / ').slice(0, 400);
+  });
   console.log('       家族の ＋ボタン … 開けた ' + JSON.stringify(kzAke)
     + ' ／ DOMに ' + kzBtn + '個 ／ 押した ' + kzOsu);
+  /* ★★押せなかった 瞬間の 番★★（2026-09-21＝指示役1 の ①）
+     playwright の click が 待つ 物は 4つ … ★見える／動いて いない／押せる／覚いが 無い★
+     ⇒ ★どれが 揃わなかったかを その場で 取る★（★今朝 `.wm-qrall` で 使った 形★）
+     ★画面の 大きさも 取る★ … ★手元では 押せて CI で 押せない★ので ★違いを 探す★ */
+  if (kzOsu !== 'OK') {
+    const ban = await pg.evaluate((c) => {
+      const card = document.querySelector(c);
+      const el = card && card.querySelector('[data-kzadd]');
+      if (!el) return { nai: true };
+      const b = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      const x = b.left + b.width / 2, y = b.top + b.height / 2;
+      const ue = document.elementFromPoint(x, y);
+      const na = (n) => n ? (n.tagName.toLowerCase()
+        + (n.id ? '#' + n.id : '')
+        + (n.className ? '.' + String(n.className).trim().split(/\s+/).join('.') : '')).slice(0, 70) : '(誰も 居ない)';
+      return {
+        mieru: !!(b.width && b.height) && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0',
+        hako: { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) },
+        gamen: { w: innerWidth, h: innerHeight },
+        nakaKa: b.top >= 0 && b.left >= 0 && b.bottom <= innerHeight && b.right <= innerWidth,
+        ue: na(ue), jibunKa: ue === el || (ue && el.contains(ue)),
+        ooi: document.querySelectorAll('.ui-modal-ov, .modal, [aria-modal="true"]').length,
+        pe: cs.pointerEvents, disabled: !!el.disabled,
+      };
+    }, CARD).catch((e) => ({ dame: String((e && e.message) || e).slice(0, 80) }));
+    console.log('       ★押せなかった 瞬間の 番★ … ' + JSON.stringify(ban));
+  }
   await machi(1000);
   /* ★足すと 描き直る★＝欄が 出るまで もう一度 開く */
   console.log('       家族の 欄を 出す … ' + JSON.stringify(await hiraku([CARD + ' [data-kz$=":0:seiKanji"]'])));
