@@ -576,7 +576,19 @@ try {
     if (v === '3') { await kzu('bikou', '氏名変更（旧：試験' + Z + '一朗）'); }
     return chohyo();
   };
-  for (const [v, na] of [['1', '増えた'], ['2', '減った'], ['3', '変わった']]) {
+  /* ★★1枚目だけ 落ちない★ の 訳を 割る 為の ◆順番を 入れ替える◆★★（2026-09-21）
+     ★問い★ … ★1枚目だけ 何が 違うか★
+       㞊 ★順番★（前に 何も 無い／落とす 仕組みが まだ 温まって いない）
+       㞋 ★中身★（異動の別 [1] だけ 別の 道を 通る）
+     ★割り方★ … ★FUYO_JUN=gyaku で [3] を 1枚目に する★
+       ・入れ替えても 1枚目が 落ちない ⇒ ★順番の 話★
+       ・[1] が 何番目でも 落ちない ⇒ ★中身の 話★
+     ＝★2通りの 入れ方で 比を 見る★（今日 何度も 使った 形） */
+  const KUMI = [['1', '増えた'], ['2', '減った'], ['3', '変わった']];
+  if (String(process.env.FUYO_JUN || '') === 'gyaku') KUMI.reverse();
+  console.log('  ★試す 順番★ … ' + KUMI.map((x) => x[1] + '[' + x[0] + ']').join(' → ')
+    + (String(process.env.FUYO_JUN || '') === 'gyaku' ? '（★逆★）' : '（並）'));
+  for (const [v, na] of KUMI) {
     /* ★材料（会社の 住所）が 届いていないなら ★赤では なく 未測定★★
        ＝★押せない 訳が アプリの 側に 在るのか 私の 側に 在るのか 分からない★時に
          赤を 出すと ★狼少年★に なる（[[feedback_mimisokutei_to_kikai_ga_maikai_mite_inai_wa_betsumono]]）。 */
@@ -592,11 +604,32 @@ try {
        ⇒ ★本当に 押して 落として 中の 字を 読む★。
        Shift_JIS の 2バイト目は 0x40-0x7E / 0x80-0xFC＝★カンマ(0x2C)に ならない★ので、
        列を 数えるだけなら latin1 で 読んで よい（字を 出す 所では 使わない）。 */
+    /* ★★「落ちて こない」には 2つ 在る★★（2026-09-21＝指示役1 の 㞎）
+       㞊 ★本当に 1つも 無い★／㞋 ★落ちて いるが ★私が 見て いる 所に 無い★★
+       （★今日 何度も 出た 形★）
+       ★待ちの 上限と 実測を 並べる★／★押した 時の 訳を 飲まない★／
+       ★別の 窓（popup）・画面の 叫びも 数える★ */
+    const DL_UE = 25000;
+    const t0dl = Date.now();
+    const sakebi = [];
+    const onErr = (e) => sakebi.push('pageerror: ' + String((e && e.message) || e).slice(0, 90));
+    const onCon = (m) => { if (m.type() === 'error') sakebi.push('console: ' + m.text().slice(0, 90)); };
+    const onPop = () => sakebi.push('★別の 窓が 開いた（popup）★');
+    pg.on('pageerror', onErr); pg.on('console', onCon); pg.on('popup', onPop);
+    let osuDame = 'OK';
     const [dl] = await Promise.all([
       pg.waitForEvent('download', { timeout: 25000 }).catch(() => null),
-      pg.click('#b-fuyo-csv', { timeout: 8000 }).catch(() => null),
+      pg.click('#b-fuyo-csv', { timeout: 8000 }).catch((e) => {
+        osuDame = String((e && e.message) || e).split(String.fromCharCode(10)).join(' / ').slice(0, 300);
+      }),
     ]);
-    T('★' + na + '＝押したら 本当に 落ちる', !!dl, 'ファイルが 落ちてこない');
+    const mattaDl = ((Date.now() - t0dl) / 1000).toFixed(1);
+    pg.off('pageerror', onErr); pg.off('console', onCon); pg.off('popup', onPop);
+    console.log('       落ちるのを 待った … 上限 ' + (DL_UE / 1000) + '秒 ／ 実測 ' + mattaDl + '秒'
+      + ' ／ 余り ' + (DL_UE / 1000 - Number(mattaDl)).toFixed(1) + '秒'
+      + ' ／ 押した ' + osuDame + ' ／ 画面の 叫び ' + (sakebi.length ? sakebi.join(' ／ ') : '無し')
+      + ' ／ 窓の 数 ' + ctx.pages().length);
+    T('★' + na + '＝押したら 本当に 落ちる', !!dl, 'ファイルが 落ちてこない（上の 数を 見る）');
     if (!dl) continue;
     const na2 = dl.suggestedFilename();
     const fp = await dl.path();
