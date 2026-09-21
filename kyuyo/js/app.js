@@ -5739,6 +5739,15 @@
           return;
         }
       }
+      /* ★★ここから 下は ★人が 中身を 打ち変えた★ 所★★（2026-09-21・司さんの 決め ⑵）
+         ★上の 自動計算の 枝は ★字を 戻すだけ★で 中身を 変えない★ので ここより 前で 帰ります。
+         ⇒ ★確定済みの 月を 打ったら 印を 付け、保存を 促す★
+           ＝★★『開いた』では 動かない／『打った』時だけ 紙と 記録に 届く★★
+         ★確定して いない 人には 何も しません★（今までどおり） */
+      if(emp && state.confirmed && state.confirmed[state.month] && state.confirmed[state.month][emp.id]){
+        naoshitaShirushi(state.month, emp.id);
+        if(window.persistSaveDebounced) persistSaveDebounced();
+      }
       if(e.target.classList.contains('ck-gb')){emp[g][ri].genbutsu=e.target.checked;refreshCard(ci);return;}   /* ★現物の印★（2026-09-03） */
       if(e.target.classList.contains('ck')){emp[g][ri].hikazei=e.target.checked;refreshCard(ci);return;} if(g&&!isNaN(ri)&&f){emp[g][ri][f]=e.target.value;refreshCard(ci);} });
 
@@ -6087,12 +6096,39 @@
   // 当月(state.month)の各従業員の総支給/支払基礎日数等を pay_payslips に保存(同月同人は上書き)。
   // 月次明細をStoreに保存。★freee型「確定＝凍結」★: 自動保存(force無し)は確定済みempを書かない=過去月の履歴が現マスタで黙って上書きされるのを防ぐ(D1)。
   //  確定ボタン(force=true)のときだけ確定済みも含めて現在値で保存=そのスナップショットが台帳/年調の根拠。
+  /* ★★『開いた』と『人が 打った』を 分ける 印★★（2026-09-21・司さんの 決め ⑵）
+     ★どこで 付くか★ … ★入力画面の 打ち込みの 所 だけ★（`#input-list` の input／click）
+       ＝★描き直し・画面の 行き来・読み込み では 付きません★
+     ★どこで 消えるか★ … ★紙と 記録に 届いた 後★（＝★届くまで 消さない★）
+     ★月ごとに 持つ★ … 別の 月を 直しても 混ざらない
+     ★倉庫には 入れない★ … ★この 端末の 今の 作業★＝残す物では ない */
+  function naoshitaShirushi(ym, id){
+    if(!ym || !id) return;
+    if(!state._naoshita) state._naoshita = {};
+    if(!state._naoshita[ym]) state._naoshita[ym] = {};
+    state._naoshita[ym][id] = 1;
+  }
+  function naoshitaKa(ym, id){ return !!(state._naoshita && state._naoshita[ym] && state._naoshita[ym][id]); }
+  function naoshitaKesu(ym, id){ if(state._naoshita && state._naoshita[ym]) delete state._naoshita[ym][id]; }
+
   function saveMonthlyPayslips(force){
     if(!(window.Store&&Store.savePayslip)) return; var ym=state.month; if(!ym) return;
     var method=(state.company||{}).paymentDaysMethod||'';
     var conf=(state.confirmed&&state.confirmed[ym])||null;
+    /* ★`_machi` は ★賞与の 確定★で 既に 使って いる名前（app.js:2785）なので 避ける★
+       （別の 関数なので 壊れませんが ★次に 見る 人が 間違える★） */
+    var _naoshiHito=[], _todoita=[];   /* ★確定済みを 打った 人／記録に 届いた 人★ */
     state.employees.filter(function(e){return isActiveInMonth(e,ym);}).forEach(function(e){ try{ // 母集合を入力/印刷/集計/賃金台帳と統一(退職後/入社前の月を保存しない)
-      if(!force && conf && conf[e.id]) return; // 確定済み=凍結(自動保存では上書きしない)。修正は「未確定に戻す」で明示的に
+      /* ★★確定した 後に 直したら ★紙にも 記録にも 届く★★★（2026-09-21 司さん「直したなら 直らないかん やろ」）
+         ★前★ … 確定済みは ★何が あっても 書かない★＝★画面だけ 新しく、紙と 記録は 古いまま★
+         ★凍結が 要る 訳（★消しません★）★ … ★開いただけ／描き直しただけ★ で
+           ★今の マスタで 過去月を 黙って 上書き★するのを 止める為（D1）。
+         ⇒ ★★『開いた』と『人が 打った』を 分ける★★
+           ・★打った 時だけ 印を 付ける★（`naoshitaShirushi`＝入力画面の 打ち込みの 所）
+           ・★印が 在る 人だけ 凍結を 解く★
+         ⇒ ★開くだけでは 今までどおり 動きません★（★測って 確かめた 事＝そのまま 守る★） */
+      if(!force && conf && conf[e.id] && !naoshitaKa(ym, e.id)) return; // 確定済み=凍結。★但し 人が 打った 人だけ 解く★
+      var _nao = !!(conf && conf[e.id] && naoshitaKa(ym, e.id));   /* ★確定済みを 人が 打った 人★ */
       var r=compute(e);
       var days=(window.PayrollCalc&&PayrollCalc.calcPaymentDays)?PayrollCalc.calcPaymentDays(e,ym,method):0;
       // 賃金台帳＋36協定履歴用の内訳(後方互換=読む側は無くても壊れない)。★かんたん/詳細 両モードを warimashiMins で統一算出
@@ -6107,8 +6143,31 @@
         confirmed:!!(conf&&conf[e.id]), // ★確定フラグ=賃金台帳/年調は確定済みだけ集計(未確定の下書き月を混入させない)。旧データ(無し)は後方互換で集計対象
         shikyu:r.shikyu, kojo:r.kojo, hyojun:r.hyojun, dept:(e.dept||''), tax:num(r.incomeTax), jumin:num(r.residentTax),
         si:{ health:num(si.health), kaigo:num(si.kaigo), pension:num(si.pension), employ:num(si.employ) }, work:work })
+        /* ★★届いてから 印を 消す★★＝失敗したら 印は 残る＝★次の 保存で もう一度 出す★ */
+        .then(function(){ if(_nao) _todoita.push(e.id); })
         .catch(saveFailed);   /* ★約束の失敗は ここでしか捕まらない★ */
+      if(_nao) _naoshiHito.push(e.id);
     }catch(_e){} });
+    /* ★★★紙にも 届ける（司さん 2026-09-21「直したなら 直らないかん やろ」）★★★
+       ★記録（pay_payslips）だけ 直しても ★従業員の 紙は 古いまま★＝★半分しか 直って いない★
+       ⇒ ★確定済みを 打った 人が 1人でも 居たら ★その月を 出し直す★★
+       ★測って 決めた 事（やり直さない）★
+         ・★出し直しは 上書き★＝★紙は 増えない★（実測）
+         ・★未読の 印は 戻らない★＝★既に 読んだ 人は 気づけません★（★棚 ⑺★・知らせるかは 司さんの 決め）
+       ★間合い★ … ★保存と 同じ★（`persistSave` の 中＝1字ごとには 出さない）
+       ★黙って やらない★ … ★出し直した 事を 1行 出す★ */
+    if(_naoshiHito.length && window.Store && Store.publishMeisai){
+      setTimeout(function(){
+        if(!_todoita.length) return;                       /* ★記録に 届いて いなければ 紙も 出さない★ */
+        publishMeisaiNow(false, { silent:true }).then(function(){
+          _todoita.forEach(function(id){ naoshitaKesu(ym, id); });
+          toast('確定ずみの ' + _todoita.length + '名を 直したので、賃金台帳と 従業員のWeb明細も 新しくしました。');
+        }).catch(function(){
+          /* ★印は 消さない★＝★次の 保存で もう一度 出す★（★黙って 諦めない★） */
+          toast('直した内容を 従業員のWeb明細に 出し直せませんでした。もう一度 直すか「今月を確定」を 押してください。');
+        });
+      }, 0);
+    }
   }
   // 定時決定: 当年の4・5・6月の履歴から 総支給+支払基礎日数 を自動セット(無い月は空欄=手入力)
   function autoFillTeijiMonths(emp, cb){
@@ -6130,6 +6189,10 @@
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
          kyuyo/tests/shoyo-kami-hizuke.test.mjs */
+      /* ★★2026-09-21 司さん「直したなら 直らないかん やろ」を 見張る 為★★
+         kyuyo/tests/naoshitara-todoku.test.mjs
+         （★見られない 物は 見張れない★＝印の 付け方と 見方を 出す） */
+      naoshitaShirushi:naoshitaShirushi, naoshitaKa:naoshitaKa, publishMeisaiNow:publishMeisaiNow,
       buildBonusPeople:buildBonusPeople, bonusMonthLabel:bonusMonthLabel, bonusPayDateStr:bonusPayDateStr, payDateStr:payDateStr, koyoRateNote:koyoRateNote, kaigoRateOf:kaigoRateOf,
       /* ★2026-08-28 支給サイクルの「任意（N週ごと）」を 実際に押して確かめる為★
          （kyuyo/tests/paycycle-nweeks.test.mjs。★見られない物は 見張れない★） */
