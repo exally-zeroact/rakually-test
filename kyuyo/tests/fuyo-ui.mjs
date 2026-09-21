@@ -317,7 +317,15 @@ try {
          ⇒ ★遅さは 手元の 何十倍★＝★12秒は 近すぎた★（「たまに 赤」の 正体）
          ⇒ ★早く 出れば すぐ 抜ける★＝手元の 速さは 変わらない。
          ＝[[feedback_yure_to_yobu_mae_ni_dore_dake_tarinai_ka_hakare]] */
-      const r2 = await matsu(hoshii, mae - 1, 36000);
+      /* ★★`mae - 1` だと ★まとめ待ちが 1度も 効きません★★（2026-09-21 字で 決めた）
+         `matsu` は ★`n > mae` なら すぐ 戻る★。何も 見つかって いない 時は mae = 0 なので
+         ★`0 > -1` が ★最初から 真★★ ⇒ ★★「36秒 待つ」が ★即 戻る★★
+         ⇒ ★実際の 上限は かたまり 5つ × 6秒 ⇒ ★丁度 30秒★だけだった★
+         ★実測★ … 赤の 回 ★待った 31.1秒 / 31.4秒★＝★上限 そのもの（余り 0）★
+         ⇒ ★★「揺れ」では なく 「足りない」★★（★揺れと 呼ぶ 前に どれだけ 足りないか 測れ★）
+         ★これは 09-19 に 「12秒 → 36秒 に 上げた」と 紙に 書いた 当の 待ちです★
+         ⇒ ★★「変えた つもり」は 出しの 字で 確かめろ★★＝★上げた はずの 待ちが 一度も 動いて いなかった★ */
+      const r2 = await matsu(hoshii, mae, 36000);
       mattaKei += r2.matta;
       mae = r2.n;
     }
@@ -334,19 +342,72 @@ try {
   const dsAkeru = async () => {
     /* ★ここも 時間では なく 数で 待つ★（上と 同じ 訳） */
     const t0 = Date.now();
+    let atta = null;
     for (let i = 0; i < 3; i++) {
       if (await aruka(CARD + ' [data-dsub]')) return true;
-      await nage(CARD, '.emp-dtgl[data-dtoggle]');
+      /* ★★`nage` は ★押す 物が 在ったか★ を 返して いるのに 捨てて いました★★
+         （2026-09-21＝今日 4つ目の「飲む」。★押す 物が 無い★と
+          ★押したが 開かない★は ★全く 別の 枝★なのに 同じ 顔に なる） */
+      atta = await nage(CARD, '.emp-dtgl[data-dtoggle]');
       const r = await matsu([CARD + ' [data-dsub]'], 0, 6000);
       if (r.n > 0) return true;
     }
+    /* ★★ここも ★上限 そのもの★ で 落ちて いました★★（2026-09-21）
+       ★上★ … 3回 × 6秒 ⇒ ★丁度 18秒★／★実測 ★待った 18.7秒★＝★余り 0★
+       ⇒ ★揺れでは なく 足りない★。`hiraku` と 同じ 形で ★最後に まとめて 待つ★。
+       ★遅く ならない 訳★ … `matsu` は ★出た すぐ 戻る★＝★待ちの 代金は 落ちる 時だけ★ */
+    if (!(await aruka(CARD + ' [data-dsub]'))) {
+      const r3 = await matsu([CARD + ' [data-dsub]'], 0, 36000);
+      if (r3.n > 0) { console.log('       ★詳細設定は まとめ待ちで 開きました … ' + r3.matta.toFixed(1) + '秒★'); return true; }
+    }
     const ok = await aruka(CARD + ' [data-dsub]');
-    if (!ok) console.log('       🟡 詳細設定が ' + ((Date.now() - t0) / 1000).toFixed(1) + '秒 待っても 開かない');
+    if (!ok) {
+      /* ★★「開かない」だけでは 因が 決まらない★★＝★番を 全部 出す★
+         ★見る 物★ … ★札自体が 在るか★／★切り替えの 印が 何個★／★中身が 何個★
+           ／★覚い（モーダル）が 出て いないか★（今日 `.wm-qrall` で 捕まえた 形）
+           ／★印の 真ん中に 居る 物★（`elementFromPoint`） */
+      const mi = await pg.evaluate((c) => {
+        const card = document.querySelector(c);
+        const tg = card && card.querySelector('.emp-dtgl[data-dtoggle]');
+        let ue = null;
+        if (tg) {
+          const b = tg.getBoundingClientRect();
+          const e2 = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+          ue = e2 ? (e2.tagName.toLowerCase() + (e2.className ? '.' + String(e2.className).split(' ').join('.') : '')).slice(0, 60) : '(誰も 居ない)';
+        }
+        return { fuda: !!card, tgl: card ? card.querySelectorAll('.emp-dtgl[data-dtoggle]').length : -1,
+          dsub: card ? card.querySelectorAll('[data-dsub]').length : -1,
+          ooi: document.querySelectorAll('.ui-modal-ov').length, ue: ue, sai: window.__saiKazu,
+          fudaKazu: document.querySelectorAll('#emp-list .mco').length };
+      }, CARD).catch((e) => ({ dame: String((e && e.message) || e).slice(0, 60) }));
+      console.log('       🟡 詳細設定が ' + ((Date.now() - t0) / 1000).toFixed(1) + '秒 待っても 開かない'
+        + ' … ★押す 物が 在ったか ' + JSON.stringify(atta) + '★ ／ ' + JSON.stringify(mi));
+    }
     return ok;
   };
   await dsAkeru();
   const HON = ['seibetsu', 'zip', 'address', 'kisoNenkin', 'hokenshaNo'].map((f) => CARD + ' [data-f="' + f + '"]');
+  /* ★★描き直しを 数える★★（2026-09-21＝指示役1 の ★枝★）
+     ★見立て★ … ★開けて いる★のに ★読み込みが 遅れて 返り 画面ごと 描き直され★
+       ★開いた 物が 閉じる★のでは ないか
+       （実測済み … `reloadCloud` → `applyCloudState` → `showScreen(...)` で 描き直す／
+         ★時間切れが 0か所★＝読み込みは ★何秒でも 遅れて 返る★）
+     ★当てません★ … ★描き直しの 回数を 数えて 出すだけ★ */
+  await pg.evaluate(() => {
+    if (window.__saiKazu != null) return;
+    window.__saiKazu = 0;
+    const t = document.querySelector('#emp-list');
+    if (!t) { window.__saiKazu = -1; return; }
+    new MutationObserver((ms) => {
+      for (const m of ms) {
+        if (m.type === 'childList' && (m.addedNodes.length || m.removedNodes.length)) window.__saiKazu++;
+      }
+    }).observe(t, { childList: true, subtree: true });
+  }).catch(() => null);
+  const saiYomu = () => pg.evaluate(() => window.__saiKazu).catch(() => null);
+  const saiMae = await saiYomu();
   console.log('       かたまりを 開く … ' + JSON.stringify(await hiraku(HON)));
+  console.log('       描き直しの 回数 … 開く前 ' + saiMae + ' → 開いた後 ' + (await saiYomu()));
 
   /* ── ① 本人の 欄（★確定は させない★＝A案。届出に 明細の 確定は 要らない） ── */
   /* ★★名前の 頭に 席の 印を 付ける★★（2026-09-19）
@@ -363,11 +424,21 @@ try {
   /* 家族（被扶養者）の かたまりを 開く */
   /* 家族を 1人 足す（★本物の click★＝ここは 測る所） */
   /* ★家族の かたまりを 開いてから 足す★（開いていないと ＋の ボタンも DOM に 無い） */
-  await hiraku([CARD + ' [data-kzadd]']);
-  await pg.click(CARD + ' [data-kzadd]', { timeout: 8000 }).catch(() => null);
+  /* ★★ここの 出しを 出さないと 因が 決められません★★（2026-09-21 実測で 踏んだ）
+     ★何が 起きたか★ … 家族の 欄が ★約31秒 待っても 0個★（2回 連続）
+       ★しかし ★＋の ボタンを 開けたか・押せたか★ が ★字に 出て いなかった★
+       （`.catch(() => null)` で ★黙って 死ぬ★＝★口を 確かめずに 書いた コードは 静かに 死ぬ★）
+     ⇒ ★★見られない 物は 見張れない★★＝★開けたか・押せたか・何個 在るかを 全部 出す★ */
+  const kzAke = await hiraku([CARD + ' [data-kzadd]']);
+  const kzBtn = await pg.evaluate((c) => document.querySelectorAll(c + ' [data-kzadd]').length, CARD);
+  let kzOsu = 'OK';
+  await pg.click(CARD + ' [data-kzadd]', { timeout: 8000 }).catch((e) => { kzOsu = String((e && e.message) || e).split(String.fromCharCode(10))[0].slice(0, 80); });
+  console.log('       家族の ＋ボタン … 開けた ' + JSON.stringify(kzAke)
+    + ' ／ DOMに ' + kzBtn + '個 ／ 押した ' + kzOsu);
   await machi(1000);
   /* ★足すと 描き直る★＝欄が 出るまで もう一度 開く */
   console.log('       家族の 欄を 出す … ' + JSON.stringify(await hiraku([CARD + ' [data-kz$=":0:seiKanji"]'])));
+  console.log('       描き直しの 回数（家族の 欄を 待った 後） … ' + (await saiYomu()));
   const kzAru = await pg.evaluate((c) => document.querySelectorAll(c + ' [data-kz]').length, CARD);
   T('★家族を 1人 足せた（欄が 出た）', kzAru > 0, '家族の 欄が ' + kzAru + '個');
 

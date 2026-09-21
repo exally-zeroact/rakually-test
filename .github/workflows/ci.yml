@@ -673,6 +673,8 @@ jobs:
         run: node kyuyo/scripts/verify-statutory.mjs
       - name: ★総なめの「未測定」の 数え方（終わりの行で数える／凡例や但し書きの字は数えない）★
         run: node tools/clock-sweep.mjs --self-test-kazoe
+      - name: ★総なめの 顔（souname）の 判じの 自己確認＝見張りが 見張られて いない 所を 作らない★
+        run: node tools/souname.mjs --self-test
       - name: ★古い 名前（exally_*）を 使って いる 所を 数える（覗き窓を 外せる 日を 機械で 決める）★
         run: node tests/furui-namae.test.mjs --self-test
       - name: ★社保の 率の 読み取りの 自己確認（★外に 出ない★・漢数字と 幅の 取り方）★

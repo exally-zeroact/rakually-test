@@ -210,6 +210,8 @@ jobs:
         run: node kyuyo/tests/koji-mon.test.mjs --self-test && node kyuyo/tests/koji-mon.test.mjs
       - name: ★わざと 孤児を 1本 足しても 赤に ならなければ 空振り（koji-mon の 空振り止め・足した 物は 必ず 消す）★
         run: node kyuyo/tests/koji-mon.test.mjs --waza
+      - name: ★わざと ★相手の席（CI）の 置き去り★を 1人 作っても 赤に ならなければ 空振り（09-21 fuyo-ui が 赤に なった 因＝門は 席で 除くが お客さんの 紙は 除かない）★
+        run: node kyuyo/tests/koji-mon.test.mjs --waza-oki
       # ★自動計算の 行に 打った 時の 注意文（2026-09-20 司さん「1が ほれなら 注意文 出せや」）
       #   実測 … 払い方 6通り × 基本給／通勤 ＝ 12通り すべてで ★打てる・字は残る・合計は動かない★だった。
       #   直すのは「黙って 捨てる」所＝★文を 出す＋打った字を その場で 戻す★（効かせると 時給/日給/歩合/カスタムが 壊れる）。
