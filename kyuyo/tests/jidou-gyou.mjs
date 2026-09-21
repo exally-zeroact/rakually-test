@@ -43,6 +43,20 @@ const G = await import('file:///C:/Users/zeroa/rakually-test/kyuyo/tests/_souko-
 const WAZA_BUN = process.argv.includes('--waza') || process.argv.includes('--waza-bun');
 const WAZA_TAKA = process.argv.includes('--waza') || process.argv.includes('--waza-taka');
 const WAZA = WAZA_BUN || WAZA_TAKA;
+/* ★★本番の repo では 測らない★★（2026-09-16 の 門／★09-21 に 私が 抜かして CI を 赤に した★）
+   ★訳★＝この 試験は ★試験用の 口で ログインする★。本番の repo には ★その 鍵が 無い★
+     ⇒ 入れない ⇒ ★本番の 検査が 毎回 必ず 赤★。★中身の 不具合では ない★。
+   ★見張り★＝`kyuyo/tests/honban-de-hakaranai.test.mjs`（★この門が 抜けたら 赤★）
+   ★★`borrow()` より 前に 置く★★（門は 順番も 見ています＝`junbanGaGyaku`）
+   ★戻す条件★＝本番CIに 試験の 鍵を 置いた日。 */
+{
+  const { kagiAru } = await import('../../tests/_hairu.mjs');
+  if (!(await kagiAru(ROOT))) {
+    console.log('  — ★この repo（本番）には 試験の 鍵が 無いので ここでは 測れません★'
+      + '（★テスト線で 測っています★／戻す条件＝本番CIに 鍵を 置いた日）');
+    process.exit(0);
+  }
+}
 const wk = await borrow('jidou-gyou', 'webkit');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 const srv = http.createServer((rq, rs) => {
@@ -160,7 +174,17 @@ for (const pt of PT) {
   }
 }
 /* ★⑥は ★文が 出る 時にしか 測れない★★＝`--waza-bun` では 空振り（そう 字に 出す） */
-if (WAZA_BUN) MI('⑥ 高さが 変わらない', '★文を 消す わざと では 測れません★（文が 出ないので 高さも 動かない）⇒ ★--waza-taka で 測ります★');
+/* ★★ここを「はかれない」と 呼ばない★★（2026-09-21 実測で 直した）
+   ★何が 起きて いたか★ … `--waza-bun` は ★文を 消す わざと★なので
+     ⑥（文が 出た分だけ 高さが 伸びる）は ★そもそも 当てはまらない★（★--waza-taka で 測る★）。
+   ★でも `はかれない` と 書いて いた★ ⇒ ★総なめが ★未測定 1本★ と 数える★
+   ⇒ ★★`souname` が 永久に「全部 緑」と 書けなく なる★★
+   ★これは 字で ごまかす 直しでは ありません★
+     … ★未測定＝「測る つもりだったが 測れなかった」★／
+       ★ここ＝「この わざとでは ★見る 対象で ない★」★＝★別の 段で 測って いる★
+   ★当てはまらない 事は 字に 出す（黙らない）★ */
+if (WAZA_BUN) console.log('  ★この わざと（--waza-bun）では ⑥高さは ★見る 対象で ありません★'
+  + '（文を 消すので 高さも 動かない）★ … ★⑥は --waza-taka の 段で 測って います★');
 else T('★⑥ 文の 前後で カードの 高さが 変わらない（min-height が 効いている）', takaOk, takaIu.join(' ／ '));
 const chigau = Object.keys(bunShu).filter((k) => bunShu[k]);
 T('★① 払い方で 違う 文が 出る（' + chigau.length + '通り／同じ字 ' + (chigau.length - new Set(chigau.map((k) => bunShu[k])).size) + '通り）',

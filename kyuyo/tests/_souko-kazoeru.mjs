@@ -190,6 +190,31 @@ export function aiteNoGyo(tana, alias) {
   }
   return 'false';
 }
+
+/* ★★相手の席の 置き去りを 数える★★（2026-09-21 実測で 踏んだ）
+   ★何が 起きたか★ … `kazoeru()` は ★相手の席（CI）の 行を わざと 除く★（`aiteNoGyo`）。
+     ・除くのは ★相手が 走って いる 最中に 赤に しない 為★＝正しい 工夫
+     ・しかし ★★除いた 物が 永久に 残っても 誰も 数えない★★
+     ・そして ★アプリは 席で 除かない★
+   ★実測（2026-09-21）★ … CI が 残した `CI試験366999　太郎`（家族1人）が
+     ★どの 門にも 数えられず★、扶養の届出CSV に ★余分な 1行★として 出て
+     `fuyo-ui` が ★赤★（21 passed 0 failed → 16 passed 5 failed）
+   ⇒ ★★門は 緑／お客さんの 紙は 壊れる★★
+   ★物差し（これを 変えたら 前の 数と 比べられません）★
+     ・どこ … ★試験の 倉庫★／棚 `kyuyo.pay_employees`／★全行★
+     ・誰 … ★相手の席の 印で 始まる 名前★（`aiteNoShirushi()`）
+     ・いつ … ★`updated_at` が `fun` 分より 古い★＝★走って いる 最中の 回を 赤に しない★
+   ★印が 無ければ★ … `shirushiNashi:true`／★honsu 0 を「合格」と 書かない★（呼ぶ側の 仕事） */
+export async function aiteNoOkimiyage(fun) {
+  const bun = Number(fun) > 0 ? Math.floor(Number(fun)) : 60;
+  const a = aiteNoShirushi();
+  if (!a.length) return { ok: true, honsu: 0, namae: [], fun: bun, shirushiNashi: true };
+  const na = a.map((x) => "coalesce(x.data->>'name','') like '" + x + "%'").join(' or ');
+  const r = await toi("select coalesce(x.data->>'name','(無名)') as na from kyuyo.pay_employees x"
+    + ' where (' + na + ") and x.updated_at < now() - interval '" + bun + " minutes' order by 1");
+  if (!r.ok) return { ok: false, naze: r.naze };
+  return { ok: true, honsu: r.gyo.length, namae: r.gyo.map((g) => g.na), fun: bun };
+}
 const SEKI_WAKERU = ['kyuyo.pay_employees', 'kyuyo.pay_payslips', 'kyuyo.pay_meisai_pub', 'kyuyo.pay_meisai_docs'];
 function aiteNoJoken(tana) {
   const t = tana || 'kyuyo.pay_employees';
