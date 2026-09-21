@@ -481,10 +481,25 @@ export async function kamiTsukuru(token, opt) {
   const ym = /^[0-9]{4}-[0-9]{2}$/.test(String(o.ym || '')) ? o.ym : '2026-06';
   const kind = /^[a-z]+$/.test(String(o.kind || '')) ? o.kind : 'monthly';
   const net = Number(o.net) > 0 ? Math.floor(Number(o.net)) : 0;
+  /* ★★`kintai` と `doc.kind` を 足した★★（2026-09-21・司さん「壊れたんなら 直さんかい」）
+     ★何が 壊れて いたか（実測で 切り分けた）★
+       この 道具で 作った 紙は ★従業員の 画面で 開けませんでした★
+       （一覧には 出る／押せる／★中身が 入れ替わらない／未読も 消えない★）
+       ⇒ ★賞与だけかと 思ったが ★月次も 同じ★★＝★アプリの 話では なく この 道具の 話★
+     ★因★ … `kyuyo/js/render.js:68` `kinBuild(kintai,…)` が ★`kintai.length` を 読む★
+       ⇒ `kintai` が 無いと ★投げる★
+       ⇒ `meisai.js` の `openDoc` は ★`catch(e){ return; }`★＝★黙って 帰る★
+       ⇒ ★悲鳴も 出ない／何も 起きない★（★だから 訳が 分からなかった★）
+     ★直し★ … ★実物の 紙と 同じ 形に する★
+       （会社が 作る 紙＝`app.js:5974` は `doc:{month, kind}` ／ person に `kintai` が 在る）
+     ★★アプリ側の 弱さも 在ります★★＝★`kintai` が 無い 紙で 落ち、その 例外を 飲む★
+       ⇒ ★但し 会社が 作る 紙には 必ず 入る★ので ★棚に 置く（直して いません）★ */
   const naka = o.data ? String(o.data) : JSON.stringify({
-    doc: { month: ym },
+    doc: { month: ym, kind: kind },
     theme: { ink: '#23261f', line: '#cfc9b8', accent: '#6f5a3e' },
-    person: { net: net, name: String(o.na || ''), shikyu: [{ label: '基本給', value: net }], kojo: [] },
+    person: { net: net, name: String(o.na || ''),
+      kintai: kind === 'bonus' ? [] : [{ label: '出勤日数', value: '20' }, { label: '労働時間', value: '160:00' }],
+      shikyu: [{ label: kind === 'bonus' ? '賞与' : '基本給', value: net }], kojo: [] },
   });
   if (naka.indexOf('$$') >= 0) return { ok: false, naze: '中身に $$ が 在る' };
   const r = await toi('insert into kyuyo.pay_meisai_docs (id, token, account_id, ym, kind, data, published_at)'
