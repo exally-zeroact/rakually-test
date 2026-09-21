@@ -437,7 +437,15 @@ try {
        ⇒ ★★訳（見えない／動いて いる／★覆いに 遮られて いる★）を 私が 切って 捨てて いた★★
      ⇒ ★行を 繋げて 400字まで 残す★（★出しを 自分で 切ったら 書く★） */
   await pg.click(CARD + ' [data-kzadd]', { timeout: 8000 }).catch((e) => {
-    kzOsu = String((e && e.message) || e).split(String.fromCharCode(10)).join(' / ').slice(0, 400);
+    /* ★★切った 事を ★数で★ 出す★★（2026-09-21＝400字では 足りなかった）
+       ★実測★ … 400字で `scrolling into view if needed` まで。
+         ★`intercepts pointer events` の 行まで 届いて いない★
+       ⇒ ★上限を 上げる★＋★★全何字のうち 何字 出したかを 必ず 書く★★
+         （★次に 足りたか 余ったかを ★数で★ 決められる★） */
+    const zenji = String((e && e.message) || e).split(String.fromCharCode(10)).join(' / ');
+    const UE = 1600;
+    kzOsu = zenji.slice(0, UE) + '【全 ' + zenji.length + '字のうち '
+      + Math.min(UE, zenji.length) + '字 出した' + (zenji.length > UE ? '＝★足りて いません★' : '＝足りて います') + '】';
   });
   console.log('       家族の ＋ボタン … 開けた ' + JSON.stringify(kzAke)
     + ' ／ DOMに ' + kzBtn + '個 ／ 押した ' + kzOsu);
@@ -464,6 +472,16 @@ try {
         nakaKa: b.top >= 0 && b.left >= 0 && b.bottom <= innerHeight && b.right <= innerWidth,
         ue: na(ue), jibunKa: ue === el || (ue && el.contains(ue)),
         ooi: document.querySelectorAll('.ui-modal-ov, .modal, [aria-modal="true"]').length,
+        /* ★★覚いの 正体を 名指しする★★（2026-09-21 実測）
+           `.ui-modal-ov` は ★読み込み中の 覚いでは なく★
+           ★`uiModal()` が 作る 確認・お知らせの 箱★（app.js:2182）
+           ＝★ボタンを 押すまで 消えない★＝★お客さんも 下を 押せない★
+           ⇒ ★★どの 箱かを 出さないと 直せません★★ */
+        hako_no_ji: Array.prototype.slice.call(document.querySelectorAll('.ui-modal-ov')).map((o) => ({
+          dai: (o.querySelector('.ui-modal-t') || {}).textContent || '(題 無し)',
+          hon: ((o.querySelector('.ui-modal-b') || {}).textContent || '(文 無し)').slice(0, 200),
+          botan: Array.prototype.slice.call(o.querySelectorAll('.ui-modal-btn')).map((b2) => b2.textContent),
+        })),
         pe: cs.pointerEvents, disabled: !!el.disabled,
       };
     }, CARD).catch((e) => ({ dame: String((e && e.message) || e).slice(0, 80) }));
