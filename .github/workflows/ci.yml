@@ -675,6 +675,10 @@ jobs:
         run: node tools/clock-sweep.mjs --self-test-kazoe
       - name: ★総なめの 顔（souname）の 判じの 自己確認＝見張りが 見張られて いない 所を 作らない★
         run: node tools/souname.mjs --self-test
+      - name: ★手元の 絶対パス（C:/Users/…）で 読み込んで いないか（09-21 CI が 赤＝手元は 緑・CI は 赤 の 形）★
+        run: node tests/temoto-no-michi.test.mjs --self-test && node tests/temoto-no-michi.test.mjs
+      - name: ★わざと 1本 足しても 赤に ならなければ 空振り（足した 紙は 必ず 消す）★
+        run: node tests/temoto-no-michi.test.mjs --waza
       - name: ★古い 名前（exally_*）を 使って いる 所を 数える（覗き窓を 外せる 日を 機械で 決める）★
         run: node tests/furui-namae.test.mjs --self-test
       - name: ★社保の 率の 読み取りの 自己確認（★外に 出ない★・漢数字と 幅の 取り方）★

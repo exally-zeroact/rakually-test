@@ -32,9 +32,14 @@
  */
 import fs from 'node:fs'; import path from 'node:path'; import http from 'node:http';
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\//, '')), '..', '..');
-const { hairu } = await import('file:///C:/Users/zeroa/rakually-test/tests/_hairu.mjs');
-const { borrow, launch } = await import('file:///C:/Users/zeroa/rakually-test/scripts/_borrow-playwright.mjs');
-const G = await import('file:///C:/Users/zeroa/rakually-test/kyuyo/tests/_souko-kazoeru.mjs');
+/* ★★手元の 絶対パスを 焼き込んで いました★★（2026-09-21 CI で 赤に なった）
+   ★出た 字★ … Cannot find module '/C:/Users/zeroa/rakually-test/tests/_hairu.mjs'
+     （Linux の CI では `C:` が そのまま 道の 一部に なる）
+   ★いつ 入ったか★ … `e7c7301`（今朝 私が 書いた）
+   ⇒ ★他の 試験と 同じ ★相対の 道★ に 戻す★（`_kyaku_no_michi_de_katazukeru.mjs` と 同じ 形） */
+const { hairu } = await import('../../tests/_hairu.mjs');
+const { borrow, launch } = await import('../../scripts/_borrow-playwright.mjs');
+const G = await import('./_souko-kazoeru.mjs');
 /* ★★わざとは 2つに 分ける★★（2026-09-20 実測で 踏んだ）
    ★前★ … `--waza` で ★文も 高さも いっぺんに 壊した★
    ⇒ ★文が 出ないから 高さも 動かない★＝★⑥（高さ）が わざとでも 緑＝★空振り★★
