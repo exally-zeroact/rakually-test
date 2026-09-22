@@ -6139,12 +6139,18 @@
       /* ★現物の額を 月ごとに 残す★（2026-09-03＝算定基礎届の ⑫「現物によるものの額」）。
          ★印が 付いた 支給項目だけ★を 足す＝★印が 無ければ 0＝今までと 同じ★。 */
       var genbutsuTotal=(r.shikyu||[]).reduce(function(a2,x){ return a2 + (x && x.genbutsu ? num(x.value) : 0); },0);
-      Store.savePayslip(ym, e.id, { name:e.name, shikyuTotal:r.shikyuTotal, genbutsuTotal:genbutsuTotal, paymentDays:days, kojoTotal:r.kojoTotal, net:r.net, kazei:r.kazei, siTotal:si.total||0,
+      /* ★★中身は ★先に★ 作る★★（2026-09-21 実測で 踏んだ）
+         ★門★ … `publish-fail-ui` は ★`Store.savePayslip(` から 600字 以内に `.catch(` が 在るか★を 見る
+         ★何が 起きたか★ … ⑵で `.then(…)` を 1行 足したら ★658字★に なって ★受け皿が 見えなく なった★
+           （縮めて 599字まで 寄せたが ★`.catch(` は 7文字 まるごと 600以内★が 要る＝★599は 際★）
+         ⇒ ★★際に 置かない★★＝★長い 中身を 先に 変数へ 出し、受け皿を 呼び出しの すぐ隣に 戻す★
+         ⇒ ★門は 1文字も 緩めて いません★ */
+      var _slip = { name:e.name, shikyuTotal:r.shikyuTotal, genbutsuTotal:genbutsuTotal, paymentDays:days, kojoTotal:r.kojoTotal, net:r.net, kazei:r.kazei, siTotal:si.total||0,
         confirmed:!!(conf&&conf[e.id]), // ★確定フラグ=賃金台帳/年調は確定済みだけ集計(未確定の下書き月を混入させない)。旧データ(無し)は後方互換で集計対象
         shikyu:r.shikyu, kojo:r.kojo, hyojun:r.hyojun, dept:(e.dept||''), tax:num(r.incomeTax), jumin:num(r.residentTax),
-        si:{ health:num(si.health), kaigo:num(si.kaigo), pension:num(si.pension), employ:num(si.employ) }, work:work })
-        /* ★★届いてから 印を 消す★★＝失敗したら 印は 残る＝★次の 保存で もう一度 出す★ */
-        .then(function(){ if(_nao) _todoita.push(e.id); })
+        si:{ health:num(si.health), kaigo:num(si.kaigo), pension:num(si.pension), employ:num(si.employ) }, work:work };
+      Store.savePayslip(ym, e.id, _slip)
+        .then(function(){ if(_nao) _todoita.push(e.id); })   /* ★届いてから 印を 消す★ */
         .catch(saveFailed);   /* ★約束の失敗は ここでしか捕まらない★ */
       if(_nao) _naoshiHito.push(e.id);
     }catch(_e){} });
