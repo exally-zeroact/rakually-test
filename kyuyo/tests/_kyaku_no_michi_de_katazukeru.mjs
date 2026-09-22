@@ -354,6 +354,48 @@ export async function katazukeru(pg, opt) {
   if (nokori2 < 0) {
     return { ok: false, michi, naze: '★開き直しても 数えられない★（0人とは 言えません）' };
   }
-  return { ok: nokori2 === 0, michi,
-    naze: nokori2 === 0 ? '' : '★画面からは 消えたのに 開き直すと ' + nokori2 + '人 居る＝倉庫に 残った★' };
+    if (nokori2 !== 0) {
+      return { ok: false, michi,
+        naze: '★画面からは 消えたのに 開き直すと ' + nokori2 + '人 居る★' };
+    }
+
+    /* ★★★⑦ アプリの 口で ★倉庫を★ 数える★★★（2026-09-22）
+       ★前は ここまで ★画面の 札★しか 見て いませんでした★
+         ⇒ ★画面から 消えても 倉庫に 残る★ 事が 実際に 起きた（CI で ┅3回★）
+         ⇒ ★CI は 倉庫の 鍵を 持って いない★ ⇒ ★誰も 数えて いなかった★
+         ⇒ ★片づけは「残り 0人」と 言い、置き去りが 黙って 残った★
+       ★今★ … ★お客さんの 道で 入って いる★ので ★アプリの 口★が 使える
+         … ★新しい 鍵 要らず★／★自分の 口の 分だけ★
+         （★置き去りは その 試験の 口に 生まれる★ので 見分けには 足ります）
+       ★足りない 時は 黙らない★ … ★未測定と 書く（0人とは 言わない）★ */
+    /* ★★名前は `na2`（★札から 読んだ 本当の 名前★）を 使う★★（2026-09-22 踏んだ）
+       ★はじめ★ … `na`（呼ぶ側から 渡る）を 使った
+         ⇒ `fuyo-ui` は ★番号だけ 渡す（名前は まだ 無い）★ので `na` は ★空★
+         ⇒ `indexOf('')` は ★0★ ⇒ ★★全員に 一致して いた★★（出し：この人 3人／口に 3人）
+       ★名前が 無い 時は 数えません★＝★0人とは 言わない★ */
+    const sk = await pg.evaluate(async (n) => {
+      if (!n) return { naNashi: true };                 /* ★名前が 無い＝数えられない★ */
+      if (!(window.Store && window.Store.cloudLoadState)) return { nashi: true };
+      try {
+        const st = await window.Store.cloudLoadState();
+        if (!st || !st.employees) return { yomenai: true };
+        return { nin: st.employees.filter((e) => String((e && e.name) || '').indexOf(n) >= 0).length,
+          zen: st.employees.length };
+      } catch (e) { return { dame: String((e && e.message) || e).slice(0, 120) }; }
+    }, (na2 || na)).catch((e) => ({ dame: String((e && e.message) || e).slice(0, 120) }));
+
+    if (sk && sk.nin != null) {
+      michi.push('⑦倉庫を アプリの 口で 数えた … この人 ' + sk.nin + '人／口に ' + sk.zen + '人');
+      if (sk.nin !== 0) {
+        return { ok: false, michi,
+          naze: '★★画面からは 消えたのに ★倉庫に ' + sk.nin + '人 残って います★★'
+            + '（アプリの 口で 数えました）' };
+      }
+    } else {
+      michi.push('⑦🟡 ★倉庫を アプリの 口で 数えられません★ … '
+        + (sk && sk.naNashi ? '名前が 無い' : sk && sk.nashi ? '口が 無い' : (sk && sk.yomenai ? '読めない' : (sk && sk.dame) || '訳不明'))
+        + '（★0人とは 言いません★）');
+    }
+
+    return { ok: true, michi, naze: '' };
 }
