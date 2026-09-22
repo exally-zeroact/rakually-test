@@ -212,7 +212,13 @@ const SHIP = ['index.html', 'kyuyo/index.html', 'kyuyo/meisai.html', 'kyuyo/admi
   if (n) note.push('★客の画面に「未対応」等が ' + n + '件★（' + where.join(' / ') + '）');
 }
 
-/* ⑤ 黙って消える所（何もしない catch） */
+/* ⑤ 黙って消える所（何もしない catch）
+     ★★この 数は ★本当の 本数では ありません★★（2026-09-22 実測）
+     ★踏んだ 所★ … app.js に ★catch を 1つも 消さず★ 別の 行を 足しただけで
+       ★数が 45 → 42 に 減った★（git の 差分…★消えた 行の catch は 0★）
+     ★訳★ … 下の 式は ★`{` と `}` の 間に 説明が 在っても 通す★ ので
+       ★間に 字が 増えると 組み合わせが 変わる★（隣の catch と 繋がって 1つに 見える）
+     ⇒ ★★「減った＝良く なった」と 読まない★★／数え方を 直すなら ★別の 1押し★ */
 {
   let n = 0;
   for (const f of ['kyuyo/js/app.js', 'kyuyo/js/store.js']) {
