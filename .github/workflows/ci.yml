@@ -157,6 +157,10 @@ jobs:
         run: node tests/kaisha-ask-ui.mjs
       - name: CI coverage guard (CIから黙って外れているテストが無いか=除外は理由と戻す条件つきのみ)
         run: node tests/ci-coverage.test.mjs
+      - name: ★webkit.yml の 括り(paths)を 人に 覚えさせない（読まれるのに 括りに 無い＝赤／括りに 在るが 誰も 読まない＝出す）
+        run: node tests/webkit-paths.test.mjs
+      - name: ★同 わざと 括りを 抜いて 赤に なるか（5通り・空振り止め）
+        run: node tests/webkit-paths.test.mjs --self-test
 
       # ── 請求書(seikyu/) ──────────────────────────────────────────────
       # ★テストを足すコミットと、それをCIに並べる登録は離さない（指示役 2026-08-10）。

@@ -36,6 +36,32 @@ on:
       - 'seikyu/lib/seikyu-pdf.js'
       - 'seikyu/lib/seikyu-paper.js'
       - '.github/workflows/webkit.yml'
+      # ★★2026-09-22 足した＝★機械が 数えた 分★（tests/webkit-paths.test.mjs）★★
+      #   ★前★ … この 括りは ★人が 手で 並べた 物★で、★測る 側が 読む 物★と 繋がって いなかった。
+      #   ★実物★ … ⑴この 仕事が 回す `tools/aka-kiroku.mjs` が 括りに 無かった
+      #             ⑵測る 画面 3枚が 読む `js/env-badge.js`（★帯を 描く 物★）が 括りに 無かった
+      #             ⇒ ★帯を 太らせて 375px で はみ出させても WebKit は 1本も 走らない★
+      #   ★機械が 数えた★ … 走らせ物 31本 → 静かな 部品 5本 → 測る 入口(html) 5本
+      #                     → 入口が 読む 物 105本 ＝ ★突き合わせる 全 146本★
+      #                     ⇒ ★括りに 無い 74本★ を 下の 16行で 覆う
+      #   ★重さ★ … ★直近 60回の 押しで 走る 回数は 43回 → 43回＝★増える 0回★★（実測）
+      #   ★これ以上 人が 数えない★ … 漏れたら `tests/webkit-paths.test.mjs` が ★赤★に する
+      - 'js/**'
+      - 'lib/**'
+      - 'kyuyo/lib/**'
+      - 'kyuyo/ops/**'
+      - 'img/**'
+      - 'kyuyo/img/**'
+      - 'manifest.json'
+      - 'kyuyo/manifest.json'
+      - 'kyuyo/admin-manifest.json'
+      - 'kyuyo/meisai.webmanifest'
+      - 'tests/_hairu.mjs'
+      - 'tests/button-uniform.test.mjs'
+      - 'tests/repo-supa.mjs'
+      - 'scripts/_borrow-playwright.mjs'
+      - 'scripts/repo-env.mjs'
+      - 'tools/aka-kiroku.mjs'
   # ★PR でも 走らせる★（2026-09-04 指示役／Exally 実測）
   #   ★schedule と push(main) だけだと ★入れた後で 初めて 赤に なる★★
   #   ＝直すのが「本番／テスト線に 入れた 後」に なる。PR の 中で 転べば ★本番の 外★で 直せる。
@@ -63,6 +89,32 @@ on:
       - 'seikyu/lib/seikyu-pdf.js'
       - 'seikyu/lib/seikyu-paper.js'
       - '.github/workflows/webkit.yml'
+      # ★★2026-09-22 足した＝★機械が 数えた 分★（tests/webkit-paths.test.mjs）★★
+      #   ★前★ … この 括りは ★人が 手で 並べた 物★で、★測る 側が 読む 物★と 繋がって いなかった。
+      #   ★実物★ … ⑴この 仕事が 回す `tools/aka-kiroku.mjs` が 括りに 無かった
+      #             ⑵測る 画面 3枚が 読む `js/env-badge.js`（★帯を 描く 物★）が 括りに 無かった
+      #             ⇒ ★帯を 太らせて 375px で はみ出させても WebKit は 1本も 走らない★
+      #   ★機械が 数えた★ … 走らせ物 31本 → 静かな 部品 5本 → 測る 入口(html) 5本
+      #                     → 入口が 読む 物 105本 ＝ ★突き合わせる 全 146本★
+      #                     ⇒ ★括りに 無い 74本★ を 下の 16行で 覆う
+      #   ★重さ★ … ★直近 60回の 押しで 走る 回数は 43回 → 43回＝★増える 0回★★（実測）
+      #   ★これ以上 人が 数えない★ … 漏れたら `tests/webkit-paths.test.mjs` が ★赤★に する
+      - 'js/**'
+      - 'lib/**'
+      - 'kyuyo/lib/**'
+      - 'kyuyo/ops/**'
+      - 'img/**'
+      - 'kyuyo/img/**'
+      - 'manifest.json'
+      - 'kyuyo/manifest.json'
+      - 'kyuyo/admin-manifest.json'
+      - 'kyuyo/meisai.webmanifest'
+      - 'tests/_hairu.mjs'
+      - 'tests/button-uniform.test.mjs'
+      - 'tests/repo-supa.mjs'
+      - 'scripts/_borrow-playwright.mjs'
+      - 'scripts/repo-env.mjs'
+      - 'tools/aka-kiroku.mjs'
   workflow_dispatch:
 
 jobs:
