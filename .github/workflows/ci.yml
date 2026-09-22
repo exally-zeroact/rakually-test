@@ -683,6 +683,8 @@ jobs:
         run: node kyuyo/tests/naoshitara-todoku.test.mjs
       - name: ★わざと 凍結を 外しても 赤に ならなければ 空振り★
         run: node kyuyo/tests/naoshitara-todoku.test.mjs --waza
+      - name: ★押す前の 網の 選び方（★名簿を 人が 選ばない★／回した ＋ 回さない ＝ 全）★
+        run: node tools/oshu-mae.mjs --self-test
       - name: ★古い 名前（exally_*）を 使って いる 所を 数える（覗き窓を 外せる 日を 機械で 決める）★
         run: node tests/furui-namae.test.mjs --self-test
       - name: ★社保の 率の 読み取りの 自己確認（★外に 出ない★・漢数字と 幅の 取り方）★

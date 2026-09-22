@@ -30,6 +30,10 @@ const NOSCAN = [
   { dir: 'tests', why: '試験＝客は読まない（試験の中の言葉まで直させない）' },
   { dir: 'test', why: '同上' },
   { dir: 'scripts', why: '道具＝客は読まない（この見張り自身の説明も ここに在る）' },
+    /* ★`tools` は `scripts` と 同じ 道具なのに 抜けて いました★（2026-09-22）
+       ★測った★ … ★HTML が tools/ を 読む 所 ★0件★★（scripts と 同じ）
+       ⇒ ★★緩めたのでは なく ★この門の 決まり（「見ない所は 理由を書いて 外す」）を 揃えた★★ */
+    { dir: 'tools', why: '道具＝客は読まない（★見立てで 外さず 数えた★＝HTML が tools/ を 読む 所 ★0件★）' },
   { dir: 'docs', why: '覚書＝客は読まない' },
   { dir: 'vendor', why: '他人の物' }, { dir: 'dist', why: '作った物' }, { dir: 'build', why: '作った物' },
 ];
