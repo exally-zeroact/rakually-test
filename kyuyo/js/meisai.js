@@ -8,11 +8,19 @@
   var SCREENS=['sc-bad','sc-setup','sc-login','sc-consent','sc-list','sc-view','sc-nencho','sc-furikomi'];
   function show(id){ SCREENS.forEach(function(s){ var el=$(s); if(el)el.classList.toggle('hidden', s!==id); }); }
   function yen(n){ n=Math.round(Number(n)||0); return '¥'+n.toLocaleString('en-US'); }
-  /* ★直しの 日付を ★短く★ 出す★（　例：9月22日　）
-     ★時刻は 出さない★＝★従業員に 要るのは 「いつ 直ったか」だけ★ */
+  /* ★直しの 日付を ★短く★ 出す★（例：9月22日）
+     ★時刻は 出さない★＝従業員に 要るのは「いつ 直ったか」だけ
+     ★★空を 返して 黙らない★★（2026-09-22 `silent-catch` に 捕まった）
+       ★前★ … ★読めない 時に 空の 字を 返して いた★
+              ⇒ ★日付が 紙から 黙って 消える★
+       ★今★ … ★読めないと 字で 言う★（★「直しが 入りました」は 必ず 出る★）
+       ★受け皿 自体 要りません★＝`new Date(…)` は 投げず `isNaN` で 分かる
+     ★★説明に ★本物に 見える 字★を 書かない★★（今日 4回目）
+       … 字だけ 見る 門には ★見本と 本物の 別が 付かない★ */
   function hidukeJi(iso){
-    try{ var t=new Date(iso); if(isNaN(t.getTime())) return '';
-      return (t.getMonth()+1)+'月'+t.getDate()+'日'; }catch(e){ return ''; }
+    var t = new Date(iso);
+    if (isNaN(t.getTime())) return '日付が 読めません';
+    return (t.getMonth()+1) + '月' + t.getDate() + '日';
   }
   function ymLabel(ym, kind){ var y=(ym||'').slice(0,4), m=parseInt((ym||'').slice(5,7),10)||0; if(kind==='gensen') return '令和'+(y-2018)+'年分';   /* ★下の行が「源泉徴収票」と出すので ここで2回 書かない★ */ return '令和'+(y-2018)+'年'+m+'月'+(kind==='bonus'?'（賞与）':'分'); }
 
