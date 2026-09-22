@@ -57,6 +57,10 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 .dlist .drow .ds{font-size:11px;color:#333333;}
 .dlist .drow .dv{font-family:'DM Mono',monospace;font-weight:700;color:#333333;white-space:nowrap;}
 .badge-new{display:inline-block;font-size:9px;background:#52B788;color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
+/* ★直しが 入った 事を ★字で★ 出す★（2026-09-22）
+   ★未読の 印の 隣に 置く★＝★印で 気づき、字で 訳が 分かる★
+   ★色は 未読と 別★（同じ色に すると ★どちらが 印か 分からない★） */
+.naoshi-ji{display:inline-block;font-size:10px;color:#92500A;background:#FFF3E0;border-radius:6px;padding:1px 6px;margin-left:6px;white-space:nowrap}
 .preview-wrap{overflow:hidden;background:#cfcabd;border-radius:12px;padding:12px;position:relative;}
 #frame{border:none;background:#fff;box-shadow:0 8px 32px rgba(30,60,40,.16);transform-origin:top left;display:block;pointer-events:none;}
 /* 印刷/PDF保存: 明細だけを原寸(A4)で印刷。新窓を開かないので「戻れない」にならない。@page margin:0でブラウザのフッター(URL/日付/ページ)も消す */
@@ -183,18 +187,18 @@ body{font-family:'Noto Sans JP',sans-serif;color:#333333;background:#F0FAF4;-web
 </div>
 
 <!-- ★既存Service Worker/キャッシュを削除して常に最新に(古い版が居座る問題の根絶) --><script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
-<script src="js/render.js?v=f205ec01"></script>
-<script src="lib/nencho-declaration.js?v=f205ec01"></script>
+<script src="js/render.js?v=b71af03e"></script>
+<script src="lib/nencho-declaration.js?v=b71af03e"></script>
 <!-- PDF保存=jsPDFで自前生成(A4ぴったり1ページ・ブラウザのフッター無し)。iOSのwebページ印刷は必ずURL/日付フッターが付き余白で2ページ化するため不使用。 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <!-- 本番はSupabase(RPC)。window.SUPA/supabase未読込ならstore.jsはlocalStorage層にフォールバック。 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="../js/supa-config.js?v=f205ec01"></script>
-<script src="js/store.js?v=f205ec01"></script>
-<script src="js/meisai.js?v=f205ec01"></script>
+<script src="../js/supa-config.js?v=b71af03e"></script>
+<script src="js/store.js?v=b71af03e"></script>
+<script src="js/meisai.js?v=b71af03e"></script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=f205ec01"></script>
+<script src="../js/env-badge.js?v=b71af03e"></script>
 </body>
 </html>

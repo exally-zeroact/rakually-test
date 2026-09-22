@@ -494,7 +494,14 @@
     return false; }
 
   // 会社: 明細を公開。items=[{employeeId,name,ym,kind('monthly'|'bonus'),data(render.js用)}]。従業員ごとに token/初回コードを確保・doc upsert。返り=[{employeeId,name,token,link}]
-  Store.publishMeisai = function(items){
+  /* ★★`opt.naoshi` … ★確定の 後に 直して 出し直した 時★★
+     （2026-09-22 司さん「気づかんのやったら 気づくように しろや」）
+     ★前★ … 出し直しは `opened_at` を ★触らない★
+       ⇒ ★既に 読んだ 人は 未読に 戻らない★＝★★届いて は いるが 気づけない★★
+     ★今★ … ★直しの 時だけ `opened_at` を 空に 戻す★＝★未読の 印が もう一度 出る★
+     ★普通の 公開は 今までどおり★（最初から 空なので 変わらない） */
+  Store.publishMeisai = function(items, opt){
+    opt = opt || {};
     if(hasSupa){ // 会社側=authセッション必須(account_id=auth.uid()・RLS)。既存pub(employee_id)は保持し無ければinit_code付きで作成→doc upsert
       return Promise.all((items||[]).map(function(it){
         return sb.from('pay_meisai_pub').select('token').eq('employee_id', it.employeeId).limit(1).then(function(r){
@@ -504,7 +511,9 @@
           return pubP.then(function(token){
             if(!token) return null;
             var id='md_'+token+'_'+it.ym+'_'+it.kind;
-            return sb.from('pay_meisai_docs').upsert({ id:id, token:token, ym:it.ym, kind:it.kind, data:it.data }).then(function(){
+            var _row = { id:id, token:token, ym:it.ym, kind:it.kind, data:it.data };
+            if(opt.naoshi){ _row.opened_at = null; }   /* ★直し＝未読に 戻す★ */
+            return sb.from('pay_meisai_docs').upsert(_row).then(function(){
               return { employeeId:it.employeeId, name:it.name, token:token, link:'meisai.html?t='+token };
             });
           });
@@ -518,7 +527,7 @@
       // 既発行は token/初回コード/パスワード/同意 を保持(再公開で消さない)
       var id='md_'+p.token+'_'+it.ym+'_'+it.kind;
       var d={ id:id, token:p.token, ym:it.ym, kind:it.kind, name:it.name, data:it.data, publishedAt:now, openedAt:null };
-      var di=docs.findIndex(function(x){ return x.id===id; }); if(di>=0){ d.openedAt=docs[di].openedAt; docs[di]=d; } else docs.push(d);
+      var di=docs.findIndex(function(x){ return x.id===id; }); if(di>=0){ d.openedAt=opt.naoshi?null:docs[di].openedAt; docs[di]=d; } else docs.push(d);
       out.push({ employeeId:it.employeeId, name:it.name, token:p.token, link:'meisai.html?t='+p.token });
     });
     mPubW(pubs); mDocW(docs); return Promise.resolve(out);

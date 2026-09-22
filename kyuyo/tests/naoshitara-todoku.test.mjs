@@ -82,9 +82,12 @@ function souko(win2, opt) {
     kiroku.push(id);
     return o.kirokuKowasu ? Promise.reject(new Error('わざと 倉庫が 落ちた')) : Promise.resolve({ ok: true });
   };
-  win2.Store.publishMeisai = function (items) {
+  win2.Store.publishMeisai = function (items, popt) {
     /* ★誰が 呼んだかを 残す★＝★『2回 呼ばれた』の 訳を 当てずに 見る為★ */
-    kami.push({ nin: (items || []).length, doko: (new Error('こ')).stack.split('\n').slice(1, 4).join(' / ') });
+    /* ★`popt` も 残す★＝★直しの 印が 倉庫まで 渡って いるか★を 見る（2026-09-22） */
+    kami.push({ nin: (items || []).length, opt: popt || null,
+      naoshi: !!(items && items[0] && items[0].data && items[0].data.naoshi),
+      doko: (new Error('こ')).stack.split(String.fromCharCode(10)).slice(1, 4).join(' / ') });
     return o.kamiKowasu ? Promise.reject(new Error('わざと 出し直せない')) : Promise.resolve({ ok: true });
   };
   return { kiroku, kami };
@@ -190,6 +193,17 @@ function shitaku(tsuki) {
     '呼ばれた 回数 ' + kami.length + '＝★記録だけ 直して 紙が 古いまま★');
   T('⑺ ★届いたら 印を 消す★', A.naoshitaKa('2026-04', 'k1') === false,
     '印が 残って います＝★毎回 出し直して しまう★');
+
+  /* ★★★『届いた』と『気づける』は 別★★★（2026-09-22 司さん「気づかんのやったら 気づくように しろや」）
+     ★前の 測り★ … 出し直しは 上書きで `opened_at` を ★触らない★
+       ⇒ ★既に 読んだ 人は 未読に 戻らない★＝★★中身が 変わったのに 気づけない★★
+     ⇒ ★印（気づく）★と ★訳（分かる）★の 2つを 見る */
+  T('⑺ ★直しの 出し直しは ★未読に 戻す★ と 倉庫に 伝える★',
+    !!(kami[0] && kami[0].opt && kami[0].opt.naoshi === true),
+    '伝えて いません＝★未読の 印が 戻らず 気づけません★（' + JSON.stringify(kami[0] && kami[0].opt) + '）');
+  T('⑻ ★紙に「直し」の 印が 載る（いつ 直したか）★',
+    !!(kami[0] && kami[0].naoshi),
+    '紙に 印が ありません＝★なぜ 未読に 戻ったかが 分かりません★');
 }
 
 /* ⑻ ★記録が 落ちたら 印を 消さない（次の 保存で もう一度 出す）★ */
@@ -226,6 +240,21 @@ function shitaku(tsuki) {
   A.saveMonthlyPayslips(false);
   await machi(60);
   T('⑽ ★確定が 無い 月では 紙を 出し直さない★', kami.length === 0, '出し直した 回数 ' + kami.length);
+}
+
+/* ⑼ ★普通の 公開（確定ボタン）では 未読に 戻さない★＝★直しの 時だけ★
+   （毎回 未読に 戻すと ★印が 意味を 失う★） */
+{
+  const { kami } = souko(win);
+  await machi(700);
+  shitaku('2026-06');
+  kami.length = 0;
+  await A.publishMeisaiNow(false, { silent: true }).catch(function () { });
+  T('⑼ ★普通の 公開では 未読に 戻さない★',
+    !!(kami[0] && kami[0].opt && kami[0].opt.naoshi === false),
+    '普通の 公開でも 未読に 戻して います（' + JSON.stringify(kami[0] && kami[0].opt) + '）');
+  T('⑼ ★普通の 紙には「直し」の 印を 載せない★', !(kami[0] && kami[0].naoshi),
+    '印が 載って います＝★直して いないのに「直し」と 出ます★');
 }
 
 /* ★★わざと＝凍結を 外したら 赤に なるか★★（★この 見張りが 空振りして いないか★） */

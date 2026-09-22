@@ -6043,6 +6043,9 @@
   // 明細をWeb明細(従業員配布)に公開。★確定時に自動で呼ぶ→会社が「Web明細で公開」を押さなくても、
   //   確定した月は従業員のリンクに自動で並ぶ(従業員はいつでもどの月でも閲覧可)。手動ボタンからも呼ぶ。
   //   token/初回コード/パスワード/同意は保持(publishMeisaiが冪等upsert)。返り=公開した人数(0=対象なし/未対応)。
+  /* ★直しなら 紙に 印を 1つ 載せる★
+     （従業員の 画面で ★なぜ 未読に 戻ったか★ を 出す 為） */
+  function naoshiTsuki(d, o){ if(o && o.naoshi) d.naoshi = { at:new Date().toISOString() }; return d; }
   function publishMeisaiNow(isBonus, opts){
     opts=opts||{};
     if(!(window.Store&&Store.publishMeisai)) return Promise.resolve(0);
@@ -6051,9 +6054,12 @@
     if(!emps.length) return Promise.resolve(0);
     var kind=isBonus?'bonus':'monthly';
     var items=emps.map(function(e){ var person=(isBonus?buildBonusPeople([e]):buildPeople([e]))[0];
+        /* ★★直しなら ★紙に そう 書く★★（2026-09-22 司さん「気づくように しろや」）
+           ★未読の 印だけでは ★なぜ 未読に 戻ったか★ が 分かりません★
+           ⇒ ★印（気づく）★と ★訳（分かる）★の 2つを 出す */
       return { employeeId:e.id, name:e.name, ym:ym, kind:kind,
-        data:{ person:person, doc:isBonus?{month:bonusMonthLabel(),kind:'bonus'}:{month:monthLabel()}, prefer:state.prefer, theme:state.theme } }; });
-    return Store.publishMeisai(items).then(function(){ renderWebMeisai(); if(!opts.silent) toast(emps.length+'名の'+(isBonus?'賞与':'給与')+'明細をWeb公開しました'); return emps.length; }).catch(function(err){
+          data:naoshiTsuki({ person:person, doc:isBonus?{month:bonusMonthLabel(),kind:'bonus'}:{month:monthLabel()}, prefer:state.prefer, theme:state.theme }, opts) }; });
+    return Store.publishMeisai(items, { naoshi:!!opts.naoshi }).then(function(){ renderWebMeisai(); if(!opts.silent) toast(emps.length+'名の'+(isBonus?'賞与':'給与')+'明細をWeb公開しました'); return emps.length; }).catch(function(err){
       /* ★失敗を0にしない★（0を返すと「0名 公開した」に見えて、
          従業員に届いていない事が 誰にも伝わらない＝前科の型）。
          ★言って★から ★投げ直す★（呼び手の失敗の道に入れる）。 */
@@ -6165,7 +6171,7 @@
     if(_naoshiHito.length && window.Store && Store.publishMeisai){
       setTimeout(function(){
         if(!_todoita.length) return;                       /* ★記録に 届いて いなければ 紙も 出さない★ */
-        publishMeisaiNow(false, { silent:true }).then(function(){
+        publishMeisaiNow(false, { silent:true, naoshi:true }).then(function(){
           _todoita.forEach(function(id){ naoshitaKesu(ym, id); });
           toast('確定ずみの ' + _todoita.length + '名を 直したので、賃金台帳と 従業員のWeb明細も 新しくしました。');
         }).catch(function(){
