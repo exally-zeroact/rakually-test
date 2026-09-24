@@ -277,11 +277,31 @@ export async function katazukeru(pg, opt) {
     /* ★アプリが 止めている＝それが 正しい★＝★裏口で 抜けない★ */
     return { ok: false, michi, naze: '★アプリが 消させない★（' + ji.slice(0, 40) + '）' };
   }
+  /* ★★押す 直前の『小さな 札』を 控える★★（2026-09-24 指示役1）
+     ★訳★ … 札は「自動保存済 hh:mm」＝★保存が 走る たび 時刻が 動く★。
+       ⇒ ★★前後で 字が 動かなければ『保存が そもそも 呼ばれて いない』★★＝
+         ★『倉庫が 断った』とは 別の 話★（★札の 字だけでは 割れない★）。 */
+  const fudaMae = await pg.evaluate(() => {
+    const s = document.getElementById('save-status');
+    return ((s && s.textContent) || '').trim();
+  }).catch(() => '★引けない★');
+  michi.push('④押す 直前の 小さな 札 …「' + (fudaMae || '★空★') + '」');
   michi.push('④削除ボタンを 押した【本物の click】');
   await del.click({ timeout: 8000 }).catch(() => null);
   await machi(900);
-  const y2 = await osuByJi(pg, /^(OK|はい|削除|削除する)$/, machi);
-  michi.push(y2.osita ? '④削除の 確認を 押した【本物の click】（' + y2.ji + '）' : '④削除の 確認が 出なかった');
+  /* ★★空振り止め（`opt.wazaYarinaoshi`）★★（2026-09-24）
+     ★はじめ★ … ⑦を「残った」事に して ⑧を 呼んだ ⇒ ★人は もう 居ない＝札 -1番目＝★空振り★★
+     ⇒ ★★『⑧を 呼ぶ』と『⑧が 仕事を する』は 別★★（★今日の 家★）
+     ★今★ … ★1回目の 確認で ★キャンセル★ を 押す★＝★人は 残る★
+        ⇒ ★⑤⑥⑦は「残って いる」と 正しく 出る★ ⇒ ★★⑧が 本当に 消しに 行きます★★
+        ⇒ ★⑧が 通れば「やり直し 1回で 消えました」／通らなければ 赤★ */
+  const wazaY = !!(opt && opt.wazaYarinaoshi);
+  const y2 = wazaY
+    ? await osuByJi(pg, /^(キャンセル|やめる|いいえ)$/, machi)
+    : await osuByJi(pg, /^(OK|はい|削除|削除する)$/, machi);
+  michi.push(y2.osita
+    ? (wazaY ? '④★--waza＝わざと ★キャンセル★ を 押した（人は 残ります）★' : '④削除の 確認を 押した【本物の click】（' + y2.ji + '）')
+    : '④削除の 確認が 出なかった');
   await machi(1400);
 
   /* ★消えたかは 画面で 数える★（名前が 在れば 名前で／無ければ ★札の 総数が 1枚 減ったか★） */
@@ -290,7 +310,8 @@ export async function katazukeru(pg, opt) {
       .filter((x) => ((x.querySelector('.mco-nm') || {}).textContent || '').indexOf(n) >= 0).length, na).catch(() => -1)
     : (await pg.evaluate((b) => (document.querySelector('#emp-list .mco[data-i="' + b + '"]') ? 1 : 0), ban0).catch(() => -1));
   michi.push('⑤画面に 残り ' + nokori + '人');
-  if (nokori !== 0) return { ok: false, michi, naze: '画面に ' + nokori + '人 残っている' };
+  if (nokori !== 0 && !wazaY) return { ok: false, michi, naze: '画面に ' + nokori + '人 残っている' };
+  if (nokori !== 0 && wazaY) michi.push('⑤★--waza＝画面に 残って います（狙いどおり）＝⑥へ 進みます★');
 
   /* ★★⑤-2 ★客が 同時に 何を 見て いるか★を そのまま 出す★★（2026-09-24 指示役1）
      ★なぜ★ … 消した 後 ★倉庫に 残る★事が 実際に 起きた（CI・f19ef04）。
@@ -306,16 +327,35 @@ export async function katazukeru(pg, opt) {
     const fuda = await pg.evaluate(() => {
       const s = document.getElementById('save-status');
       const t = document.getElementById('app-toast');
+      /* ★★『今 ログインして いるか』★★＝倉庫を 触らずに 客の 道で 分かる 物
+         （supabase は 端末の 控えに `sb-<ref>-auth-token` を 置く＝★在る/無い だけ★を 見る） */
+      let login = null;
+      try {
+        login = Object.keys(localStorage).some((k) => /^sb-.*-auth-token$/.test(k));
+      } catch (e) { login = null; }      /* ★控えが 読めない 時は null＝『分からない』★ */
       return {
         save: ((s && s.textContent) || '').trim(),
         toast: ((t && t.textContent) || '').trim(),
         mieru: !!(t && getComputedStyle(t).opacity !== '0'),
+        login: login,
       };
     }).catch(() => null);
     if (fuda) {
       michi.push('⑤-2 客が 見て いる 字 … 小さな 札「' + (fuda.save || '★空★')
         + '」／ toast「' + (fuda.toast || '★空★') + '」（今 見えて いる＝' + fuda.mieru + '）');
-      if (!fuda.save) michi.push('     ⇒ ★札が 空＝★保存の 警告は 出て いません★（未ログインか／保存が 通ったか）');
+      michi.push('⑤-2 ログインして いるか … '
+        + (fuda.login === null ? '★分からない（端末の 控えが 読めない）★' : String(fuda.login)));
+      /* ★★『断られた』と『頼んで すら いない』を 割る★★（指示役1 2026-09-24） */
+      if (!fuda.save) {
+        michi.push('     ⇒ ★札が 空＝保存の 警告は 出て いません★'
+          + (fuda.login === false ? '／★ログインが 切れて います＝no-user の 道★'
+            : '／★ログインは 在る＝★保存が 呼ばれて いない かも★★'));
+      } else if (fuda.save === fudaMae) {
+        michi.push('     ⇒ ★★札の 字が 押す 前と 同じ（「' + fudaMae + '」）＝★保存が 走って いない 見込み★★★'
+          + '（★『倉庫が 断った』では なく『頼んで すら いない』★）');
+      } else {
+        michi.push('     ⇒ ★札が 動いた（「' + (fudaMae || '空') + '」→「' + fuda.save + '」）＝★保存は 走った★');
+      }
     } else michi.push('⑤-2 ★客が 見て いる 字を 引けません★');
   } catch (e) { michi.push('⑤-2 ★札を 引く 所で 転びました … ' + String((e && e.message) || e).slice(0, 80) + '★'); }
 
@@ -381,10 +421,11 @@ export async function katazukeru(pg, opt) {
   if (nokori2 < 0) {
     return { ok: false, michi, naze: '★開き直しても 数えられない★（0人とは 言えません）' };
   }
-    if (nokori2 !== 0) {
+    if (nokori2 !== 0 && !wazaY) {
       return { ok: false, michi,
         naze: '★画面からは 消えたのに 開き直すと ' + nokori2 + '人 居る★' };
     }
+    if (nokori2 !== 0 && wazaY) michi.push('⑥★--waza＝残って います（狙いどおり）＝⑧へ 進みます★');
 
     /* ★★★⑦ アプリの 口で ★倉庫を★ 数える★★★（2026-09-22）
        ★前は ここまで ★画面の 札★しか 見て いませんでした★
@@ -413,10 +454,63 @@ export async function katazukeru(pg, opt) {
 
     if (sk && sk.nin != null) {
       michi.push('⑦倉庫を アプリの 口で 数えた … この人 ' + sk.nin + '人／口に ' + sk.zen + '人');
+      /* ★★空振り止め★★（2026-09-24 指示役1）＝★⑧が 1度も 走らない まま 緑＝未測定★
+         ★`opt.wazaYarinaoshi` を 渡した 時だけ★ ⑦を ★わざと『残った』事に して★ ⑧を 走らせる。
+         ⇒ ★★⑧の 道が 本当に 通るかを 確かめられます★★（★客の 画面は 1文字も 変わりません★） */
+      const waza = wazaY;
       if (sk.nin !== 0) {
-        return { ok: false, michi,
-          naze: '★★画面からは 消えたのに ★倉庫に ' + sk.nin + '人 残って います★★'
-            + '（アプリの 口で 数えました）' };
+        /* ★★⑧残って いたら ★開き直して もう1回だけ★ 消す★★（2026-09-24 指示役1）
+           ★なぜ 直すのか（★赤を 落とすのでは ない★）★
+             ・★09-24 実測★ … ★一度 保存が 断られると その 画面では もう 通らない／★開き直すと 通る★★
+             ・⇒ ★★『残った』は 多くの 場合 ★開き直せば 消せる★★＝★片づけの 直し方が 在る★
+             ・★赤を 落とすのでは なく ★やり直して、やり直した 事を 数に 出します★★
+               ⇒ ★★『黙って 緑』では なく『やり直した 回数が 見える 緑』★★
+             ・★それでも 残ったら ★赤★★（★本当の 赤は 残す★）
+           ★客の 画面は 1文字も 変えて いません★（★道具の 側だけ★） */
+        michi.push('⑧★残って いたので 開き直して もう1回 消します★');
+        let naota = false;
+        try {
+          await pg.reload({ waitUntil: 'domcontentloaded' });
+          await machi(3000);
+          const { kumoNiKotaeru } = await import('../../tests/_hairu.mjs');
+          await kumoNiKotaeru(pg, '#emp-list', 16).catch(() => '');
+          if (osu) { await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(700);
+            await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(900); }
+          const ban2 = await pg.evaluate((n) => {
+            const a = Array.from(document.querySelectorAll('#emp-list .mco'));
+            for (const c of a) {
+              const nm = c.querySelector('.mco-nm');
+              if (nm && (nm.textContent || '').trim().indexOf(n) >= 0) return +c.dataset.i;
+            }
+            return -1;
+          }, (na2 || na)).catch(() => -1);
+          michi.push('⑧札 ' + ban2 + '番目');
+          if (ban2 >= 0 && osu) {
+            await osu(pg, '#emp-list .mco[data-i="' + ban2 + '"] [data-toggle]'); await machi(900);
+            await osu(pg, '#emp-list .mco[data-i="' + ban2 + '"] .emp-dtgl'); await machi(900);
+            await osu(pg, '#emp-list .mco[data-i="' + ban2 + '"] .m-del-emp'); await machi(1200);
+            const y3 = await osuByJi(pg, /^(OK|はい|削除|削除する)$/, machi);
+            michi.push('⑧' + (y3.osita ? '削除の 確認を 押した（' + y3.ji + '）' : '★確認が 出なかった★'));
+            await machi(3000);
+            const sk2 = await pg.evaluate(async (n) => {
+              if (!(window.Store && window.Store.cloudLoadState)) return { nashi: true };
+              try {
+                const st = await window.Store.cloudLoadState();
+                if (!st || !st.employees) return { yomenai: true };
+                return { nin: st.employees.filter((e) => String((e && e.name) || '').indexOf(n) >= 0).length };
+              } catch (e) { return { dame: String((e && e.message) || e).slice(0, 120) }; }
+            }, (na2 || na)).catch(() => null);
+            if (sk2 && sk2.nin === 0) { naota = true; michi.push('⑧★★やり直し 1回で 消えました★★'); }
+
+            else michi.push('⑧★やり直しても 残って います … ' + JSON.stringify(sk2) + '★');
+          }
+        } catch (e) { michi.push('⑧★やり直しで 転びました … ' + String((e && e.message) || e).slice(0, 80) + '★'); }
+        if (waza && !naota) michi.push('⑧★★--waza … ⑧の 道が 通りませんでした＝★空振り★★★');
+        if (!naota) {
+          return { ok: false, michi,
+            naze: '★★画面からは 消えたのに ★倉庫に ' + sk.nin + '人 残って います★★'
+              + '（アプリの 口で 数えました／★やり直しても 消えませんでした★）' };
+        }
       }
     } else {
       michi.push('⑦🟡 ★倉庫を アプリの 口で 数えられません★ … '
