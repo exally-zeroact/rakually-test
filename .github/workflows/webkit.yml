@@ -57,6 +57,7 @@ on:
       - 'kyuyo/admin-manifest.json'
       - 'kyuyo/meisai.webmanifest'
       - 'tests/_hairu.mjs'
+      - 'tests/ooi-mon.mjs'
       - 'tests/button-uniform.test.mjs'
       - 'tests/repo-supa.mjs'
       - 'scripts/_borrow-playwright.mjs'
@@ -110,6 +111,7 @@ on:
       - 'kyuyo/admin-manifest.json'
       - 'kyuyo/meisai.webmanifest'
       - 'tests/_hairu.mjs'
+      - 'tests/ooi-mon.mjs'
       - 'tests/button-uniform.test.mjs'
       - 'tests/repo-supa.mjs'
       - 'scripts/_borrow-playwright.mjs'
@@ -258,6 +260,17 @@ jobs:
       #   ★この 2つの 棚を 見る 門が 1本も 無かった★（孤児の 門は maboroshi-ui 1本＝pay_payslips だけ／その回の 差だけ）。
       #   ★0に しろ とは 言わない★＝過去の 分で 毎回 赤に すると 後ろの 段を 人質に 取る。
       #   ★増えたら 赤／減ったら「決め打ちを 下げろ」と 字で 言う★。物差しは 紙の 頭に 全文。
+      # ★覆い（`.ui-modal-ov`）の 扱いの 門（2026-09-24）
+      #   ★訳★ … `fuyo-ui` が 赤に なった 回、conflict の 覆いが 押しを 塞ぎ
+      #     `page.click: Timeout 8000ms` が 15回・★約2分 無言で 死んだ★（訳は ログ 2,189行を 掘るまで 不明）。
+      #     更に `tests/_hairu.mjs` の `toziru()` は ★覆いを 黙って 閉じて いた★
+      #     ＝★conflict が 起きた 事が ログから 消える★（`_conflictPrompted` が 立ち 二度と 訊かれない）。
+      #   ★決め（指示役1）★ … ★『答える』では なく『見つけて その場で 止める』★
+      #   ★この 門は 倉庫にも アプリにも 触りません★（about:blank に 同じ 形の 札を 自分で 置く）。
+      #   ★弱い所★ … ★本物の 覆いでは なく 同じ 形の 札★＝class は `kyuyo/js/app.js` から 取り、
+      #     取れなければ ★未測定（exit 2）★で 止める。
+      - name: ★覆いの 扱い（conflict は 閉じない・案内は 閉じる・閉じた物を1行出す）★倉庫に 触らない★
+        run: node tests/ooi-mon.mjs
       - name: ★孤児 3種類（鍵・紙・明細）が 増えていない（決め打ち 0／0／★明細13＝消す 許し 未★・増えたら 赤）★CIでは 倉庫を 数えていない（鍵が 無い＝未測定）★
         run: node kyuyo/tests/koji-mon.test.mjs --self-test && node kyuyo/tests/koji-mon.test.mjs
       - name: ★わざと 孤児を 1本 足しても 赤に ならなければ 空振り（koji-mon の 空振り止め・足した 物は 必ず 消す）★

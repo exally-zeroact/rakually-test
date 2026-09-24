@@ -17,6 +17,9 @@
  *   ★それでも 入れなければ 未測定★（0件＝合格 とは 書かない）＝★緩めていない★。
  *   ★何回目で 入れたか★も 返す＝★黙って 3回 掛かっている★のを 隠さない。
  */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /* ★★試験の 鍵が 在る repo か★★（2026-09-05 本番へ 運ぶ 支度で 見つけた）
    ★本番の repo は 本番の 倉庫を 指す★＝★test@test.com は 本番には 居ません★
@@ -139,21 +142,65 @@ export async function kumoNiKotaeru(pg, matsu, kaiMax = 24) {
   return '';
 }
 
+/* ★★覆いの class は ★アプリの 字から 取る★★（2026-09-24）
+   ★手で 打つと 飾りを 直した 日に 黙って 割れる★＝[[feedback_kazari_no_ji_ni_tayotta_mon_wa_wareru]]
+   ★取れなかった 時は 黙って 手打ちに 落ちない★＝`OOI_MOTO` に そう 書いて 出しに 出す。 */
+function ooiClassSagasu() {
+  try {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const src = fs.readFileSync(path.join(here, '..', 'kyuyo', 'js', 'app.js'), 'utf8');
+    const m = src.match(/className\s*=\s*'(ui-[a-zA-Z0-9_-]*ov)'/);
+    if (m) return { sel: '.' + m[1], moto: 'kyuyo/js/app.js から 取った' };
+  } catch (e) { /* 読めない＝下で 言う */ }
+  return { sel: null, moto: '★kyuyo/js/app.js から 取れませんでした＝この 門は 当てに なりません（未測定）★' };
+}
+const _ooi = ooiClassSagasu();
+export const OOI = _ooi.sel || '.ui-modal-ov';
+export const OOI_MOTO = _ooi.moto;
+
+/* ★★閉じては いけない 覆い（＝conflict の 知らせ）★★（2026-09-24・指示役1 と 決めた）
+   ★訳★ … 閉じる＝★答える★＝★conflict が 起きた 事が ログから 消える★
+     （`app.js:6246` で `state._conflictPrompted = true` が 立ち ★二度と 訊かれない／保存は 通らない★）
+   ⇒ ★★『答える』では なく『見つけて その場で 止める』★★ */
+export const TOJINAI_JI = ['別の端末で更新', 'クラウドに保存済み'];
+
+/* ★覆いの 字を 読むだけ★（★閉じない・押さない★）＝`{ aru, ji, conflict }` */
+export async function ooiWoMiru(pg) {
+  const r = await pg.evaluate((sel) => {
+    const ov = document.querySelector(sel);
+    if (!ov) return { aru: false, ji: '' };
+    return { aru: true, ji: String(ov.innerText || ov.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 200) };
+  }, OOI).catch(() => ({ aru: false, ji: '★引けない★' }));
+  return Object.assign({}, r, { conflict: !!r.aru && TOJINAI_JI.some((w) => r.ji.indexOf(w) >= 0) });
+}
+
 /* ★案内の 覆いを 本物の 閉じる ボタンで 閉じる★（消す のでは ない＝お客さんの 道）
-   返り値＝★閉じ残り★（0 なら 覆いは 消えた） */
+   返り値＝★閉じ残り★（0 なら 覆いは 消えた）
+   ★★2026-09-24 に 2つ 足した★★
+     ⑴★conflict の 覆いは 閉じない★＝`TOJINAI_JI` に 当たったら ★そのまま 残して 戻る★
+       （★今まで「キャンセル」「OK」の 型に 当たって ★黙って 閉じて いた★★）
+     ⑵★★閉じた 時は「何を 閉じたか」を 1行 出す★★＝★黙って 閉じるのを やめる★
+       （★今まで 何を 閉じたか 誰も 知らなかった★＝指示役1「これが 一番 効く」） */
 export async function toziru(pg, kaiMax = 12) {
   for (let i = 0; i < kaiMax; i++) {
-    if (!(await pg.$('.ui-modal-ov'))) return 0;
-    const oseta = await pg.evaluate(() => {
-      const ov = document.querySelector('.ui-modal-ov'); if (!ov) return false;
+    if (!(await pg.$(OOI))) return 0;
+    const mi = await ooiWoMiru(pg);
+    if (mi.conflict) {
+      console.log('  ★★覆いが 出て います（押せません）／★閉じません（答えません）★／箱の 字＝「'
+        + mi.ji + '」★★');
+      return (await pg.$$(OOI)).length;      /* ★残したまま 戻る★＝呼んだ側が 赤に する */
+    }
+    const oseta = await pg.evaluate((sel) => {
+      const ov = document.querySelector(sel); if (!ov) return false;
       const b2 = Array.from(ov.querySelectorAll('button,.close,[data-close]'))
         .find((e) => e.offsetParent && /×|閉じる|あとで|いいえ|キャンセル|OK|はじめる|わかった/.test((e.textContent || '') + (e.getAttribute('aria-label') || '')));
       if (b2) { b2.click(); return true; } return false;
-    });
+    }, OOI);
     if (!oseta) break;
+    console.log('  （覆いを 1枚 閉じた … 「' + mi.ji.slice(0, 60) + '」）');
     await new Promise((r) => setTimeout(r, 400));
   }
-  return (await pg.$$('.ui-modal-ov')).length;
+  return (await pg.$$(OOI)).length;
 }
 
 /* ★覆いを 閉じてから 押す★（覆いは ★画面を 移るたびに 出る★＝2026-09-05 実測）
@@ -163,8 +210,14 @@ export async function osu(pg, sel, kaiMax = 3) {
   let nokori = 0;
   for (let kai = 1; kai <= kaiMax; kai++) {
     nokori = await toziru(pg);
+    /* ★★conflict の 覆いは 閉じない＝押しても 塞がれる★★
+       ⇒ ★8秒×何回も 粘って 無言で 死ぬ★のを やめ ★その場で 訳つきで 返す★
+       （2026-09-24 実測＝`page.click: Timeout 8000ms` が 15回・約2分・★訳は ログを 掘るまで 分からなかった★） */
+    const mi = await ooiWoMiru(pg);
+    if (mi.conflict) return { oseta: false, kai, nokori, ooi: true, ji: mi.ji };
     try { await pg.click(sel, { timeout: 5000 }); return { oseta: true, kai, nokori }; }
     catch (e) { await new Promise((r) => setTimeout(r, 500)); }
   }
-  return { oseta: false, kai: kaiMax, nokori };
+  const ato = await ooiWoMiru(pg);
+  return { oseta: false, kai: kaiMax, nokori, ooi: !!ato.conflict, ji: ato.conflict ? ato.ji : '' };
 }

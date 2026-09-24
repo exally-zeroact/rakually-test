@@ -79,10 +79,10 @@ if (SELF) {
     process.exit(0);
   }
 }
-let borrow, pwLaunch, hairu, osu, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU, SHIKEN_NA;
+let borrow, pwLaunch, hairu, osu, ooiWoMiru, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU, SHIKEN_NA;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
-  ({ hairu, osu } = await import('../../tests/_hairu.mjs'));
+  ({ hairu, osu, ooiWoMiru } = await import('../../tests/_hairu.mjs'));
   ({ kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA,
      kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU, shikenNa: SHIKEN_NA } = await import('./_souko-kazoeru.mjs'));
   ({ katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs'));
@@ -436,7 +436,21 @@ try {
      ★前★ … ★行を 切って 頭の 80字だけ★ ⇒ `page.click: Timeout 8000ms exceeded.` だけ 残った
        ⇒ ★★訳（見えない／動いて いる／★覆いに 遮られて いる★）を 私が 切って 捨てて いた★★
      ⇒ ★行を 繋げて 400字まで 残す★（★出しを 自分で 切ったら 書く★） */
-  await pg.click(CARD + ' [data-kzadd]', { timeout: 8000 }).catch((e) => {
+  /* ★★押す 前に 覆いを 見る★★（2026-09-24・指示役1 の 決め＝㉜）
+     ★訳（09-24 実測）★ … ここは ★`osu()` を 通らない 直の click★。
+       conflict の 覆い（`div.ui-modal-ov`）が 出て いた 回に
+       ★`page.click: Timeout 8000ms` が 15回・約2分 粘って 死に★、
+       ★訳は ログを 掘るまで 分からなかった★（`intercepts pointer events` の 行まで 追って やっと）。
+     ⇒ ★答えない／閉じない／押さない★＝★conflict が 起きた 事を 消さない（signal を 残す）★
+       ＝★その場で 訳つきで 止める★（★見張りの 値打ちは いつ 赤に なるか★）。
+     ★`osu()` を 通る 押しは `tests/_hairu.mjs` 側で 同じ 事を します★＝★ここは その 1か所だけの 手当て★
+     （★`osu()` を 通らない 直の click は 全部で 29か所＝★残りは 未着手★★＝棚に 数で 残す）。 */
+  const kzOoi = await ooiWoMiru(pg);
+  if (kzOoi.conflict) {
+    kzOsu = '★★覆いが 出て います（押せません）／★閉じません（答えません）★／箱の 字＝「' + kzOoi.ji + '」★★';
+    console.log('       ★★押す 前に 止めました＝' + kzOsu + '★★');
+  }
+  if (!kzOoi.conflict) await pg.click(CARD + ' [data-kzadd]', { timeout: 8000 }).catch((e) => {
     /* ★★切った 事を ★数で★ 出す★★（2026-09-21＝400字では 足りなかった）
        ★実測★ … 400字で `scrolling into view if needed` まで。
          ★`intercepts pointer events` の 行まで 届いて いない★
