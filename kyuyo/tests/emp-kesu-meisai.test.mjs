@@ -211,6 +211,34 @@ T('★★⑨ 人を 消す 時に ★合言葉（pw_hash）を 消さない★�
     '★他の 3つ（init_code／device_tokens／consent_at）は 今まで通り 空に する★ … ' + u);
 });
 
+/* ── ⑩★片づけの 道具が ★他人の 確定★を 外さない★（2026-09-24・指示役1 の 決め）──
+   ★なぜ ここで 見るか★ … 片づけを ★実際に 走らせる★ 門は 倉庫の 鍵が 要る
+     ⇒ ★CI で 毎回 回るのは この 字の 門だけ★（⑨と 同じ 訳）
+   ★何が 起きたか（★実測★・09-24 17:3x）★
+     札から 名前が 読めない時、片づけの 道具は
+     「⚠ 同じ月の 他の 人の 確定も 一緒に 外れます」と ★字で 断ってから そのまま 押して いました★
+     ⇒ ★試験線の 確定 12→9（−3）／紙 38→26（−12）／2026-09 が 全部 未確定★
+   ⇒ ★★『⚠と 書いてから やる』は『やらない』では ない★★
+   ★見る 所★ … `[data-undo-month]` を 探す 所から `undo.click(` までの ★間だけ★
+     （★紙 全体を 見ない★＝`return { ok: false` は 他の 所にも 在る） */
+const KATA = strip(fs.readFileSync(path.join(ROOT, 'kyuyo/tests/_kyaku_no_michi_de_katazukeru.mjs'), 'utf8'));
+function tsukiMatomeMade(src) {
+  const i = src.indexOf('[data-undo-month]');
+  if (i < 0) return null;
+  const j = src.indexOf('undo.click(', i);
+  return j < 0 ? null : src.slice(i, j);
+}
+T('★★⑩ この人の「確認済」が 見つからない時に ★月まとめの 取り消しを 押さない★★（他人の 確定を 外さない）', () => {
+  const naka2 = tsukiMatomeMade(KATA);
+  ok(naka2 !== null, '★`[data-undo-month]` から `undo.click(` までを 切り出せない★');
+  ok(/\bcontinue;/.test(naka2),
+    '★押す 前に 止める 道が 無い＝この人の 確認済が 無くても 月まとめで 外して しまいます★');
+  ok(/tsukiMatome/.test(naka2),
+    '★止める 決め手が 「呼び手が 明かに 頼んだか（opt.tsukiMatome）」に なって いない★'
+    + '＝★名前が 読めるだけでは 足りません（09-24 2回目は 名前が 読めて いたのに 壊れた）★ … '
+    + naka2.slice(0, 200));
+});
+
 if (SELF) {
   console.log('\n[emp-kesu-meisai] ★自己確認★（わざと 壊して 赤が 出るか）');
   let ng = 0;
@@ -258,6 +286,22 @@ if (SELF) {
     iu('⑨-2 ★別の 所の pw_hash（リンク再発行）では 赤に しない★',
       /pw_hash/.test(STORE) && !!u && !/pw_hash/.test(u),
       '★ファイル全体を 見て いる＝正しい 物まで 赤に する★');
+  }
+
+  /* ⑩の わざと壊し … ★止める 道（return ok:false）を 抜いて 前の 形に 戻す★ */
+  {
+    const naka2 = tsukiMatomeMade(KATA);
+    /* ★止める 道を まるごと 抜く★＝`if (!(opt … continue;` までを 消す
+       （★`strip()` が 覚書を 落とすので 行末や 字下げでは 掴まない★＝09-24 に 1度 外した） */
+    const modosu = naka2 ? naka2.replace(/if \(!\(opt[\s\S]*?continue;/, '') : '';
+    /* ★★数で 見る★★＝切り出しの 中には ★`if (!undo) … continue;` が もう 1つ 在る★
+       （09-24 に「在るか 無いか」で 見て ★抜いても 緑★に なった＝★分母を 見て いなかった★） */
+    const kazoeC = (s) => (String(s).match(/\bcontinue;/g) || []).length;
+    iu('⑩ ★止める 道を 抜いたら 赤★', !!naka2 && kazoeC(naka2) === 2 && kazoeC(modosu) === 1,
+      '抜いても 気づかない（★切り出しか 抜き方が 効いて いない★／今 ' + kazoeC(naka2) + '→' + kazoeC(modosu) + '）');
+    iu('⑩-2 ★紙 全体では なく ★間だけ★ 見て いる★',
+      /\bcontinue;/.test(KATA) && !!naka2 && naka2.length < KATA.length,
+      '★紙 全体を 見て いる＝別の 所の continue で 緑に なる★');
   }
 
   /* ⑥の わざと壊し … 失敗の 言い方を 消して 成功の 字だけに する */
