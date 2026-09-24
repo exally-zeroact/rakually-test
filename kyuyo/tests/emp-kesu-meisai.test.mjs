@@ -182,6 +182,35 @@ T('★⑧ 従業員に 見える 紙（pay_meisai_docs）は 物理削除しな�
 });
 
 /* ★★自己確認＝わざと 壊して 赤が 出るか★★（★片方だけ 壊して 片方だけ 赤★まで 見る） */
+/* ── ⑨★辞めた 人の 合言葉を 消さない★（司さん 2026-09-24「1 見れた方がええやろが」）──
+   ★なぜ ここで 見るか★
+     ★絵の 門（`kyuyo/tests/yameta-hito-mieru.mjs`）は ★CI では 1度も 走りません★★
+       … 倉庫の 管理の 鍵が 要る＝CI に 無い ⇒ ★毎回 未測定★／★後始末が 出来ず ゴミが 増える★
+       ⇒ ★`tests/ci-coverage.test.mjs` の 除外に 訳つきで 入れて ある★
+     ⇒ ★★CI で 走るのは この 字の 門だけ★★
+     ⇒ ★★字の 門は 弱い（今日 この 紙 自身で 見た）／でも ★走らない 門より 強い★★★
+   ★見る 所★ … `Store.unpublishMeisai` の ★`update({…})` の 中だけ★
+     （★ファイル全体を 見ない★＝`pw_hash` は 別の 所にも 在る＝`reissueMeisaiInit` は ★消して 正しい★）
+   ★ここに `pw_hash` を 足すな★
+     … 足すと ★辞めた 人が 自分の 明細を 二度と 開けなく なります★
+     … 前は そうで、★本人は「初回設定の 画面」に 落ち `init_code` も 空＝★行き止まり★★だった。 */
+function unpubNoUpdate() {
+  const i2 = STORE.indexOf('Store.unpublishMeisai');
+  if (i2 < 0) return null;
+  const naka = STORE.slice(i2, i2 + 900);
+  const j = naka.indexOf('.update(');
+  if (j < 0) return null;
+  const k = naka.indexOf(')', j);
+  return k < 0 ? null : naka.slice(j, k + 1);
+}
+T('★★⑨ 人を 消す 時に ★合言葉（pw_hash）を 消さない★★（辞めた 人が 自分の 明細を 開ける）', () => {
+  const u = unpubNoUpdate();
+  ok(u !== null, '★Store.unpublishMeisai の update( … ) を 切り出せない★');
+  ok(!/pw_hash/.test(u), '★update の 中に pw_hash が 在る＝辞めた 人が 開けなく なります★ … ' + u);
+  ok(/init_code/.test(u) && /device_tokens/.test(u) && /consent_at/.test(u),
+    '★他の 3つ（init_code／device_tokens／consent_at）は 今まで通り 空に する★ … ' + u);
+});
+
 if (SELF) {
   console.log('\n[emp-kesu-meisai] ★自己確認★（わざと 壊して 赤が 出るか）');
   let ng = 0;
@@ -219,6 +248,17 @@ if (SELF) {
   const mamoru = 'var MICHIZURE_x = [' + q8 + 'pay_meisai_docs' + q8 + '];';
   iu('⑧-2 ★守る 為に 名前を 書いた だけなら 赤に しない★', !KESU_KA(mamoru, 'pay_meisai_docs'),
     '守りの 名簿を 「消している」と 読む＝誤って 赤に なる');
+
+  /* ⑨の わざと壊し … `unpublishMeisai` の update に `pw_hash:null` を 戻す */
+  {
+    const u = unpubNoUpdate();
+    const modosu = u ? u.replace('init_code:null,', 'init_code:null, pw_hash:null,') : '';
+    iu('⑨ ★合言葉を 消す 形に 戻したら 赤★', !!u && /pw_hash/.test(modosu),
+      '戻しても 気づかない（★切り出しが 効いて いない★）');
+    iu('⑨-2 ★別の 所の pw_hash（リンク再発行）では 赤に しない★',
+      /pw_hash/.test(STORE) && !!u && !/pw_hash/.test(u),
+      '★ファイル全体を 見て いる＝正しい 物まで 赤に する★');
+  }
 
   /* ⑥の わざと壊し … 失敗の 言い方を 消して 成功の 字だけに する */
   const kotoba = (naka || '').replace(/消せ(ません|ていません)/g, '消しました').replace(/もう一度/g, '');

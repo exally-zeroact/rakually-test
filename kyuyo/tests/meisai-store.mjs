@@ -49,13 +49,32 @@ await T('必須1: 退職者も名簿(empIds)に残っていれば出る=消さ�
   const list = await Store.listMeisaiPub(['A', 'B']); // AもBも名簿に居る(退職者含む想定)
   eq(list.length, 2, '名簿に居れば両方出る');
 });
-await T('必須2: unpublishMeisai=認証情報クリアでリンク死・docsは物理削除しない', async function () {
+/* ★★この 見張りは 2026-09-24 に「何を 守るか」が 変わりました★★
+   ★前★ … 「★認証情報クリアで リンク死★」＝★合言葉まで 消す★を 守って いた
+   ★今★ … 司さん「★1 見れた方が ええやろが★」
+       ⇒ ★★`pwHash`（本人が 決めた 合言葉）は 残す＝★辞めた 人は 自分の 明細を 開ける★★★
+       ⇒ ★他の 3つ（initCode／deviceTokens／consentAt）は 今まで通り 空★
+   ★ここを 直さずに 通ると『前の 決めを 機械が 守り続ける』★＝
+     [[feedback_mihari_ga_jibun_no_omoikomi_wo_mamotte_iru]] / [[feedback_mihari_wa_itsumo_shin_de_shinu]]
+
+   ★★★次に 読む 人へ（★この 門は 前と ★逆の 事★を 言って います★）★★★
+     ★誰が いつ 決めたか★ … ★2026-09-24 司さん★「★1 見れた方がええやろが★」
+     ★前の 向き★ … ★合言葉も 消す（＝辞めた 人は 自分の 明細を 開けない）★
+     ★今の 向き★ … ★合言葉は 残す（＝辞めた 人も 開ける）★
+     ★★戻すには ★司さんの 決めが 要ります★／私たち（作る 側）の 都合で 戻さない★★
+     ★訳★ … ★『見張りを 書き直す』は ★正しい 時も 在る／自分の 都合の 時も 在る★★
+            ⇒ ★★どちらかは ★誰が いつ 決めたか★が 無いと 割れません★★
+            ⇒ ★この 門が 在ったから「前の 決めを 機械が 守って いた」と 気づけた★
+              ＝★次の 人にも 同じ 手を 残す★ */
+await T('必須2: unpublishMeisai=★合言葉は 残す★／他の3つは 空／docsは物理削除しない', async function () {
   seed();
   await Store.unpublishMeisai('A');
   const pubs = JSON.parse(win.localStorage.getItem('payslip_meisai_pub_v1'));
   const pa = pubs.find(p => p.employeeId === 'A');
   ok(pa, 'A行は残る(cascadeでdocsを消さないため行自体は保持)');
-  ok(pa.initCode === null && pa.pwHash === null && pa.deviceTokens.length === 0 && pa.consentAt === null, 'Aの認証情報が全クリア=リンク死');
+  ok(pa.pwHash === 'hashA', '★Aの 合言葉は 残る＝辞めた 人が 自分の 明細を 開ける（2026-09-24 司さんの 決め）');
+  ok(pa.initCode === null && pa.deviceTokens.length === 0 && pa.consentAt === null,
+    'Aの 初回コード／覚えた端末／同意は 今まで通り 空（★新しく 登録させない／渡った 端末で 開かせない★）');
   const pb = pubs.find(p => p.employeeId === 'B');
   ok(pb && pb.pwHash === 'hashB', 'B(他人)は無傷');
   const docs = JSON.parse(win.localStorage.getItem('payslip_meisai_docs_v1'));

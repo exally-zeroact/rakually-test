@@ -370,9 +370,13 @@
 
   /* ★★人を 消したら「その人の Web明細の 鍵」も 消す★★（2026-09-18）
      ★なぜ 要るか（実測）★
-       `Store.unpublishMeisai`(524) は ★行を 消さず 認証情報だけ 空に する★
-         update({ init_code:null, pw_hash:null, device_tokens:[], consent_at:null, ... })
-       ＝★リンクは 死ぬ（倉庫の 入口が 断る）／★行は 残る★★。
+       `Store.unpublishMeisai` は ★行を 消さず 認証情報だけ 空に する★
+         update({ init_code:null, device_tokens:[], consent_at:null, ... })
+       ＝★行は 残る★。
+       ★★2026-09-24 に 1つ 変えました★★ … ★`pw_hash` は ★消しません★★
+         （司さん「1 見れた方がええやろが」＝★辞めた 人も 自分の 明細を 見られる★）
+         ⇒ ★★リンクは もう「死ぬ」とは 言えません★★＝★本人の 合言葉なら 開きます★
+         ⇒ ★ここの 字を「リンクは 死ぬ」の まま 残すと ★次に 読む 人が 間違えます★★
        テスト線で 数えた … ★公開 78行 中 ★73行が「もう 居ない 人」★★＝残骸。
        ★店の コードに `pay_meisai_pub` を ★消す★ 字は 1つも 無かった★
          （実測 … select 3か所 ／ insert 1か所 ／ update 2か所 ／ ★delete 0か所★）
@@ -585,16 +589,45 @@
       return Promise.resolve({ ok:true, n:mae-nokoru.length });
     }catch(e){ return Promise.resolve({ ok:false, n:0 }); }
   };
-  // 従業員削除時=Web明細リンクを失効(その従業員の全公開行の認証情報をクリア=get_meisaiが明細を返さない=リンク死)。
-  //  ★pay_meisai_docs(公開明細)は物理削除しない=pub行を消すとcascadeで消えるため、行は残し認証情報だけ無効化する(既存方針=お金の記録は残す)。
-  //  オフライン/未ログインは no-op で安全に(RLSで auth.uid()=null は0行更新)。
+  /* ★★従業員を 消した 時＝本人の 合言葉だけ 残す（2026-09-24 司さん「1 見れた方がええやろが」）★★
+     ★前（2026-09-24 まで）★ … ★4つとも 空に して いた★
+        `init_code:null, ★pw_hash:null★, device_tokens:[], consent_at:null`
+        ⇒ ★★辞めた 人は 自分の 給与明細・源泉徴収票を ★二度と 開けない★★★
+          （紙 `pay_meisai_docs` は 残る＝★会社は 見られる／本人は 見られない★）
+     ★今★ … ★★`pw_hash` は 消さない★★＝★本人が 決めた 合言葉で 開ける★
+     ★なぜ 他の 3つは 今まで通り 空に するか（★なぜ しなかったか★）★
+       ・`device_tokens` … ★その 端末は 合言葉 無しで 開く★＝★人に 渡った／無くした 端末で 開かせない★
+       ・`init_code` …… ★初回登録の コード★＝★辞めた 後に 新しく 登録させない★
+       ・`consent_at` … ★空でも 開ける（もう一度 同意を 取るだけ）★＝止めては いない
+     ★安全と 言える 訳（★倉庫の 字で 確かめた★）★
+       `get_meisai(p_token, …)` は ★`where token = p_token` の 紙しか 返さない★
+       ⇒ ★★鍵 1本で 引けるのは ★本人の 分だけ★／他人の 紙は 1行も 引けない★★
+     ★★★この 直しで ★失う 物★（黙って 失わない）★★★
+       ・★★消した 人の リンクを 会社は ★二度と 止められません★★★
+         … 止める 押しは `.wm-reissue`（リンク再発行）だが、
+           `listMeisaiPub(rosterIds())` が ★名簿に 居ない 人を 一覧から 外す★
+           ⇒ ★★止める 相手が 画面に 出ない★★
+         … ★困る 時★＝★辞めた 人の 電話が 人手に 渡った／会社が 切りたい★
+         … ★戻すには★ ★消した 人も 一覧に 出す★ 必要が 在る（★未着手★）
+       ・★★『辞めた 人の リンクを 会社が 止められなくて よいか』は 司さんの 決め★★（棚）
+     ★★これで 直らない 物（先に 書く）★★
+       ・★既に 消した 人は 戻りません★＝★`pw_hash` を 消して しまった＝戻す 字が 無い★
+       ・★出し直す 押し（`.wm-reissue` リンク再発行）は 在るが
+         `listMeisaiPub(rosterIds())` が ★名簿に 居ない 人を 一覧から 外す★＝★押せない★★
+     ★pay_meisai_docs は 物理削除しない★＝pub を 消すと ★cascade で 紙も 消える★（既存の 決め）。
+     ★オフライン/未ログインは no-op で 安全に★（RLS で auth.uid()=null は 0行 更新）。 */
+  /* ★★ここに `pw_hash` を 足すな★★
+     足すと ★辞めた 人が 自分の 明細を 二度と 開けなく なります★
+     （前は そうで、本人は「初回設定の 画面」に 落ち `init_code` も 空＝★行き止まり★だった）。
+     ★見張り★ … `kyuyo/tests/emp-kesu-meisai.test.mjs` の ⑨（★CI で 毎回 走る 字の 門★）
+     ★絵の 門★ … `kyuyo/tests/yameta-hito-mieru.mjs`（★手で 回す★＝CI に 倉庫の 鍵が 無い） */
   Store.unpublishMeisai = function(employeeId){
     if(!employeeId) return Promise.resolve({ ok:false });
     if(hasSupa){
-      return sb.from('pay_meisai_pub').update({ init_code:null, pw_hash:null, device_tokens:[], consent_at:null, fail_count:0, locked_until:null })
+      return sb.from('pay_meisai_pub').update({ init_code:null, device_tokens:[], consent_at:null, fail_count:0, locked_until:null })
         .eq('employee_id', employeeId).then(function(r){ return { ok:!r.error }; }).catch(function(){ return { ok:false }; });
     }
-    try{ var pubs=mPub(); var changed=false; pubs.forEach(function(p){ if(p.employeeId===employeeId){ p.initCode=null; p.pwHash=null; p.deviceTokens=[]; p.consentAt=null; changed=true; } }); if(changed) mPubW(pubs); }catch(e){}
+    try{ var pubs=mPub(); var changed=false; pubs.forEach(function(p){ if(p.employeeId===employeeId){ p.initCode=null; p.deviceTokens=[]; p.consentAt=null; changed=true; } }); if(changed) mPubW(pubs); }catch(e){}
     return Promise.resolve({ ok:true });
   };
   // 従業員: トークンの状態(初回か/記憶済か)。★明細/コードは返さない★。返り={found,hasPassword,remembered,name}
