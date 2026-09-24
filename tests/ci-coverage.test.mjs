@@ -56,14 +56,6 @@ const EXCLUDED = {
       + 'その時 webkit の 仕事へ 入れる。',
     owner: '司さん（鍵を CI に置く判断）＋ 給与セッション',
   },
-  'kyuyo/tests/kesu-todoku.mjs': {
-    reason: '★人を 消した 1押しが ★倉庫まで 届くか★／★他人を 道連れに しないか★を 7棚で 前後 数える 道具★。'
-      + '★倉庫の 管理の 鍵が 要る★（CI には 無い）。載せても ★毎回 未測定★／'
-      + '★後始末が CI では 出来ず 走る たび ゴミが 増える★。'
-      + '★手元では 緑★＝10 passed 0 failed（--taishou／--taishou2／--kaisu／--modoru の 対照つき）。',
-    restoreWhen: '★CI に 倉庫の 管理の 鍵を 置いた日★（上と 同じ）。',
-    owner: '司さん（鍵を CI に置く判断）＋ 給与セッション',
-  },
       'kyuyo/tests/load-before-delete-live.mjs': {
     reason: '★DB-test の 倉庫へ 実接続して「まっさらな端末で 何回 開いたら 従業員が 減るか」を 数える道具★。'
       + '鍵（テスト用の ログイン）と ブラウザが 要り、CIには 鍵が 無い。'
@@ -156,16 +148,16 @@ T('★除外リストの各項目に「理由」と「戻す条件」が書か�
   }
 });
 /* ★★本数は 手で 書く＝★増やす 時に 必ず ここを 通る★★（意図を 示す 為）
-   ★3 → 5（2026-09-24）★ … ★倉庫の 管理の 鍵が 要る 道具を 2本 足した★
-     `kyuyo/tests/yameta-hito-mieru.mjs` ／ `kyuyo/tests/kesu-todoku.mjs`
-   ★訳（2本とも 同じ）★
+   ★3 → 4（2026-09-24）★ … ★倉庫の 管理の 鍵が 要る 道具を 1本 足した★
+     `kyuyo/tests/yameta-hito-mieru.mjs`
+   ★訳★
      ・★CI に 管理の 鍵が 無い★ ⇒ 載せても ★毎回 未測定★＝★「在るのに 0回」＝見張りでは ない★
      ・★後始末の delete が CI では 出来ない★ ⇒ ★走る たび 鍵と 紙が 増える★
        （★鍵は CASCADE で 紙を 道連れに するので 消せない★）
      ⇒ ★★自分で 決めた「CI に ゴミを 作らせない」を 自分で 破らない★★ */
-T('★除外は5本だけ（増えていたら、ここが赤になって気づける）', function () {
+T('★除外は4本だけ（増えていたら、ここが赤になって気づける）', function () {
   const n = Object.keys(EXCLUDED).length;
-  if (n !== 5) throw new Error(`除外が ${n} 本あります。増やすなら、この本数もここで更新して意図を示すこと: ` + Object.keys(EXCLUDED).join(', '));
+  if (n !== 4) throw new Error(`除外が ${n} 本あります。増やすなら、この本数もここで更新して意図を示すこと: ` + Object.keys(EXCLUDED).join(', '));
 });
 T('検査が空振りしていない（テストファイルを実際に数えている）', function () {
   if (covered.length < 50) throw new Error('CIが回しているテストが少なすぎます: ' + covered.length);
