@@ -292,6 +292,33 @@ export async function katazukeru(pg, opt) {
   michi.push('⑤画面に 残り ' + nokori + '人');
   if (nokori !== 0) return { ok: false, michi, naze: '画面に ' + nokori + '人 残っている' };
 
+  /* ★★⑤-2 ★客が 同時に 何を 見て いるか★を そのまま 出す★★（2026-09-24 指示役1）
+     ★なぜ★ … 消した 後 ★倉庫に 残る★事が 実際に 起きた（CI・f19ef04）。
+       `store.js` の 保存は ★5本の 帰り道★で `{ok:false}` を 返し、
+       アプリは その うち 4本を ★小さな 札（`#save-status`）★に 出す。
+       ★でも『削除しました』の 緑の toast は ★返事を 待たずに★ 出る★。
+     ⇒ ★★どの 道で 落ちたかは ★札の 字★に 出て いる★★ので ★そのまま 写す★。
+       ・何も 出ない ……………… ★未ログイン（no-user）★＝別の 話
+       ・「クラウドに保存済み…」 … conflict
+       ・「クラウド未保存（◯◯）」 … sync-check-failed ／ held-skipped など
+     ⇒ ★倉庫を 触りません／CI でも 出ます／1行★ */
+  try {
+    const fuda = await pg.evaluate(() => {
+      const s = document.getElementById('save-status');
+      const t = document.getElementById('app-toast');
+      return {
+        save: ((s && s.textContent) || '').trim(),
+        toast: ((t && t.textContent) || '').trim(),
+        mieru: !!(t && getComputedStyle(t).opacity !== '0'),
+      };
+    }).catch(() => null);
+    if (fuda) {
+      michi.push('⑤-2 客が 見て いる 字 … 小さな 札「' + (fuda.save || '★空★')
+        + '」／ toast「' + (fuda.toast || '★空★') + '」（今 見えて いる＝' + fuda.mieru + '）');
+      if (!fuda.save) michi.push('     ⇒ ★札が 空＝★保存の 警告は 出て いません★（未ログインか／保存が 通ったか）');
+    } else michi.push('⑤-2 ★客が 見て いる 字を 引けません★');
+  } catch (e) { michi.push('⑤-2 ★札を 引く 所で 転びました … ' + String((e && e.message) || e).slice(0, 80) + '★'); }
+
   /* ★★⑥開き直して もう一度 数える★★（2026-09-19 実測で 足した）
      ★「画面から 消えた」は「倉庫から 消えた」では ない★。
      ★実測★ … CI の `fuyo-ui` が ★2回 続けて★ 人を 残した
