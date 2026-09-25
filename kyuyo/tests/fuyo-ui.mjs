@@ -148,6 +148,52 @@ console.log('\n[fuyo-ui] 被扶養者(異動)届を ★実ブラウザで お客
 
 const ctx = await b.newContext({ viewport: { width: 1000, height: 1400 }, acceptDownloads: true });
 const pg = await ctx.newPage();
+
+/* ★★倉庫（`pay_companies`）への 要求を 全部 控える★★（2026-09-25・指示役1 と 詰めた 形）
+   ★なぜ★ … この 段で ★conflict の 覆いが 18〜27回★ 出る／★因は 未説明★
+     ・★開き直した その時は 覆い 0★ ⇒ ★前の 段から 持ち込んだ 物では ない★
+     ・★1つの job の 段は 順番に 走る＝重なれない★（段跨ぎは 折れた）
+     ・★CI（ci.yml）側に 06:27:21 に 書ける 段は 居ない★（指示役1 が 数えた）
+     ・★倉庫の 中に 仕掛け（trigger）も 関数も 0件★（指示役1 が 読むだけで 引いた）
+     ⇒ ★★残るのは 2つ★★
+        ㋐★読みが 返した 値が「自分が 書いたが まだ 返って いない」物★＝★自分で 自分を 弾いた★
+        ㋑★着いた 順が 逆★＝★基準が 古い 方に 戻った★
+   ★控える 物（4つ足し）★ … 出した順／着いた順／★送った `updated_at`★／★返った `updated_at`★
+   ★倉庫には 1文字も 書きません★（★見るだけ★）／★この 紙 1本だけ★（13本に 広げない） */
+const soukoLog = [];
+{
+  let dashi = 0, tsuki = 0;
+  const jiOf = (s) => { try { const o = JSON.parse(s || '{}'); return o.updated_at || (Array.isArray(o) && o[0] && o[0].updated_at) || ''; } catch (e) { return ''; } };
+  pg.on('request', (r) => {
+    try {
+      if (String(r.url()).indexOf('/rest/v1/pay_companies') < 0) return;
+      const n = ++dashi;
+      soukoLog.push({ n, muki: r.method(), dashi: Date.now(), okutta: jiOf(r.postData()), tsuita: 0, kaeri: '', ban: 0 });
+      r.__n = n;
+    } catch (e) { /* 控えで 転ばない */ }
+  });
+  pg.on('response', async (res) => {
+    try {
+      if (String(res.url()).indexOf('/rest/v1/pay_companies') < 0) return;
+      const n = res.request().__n;
+      const e = soukoLog.find((x) => x.n === n);
+      if (!e) return;
+      e.tsuita = Date.now(); e.ban = ++tsuki;
+      e.kaeri = jiOf(await res.text().catch(() => ''));
+    } catch (e) { /* 同上 */ }
+  });
+}
+/* ★覆いが 出た 所の 前後を 並べる★（★出しに 出さないと 数えた事に ならない★） */
+const soukoDasu = (naze, kazu = 8) => {
+  const a = soukoLog.slice(-kazu);
+  console.log('  ★倉庫への 要求（後ろ ' + a.length + '本）… ' + naze + '★');
+  a.forEach((x) => console.log('     出' + x.n + '／着' + (x.ban || '-') + '  ' + x.muki
+    + '  ' + (x.tsuita ? (x.tsuita - x.dashi) + 'ms' : '★まだ 返って いない★')
+    + '  送った「' + (x.okutta || '-') + '」  返った「' + (x.kaeri || '-') + '」'));
+  const gyaku = a.filter((x) => x.ban && x.n !== x.ban);
+  console.log('     ⇒ ★出した順と 着いた順が 違う 本数 … ' + gyaku.length + '★'
+    + (gyaku.length ? '（' + gyaku.map((x) => '出' + x.n + '→着' + x.ban).join('・') + '）' : ''));
+};
 /* ★★「前」は ★ログインの 前★に 数える（2026-09-14 実測で 直した）★★
    ログインの 後に 数えたら ★人 4→3（-1）★で 赤に なった。
    訳＝★ログインした 途端に 既定の『従業員 1』が 倉庫に 書かれる★（今日 見つけた 幻の人）。
@@ -475,6 +521,10 @@ try {
   if (kzOoi.conflict) {
     kzOsu = '★★覆いが 出て います（押せません）／★閉じません（答えません）★／箱の 字＝「' + kzOoi.ji + '」★★';
     console.log('       ★★押す 前に 止めました＝' + kzOsu + '★★');
+    /* ★★覆いが 出た その場で 倉庫への 要求を 並べる★★（★因を 数で 割る 為★）
+       見る 所 … ㋐★読みの 返りが「自分が 書いたが まだ 返って いない」物か★
+                 ㋑★出した順と 着いた順が 違うか★ */
+    soukoDasu('★覆いが 出た 所★');
   }
   if (!kzOoi.conflict) await pg.click(CARD + ' [data-kzadd]', { timeout: 8000 }).catch((e) => {
     /* ★★切った 事を ★数で★ 出す★★（2026-09-21＝400字では 足りなかった）
@@ -767,6 +817,13 @@ try {
   await katazuke();
   await b.close(); srv.close();
 }
+
+/* ★★最後にも 並べる★★＝覆いは 走りの あちこちで 出る（18〜27回）ので
+   ★1か所（押す前に 止めた 所）だけでは 足りない★。★全体の 本数も 一緒に 出す★。 */
+soukoDasu('★走りの 終わり★', 12);
+console.log('  ★倉庫への 要求 … 全 ' + soukoLog.length + '本'
+  + '／まだ 返って いない ' + soukoLog.filter((x) => !x.tsuita).length + '本'
+  + '／出した順と 着いた順が 違う ' + soukoLog.filter((x) => x.ban && x.n !== x.ban).length + '本★');
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed'
   + (mihakari ? ' ／ 🟡未測定 ' + mihakari : ''));
