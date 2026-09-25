@@ -2994,7 +2994,10 @@
   }
   // 賃金台帳(年間・従業員別・確定済み月から)
   function chinginDaichoHTML(L, year){
-    var CDm=CD(); var note='<p class="hint" style="margin:0 0 10px">「今月を確定」で保存した月だけ反映（労基法108条の賃金台帳）。<span class="help-i" data-help="chingindaicho">💡</span>横スクロール可。<button class="btn-ghost" data-choxlsx="daicho" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel</button></p>';
+    /* ★字も 直した（2026-09-25）★ … 前は「★『今月を確定』で保存した月だけ反映★」
+   ＝★1人ずつの「確認」は 出ない★という 意味だったが、司さんの 決めで ★1人ずつでも 出る★ように した。
+   ⇒ ★画面の 字と 実物を 食い違わせない★ */
+    var CDm=CD(); var note='<p class="hint" style="margin:0 0 10px">「確認済」にした人・月が反映されます（労基法108条の賃金台帳）。<span class="help-i" data-help="chingindaicho">💡</span>横スクロール可。<button class="btn-ghost" data-choxlsx="daicho" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel</button></p>';
     if(!L.length) return note+'<div class="card"><p class="hint">従業員がいません。</p></div>';
     var months=[]; for(var mm=1;mm<=12;mm++)months.push(mm);
     var cards=L.map(function(row){ var t=CDm.ledgerTotals(row), lab=CDm.ledgerLabels(row);
@@ -5660,9 +5663,17 @@
           e.target.checked=false;
           uiAlert(PW().prefMissingText());   /* ★文は lib 1か所★（同じ事を 2か所に 書かない・2026-09-03） */
           return; }
-        // ★確定前に現在値のスナップショットを保存してから凍結★(一括「今月を確定」と同じ順)。
-        //  先に確定するとsaveMonthlyPayslipsが確定済みをスキップし当月slipが未保存になる不具合を防ぐ。
-        try{ saveMonthlyPayslips(); }catch(_){} setConfirm(emc.id, true); renderInput(); persistSave(); return; }
+        /* ★★2026-09-25 直した（司さん「1人だけ修正の時も わざわざ 全員確定せないかんのか？」）★★
+           ★前★ … `saveMonthlyPayslips()`（★force 無し★）→ `setConfirm(true)` の順
+             ⇒ ★1回目は まだ 確定前なので `confirmed:false` で 書き★、
+               `persistSave()` の 末尾の 2回目は ★確定済みなので 凍結で スキップ★
+             ⇒ ★倉庫は `confirmed:false` の まま＝賃金台帳・年末調整に 出ない★（実測 8→8）
+             ★覚書には「一括『今月を確定』と 同じ順」と 書いて あったが、
+               ★一括は `force=true`・こちらは 無し★＝★順は 同じでも 結果が 違った★
+           ★今★ … ★先に 確定を 立て、その人 1人だけ 名指しで 書く★
+             ＝★`confirmed:true` で 倉庫に 届く★／★他の 人の 確定済みの 月には 触らない★
+           ★Web明細への 公開は これまで どおり「今月を確定」だけ★（★1人の 確認では 公開しない★） */
+        setConfirm(emc.id, true); try{ saveMonthlyPayslips(false, emc.id); }catch(_){} renderInput(); persistSave(); return; }
       if(e.target.dataset.reviewonly!=null){ state._reviewOnly=e.target.checked; renderInput(); return; }
       var ivw=e.target.closest('[data-ivw]'); if(ivw){ state.inputView=ivw.dataset.ivw==='table'?'table':'card'; renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); return; }
       /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
@@ -6117,7 +6128,19 @@
   function naoshitaKa(ym, id){ return !!(state._naoshita && state._naoshita[ym] && state._naoshita[ym][id]); }
   function naoshitaKesu(ym, id){ if(state._naoshita && state._naoshita[ym]) delete state._naoshita[ym][id]; }
 
-  function saveMonthlyPayslips(force){
+  /* ★★`hitoriId` を 渡すと ★その人 1人だけ★ 書く★★（2026-09-25 司さん
+       「1人だけ修正の時も わざわざ 全員確定せないかんのか？」）
+     ★前は どうだったか（実測 2026-09-24）★
+       個人の「確認」の 箱は `saveMonthlyPayslips()`（★force 無し★）を ★確定を 立てる 前★に 呼び、
+       その後 `persistSave()` の 末尾で もう一度 呼ばれるが ★今度は 確定済みなので 凍結で スキップ★
+       ⇒ ★倉庫の 明細は `confirmed:false` の まま 誰も 書き直さない★
+       ⇒ ★賃金台帳・年末調整・算定基礎届は `confirmed!==false` で 絞る★ので ★その人は 出ない★
+       ⇒ 実測＝★倉庫の 確定 8→8（2回とも）★／`confirmed=true` 18行は ★全部「今月を確定」の 分★
+     ★なぜ `force` を そのまま 使わないか★
+       `force` は ★その月の 全員★の 凍結を 解く＝★他の 人の 確定済みの 月まで 今の マスタで 上書き★する。
+       ⇒ ★1人 直したいだけなのに 他人の 紙が 変わる★＝★D1 で 止めた 事故に 戻る★
+     ⇒ ★★`hitoriId` の 人 ★だけ★ 凍結を 解いて 書く★★（他の 人は 今まで どおり） */
+  function saveMonthlyPayslips(force, hitoriId){
     if(!(window.Store&&Store.savePayslip)) return; var ym=state.month; if(!ym) return;
     var method=(state.company||{}).paymentDaysMethod||'';
     var conf=(state.confirmed&&state.confirmed[ym])||null;
@@ -6133,7 +6156,8 @@
            ・★打った 時だけ 印を 付ける★（`naoshitaShirushi`＝入力画面の 打ち込みの 所）
            ・★印が 在る 人だけ 凍結を 解く★
          ⇒ ★開くだけでは 今までどおり 動きません★（★測って 確かめた 事＝そのまま 守る★） */
-      if(!force && conf && conf[e.id] && !naoshitaKa(ym, e.id)) return; // 確定済み=凍結。★但し 人が 打った 人だけ 解く★
+      if(hitoriId && e.id!==hitoriId) return;   // ★1人だけ 書く時は その人 以外に 触らない★
+      if(!force && !(hitoriId && e.id===hitoriId) && conf && conf[e.id] && !naoshitaKa(ym, e.id)) return; // 確定済み=凍結。★但し 人が 打った 人／名指しの 1人だけ 解く★
       var _nao = !!(conf && conf[e.id] && naoshitaKa(ym, e.id));   /* ★確定済みを 人が 打った 人★ */
       var r=compute(e);
       var days=(window.PayrollCalc&&PayrollCalc.calcPaymentDays)?PayrollCalc.calcPaymentDays(e,ym,method):0;
