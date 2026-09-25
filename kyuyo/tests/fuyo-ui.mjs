@@ -79,10 +79,10 @@ if (SELF) {
     process.exit(0);
   }
 }
-let borrow, pwLaunch, hairu, osu, ooiWoMiru, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU, SHIKEN_NA;
+let borrow, pwLaunch, hairu, osu, ooiWoMiru, shizumaru, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU, SHIKEN_NA;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
-  ({ hairu, osu, ooiWoMiru } = await import('../../tests/_hairu.mjs'));
+  ({ hairu, osu, ooiWoMiru, shizumaru } = await import('../../tests/_hairu.mjs'));
   ({ kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA,
      kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU, shikenNa: SHIKEN_NA } = await import('./_souko-kazoeru.mjs'));
   ({ katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs'));
@@ -170,6 +170,32 @@ if (!h.haitta) {
   await b.close(); srv.close(); process.exit(2);
 }
 await machi(600);
+
+/* ★★本体に 入る 直前に 1回 開き直す★★（2026-09-25・指示役1 の 決め ㋐-2）
+   ★何が 起きて いたか★ … この 段で ★conflict の 覆いが 27回★（`448f588`）／22回（`a7cc4cc`）
+     ＝★今まで `toziru()` が 黙って 閉じて いた★物が 門で 見えるように なった。
+   ★★因は まだ 掴めて いません★★
+     ・私の 見立て「前の 段の 保存が 段を 跨いで 着く」 … ★折れた★
+       （1つの job の 段は ★順番に 走る＝重なれない★／閉じる前の 待ちは ★22回とも 要求 0回★）
+     ・「CI（ci.yml）と 並走」 … ★折れた★（06:27:21 の 時点で 書ける 段は CI 側に 居ない＝指示役1 が 数えた）
+     ⇒ ★★残る 書き手が 居ません＝㉕-2 は 未説明の まま★★（★閉じません★）
+   ★なぜ それでも 開き直すか★
+     ・★門は 効いて います★（27回 見えた）／★赤が 押しを 止めて います★
+     ・★開き直す＝客が 新しく 開いた 時と 同じ★＝★隠して いません★
+     ・★★開き直した ★後★に 覆いが 出れば 門が その場で 止めます★★＝★signal は 残る★
+   ★これは『直した』では ありません★＝★『試験が 前を 引きずらない 形に した』★ */
+{
+  const oMae = await ooiWoMiru(pg);
+  await pg.reload({ waitUntil: 'domcontentloaded' }).catch(() => null);
+  for (let i = 0; i < 60; i++) { if (await pg.$('.bn[data-scr="scr-settings"]')) break; await machi(250); }
+  const sh = await shizumaru(pg);
+  const oAto = await ooiWoMiru(pg);
+  console.log('  ★開き直した（訳＝前の 段の 続きを 持ち込まない／★因は 未説明の まま★）★'
+    + ' … 前の 覆い ' + (oMae.aru ? '在り「' + oMae.ji.slice(0, 40) + '」' : '無し')
+    + ' ／ ★後の 覆い ' + (oAto.aru ? '★在り「' + oAto.ji.slice(0, 40) + '」★' : '無し') + '★'
+    + ' ／ 静まるまで ' + sh.matta + 'ms（要求 ' + sh.yokyu + '回・'
+    + (sh.shizuka ? '静まりました' : '★上限に 当たった★') + '）');
+}
 
 try {
   /* ── 従業員を 1人 足す（★今 足した 人だけ 触る★） ────────────── */

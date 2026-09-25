@@ -111,7 +111,15 @@ async function shizukaNiTojiru(b, tag) {
         pg.on('request', mi); pg.on('requestfinished', ow); pg.on('requestfailed', ow);
       }
     }
-    if (!mita) return;
+    if (!mita) {
+      /* ★★面を 先に 閉じて いる 紙が 在る★★（2026-09-25 実測で 踏んだ）
+         `souko-machi` は `pg.close()` を 済ませてから `b.close()` を 呼ぶ
+         ⇒ ここに 来た 時は ★数える 面が 0枚★＝★待たずに 素通り★して いた
+         ⇒ ★出しに 1行も 出ない★＝「待った つもり」に なる
+         ⇒ ★面の `close()` も 包む★（下の `tsutsumu`）／ここでは ★素通りした事を 字で 残す★ */
+      console.log('  （' + tag + '：閉じる前の 待ち … ★面が 0枚＝面の 側で 待ち済み／待つ物が 無い★）');
+      return;
+    }
     const SHIZU = 1200, UE = 15000;
     let shizuka = false;
     while (Date.now() - t0 < UE) {
@@ -133,6 +141,35 @@ export async function launch(tag, type, opts, kind = 'webkit') {
     b.close = async function (...a) {
       await shizukaNiTojiru(b, tag);
       return moto(...a);
+    };
+    /* ★★面（page）の `close()` も 包む★★（2026-09-25）
+       ★訳★ … ブラウザを 閉じる 前に ★面を 先に 閉じる 紙★が 在る（`souko-machi`）
+         ⇒ ブラウザ側の 待ちは ★数える 面が 0枚★で 素通り＝★待って いない★
+       ⇒ ★面を 閉じる その時に 待つ★＝★自分の 保存を 置き去りに しない★ */
+    const motoCtx = b.newContext.bind(b);
+    b.newContext = async function (...a) {
+      const ctx = await motoCtx(...a);
+      const motoPg = ctx.newPage.bind(ctx);
+      ctx.newPage = async function (...b2) {
+        const pg = await motoPg(...b2);
+        let yokyu = 0, hashiri = 0, saigo = Date.now();
+        pg.on('request', (r) => { if (String(r.url()).indexOf('/rest/v1/') >= 0) { yokyu++; hashiri++; saigo = Date.now(); } });
+        const ow = (r) => { if (String(r.url()).indexOf('/rest/v1/') >= 0) { hashiri--; saigo = Date.now(); } };
+        pg.on('requestfinished', ow); pg.on('requestfailed', ow);
+        const motoClose = pg.close.bind(pg);
+        pg.close = async function (...c) {
+          const t0 = Date.now(); const SHIZU = 1200, UE = 15000; let shizuka = false;
+          while (Date.now() - t0 < UE) {
+            if (hashiri <= 0 && Date.now() - saigo >= SHIZU) { shizuka = true; break; }
+            await new Promise((r) => setTimeout(r, 120));
+          }
+          console.log('  （' + tag + '：面を 閉じる前に 静まるのを 待った … ' + (Date.now() - t0) + 'ms ／ 要求 '
+            + yokyu + '回 ／ ' + (shizuka ? '★静まりました★' : '★★上限に 当たった＝静まって いません★★') + '）');
+          return motoClose(...c);
+        };
+        return pg;
+      };
+      return ctx;
     };
     return b;
   } catch (e) {
