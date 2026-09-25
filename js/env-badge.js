@@ -91,6 +91,13 @@
     var h = bar.offsetHeight || 0;
     if (!h) return;
     d.body.style.paddingTop = h + 'px';
+    /* ★★帯の 高さを 字で 置いておく★★（2026-09-25）
+       ★訳★ … 下の 繰り返しは ★この 時 在る 物にしか 効きません★。
+         後から 描かれる 貼り付き（`renderInput()` が 作る「確認◯/◯名」の 帯など）は
+         ★帯の 裏に 隠れます★（09-25 実機の 絵で ★上の 帯が 切れて いた★）。
+       ⇒ ★`top:var(--envbar-h,0px)` と 書いて おけば ★後から 出来た 物も★ 下がる★
+         （★本番には 帯が 無い＝この 字も 付かない＝`0px`★＝何も 変わりません） */
+    try { d.documentElement.style.setProperty('--envbar-h', h + 'px'); } catch (e) { /* 古い browser */ }
     /* 画面の上に貼り付く物（appbar など）は、その下に来るよう top をずらす。
        ★動かすのは position:sticky だけ★
          fixed は「画面いっぱいに被せる物」（ログイン画面・小窓・下のナビ）に使われている。

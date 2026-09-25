@@ -2457,8 +2457,15 @@
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">'
         +'<b style="color:#333333;font-size:13px">当月の所定労働日数 '+sche+'日</b>'
         +'<span style="font-size:10.5px;color:#555555">（休みの曜日・祝日・会社休を除く）</span>'
-        +'<button class="cal-fill" data-fillsche="'+sche+'" style="margin-left:auto;padding:7px 12px;border:1px solid #3D9E72;background:#fff;color:#2E7D54;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer">全員の出勤を所定('+sche+'日)で埋める</button>'
-        +'<button data-csvimport="1" style="padding:7px 12px;border:1px solid #C8ECD8;background:#fff;color:#3D6B53;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer" title="他社勤怠システム/Excelの勤怠CSVを取り込む">📄 勤怠CSVを取り込む（出勤・労働時間）</button>'
+        /* ★★色を その場に 直書きするのを やめた（2026-09-25 司さん「色とか 使い方は ルール違反やないか？」）★★
+           ★台帳（`tests/button-uniform.test.mjs` の 頭）★ … ほか（白）＝白地・字 #2E7D54・枠 #C8ECD8
+           ★実測で 出た 違反 2つ★
+             ・「全員の出勤を…」 … 枠が ★#3D9E72（本命の 緑）★＝★白ボタンに 本命の 色を 使って いた★
+             ・「勤怠CSVを…」 … 字が ★#3D6B53★＝★台帳に 無い 顔★
+           ⇒ ★`btn-ghost` に 寄せる★＝★決まりの 表を 素通りする 直書きを 消す★
+           ★残す 直書きは 並べ方だけ★（`margin-left:auto`）＝★色・枠・角丸・字の 大きさは class に 任せる★ */
+        +'<button class="btn-ghost" data-fillsche="'+sche+'" style="margin-left:auto">全員の出勤を所定('+sche+'日)で埋める</button>'
+        +'<button class="btn-ghost" data-csvimport="1" title="他社勤怠システム/Excelの勤怠CSVを取り込む">📄 勤怠CSVを取り込む（出勤・労働時間）</button>'
       +'</div>'
       +'<div style="font-size:10.5px;color:#555555;margin-top:5px">祝日: '+esc(holStr)+'</div>'
       +'<div style="font-size:10px;color:#555555;margin-top:3px">出勤日数は所定を初期表示。各自で手修正できます（赤で止めません）。会社独自の休みは「設定▸会社の決まり」で追加できます。</div>'
@@ -2467,7 +2474,15 @@
     // 月の状態バッジ(下書き/確定済)=freee型「確定=凍結」の状態を可視化(UX🟠#7)。全員確認済=確定済(凍結)
     var monthConf=monthFixedInfo().fixed;
     var stateChip=monthConf?'<span class="mstate mstate-fixed" title="この月は確定=凍結済み。自動保存では上書きされません">🔒 確定済</span>':'<span class="mstate mstate-draft" title="下書き。編集すると自動保存されます">下書き</span>';
-    var progHTML='<div class="cal-box" style="background:#fff;border:1px solid #d4eae0;border-radius:12px;padding:10px 12px;margin-bottom:12px">'
+    /* ★★人が 何人 居ても「確認◯/◯名」は 上に 貼り付く★★（2026-09-25 司さん
+         「従業員が めちゃくちゃ 多くても 確定の ボタンとかの 所は 固定で 従業員欄だけ スクロールできるなら これでええ」）
+       ★測った（09-25・スマホ 420px）★ … 前は ★全部 `static`＝一緒に 流れる★／
+         人を 5人→30人に すると ★紙の 高さ 1,590px → 5,165px（窓の 約6倍）★
+       ★`position:sticky` に する 訳（★高さで 伸ばさない★）★
+         ＝★別の 転がる 箱を 作ると iOS の `100vh` の 穴を 踏む★
+           （[[feedback_gamen_no_takasa_de_nobasu_na]]＝中身が 収まっていても 空白へ 転がる）
+         ⇒ ★紙は 1枚の まま／帯だけ 貼り付く★＝人の 欄だけが 動いて 見える */
+    var progHTML='<div class="cal-box" style="position:sticky;top:var(--envbar-h,0px);z-index:30;background:#fff;border:1px solid #d4eae0;border-radius:12px;padding:10px 12px;margin-bottom:12px">'
       +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">'
         +stateChip
         +'<b style="color:#333333;font-size:13px">確認 '+cnt.done+'/'+cnt.total+'名</b>'
@@ -2506,7 +2521,10 @@
        ★理由を 灰色に するだけで 言わないのは ×★＝札の 中に そのまま 書く。
        ★案Dだけだと 遅い時に 人が 先に 手を 出せる★＝出た瞬間に 3737px 動いた のと 同じ事故。 */
     var soukoTomeru = soukoMachi() ? '読み込み中です' : (soukoNG() ? 'クラウドに つながりません' : '');
-    var confirmBtn='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 4px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映'))+'）</button>'
+    /* ★★「今月を確定」も 下に 貼り付く★★（2026-09-25 司さんの 条件・上の 帯と 同じ 訳）
+       ★背景を 必ず 持たせる★＝持たせないと ★下の 札が 透けて 字が 重なる★
+       ★`bottom:0`★＝窓の 一番 下／`z-index` は 上の 帯と 同じ 30 */
+    var confirmBtn='<div style="position:sticky;bottom:var(--bn-h,0px);z-index:29;background:#F0FAF4;border-top:1px solid #C8ECD8;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 0;padding:10px 0 8px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映'))+'）</button>'
       +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700;white-space:nowrap">✓ 確認済</span>')
       /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
          ★確定済みの 月にだけ 出す★＝押せない物を 並べない。
@@ -2514,7 +2532,20 @@
          ★確定済みかは monthFixedInfo() 1か所から 取る★＝入力画面の 札（下書き／確定済）や
          「Web明細で公開」の 可否と ★同じ物差し★を 使う（食い違わせない）。 */
       +(monthFixedInfo().fixed?'<button class="btn-ghost" data-undo-month style="padding:9px 14px;font-size:12px;white-space:nowrap">この月の確定を取り消す</button>':'')
-      +'<span style="flex:1 0 100%;font-size:10px;color:#555555"><b>保存は自動</b>です。「確定」は全員を確認済みにし、<b>賃金台帳・年末調整の集計対象</b>として今月を記録し、<b>従業員のWeb明細に自動公開</b>します（従業員はいつでも閲覧可・あとで直せます）。</span></div>';
+      /* ★★重い 事は ★アプリの 警告の 作法★で 出す★★（2026-09-25 司さん
+           「★ルール通り 警告のときみたいに やれや★」／「★どんなにやっとるか コード確認しろ★」）
+         ★コードを 見た★ … この アプリの 警告は ★全部 `.cr-warn`／`.sh-warn` の 箱★
+           （`app.js:1064` 休業手当・`:1201` 偽装請負・`:1525` 削除できない・`:2561` 最低賃金 …）
+           ＝★⚠ ＋ 橙（地 #fff8e1・字 #92500A・枠 #F4D8A8）の 箱★で 出す。
+         ★前★ … この 説明は ★10px の 灰色（#555555）の 字★だった
+           ＝「全員を 確認済みに する」「★従業員の Web明細に 自動公開★」という
+             ★押したら 客の 外へ 出る 事★を ★一番 目立たない 字★で 書いていた。
+           ＝★『理由を 灰色に するだけで 言わないのは ×』（2026-09-05 指示役の 裁定）★の 同じ型。
+         ★今★ … ★同じ 箱（`.cr-warn`）に 寄せる★＝★他の 警告と 同じ 顔★
+           （★新しい 見た目を 作って いません＝台帳を 増やさない★） */
+      +'<div class="cr-warn" style="flex:1 0 100%;margin-top:0">⚠ 「確定」を押すと、<b>その月の全員が確認済み</b>になり、'
+      +'<b>賃金台帳・年末調整の集計対象</b>として記録され、<b>従業員のWeb明細に自動公開</b>されます'
+      +'（従業員はいつでも閲覧可・あとで直せます）。<b>保存は自動</b>なので、確定しなくても入力は消えません。</div></div>';
     /* ★倉庫の 答えが 来るまで 人の 一覧を 描かない★（案D）＝★二度 描かないので 1pxも 動かない★
        ★空の 一覧を 出さない＝「0人」に 見せない★（読み込み中／つながらない と はっきり 出す） */
     if(soukoMachi()||soukoNG()){
@@ -2996,7 +3027,7 @@
   function chinginDaichoHTML(L, year){
     /* ★字も 直した（2026-09-25）★ … 前は「★『今月を確定』で保存した月だけ反映★」
    ＝★1人ずつの「確認」は 出ない★という 意味だったが、司さんの 決めで ★1人ずつでも 出る★ように した。
-   ⇒ ★画面の 字と 実物を 食い違わせない★ */
+   ⇒ ★画面の 字と 実物を 食い違わせない★（[[feedback_kaeta_tsumori_wa_dashi_no_ji_de_tashikameru]]） */
     var CDm=CD(); var note='<p class="hint" style="margin:0 0 10px">「確認済」にした人・月が反映されます（労基法108条の賃金台帳）。<span class="help-i" data-help="chingindaicho">💡</span>横スクロール可。<button class="btn-ghost" data-choxlsx="daicho" style="margin-left:8px;padding:4px 10px;font-size:11px">Excel</button></p>';
     if(!L.length) return note+'<div class="card"><p class="hint">従業員がいません。</p></div>';
     var months=[]; for(var mm=1;mm<=12;mm++)months.push(mm);
@@ -6128,8 +6159,7 @@
   function naoshitaKa(ym, id){ return !!(state._naoshita && state._naoshita[ym] && state._naoshita[ym][id]); }
   function naoshitaKesu(ym, id){ if(state._naoshita && state._naoshita[ym]) delete state._naoshita[ym][id]; }
 
-  /* ★★`hitoriId` を 渡すと ★その人 1人だけ★ 書く★★（2026-09-25 司さん
-       「1人だけ修正の時も わざわざ 全員確定せないかんのか？」）
+  /* ★★`hitoriId` を 渡すと ★その人 1人だけ★ 書く★★（2026-09-25 司さん「1人だけ修正の時も わざわざ 全員確定せないかんのか？」）
      ★前は どうだったか（実測 2026-09-24）★
        個人の「確認」の 箱は `saveMonthlyPayslips()`（★force 無し★）を ★確定を 立てる 前★に 呼び、
        その後 `persistSave()` の 末尾で もう一度 呼ばれるが ★今度は 確定済みなので 凍結で スキップ★
@@ -6416,6 +6446,23 @@
   // 変更を自動保存(入力/選択/クリック後・離脱時)
   ['input','change','click'].forEach(function(ev){ document.addEventListener(ev, persistSaveDebounced, true); });
   window.addEventListener('beforeunload', persistSave);
+  /* ★★下の 帯（`.botnav`）の 高さを 字で 置く★★（2026-09-25）
+     ★訳★ … 下に 貼り付く 物（`bottom:0`）は ★下の 帯の 裏に 回ります★
+       （09-25 実測＝「今月を確定」の 下の 警告の 箱が ★帯に 切られて いた★）
+     ★高さは 決め打ちに しない★ … `.botnav` は `padding-bottom:env(safe-area-inset-bottom)`＝
+       ★端末と 画面の 幅で 変わる★（門の 出しでも 帯 53／54／59px と 違って いた）
+     ⇒ ★実物を 測って `--bn-h` に 入れる★／★幅が 変わったら 測り直す★
+     ★`--envbar-h`（テスト環境の 帯）と 同じ 手★＝1か所で 測って 字に する。 */
+  (function(){
+    function bnFit(){
+      var n=document.querySelector('.botnav');
+      var h=n?Math.round(n.getBoundingClientRect().height):0;
+      try{ document.documentElement.style.setProperty('--bn-h', h+'px'); }catch(_){ /* 古い browser */ }
+    }
+    bnFit();
+    window.addEventListener('resize', bnFit);
+    if(window.visualViewport) window.visualViewport.addEventListener('resize', bnFit);
+  })();
   if(location.hash.indexOf('emp')>=0){ var b=$('#set-seg .seg-b[data-set="emp"]'); if(b)b.click(); if(state.employees[0]){state.open[state.employees[0].id]=true;} renderEmpMaster(); }
   if(location.hash==='#emphelp'){ openHelp('fuyou'); }
   if(location.hash==='#carcommute'){ var ec=state.employees[0]; if(ec){ec.commuteType='car';ec.commuteKm='12';ec.commute='15000';state.open[ec.id]=true;} var b2=$('#set-seg .seg-b[data-set="emp"]'); if(b2)b2.click(); renderEmpMaster(); }
