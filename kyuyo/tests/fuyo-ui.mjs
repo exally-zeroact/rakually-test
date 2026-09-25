@@ -38,6 +38,114 @@ const SELF = process.argv.includes('--self-test');
 /* ★指紋の列を 数で 書かない★＝lib の 列番地を 写す
    `kyuyo/lib/todokede-csv.js:1114` r[9]  ＝ 10 氏名（漢字）…★被保険者★
    `kyuyo/lib/todokede-csv.js:1125` r[20] ＝ 21 異動の別 */
+/* ★★倉庫への 要求を ★４つに 分ける★★（2026-09-25・指示役1 の 叩き 㑐）
+   ★なぜ 関数に 出したか★ … ★★門に 空振り止めを 付ける 為★★
+     ★前は 走りの 中で `filter` を 直に 書いて いた★
+     ⇒ ★★実ブラウザを 走らせないと 門が 仕事を した 所を 見られない★★
+     ⇒ ★外に 出して ★偽の 控えで 確かめる★（★CI でも 毎回 走る★）
+
+   ★★分け方は ★実測★ で 決めた（★当て推量 0★）★★
+     小さな 台を 立てて WebKit で 3通り 測った（09-25）
+       ★普通に 返した★ … `request` ／ `response` ／ `requestfinished`
+       ★`route.abort()` で 落とした★ … `request` ／ ★`requestfailed`★ だけ
+                                    （★★`response` は 来ない★★）
+       ★`route` を 握って 何も しない（宙吊り）★ … `request` だけ
+                                    （★★３つとも 来ない★★）
+     ⇒ ★★前の 控え（`response` だけ）は ★失敗を「返って いない」と 数えて いた★★★
+     ⇒ ★包み（`scripts/_borrow-playwright.mjs:111`）は ★３つ 聞いて いた★
+        ＝★正しい 形が 同じ repo に 在った★
+
+   ★４つ★
+     㑕★返った★ … `response` が 来た（`tsuita`）
+     㑖★失敗した★ … `requestfailed`（`shippai`）★これは app の 話★
+     㑗★控えの 漏れ★ … 終わった（`owari`）のに 中身を 拾えて いない
+     㑘★★本当に 黙って いる★★ … ★３つとも 来て いない＝本物の 異常★ */
+export function wakeru(log) {
+  const a = Array.isArray(log) ? log : [];
+  const kaetta = a.filter((x) => x && x.tsuita);
+  const shippai = a.filter((x) => x && !x.tsuita && x.shippai);
+  const more = a.filter((x) => x && !x.tsuita && !x.shippai && x.owari);
+  const damari = a.filter((x) => x && !x.tsuita && !x.shippai && !x.owari);
+  return { zen: a.length, kaetta, shippai, more, damari };
+}
+
+/* ★★着いた 順が 差し戻った 本数★★（2026-09-25）
+   ★前は `x.n !== x.ban` を「逆順」と 呼んで いた★
+   ⇒ CI `36151979249` で ★148本★ と 出たが、実は
+      ★★早い 所で 1本 欠けたので 後ろの 着いた番が 全部 1つ ずれただけ★★
+   ⇒ ★★『148本 逆順』は ★意味の 無い 数★★★＝★正しく 測れて しまって いた★
+   ⇒ ★着いた 物 同士で 見る＝★番が 差し戻ったか★ だけ */
+export function gyakuJun(log) {
+  const tsuita = (Array.isArray(log) ? log : []).filter((x) => x && x.ban);
+  let kazu = 0, mae = 0;
+  const ji = [];
+  tsuita.forEach((x) => {
+    if (x.ban < mae) { kazu++; ji.push('出' + x.n + '→着' + x.ban); }
+    mae = Math.max(mae, x.ban);
+  });
+  return { kazu, ji };
+}
+
+/* ★★保存が 重なって いるか★★（2026-09-25・★新しい 見立て★）
+   ★なぜ★ … 手元でも 覆いが 出る ように なった回の 数（実測）
+     ★全 82本／返った 82本／失敗 0／黙り 0／差し戻り 0★
+     ⇒ ★★『返らない』は 因で は ありません★★（★見立てを 1つ 捨てた★）
+   ★次の 見立て★ … ★★保存(POST)が ２本 同時に 飛んで いる★★
+     ⇒ ２本目が ★１本目の 前の `updated_at`★ を 持って 行く
+     ⇒ ★倉庫が 弾く＝★覆い★
+     ★app.js:6393★ `['input','change','click'].forEach(… persistSaveDebounced, true)`
+       ＝★どれを 押しても 保存が 予約される★
+       ⇒ ★人が 増えると 押す 数も 描く 時間も 増える★
+   ★測る 物★ … ★★`dashi`～`owari` の 窓が 重なった POST の 組★★
+   ★返す 物★ … `kumi`（重なった 組）／`saidai`（同時に 飛んで いた 最大数） */
+export function kasanari(log, muki) {
+  const a = (Array.isArray(log) ? log : [])
+    .filter((x) => x && x.dashi && (!muki || x.muki === muki))
+    .slice().sort((p, q) => p.dashi - q.dashi);
+  const owariOf = (x) => x.owari || x.tsuita || 0;
+  const kumi = [];
+  for (let i = 0; i < a.length; i++) {
+    const o = owariOf(a[i]);
+    if (!o) continue;                       /* ★終わりが 分からない 物は 数えない★ */
+    for (let j = i + 1; j < a.length; j++) {
+      if (a[j].dashi >= o) break;           /* ★並んで いるので これ以降は 重ならない★ */
+      kumi.push({ a: a[i].n, b: a[j].n, kasanari: o - a[j].dashi });
+    }
+  }
+  /* ★同時に 飛んで いた 最大数★＝★出たら ＋1／終わったら ー1 を 時刻順に 見る★ */
+  const fushi = [];
+  a.forEach((x) => { const o = owariOf(x); fushi.push([x.dashi, 1]); if (o) fushi.push([o, -1]); });
+  fushi.sort((p, q) => (p[0] - q[0]) || (p[1] - q[1]));
+  let ima = 0, saidai = 0;
+  fushi.forEach(([, d]) => { ima += d; saidai = Math.max(saidai, ima); });
+  return { honsu: a.length, kumi, saidai };
+}
+
+/* ★★失敗を ★棚ごと・向きごと★ に 数える★★（2026-09-25・指示役1 の ②）
+   ★なぜ 門に するか★
+     `app.js:2169` `function saveFailed(){ _saveFailN++; … }`
+     `app.js:2173` `toast(_saveFailN + '★名分を保存できませんでした
+                    （台帳・年末調整に入っていません）。
+                    もう一度 確定してください。★')`
+     ⇒ ★★アプリは 自分で 数えて 客に 出して いる★★
+     ⇒ ★のに 試験は それを 見て いなかった★＝★見張りの 穴★
+   ★実測（09-25・手元・従業員 11人）★
+     ★全 444本／失敗 17本／うち ★明細の 保存(POST) 3本★／★試験は 緑★★
+   ★この 門を 入れると★ … ★★直すまで テスト線は 赤の まま★★
+     （★但し その 赤は 本物＝★客に 出る 字が 実際に 出て いる★）
+   ★新しい 測りは 足して いません★＝★同じ 控えの 数を 判じに 使うだけ★ */
+export function shippaiWakeru(log) {
+  const a = (Array.isArray(log) ? log : []).filter((x) => x && !x.tsuita && x.shippai);
+  const kaki = a.filter((x) => x.muki !== 'GET' && x.muki !== 'HEAD');
+  const tana = {};
+  a.forEach((x) => {
+    const k = (x.tana || '?') + ' ' + x.muki;
+    tana[k] = (tana[k] || 0) + 1;
+  });
+  return { zen: a.length, kaki, kakiKazu: kaki.length, tana,
+    ji: Object.keys(tana).sort().map((k) => k + ' ' + tana[k] + '本').join(' ／ ') };
+}
+
 export const RETSU_NA = 9;
 export const RETSU_IDOU = 20;
 
@@ -154,6 +262,78 @@ if (SELF) {
       csvMiru(kiso + CR, '567890').jibun === 0);
     iu('★探した 所を 出して いる', /氏名漢字の 欄（10列目）/.test(mb.sagashitaTokoro));
   }
+  /* ★★門の 空振り止め★★（2026-09-25・指示役1「『入れた』と 書く 前に『仕事を した』所を 1回 見ろ」）
+     ★なぜ ★偽の 控え★ で やるか★ … ★実ブラウザでは ★手元で 覆いが 出ない★★
+       ⇒ ★失敗 0／黙り 0 に なる★＝★★門が 仕事を した 所を 一度も 見て いない★★
+       ⇒ ★外に 出した `wakeru` に ★４通り 全部★ を 食わせる★
+     ★分け方の 根拠は 実測★（★abort→`requestfailed` だけ／宙吊り→３つとも 来ない★） */
+  {
+    const nise = [
+      { n: 1, ban: 1, muki: 'GET', tsuita: 1, owari: 1 },                    /* ★返った★ */
+      { n: 2, ban: 0, muki: 'POST', tsuita: 0, shippai: 'net::ERR_FAILED', owari: 1 }, /* ★失敗★ */
+      { n: 3, ban: 0, muki: 'GET', tsuita: 0, owari: 1 },                    /* ★控えの 漏れ★ */
+      { n: 4, ban: 0, muki: 'POST', tsuita: 0 },                             /* ★黙って いる★ */
+    ];
+    const w = wakeru(nise);
+    iu('★全 4本と 数える', w.zen === 4);
+    iu('★返ったは 1本', w.kaetta.length === 1);
+    iu('★★失敗を 「返って いない」と 数えない（失敗 1本）★★', w.shippai.length === 1);
+    iu('★控えの 漏れを 別に 数える（1本）', w.more.length === 1);
+    iu('★★本当に 黙って いるは 1本だけ★★', w.damari.length === 1 && w.damari[0].n === 4);
+    iu('★★前の 数え方なら 「未返 3本」と 出て いた★★',
+      nise.filter((x) => !x.tsuita).length === 3);
+    iu('★空なら 全部 0', wakeru([]).damari.length === 0 && wakeru([]).zen === 0);
+    iu('★配列でなくても 転ばない', wakeru(null).zen === 0);
+    /* ★逆順★ … ★欠けた 分だけ ずれて も 「順は 保たれて いる」と 出るか★ */
+    const zure = [{ n: 1, ban: 0 }, { n: 2, ban: 1 }, { n: 3, ban: 2 }, { n: 4, ban: 3 }];
+    iu('★★１本 欠けて 番号が ずれて も 逆順は 0★★', gyakuJun(zure).kazu === 0);
+    iu('★参考の「番号の ずれ」なら 3本と 出る（★意味の 無い 数★）',
+      zure.filter((x) => x.ban && x.n !== x.ban).length === 3);
+    const honto = [{ n: 1, ban: 2 }, { n: 2, ban: 1 }];
+    iu('★★本当に 差し戻ったら 1本と 出る（空振りで ない）★★', gyakuJun(honto).kazu === 1);
+    /* ★★重なり★★ … ★新しい 見立ての 物差し★
+       ★当てる 場所を 1つずつ 試す★＝★重ならない 組で 0 が 出るか★ を 先に 見る */
+    {
+      /* ★重ならない★ … 1本目が 終わって から 2本目を 出して いる */
+      const betsu = [{ n: 1, muki: 'POST', dashi: 100, owari: 200 },
+        { n: 2, muki: 'POST', dashi: 200, owari: 300 }];
+      const k1 = kasanari(betsu, 'POST');
+      iu('★重ならない 組は 0組／同時は 最大 1本', k1.kumi.length === 0 && k1.saidai === 1);
+      /* ★重なる★ … 1本目が 飛んで いる 途中で 2本目を 出して いる */
+      const kasa = [{ n: 1, muki: 'POST', dashi: 100, owari: 300 },
+        { n: 2, muki: 'POST', dashi: 250, owari: 400 }];
+      const k2 = kasanari(kasa, 'POST');
+      iu('★★重なったら 1組と 出る（空振りで ない）★★', k2.kumi.length === 1);
+      iu('★重なった 長さを 出す（50ms）', k2.kumi[0] && k2.kumi[0].kasanari === 50);
+      iu('★★同時に 飛んで いた 最大は 2本★★', k2.saidai === 2);
+      iu('★読み(GET)を 数えない（向きを 指定できる）',
+        kasanari([{ n: 1, muki: 'GET', dashi: 100, owari: 300 },
+          { n: 2, muki: 'GET', dashi: 200, owari: 400 }], 'POST').honsu === 0);
+      iu('★終わりが 分からない 物は 数えない',
+        kasanari([{ n: 1, muki: 'POST', dashi: 100 }, { n: 2, muki: 'POST', dashi: 150, owari: 200 }], 'POST')
+          .kumi.length === 0);
+      iu('★空なら 0', kasanari([], 'POST').saidai === 0 && kasanari(null).honsu === 0);
+    }
+    /* ★★失敗を 棚ごとに 数える★★＝★門の 空振り止め★ */
+    {
+      const nise2 = [
+        { n: 1, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x' },
+        { n: 2, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x' },
+        { n: 3, tana: 'pay_payslips', muki: 'GET', tsuita: 0, shippai: 'x' },
+        { n: 4, tana: 'pay_companies', muki: 'GET', tsuita: 0, shippai: 'x' },
+        { n: 5, tana: 'pay_emp_profile', muki: 'HEAD', tsuita: 0, shippai: 'x' },
+        { n: 6, tana: 'pay_payslips', muki: 'POST', tsuita: 1 },   /* ★返った＝数えない★ */
+      ];
+      const sw = shippaiWakeru(nise2);
+      iu('★失敗は 5本（返った 1本は 数えない）', sw.zen === 5);
+      iu('★★保存(POST)の 失敗は 2本★★', sw.kakiKazu === 2);
+      iu('★HEADを 保存と 数えない', sw.kaki.every((x) => x.muki === 'POST'));
+      iu('★棚ごとに 出す', /pay_payslips POST 2本/.test(sw.ji) && /pay_companies GET 1本/.test(sw.ji));
+      iu('★★保存の 失敗が 0なら 0と 出る（空振りで ない）★★',
+        shippaiWakeru([{ n: 1, tana: 'pay_payslips', muki: 'GET', tsuita: 0, shippai: 'x' }]).kakiKazu === 0);
+      iu('★空なら 0', shippaiWakeru([]).zen === 0 && shippaiWakeru(null).kakiKazu === 0);
+    }
+  }
   console.log(ng ? '\n★自己確認 ' + ng + '件 おかしい★' : '\n自己確認 OK');
   process.exit(ng ? 1 : 0);
 }
@@ -257,22 +437,67 @@ const soukoLog = [];
 {
   let dashi = 0, tsuki = 0;
   const jiOf = (s) => { try { const o = JSON.parse(s || '{}'); return o.updated_at || (Array.isArray(o) && o[0] && o[0].updated_at) || ''; } catch (e) { return ''; } };
+  /* ★★見る 幅を 広げた★★（2026-09-25）
+     ★前は `pay_companies` だけ★ ⇒ ★★遅い 方（`pay_employees`）を 見て いなかった★★
+     ★`store.js:197` の doSave は ★３つ 同時に 出す★
+        㑕 pay_companies を 書く（★これが 先に 終わる★）
+        㑖 pay_employees を ★全員★ 書く（★人が 増えると 遅い★）
+        㑗 差分削除の 数え
+     ★`:212` 控えを 新しく するのは ★３つ 全部 終わって から★
+     ⇒ ★★さ㑙の 途中に 次の 保存の 「今の updated_at を 読む」が 入ると
+        ★自分が 書いた 値★を「別の端末」と 呼ぶ★★
+     ⇒ ★★だから ★棚の 名★ も 控える★★ */
+  const tanaOf = (u) => {
+    const m = String(u).match(/\/rest\/v1\/(pay_[a-z_]+)/);
+    return m ? m[1] : '';
+  };
   pg.on('request', (r) => {
     try {
-      if (String(r.url()).indexOf('/rest/v1/pay_companies') < 0) return;
+      if (!tanaOf(r.url())) return;
       const n = ++dashi;
-      soukoLog.push({ n, muki: r.method(), dashi: Date.now(), okutta: jiOf(r.postData()), tsuita: 0, kaeri: '', ban: 0 });
+      soukoLog.push({ n, tana: tanaOf(r.url()), muki: r.method(), dashi: Date.now(),
+        okutta: jiOf(r.postData()), tsuita: 0, kaeri: '', ban: 0 });
       r.__n = n;
     } catch (e) { /* 控えで 転ばない */ }
   });
   pg.on('response', async (res) => {
     try {
-      if (String(res.url()).indexOf('/rest/v1/pay_companies') < 0) return;
+      if (!tanaOf(res.url())) return;
       const n = res.request().__n;
       const e = soukoLog.find((x) => x.n === n);
       if (!e) return;
-      e.tsuita = Date.now(); e.ban = ++tsuki;
+      e.tsuita = Date.now(); e.ban = ++tsuki; e.jotai = res.status();
       e.kaeri = jiOf(await res.text().catch(() => ''));
+    } catch (e) { /* 同上 */ }
+  });
+  /* ★★★失敗と 終了も 拾う★★★（2026-09-25・指示役1 の 叩き 㐖から）
+     ★何が 起きて いたか★
+       CI `36151979249` で ★「全 151本／まだ 返って いない 1本」★ と 出た。
+       ★しかし この 控えは ★`response` だけ★ を 見て いた★。
+       ★Playwright は ★失敗した 要求に `response` を 出しません★（`requestfailed`）
+       ⇒ ★★失敗 1本を 「返って いない」と 数えて いた 恐れ★★
+       ⇒ ★★つまり これは ★app の 話でなく 私の 道具の 話★かも しれない★★
+     ★包みは 正しく 見て いた★ … `scripts/_borrow-playwright.mjs:111`
+       `pg.on('request', mi); pg.on('requestfinished', ow); pg.on('requestfailed', ow);`
+       ⇒ ★★自分の repo の 中に 正しい 形が 在った★★
+          ＝[[feedback_aru_noni_yondeinai]]（★在るのに 呼んで いない★）
+     ★これで 3つに 分かれる★
+       ★返った★（`response`）／★失敗した★（`requestfailed`）／★本当に 黙って いる★ */
+  pg.on('requestfailed', (r) => {
+    try {
+      if (!tanaOf(r.url())) return;
+      const e = soukoLog.find((x) => x.n === r.__n);
+      if (!e) return;
+      e.shippai = (r.failure() && r.failure().errorText) || '★訳が 取れない★';
+      e.owari = Date.now();
+    } catch (e) { /* 控えで 転ばない */ }
+  });
+  pg.on('requestfinished', (r) => {
+    try {
+      if (!tanaOf(r.url())) return;
+      const e = soukoLog.find((x) => x.n === r.__n);
+      if (!e) return;
+      e.owari = Date.now();
     } catch (e) { /* 同上 */ }
   });
 }
@@ -280,12 +505,109 @@ const soukoLog = [];
 const soukoDasu = (naze, kazu = 8) => {
   const a = soukoLog.slice(-kazu);
   console.log('  ★倉庫への 要求（後ろ ' + a.length + '本）… ' + naze + '★');
-  a.forEach((x) => console.log('     出' + x.n + '／着' + (x.ban || '-') + '  ' + x.muki
+  a.forEach((x) => console.log('     出' + x.n + '／着' + (x.ban || '-') + '  ' + (x.tana || '?') + ' ' + x.muki
     + '  ' + (x.tsuita ? (x.tsuita - x.dashi) + 'ms' : '★まだ 返って いない★')
     + '  送った「' + (x.okutta || '-') + '」  返った「' + (x.kaeri || '-') + '」'));
-  const gyaku = a.filter((x) => x.ban && x.n !== x.ban);
-  console.log('     ⇒ ★出した順と 着いた順が 違う 本数 … ' + gyaku.length + '★'
-    + (gyaku.length ? '（' + gyaku.map((x) => '出' + x.n + '→着' + x.ban).join('・') + '）' : ''));
+  /* ★★逆順は ★返って きた 物 同士★ で 比べる★★（2026-09-25 に 自分で 踏んだ）
+     ★何が 起きたか★ … CI `36151979249` で
+       ★全 151本／まだ 返って いない ★1本★／出した順と 着いた順が 違う ★148本★★
+       ⇒ ★★『148本 逆順』は ★意味の 無い 数★★＝★1本が 返らなかったので
+          その後ろの 着いた番が 全部 1つ ずれただけ★（`x.n !== x.ban` が 全部 真に なる）
+       ⇒ ★★本当の 合図は ★返って いない 1本★★★＝★そちらを 名指しで 出す★
+     ★直し方★ … ★着いた 物だけ 取り出し、★出した順に 並べた時 着いた番が 昇順か★を 見る★
+       ＝★1本 抜けても『順は 保たれて いる』と 出る★
+     ★参考で 出す★ … `n` と `ban` の ずれ（★これは 抜けの 数と 同じに なる★）
+     [[feedback_imi_no_nai_kazu_wa_ichiban_mitsukenikui]]（★正しく 測れて しまう★） */
+  const tsuita = a.filter((x) => x.ban);
+  let gyaku = 0, mae = 0;
+  const gyakuJi = [];
+  tsuita.forEach((x) => {
+    if (x.ban < mae) { gyaku++; gyakuJi.push('出' + x.n + '→着' + x.ban); }
+    mae = Math.max(mae, x.ban);
+  });
+  console.log('     ⇒ ★★着いた 順が 差し戻った 本数 … ' + gyaku + '★★'
+    + (gyaku ? '（' + gyakuJi.join('・') + '）' : '（★順は 保たれて います★）')
+    + '／参考：番号の ずれ ' + a.filter((x) => x.ban && x.n !== x.ban).length + '本'
+    + '（★抜けた 本数と 同じに なる＝★逆順では ありません★）');
+  /* ★★返って いない 物を ★全部★ 名指しで 出す★★
+     ★なぜ★ … ★後ろ 8本しか 出して いなかった★ので
+       ★早い 所で 抜けた 1本が ★一度も 出て こなかった★★
+     ★見立て★ … ★保存(POST)が 返らないと 手元の 控えが 古い まま★
+       ⇒ ★倉庫の `updated_at` は 進む★ ⇒ ★次の 保存が 弾かれる＝覆い★
+       ★これは ★見立て★です（★この 出しで 確かめる★） */
+  /* ★★「返って いない」を ★失敗★ と ★本当に 黙って いる★ に 分ける★★
+     ★前は 一緒だった★＝★失敗を「黙って いる」と 呼んで いた恐れ★
+     ★時刻を 出す★＝★★どの 段で 出たかを 出しの 他の 行と 突き合わせられる★★
+       （★段の 名を 担ぎ 回すと 控えが 太る＝★時刻なら ログで 当たる★） */
+  const jikoku = (ms) => new Date(ms).toISOString().slice(11, 23);
+  const shippai = soukoLog.filter((x) => !x.tsuita && x.shippai);
+  const damari = soukoLog.filter((x) => !x.tsuita && !x.shippai && !x.owari);
+  const owattaNoni = soukoLog.filter((x) => !x.tsuita && !x.shippai && x.owari);
+  const daseru = (mei, a, soe) => {
+    if (!a.length) { console.log('     ★' + mei + ' … 0本★'); return; }
+    console.log('     ★★' + mei + ' … ' + a.length + '本★★' + (soe || ''));
+    a.forEach((x) => console.log('        ★出' + x.n + '  ★' + (x.tana || '?') + '★ ' + x.muki
+      + '  出した 時刻 ' + jikoku(x.dashi)
+      + '  送ってから ' + (Date.now() - x.dashi) + 'ms'
+      + (x.shippai ? '  ★訳「' + x.shippai + '」★' : '')
+      + '  送った「' + (x.okutta || '-') + '」★'
+      + (x.muki === 'POST' || x.muki === 'PATCH'
+        ? '（★★保存★＝★返らないと 手元の 控えが 古い まま★★）'
+        : '（★読み＝★返らなくても 控えは 古く なりません★）')));
+  };
+  /* ★★★決め手★★★ … ★この 瞬間 ★何が 飛んで いたか★
+     ★見立て★ … ★★`pay_employees` の 書きが まだ 終わって いない のに
+        `pay_companies` の 読みが 入って いる★★
+     ⇒ ★その 読みが 返す 値は ★自分が さっき 書いた 値★
+     ⇒ ★控えは まだ 旧い＝★自分で 自分を 弾く★
+     ★外れ方★ … ★飛んで いる 物が 0本なら この 見立ては 死ぬ★ */
+  {
+    const ima = Date.now();
+    const tobu = soukoLog.filter((x) => !x.owari && !x.tsuita);
+    const saikin = soukoLog.filter((x) => x.owari && ima - x.owari < 3000);
+    console.log('     ★★今 飛んで いる 要求 … ' + tobu.length + '本★★'
+      + (tobu.length ? '：' + tobu.map((x) => '出' + x.n + ' ' + (x.tana || '?') + ' ' + x.muki).join('・') : '')
+      + '／★直前 3秒に 終わった … ' + saikin.length + '本★'
+      + (saikin.length ? '：' + saikin.slice(-6).map((x) => '出' + x.n + ' ' + (x.tana || '?') + ' ' + x.muki).join('・') : ''));
+    /* ★★自分で 自分を 弾いて いるか★★
+       ★最後の `pay_companies` の 読みが 返した 値★ と
+       ★その 前の `pay_companies` の 書きが 送った 値★ が 同じなら
+       ⇒ ★★倉庫に 入って いるのは ★自分の 書き★＝別の 端末では ない★★ */
+    const kai = soukoLog.filter((x) => x.tana === 'pay_companies');
+    const saigoYomi = kai.filter((x) => x.muki === 'GET' && x.kaeri).slice(-1)[0];
+    const maeKaki = saigoYomi
+      ? kai.filter((x) => x.muki !== 'GET' && x.okutta && x.n < saigoYomi.n).slice(-1)[0] : null;
+    if (saigoYomi && maeKaki) {
+      const onaji = String(saigoYomi.kaeri).slice(0, 23) === String(maeKaki.okutta).slice(0, 23);
+      console.log('     ★★倉庫に 入って いる 値は 誰の 物か★★'
+        + '：最後の 読み（出' + saigoYomi.n + '）が 返した「' + saigoYomi.kaeri + '」'
+        + '／その 前の 書き（出' + maeKaki.n + '）が 送った「' + maeKaki.okutta + '」'
+        + (onaji ? '★★⇒ 同じ＝★倉庫に 在るのは ★自分の 書き★＝「別の 端末」では ない★★'
+          : '★★⇒ 違う＝★本当に 別の 書き手が 在る★★'));
+    } else {
+      console.log('     ★倉庫に 入って いる 値は 誰の 物か … ★比べる 組が 取れません★'
+        + '（読み ' + (saigoYomi ? '在り' : '無し') + '／前の 書き ' + (maeKaki ? '在り' : '無し') + '）');
+    }
+  }
+  daseru('★失敗した 要求★（`requestfailed`）', shippai,
+    '（★★これは app の 話★＝★前は 「返って いない」と 数えて いた★★）');
+  daseru('★終わったのに 中身を 拾えて いない 要求★', owattaNoni,
+    '（★★これは 私の 控えの 漏れ★★）');
+  /* ★★重なりを 出す★★＝★新しい 見立ては ここで 生きるか 死ぬか 決まる★ */
+  {
+    const kp = kasanari(soukoLog, 'POST');
+    const kz = kasanari(soukoLog);
+    console.log('     ★★保存(POST)が 重なった 組 … ' + kp.kumi.length + '組★★'
+      + '（保存 ' + kp.honsu + '本／★同時に 飛んで いた 最大 ' + kp.saidai + '本★）'
+      + (kp.kumi.length
+        ? '：' + kp.kumi.slice(0, 6).map((x) => '出' + x.a + 'と出' + x.b + '（' + x.kasanari + 'ms）').join('・')
+          + '★★⇒ ２本目が 前の `updated_at` を 持って 行く⇒弾かれる 道が 在る★★'
+        : '（★重なって いません＝★この 見立ても 死にます★）'));
+    console.log('     ★読みも 入れた 全体 … 同時に 飛んで いた 最大 ' + kz.saidai + '本'
+      + '（★保存→読みの 組み合わせも ここに 入る★）');
+  }
+  daseru('★本当に 黙って いる 要求★', damari,
+    '（★★終了も 失敗も 来て いない＝★これだけが 本物の 「返らない」★★）');
 };
 /* ★★「前」は ★ログインの 前★に 数える（2026-09-14 実測で 直した）★★
    ログインの 後に 数えたら ★人 4→3（-1）★で 赤に なった。
@@ -954,9 +1276,56 @@ try {
 /* ★★最後にも 並べる★★＝覆いは 走りの あちこちで 出る（18〜27回）ので
    ★1か所（押す前に 止めた 所）だけでは 足りない★。★全体の 本数も 一緒に 出す★。 */
 soukoDasu('★走りの 終わり★', 12);
-console.log('  ★倉庫への 要求 … 全 ' + soukoLog.length + '本'
-  + '／まだ 返って いない ' + soukoLog.filter((x) => !x.tsuita).length + '本'
-  + '／出した順と 着いた順が 違う ' + soukoLog.filter((x) => x.ban && x.n !== x.ban).length + '本★');
+/* ★★全体の まとめも ★着いた 順★ で 見る★★（2026-09-25）
+   ★前は `x.n !== x.ban` を 「逆順」と 呼んで いた★
+   ⇒ CI `36151979249` で ★148本★ と 出たが、実は
+      ★★早い 所で 1本 返らなかったので 後ろの 着いた番が 全部 1つ ずれた★★
+   ⇒ ★★『148本 逆順』は ★意味の 無い 数★★★＝★正しく 測れて しまって いた★
+   ⇒ ★本当の 合図は ★返って いない 1本★★ */
+{
+  const tsuitaZen = soukoLog.filter((x) => x.ban);
+  let gyakuZen = 0, maeZen = 0;
+  tsuitaZen.forEach((x) => { if (x.ban < maeZen) gyakuZen++; maeZen = Math.max(maeZen, x.ban); });
+  const shippaiZ = soukoLog.filter((x) => !x.tsuita && x.shippai).length;
+  const damariZ = soukoLog.filter((x) => !x.tsuita && !x.shippai && !x.owari).length;
+  const moreZ = soukoLog.filter((x) => !x.tsuita && !x.shippai && x.owari).length;
+  console.log('  ★倉庫への 要求 … 全 ' + soukoLog.length + '本'
+    + '／返った ' + soukoLog.filter((x) => x.tsuita).length + '本'
+    + '／★失敗 ' + shippaiZ + '本★'
+    + '／★★本当に 黙って いる ' + damariZ + '本★★'
+    + '／★控えの 漏れ ' + moreZ + '本★'
+    + '／★着いた 順が 差し戻った ' + gyakuZen + '本★'
+    + '（参考：番号の ずれ ' + soukoLog.filter((x) => x.ban && x.n !== x.ban).length + '本'
+    + '＝★抜けた 本数の 分だけ ずれる＝逆順では ない★）★');
+  /* ★★指示役1 の 叩き 㑐＝★数が 食い違ったら その場で 赤に する★★
+     ★但し 相手の『「静まりました」と 突き合わせる』は ★成り立ちません★
+       訳＝`scripts/_borrow-playwright.mjs:104-111` は
+         ★閉じる 時に 初めて 耳を 付ける★（それ以前の 要求は 数えて いない）
+         ★見る 幅も 違う★（`/rest/v1/` 全部 対 `pay_companies` だけ）
+       ⇒ ★★「要求 0回（閉じる前）」と「未返 1本（走り 全体）」は ★矛盾 しません★★
+       ⇒ ★そこを 門に すると ★嘘の 赤★に なる★（指示役1 に 字で 返した）
+     ★代りに 門に する 物★＝★★本当に 黙って いる 要求が 1本でも 在るか★★
+       （★終了も 失敗も 来ない＝★本物の 異常★） */
+  /* ★★★保存(POST)の 失敗は ★客に 字が 出る★★★（2026-09-25・指示役1 の ②）
+     `app.js:2173` toast「★N名分を保存できませんでした（台帳・年末調整に入っていません）★」
+     ⇒ ★★これが 出る 事が 起きて いるのに 試験が 緑だった★★＝★見張りの 穴★
+     ★因の 元（字）★ … `app.js:6180` は ★その月に 居る 人の 数だけ 一斉に 投げる★
+        （`6173`〜`6225` に `await` / `Promise.all` が ★０件★）
+     ★直し方は ここで 決めません★＝★お金の 道★／★司さんの 決めが 要る★ */
+  {
+    const sw = shippaiWakeru(soukoLog);
+    console.log('  ★失敗の 中身（棚ごと） … ' + (sw.ji || '★無し★') + '★');
+    T('★★保存(POST)の 失敗が 0本★★', sw.kakiKazu === 0,
+      '★保存の 失敗 ' + sw.kakiKazu + '本★（失敗 全部 ' + sw.zen + '本）'
+      + '：' + sw.kaki.map((x) => '出' + x.n + ' ' + (x.tana || '?') + ' ' + x.muki
+        + '「' + x.shippai + '」').join('・')
+      + '★＝★★客に「○名分を保存できませんでした（台帳・年末調整に入っていません）」が 出る★★'
+      + '（因の 元＝`app.js:6180` が ★人数ぶん 一斉に 投げる★）');
+  }
+  T('★★本当に 黙って いる 要求が 0本★★', damariZ === 0,
+    '黙って いる ' + damariZ + '本（失敗 ' + shippaiZ + '本／控えの 漏れ ' + moreZ + '本）'
+    + '★＝★終了も 失敗も 来て いない＝★手元の 控えが 古い ままに なり得る★');
+}
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed'
   + (mihakari ? ' ／ 🟡未測定 ' + mihakari : ''));
