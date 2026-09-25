@@ -35,14 +35,60 @@ const SELF = process.argv.includes('--self-test');
 
 /* ★物差しそのもの★（ブラウザを 使わずに 確かめられる 形）
    落ちた CSV を 読んで ★様式コード・列の数・異動の別★ を 数える。 */
-export function csvMiru(text) {
+/* ★指紋の列を 数で 書かない★＝lib の 列番地を 写す
+   `kyuyo/lib/todokede-csv.js:1114` r[9]  ＝ 10 氏名（漢字）…★被保険者★
+   `kyuyo/lib/todokede-csv.js:1125` r[20] ＝ 21 異動の別 */
+export const RETSU_NA = 9;
+export const RETSU_IDOU = 20;
+
+/* ★★`shirushi` を 渡すと ★自分の 人の 行だけ★ を 抜く★★（2026-09-25）
+   ★なぜ 要るか★
+     `app.js:3742` `fuyoTodoke` は ★`state.employees` を 全部 回る★
+     `app.js:3724` は ★配偶者1＋その他2 で 1枚に 束ねる★
+     ⇒ ★★倉庫に 他の 人が 居れば 行は 増える★★
+     ⇒ ★★「データ行 1本」は ★最初から 成り立たない 判じ★★
+     実測（09-25）… CI の 置き土産が 5人 残り ★データ行 3本★
+       （家族1人の 人が 5人 でも 束ねられて 3本＝★門で 落ちたのでは ない★）
+       その上 `idou[0]` は ★置き土産の 行★＝打った「3」でなく「1」が 出た
+   ★何を 指紋に するか★ … ★名前の 中の 6桁の 数字★（`Date.now()` の 下6桁）
+     ⇒ ★漢字では 当てられない★＝CSV は Shift_JIS を latin1 で 読むので 字が 化ける
+     ⇒ ★数字は ASCII の まま 残る★＝★化けない 指紋★
+   ★渡さなければ★ … `shirushiNashi: true`（★呼ぶ側が 緑に しない 為★）
+   ★行数（`data`）は 残す★＝★参考に 出す★が ★判じに は 使わない★ */
+export function csvMiru(text, shirushi) {
   const gyo = String(text || '').split('\r\n').filter((x) => x.length);
   const data = gyo.filter((x) => x.indexOf('2202700') === 0);
   const retsu = data.map((x) => x.split(',').length);
   const zure = retsu.filter((n) => n !== 139).length;
   /* 異動の別＝21番目（0始まりで 20） */
-  const idou = data.map((x) => x.split(',')[20]);
-  return { gyo: gyo.length, data: data.length, retsu: retsu[0] || 0, zure, idou };
+  const idou = data.map((x) => x.split(',')[RETSU_IDOU]);
+  const shi = String(shirushi || '');
+  /* ★自分の 人の 行★＝10列目（氏名漢字）に 指紋が 入って いる 行 */
+  const jibunBan = shi
+    ? data.map((x, i) => (String(x.split(',')[RETSU_NA] || '').indexOf(shi) >= 0 ? i : -1)).filter((i) => i >= 0)
+    : [];
+  /* ★★当たった 行の 氏名の 欄を そのまま 返す★★（指示役1 の 叩き ②）
+     ★なぜ 要るか★ … `String(Date.now()).slice(-6)` は ★下6桁＝10^6 ミリ秒★
+       ＝★★約 16分40秒（1,000秒）で 同じ 数に 戻る★★
+       ⇒ ★倉庫に 残って いる 置き土産と ★同じ 指紋★に なり得る★
+     ★向きは 安全側★ … 当たれば `jibun` が 2 ⇒ `jibun === 1` が ★赤★
+       （★黙って 緑に なるのでは ない★）
+     ★だが 赤の 字が「自分 2本」だけでは ★訳が 衝突だと 分からない★
+       ⇒ ★当たった 行の 名前を 並べる★
+     ★字は latin1 で 読んで いる★＝漢字は 化ける ので
+       ★読める 字だけ 残し 残りは `・` に する★（★指紋の 6桁は ASCII＝残る★） */
+  const yomeru = (x) => String(x || '').replace(/[^\u0020-\u007e]/g, '・');
+  return { gyo: gyo.length, data: data.length, retsu: retsu[0] || 0, zure, idou,
+    shirushi: shi, shirushiNashi: !shi,
+    /* ★★指紋を 探した 所★★＝★行 全体では ない★（指示役1 の 叩き ③）
+       ★行 全体で 探すと `1234-567890`（基礎年金）・金額・日付に
+         ★同じ 6桁が 入り得る★ ⇒ ★他人の 行を「自分」と 数える＝★偽の 緑★
+       ⇒ ★氏名の 欄（r[9]）の 中だけ★ を 見る★ */
+    sagashitaTokoro: '氏名漢字の 欄（' + (RETSU_NA + 1) + '列目）の 中だけ（★行 全体では 探さない★）',
+    jibun: jibunBan.length, jibunBan: jibunBan,
+    jibunIdou: jibunBan.map((i) => idou[i]),
+    jibunNa: jibunBan.map((i) => yomeru(data[i].split(',')[RETSU_NA])),
+    hokaNoHito: data.length - jibunBan.length };
 }
 
 if (SELF) {
@@ -61,6 +107,53 @@ if (SELF) {
   const ido2 = seikaku.split(','); ido2[20] = '2';
   iu('異動の別を 読める', csvMiru(ido2.join(',') + CR).idou[0] === '2');
   iu('空なら 0本', csvMiru('').data === 0);
+  /* ★★指紋で 自分の 行だけ 抜く★★（2026-09-25）
+     ★ここが ★今日 赤に なった 因★の 物差し★
+     ★他人の 行を 2本 先に 置いて ★後ろに 自分★ を 置く★
+       ⇒ 前の 判じ（`data === 1` と `idou[0]`）は ★両方 外れる★
+       ⇒ 新しい 判じ（`jibun === 1` と `jibunIdou[0]`）は ★両方 当たる★ */
+  {
+    const tsukuru = (na, ido) => {
+      const c = new Array(139).fill('');
+      c[0] = '2202700'; c[RETSU_NA] = na; c[RETSU_IDOU] = ido;
+      return c.join(',');
+    };
+    const hoka1 = tsukuru('CI試験111111', '1');
+    const hoka2 = tsukuru('CI試験222222', '1');
+    const jibun = tsukuru('手試験999999', '3');
+    const t = [hoka1, hoka2, jibun].join(CR) + CR;
+    const m = csvMiru(t, '999999');
+    iu('★他人 2本＋自分 1本 … 紙全体は 3本', m.data === 3);
+    iu('★★自分の 行は 1本★★', m.jibun === 1);
+    iu('★他人の 行を 数えて いる', m.hokaNoHito === 2);
+    iu('★★自分の 異動の別は「3」★★', m.jibunIdou[0] === '3');
+    iu('★前の 判じなら 外れて いた（`idou[0]` は「1」）', m.idou[0] === '1');
+    iu('★指紋を 渡さなければ 「印無し」を 返す', csvMiru(t).shirushiNashi === true);
+    iu('★当たらない 指紋なら 自分は 0本（★緑に しない 為★）', csvMiru(t, '000000').jibun === 0);
+    /* ★空振り止め★＝★自分の 行の 異動の別を わざと 変えたら 違う 値が 出るか★ */
+    const waza = [hoka1, hoka2, tsukuru('手試験999999', '2')].join(CR) + CR;
+    iu('★★わざと 異動の別を 変えたら 変わる（空振りで ない）★★',
+      csvMiru(waza, '999999').jibunIdou[0] === '2');
+    /* ★★指紋は 約 16分40秒で 巡る★★（指示役1 の 叩き ②・09-25）
+       ⇒ ★倉庫に 残った 置き土産と 同じ 指紋に なり得る★
+       ⇒ ★向きは 安全側＝`jibun` が 2 に なって ★赤★★（黙って 緑に しない） */
+    const butsukaru = [tsukuru('CI試験999999', '1'), jibun].join(CR) + CR;
+    const mb = csvMiru(butsukaru, '999999');
+    iu('★★指紋が 衝突したら 自分が 2本＝★赤に なる★★★', mb.jibun === 2);
+    iu('★衝突した 相手を 名指しで 出す', mb.jibunNa.length === 2
+      && mb.jibunNa.every((x) => x.indexOf('999999') >= 0));
+    /* ★★探す 所は ★氏名の 欄だけ★★（指示役1 の 叩き ③）
+       ⇒ ★行 全体で 探すと `1234-567890`（基礎年金）に `123456` と `567890` が 入って いる
+       ⇒ ★他人の 行を「自分」と 数える＝★偽の 緑★（★こちらは 向きが 危ない★） */
+    const kiso = (() => {
+      const c = new Array(139).fill('');
+      c[0] = '2202700'; c[RETSU_NA] = 'CI試験111111'; c[14] = '1234'; c[15] = '567890'; c[RETSU_IDOU] = '1';
+      return c.join(',');
+    })();
+    iu('★★基礎年金に 同じ 6桁が 入って いても 自分と 数えない★★★',
+      csvMiru(kiso + CR, '567890').jibun === 0);
+    iu('★探した 所を 出して いる', /氏名漢字の 欄（10列目）/.test(mb.sagashitaTokoro));
+  }
   console.log(ng ? '\n★自己確認 ' + ng + '件 おかしい★' : '\n自己確認 OK');
   process.exit(ng ? 1 : 0);
 }
@@ -487,7 +580,11 @@ try {
        ⇒ ★増えた 人が どちらの 物か 名前で 分かる★＝★門が 相手の 分で 赤に しない★
        （印が 無いと ★「どちらか 決められない」＝赤★の まま＝★CI が 走る たび 赤★）
      ★印★ … 手元＝`手` ／ 会社の 検査＝`CI`（`_souko-kazoeru.mjs` の `SEKI_SHIRUSHI`） */
-  const NA = SHIKEN_NA('試験' + String(Date.now()).slice(-6));
+  /* ★★この 6桁が ★紙の 中で 自分の 行を 見つける 指紋★★（2026-09-25）
+     ★漢字では 当てられない★＝CSV は Shift_JIS を latin1 で 読むので 字が 化ける。
+     ★数字は ASCII の まま 残る★。 */
+  const BAN = String(Date.now()).slice(-6);
+  const NA = SHIKEN_NA('試験' + BAN);
   for (const [f, v] of [['name', NA + Z + '太郎'], ['kana', 'ｼｹﾝ ﾀﾛｳ'], ['birthYmd', '1985-05-15'],
     ['seibetsu', 'male'], ['zip', '790-0001'], ['address', '愛媛県松山市1-2-3'],
     ['kisoNenkin', '1234-567890'], ['hokenshaNo', '1']]) {
@@ -771,17 +868,53 @@ try {
     const na2 = dl.suggestedFilename();
     const fp = await dl.path();
     const buf = fp ? fs.readFileSync(fp) : Buffer.alloc(0);
-    const m = csvMiru(buf.toString('latin1'));
+    const m = csvMiru(buf.toString('latin1'), BAN);
     console.log('       落ちた … ' + na2 + ' ' + buf.length + 'バイト'
       + ' sha256 ' + crypto.createHash('sha256').update(buf).digest('hex').slice(0, 12)
       + ' ／ 行' + m.gyo + ' データ' + m.data + ' 列' + m.retsu + ' ずれ' + m.zure
       + ' 異動の別[' + m.idou.join(' ') + ']');
+    /* ★★分母を 出す★★＝★行数は 参考★／★判じは 自分の 行★ */
+    console.log('       ★自分の 行 … ' + m.jibun + '本'
+      + '（指紋「' + m.shirushi + '」／' + (m.jibunBan.length ? m.jibunBan.map((i) => i + 1).join('・') + '本目' : '★無し★')
+      + '）／★他人の 行 ' + m.hokaNoHito + '本★'
+      + '（★倉庫に 残って いる 別の 人＝★赤に しません★）'
+      + '／自分の 異動の別[' + m.jibunIdou.join(' ') + ']');
+    console.log('       ★指紋を 探した 所 … ' + m.sagashitaTokoro + '★');
+    if (m.jibun > 1) {
+      console.log('       ★★指紋が 他の 人にも 当たりました★★＝'
+        + m.jibunNa.join(' ／ ')
+        + '（★`Date.now()` の 下6桁は ★約 16分40秒で 巡る★＝'
+        + '16分40秒 前の 置き土産と 同じ 数に なり得る★）');
+    }
     T('★' + na + '＝名前が SHFD0006.CSV', na2 === 'SHFD0006.CSV', '落ちた 名前は ' + na2);
-    T('★' + na + '＝様式 2202700 の 行が 1本', m.data === 1, 'データ行 ' + m.data + '本');
+    /* ★★行数では 判じない★★（2026-09-25・指示役1 の 裁定）
+       ★前は `m.data === 1`（★紙 全体の 行数★）だった★
+       ⇒ `app.js:3742` `fuyoTodoke` は ★`state.employees` を 全部 回る★
+       ⇒ ★★倉庫に 他の 人が 居れば 行は 増える＝★成り立たない 判じ★★
+       ⇒ 実測（09-25）… CI の 置き土産 5人 で ★データ行 3本★＝赤
+       ★これは 弱めでは ありません★＝★測る 物を 正した★
+         この 試験の 用は「★被扶養者(異動)届が 正しく 落ちるか★」
+         「倉庫に 他に 誰が 居るか」は ★この 試験の 用では ない★
+       ★行数は 上の 出しに 参考として 残して いる★（★見ないとは 別★） */
+    T('★' + na + '＝★自分の 人の 行が ちょうど 1本★', m.jibun === 1,
+      '自分の 行 ' + m.jibun + '本（指紋「' + m.shirushi + '」）'
+      + '／紙 全体は ' + m.data + '本（うち 他人 ' + m.hokaNoHito + '本）'
+      + '／探した 所 ' + m.sagashitaTokoro
+      + (m.jibun > 1 ? '★★指紋が 他にも 当たった★★＝' + m.jibunNa.join(' ／ ')
+        + '（下6桁は 約 16分40秒で 巡る）' : '')
+      + (m.jibun === 0 ? '★★自分の 人が 紙に 出て いない★★' : '')
+      + (m.shirushiNashi ? '★指紋を 渡して いない★' : ''));
     T('★' + na + '＝列が 139（ずれ 0）', m.retsu === 139 && m.zure === 0,
       '列 ' + m.retsu + '／ずれ ' + m.zure);
-    T('★' + na + '＝項番21 異動の別が「' + v + '」', m.idou[0] === v,
-      '紙に 入っていたのは 「' + m.idou[0] + '」★＝画面で 選んだ物と 違う★');
+    /* ★前は `m.idou[0]`（★紙の 1本目★）を 見て いた★
+       ⇒ ★置き土産が 先に 並ぶと ★別人の 異動の別★を 読む★
+       ⇒ 実測（09-25）… 打ったのは「3」なのに 出たのは「1」
+       ⇒ ★自分の 行の 異動の別★を 見る */
+    T('★' + na + '＝項番21 ★自分の 行の★ 異動の別が「' + v + '」',
+      m.jibun === 1 && m.jibunIdou[0] === v,
+      '自分の 行に 入っていたのは 「' + (m.jibunIdou[0] === undefined ? '★行が 無い★' : m.jibunIdou[0]) + '」'
+      + '★＝画面で 選んだ物と 違う★'
+      + '（参考：紙 全体の 異動の別[' + m.idou.join(' ') + ']）');
   }
 
   /* ★★自分の ゴミを 自分で 数える（2026-09-14 指示役1 の 注文）★★
