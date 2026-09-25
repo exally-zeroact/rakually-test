@@ -88,10 +88,53 @@ export async function borrow(tag, kind = 'webkit') {
   return null; /* ここには 来ない（上で 終わる） */
 }
 
+/* ★★閉じる 前に「自分が 出した 保存」が 着くのを 待つ★★（2026-09-25・指示役1 の 裁定 ㋐-1）
+   ★何が 起きて いたか（09-25 実測）★
+     CI の WebKit で `fuyo-ui` が 赤＝★conflict の 覆いが 27回★／「別の端末で更新」28回。
+     ★直前の 段（`souko-machi`）の 終わりと `fuyo-ui` の 始まりが ★同じ 秒★★（06:26:28）。
+     `app.js:6393`＝★どこを 押しても 自動保存が 予約される★ので
+     ★前の 段の 最後の 保存が 段を 跨いで 倉庫に 着く★
+     ⇒ 次の 段が 読んだ 後に `pay_companies.updated_at` が 動く＝★次の 保存が conflict★
+   ★なぜ ここ 1か所か★ … ★ログインして 押す 紙は 13本★（09-25 機械で 数えた）
+     ＝1本ずつ 直すと ★12本 直し忘れる★／★ブラウザを 借りる 所は 前から 1か所★
+   ★自分の 尻を 自分で 拭く★＝★次の 段に 押し付けない★
+   ★黙って 待たない★＝★待った ms・要求の 数・静まったかを 必ず 1行 出す★ */
+async function shizukaNiTojiru(b, tag) {
+  const t0 = Date.now();
+  let yokyu = 0, hashiri = 0, saigo = Date.now(), mita = 0;
+  try {
+    for (const ctx of b.contexts()) {
+      for (const pg of ctx.pages()) {
+        mita++;
+        const mi = (r) => { if (String(r.url()).indexOf('/rest/v1/') >= 0) { yokyu++; hashiri++; saigo = Date.now(); } };
+        const ow = (r) => { if (String(r.url()).indexOf('/rest/v1/') >= 0) { hashiri--; saigo = Date.now(); } };
+        pg.on('request', mi); pg.on('requestfinished', ow); pg.on('requestfailed', ow);
+      }
+    }
+    if (!mita) return;
+    const SHIZU = 1200, UE = 15000;
+    let shizuka = false;
+    while (Date.now() - t0 < UE) {
+      if (hashiri <= 0 && Date.now() - saigo >= SHIZU) { shizuka = true; break; }
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    console.log('  （' + tag + '：閉じる前に 倉庫が 静まるのを 待った … ' + (Date.now() - t0) + 'ms ／ 要求 '
+      + yokyu + '回 ／ 面 ' + mita + '枚 ／ '
+      + (shizuka ? '★静まりました★' : '★★上限 ' + UE + 'ms に 当たった＝静まって いません★★') + '）');
+  } catch (e) { console.log('  （' + tag + '：静まりを 待てません … ' + String((e && e.message) || e).slice(0, 60) + '）'); }
+}
+
 /* ★立ち上げる★（★本体が 無い時に 生の例外で 落とさない★＝裁定①） */
 export async function launch(tag, type, opts, kind = 'webkit') {
   try {
-    return await type.launch(opts);
+    const b = await type.launch(opts);
+    /* ★`close()` を 包む★＝★呼ぶ側の 字を 1行も 変えずに 13本 全部に 効く★ */
+    const moto = b.close.bind(b);
+    b.close = async function (...a) {
+      await shizukaNiTojiru(b, tag);
+      return moto(...a);
+    };
+    return b;
   } catch (e) {
     const msg = String((e && e.message) || e).split('\n')[0];
     unmeasured(tag, 'ブラウザ本体が 入っていません（' + msg + '）', kind);

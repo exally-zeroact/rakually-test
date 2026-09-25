@@ -41,6 +41,33 @@ export async function kagiAru(root) {
      ＝★読み込み中の 状態を わざと 作る 試験★（`souko-machi`）は これを 使う。
        答えると `location.reload()` で ★作った 状態が 消える★＝その試験の 測りを 壊す。
    ★既定は 答える★（覆いが 残ると 下の ボタンに 本物の click が 届かない＝fuyo-ui が CI で 赤に なった） */
+/* ★★倉庫が 静まるまで 待つ★★（2026-09-25）
+   ★何を 見るか★ … ★`pay_companies` への 要求★（＝保存と 競合の 見張りが 通る 所）
+   ★静まった★＝走って いる 要求が 0 かつ ★`shizuMs` の 間 新しい 要求が 出ない★
+   ★返り★ … `{ shizuka, matta, yokyu, ue }`
+     ・`shizuka` … 静まったか（false＝★上限に 当たった＝この先は 当てに ならない★）
+     ・`matta`  … ★待った ms（実測）★（★黙って 待たない★）
+     ・`yokyu`  … その間に 出た 要求の 数
+   ★時間で 待たない★＝★要求が 止まった事★を 見る（[[feedback_matte_inai_machi]]） */
+export async function shizumaru(pg, shizuMs = 1500, ueMs = 20000) {
+  const t0 = Date.now();
+  let hashiri = 0, yokyu = 0, saigo = Date.now();
+  const mi = (r) => { if (String(r.url()).indexOf('/rest/v1/pay_companies') >= 0) { yokyu++; hashiri++; saigo = Date.now(); } };
+  const owari = (r) => { if (String(r.url()).indexOf('/rest/v1/pay_companies') >= 0) { hashiri--; saigo = Date.now(); } };
+  pg.on('request', mi); pg.on('requestfinished', owari); pg.on('requestfailed', owari);
+  try {
+    while (Date.now() - t0 < ueMs) {
+      if (hashiri <= 0 && Date.now() - saigo >= shizuMs) {
+        return { shizuka: true, matta: Date.now() - t0, yokyu, ue: ueMs };
+      }
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    return { shizuka: false, matta: Date.now() - t0, yokyu, ue: ueMs };
+  } finally {
+    pg.off('request', mi); pg.off('requestfinished', owari); pg.off('requestfailed', owari);
+  }
+}
+
 export async function hairu(pg, url, matsu, opt = 3) {
   const kaiMax = typeof opt === 'number' ? opt : (opt && opt.kaiMax) || 3;
   const kumoKotaeru = typeof opt === 'number' ? true : (opt && opt.kumo !== false);
@@ -94,7 +121,26 @@ export async function hairu(pg, url, matsu, opt = 3) {
       if (kumoKotaeru) kumoNi = await kumoNiKotaeru(pg, matsu);
     }
     const nokoru = await pg.evaluate(() => { const e = document.getElementById('loginEmail'); return !!(e && e.offsetParent); });
-    if (!nokoru) return { haitta: true, matta, kai, kumoNi };
+    if (!nokoru) {
+      /* ★★入った 直後に ★倉庫が 静まるまで 待つ★★★（2026-09-25・指示役1 の 裁定 ㋐-1）
+         ★何が 起きて いたか（09-25 実測）★
+           CI の WebKit で `fuyo-ui` が 赤。訳＝★conflict の 覆いが 27回★
+           （`intercepts pointer` 0／`Timeout 8000ms` 0＝★もう 無言では 死なない★）
+           ★直前の 段★ … `souko-machi`（06:25:34→★06:26:28★）／`fuyo-ui` は ★06:26:28★ から
+           ＝★段の 終わりと 次の 段の 始まりが 同じ 秒★
+           ★`app.js:6393`＝どこを 押しても 自動保存が 予約される★ので、
+           ★前の 段の 最後の 保存が 段を 跨いで 倉庫に 着く★
+           ⇒ ★こちらが 読んだ 後に `pay_companies.updated_at` が 動く＝次の 保存が conflict★
+         ★なぜ ここ 1か所か★ … ★ログインして 押す 紙は 13本★（09-25 機械で 数えた）
+           ＝★1本ずつ 直すと 12本 直し忘れる★／★入る所は 前から 1か所★
+         ★隠して いません★ … ★静まってから 読む★だけ＝この後に 覆いが 出れば ★門が 止めます★
+         ★待った ms は 必ず 出す★（★黙って 待たない★＝上限に 当たったかも 出す） */
+      const shizuka = await shizumaru(pg);
+      /* ★呼ぶ側が 出すとは 限らない★＝★ここで 必ず 1行 出す★（黙って 待たない） */
+      console.log('  （倉庫が 静まるまで 待った … ' + shizuka.matta + 'ms ／ 要求 ' + shizuka.yokyu + '回 ／ '
+        + (shizuka.shizuka ? '★静まりました★' : '★★上限 ' + shizuka.ue + 'ms に 当たった＝静まって いません★★') + '）');
+      return { haitta: true, matta, kai, kumoNi, shizuka };
+    }
     /* ★入れなかった 時は 画面の 言い分を 控える★（推し量らない＝会社の 決まり）
        CIで「3回とも 入れなかった」と だけ 出て、★理由が 分からず 手が 止まった★（2026-09-05） */
     naze = await pg.evaluate(() => {
