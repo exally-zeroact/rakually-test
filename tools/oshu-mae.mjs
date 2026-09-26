@@ -75,6 +75,35 @@ const YML = ymlArg ? ymlArg.split('=')[1] : '.github/workflows/ci.yml';
 const yml = fs.readFileSync(path.join(ROOT, YML), 'utf8');
 const e = erabu(yml);
 
+/* ★★★空きを 測る★★★（2026-09-26・指示役1 の 足し）
+   ★なぜ 要るか（実測）★
+     この 網を ★３本 続けて 空き不足で 殺されました★。
+     その うち 1本は ★「✗ 11段」と 出た★が ★直に 走らせると 緑★。
+     ⇒ ★★『赤』と『殺された』を 切り分けられなかった★★
+     ⇒ ★★『殺される』より『走らせない』の 方が 良い★★
+   ★門は 狭めません★ … ★段を 1つも 外しません★／★走らせない 時は 赤★
+   ★測れない 機械では ★この 門を 効かせません★（★字で そう 出します★）
+     ＝★測れないのを「足りて いる」と も「足りない」と も しない★ */
+const KUUKI_GB = Number(process.env.OSHU_MAE_KUUKI_GB || 2.0);      /* ★走る 前の 下限★ */
+const KUUKI_GB_TOCHU = Number(process.env.OSHU_MAE_KUUKI_GB_TOCHU || 1.2); /* ★途中の 下限★ */
+const KUUKI_MAI = Number(process.env.OSHU_MAE_KUUKI_MAI || 10);     /* ★何段 ごとに 測るか★ */
+function kuukiGB() {
+  /* ★Windows … PowerShell★／★それ以外 … /proc/meminfo★／★どちらも 無理なら null★ */
+  try {
+    if (process.platform === 'win32') {
+      const r = spawnSync('powershell', ['-NoProfile', '-Command',
+        '(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory'],
+        { encoding: 'utf8', timeout: 20000 });
+      const kb = Number(String((r.stdout || '')).trim());
+      return kb > 0 ? kb / 1024 / 1024 : null;   /* KB → GB */
+    }
+    const t = fs.readFileSync('/proc/meminfo', 'utf8');
+    const m = t.match(/MemAvailable:\s+(\d+) kB/);
+    return m ? Number(m[1]) / 1024 / 1024 : null;
+  } catch (err) { return null; }
+}
+const kuukiIu = (v) => (v === null ? '★測れません★' : v.toFixed(2) + ' GB');
+
 console.log('\n[oshu-mae] ★押す前に 回す★ … ' + YML);
 console.log('  ★全 ' + e.zen + '段★ ／ ★回す ' + e.hashiru.length + '段★ ／ ★回さない ' + e.nozoku.length + '段★'
   + '（' + (e.hashiru.length + e.nozoku.length === e.zen ? '★合う★' : '★★合いません★★') + '）');
@@ -88,9 +117,44 @@ Object.keys(wake).forEach((k) => console.log('    回さない … ' + wake[k] +
    ★因★ … `/usr/bin/env` は Windows に ★無い★／そして ★私の 判じが それを 緑で 通した★
    ⇒ ★★今日 ずっと 潰して きた 形を ★自分の 道具で★ やって いた★★
    ★直し★ ①★殻を 使う★（Windows でも 走る） ②★★走らせられない 段が 1つでも 在れば 赤★★ */
+/* ★★走る 前に 測る★★ */
+{
+  const k0 = kuukiGB();
+  console.log('  ★空き（走る 前） … ' + kuukiIu(k0)
+    + '／下限 ' + KUUKI_GB + ' GB（途中の 下限 ' + KUUKI_GB_TOCHU + ' GB）★'
+    + (k0 === null ? '（★★この 門は 効きません＝測れません★★）' : ''));
+  if (k0 !== null && k0 < KUUKI_GB) {
+    console.log(String.fromCharCode(10)
+      + '★★★走らせません＝空き ' + kuukiIu(k0)
+      + ' が 下限 ' + KUUKI_GB + ' GB を 割って います★★★');
+    console.log('  ★訳★ … ★途中で 殺されると ★「赤」と「殺された」が 分からない★★');
+    console.log('  ★やる 事★ … ★他の 席・ブラウザを 閉じて から もう一度★'
+      + '／★どうしても 走らせるなら `OSHU_MAE_KUUKI_GB=0`（★殺され得ます★）');
+    console.log('  ★★「赤 0」とは 書きません＝★何も 測って いません★★');
+    process.exit(1);
+  }
+}
+
 let aka = 0, mi = 0;
+let tometa = 0;               /* ★空き不足で 途中で 止めた 段の 数★ */
+let kuukiSaigo = null;
 const akaDan = [], miDan = [];
-e.hashiru.forEach((d) => {
+e.hashiru.forEach((d, ban) => {
+  /* ★★途中でも 測る★★＝★下限を 割ったら ★止めて 『走らせられなかった 段』に 数える★ */
+  if (tometa === 0 && ban > 0 && ban % KUUKI_MAI === 0) {
+    const k = kuukiGB();
+    kuukiSaigo = k;
+    if (k !== null && k < KUUKI_GB_TOCHU) {
+      tometa = ban;
+      console.log('  ★★途中で 止めます＝空き ' + kuukiIu(k)
+        + ' が 途中の 下限 ' + KUUKI_GB_TOCHU + ' GB を 割りました★★'
+        + '（' + ban + '段まで 走った）');
+    }
+  }
+  if (tometa) {
+    mi++; miDan.push({ d: d, naze: '★空きが 足りず 途中で 止めた★' });
+    return;
+  }
   const r = spawnSync(d.c, { cwd: ROOT, encoding: 'utf8', shell: true,
     maxBuffer: 32 * 1024 * 1024, timeout: 180000 });
   if (r.error || r.status === null) {
@@ -99,6 +163,8 @@ e.hashiru.forEach((d) => {
   }
   if (r.status !== 0) { aka++; akaDan.push(d); console.log('  ✗ ' + d.i + '段 … ' + d.c.slice(0, 90)); }
 });
+console.log('  ★空き（終わり） … ' + kuukiIu(kuukiSaigo === null ? kuukiGB() : kuukiSaigo)
+  + (tometa ? '／★★' + tometa + '段まで 走って 止めました★★' : '') + '★');
 console.log('  ★赤 ' + aka + '段★ ／ ★走らせられない ' + mi + '段★'
   + ' ／ 回った ' + (e.hashiru.length - mi) + '段（回すつもり ' + e.hashiru.length + '段）');
 akaDan.forEach((d) => console.log('     ★赤★ ' + d.c.slice(0, 120)));

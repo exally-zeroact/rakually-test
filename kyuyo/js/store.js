@@ -171,7 +171,65 @@
       }
       return realSave(state);
     };
+    /* ★★★保存を ★直列★ に する（＋溜めない）★★★（2026-09-26）
+       ★★何が 起きて いたか（実測）★★
+         画面に「この会社の設定・従業員データが、★別の端末で更新されています★」
+         が 出て ★ボタンが 押せなく なる★。
+         ★CI 36214660524（WebKit・2026-09-26）★
+           ★覆い 27回／別の端末 28回★
+           ★全 1153本／返った 1153本／★失敗 0本★／黙り 0★＝★★落ちて いません★★
+           ★着いた順が 差し戻った 579本★／★重なった 組 5326組・同時 最大 14本★
+           ★★自分で 自分を 弾ける 組 … 2組（番号つき）★★
+             出46（書き・送った T1）→ 出52（確認の 読み・同じ 値）
+               ㊀★書きの 返りが 読みより 後★（まだ 返って いない 出42/43/44/47）
+             出46（書き）→ 出60（確認の 読み・同じ 値）
+               ㊁★同じ 束の 他の 書きが まだ★（出54／棚 pay_payslips）
+       ★★因★★ … 下の `realSaveHonto` は
+           ① `pay_companies` の `updated_at` を 読む
+           ② 控え（`lastCompanyUpdatedAt`）と 違えば conflict
+           ③ doSave で ★ops を 同時に 3本★ 出し、
+              ★`Promise.all` が 全部 返って から★ 控えを 新しく する
+         ⇒ ★★③の 途中で 次の 保存の ① が 入ると
+            ★自分が さっき 書いた 値★を「別の端末」と 呼ぶ★★
+       ★★直し★★ … ★保存を 重ならせない★（★隔間が 消える★）
+         ★溜めない★ … 走って いる 間に 来た 物は ★最後の 1つだけ★ 待たせる
+           （★状態は ★最新が 正★＝間の 物を 書く 意味が 無い★）
+         ★待たせた 分は ★中身を 取り直して★ 走らせる★
+           （★上の `heldOnce` と 同じ 考え方★）
+       ★★触って いない 物★★ … ★お金の 中身・順・確定の 印・`ops` の 中身★
+         ＝★下の `realSaveHonto` は ℅1文字も 変えて いません★
+       ★数を 出す★ … `Store.hozonNoKazu()` で ★待たせた 回数／捨てた 回数★
+         （★溜まって いないかが 数で 見える★） */
+    var _hozonChuu = false;          /* ★今 走って いるか★ */
+    var _machiState = null;          /* ★待たせて いる 最後の 1つ★ */
+    var _machiRes = [];              /* ★待たせた 呼び手★ */
+    var _machiKazu = 0, _suteKazu = 0;
+    Store.hozonNoKazu = function(){ return { machi:_machiKazu, sute:_suteKazu, chuu:_hozonChuu }; };
     function realSave(state){
+      if(_hozonChuu){
+        if(_machiState) _suteKazu++;               /* ★間の 物は 捨てる＝最新が 正★ */
+        _machiState = state; _machiKazu++;
+        return new Promise(function(res){ _machiRes.push(res); });
+      }
+      return hashiraseru(state);
+    }
+    function hashiraseru(state){
+      _hozonChuu = true;
+      var owaru = function(){
+        _hozonChuu = false;
+        if(!_machiState) return;
+        var st = _machiState, rs = _machiRes;
+        _machiState = null; _machiRes = [];
+        /* ★中身を 取り直す★（★最新が 正★）／取れなければ 預かった 物を 使う */
+        var fresh = null;
+        try { fresh = (typeof Store._snapFn==='function') ? Store._snapFn() : null; } catch(e){ fresh = null; }
+        var p = hashiraseru(fresh || st);
+        rs.forEach(function(r){ r(p); });          /* ★待たせた 呼び手に 同じ 結果を 返す★ */
+      };
+      return realSaveHonto(state).then(function(r){ owaru(); return r; },
+        function(err){ owaru(); throw err; });
+    }
+    function realSaveHonto(state){
       return curUid().then(function(uid){ if(!uid) return { ok:false, reason:'no-user' }; var now=new Date().toISOString();
         // ★employees以外の全スナップショット項目を保存(確定印/年末調整/賞与/カスタム給テンプレ/onboard等も載せる=端末替えで消えない)
         var settings={}; for(var k in state){ if(Object.prototype.hasOwnProperty.call(state,k) && k!=='employees') settings[k]=state[k]; }

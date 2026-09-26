@@ -647,6 +647,21 @@ const soukoLog = [];
     } catch (e) { /* 同上 */ }
   });
 }
+/* ★★直列の 数は ★画面が 開いて いる 間に 読む★★（2026-09-26）
+   ★踏んだ 穴★ … ★画面が 閉じた 後に 読んで いた★
+     ⇒ 出しに「★取れません＝`Store.hozonNoKazu` が 無い★」と 出た
+     ⇒ ★★『直しが 入って いない』と 読めて しまう★★＝★偽の 赤★
+   ⇒ ★開いて いる 間に 読み、★後で 出す★★ */
+let HOZON_KAZU = undefined;   /* undefined＝★まだ 読んで いない★／null＝★読んだが 無い★ */
+async function hozonKazuWoYomu(pg2) {
+  try {
+    HOZON_KAZU = await pg2.evaluate(() => {
+      try { return (window.Store && Store.hozonNoKazu) ? Store.hozonNoKazu() : null; }
+      catch (e) { return null; }
+    });
+  } catch (e) { HOZON_KAZU = undefined; }   /* ★読めなかった＝★「無い」と は 書かない★ */
+}
+
 /* ★覆いが 出た 所の 前後を 並べる★（★出しに 出さないと 数えた事に ならない★） */
 const soukoDasu = (naze, kazu = 8) => {
   const a = soukoLog.slice(-kazu);
@@ -1391,6 +1406,8 @@ try {
   await machi(400);
   const ato2 = await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length);
   console.log('  画面の 札 … 前 ' + mae + ' → 後 ' + ato2 + '（★これは 緑の 根拠に しません★）');
+  /* ★★ここは 画面が まだ 開いて いる★★＝★直列の 数を ここで 読む★ */
+  await hozonKazuWoYomu(pg);
   /* ★★『緑の 根拠に しない』と『見ない』は 別★★（2026-09-21 実測で 踏んだ）
      ★実物（5c5ea3b の CI）★
         片づけ … ⑥開き直して 数えた … ★残り 0人★
@@ -1459,6 +1476,26 @@ soukoDasu('★走りの 終わり★', 12);
         （`6173`〜`6225` に `await` / `Promise.all` が ★０件★）
      ★直し方は ここで 決めません★＝★お金の 道★／★司さんの 決めが 要る★ */
   /* ★★★『自分で 自分を 弾いた 組』を 番号で 出す★★★（指示役1 の 裁定 ①） */
+  /* ★★直列に した 後 ★溜まって いないか★ を 数で 見る★★（2026-09-26）
+     `kyuyo/js/store.js` の `Store.hozonNoKazu()` が 返す
+       machi … ★待たせた 回数★（★直列に した のだから 0とは 限らない★）
+       sute … ★捨てた 回数★（★待ちが 2以上 来たとき 間の 物を 捨てる★）
+     ★これを 赤に は しません★＝★数を 出すだけ★
+       訳＝★待ちも 捨ても ★正しい 働き★★（★溜めない 形★）
+       ⇒ ★★但し 数が 出て いないと ★溜まって いても 誰も 気づかない★★ */
+  {
+    const hz = HOZON_KAZU;
+    console.log('  ★保存を 直列に した 後の 数 … '
+      + (hz ? '★待たせた ' + hz.machi + '回／捨てた ' + hz.sute + '回'
+        + '／読んだ 時に 走って いた ' + (hz.chuu ? 'はい' : 'いいえ') + '★'
+        + '（★待ちも 捨ても 正しい 働き＝赤に は しません★）'
+        : (hz === null
+          ? '★★`Store.hozonNoKazu` が ★画面に 無い★★'
+            + '（★直列の 直しが 届いて いません★）'
+          : '★★読めて いません★★'
+            + '（★画面を 開いて いる 間に 読めなかった'
+            + '＝★『無い』とは 書きません★）')) + '★');
+  }
   {
     const jj = jibunDeJibun(soukoLog);
     console.log('  ★★自分で 自分を 弾ける 組 … ' + jj.honsu + '組★★'
