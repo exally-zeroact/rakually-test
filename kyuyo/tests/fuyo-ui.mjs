@@ -170,6 +170,20 @@ export function shippaiWakeru(log) {
      ⇒ ★そこは ★要求の 控えでは 見えない★＝
        ★見るなら 画面の 中に 入る 必要が 在る（★未★）★
      ⇒ ★『旧い はず★』まで＝★『旧かった』とは 書きません★ */
+/* ★★束（`store.js:197` の `ops`）に 入る 棚★★（2026-09-26）
+   ★字★ … `kyuyo/js/store.js:197`
+     `var ops=[ sb.from('pay_companies').upsert(…), emps.length? sb.from('pay_employees').upsert(emps) : … ];`
+     `if(cloudLoaded && emps.length>0){ ops.push(fetchAllQ(… sb.from('pay_employees').select('id'…) …)) }`
+   ⇒ ★★`pay_companies` と `pay_employees` だけ★★
+   ★★`pay_payslips` は 束に 入って いません★★
+     （`app.js:6180` `saveMonthlyPayslips` が ★別に★ 投げて いる）
+   ★踏んだ 穴（CI 36216905374）★
+     ★「自分で 自分を 弾ける 組 … 4組」と 出たが
+      4組 とも 訳が「同じ 束の 他の 書きが まだ（棚 ★pay_payslips★）」★
+     ⇒ ★★束で ない 物を 束と 数えて いた＝★偽の 当たり★★
+   ⇒ ★束の 棚だけ 見る★／★近い 他の 書きは ★別に★ 出す★ */
+export const TABA_TANA = ['pay_companies', 'pay_employees'];
+
 export function jibunDeJibun(log, mado = 300) {
   const a = (Array.isArray(log) ? log : []).filter((x) => x && x.tana === 'pay_companies');
   const zen = (Array.isArray(log) ? log : []);
@@ -204,11 +218,20 @@ export function jibunDeJibun(log, mado = 300) {
     /* ㊀★W の 返りが G を 出した 後★ */
     const atoKara = !wOwari || wOwari > g.dashi;
     /* ㊁★同じ 束の 他の 書きが まだ 返って いない★ */
+    /* ★★束の 棚だけ★★＝★`pay_payslips` は 束で は ありません★ */
     const naka = zen.filter((x) => x !== w && x.muki !== 'GET' && x.muki !== 'HEAD'
+      && TABA_TANA.indexOf(x.tana) >= 0
       && Math.abs(x.dashi - w.dashi) <= mado);
     const nokori = naka.filter((x) => { const o = owariOf(x); return !o || o > g.dashi; });
+    /* ★束で ない が 同じ 頃に 飛んで いた 他の 書き★＝★参考に 出す★
+       （★因と しては 数えません★） */
+    const yoso = zen.filter((x) => x !== w && x.muki !== 'GET' && x.muki !== 'HEAD'
+      && TABA_TANA.indexOf(x.tana) < 0
+      && Math.abs(x.dashi - w.dashi) <= mado
+      && (() => { const o = owariOf(x); return !o || o > g.dashi; })());
     if (!atoKara && !nokori.length) continue;
     kumi.push({ g: g.n, w: w.n, t1,
+      yoso: yoso.map((x) => x.n), yosoTana: [...new Set(yoso.map((x) => x.tana || '?'))],
       wari: atoKara ? '㊀★書きの 返りが 読みより 後★'
         : '㊁★同じ 束の 他の 書きが まだ 返って いない★',
       nokori: nokori.map((x) => x.n), nokoriTana: [...new Set(nokori.map((x) => x.tana || '?'))] });
@@ -436,6 +459,30 @@ if (SELF) {
       ];
       iu('★★値が 違えば 0組（本当に 別の 端末の 時は 黙る）★★', jibunDeJibun(a4).honsu === 0);
       iu('★空なら 0', jibunDeJibun([]).honsu === 0 && jibunDeJibun(null).honsu === 0);
+      /* ★★束で ない 棚を 束と 数えないか★★（2026-09-26・★実物で 踏んだ 穴★）
+         CI 36216905374 で ★「4組」★ と 出たが 4組 とも
+         ★訳が「同じ 束の 他（棚 pay_payslips）」★＝★束で ない★ */
+      {
+        const C3 = 'pay_companies', S3 = 'pay_payslips';
+        const nise3 = [
+          { n: 1, tana: C3, muki: 'POST', dashi: 100, okutta: '2026-01-01T00:00:00.000Z', owari: 200 },
+          { n: 2, tana: S3, muki: 'POST', dashi: 110, owari: 900 },   /* ★束で ない★ */
+          { n: 3, tana: C3, muki: 'GET', dashi: 500, kaeri: '2026-01-01T00:00:00.000+00:00', owari: 600 },
+        ];
+        iu('★★★`pay_payslips` を 束と 数えない（0組）★★★', jibunDeJibun(nise3).honsu === 0);
+        const E3 = 'pay_employees';
+        const nise4 = [
+          { n: 1, tana: C3, muki: 'POST', dashi: 100, okutta: '2026-01-01T00:00:00.000Z', owari: 200 },
+          { n: 2, tana: E3, muki: 'POST', dashi: 110, owari: 900 },   /* ★束★ */
+          { n: 3, tana: S3, muki: 'POST', dashi: 115, owari: 950 },   /* ★束で ない★ */
+          { n: 4, tana: C3, muki: 'GET', dashi: 500, kaeri: '2026-01-01T00:00:00.000+00:00', owari: 600 },
+        ];
+        const r4 = jibunDeJibun(nise4);
+        iu('★★`pay_employees` なら 1組（空振りで ない）★★',
+          r4.honsu === 1 && r4.kumi[0].nokori.join(',') === '2');
+        iu('★束で ない 物は ★参考★ に 出す',
+          r4.kumi[0] && r4.kumi[0].yoso.join(',') === '3' && r4.kumi[0].yosoTana.join(',') === S3);
+      }
       /* ★★書式の 違いで ★毎回 0組★ に なって いないか★★
          （2026-09-26・指示役1 の 叩き）
          ★送るのは JSの `…Z`★／★返るのは DBの `…+00:00`★
@@ -1503,8 +1550,11 @@ soukoDasu('★走りの 終わり★', 12);
         ? '：' + jj.kumi.slice(0, 5).map((x) => '★出' + x.w + '（書き・送った「' + x.t1 + '」）'
           + ' → 出' + x.g + '（確認の 読み・同じ 値を 返した）'
           + ' ' + x.wari
-          + (x.nokori.length ? '（まだ 返って いない 出' + x.nokori.slice(0, 4).join('・')
-            + '／棚 ' + x.nokoriTana.join('・') + '）' : '') + '★').join('  ')
+          + (x.nokori.length ? '（★束で まだ 返って いない 出' + x.nokori.slice(0, 4).join('・')
+            + '／棚 ' + x.nokoriTana.join('・') + '★）' : '')
+          + ((x.yoso && x.yoso.length) ? '（参考：束で ない 他の 書き 出'
+            + x.yoso.slice(0, 4).join('・') + '／棚 ' + x.yosoTana.join('・')
+            + '★＝★因と しては 数えて いません★）' : '') + '★').join('  ')
           + '★★⇒ 倉庫に 在るのは ★自分の 書き★／控えは ★旧い はず★＝「別の端末」は 嘘★★'
         : '（★組 0＝★★見える 幅では 捕まえられません★★＝★『無い』とは 書きません★）'
       + '（★控えの 値その 物は 画面の 中の 閑し＝★読めません★／★保存の 返りと 控えの 更新の 間は ★ミリ秒より 細かい★ 事も 在る★）'));
