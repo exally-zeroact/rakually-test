@@ -205,6 +205,20 @@
     var _machiRes = [];              /* ★待たせた 呼び手★ */
     var _machiKazu = 0, _suteKazu = 0;
     Store.hozonNoKazu = function(){ return { machi:_machiKazu, sute:_suteKazu, chuu:_hozonChuu }; };
+    /* ★★覆いの 控えを 外から 読む 口★★（★測る 為だけ★）
+       ★返す 物★ … honsu（何回 出たか）／
+                  ★onaji（★同じ 瞬間なのに conflictに なった 回数★）★／
+                  chigau（本当に 別の 書き）／miyomi（まだ 読んで いない）／★最初の 3件の 字★ */
+    Store.ooiNoKazu = function(){
+      var a = Store._conflictLog || [];
+      return {
+        honsu: a.length,
+        onaji: a.filter(function(x){ return x.onajiShunkan; }).length,
+        chigau: a.filter(function(x){ return !x.onajiShunkan && !x.neverSynced; }).length,
+        miyomi: a.filter(function(x){ return x.neverSynced; }).length,
+        ji: a.slice(0, 3).map(function(x){ return x.ji; })
+      };
+    };
     function realSave(state){
       if(_hozonChuu){
         if(_machiState) _suteKazu++;               /* ★間の 物は 捨てる＝最新が 正★ */
@@ -243,6 +257,40 @@
           //  別端末が後から書いた場合だけでなく、この端末がまだクラウドを読めていない(lastUA=null)のに本番データがある場合も含む
           //  =古い/新規端末が本番のsettings(確定・年調・会社設定)を静かに巻き戻すのを防ぐ(P0)。空クラウド(cloudUA=null)は新規保存OK。
           if(cloudUA && cloudUA!==lastCompanyUpdatedAt){
+            /* ★★★測る 為だけの 控え（★直しでは ありません★）★★★（2026-09-27）
+               ★なぜ 8日 追っても 因が 立たないか★
+                 ★外から 見えるのは ★要求と 倉庫★だけ★
+                 ★この 行の 二つの 値（`cloudUA` と `lastCompanyUpdatedAt`）は
+                   ★画面の 中の 閑し★＝★外から 読めません★
+               ⇒ ★★ここで 控えないと 因は 決まりません★★
+               ★一番 疑って いる 形★ … ★字の 形だけの 偽 conflict★
+                 `:212` `lastCompanyUpdatedAt=(res[0]…updated_at) ★|| now★;`
+                 ⇒ ★DB が 値を 返さなかった 回だけ ★JS の 《…Z》形★が 控えに 入る★
+                 ⇒ 次の 確認は DB の 《…+00:00》を 読む
+                 ⇒ ★★字が 違う★★＝★★同じ 瞬間なのに conflict★★
+                 ★`:211` の 覚書が まさに その 話★
+                   「JS生成の now(…Z) は DB返却(…+00:00)と 書式が 違い、
+                     ★文字列比較で 毎回 不一致★＝誤conflictが 多発する（P0根治）」
+               ★測る 物★ … ①倉庫の 値 ②控えの 値 ③★同じ 瞬間か★
+                 ⇒ ★★同じ 瞬間なら ★字の 形だけの 偽 conflict★★
+                 ⇒ ★違う 瞬間なら ★本当に 別の 書き★★
+               ★★倉庫にも 画面にも 何も 変えません★★（★配列に 積むだけ★）
+               ★CI でも 走ります★（★倉庫の 鍵が 要りません★）
+                 ＝★★覆いが 実際に 出る 所で 測れます★★
+                 （★手元では 7回 回して 覆い 0回＝★手元では 測れない★） */
+            try{
+              var _pa = function(v){ var t = Date.parse(String(v)); return isNaN(t) ? null : t; };
+              var _a = _pa(cloudUA), _b = _pa(lastCompanyUpdatedAt);
+              Store._conflictLog = Store._conflictLog || [];
+              Store._conflictLog.push({
+                t: Date.now(),
+                souko: String(cloudUA),
+                hikae: (lastCompanyUpdatedAt === null ? null : String(lastCompanyUpdatedAt)),
+                onajiShunkan: (_a !== null && _b !== null && _a === _b),
+                ji: 'souko=' + String(cloudUA) + ' hikae=' + String(lastCompanyUpdatedAt),
+                neverSynced: (lastCompanyUpdatedAt == null)
+              });
+            }catch(_e){}
             // neverSynced=この端末がまだクラウドを読めていない(別端末の更新でなく"未読込")→app側で文言を分ける(誤解防止)
             return { ok:false, reason:'conflict', cloudUpdatedAt:cloudUA, neverSynced:(lastCompanyUpdatedAt==null) };
           }

@@ -38,7 +38,7 @@ const SELF = process.argv.includes('--self-test');
 /* ★指紋の列を 数で 書かない★＝lib の 列番地を 写す
    `kyuyo/lib/todokede-csv.js:1114` r[9]  ＝ 10 氏名（漢字）…★被保険者★
    `kyuyo/lib/todokede-csv.js:1125` r[20] ＝ 21 異動の別 */
-/* ★★倉庫への 要求を ★４つに 分ける★★（2026-09-25・指示役1 の 叩き 㑐）
+/* ★★倉庫への 要求を ★４つに 分ける★★（2026-09-25・指示役1 の 叩き ㋓）
    ★なぜ 関数に 出したか★ … ★★門に 空振り止めを 付ける 為★★
      ★前は 走りの 中で `filter` を 直に 書いて いた★
      ⇒ ★★実ブラウザを 走らせないと 門が 仕事を した 所を 見られない★★
@@ -489,20 +489,20 @@ if (SELF) {
          ★しかも 倉庫は ★末尾の 0 を 落とす★（`…30.79+00:00`） */
       {
         const C2 = 'pay_companies', E2 = 'pay_employees';
-        /* 㑕 `Z` 対 `+00:00`（★桁は 同じ★） */
+        /* ㊀ `Z` 対 `+00:00`（★桁は 同じ★） */
         const z1 = [
           { n: 1, tana: C2, muki: 'POST', dashi: 100, okutta: '2026-09-25T17:54:45.474Z', owari: 900 },
           { n: 2, tana: C2, muki: 'GET', dashi: 500, kaeri: '2026-09-25T17:54:45.474+00:00', owari: 600 },
         ];
         iu('★★Z と +00:00 を 同じと 見る（1組）★★', jibunDeJibun(z1).honsu === 1);
-        /* 㑖★末尾の 0 が 落ちて いる★（★ここが 本番★） */
+        /* ㊁★末尾の 0 が 落ちて いる★（★ここが 本番★） */
         const z2 = [
           { n: 1, tana: C2, muki: 'POST', dashi: 100, okutta: '2026-09-25T15:12:30.790Z', owari: 900 },
           { n: 2, tana: C2, muki: 'GET', dashi: 500, kaeri: '2026-09-25T15:12:30.79+00:00', owari: 600 },
         ];
         iu('★★★末尾の 0 が 落ちても 同じと 見る（1組）★★★',
           jibunDeJibun(z2).honsu === 1);
-        /* 㑗★本当に 違う 時は 黙る★（★空振りで ない★） */
+        /* ㊂★本当に 違う 時は 黙る★（★空振りで ない★） */
         const z3 = [
           { n: 1, tana: C2, muki: 'POST', dashi: 100, okutta: '2026-09-25T15:12:30.790Z', owari: 900 },
           { n: 2, tana: C2, muki: 'GET', dashi: 500, kaeri: '2026-09-25T15:12:31.790+00:00', owari: 600 },
@@ -663,7 +663,7 @@ const soukoLog = [];
       e.kaeri = jiOf(await res.text().catch(() => ''));
     } catch (e) { /* 同上 */ }
   });
-  /* ★★★失敗と 終了も 拾う★★★（2026-09-25・指示役1 の 叩き 㐖から）
+  /* ★★★失敗と 終了も 拾う★★★（2026-09-25・指示役1 の 叩き ㋐から）
      ★何が 起きて いたか★
        CI `36151979249` で ★「全 151本／まだ 返って いない 1本」★ と 出た。
        ★しかし この 控えは ★`response` だけ★ を 見て いた★。
@@ -699,6 +699,7 @@ const soukoLog = [];
      ⇒ 出しに「★取れません＝`Store.hozonNoKazu` が 無い★」と 出た
      ⇒ ★★『直しが 入って いない』と 読めて しまう★★＝★偽の 赤★
    ⇒ ★開いて いる 間に 読み、★後で 出す★★ */
+let OOI_KAZU = undefined;     /* ★覆いの 控え（`Store.ooiNoKazu()`）★ */
 let HOZON_KAZU = undefined;   /* undefined＝★まだ 読んで いない★／null＝★読んだが 無い★ */
 async function hozonKazuWoYomu(pg2) {
   try {
@@ -707,6 +708,12 @@ async function hozonKazuWoYomu(pg2) {
       catch (e) { return null; }
     });
   } catch (e) { HOZON_KAZU = undefined; }   /* ★読めなかった＝★「無い」と は 書かない★ */
+  try {
+    OOI_KAZU = await pg2.evaluate(() => {
+      try { return (window.Store && Store.ooiNoKazu) ? Store.ooiNoKazu() : null; }
+      catch (e) { return null; }
+    });
+  } catch (e) { OOI_KAZU = undefined; }
 }
 
 /* ★覆いが 出た 所の 前後を 並べる★（★出しに 出さないと 数えた事に ならない★） */
@@ -1507,7 +1514,7 @@ soukoDasu('★走りの 終わり★', 12);
     + '／★着いた 順が 差し戻った ' + gyakuZen + '本★'
     + '（参考：番号の ずれ ' + soukoLog.filter((x) => x.ban && x.n !== x.ban).length + '本'
     + '＝★抜けた 本数の 分だけ ずれる＝逆順では ない★）★');
-  /* ★★指示役1 の 叩き 㑐＝★数が 食い違ったら その場で 赤に する★★
+  /* ★★指示役1 の 叩き ㋓＝★数が 食い違ったら その場で 赤に する★★
      ★但し 相手の『「静まりました」と 突き合わせる』は ★成り立ちません★
        訳＝`scripts/_borrow-playwright.mjs:104-111` は
          ★閉じる 時に 初めて 耳を 付ける★（それ以前の 要求は 数えて いない）
@@ -1530,6 +1537,37 @@ soukoDasu('★走りの 終わり★', 12);
      ★これを 赤に は しません★＝★数を 出すだけ★
        訳＝★待ちも 捨ても ★正しい 働き★★（★溜めない 形★）
        ⇒ ★★但し 数が 出て いないと ★溜まって いても 誰も 気づかない★★ */
+  /* ★★★㈝-2 の 決め手★★★（2026-09-27）
+     ★`kyuyo/js/store.js:187` の conflict は ★文字列比較★
+        `if(cloudUA && cloudUA !== lastCompanyUpdatedAt){ … conflict … }`
+     ★`:212` に 落とし穴★
+        `lastCompanyUpdatedAt = (res[0]…updated_at) ★|| now★;`
+        ⇒ ★DB が 値を 返さなかった 回だけ ★JS の 《…Z》形★が 控えに 入る★
+        ⇒ 次の 確認は DB の 《…+00:00》を 読む
+        ⇒ ★★同じ 瞬間なのに 字が 違う＝★偽の conflict★★
+     ★`:211` の 覚書が まさに その 話★
+        「JS生成の now(…Z) は DB返却(…+00:00)と 書式が 違い、
+          ★文字列比較で 毎回 不一致★＝誤conflictが 多発する（P0根治）」
+     ★外から は 読めない 2つの 値★を 画面の 中で 控えて ここで 出す。
+     ★CI でも 走る★（★倉庫の 鍵が 要らない★）
+        ＝★★手元では 7回 回して 覆い 0回＝★手元では 測れない★★ */
+  {
+    const ok = OOI_KAZU;
+    console.log('  ★★覆いの 中身★★ … '
+      + (ok
+        ? '★覆い ' + ok.honsu + '回★'
+          + '／★★同じ 瞬間なのに conflict … ' + ok.onaji + '回★★'
+          + '／本当に 別の 書き ' + ok.chigau + '回'
+          + '／まだ 読んで いない ' + ok.miyomi + '回'
+          + (ok.ji && ok.ji.length ? '／★字★ ' + ok.ji.join(' ｜ ') : '')
+          + (ok.onaji > 0
+            ? '★★⇒ ★字の 形だけの 偽 conflict が 在ります★★★'
+            : (ok.honsu > 0 ? '★⇒ ★字の 形だけの 物は 在りません★'
+              : '（★覆いが 出て いません＝★未測定★）'))
+        : (ok === null
+          ? '★★`Store.ooiNoKazu` が ★画面に 無い★★（★控えの 直しが 届いて いません★）'
+          : '★★読めて いません★★（★『無い』とは 書きません★）')) + '★');
+  }
   {
     const hz = HOZON_KAZU;
     console.log('  ★保存を 直列に した 後の 数 … '
@@ -1542,6 +1580,27 @@ soukoDasu('★走りの 終わり★', 12);
           : '★★読めて いません★★'
             + '（★画面を 開いて いる 間に 読めなかった'
             + '＝★『無い』とは 書きません★）')) + '★');
+  }
+  /* ★★会社の 棚に 書いた 値を ★全部★ 出す★★（2026-09-26）
+     ★なぜ 要るか（踏んだ 穴）★
+       外から 倉庫を 見張る 紙が この 出しを 読んで
+       ★「倉庫が 動いた 値」と 突き合わせます★。
+       ★ところが この 紙は ★後ろ 8～12本★ しか 印字して いません★
+       ⇒ ★★私の 書きが 10個しか 拾えず、残りが「私以外」に 化けた★★
+       ⇒ ★「覆い 27回／私以外 104回」＝★偽の 当たり★
+     ⇒ ★★突き合わせの ★分母★ を 出す★★
+        ＝[[feedback_bunbo_wo_dasanai_midori_wa_uso]] */
+  {
+    const kaki = soukoLog.filter((x) => x.tana === 'pay_companies'
+      && x.muki !== 'GET' && x.muki !== 'HEAD' && x.okutta);
+    const ne = [...new Set(kaki.map((x) => String(x.okutta)))];
+    console.log('  ★会社の 棚に 書いた 値 … ' + kaki.length + '本（別々の 値 '
+      + ne.length + '個）★');
+    console.log('  ★書いた 値（全部）★：' + (ne.length ? ne.join(' ') : '★無し★'));
+    const kaeri2 = [...new Set(soukoLog.filter((x) => x.tana === 'pay_companies' && x.kaeri)
+      .map((x) => String(x.kaeri)))];
+    console.log('  ★会社の 棚が 返した 値（全部）★：'
+      + (kaeri2.length ? kaeri2.join(' ') : '★無し★'));
   }
   {
     const jj = jibunDeJibun(soukoLog);
