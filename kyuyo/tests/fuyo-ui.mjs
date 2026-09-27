@@ -740,6 +740,7 @@ const soukoLog = [];
 let OOI_KAZU = undefined;         /* ★片づけの ★前★★ */
 let HIKAE_KAZU = undefined;       /* ★`|| now` に 落ちた 回数★（★片づけの 前★） */
 let OOI_KAZU_ATO = undefined;     /* ★片づけの ★後★（★開き直した 後★） */
+let MACHI_KAZU = undefined;       /* ★読み込み前の 隙で 待った 数★（2026-09-28 の 直し） */
 async function hozonKazuWoYomu(pg2, ato) {
   /* ★★`Store.hozonNoKazu` は ★取り下げました★★（2026-09-27）
      ★直列の 包みを ★効かないと 実測して 戻した★ ので
@@ -760,6 +761,17 @@ async function hozonKazuWoYomu(pg2, ato) {
     });
     if (!ato) HIKAE_KAZU = h;
   } catch (e) { if (!ato) HIKAE_KAZU = undefined; }
+  /* ★★『読み込みが 始まる 前の 隙』を 閉じた 直しが 効いたか★★（2026-09-28）
+     ★kai★ … ★待った 回数★（★0 なら ★そこに 隙は 無かった★＝この 走りでは 未測定★）
+     ★kire★ … ★待ち切れて 今まで どおりに 出た 回数★（★0 が 良い★）
+     ⇒ ★★覆いの 数と 並べて 見る★★＝★待って いるのに 覆いが 出る なら 別の 因★ */
+  try {
+    const m = await pg2.evaluate(() => {
+      try { return (window.Store && Store.machiNoKazu) ? Store.machiNoKazu() : null; }
+      catch (e) { return null; }
+    });
+    if (!ato) MACHI_KAZU = m;
+  } catch (e) { if (!ato) MACHI_KAZU = undefined; }
   if (ato) { OOI_KAZU_ATO = OOI_KAZU; }
 }
 
@@ -1644,6 +1656,28 @@ soukoDasu('★走りの 終わり★', 12);
     if (nokoshi) OOI_JI.slice(0, 5).forEach((x, i) => console.log('     ' + (i + 1) + ') ' + x.slice(0, 200)));
     console.log('  ★読み込みが 走った 回数 … ' + YOMI_JI.length + '回★'
       + (YOMI_JI.length ? '：' + YOMI_JI.map((x) => x.replace('★読み込みの その場★ ', '')).join(' ｜ ') : '（★走って いません★）'));
+    /* ★★『読み込みが 始まる 前の 隙』の 直しが 効いたか★★（2026-09-28）
+       ★kai>0 かつ 覆い 0★ … ★隙は 在って／閉めた★＝★これが 狙い★
+       ★kai=0★ ……………… ★この 走りでは そこに 隙が 無かった＝★未測定★★
+       ★kire>0★ ………… ★待ち切れた＝上限（8秒）を 超えた＝別に 遅い 物が 在る★ */
+    if (MACHI_KAZU === null) {
+      console.log('  ★★`Store.machiNoKazu` が ★画面に 無い★★（★読み込み前の 隙の 直しが 届いて いません★）');
+    } else if (MACHI_KAZU === undefined) {
+      console.log('  ★読み込み前の 隙の 数 … ★読めませんでした★（★0 とは 書きません★）');
+    } else {
+      /* ★★待った ms も 出す★★（2026-09-28・指示役1 の ②）
+         ★訳★ … ★これは ★客が 開いた 直後★の 道★
+           ⇒ ★待ちが 長いと『押したのに 何も 起きない』に 見えます★
+           ⇒ ★回数だけでは 客の 速さは 分かりません★ */
+      const _ms = Array.isArray(MACHI_KAZU.ms) ? MACHI_KAZU.ms : [];
+      console.log('  ★★読み込み前の 隙で 待った 数★★ … 待った ' + MACHI_KAZU.kai + '回'
+        + '（★' + (_ms.length ? _ms.map((x) => x + 'ms').join('／') : '★ms を 控えて いません★') + '★'
+        + '／最小 ' + String(MACHI_KAZU.msSaisho) + 'ms・★最大 ' + String(MACHI_KAZU.msSaidai) + 'ms★）'
+        + '／★上限（8秒）に 当たった ' + MACHI_KAZU.kire + '回★'
+        + '（入口 ' + String(MACHI_KAZU.session) + '／読めた ' + String(MACHI_KAZU.yondaKa) + '）'
+        + (MACHI_KAZU.kai === 0 ? '＝★この 走りでは 隙が 無かった＝未測定★' : '')
+        + (MACHI_KAZU.kire > 0 ? '★⇒ ★上限を 超えた＝別に 遅い 物が 在ります★★' : ''));
+    }
   }
   {
     const ok = OOI_KAZU, okAto = OOI_KAZU_ATO;

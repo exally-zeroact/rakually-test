@@ -190,7 +190,118 @@
         ji: a.slice(0, 3).map(function(x){ return x.ji; })
       };
     };
-    Store.cloudSaveState = function(state){
+    /* ★★★読み込みが 始まる ★前★ の 隙を 閉じる★★★（2026-09-28・★実測から★）
+       ★隙の 実物（`kyuyo/js/auth.js:42` afterLogin）★
+         ① `gateCheck()` …… ★倉庫へ 1往復★（★使える／止まって いる を 読む 棚★）
+            ＝★棚の 名前は ここに 書きません★（`tests/furui-namae.test.mjs` が
+              ★古い 名前の 本数を 数えて いる★＝覚書で 1件 増やすと ★偽の 赤★に なる）
+         ② `PayslipReloadCloud()` … ここで 初めて `cloudLoadState()` が 呼ばれ
+            ★`saveHold` が 立つ★（下の `cloudLoadState` の 末尾＝関数の 中で 同期的に 立つ）
+         ⇒ ★★①の 間は 誰も 保存を 止めて いません★★
+       ★実測（09-27・同じ 走り）★
+         14:55:23.692 … ★覆い★（`hikae=null` ／ `neverSynced=true`）
+         14:55:24.545 … 読み込み `kaime=1`（★0.853秒 ★後★★）
+         ⇒ ★★保存が 読み込みより 先に 走って いた★★
+       ★これが 何を 起こすか（★8日 追った 物★）★
+         1回 conflict に なると `lastCompanyUpdatedAt` は ★二度と 新しく ならない★
+         （conflict の 道は `doSave()` に 行かない＝控えを 書く 所を 通らない）
+         ⇒ ★★その後 開き直すまで 全部 conflict★★（実測＝★覆い 65回／控えは 65回とも 同値★）
+         ⇒ WebKit の 赤＝★覆いの 箱が ボタンの 上に 座る★
+            ⇒ 片づけが 押せない ⇒ 人が 1人 残る
+            ⇒ ★前の 数が 13→18→19→20 と 毎回 増えた★
+       ★★直し＝『まだ 一度も 読んで いない 間の 保存は 少し 待つ』★★
+         ★お金の 判じ（conflict に するか）は ★1文字も 変えて いません★★
+         ＝★待つだけ★／待ち切れたら ★今まで どおり★ の 道に 出る
+       ★永久に 待たない★＝★上限を 決める★（待ち続けると ★雲に 行かない★を 作る）
+       ★入口の 顔が 変わったら 窓を 引き直す★＝★ログインの 直後こそ 隙が 開く★ */
+    /* ★待つ 上限★（★見張りからは 短く できる★＝★上限そのものを 測れる ように する為★
+       ＝★見られない 物は 見張れない★／★変えられるのは ★待つ 長さ★だけ＝判じは 変わりません★） */
+    var YOMI_MACHI_MS = (typeof global.__YOMI_MACHI_MS__ === 'number') ? global.__YOMI_MACHI_MS__ : 8000;
+    var YOMI_KIZAMI_MS = 200;    /* ★刻み★ */
+    var _machiKara = null;       /* ★今の 窓の 始まり★ */
+    var _machiKai = 0;           /* ★待った 回数★ */
+    var _machiKire = 0;          /* ★待ち切れて 今まで どおりに 出た 回数★ */
+    var _machiUid = null;        /* ★最後に 見た「入口を 通って いるか」★（出しの為・判じには 使わない） */
+    /* ★★待った ms を 1本ずつ 控える★★（2026-09-28・指示役1 の ②）
+       ★訳★ … ★これは ★客が 開いた 直後★の 道★＝★待ちが 長いと
+         『押したのに 何も 起きない』に 見えます★
+       ⇒ ★★回数だけでは 客の 速さは 分かりません＝★ms を 出す★★★
+       ★上限（8秒）に 当たった 回数＝`kire`★ … ★1回でも 在れば 別の 話★ */
+    var _machiMs = [];           /* ★待った ms（1つの 保存 につき 1件・出しの 為に 20件まで） */
+    function _machiMsIreru(ms){
+      if(_machiMs.length < 20) _machiMs.push(ms);
+    }
+    /* ★測る 口★＝★この 直しが 効いたかは これで 数える★ */
+    Store.machiNoKazu = function(){
+      return {
+        kai:_machiKai, kire:_machiKire, session:!!_machiUid, yondaKa:cloudLoaded,
+        /* ★待った ms★ … ★最小／最大／全部（20件まで）★（★待って いなければ null★） */
+        msSaisho: _machiMs.length ? Math.min.apply(null, _machiMs) : null,
+        msSaidai: _machiMs.length ? Math.max.apply(null, _machiMs) : null,
+        ms: _machiMs.slice(0)
+      };
+    };
+    /* ★★一度 間違えた 形を 残して おきます（★同じ 穴に 落ちない 為★）★★
+       ★前の 形★ … `getSession()` の 答えを ★旗に 控えて★ おいて、保存の 時に その 旗を 見た。
+       ★落ちた 訳★ … ★`getSession()` は 非同期★＝★一番 最初の 保存の 時には まだ 立って いない★
+         ⇒ ★★旗が false＝待たない＝隙が 閉まらない★★
+         ⇒ 実物＝`kyuyo/tests/cloud-sync.mjs` の ★隙①が 赤★（★見張りが 捕まえた★）
+       ★今の 形★ … ★★同じ 道の 中で `curUid()` に 訊く★★
+         ＝★控えた 旗を 信じない★（[[feedback_hajimatta_jikoku_wa_tsukatte_iru_ka_no_akashi_de_nai]] の 同じ型） */
+    /* ★`_konoMachiKara`★＝★★この 保存が★ 待ち始めた 時刻★（★呼ぶ 側は 渡しません★
+       ＝待ちの 輪が 自分で 持ち回す／★1つの 保存が 何ms 待ったか★を 出す 為） */
+    /* ★★`_konoUid`＝★一度 訊いた 入口を 持ち回す★★★（2026-09-28）
+       ★訳（★踏みかけた 穴★）★ … `curUid()` は `sb.auth.getUser()`＝★倉庫へ 問い合わせます★。
+         ★刻み 200ms × 上限 8秒＝1回の 保存で ★最大 40往復★★ に なって いました。
+       ⇒ ★★訊くのは ★1つの 保存に つき 1回★★★（＝今まで と 同じ 数）
+       ★控えた 旗は 信じない／でも ★同じ 保存の 中では 訊き直さない★★ */
+    Store.cloudSaveState = function(state, _konoMachiKara, _konoUid){
+      /* ★出る 時に ★待った ms★ を 1件 控える★（待って いなければ 何も しない） */
+      var _oeru = function(){
+        if(_konoMachiKara != null) _machiMsIreru(Date.now() - _konoMachiKara);
+        return _hozonNoTsugi(state);
+      };
+      /* ★★①読み込みが まだ 始まって いない★★＝★少し 待つ★（上に 訳を 書いた） */
+      if(!saveHold && !cloudLoaded && lastCompanyUpdatedAt === null){
+        return (_konoUid == null ? curUid() : Promise.resolve(_konoUid)).then(function(uid){
+          _machiUid = uid || null;
+          /* ★入口を 通って いない＝雲は そもそも 対象外＝待たない★ */
+          if(!uid) return _oeru();
+          /* ★待って いる 間に 誰かが 読み込みを 始めた／読めた＝もう 待つ 必要が 無い★ */
+          if(saveHold || cloudLoaded || lastCompanyUpdatedAt !== null) return _oeru();
+          if(_machiKara === null) _machiKara = Date.now();
+          if((Date.now() - _machiKara) < YOMI_MACHI_MS){
+            _machiKai++;
+            var _kono = (_konoMachiKara == null) ? Date.now() : _konoMachiKara;
+            return new Promise(function(ok){ setTimeout(ok, YOMI_KIZAMI_MS); }).then(function(){
+              /* ★待った 後は 中身を 取り直す★＝★古い 一覧で 上書きしない★（2026-09-03 の P0 と 同じ 決め）
+                 ★転んだら 黙らない★＝★取り直しが 落ちても 待ちの 輪が 静かに 死ぬのを 防ぐ★ */
+              var fresh = null;
+              try{
+                fresh = (typeof Store._snapFn === 'function') ? Store._snapFn() : null;
+              }catch(_eS){
+                console.error('★待った 後に 新しい 中身を 取れません＝手元の 物で 出します★', _eS);
+                fresh = null;
+              }
+              return Store.cloudSaveState(fresh || state, _kono, uid).catch(function(_eC){
+                /* ★言ってから 投げ直す★＝呼んだ 側（app.js）の 受け皿に ちゃんと 渡す */
+                console.error('★読み込みを 待った 後の 保存が 落ちました★', _eC);
+                throw _eC;
+              });
+            });
+          }
+          /* ★待ち切れた★＝★今まで どおりの 道に 出す★（★何も 失いません★） */
+          _machiKire++;
+          return _oeru();
+        }, function(_eU){
+          /* ★入口を 訊けない＝★待たずに 今までどおり★（黙りません） */
+          console.error('★入口の 今を 訊けません＝読み込み前の 隙は 閉めません★', _eU);
+          return _oeru();
+        });
+      }
+      return _oeru();
+    };
+    function _hozonNoTsugi(state){
       // ★②初回の読み込みが 走っている間は 保存しない★=済んでから 1回だけ 出す(中身は取り直す)
       if(saveHold){
         if(!heldOnce){
@@ -209,7 +320,7 @@
         return heldOnce;
       }
       return realSave(state);
-    };
+    }
     /* ★★★ここに あった『保存を 直列に する包み』は
        ★効かないと 実測で 分かった ので 戻しました★★★（2026-09-27）
        ★入れた 訳★ … 覆い（「別の端末で更新されています」）の 因を
