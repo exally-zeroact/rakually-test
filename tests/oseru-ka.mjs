@@ -197,7 +197,56 @@ for (const w of HABA) {
         const h = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
         return h ? (h.tagName.toLowerCase() + (h.id ? '#' + h.id : '') + (typeof h.className === 'string' && h.className ? '.' + h.className.trim().replace(/\s+/g, '.') : '')) : '（何も無い）';
       });
-      const msg = '給与 ' + scr + ' 幅' + w + ' … ★タブが 押せない★（上に ' + ue + '／閉じ残り ' + nokori + '）';
+      /* ★★上に 乗って いる 物の ★字★ も 出す★★（2026-09-28）
+         ★踏んだ 穴★ … 09-28 に この 段が ★網の 中だけ 赤／単独は 3回とも 緑★ に なった。
+           出て いたのは `上に div.ui-modal-ov` の ★class だけ★
+           ⇒ ★★`.ui-modal-ov` は ★案内の 覆い★ と ★conflict の 覆い★ の ★両方★ が 使う★★
+           ⇒ ★★『どちらか』が 分からず 因を 詰められなかった★★
+         ⇒ ★★class では なく ★中の 字★ で 名指しする★★
+         （★倉庫にも アプリにも 触りません＝読むだけ★） */
+      const ji = await pg.evaluate(() => {
+        const o = document.querySelector('.ui-modal-ov');
+        const t = o ? String(o.innerText || o.textContent || '').replace(/\s+/g, ' ').trim() : '';
+        /* ★★覆いが conflict なら ★控えが null か 在りか★ まで 取る★★（2026-09-28・指示役1 の 割れ目）
+           ★null★ …… ★まだ 一度も 読んで いない＝★引き金★★（09-28 の 直しが 覆う 窓）
+           ★在り★ …… ★読んだ 後に 上がった＝★直って いない 窓★★（★保存が 重なる／別の 書き手★）
+           ⇒ ★★これが 無いと『conflict だった』までしか 言えません★★ */
+        let ooi = null;
+        try {
+          ooi = (window.Store && Store.ooiNoKazu) ? Store.ooiNoKazu() : null;
+        } catch (e) { ooi = null; }
+        let machi = null;
+        try {
+          machi = (window.Store && Store.machiNoKazu) ? Store.machiNoKazu() : null;
+        } catch (e) { machi = null; }
+        return {
+          ari: !!o,
+          ji: t.slice(0, 200),
+          /* ★conflict の 覆いの 字★（`kyuyo/js/app.js` の 文言＝★別の端末／未読込／最新を読み込み★） */
+          conflict: (t.indexOf('別の端末') >= 0 || t.indexOf('未読込') >= 0 || t.indexOf('最新を読み込み') >= 0),
+          ooi: ooi,
+          machi: machi,
+        };
+      });
+      /* ★★控えと 待ちを ★字で★ 出す★★（★取れなければ『未測定』と 書く＝0 とは 書かない★） */
+      const wake = (ji.ooi === null)
+        ? '（★`Store.ooiNoKazu` の 口が 画面に 無い＝★控えは 未測定★）'
+        : ('［覆い ' + ji.ooi.honsu + '回'
+          + '／★まだ 読んで いない（控え null）' + ji.ooi.miyomi + '回★'
+          + '／本当に 別の 書き ' + ji.ooi.chigau + '回'
+          + '／同じ 瞬間 ' + ji.ooi.onaji + '回］'
+          + (ji.ooi.ji && ji.ooi.ji.length ? '「' + ji.ooi.ji.join(' ｜ ') + '」' : ''));
+      const machiJi = (ji.machi === null)
+        ? '（★`Store.machiNoKazu` の 口が 無い＝★読み込み前の 隙は 未測定★）'
+        : ('［待った ' + ji.machi.kai + '回'
+          + '（最大 ' + String(ji.machi.msSaidai) + 'ms）／上限に 当たった ' + ji.machi.kire + '回］'
+          + (ji.machi.kai === 0 ? '＝★この 回は 隙が 無かった＝未測定★' : ''));
+      const msg = '給与 ' + scr + ' 幅' + w + ' … ★タブが 押せない★（上に ' + ue + '／閉じ残り ' + nokori + '）'
+        + (ji.ari
+          ? (ji.conflict
+            ? '★★⇒ ★これは conflict の 覆いです★★★' + wake + machiJi
+            : '（★案内の 覆い＝conflict では ありません★）') + '「' + ji.ji + '」'
+          : '（★覆いの 字が 取れません＝どの 覆いか 未測定★）');
       console.log('  ✗ ' + msg); atarazuKei.push(msg);
       continue;
     }
