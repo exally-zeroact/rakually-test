@@ -134,15 +134,46 @@ export function kasanari(log, muki) {
    ★この 門を 入れると★ … ★★直すまで テスト線は 赤の まま★★
      （★但し その 赤は 本物＝★客に 出る 字が 実際に 出て いる★）
    ★新しい 測りは 足して いません★＝★同じ 控えの 数を 判じに 使うだけ★ */
+/* ★★★★2026-09-28 ★門が 偽の 赤を 出して いました★（★指示役1 が 止めた★）★★★★
+   ★何が あったか★
+     WebKit run `36355182975` で ★「保存の 失敗 276本」＝赤★ に なった。
+     私は それを ★そのまま「客の 穴」と 報告しました★。
+   ★指示役1 の 叩き★ … 「★前の 回の 失敗 2本は ★送ってから 1048176ms（17分）★＝
+     ★ページを 閉じた 時に 道具が 切った 物★だった。276本も 混ざって いる 恐れが 在る」
+   ★数え直した（★276本 全部★）★
+     ★送ってから 失敗までの ms★ … 最小 ★25,952ms★／中央 31,743ms／最大 ★36,411ms★
+     ★3000ms 未満 … ★0本★★ ／ ★3000ms 以上 … ★276本★★
+   ⇒ ★★★1本も 客の 穴では ありません＝★門が 道具の 切りを 客の 穴と 呼んで いた★★★★
+   ★本物の 失敗は 数百ms で 落ちます★（倉庫が 断る／網が 切れる）
+     ★26〜36秒 も 飛んだ まま★＝★閉じる まで 並んで 待って いた★
+   ★★直し＝★時間で 分ける★★★
+     ㋐`mae`  … ★閉じる 前に 落ちた★（★これだけを 赤に する＝客の 穴★）
+     ㋑`ato`  … ★閉じた 時に 切られた★（★数えて 出すが 赤に しない★）
+   ★★境目を ★決め打ちに しない★★★ … `SHIPPAI_HAYA_MS` を 1か所に 置き ★出しに 数を 書く★
+     ＝★[[feedback_menjo_no_wake_wa_hazushite_hakaru_made_mitate]]＝★免除の 訳は 見立て★★
+     ⇒ ★★『26〜36秒 も 並んで 待って いた』事 その物は ★別の 門で 見ます★★★
+        （＝★同時に 飛んで いた 最大 299本★／`app.js:6180` の 件） */
+export const SHIPPAI_HAYA_MS = 3000;
 export function shippaiWakeru(log) {
   const a = (Array.isArray(log) ? log : []).filter((x) => x && !x.tsuita && x.shippai);
   const kaki = a.filter((x) => x.muki !== 'GET' && x.muki !== 'HEAD');
+  /* ★かかった ms が 取れない 物は ★安全側＝『閉じる 前』に 入れる★（★黙って 見逃さない★） */
+  /* ★★`&&` で 見ると `0` を 『無い』と 読みます★★（★自己確認が 捕まえた・2026-09-28★）
+     `dashi: 0` は ★在る★／`x.dashi &&` は ★偽★ ⇒ ★安全側に 落ちて 境目の 試験が 通らない★
+     ⇒ ★★数かどうかで 見る★★（★『0 と 無い』を 混ぜない★） */
+  const ms = (x) => ((typeof x.owari === 'number' && typeof x.dashi === 'number')
+    ? (x.owari - x.dashi) : null);
+  const kakiMae = kaki.filter((x) => { const m = ms(x); return m === null || m < SHIPPAI_HAYA_MS; });
+  const kakiAto = kaki.filter((x) => { const m = ms(x); return m !== null && m >= SHIPPAI_HAYA_MS; });
+  const msRa = kaki.map(ms).filter((m) => m !== null).sort((p, q) => p - q);
   const tana = {};
   a.forEach((x) => {
     const k = (x.tana || '?') + ' ' + x.muki;
     tana[k] = (tana[k] || 0) + 1;
   });
   return { zen: a.length, kaki, kakiKazu: kaki.length, tana,
+    kakiMae, kakiMaeKazu: kakiMae.length, kakiAto, kakiAtoKazu: kakiAto.length,
+    msSaisho: msRa.length ? msRa[0] : null, msSaidai: msRa.length ? msRa[msRa.length - 1] : null,
     ji: Object.keys(tana).sort().map((k) => k + ' ' + tana[k] + '本').join(' ／ ') };
 }
 
@@ -425,6 +456,31 @@ if (SELF) {
       iu('★★保存の 失敗が 0なら 0と 出る（空振りで ない）★★',
         shippaiWakeru([{ n: 1, tana: 'pay_payslips', muki: 'GET', tsuita: 0, shippai: 'x' }]).kakiKazu === 0);
       iu('★空なら 0', shippaiWakeru([]).zen === 0 && shippaiWakeru(null).kakiKazu === 0);
+      /* ★★★時間で 分けられるか★★★（2026-09-28・★偽の 赤を 出した 後の 空振り止め★）
+         ★実測★ … WebKit run `36355182975` の 失敗 276本 は
+           ★送ってから 25,952〜36,411ms★＝★閉じた 時に 道具が 切った 物★
+           ⇒ ★それを『客の 穴』と 呼んで 赤に して いた＝★偽の 赤★★ */
+      {
+        const t = [
+          /* ★閉じる 前（数百ms）＝★客の 穴★★ */
+          { n: 1, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 1000, owari: 1300 },
+          /* ★閉じた 時（30秒）＝★道具の 切り★★ */
+          { n: 2, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 1000, owari: 31000 },
+          /* ★ms が 取れない＝★安全側＝閉じる 前★に 入れる★ */
+          { n: 3, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x' },
+        ];
+        const s3 = shippaiWakeru(t);
+        iu('★保存の 失敗は 全部で 3本', s3.kakiKazu === 3);
+        iu('★★閉じる 前は 2本（★ms 不明を 安全側に 入れた★）★★', s3.kakiMaeKazu === 2);
+        iu('★★閉じた 時は 1本★★', s3.kakiAtoKazu === 1);
+        iu('★かかった ms の 最小/最大を 出す', s3.msSaisho === 300 && s3.msSaidai === 30000);
+        iu('★★境目の 手前（2999ms）は ★閉じる 前★★',
+          shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 0, owari: SHIPPAI_HAYA_MS - 1 }]).kakiMaeKazu === 1);
+        iu('★★境目 ちょうど（3000ms）は ★閉じた 時★★',
+          shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 0, owari: SHIPPAI_HAYA_MS }]).kakiAtoKazu === 1);
+        iu('★★30秒級だけ なら 閉じる 前は 0本（★偽の 赤に しない★）★★',
+          shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 0, owari: 31000 }]).kakiMaeKazu === 0);
+      }
     }
     /* ★★自分で 自分を 弾いた 組★★＝★門の 空振り止め★ */
     {
@@ -1768,10 +1824,33 @@ soukoDasu('★走りの 終わり★', 12);
   {
     const sw = shippaiWakeru(soukoLog);
     console.log('  ★失敗の 中身（棚ごと） … ' + (sw.ji || '★無し★') + '★');
-    T('★★保存(POST)の 失敗が 0本★★', sw.kakiKazu === 0,
-      '★保存の 失敗 ' + sw.kakiKazu + '本★（失敗 全部 ' + sw.zen + '本）'
-      + '：' + sw.kaki.map((x) => '出' + x.n + ' ' + (x.tana || '?') + ' ' + x.muki
-        + '「' + x.shippai + '」').join('・')
+    /* ★★★『閉じる 前』と『閉じた 時』を 分けて 出す★★★（2026-09-28・指示役1 が 止めた 偽の 赤）
+       ★赤に するのは ★閉じる 前★ だけ★／★閉じた 時は 数えて 出すが 赤に しない★ */
+    console.log('  ★★保存(POST)の 失敗を 時間で 分けた★★ … 全 ' + sw.kakiKazu + '本'
+      + '／★閉じる 前（' + SHIPPAI_HAYA_MS + 'ms 未満）＝★' + sw.kakiMaeKazu + '本★'
+      + '／閉じた 時（以上）＝' + sw.kakiAtoKazu + '本'
+      + '（かかった ms … 最小 ' + String(sw.msSaisho) + '／最大 ' + String(sw.msSaidai) + '）'
+      + (sw.kakiKazu === 0 ? '＝★1本も 失敗して いません★' : '')
+      /* ★★★『閉じた 時の 分』を ★緑に 数えません★★★（2026-09-28・指示役1 の ⑤）
+         ★私が 一度 こう 書きかけた★ … 「㋑だから 客の 穴では ない」
+         ★★それは ★試験の 中だけの 話★★★
+           ＝★客の 電話なら ★26〜36秒 待つ 前に 画面を 閉じます★★
+           ⇒ ★★閉じた 時に 切られる＝★客にも 落ちて 見える★★★
+         ⇒ ★★だから ★『並んで 待った 本数』★を 必ず 字に 出す★★
+         ⇒ ★直す 所は ★同時に 投げる 本数の 上限★（`app.js:6180`）★ */
+      + (sw.kakiAtoKazu > 0
+        ? '★⇒ ★この 回は 道具が 閉じた 時に 切りました（試験の 中では 客の 穴では ない）★'
+          + '／★★但し ' + sw.kakiAtoKazu + '本が ' + String(sw.msSaisho) + '〜'
+          + String(sw.msSaidai) + 'ms ★並んで 待って いました★★'
+          + '／★★客が その 前に 画面を 閉じれば ★客にも 落ちます★★★'
+          + '／★直す 所＝★同時に 投げる 本数の 上限★（`app.js:6180`）★'
+        : '') + '★');
+    T('★★保存(POST)の 失敗（★閉じる 前★）が 0本★★', sw.kakiMaeKazu === 0,
+      '★閉じる 前の 保存の 失敗 ' + sw.kakiMaeKazu + '本★'
+      + '（保存の 失敗 全部 ' + sw.kakiKazu + '本／うち 閉じた 時 ' + sw.kakiAtoKazu + '本'
+      + '／失敗 全部 ' + sw.zen + '本）'
+      + '：' + sw.kakiMae.map((x) => '出' + x.n + ' ' + (x.tana || '?') + ' ' + x.muki
+        + '「' + x.shippai + '」' + ((x.owari && x.dashi) ? ('／' + (x.owari - x.dashi) + 'ms') : '／★ms 不明★')).join('・')
       + '★＝★★客に「○名分を保存できませんでした（台帳・年末調整に入っていません）」が 出る★★'
       + '（因の 元＝`app.js:6180` が ★人数ぶん 一斉に 投げる★）');
   }
