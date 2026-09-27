@@ -699,9 +699,21 @@ const soukoLog = [];
      ⇒ 出しに「★取れません＝`Store.hozonNoKazu` が 無い★」と 出た
      ⇒ ★★『直しが 入って いない』と 読めて しまう★★＝★偽の 赤★
    ⇒ ★開いて いる 間に 読み、★後で 出す★★ */
-let OOI_KAZU = undefined;     /* ★覆いの 控え（`Store.ooiNoKazu()`）★ */
-let HOZON_KAZU = undefined;   /* undefined＝★まだ 読んで いない★／null＝★読んだが 無い★ */
-async function hozonKazuWoYomu(pg2) {
+/* ★★画面の 中の 数は ★開き直すと 0に 戻る★★（2026-09-27・踏んだ 穴）
+   ★`katazuke()` の 中で ★⑥画面を 開き直して います★
+   ★私は その ★後に★ 読んで いました★
+   ⇒ ★★「待たせた 0回」は ★開き直した 後の 0★＝★偽の 0★★
+   ⇒ ★★その 偽の 0で 私は「直しは 効いて いない」と 書きました★★
+   ★裏づけ（別の 道）★ … 覆いの 数は ★２７,２７ → 0,0,0★
+      （`97cdf6e`/`56f8b2a` 対 `8eeb366`/`84d0bee`/`efbe53d`）
+   ⇒ ★★『効いて いない』と 合いません★★
+   ★直し★ … ★片づけの ★前★ と ★後★ の ２つ 読んで 並べる★
+      （★どちらが 0に なるかが 字で 見える★） */
+let OOI_KAZU = undefined;         /* ★片づけの ★前★★ */
+let HOZON_KAZU = undefined;       /* ★片づけの ★前★★ */
+let OOI_KAZU_ATO = undefined;     /* ★片づけの ★後★（★開き直した 後★） */
+let HOZON_KAZU_ATO = undefined;   /* undefined＝★まだ 読んで いない★／null＝★読んだが 無い★ */
+async function hozonKazuWoYomu(pg2, ato) {
   try {
     HOZON_KAZU = await pg2.evaluate(() => {
       try { return (window.Store && Store.hozonNoKazu) ? Store.hozonNoKazu() : null; }
@@ -714,6 +726,7 @@ async function hozonKazuWoYomu(pg2) {
       catch (e) { return null; }
     });
   } catch (e) { OOI_KAZU = undefined; }
+  if (ato) { OOI_KAZU_ATO = OOI_KAZU; HOZON_KAZU_ATO = HOZON_KAZU; }
 }
 
 /* ★覆いが 出た 所の 前後を 並べる★（★出しに 出さないと 数えた事に ならない★） */
@@ -1456,12 +1469,15 @@ try {
 
   /* ★★自分の ゴミを 自分で 数える（2026-09-14 指示役1 の 注文）★★
      ★後始末したつもり★を 緑に しない＝★押す前と 後で 人数を 数えて 合わせる★。 */
+  /* ★★片づけの ★前★ に 読む★★＝★`katazuke()` の 中で 開き直すので
+     ★後だと 画面の 中の 数が 0に 戻ります★（★踏んだ 穴★） */
+  await hozonKazuWoYomu(pg);
   await katazuke();
   await machi(400);
+  /* ★片づけの ★後★ も 読む★＝★並べれば 『開き直しで 0に 戻る』が 字で 見える★ */
+  await hozonKazuWoYomu(pg, true);
   const ato2 = await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length);
   console.log('  画面の 札 … 前 ' + mae + ' → 後 ' + ato2 + '（★これは 緑の 根拠に しません★）');
-  /* ★★ここは 画面が まだ 開いて いる★★＝★直列の 数を ここで 読む★ */
-  await hozonKazuWoYomu(pg);
   /* ★★『緑の 根拠に しない』と『見ない』は 別★★（2026-09-21 実測で 踏んだ）
      ★実物（5c5ea3b の CI）★
         片づけ … ⑥開き直して 数えた … ★残り 0人★
@@ -1552,7 +1568,12 @@ soukoDasu('★走りの 終わり★', 12);
      ★CI でも 走る★（★倉庫の 鍵が 要らない★）
         ＝★★手元では 7回 回して 覆い 0回＝★手元では 測れない★★ */
   {
-    const ok = OOI_KAZU;
+    const ok = OOI_KAZU, okAto = OOI_KAZU_ATO;
+    if (okAto && ok && (okAto.honsu !== ok.honsu)) {
+      console.log('  ★★片づけの 前後で 数が 違います★★ … 前 ' + ok.honsu
+        + '回 → 後 ' + okAto.honsu + '回'
+        + '（★開き直すと 画面の 中の 数は 0に 戻ります★）');
+    }
     console.log('  ★★覆いの 中身★★ … '
       + (ok
         ? '★覆い ' + ok.honsu + '回★'
@@ -1569,7 +1590,13 @@ soukoDasu('★走りの 終わり★', 12);
           : '★★読めて いません★★（★『無い』とは 書きません★）')) + '★');
   }
   {
-    const hz = HOZON_KAZU;
+    const hz = HOZON_KAZU, hzAto = HOZON_KAZU_ATO;
+    if (hzAto && hz && (hzAto.machi !== hz.machi || hzAto.sute !== hz.sute)) {
+      console.log('  ★★片づけの 前後で 数が 違います★★ … 前 待たせた '
+        + hz.machi + '回／捨てた ' + hz.sute + '回 → 後 待たせた '
+        + hzAto.machi + '回／捨てた ' + hzAto.sute + '回'
+        + '（★開き直しで 0に 戻る★）');
+    }
     console.log('  ★保存を 直列に した 後の 数 … '
       + (hz ? '★待たせた ' + hz.machi + '回／捨てた ' + hz.sute + '回'
         + '／読んだ 時に 走って いた ' + (hz.chuu ? 'はい' : 'いいえ') + '★'
