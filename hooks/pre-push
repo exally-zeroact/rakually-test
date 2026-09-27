@@ -25,6 +25,34 @@
 #   ★新しい 手元で 効かせる には 1回だけ★ … `git config core.hooksPath hooks`
 #
 # ★重さ（2026-09-22 実測）★ … 223段 で ★約 5〜9分★。★押す たびに 掛かります★。
+# ★★★2026-09-28 指示役1＝★git が hook に 渡す `GIT_DIR` を 捨てる★★★
+#   ★★これが 無いと ★別の 作業場(worktree)から 押した 時だけ★ 2つ 壊れます★★
+#
+#   ★実測（★別の 場所に 仮の repo と 仮の 遠くを 作って 測った★）★
+#     ㋐主の 手元から 押す …… `GIT_DIR=[]`
+#        ⇒ 段の 中の `git -C <仮> init` … ★仮の repo が 出来る（YES）★
+#        ⇒ `core.bare` …………… ★false の まま★
+#     ㋑★別の 作業場から 押す★ … `GIT_DIR=[<主>/.git/worktrees/<名>]`  ★git が 自分で 渡す★
+#        ⇒ 段の 中の `git -C <仮> init` … ★★仮の repo が 出来ない（NO）★★
+#           ＝★`-C` は `GIT_DIR` を 打ち消さない★＝★git は GIT_DIR の 方を 初期化する★
+#        ⇒ `core.bare` …………… ★★true に なる（主の config が 書き換わる）★★
+#           ＝★作業場からは 作業の 木が 見えない ので git が bare と 書く★
+#     ㋒★この unset を 足して もう 一度 別の 作業場から 押す★
+#        ⇒ `GIT_DIR=[]` ／ 仮の repo ★YES★ ／ `core.bare` ★false の まま★
+#
+#   ★本物で 何が 起きて いたか（2026-09-28）★
+#     ・`tests/supa-config-env-matches-repo.test.mjs --self-test` が
+#       ★別の 作業場から 押した 回だけ 赤★（2回とも）
+#       ／★主の 手元から 押した 回は 緑★／★押しの 外で 226段 丸ごと 回しても 赤 0★
+#     ・同じ 2回に ★`core.bare = true`★ が 起きた（別の 席の 作業が 止まった）
+#   ⇒ ★★＝『押す 物 だけの 作業場から 押す』は ★この 1行が 無いと 使えません★★★
+#   ⇒ ★★この 1行が 在れば ★使えます★＝『網が 見た 字 ＝ 押した 物』が 言えます★★
+#
+#   ★なぜ 4つ 全部 捨てるか★ … `GIT_DIR` だけ 捨てても
+#     `GIT_WORK_TREE` `GIT_INDEX_FILE` `GIT_PREFIX` が 残ると ★別の 所で 同じ 事が 起きる★。
+#     ★段は 226本 在り、どれが git を 呼ぶかを 人が 覚えて いられない★ ので ★入口で 捨てる★。
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
 set -e
 echo "[pre-push] ★押す前の 網を 回します★（飛ばすなら git push --no-verify）"
 if ! command -v node > /dev/null 2>&1; then

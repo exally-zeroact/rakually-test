@@ -52,6 +52,9 @@ export function miru(nosetta, ji, muji) {
     nigemichi: /--no-verify/.test(ji),
     tsukekata: /core\.hooksPath/.test(ji),
     kesarete: muji,
+    /* ★行の 頭が unset の 行だけ 見る＝★覚書に 書いて あるだけの 物を 緑に しない★（自己確認が 捕まえた） */
+    sute: (ji.split(/\r?\n/).filter((L) => /^\s*unset\s/.test(L))
+      .some((L) => /\bGIT_DIR\b/.test(L) && /\bGIT_WORK_TREE\b/.test(L))),
   };
 }
 
@@ -70,10 +73,17 @@ if (process.argv.includes('--self-test')) {
   say.iu('★逃げ道が 書いて いなければ 偽★', miru([MON], 'node tools/oshu-mae.mjs', false).nigemichi === false);
   say.iu('★付け方が 書いて いなければ 偽★', miru([MON], 'node tools/oshu-mae.mjs', false).tsukekata === false);
   say.iu('★消されて いれば 真（＝赤に する）★', miru([MON], '', true).kesarete === true);
+  /* ★★`GIT_DIR` を 捨てて いるか★★（2026-09-28 実測＝別の 作業場から 押すと
+     git が `GIT_DIR` を hook に 渡し、段の 中の `git -C <仮> init` が
+     ★仮を 作らず 主の config に `core.bare = true` を 書く★） */
+  say.iu('★unset が 在れば 真★', miru([MON], 'unset GIT_DIR GIT_WORK_TREE' + String.fromCharCode(10) + 'node tools/oshu-mae.mjs', false).sute === true);
+  say.iu('★unset が 無ければ 偽★', miru([MON], 'node tools/oshu-mae.mjs', false).sute === false);
+  say.iu('★GIT_DIR だけ 捨てても 偽（4つ 揃って 初めて 真）★', miru([MON], 'unset GIT_DIR' + String.fromCharCode(10) + 'node tools/oshu-mae.mjs', false).sute === false);
+  say.iu('★字の 中に 書いて あるだけでは 偽（命令で ないと 効かない）★', miru([MON], '# unset GIT_DIR GIT_WORK_TREE は 大事' + String.fromCharCode(10) + 'node x', false).sute === false);
   const hon = noseteIruKa(ROOT, MON);
   say.iu('★名簿を 引く 口が 生きて いる（配列を 返す）★', Array.isArray(hon), '今 ' + hon.length + '本');
   if (say.kazu()) { console.log('\n★自己確認 ' + say.kazu() + '件 おかしい★'); process.exit(1); }
-  console.log('  ★8通り ぜんぶ 思った通り★');
+  console.log('  ★12通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -94,6 +104,8 @@ say.iu('★門が 網（tools/oshu-mae.mjs）を 呼んで いる★', m.ami);
 say.iu('★逃げ道（--no-verify）が 紙に 書いて 在る★', m.nigemichi);
 say.iu('★付け方（core.hooksPath）が 紙に 書いて 在る★', m.tsukekata);
 say.iu('★.gitignore で 消されて いない★', !m.kesarete);
+say.iu('★★門が `GIT_DIR` 等を 捨てて いる（★別の 作業場から 押した 時に 主の config を 壊さない★）★★', m.sute,
+  'unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX');
 
 /* ★数だけ 出す（判じない）★＝★この 手元で 設定が 打たれて いるか★は CI からは 見えない */
 let hp = '（打たれて いません）';
@@ -102,4 +114,4 @@ console.log('     ★この 手元の core.hooksPath ＝ ' + hp + '★（★判�
 console.log('     ★運び先に 門が 在るかは ★運ぶ 道具★が 見ます（scripts/ship-all.mjs）★');
 
 if (say.kazu()) { console.log('\n★' + say.kazu() + '件 赤★'); process.exit(1); }
-console.log('\n★6通り ぜんぶ 緑★');
+console.log('\n★7通り ぜんぶ 緑★');
