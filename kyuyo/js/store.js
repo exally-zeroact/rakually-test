@@ -151,6 +151,7 @@
     // ★楽観ロック用: 最後に把握した pay_companies(設定=全置換で最も危険)の updated_at。
     //  読込時・自分の保存成功時に更新。保存前にクラウドの現在値と違えば「別端末が後から更新」=conflictで上書きしない。
     var lastCompanyUpdatedAt = null;
+    var _yomiKai = 0;   /* ★読み込みが 走った 回数（★測る 為だけ★） */
 
     /* ★★★測る 為だけの 口 2つ★★★（2026-09-27に 一度 消し過ぎて 戻した）
        ★㉕-2（「別の端末で更新されています」）の 因は ★未説明★。
@@ -345,6 +346,26 @@
           var co=res[0].data && res[0].data.data; var emps=(res[1].data||[]).map(function(r){ return r.data; });
           cloudSynced=true; cloudLoaded=true; // ★読めた★=差分削除を許可(空でも=新規アカウント)=同期済み(空でも=新規アカウントとして差分削除を許可)
           lastCompanyUpdatedAt=(res[0].data && res[0].data.updated_at)||null; // ★競合検知の基準=読込時のクラウドupdated_at
+          /* ★★★測る 為だけの 1行★★★（2026-09-27・指示役1 の ②）
+             ★なぜ 要るか★ … ★控えが null に なる 道は 2本★
+               㐖★まだ 一度も 読んで いない★（初めの null の まま）
+               㐗★★読んだ が ★会社の 行が 無く null を 入れた★★
+                  （ は 行が 無ければ  が null）
+             ⇒ ★★どちらかで 直す 所が 変わる★★
+             ★実物（09-27）★ … 覆いの その場 … ★hikae=null / neverSynced=true★
+               ⇒ ★㐖か 㐗か ★まだ 割れて いません★★
+             ★客の 画面は 汚しません★（★試験が 立てた 旗が 在る 時だけ★）
+             ★値も 判じも 1文字も 変えて いません★ */
+          try{
+            if(global.__OOI_KIROKU__){
+              _yomiKai++;
+              console.log('★読み込みの その場★ kaime=' + _yomiKai
+                + ' kaishaNoGyo=' + String(!!(res[0] && res[0].data))
+                + ' updated_at=' + String(res[0] && res[0].data && res[0].data.updated_at)
+                + ' hikaeNiIreta=' + String(lastCompanyUpdatedAt)
+                + ' hito=' + String(emps.length));
+            }
+          }catch(_e3){}
           if(!co && !emps.length) return null; var s=co||{}; s.employees=emps; return s;
         });
       });

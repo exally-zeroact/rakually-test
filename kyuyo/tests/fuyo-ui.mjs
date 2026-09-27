@@ -637,11 +637,17 @@ const pg = await ctx.newPage();
              console の 字を その場で 拾う
    ⇒ ★★開き直しても 数が 残る★★ */
 const OOI_JI = [];
+const YOMI_JI = [];             /* ★読み込みの その場の 字★ */
 await pg.addInitScript(() => { try { window.__OOI_KIROKU__ = true; } catch (e) { /* 黙らない */ } })
   .catch(() => console.log('  ★旗を 立てられません＝その場の 字は 出ません★'));
 pg.on('console', (m) => {
   try {
     const t = m.text();
+    if (t.indexOf('★読み込みの その場★') === 0) {
+      YOMI_JI.push(t);
+      console.log('  ★読み込みの その場★ ' + t.slice(0, 200));
+      return;
+    }
     if (t.indexOf('★覆いの その場★') !== 0) return;
     OOI_JI.push(t);
     console.log('  ★★覆いの その場（' + OOI_JI.length + '回目）★★ ' + t.slice(0, 200));
@@ -1636,6 +1642,8 @@ soukoDasu('★走りの 終わり★', 12);
         ? '★★⇒ ★字の 形だけの 偽 conflict が 在ります★★★'
         : (nokoshi > 0 ? '★⇒ ★字の 形だけの 物は 在りません★' : '')) + '★');
     if (nokoshi) OOI_JI.slice(0, 5).forEach((x, i) => console.log('     ' + (i + 1) + ') ' + x.slice(0, 200)));
+    console.log('  ★読み込みが 走った 回数 … ' + YOMI_JI.length + '回★'
+      + (YOMI_JI.length ? '：' + YOMI_JI.map((x) => x.replace('★読み込みの その場★ ', '')).join(' ｜ ') : '（★走って いません★）'));
   }
   {
     const ok = OOI_KAZU, okAto = OOI_KAZU_ATO;
@@ -1679,11 +1687,28 @@ soukoDasu('★走りの 終わり★', 12);
      ⇒ ★★突き合わせの ★分母★ を 出す★★
         ＝[[feedback_bunbo_wo_dasanai_midori_wa_uso]] */
   {
-    const kaki = soukoLog.filter((x) => x.tana === 'pay_companies'
-      && x.muki !== 'GET' && x.muki !== 'HEAD' && x.okutta);
+    /* ★★分母を 合わせる★★（2026-09-27・実測で 踏んだ）
+       ★踏んだ 穴★ … ★書いた 値が ★6個★ しか 出ない のに
+         ★倉庫が 返した 値は ★73個★★
+       ⇒ ★★「送った 値が 読めた 物」だけ 数えて いた★★
+         （ が 空の 書きを ★落として いた★）
+       ⇒ ★★だから「53.924 は 私が 送った 値では ない」と
+          ★間違った 結びを しかけた★★
+       ★直し★ … ★書きは 全部 数える★／★読めた 数と 読めなかった 数を 別々に 出す★
+       ⇒ ★★「読めなかった」を 「無い」と 読まない★★
+         ＝[[feedback_bunbo_wo_dasanai_midori_wa_uso]] */
+    const kakiZen = soukoLog.filter((x) => x.tana === 'pay_companies'
+      && x.muki !== 'GET' && x.muki !== 'HEAD');
+    const kaki = kakiZen.filter((x) => x.okutta);
+    const yomenai = kakiZen.length - kaki.length;
     const ne = [...new Set(kaki.map((x) => String(x.okutta)))];
-    console.log('  ★会社の 棚に 書いた 値 … ' + kaki.length + '本（別々の 値 '
-      + ne.length + '個）★');
+    console.log('  ★会社の 棚への 書き … ★全部 ' + kakiZen.length + '本★'
+      + '／送った 値が 読めた ' + kaki.length + '本'
+      + '／★★読めなかった ' + yomenai + '本★★'
+      + '（別々の 値 ' + ne.length + '個）'
+      + (yomenai > 0
+        ? '★★⇒ ★読めない 書きが 在ります＝★「私が 送って いない」と は 書けません★★★'
+        : '★⇒ ★書きは 全部 読めて います＝分母は 揃って います★') + '★');
     console.log('  ★書いた 値（全部）★：' + (ne.length ? ne.join(' ') : '★無し★'));
     const kaeri2 = [...new Set(soukoLog.filter((x) => x.tana === 'pay_companies' && x.kaeri)
       .map((x) => String(x.kaeri)))];
