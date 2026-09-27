@@ -15,9 +15,15 @@
  *   ① ★js/supa-config.js は 絶対に 運ばない★（★テスト線の値を 本番へ 持ち込まない★）
  *      ＝一番 高い事故（本番の画面が テスト倉庫を向く）を 構造で 止める。
  *      運び先の supa-config は ★1文字も 触らない★（前と後の sha を 出す）。
- *   ② ★git が 見ている物だけ 運ぶ★（node_modules や 作りかけを 持ち込まない）
+ *   ② ★git が 見ている名簿の物だけ 運ぶ★（node_modules を 持ち込まない）
+ *      ★但し 中身は ★今の 手元の 字★を 読む＝★未commit の 作りかけも 運ばれる★★
+ *      （2026-09-28 実測＝19本 運ぶ うち ★10本が 未commit の 作業中★だった）
+ *      ⇒ ★下の ⑤の 門で 止める★
  *   ③ ★運ぶ前と後で 数える★（運んだ本数・消えた本数・変わらない本数）
  *   ④ ★消す事は しない★（運び先にしか無い物は そのまま 残す＝黙って 消さない）
+ *   ⑤ ★未commit の 作りかけが 運ぶ物に 在ったら ★運ばない★★（--dry は 名前を 出すだけ）
+ *      ＝★控えの 無い 字を 本番に 置くと どこへ 戻すかが 決められない★
+ *      どうしても 運ぶ時は ★`--sagyou-chu-demo-ii` を 手で 付ける★（訳を 口に 出させる）
  *
  * 使い方:
  *   node scripts/ship-all.mjs --to <運び先> --dry   … 数えるだけ（1バイトも 書かない）
@@ -39,7 +45,23 @@ export const NEVER_SHIP = [
   'js/supa-config.js',
 ];
 
+/* ★逆斜線の 逃がしは 便りで 落ちる（記憶の 決まり）＝1文字を 番号で 作る★ */
+const SEN = String.fromCharCode(10);
+
 const sha = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex').slice(0, 16);
+
+/* ★未commit の 作りかけ★を 名前で 返す（★運ぶ名簿に 載っている物だけ★）
+ *   ・`git status --porcelain` の 3字目から 先が 名前（"XY name"）
+ *   ・名前替え（R）は " -> " の 後ろが 今の 名前
+ *   ・★git が 知らない物(??)は 名簿に 載らないので 自然に 外れる★ */
+export function sagyouChu(root, list) {
+  const out = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' })
+    .split(SEN).filter((x) => x.length > 3)
+    .map((x) => x.slice(3).trim())
+    .map((x) => (x.indexOf(' -> ') >= 0 ? x.slice(x.indexOf(' -> ') + 4) : x))
+    .map((x) => x.replace(/^"|"$/g, ''));
+  return list.filter((f) => out.indexOf(f) >= 0);
+}
 
 export function fileList(root) {
   const out = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
@@ -58,10 +80,18 @@ if (process.argv.includes('--self-test')) {
   say('ホームも 運ぶ', list.indexOf('index.html') >= 0);
   say('git が 見ていない物は 運ばない（node_modules）', !list.some((f) => f.startsWith('node_modules/')));
   say('★0本では ない（空振りしていない）★', list.length > 100);
+  /* ★⑤の 門の 自己確認★＝★数えるだけ／repo を 触らない★ */
+  const uso = ['a.js', 'b.js', 'c.js'];
+  say('★作りかけが 名簿に 無ければ 0本★', sagyouChu(ROOT, uso).length === 0);
+  const ima = sagyouChu(ROOT, list);
+  say('★作りかけの 数は 名簿の 本数を 超えない★', ima.length <= list.length);
+  say('★返した 名前は ぜんぶ 名簿の 中★', ima.every((f) => list.indexOf(f) >= 0));
+  console.log('     ★今の 手元の 作りかけ ' + ima.length + '本★'
+    + (ima.length ? '＝' + ima.slice(0, 12).join(' , ') : '（★0本＝ぜんぶ commit 済み★）'));
   console.log('     運ぶ一覧 ' + list.length + '本（★運ばない物 ' + NEVER_SHIP.length + '本＝'
     + NEVER_SHIP.join(' , ') + '★）');
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★6通り ぜんぶ 思った通り★');
+  console.log('  ★9通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -81,6 +111,23 @@ const cfgUrlBefore = fs.existsSync(cfg)
   ? (fs.readFileSync(cfg, 'utf8').match(/https:\/\/[a-z0-9]+\.supabase\.co/) || ['（読めない）'])[0] : '（無い）';
 
 const list = fileList(ROOT);
+
+/* ★⑤ 未commit の 作りかけを 運ぶ手前で 止める★
+ *   ★DRY は 止めない（数える為の 道具だから）★＝名前を 出すだけ */
+const NAMA = sagyouChu(ROOT, list);
+const OSHIKIRU = process.argv.includes('--sagyou-chu-demo-ii');
+if (NAMA.length) {
+  console.log(SEN + '  ★★未commit の 作りかけが 運ぶ物に ' + NAMA.length + '本 在ります★★（控えが 無い＝戻す先が 決められない）');
+  NAMA.forEach((f) => console.log('     ！ ' + f));
+}
+if (NAMA.length && !DRY && !OSHIKIRU) {
+  console.error(SEN + '★★運びません★★ … 先に commit するか、訳を 言って `--sagyou-chu-demo-ii` を 付ける');
+  process.exit(3);
+}
+if (NAMA.length && !DRY && OSHIKIRU) {
+  console.log('  ★★`--sagyou-chu-demo-ii` が 付いている＝作りかけ ' + NAMA.length + '本も 運びます★★');
+}
+
 let added = 0, updated = 0, same = 0;
 const addedNames = [];
 for (const f of list) {

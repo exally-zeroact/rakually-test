@@ -68,6 +68,12 @@ jobs:
         run: node tests/supa-config-env-matches-repo.test.mjs
       - name: ★repo の素性 (わざと 食い違わせたら 赤になるかの自己確認・7通り)
         run: node tests/supa-config-env-matches-repo.test.mjs --self-test
+      # ★2026-09-28 指示役が 足した★ … ship-all の 自己確認は
+      #   ★一度も CI で 押されて いなかった★（紙に 書いて 在るだけだった）。
+      #   ⇒ ★倉庫の向き先を 運ばない★ と ★未commit の 作りかけを 運ばない★ の
+      #     2つが 生きているかを ★毎回 押す★（この repo でも 本番の repo でも 同じ）。
+      - name: ★運ぶ道具 ship-all の 自己確認 (倉庫の向き先を 運ばない・作りかけを 運ばない・9通り)
+        run: node scripts/ship-all.mjs --self-test
       - name: ★配信ガード (href="/…" 等の絶対パス・本番倉庫への誤接続を止める)
         run: node tests/pages-hosting.test.mjs
       - name: ★配信ガード (わざと壊して赤になるかの自己確認・6通り)
