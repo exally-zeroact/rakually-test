@@ -153,7 +153,7 @@
     var lastCompanyUpdatedAt = null;
 
     /* ★★★測る 為だけの 口 2つ★★★（2026-09-27に 一度 消し過ぎて 戻した）
-       ★㈝-2（「別の端末で更新されています」）の 因は ★未説明★。
+       ★㉕-2（「別の端末で更新されています」）の 因は ★未説明★。
          外から 見えるのは 要求と 倉庫だけで、
          ★conflict を 決めて いる 2つの 値は ★画面の 中の 閑し★★。
        ⇒ ★★ここで 控えないと 因は 決まりません★★
@@ -225,9 +225,9 @@
          ⇒ ★★それが 間違い★★（`.then` が 1つ 増える＝★時間の 並びは 変る★）
          ⇒ ★★外して 同じ 木で 走らせる しか 分けられない★★
        ★測る 口は 残して あります★
-         `Store.ooiNoKazu()`（★覆いの 2つの 値と 同じ 瞬間か★）
-         `Store.hikaeNoKazu()`（★`|| now` に 落ちた 回数★）
-       ★㈝-2（覆い）の 因は ★まだ 未説明★です★ */
+         `Store.ooiNoKazu` の 口（★覆いの 2つの 値と 同じ 瞬間か★）
+         `Store.hikaeNoKazu` の 口（★`|| now` に 落ちた 回数★）
+       ★㉕-2（覆い）の 因は ★まだ 未説明★です★ */
     function realSave(state){
       return curUid().then(function(uid){ if(!uid) return { ok:false, reason:'no-user' }; var now=new Date().toISOString();
         // ★employees以外の全スナップショット項目を保存(確定印/年末調整/賞与/カスタム給テンプレ/onboard等も載せる=端末替えで消えない)
@@ -275,6 +275,28 @@
                 ji: 'souko=' + String(cloudUA) + ' hikae=' + String(lastCompanyUpdatedAt),
                 neverSynced: (lastCompanyUpdatedAt == null)
               });
+              /* ★★★その場で 出しに 出す★★★（2026-09-27）
+                 ★なぜ 積むだけ では 足りないか（実測で 割れた）★
+                   CI `36308216387` の 時刻を 並べると
+                     09:10:53〜54 … ★覆いが 出て います ×3★（★片づけの 中★）
+                     09:11:00 … 片づけ ⑥★開き直して★ 数えた
+                     09:11:02 … ★覆いの 中身 … 覆い 0回★
+                   ⇒ ★★開き直すと 画面の 中の 控えは 0に 戻る★★
+                   ⇒ ★★控えの 0 は「出て いない」でなく「★消された★」★★
+                 ⇒ ★★その場で 出しに 出せば ★開き直しても 残る★★
+                 ★客の 画面を 汚しません★
+                   ★試験が 立てた 旗が 在る 時だけ 出します★
+                   `window.__OOI_KIROKU__`（★試験は `addInitScript` で 立てる
+                     ＝★開き直しても 旗は 残る★）
+                 ★値も 判じも 1文字も 変えて いません★ */
+              try{
+                if(global.__OOI_KIROKU__){
+                  console.log('★覆いの その場★ souko=' + String(cloudUA)
+                    + ' hikae=' + String(lastCompanyUpdatedAt)
+                    + ' onajiShunkan=' + String(_a !== null && _b !== null && _a === _b)
+                    + ' neverSynced=' + String(lastCompanyUpdatedAt == null));
+                }
+              }catch(_e2){}
             }catch(_e){}
             // neverSynced=この端末がまだクラウドを読めていない(別端末の更新でなく"未読込")→app側で文言を分ける(誤解防止)
             return { ok:false, reason:'conflict', cloudUpdatedAt:cloudUA, neverSynced:(lastCompanyUpdatedAt==null) };

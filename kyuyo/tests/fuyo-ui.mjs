@@ -626,6 +626,28 @@ const pg = await ctx.newPage();
         ㋑★着いた 順が 逆★＝★基準が 古い 方に 戻った★
    ★控える 物（4つ足し）★ … 出した順／着いた順／★送った `updated_at`★／★返った `updated_at`★
    ★倉庫には 1文字も 書きません★（★見るだけ★）／★この 紙 1本だけ★（13本に 広げない） */
+/* ★★旗を 立てて 覆いの 字を ★その場で★ 拾う★★（2026-09-27）
+   ★なぜ 要るか（実測で 割れた）★
+     CI 36308216387（main eb8ec1a）の 時刻を 並べると
+       09:10:53〜54 … ★覆いが 出て います ×3★（★片づけの 中★）
+       09:11:00 … 片づけ ★開き直して★ 数えた
+       09:11:02 … ★覆いの 中身 … 覆い 0回★
+     ⇒ ★★控えの 0 は「出て いない」でなく「★消された★」★★
+   ★直し★ … 旗を addInitScript で 立て（★開き直しても 残る★）
+             console の 字を その場で 拾う
+   ⇒ ★★開き直しても 数が 残る★★ */
+const OOI_JI = [];
+await pg.addInitScript(() => { try { window.__OOI_KIROKU__ = true; } catch (e) { /* 黙らない */ } })
+  .catch(() => console.log('  ★旗を 立てられません＝その場の 字は 出ません★'));
+pg.on('console', (m) => {
+  try {
+    const t = m.text();
+    if (t.indexOf('★覆いの その場★') !== 0) return;
+    OOI_JI.push(t);
+    console.log('  ★★覆いの その場（' + OOI_JI.length + '回目）★★ ' + t.slice(0, 200));
+  } catch (e) { /* 拾いで 転ばない */ }
+});
+
 const soukoLog = [];
 {
   let dashi = 0, tsuki = 0;
@@ -1596,6 +1618,24 @@ soukoDasu('★走りの 終わり★', 12);
         : (hk === null
           ? '★★`Store.hikaeNoKazu` が ★画面に 無い★★（★数え口が 届いて いません★）'
           : '★★読めて いません★★（★『無い』とは 書きません★）')) + '★');
+  }
+  /* ★★その場で 拾った 数★★＝★開き直しで 消えない★
+     ★画面の 中の 控えと ★別に★ 出します★
+     ⇒ ★★『控えが 0』と『実際に 出た』の 食い違いが 見える★★ */
+  {
+    const nokoshi = OOI_JI.length;
+    const onajiJi = OOI_JI.filter((x) => x.indexOf('onajiShunkan=true') >= 0).length;
+    const chigauJi = OOI_JI.filter((x) => x.indexOf('onajiShunkan=false') >= 0).length;
+    const miyomiJi = OOI_JI.filter((x) => x.indexOf('neverSynced=true') >= 0).length;
+    console.log('  ★★覆いを その場で 拾った 数★★ … ' + nokoshi + '回'
+      + '／★★同じ 瞬間なのに conflict … ' + onajiJi + '回★★'
+      + '／本当に 別の 書き ' + chigauJi + '回'
+      + '／まだ 読んで いない ' + miyomiJi + '回'
+      + (nokoshi === 0 ? '（★覆いが 出て いません＝★未測定★）' : '')
+      + (onajiJi > 0
+        ? '★★⇒ ★字の 形だけの 偽 conflict が 在ります★★★'
+        : (nokoshi > 0 ? '★⇒ ★字の 形だけの 物は 在りません★' : '')) + '★');
+    if (nokoshi) OOI_JI.slice(0, 5).forEach((x, i) => console.log('     ' + (i + 1) + ') ' + x.slice(0, 200)));
   }
   {
     const ok = OOI_KAZU, okAto = OOI_KAZU_ATO;
