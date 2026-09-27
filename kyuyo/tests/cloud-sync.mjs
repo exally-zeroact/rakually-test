@@ -58,6 +58,16 @@ function makeMock(opts) {
   function from(table) {
     return {
       upsert: (d) => {
+        /* ★★`empDelay`＝★`pay_employees` の 書きだけ 遅らせる★★★（2026-09-28）
+           ★訳★ … 束は 3本（会社の 書き／人の 書き／差分削除）で、
+             ★控えを 新しく するのが 3本 全部 返って から★だと
+             ★①が 倉庫に 着いた 後 ②が 返るまで★
+             『★倉庫は 新しい／控えは 旧い★』窓が 開く。
+           ⇒ ★★その 窓を 試験で 作る には ②を 遅らせる しか ない★★ */
+        if (table === 'pay_employees' && opts.empDelay) {
+          calls.empUpsert.push(d);
+          return new Promise((r) => setTimeout(() => r({ error: null, data: null }), opts.empDelay));
+        }
         /* ★明細の 書き込みも 数える★（2026-09-15＝孤児の 元を 縛る為） */
         (table === 'pay_companies' ? calls.companyUpsert
           : table === 'pay_payslips' ? calls.slipUpsert : calls.empUpsert).push(d);
@@ -425,6 +435,39 @@ runs.push(T('★隙③: 入口を 通って いない時は ★1回も 待たな
   await Store.cloudSaveState(SNAP);
   ok(Date.now() - t0 < 1000, '★入口を 通って いないのに 待った★');
   ok(Store.machiNoKazu().kai === 0, '★待った 回数が 0 でない★（' + JSON.stringify(Store.machiNoKazu()) + '）');
+}));
+
+/* ★★★㋑＝★読んだ 後★ に 自分の 書きで 自分が 弾かれる 窓★★★（2026-09-28・★実測から★）
+   ★実物（WebKit run `36343338113`）★
+     `★覆いの その場（2回目）★ souko=…19:15:35.12 ★hikae=…19:15:34.71★
+        onajiShunkan=false ★neverSynced=false★`
+     ⇒ ★読み込みは 済んで いる／★控えが 0.41秒 古い だけ★★
+   ★指示役1 が 数えた 分母（同じ 走り）★
+     保存(POST) ★788本★／★重なった 組 10455組★／★同時に 飛んで いた 最大 45本★
+     ★『自分で 自分を 弾ける 組』1組★（★同じ 束の `pay_employees` が まだ 返って いない★）
+   ★★ここで 縛る 物★★
+     ★束の 他の 書きが 遅れても ★次の 保存は 誤 conflict に しない★★ */
+runs.push(T('★㋑: 束の 他の 書きが 遅れても ★次の 保存を 誤 conflict に しない★（自分で 自分を 弾かない）', async function () {
+  /* ★dbFormat＝倉庫が 書いた 値を 読み戻す（本物と 同じ 形）／`empDelay`＝②だけ 300ms 遅らせる★
+     ★倉庫に 先に 行が 在る★＝読み込みで 控えが ★null では なく なる★
+     ⇒ ★★壊した 時の 字が 実物と 同じ `neverSynced=false` に なる★★
+       （実物＝WebKit run `36343338113` の 覆い 2回目） */
+  const mock = makeMock({ dbFormat: true, empDelay: 300, companyUpdatedAt: '2026-09-27T19:15:00.000+00:00', companyData: { name: 'A' } });
+  const Store = loadStore(mock);
+  /* ★先に 1回 読んで おく★＝★`neverSynced` の 道を 通らない＝★㋑ だけを 見る★★ */
+  await Store.cloudLoadState();
+  /* ★★★1回目を ★待たない★★★＝★待つと 窓が 閉じて この 試験は 何も 見ません★
+     （★09-28 実測＝`await` して いた 形は ★わざと 壊しても 緑★だった★） */
+  const ichiP = Store.cloudSaveState(SNAP);        /* ★①は すぐ 着く／②は 300ms 掛かる★ */
+  await new Promise((r) => setTimeout(r, 120));    /* ★①の 後・②の 前＝★窓の 中★★ */
+  const niP = Store.cloudSaveState(SNAP);          /* ★2回目が ここで `select updated_at` する★ */
+  const [ichi, ni] = await Promise.all([ichiP, niP]);
+  ok(ichi.ok, '★1回目が 保存できて いない★（' + JSON.stringify(ichi) + '）');
+  const h = Store.hikaeNoKazu();
+  ok(h.hayaku > 0, '★束を 待たずに 控えた 回数が 0＝この 試験は 何も 見て いません（未測定）★（' + JSON.stringify(h) + '）');
+  ok(!(ni && ni.reason === 'conflict'),
+    '★★自分の 書きで 自分が 弾かれました★★（出たのは ' + JSON.stringify(ni) + '）');
+  ok(ni.ok, '★2回目が 保存できて いない★（' + JSON.stringify(ni) + '）');
 }));
 
 await Promise.all(runs);

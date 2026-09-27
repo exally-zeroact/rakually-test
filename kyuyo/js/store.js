@@ -174,8 +174,11 @@
 
     /* ★`|| now` に 落ちた 回数★（実測 09-27：保存 33回／返した 33回／★落ちた 0回★） */
     var _uaAtta = 0, _uaNakatta = 0;
+    /* ★★束を 待たずに 控えた 回数★★（2026-09-28＝★『倉庫は 新しい／控えは 旧い』窓を 閉じた 回数★）
+       ★0 なら この 直しは ★1回も 効いて いません★＝★未測定★★ */
+    var _hikaeHayaku = 0;
     Store.hikaeNoKazu = function(){
-      return { atta:_uaAtta, nakatta:_uaNakatta, zen:(_uaAtta + _uaNakatta) };
+      return { atta:_uaAtta, nakatta:_uaNakatta, zen:(_uaAtta + _uaNakatta), hayaku:_hikaeHayaku };
     };
     /* ★覆いの 控えを 外から 読む 口★
        honsu（何回 出たか）／★onaji（★同じ 瞬間なのに conflict★）★／
@@ -420,9 +423,46 @@
           return cloudSynced ? doSave() : { ok:false, reason:'sync-check-failed' };
         });
         function doSave(){
-        var ops=[
+        /* ★★★控えを ★倉庫が 書けた 瞬間★ に 新しく する★★★（2026-09-28・★実測から★）
+           ★★何が 起きて いたか（WebKit run `36343338113` の 字）★★
+             `★覆いの その場（2回目）★ souko=…19:15:35.12 ★hikae=…19:15:34.71★
+                onajiShunkan=false ★neverSynced=false★`
+             ⇒ ★控えが null では ない＝★読み込みは 済んで いる★★
+             ⇒ ★★控えが ★0.41秒 古い★ だけ★★
+           ★★因（★下の `Promise.all` の 位置★）★★
+             束は ★3本★ … ①`pay_companies` の 書き ②`pay_employees` の 書き ③差分削除（★全件 読み★）
+             ★控えを 新しく するのは ★3本 全部が 返って から★★
+             ⇒ ★★①が 倉庫に 着いた 後、②③が 返るまでの 間★★
+                ★倉庫には 新しい 値が 在る／手元の 控えは まだ 旧い★
+             ⇒ ★★その 窓で 別の 保存が `select updated_at` を すると ★自分の 書きで 自分が 弾かれる★★★
+           ★★指示役1 が 数えた 分母（同じ 走り）★★
+             ・保存(POST) … ★788本★／★重なった 組 10455組★／★同時に 飛んで いた 最大 45本★
+             ・★『自分で 自分を 弾ける 組』… 1組★
+               出420（書き・送った「…536012」）→ 出455（確認の 読み・★同じ 値を 返した★）
+               ＋★同じ 束の ②が まだ 返って いない（棚 `pay_employees`）★
+           ★★直し＝★①が 返った その場で 控えを 新しく する★★★
+             ＝★窓を 閉じる★／★直列に しません（遅く しません）★
+             ★お金の 判じ（conflict に するか）は ★1文字も 変えて いません★★
+           ★★`!bad` を 待たない 訳★★
+             控えの 意味は「★倉庫の `pay_companies` の 今の 値を いくつだと 知って いるか★」。
+             ①が 書けたなら ★その 値は もう 知って います★（②③の 成否とは 別の 事）。
+             ⇒ ★②が 落ちた 時に 控えだけ 進む★が、★倉庫の 会社の 行は 自分の 字★＝
+               ★次の 保存で 上書きしても 消える 物が 無い★／★`ok:false` は 今まで どおり 返します★
+             ⇒ ★★前は「全部 成功」と「値を 知って いる」を ★1つに して いた★★ */
+        var kaishaOp = sb.from('pay_companies').upsert({ account_id:uid, data:settings, updated_at:now })
           // ★.select('updated_at').single()=DBが実際に保存した updated_at を受け取り、競合基準に使う(下記)。
-          sb.from('pay_companies').upsert({ account_id:uid, data:settings, updated_at:now }).select('updated_at').single(),
+          .select('updated_at').single()
+          .then(function(r){
+            if(r && !r.error){
+              var _ua = (r.data && r.data.updated_at);
+              if(_ua){ _uaAtta++; } else { _uaNakatta++; }
+              lastCompanyUpdatedAt = _ua || now;
+              _hikaeHayaku++;   /* ★★束を 待たずに 控えた 回数★★（★この 直しが 効いた 回数★） */
+            }
+            return r;
+          });
+        var ops=[
+          kaishaOp,
           emps.length? sb.from('pay_employees').upsert(emps) : Promise.resolve({ error:null })
         ];
         // ★差分削除は「★読み込めた(cloudLoaded)★かつ手元に従業員が居る」時だけ=空/古い端末が本番を消さない
@@ -434,15 +474,9 @@
           var bad=res.filter(function(x){ return x && x.error; })[0];
           // ★競合基準は必ず「DBが返した updated_at」にする。JS生成の now(…Z) はDB返却(…+00:00)と書式が違い、
           //  文字列比較で毎回不一致=読込直後や2回目保存(スクロール等の自動保存)で誤conflictが多発する(P0根治)。
-          if(!bad){
-            cloudSynced=true;
-            /* ★★ここで 数える★★（★値は 1文字も 変えて いません★）
-               ★`res[0].data.updated_at` が 無い 回だけ ★JS の《…Z》形★が 入る★
-               ⇒ ★次の 確認は DB の《…+00:00》を 読む ⇒ ★字が 違う★ */
-            var _ua = (res[0] && res[0].data && res[0].data.updated_at);
-            if(_ua){ _uaAtta++; } else { _uaNakatta++; }
-            lastCompanyUpdatedAt = _ua || now;
-          }
+          /* ★★控えは もう ★上の `kaishaOp` の 中★ で 新しく して います★★（2026-09-28）
+             ＝★ここで 待つと『倉庫は 新しい／控えは 旧い』窓が 開く★（上に 訳と 実測） */
+          if(!bad){ cloudSynced=true; }
           return { ok:!bad, reason: bad?((bad.error&&bad.error.message)||'error'):null };
         }).catch(function(e){ return { ok:false, reason:(e&&e.message)||'exception' }; });
         }
