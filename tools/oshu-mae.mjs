@@ -161,13 +161,35 @@ e.hashiru.forEach((d, ban) => {
     mi++; miDan.push({ d: d, naze: (r.error && r.error.message) || '終わり値が 無い' });
     return;
   }
-  if (r.status !== 0) { aka++; akaDan.push(d); console.log('  ✗ ' + d.i + '段 … ' + d.c.slice(0, 90)); }
+  if (r.status !== 0) {
+    aka++;
+    /* ★★赤の 段の ★出し★ を 捨てない★★（2026-09-28）
+       ★踏んだ 穴★ … `node kyuyo/scripts/verify-statutory.mjs` が
+         ★網の 中では 赤／同じ 手元で 単独に 走らせると 緑（exit 0）★
+         ⇒ ★★割ろうにも ★網が `r.stdout` を 1文字も 使って いなかった★★★
+         ⇒ ★だから「揺れ」と 呼びたく なる★＝★足りない 量を 測る 前に 名前を 付ける★ の 型
+       ★直し★ … ★赤の 段だけ★ ★終わりの 6行★と ★終わり値★を 控えて 下で 出す
+         ＝★緑は 控えません★（出しが 膨らまない・お金も 時間も 増えない） */
+    akaDan.push({
+      d: d,
+      status: r.status,
+      ji: String((r.stdout || '') + (r.stderr || ''))
+        .split(String.fromCharCode(10)).map((x) => x.replace(/\s+$/, '')).filter((x) => x.trim()).slice(-6),
+    });
+    console.log('  ✗ ' + d.i + '段 … ' + d.c.slice(0, 90));
+  }
 });
 console.log('  ★空き（終わり） … ' + kuukiIu(kuukiSaigo === null ? kuukiGB() : kuukiSaigo)
   + (tometa ? '／★★' + tometa + '段まで 走って 止めました★★' : '') + '★');
 console.log('  ★赤 ' + aka + '段★ ／ ★走らせられない ' + mi + '段★'
   + ' ／ 回った ' + (e.hashiru.length - mi) + '段（回すつもり ' + e.hashiru.length + '段）');
-akaDan.forEach((d) => console.log('     ★赤★ ' + d.c.slice(0, 120)));
+/* ★★赤は ★字つきで★ 出す★★＝★『何が 赤か』でなく『★何と 言って 赤か★』★
+   （★出しを 捨てると 網の 赤と 単独の 緑を 並べられない★＝09-28 に 踏んだ） */
+akaDan.forEach((x) => {
+  console.log('     ★赤★ ' + x.d.c.slice(0, 120) + '  ★終わり値 ' + x.status + '★');
+  if (!x.ji.length) console.log('        ★何も 言わずに 赤★（出しが 空）');
+  x.ji.forEach((g) => console.log('        │ ' + g.slice(0, 160)));
+});
 miDan.slice(0, 5).forEach((x) => console.log('     ★走らせられない★ ' + x.d.i + '段 … ' + x.naze.slice(0, 80)));
 if (miDan.length > 5) console.log('     （他 ' + (miDan.length - 5) + '段）');
 if (aka) console.log(String.fromCharCode(10) + '★★押す前に 止めました＝赤 ' + aka + '段★★');
