@@ -36,11 +36,19 @@ import { PROD_REF, TEST_REF } from '../scripts/_souko-ref.mjs';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SELF = process.argv.includes('--self-test');
 
+/* ★★★`GIT_DIR` を 子に 渡さない★★★（2026-09-28・★実測で 割れた／下の `mk()` に 全文★）
+   ★git は ★別の 作業場(worktree)からの 押し★の 時 hook に `GIT_DIR` を 渡します★
+   ★`git -C <dir>` は それを ★打ち消しません★★
+   ⇒ ★★`-C` の 先では なく `GIT_DIR` の 方を 見ます＝★別の repo の 名前を 返す★★★
+   ⇒ ★この 紙の git 呼びは ★全部 これを 通す★★（★1か所 漏れると そこだけ 嘘を 言う★） */
+export const GIT_ENV = { ...process.env, GIT_DIR: undefined, GIT_WORK_TREE: undefined,
+  GIT_INDEX_FILE: undefined, GIT_PREFIX: undefined };
+
 /* ★origin の 名前★（.git を 落とす）。読めなければ 空 */
 export function originName(root) {
   try {
     const u = execFileSync('git', ['-C', root, 'remote', 'get-url', 'origin'],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: GIT_ENV }).trim();
     const last = u.split('/').pop() || '';
     return last.replace(/\.git$/, '');
   } catch (e) { return ''; }
@@ -140,10 +148,27 @@ if (SELF) {
     fsp.mkdirSync(path.join(dir, 'js'), { recursive: true });
     fsp.writeFileSync(path.join(dir, 'js', 'supa-config.js'),
       'window.SUPA = {' + String.fromCharCode(10) + '  env: ' + Q + env + Q + String.fromCharCode(10) + '};' + String.fromCharCode(10));
-    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' });
-    execFileSync('git', ['-C', dir, 'remote', 'add', 'origin', 'https://github.com/x/' + origin + '.git'], { stdio: 'ignore' });
-    execFileSync('git', ['-C', dir, 'add', '-A'], { stdio: 'ignore' });
-    execFileSync('git', ['-C', dir, '-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '-q', '-m', 'x'], { stdio: 'ignore' });
+    /* ★★★`git -C <dir>` は ★`GIT_DIR` を 打ち消しません★★★（2026-09-28・★実測で 割れた★）
+       ★何が 起きて いたか★
+         この 段は ★押しの 中だけ 赤／単独 20回 とも 緑★ だった。
+       ★因（指示役1 が 3通りで 測った）★
+         ・★主の 手元から 押す★ … hook の `GIT_DIR` は ★空★ ⇒ 仮の repo が ★出来る★
+         ・★★別の 作業場（worktree）から 押す★★
+            … git が hook に ★`GIT_DIR=<主>/.git/worktrees/<名>` を 自分で 渡す★
+            ⇒ ★★`git -C <仮> init` が ★仮では なく `GIT_DIR` の 方★を 初期化★★
+            ⇒ ★仮の repo が 出来ない ⇒ 次の `add -A` が 落ちる＝★この 段が 赤★
+            ⇒ ★★おまけに 主の `.git/config` に `bare = true` が 書かれる★★
+               （★作業場の gitdir からは 作業の 木が 見えない＝git が bare と 判じる★）
+       ★★直しは 2枚 要ります（★門は 引き継がれない★）★★
+         ⑴★入口★ … `hooks/pre-push` で `unset GIT_DIR …`（★指示役1 が 入れた★）
+         ⑵★★ここ★★ … ★段の 中の git 呼びにも 渡さない★
+            ＝★hook を 通らない 道（手で 走らせる／別の 網／別の 機械）でも 効く★
+       ★`undefined` を 置くと その 環境変数は ★子に 渡りません★★ */
+    const G = (...a) => execFileSync('git', ['-C', dir, ...a], { stdio: 'ignore', env: GIT_ENV });
+    G('init', '-q');
+    G('remote', 'add', 'origin', 'https://github.com/x/' + origin + '.git');
+    G('add', '-A');
+    G('-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '-q', '-m', 'x');
   };
   const tesuto = path.join(tmp, 'rakually-test'), honban = path.join(tmp, 'rakually');
   mk(tesuto, 'rakually-test', 'test');
