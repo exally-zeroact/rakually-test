@@ -66,7 +66,34 @@ if (process.argv.includes('--self-test')) {
   iu('★重い 字に 当たらなければ null（当てない）★', omoiKa('node tests/x.test.mjs') === null);
   iu('★拾い方は 1か所（run: だけ 拾う）★',
     hirouDan('        run: node a' + String.fromCharCode(10) + '      - name: b').length === 1);
-  console.log(ng ? '★自己確認 ' + ng + '件 おかしい★' : '  ★10通り ぜんぶ 思った通り★');
+  /* ★★★赤の 段の 出しの 切り方を ★実物の 赤で★ 確かめる★★★（2026-09-28）
+     ★訳★ … ★この 門は 今日 2回 直しました★
+       ⑴`r.stdout` を 1文字も 使って いなかった（★赤が 何と 言って いるか 残らない★）
+       ⑵★6行 に した★ ⇒ ★その日の うちに 足りませんでした★
+          （実物＝`supa-config-env-matches-repo --self-test` が 押しの 中だけ 赤／
+            残った 6行は `output: [ null, null, null ] … stdout: null, stderr: null` だけ
+            ⇒ ★どの 子（git／sh／tar）が 落ちたか 読めない★）
+     ⇒ ★★『切り方』そのものを 見張る★★（★次に 足りなければ 字で 分かる★）
+     ★わざと 赤に なる 子を その場で 作る★＝★網は 1段も 回しません★ */
+  {
+    const NL = String.fromCharCode(10);
+    const kiru2 = (s) => String(s || '').split(NL).map((x) => x.replace(/\s+$/, '')).filter((x) => x.trim());
+    const AKA_GYO2 = 40;
+    /* ★60行 出して 3行 叫んで 終わり値 3★（★逃がしを 使わない＝紙に 書かない★） */
+    const ko = 'for(let i=1;i<=60;i++)console.log("DASHI-"+i);'
+      + 'console.error("SAKEBI-1");console.error("SAKEBI-2");console.error("SAKEBI-3");process.exit(3);';
+    const rr = spawnSync(process.execPath, ['-e', ko], { encoding: 'utf8' });
+    const so2 = kiru2(rr.stdout), se2 = kiru2(rr.stderr);
+    const soD = so2.slice(-AKA_GYO2), seD = se2.slice(-AKA_GYO2);
+    iu('★赤の 子の 終わり値を 取れる（3）★', rr.status === 3);
+    iu('★出しは 全 60行／叫びは 全 3行 と 数えられる★', so2.length === 60 && se2.length === 3);
+    iu('★★出すのは 終わりの 40行★★', soD.length === AKA_GYO2);
+    iu('★★切った 行数を 数えられる（20行）★★', so2.length - soD.length === 20);
+    iu('★終わりの 40行＝DASHI-21〜DASHI-60★', soD[0] === 'DASHI-21' && soD[39] === 'DASHI-60');
+    iu('★★出しと 叫びが 混ざって いない★★', soD.every((x) => x.indexOf('SAKEBI') < 0) && seD.length === 3);
+    iu('★40行 未満なら 全部 出る（叫び 3行）★', seD[0] === 'SAKEBI-1' && seD[2] === 'SAKEBI-3');
+  }
+  console.log(ng ? '★自己確認 ' + ng + '件 おかしい★' : '  ★17通り ぜんぶ 思った通り★');
   process.exit(ng ? 1 : 0);
 }
 
@@ -168,13 +195,32 @@ e.hashiru.forEach((d, ban) => {
          ★網の 中では 赤／同じ 手元で 単独に 走らせると 緑（exit 0）★
          ⇒ ★★割ろうにも ★網が `r.stdout` を 1文字も 使って いなかった★★★
          ⇒ ★だから「揺れ」と 呼びたく なる★＝★足りない 量を 測る 前に 名前を 付ける★ の 型
-       ★直し★ … ★赤の 段だけ★ ★終わりの 6行★と ★終わり値★を 控えて 下で 出す
-         ＝★緑は 控えません★（出しが 膨らまない・お金も 時間も 増えない） */
+       ★直し★ … ★赤の 段だけ★ ★終わりの 数行★と ★終わり値★を 控えて 下で 出す
+         ＝★緑は 控えません★（出しが 膨らまない・お金も 時間も 増えない）
+
+       ★★★2026-09-28 その日の うちに ★6行では 足りませんでした★★★★
+         ★実物★ … `tests/supa-config-env-matches-repo.test.mjs --self-test` が
+           ★押しの 中だけ 赤／単独 20回 とも 緑★に なった 時、残った 6行は こう でした:
+             `output: [ null, null, null ], pid: …, stdout: null, stderr: null`
+           ⇒ ★★『中の どの 子（git／sh／tar）が 落ちたか』が ★読めなかった★★★
+         ★★私が ★6★ を 決めた 訳＝『測らずに 決めた』★★
+           ＝[[feedback_menjo_no_wake_wa_hazushite_hakaru_made_mitate]]（★免除の 訳は 見立て★）
+         ★直し★ … ⑴★40行★に 上げる
+                  ⑵★★何行の うち 何行 出したかを 書く★★（★自分で 切ったら 書く★
+                     ＝[[feedback_dashi_wo_jibun_de_kittara_kaku]]）
+                     ⇒ ★次に 足りなければ ★字で 分かる★（また 見立てで 決めない）
+                  ⑶★★`stdout` と `stderr` を ★分けて★ 控える★★
+                     ＝★繋げると『どちらの 字か』が 分からない★（★指示役1 が 読めなかった 因の 1つ★） */
+    const AKA_GYO = 40;
+    const kiru = (s) => String(s || '')
+      .split(String.fromCharCode(10)).map((x) => x.replace(/\s+$/, '')).filter((x) => x.trim());
+    const so = kiru(r.stdout), se = kiru(r.stderr);
     akaDan.push({
       d: d,
       status: r.status,
-      ji: String((r.stdout || '') + (r.stderr || ''))
-        .split(String.fromCharCode(10)).map((x) => x.replace(/\s+$/, '')).filter((x) => x.trim()).slice(-6),
+      soZen: so.length, seZen: se.length,
+      so: so.slice(-AKA_GYO),
+      se: se.slice(-AKA_GYO),
     });
     console.log('  ✗ ' + d.i + '段 … ' + d.c.slice(0, 90));
   }
@@ -187,8 +233,19 @@ console.log('  ★赤 ' + aka + '段★ ／ ★走らせられない ' + mi + '�
    （★出しを 捨てると 網の 赤と 単独の 緑を 並べられない★＝09-28 に 踏んだ） */
 akaDan.forEach((x) => {
   console.log('     ★赤★ ' + x.d.c.slice(0, 120) + '  ★終わり値 ' + x.status + '★');
-  if (!x.ji.length) console.log('        ★何も 言わずに 赤★（出しが 空）');
-  x.ji.forEach((g) => console.log('        │ ' + g.slice(0, 160)));
+  if (!x.soZen && !x.seZen) console.log('        ★★何も 言わずに 赤★★（★出しも 叫びも 空★）');
+  /* ★★何行の うち 何行 出したかを 書く★★＝★自分で 切ったら 書く★
+     ⇒ ★次に 足りなければ ★字で 分かる★（また 見立てで 決めない） */
+  if (x.soZen) {
+    console.log('        ★出し（stdout） … 全 ' + x.soZen + '行の うち ' + x.so.length + '行★'
+      + (x.soZen > x.so.length ? '（★' + (x.soZen - x.so.length) + '行 切りました★）' : ''));
+    x.so.forEach((g) => console.log('        │ ' + g.slice(0, 200)));
+  }
+  if (x.seZen) {
+    console.log('        ★叫び（stderr） … 全 ' + x.seZen + '行の うち ' + x.se.length + '行★'
+      + (x.seZen > x.se.length ? '（★' + (x.seZen - x.se.length) + '行 切りました★）' : ''));
+    x.se.forEach((g) => console.log('        ！ ' + g.slice(0, 200)));
+  }
 });
 miDan.slice(0, 5).forEach((x) => console.log('     ★走らせられない★ ' + x.d.i + '段 … ' + x.naze.slice(0, 80)));
 if (miDan.length > 5) console.log('     （他 ' + (miDan.length - 5) + '段）');
