@@ -225,6 +225,43 @@
     var _machiKai = 0;           /* ★待った 回数★ */
     var _machiKire = 0;          /* ★待ち切れて 今まで どおりに 出た 回数★ */
     var _machiUid = null;        /* ★最後に 見た「入口を 通って いるか」★（出しの為・判じには 使わない） */
+
+    /* ★★★自分が 送った `updated_at` の 名簿★★★（2026-09-28・指示役1 の ④）
+       ★★なぜ 控えの 位置を 変えるだけでは 足りないか（★指示役1 の 実測★）★★
+         `pay_companies` の 行き帰り … GET ★208〜239ms★／POST ★627〜643ms★
+         ⇒ ★★『倉庫が 書いた 瞬間』と『端末が 知る 瞬間』は ★必ず ずれる★★★
+         ⇒ ★控えを どこで 入れても ★窓は 0 に なりません★★
+         ⇒ ★★＝『いつ 控えるか』では 解けない／★何を 比べるか★を 変える★★
+       ★★考え★★ … ★倉庫に 在るのが ★自分が 送った 値★なら
+         それは ★定義上 別の 端末の 書きでは ない★★
+         （★実物★＝WebKit run `36343338113` の 覆い 2回目
+            souko=19:15:35.12 ／ hikae=19:15:34.71 ／ ★neverSynced=false★
+            ＝★倉庫に 在るのは 自分の 書き★）
+       ★★ms で 持つ★★ … 送「…34.710Z」／倉庫が 返す「…34.71+00:00」
+         ＝★★字では 当たりません（倉庫が 末尾の 0 を 落とす）★★
+         ⇒ ★ここを 外すと ★0件で 空振り★＝一番 見つけにくい 形★
+       ★★`Date.parse` が NaN の 物は 入れない★★＝★NaN は 何にでも 当たる★
+       ★★口ごとに 持つ★★ … `uid` が 変わったら 捨てる（★他の 人の 値で 通さない★）
+       ★★上限 8個★★ … ★秒で 切りません★（`updated_at` は ★お客さんの 端末の 時計★＝ずれる） */
+    var _okuttaUA = [];
+    var _okuttaUid = null;
+    var OKUTTA_UE = 8;
+    var _jibunDeToshita = 0;   /* ★自分が 送った 値だったので 弾かなかった 回数★
+                                  ＝★指示役1 の ③『★残った 窓に 入った 回数★』と 同じ 口★
+                                  ⇒ ★0 なら 未測定／1以上 なら 残って いた 窓の 大きさ★ */
+    function _msNi(v){ var t = Date.parse(String(v || '')); return isNaN(t) ? null : t; }
+    function _okuttaKuchi(uid){ if(_okuttaUid !== uid){ _okuttaUid = uid; _okuttaUA = []; } }
+    function _okuttaIreru(v){
+      var t = _msNi(v); if(t === null) return;   /* ★NaN は 入れない★ */
+      if(_okuttaUA.indexOf(t) < 0) _okuttaUA.push(t);
+      if(_okuttaUA.length > OKUTTA_UE) _okuttaUA.splice(0, _okuttaUA.length - OKUTTA_UE);
+    }
+    function _jibunGaOkuttaKa(v){ var t = _msNi(v); return t !== null && _okuttaUA.indexOf(t) >= 0; }
+    /* ★測る 口★ */
+    Store.okuttaNoKazu = function(){
+      return { toshita:_jibunDeToshita, meibo:_okuttaUA.length };
+    };
+
     /* ★★待った ms を 1本ずつ 控える★★（2026-09-28・指示役1 の ②）
        ★訳★ … ★これは ★客が 開いた 直後★の 道★＝★待ちが 長いと
          『押したのに 何も 起きない』に 見えます★
@@ -356,7 +393,22 @@
           // ★上書きせずconflictにする条件: クラウドに既存データがあり、それが「自分が最後に把握した値」と違う。
           //  別端末が後から書いた場合だけでなく、この端末がまだクラウドを読めていない(lastUA=null)のに本番データがある場合も含む
           //  =古い/新規端末が本番のsettings(確定・年調・会社設定)を静かに巻き戻すのを防ぐ(P0)。空クラウド(cloudUA=null)は新規保存OK。
-          if(cloudUA && cloudUA!==lastCompanyUpdatedAt){
+          /* ★★★『自分が 送った 値なら 弾かない』★★★（2026-09-28・指示役1 の ④）
+             ★★門＝`lastCompanyUpdatedAt != null` を ★先に★ 見る★★（★指示役1 が 止めた P0★）
+               ★門 無しだと こう なる★
+                 ㋐読み込む 前の 端末（控え null・中身は ほぼ 空）が 保存 → ★T1 を 送る★
+                 ㋑同じ 端末が もう 一度 保存 → `cloudUA=T1`／控えは ★まだ null★
+                    ⇒ ★T1 は 自分の 名簿に 在る★ ⇒ ★★通って しまう★★
+                 ⇒ ★★空の 端末が 本番の 確定印・年末調整・会社設定を ★黙って 巻き戻す★★★
+                 ＝★上の 覚書（P0）が 守って いた ものそのもの★
+               ⇒ ★★『まだ 一度も 読んで いない 端末』は ★今まで どおり 必ず 弾く★★★
+             ★ここで 通す 物★ … ★読み込み済み かつ 倉庫に 在るのが 自分が 送った 値★ だけ */
+          if(cloudUA && cloudUA!==lastCompanyUpdatedAt && lastCompanyUpdatedAt != null && _jibunGaOkuttaKa(cloudUA)){
+            _jibunDeToshita++;
+            /* ★控えも 追いつかせる★＝★次の 保存で また ここに 来ない 為★ */
+            lastCompanyUpdatedAt = cloudUA;
+          }
+          else if(cloudUA && cloudUA!==lastCompanyUpdatedAt){
             /* ★★★測る 為だけの 控え（★直しでは ありません★）★★★（2026-09-27）
                ★なぜ 8日 追っても 因が 立たないか★
                  ★外から 見えるのは ★要求と 倉庫★だけ★
@@ -449,6 +501,12 @@
              ⇒ ★②が 落ちた 時に 控えだけ 進む★が、★倉庫の 会社の 行は 自分の 字★＝
                ★次の 保存で 上書きしても 消える 物が 無い★／★`ok:false` は 今まで どおり 返します★
              ⇒ ★★前は「全部 成功」と「値を 知って いる」を ★1つに して いた★★ */
+        /* ★★送る ★前★ に 名簿へ 入れる★★（2026-09-28・指示役1 の ④）
+           ★返りを 待って から 入れると 窓が 閉まりません★
+           ＝★窓の 正体は「送った／倉庫に 着いた／返りが 来た」が ★3つ 別の 時刻★ だから★
+           ★口ごとに 持つ★＝`uid` が 変わったら 名簿を 捨てる */
+        _okuttaKuchi(uid);
+        _okuttaIreru(now);
         var kaishaOp = sb.from('pay_companies').upsert({ account_id:uid, data:settings, updated_at:now })
           // ★.select('updated_at').single()=DBが実際に保存した updated_at を受け取り、競合基準に使う(下記)。
           .select('updated_at').single()
@@ -456,6 +514,8 @@
             if(r && !r.error){
               var _ua = (r.data && r.data.updated_at);
               if(_ua){ _uaAtta++; } else { _uaNakatta++; }
+              /* ★倉庫が 返した 値も 名簿へ★（★丸めの 保険★／★NaN は 入りません★） */
+              if(_ua){ _okuttaIreru(_ua); }
               lastCompanyUpdatedAt = _ua || now;
               _hikaeHayaku++;   /* ★★束を 待たずに 控えた 回数★★（★この 直しが 効いた 回数★） */
             }
