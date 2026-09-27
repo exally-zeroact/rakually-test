@@ -209,6 +209,15 @@
        ★返す 物★ … honsu（何回 出たか）／
                   ★onaji（★同じ 瞬間なのに conflictに なった 回数★）★／
                   chigau（本当に 別の 書き）／miyomi（まだ 読んで いない）／★最初の 3件の 字★ */
+    /* ★★`|| now` に 落ちた 回数★★（2026-09-27・指示役1 の 足し）
+       ★なぜ★ … ★その 数が 覆いの 数と 揃うか★ で
+              ★★「たまにしか 出ない」の 中身まで 決まる★★
+       ★DB が `updated_at` を 返した 回★ と ★返さなかった 回★ を 別々に 数える */
+    var _uaAtta = 0, _uaNakatta = 0;
+    Store.hikaeNoKazu = function(){
+      return { atta:_uaAtta, nakatta:_uaNakatta,
+        zen:(_uaAtta + _uaNakatta) };
+    };
     Store.ooiNoKazu = function(){
       var a = Store._conflictLog || [];
       return {
@@ -315,7 +324,15 @@
           var bad=res.filter(function(x){ return x && x.error; })[0];
           // ★競合基準は必ず「DBが返した updated_at」にする。JS生成の now(…Z) はDB返却(…+00:00)と書式が違い、
           //  文字列比較で毎回不一致=読込直後や2回目保存(スクロール等の自動保存)で誤conflictが多発する(P0根治)。
-          if(!bad){ cloudSynced=true; lastCompanyUpdatedAt=(res[0] && res[0].data && res[0].data.updated_at) || now; }
+          if(!bad){
+            cloudSynced=true;
+            /* ★★ここで 数える★★（★値は 1文字も 変えて いません★）
+               ★`res[0].data.updated_at` が 無い 回だけ ★JS の《…Z》形★が 入る★
+               ⇒ ★次の 確認は DB の《…+00:00》を 読む ⇒ ★字が 違う★ */
+            var _ua = (res[0] && res[0].data && res[0].data.updated_at);
+            if(_ua){ _uaAtta++; } else { _uaNakatta++; }
+            lastCompanyUpdatedAt = _ua || now;
+          }
           return { ok:!bad, reason: bad?((bad.error&&bad.error.message)||'error'):null };
         }).catch(function(e){ return { ok:false, reason:(e&&e.message)||'exception' }; });
         }

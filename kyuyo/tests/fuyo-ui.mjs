@@ -711,6 +711,7 @@ const soukoLog = [];
       （★どちらが 0に なるかが 字で 見える★） */
 let OOI_KAZU = undefined;         /* ★片づけの ★前★★ */
 let HOZON_KAZU = undefined;       /* ★片づけの ★前★★ */
+let HIKAE_KAZU = undefined;       /* ★`|| now` に 落ちた 回数★（★片づけの 前★） */
 let OOI_KAZU_ATO = undefined;     /* ★片づけの ★後★（★開き直した 後★） */
 let HOZON_KAZU_ATO = undefined;   /* undefined＝★まだ 読んで いない★／null＝★読んだが 無い★ */
 async function hozonKazuWoYomu(pg2, ato) {
@@ -726,6 +727,13 @@ async function hozonKazuWoYomu(pg2, ato) {
       catch (e) { return null; }
     });
   } catch (e) { OOI_KAZU = undefined; }
+  try {
+    const h = await pg2.evaluate(() => {
+      try { return (window.Store && Store.hikaeNoKazu) ? Store.hikaeNoKazu() : null; }
+      catch (e) { return null; }
+    });
+    if (!ato) HIKAE_KAZU = h;
+  } catch (e) { if (!ato) HIKAE_KAZU = undefined; }
   if (ato) { OOI_KAZU_ATO = OOI_KAZU; HOZON_KAZU_ATO = HOZON_KAZU; }
 }
 
@@ -1567,6 +1575,34 @@ soukoDasu('★走りの 終わり★', 12);
      ★外から は 読めない 2つの 値★を 画面の 中で 控えて ここで 出す。
      ★CI でも 走る★（★倉庫の 鍵が 要らない★）
         ＝★★手元では 7回 回して 覆い 0回＝★手元では 測れない★★ */
+  /* ★★★`|| now` に 落ちた 回数★★★（2026-09-27・指示役1 の 足し）
+     ★これが 大事な 訳★ … ★★覆いが 出なくても 測れます★★
+        ＝★★CI を 1回も 回さずに 決まる★★（★司さん「金かけんなや」★）
+     ★字★ … `kyuyo/js/store.js`
+        `var _ua = (res[0] && res[0].data && res[0].data.updated_at);`
+        `if(_ua){ _uaAtta++; } else { _uaNakatta++; }`
+        `lastCompanyUpdatedAt = _ua || now;`
+     ★判じ（★先に 決めて ある★）★
+        ・★★返らなかった ≧１★★ ⇒ ★★因は 立つ★★
+             （★そこで 控えが JS の《…Z》形に なる★
+               ⇒ ★次の 保存が ★字の 違い★で 弾かれる★）
+             ⇒ ★直す 所も 決まる（`store.js` の `|| now`）★
+        ・★返らなかった 0★ ⇒ ★★`|| now` は 因で は ない★★＝別を 探す */
+  {
+    const hk = HIKAE_KAZU;
+    console.log('  ★★控えに 入れた 値の 出所★★ … '
+      + (hk
+        ? '★保存 ' + hk.zen + '回★'
+          + '／★DB が `updated_at` を 返した ' + hk.atta + '回★'
+          + '／★★返さなかった（`|| now` に 落ちた）' + hk.nakatta + '回★★'
+          + (hk.nakatta > 0
+            ? '★★⇒ ★そこで 控えが JS の《…Z》形に なります★'
+              + '＝★次の 保存が 字の 違いで 弾かれ得る★★★'
+            : '★⇒ ★`|| now` に は 1回も 落ちて いません★')
+        : (hk === null
+          ? '★★`Store.hikaeNoKazu` が ★画面に 無い★★（★数え口が 届いて いません★）'
+          : '★★読めて いません★★（★『無い』とは 書きません★）')) + '★');
+  }
   {
     const ok = OOI_KAZU, okAto = OOI_KAZU_ATO;
     if (okAto && ok && (okAto.honsu !== ok.honsu)) {
