@@ -710,17 +710,15 @@ const soukoLog = [];
    ★直し★ … ★片づけの ★前★ と ★後★ の ２つ 読んで 並べる★
       （★どちらが 0に なるかが 字で 見える★） */
 let OOI_KAZU = undefined;         /* ★片づけの ★前★★ */
-let HOZON_KAZU = undefined;       /* ★片づけの ★前★★ */
 let HIKAE_KAZU = undefined;       /* ★`|| now` に 落ちた 回数★（★片づけの 前★） */
 let OOI_KAZU_ATO = undefined;     /* ★片づけの ★後★（★開き直した 後★） */
-let HOZON_KAZU_ATO = undefined;   /* undefined＝★まだ 読んで いない★／null＝★読んだが 無い★ */
 async function hozonKazuWoYomu(pg2, ato) {
-  try {
-    HOZON_KAZU = await pg2.evaluate(() => {
-      try { return (window.Store && Store.hozonNoKazu) ? Store.hozonNoKazu() : null; }
-      catch (e) { return null; }
-    });
-  } catch (e) { HOZON_KAZU = undefined; }   /* ★読めなかった＝★「無い」と は 書かない★ */
+  /* ★★`Store.hozonNoKazu` は ★取り下げました★★（2026-09-27）
+     ★直列の 包みを ★効かないと 実測して 戻した★ ので
+     ★その 数え口も 一緒に 無く なりました★
+     ⇒ ★★読みに 行くと「画面に 無い（直しが 届いて いない）」と 出る★★
+     ⇒ ★★『取り下げた』のに『届いて いない』と 読める＝★偽の 赤★★
+     ⇒ ★読みに 行きません★ */
   try {
     OOI_KAZU = await pg2.evaluate(() => {
       try { return (window.Store && Store.ooiNoKazu) ? Store.ooiNoKazu() : null; }
@@ -734,7 +732,7 @@ async function hozonKazuWoYomu(pg2, ato) {
     });
     if (!ato) HIKAE_KAZU = h;
   } catch (e) { if (!ato) HIKAE_KAZU = undefined; }
-  if (ato) { OOI_KAZU_ATO = OOI_KAZU; HOZON_KAZU_ATO = HOZON_KAZU; }
+  if (ato) { OOI_KAZU_ATO = OOI_KAZU; }
 }
 
 /* ★覆いが 出た 所の 前後を 並べる★（★出しに 出さないと 数えた事に ならない★） */
@@ -1554,13 +1552,9 @@ soukoDasu('★走りの 終わり★', 12);
         （`6173`〜`6225` に `await` / `Promise.all` が ★０件★）
      ★直し方は ここで 決めません★＝★お金の 道★／★司さんの 決めが 要る★ */
   /* ★★★『自分で 自分を 弾いた 組』を 番号で 出す★★★（指示役1 の 裁定 ①） */
-  /* ★★直列に した 後 ★溜まって いないか★ を 数で 見る★★（2026-09-26）
-     `kyuyo/js/store.js` の `Store.hozonNoKazu()` が 返す
-       machi … ★待たせた 回数★（★直列に した のだから 0とは 限らない★）
-       sute … ★捨てた 回数★（★待ちが 2以上 来たとき 間の 物を 捨てる★）
-     ★これを 赤に は しません★＝★数を 出すだけ★
-       訳＝★待ちも 捨ても ★正しい 働き★★（★溜めない 形★）
-       ⇒ ★★但し 数が 出て いないと ★溜まって いても 誰も 気づかない★★ */
+  /* ★★保存を 直列に する 直しは ★取り下げました★★（2026-09-27）
+     ★測る 口（`Store.hozonNoKazu`）も 一緒に 無く なって います★
+     ★訳は 下の 覚書に★ */
   /* ★★★㈝-2 の 決め手★★★（2026-09-27）
      ★`kyuyo/js/store.js:187` の conflict は ★文字列比較★
         `if(cloudUA && cloudUA !== lastCompanyUpdatedAt){ … conflict … }`
@@ -1626,23 +1620,14 @@ soukoDasu('★走りの 終わり★', 12);
           : '★★読めて いません★★（★『無い』とは 書きません★）')) + '★');
   }
   {
-    const hz = HOZON_KAZU, hzAto = HOZON_KAZU_ATO;
-    if (hzAto && hz && (hzAto.machi !== hz.machi || hzAto.sute !== hz.sute)) {
-      console.log('  ★★片づけの 前後で 数が 違います★★ … 前 待たせた '
-        + hz.machi + '回／捨てた ' + hz.sute + '回 → 後 待たせた '
-        + hzAto.machi + '回／捨てた ' + hzAto.sute + '回'
-        + '（★開き直しで 0に 戻る★）');
-    }
-    console.log('  ★保存を 直列に した 後の 数 … '
-      + (hz ? '★待たせた ' + hz.machi + '回／捨てた ' + hz.sute + '回'
-        + '／読んだ 時に 走って いた ' + (hz.chuu ? 'はい' : 'いいえ') + '★'
-        + '（★待ちも 捨ても 正しい 働き＝赤に は しません★）'
-        : (hz === null
-          ? '★★`Store.hozonNoKazu` が ★画面に 無い★★'
-            + '（★直列の 直しが 届いて いません★）'
-          : '★★読めて いません★★'
-            + '（★画面を 開いて いる 間に 読めなかった'
-            + '＝★『無い』とは 書きません★）')) + '★');
+    /* ★★直列の 包みは 取り下げました★★（2026-09-27）
+       ★入れた★ `8eeb366`（★覆いの 因を「保存が 重なる」と 見立てた★）
+       ★戻した★ … ★★わざと 外した 木でも 覆い 0回★★
+          （枝 `waza-serial-off`／run ★36304848683★／23 passed, 0 failed）
+          ＋★包みを 入れても 待たせた 0回／捨てた 0回★（CI attempt=6）
+       ⇒ ★★包みは 覆いと 無関係★★＝★お金の 道に 残さない★ */
+    console.log('  ★保存を 直列に する 直し … ★★取り下げ済み★★'
+      + '（★わざと 外した 木でも 覆い 0回＝run 36304848683★）★');
   }
   /* ★★会社の 棚に 書いた 値を ★全部★ 出す★★（2026-09-26）
      ★なぜ 要るか（踏んだ 穴）★

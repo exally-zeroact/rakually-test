@@ -151,6 +151,44 @@
     // ★楽観ロック用: 最後に把握した pay_companies(設定=全置換で最も危険)の updated_at。
     //  読込時・自分の保存成功時に更新。保存前にクラウドの現在値と違えば「別端末が後から更新」=conflictで上書きしない。
     var lastCompanyUpdatedAt = null;
+
+    /* ★★★測る 為だけの 口 2つ★★★（2026-09-27に 一度 消し過ぎて 戻した）
+       ★㈝-2（「別の端末で更新されています」）の 因は ★未説明★。
+         外から 見えるのは 要求と 倉庫だけで、
+         ★conflict を 決めて いる 2つの 値は ★画面の 中の 閑し★★。
+       ⇒ ★★ここで 控えないと 因は 決まりません★★
+       ★CI でも 走ります★（★倉庫の 鍵が 要らない★）
+         ＝★★覆いが 実際に 出る 所で 測れます★★
+         （★手元では 8回 回して 覆い 0回＝★手元では 測れない★）
+       ★★値も 判じも 1文字も 変えて いません★★（★積むだけ★）
+
+       ★★一度 消し過ぎました★★
+         直列の 取り下げで 塔を まるごと 差し替えた 時、
+         ★同じ 塔の 中に 在った この 2つも 一緒に 消した★。
+         ★でも 使う 所は 残った★（`_uaAtta++` と `_conflictLog.push`）
+         ⇒ ★★`_uaAtta is not defined` で ★お金の 保存が 落ちた★★
+            実物 … `node kyuyo/tests/cloud-sync.mjs` ★★5 failed★★
+         ⇒ ★★網が 押す前に 止めました（赤 2段）★★＝★遠くへ 行って いません★
+       ★★学んだ 事：消す 時は『宣言・使う 所・読む 口』を 全部 数える★★ */
+
+    /* ★`|| now` に 落ちた 回数★（実測 09-27：保存 33回／返した 33回／★落ちた 0回★） */
+    var _uaAtta = 0, _uaNakatta = 0;
+    Store.hikaeNoKazu = function(){
+      return { atta:_uaAtta, nakatta:_uaNakatta, zen:(_uaAtta + _uaNakatta) };
+    };
+    /* ★覆いの 控えを 外から 読む 口★
+       honsu（何回 出たか）／★onaji（★同じ 瞬間なのに conflict★）★／
+       chigau（本当に 別の 書き）／miyomi（まだ 読んで いない）／★最初の 3件の 字★ */
+    Store.ooiNoKazu = function(){
+      var a = Store._conflictLog || [];
+      return {
+        honsu: a.length,
+        onaji: a.filter(function(x){ return x.onajiShunkan; }).length,
+        chigau: a.filter(function(x){ return !x.onajiShunkan && !x.neverSynced; }).length,
+        miyomi: a.filter(function(x){ return x.neverSynced; }).length,
+        ji: a.slice(0, 3).map(function(x){ return x.ji; })
+      };
+    };
     Store.cloudSaveState = function(state){
       // ★②初回の読み込みが 走っている間は 保存しない★=済んでから 1回だけ 出す(中身は取り直す)
       if(saveHold){
@@ -171,88 +209,26 @@
       }
       return realSave(state);
     };
-    /* ★★★保存を ★直列★ に する（＋溜めない）★★★（2026-09-26）
-       ★★何が 起きて いたか（実測）★★
-         画面に「この会社の設定・従業員データが、★別の端末で更新されています★」
-         が 出て ★ボタンが 押せなく なる★。
-         ★CI 36214660524（WebKit・2026-09-26）★
-           ★覆い 27回／別の端末 28回★
-           ★全 1153本／返った 1153本／★失敗 0本★／黙り 0★＝★★落ちて いません★★
-           ★着いた順が 差し戻った 579本★／★重なった 組 5326組・同時 最大 14本★
-           ★★自分で 自分を 弾ける 組 … 2組（番号つき）★★
-             出46（書き・送った T1）→ 出52（確認の 読み・同じ 値）
-               ㊀★書きの 返りが 読みより 後★（まだ 返って いない 出42/43/44/47）
-             出46（書き）→ 出60（確認の 読み・同じ 値）
-               ㊁★同じ 束の 他の 書きが まだ★（出54／棚 pay_payslips）
-       ★★因★★ … 下の `realSaveHonto` は
-           ① `pay_companies` の `updated_at` を 読む
-           ② 控え（`lastCompanyUpdatedAt`）と 違えば conflict
-           ③ doSave で ★ops を 同時に 3本★ 出し、
-              ★`Promise.all` が 全部 返って から★ 控えを 新しく する
-         ⇒ ★★③の 途中で 次の 保存の ① が 入ると
-            ★自分が さっき 書いた 値★を「別の端末」と 呼ぶ★★
-       ★★直し★★ … ★保存を 重ならせない★（★隔間が 消える★）
-         ★溜めない★ … 走って いる 間に 来た 物は ★最後の 1つだけ★ 待たせる
-           （★状態は ★最新が 正★＝間の 物を 書く 意味が 無い★）
-         ★待たせた 分は ★中身を 取り直して★ 走らせる★
-           （★上の `heldOnce` と 同じ 考え方★）
-       ★★触って いない 物★★ … ★お金の 中身・順・確定の 印・`ops` の 中身★
-         ＝★下の `realSaveHonto` は ℅1文字も 変えて いません★
-       ★数を 出す★ … `Store.hozonNoKazu()` で ★待たせた 回数／捨てた 回数★
-         （★溜まって いないかが 数で 見える★） */
-    var _hozonChuu = false;          /* ★今 走って いるか★ */
-    var _machiState = null;          /* ★待たせて いる 最後の 1つ★ */
-    var _machiRes = [];              /* ★待たせた 呼び手★ */
-    var _machiKazu = 0, _suteKazu = 0;
-    Store.hozonNoKazu = function(){ return { machi:_machiKazu, sute:_suteKazu, chuu:_hozonChuu }; };
-    /* ★★覆いの 控えを 外から 読む 口★★（★測る 為だけ★）
-       ★返す 物★ … honsu（何回 出たか）／
-                  ★onaji（★同じ 瞬間なのに conflictに なった 回数★）★／
-                  chigau（本当に 別の 書き）／miyomi（まだ 読んで いない）／★最初の 3件の 字★ */
-    /* ★★`|| now` に 落ちた 回数★★（2026-09-27・指示役1 の 足し）
-       ★なぜ★ … ★その 数が 覆いの 数と 揃うか★ で
-              ★★「たまにしか 出ない」の 中身まで 決まる★★
-       ★DB が `updated_at` を 返した 回★ と ★返さなかった 回★ を 別々に 数える */
-    var _uaAtta = 0, _uaNakatta = 0;
-    Store.hikaeNoKazu = function(){
-      return { atta:_uaAtta, nakatta:_uaNakatta,
-        zen:(_uaAtta + _uaNakatta) };
-    };
-    Store.ooiNoKazu = function(){
-      var a = Store._conflictLog || [];
-      return {
-        honsu: a.length,
-        onaji: a.filter(function(x){ return x.onajiShunkan; }).length,
-        chigau: a.filter(function(x){ return !x.onajiShunkan && !x.neverSynced; }).length,
-        miyomi: a.filter(function(x){ return x.neverSynced; }).length,
-        ji: a.slice(0, 3).map(function(x){ return x.ji; })
-      };
-    };
+    /* ★★★ここに あった『保存を 直列に する包み』は
+       ★効かないと 実測で 分かった ので 戻しました★★★（2026-09-27）
+       ★入れた 訳★ … 覆い（「別の端末で更新されています」）の 因を
+         ★保存が 重なる 事★と 見立てたから。
+       ★戻した 訳（★数★）★
+         㑕★包みを 入れても ★待たせた 0回／捨てた 0回★
+            （CI attempt=6・★片づけの 前に 読んだ 数★）
+         㑖★★包みを わざと 外した 木でも ★覆い 0回★★★
+            （枝 `waza-serial-off`・run ★36304848683★・23 passed, 0 failed）
+         ⇒ ★★外しても 同じ＝★包みは 覆いと 無関係★★★
+       ★学んだ 事★ … ★★『働いて いない』と『何も 変えて いない』は 別★★
+         ★私は「待たせた 0回 だから 外しても 同じ」と 言って
+           ★指示役1 の『外して 測れ』を 1度 断りました★
+         ⇒ ★★それが 間違い★★（`.then` が 1つ 増える＝★時間の 並びは 変る★）
+         ⇒ ★★外して 同じ 木で 走らせる しか 分けられない★★
+       ★測る 口は 残して あります★
+         `Store.ooiNoKazu()`（★覆いの 2つの 値と 同じ 瞬間か★）
+         `Store.hikaeNoKazu()`（★`|| now` に 落ちた 回数★）
+       ★㈝-2（覆い）の 因は ★まだ 未説明★です★ */
     function realSave(state){
-      if(_hozonChuu){
-        if(_machiState) _suteKazu++;               /* ★間の 物は 捨てる＝最新が 正★ */
-        _machiState = state; _machiKazu++;
-        return new Promise(function(res){ _machiRes.push(res); });
-      }
-      return hashiraseru(state);
-    }
-    function hashiraseru(state){
-      _hozonChuu = true;
-      var owaru = function(){
-        _hozonChuu = false;
-        if(!_machiState) return;
-        var st = _machiState, rs = _machiRes;
-        _machiState = null; _machiRes = [];
-        /* ★中身を 取り直す★（★最新が 正★）／取れなければ 預かった 物を 使う */
-        var fresh = null;
-        try { fresh = (typeof Store._snapFn==='function') ? Store._snapFn() : null; } catch(e){ fresh = null; }
-        var p = hashiraseru(fresh || st);
-        rs.forEach(function(r){ r(p); });          /* ★待たせた 呼び手に 同じ 結果を 返す★ */
-      };
-      return realSaveHonto(state).then(function(r){ owaru(); return r; },
-        function(err){ owaru(); throw err; });
-    }
-    function realSaveHonto(state){
       return curUid().then(function(uid){ if(!uid) return { ok:false, reason:'no-user' }; var now=new Date().toISOString();
         // ★employees以外の全スナップショット項目を保存(確定印/年末調整/賞与/カスタム給テンプレ/onboard等も載せる=端末替えで消えない)
         var settings={}; for(var k in state){ if(Object.prototype.hasOwnProperty.call(state,k) && k!=='employees') settings[k]=state[k]; }
