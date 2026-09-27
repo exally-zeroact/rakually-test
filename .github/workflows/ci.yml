@@ -72,7 +72,14 @@ jobs:
       #   ★一度も CI で 押されて いなかった★（紙に 書いて 在るだけだった）。
       #   ⇒ ★倉庫の向き先を 運ばない★ と ★未commit の 作りかけを 運ばない★ の
       #     2つが 生きているかを ★毎回 押す★（この repo でも 本番の repo でも 同じ）。
-      - name: ★運ぶ道具 ship-all の 自己確認 (倉庫の向き先を 運ばない・作りかけを 運ばない・9通り)
+      # ★2026-09-28 指示役が 足した★ … 実測で こう なって いた。
+      #   `rakually-test`（主）… 門が 走る ／ 別の worktree … ★hooks/ が 無く 黙って 走らない★
+      #   ★`rakually`（本番）… core.hooksPath も hooks/ も 無い＝★1段も 走らずに 押せた★★
+      #   因＝★`hooks/` を git に add して いなかった★（.gitignore では ない＝ただの 忘れ）
+      #   ⇒ `ship-all` は `git ls-files` で 選ぶので ★永久に 運べなかった★。
+      - name: ★押す前の 網の 門が 別の 手元にも 付いて 行くか (git の 名簿に 載っているか・6通り)
+        run: node tests/mon-ga-tsuite-iru.test.mjs && node tests/mon-ga-tsuite-iru.test.mjs --self-test
+      - name: ★運ぶ道具 ship-all の 自己確認 (倉庫の向き先を 運ばない・作りかけを 運ばない・門を 運ぶ・10通り)
         run: node scripts/ship-all.mjs --self-test
       - name: ★配信ガード (href="/…" 等の絶対パス・本番倉庫への誤接続を止める)
         run: node tests/pages-hosting.test.mjs

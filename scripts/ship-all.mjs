@@ -22,6 +22,11 @@
  *   ③ ★運ぶ前と後で 数える★（運んだ本数・消えた本数・変わらない本数）
  *   ④ ★消す事は しない★（運び先にしか無い物は そのまま 残す＝黙って 消さない）
  *   ⑤ ★未commit の 作りかけが 運ぶ物に 在ったら ★運ばない★★（--dry は 名前を 出すだけ）
+ *   ⑥ ★運び先に ★押す前の 網の 門★ が 在るかを 数えて 出す★（★止めません＝数えるだけ★）
+ *      2026-09-28 実測 … ★本番(rakually) は `core.hooksPath` が 打たれて おらず
+ *        `hooks/` も 無い＝★1段も 走らずに 押せる★★（一番 高い 所に 門が 無かった）
+ *      ★訳★＝`core.hooksPath` は ★手元ごとの 設定＝git では 運べない★。
+ *        ⇒ ★運ぶ 時に 1回だけ 数えて 出す★のが ★唯一 気づける 所★。
  *      ＝★控えの 無い 字を 本番に 置くと どこへ 戻すかが 決められない★
  *      どうしても 運ぶ時は ★`--sagyou-chu-demo-ii` を 手で 付ける★（訳を 口に 出させる）
  *
@@ -88,10 +93,11 @@ if (process.argv.includes('--self-test')) {
   say('★返した 名前は ぜんぶ 名簿の 中★', ima.every((f) => list.indexOf(f) >= 0));
   console.log('     ★今の 手元の 作りかけ ' + ima.length + '本★'
     + (ima.length ? '＝' + ima.slice(0, 12).join(' , ') : '（★0本＝ぜんぶ commit 済み★）'));
+  say('★門の 字（hooks/pre-push）を 運ぶ 名簿に 入れて いる★', list.indexOf('hooks/pre-push') >= 0);
   console.log('     運ぶ一覧 ' + list.length + '本（★運ばない物 ' + NEVER_SHIP.length + '本＝'
     + NEVER_SHIP.join(' , ') + '★）');
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★9通り ぜんぶ 思った通り★');
+  console.log('  ★10通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -165,4 +171,19 @@ console.log('  ★倉庫の向き先★ … 前 ' + cfgUrlBefore + '（' + cfgBe
   + ' → 後 ' + cfgUrlAfter + '（' + cfgAfter + '）'
   + ((cfgBefore === cfgAfter) ? ' ★同じ＝触っていない★' : ' ★★変わった＝止めます★★'));
 if (cfgBefore !== cfgAfter) process.exit(1);
+/* ★⑥運び先の 門を 数える（★止めません／読むだけ★）★
+ *   `core.hooksPath` は ★手元ごとの 設定★＝運べない ので ★運んだ 後に 数えて 出す★ */
+let monJi = "（打たれて いません）";
+try {
+  monJi = execFileSync('git', ['config', '--get', 'core.hooksPath'], { cwd: TO, encoding: 'utf8' }).trim() || '（空）';
+} catch { /* 無い */ }
+const monP = path.join(TO, (monJi.indexOf('（') === 0 ? 'hooks' : monJi), 'pre-push');
+const monAru = fs.existsSync(monP);
+console.log('  ★運び先の 押す前の 門★ … core.hooksPath ＝ ' + monJi
+  + ' ／ pre-push の 字 ＝ ' + (monAru ? '★在る★' : '★★無い★★'));
+if (monJi.indexOf('（') === 0 || !monAru) {
+  console.log('     ★★⇒ 運び先では 押す前の 網が ★1段も 走りません★★★（止めません＝数えただけ）');
+  console.log('     ★付ける★ … 運び先で 1回だけ … git config core.hooksPath hooks');
+}
+
 console.log('  ★次にやる事★ 運び先で … node scripts/stamp-build.mjs → CI総なめ → webkit.yml も 総なめ');
