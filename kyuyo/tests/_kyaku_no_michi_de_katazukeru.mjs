@@ -550,6 +550,26 @@ export async function katazukeru(pg, opt) {
         michi.push('     ⇒ ★札が 動いた（「' + (fudaMae || '空') + '」→「' + fuda.save + '」）＝★保存は 走った★');
       }
     } else michi.push('⑤-2 ★客が 見て いる 字を 引けません★');
+  /* ★★⑤-3 差分削除を 走らせたか＝★開き直す 前に★ 読む★★（2026-09-28・実測から）
+     ★訳★ … ⑥で 開き直す ので ★画面の 中の 控えは そこで 消えます★
+       （★今日 覆いの 控えで 同じ 穴を 踏みました★）
+     ★見る 所★ … `Store.sabunNoKazu()`
+       `hashitta`＝走った ／ ★`yomazu`＝読み込めて いない（`cloudLoaded` が 偽）★ ／ `kara`＝手元に 人が 0人
+     ⇒ ★★`yomazu ≥ 1` なら ★客が 消したのに 倉庫へ 消しが 行って いない★★★ */
+  try {
+    const sb = await pg.evaluate(() => {
+      try {
+        const S = window.Store;
+        if (!S || typeof S.sabunNoKazu !== 'function') return null;
+        return S.sabunNoKazu();
+      } catch (e) { return null; }
+    });
+    michi.push('⑤-3 ★差分削除… ' + (sb === null
+      ? '★口が 無い＝未測定（0回では ない）★'
+      : ('走った ' + sb.hashitta + '回／★読み込めて いない ' + sb.yomazu + '回★／手元が 空 ' + sb.kara
+        + '回（全 ' + sb.zen + '回）'
+        + (sb.yomazu ? '　★★⇒ 消しが 倉庫へ 行って いない 回が 在ります★★' : ''))) + '★');
+  } catch (e) { michi.push('⑤-3 ★差分削除の 数を 引けません＝未測定★ … ' + (e && e.message)); }
   } catch (e) { michi.push('⑤-2 ★札を 引く 所で 転びました … ' + String((e && e.message) || e).slice(0, 80) + '★'); }
 
   /* ★★⑥開き直して もう一度 数える★★（2026-09-19 実測で 足した）

@@ -174,6 +174,7 @@
 
     /* ★`|| now` に 落ちた 回数★（実測 09-27：保存 33回／返した 33回／★落ちた 0回★） */
     /* ★人を 消した 口の 控え★（★宣言は 使う 所より 前に 置く＝今日 1回 `ReferenceError` を 踏んだ★） */
+    var _sabunHashitta = 0, _sabunYomazu = 0, _sabunKara = 0;
     var _kesuTanomi = [], _kesuKieta = [];
     var _uaAtta = 0, _uaNakatta = 0;
     /* ★★束を 待たずに 控えた 回数★★（2026-09-28＝★『倉庫は 新しい／控えは 旧い』窓を 閉じた 回数★）
@@ -264,6 +265,13 @@
        ★`tanomi`＝頼んだ 件数／`kieta`＝★本当に 消えた 件数★（★-1＝返りが 無い＝未測定★）
        ★`kuizure`＝頼んだ ≠ 消えた の 回数／★`ookusugi`＝消えた ＞ 頼んだ（★事故★）★
        ⇒ ★★『黙って 0件 消して いる』を ★数で★ 捕まえる 口★★ */
+    /* ★★差分削除を 走らせた／飛ばした 回★★（2026-09-28）
+       `hashitta` … 走った ／ ★`yomazu`＝★読み込めて いない（`cloudLoaded` が 偽）★★ ／ `kara`＝手元に 人が 0人
+       ⇒ ★★`yomazu ≥ 1` は ★客が 消した のに 倉庫へ 消しが 行って いない★ 回が 在る 事★★ */
+    Store.sabunNoKazu = function(){
+      return { hashitta:_sabunHashitta, yomazu:_sabunYomazu, kara:_sabunKara,
+               zen:(_sabunHashitta + _sabunYomazu + _sabunKara) };
+    };
     Store.kesuNoKazu = function(){
       var t = _kesuTanomi, k = _kesuKieta, n = Math.min(t.length, k.length);
       var kui = 0, oo = 0, sukunai = 0, mi = 0;
@@ -554,6 +562,20 @@
         ];
         // ★差分削除は「★読み込めた(cloudLoaded)★かつ手元に従業員が居る」時だけ=空/古い端末が本番を消さない
         //  (2026-09-03 変更: cloudSynced=書けた→cloudLoaded=読めた。理由は上の宣言部)
+        /* ★★差分削除を 飛ばした 回を ★訳つきで★ 数える★★（2026-09-28・★実測から★）
+           ★何が 起きたか★ … WebKit `36438495165` の 赤（`shutoku-ui`）
+             「⑥開き直して 数えた … ★残り 1人★」
+             「⑥-2 … ★DELETE ★0本★（消せと 言った id 0件）★／書き 5本／組 0組」
+             ⇒ ★★＝★差分削除が 1回も 走って いません★★（㋐書き戻しでも ㋑消せて いないでも ない）
+           ★どちらの 門で 止まったか★ … ★書きが 5本 出て いる★
+             ＝`emps.length ? upsert : …` を 通った ⇒ ★`emps.length > 0` は 真★
+             ⇒ ★★＝偽なのは `cloudLoaded`★★（★この 数で 押さえます★）
+           ★この 門は 消しません★＝★空／古い 端末が 本番を 消さない ための P0 の 守り★
+             ⇒ ★但し ★黙って 飛ばす★のを やめます（数に 出す）★
+           ★お金の 判じは 1文字も 変えて いません★＝★数えるだけ★ */
+        if(!(cloudLoaded && emps.length>0)){
+          if(!cloudLoaded){ _sabunYomazu++; } else { _sabunKara++; }
+        } else { _sabunHashitta++; }
         if(cloudLoaded && emps.length>0){
           ops.push(fetchAllQ(function(a,b){ return sb.from('pay_employees').select('id',{count:'exact'}).eq('account_id',uid).range(a,b); }).then(function(r){ var ex=(r.data||[]).map(function(x){return x.id;}); var rm=ex.filter(function(id){ return ids.indexOf(id)<0; }); if(!rm.length){ _kesuTanomi.push(0); _kesuKieta.push(0); return { error:null }; }
             /* ★★★消した 行を ★返させる★（`.select('id')`）★★★（2026-09-28・指示役1 の ④）
