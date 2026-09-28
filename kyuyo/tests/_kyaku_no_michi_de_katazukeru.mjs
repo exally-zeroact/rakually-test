@@ -561,14 +561,22 @@ export async function katazukeru(pg, opt) {
       try {
         const S = window.Store;
         if (!S || typeof S.sabunNoKazu !== 'function') return null;
-        return S.sabunNoKazu();
+        const r = S.sabunNoKazu();
+        /* ★保存を 列に した 直しが ★何回 効いたか★ を 隣に 出す★（★0回なら 未測定★） */
+        r.retsu = (typeof S.retsuNoKazu === 'function') ? S.retsuNoKazu() : null;
+        return r;
       } catch (e) { return null; }
     });
     michi.push('⑤-3 ★差分削除… ' + (sb === null
       ? '★口が 無い＝未測定（0回では ない）★'
       : ('走った ' + sb.hashitta + '回／★読み込めて いない ' + sb.yomazu + '回★／手元が 空 ' + sb.kara
         + '回（全 ' + sb.zen + '回）'
-        + (sb.yomazu ? '　★★⇒ 消しが 倉庫へ 行って いない 回が 在ります★★' : ''))) + '★');
+        + (sb.yomazu ? '　★★⇒ 消しが 倉庫へ 行って いない 回が 在ります★★' : '')
+        + '　／★列… ' + (sb.retsu
+          ? ('送った ' + sb.retsu.hashitta + '回／★待たせた ' + sb.retsu.matta + '回★／畳んだ '
+            + sb.retsu.tatanda + '回'
+            + ((sb.retsu.matta || sb.retsu.tatanda) ? '' : '＝★重なりが 1回も 起きて いません（この 直しは 未測定）★'))
+          : '★口が 無い＝未測定★') + '★')) + '★');
   } catch (e) { michi.push('⑤-3 ★差分削除の 数を 引けません＝未測定★ … ' + (e && e.message)); }
   } catch (e) { michi.push('⑤-2 ★札を 引く 所で 転びました … ' + String((e && e.message) || e).slice(0, 80) + '★'); }
 

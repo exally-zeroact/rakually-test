@@ -17,6 +17,7 @@ function makeMock(opts) {
   opts = opts || {};
   const calls = { companyUpsert: [], empUpsert: [], deletes: [], selects: [], slipUpsert: [], getUser: [] };
   let serverEmpIds = (opts.serverEmpIds || []).slice();
+  const tanaIma = () => serverEmpIds.slice();   /* ★今 棚に 居る 人★（★試験が 最後に 数える★） */
   // dbFormatモード=実Postgres(timestamptz)を模擬: 送られたISO(…Z)を保存時に…+00:00へ書式変換し、読み戻しはその値を返す。
   //  ＝JS生成文字列(…Z)を競合基準にすると読み戻し(…+00:00)と毎回不一致になる本番バグを再現する。
   const dbFmt = s => (opts.dbFormat && typeof s === 'string') ? s.replace(/Z$/, '+00:00') : s;
@@ -66,7 +67,18 @@ function makeMock(opts) {
            ⇒ ★★その 窓を 試験で 作る には ②を 遅らせる しか ない★★ */
         if (table === 'pay_employees' && opts.empDelay) {
           calls.empUpsert.push(d);
-          return new Promise((r) => setTimeout(() => r({ error: null, data: null }), opts.empDelay));
+          /* ★★★遅れて 着く 書きは ★着いた 時に★ 棚へ 入れる★★★（2026-09-28・実測から）
+             ★訳★ … 本番の 赤（WebKit `36441683363`）で 起きた 形は
+               ★消せと 言った id が ★後から 着いた 書き★に 入って いた★（id `e592de8zk`）
+             ⇒ ★★＝『遅れて 着く』を ★棚の 中身まで★ 真似ないと ★この 穴は 偽の 倉庫で 出ません★★★
+             ★前★ … `calls` に 積むだけ＝★棚は 動かない★＝★書き戻しが 起きない★
+             ★今★ … ★resolve の 瞬間に 棚へ 入れる★＝★本物と 同じ 順に なる★ */
+          return new Promise((r) => setTimeout(() => {
+            (Array.isArray(d) ? d : [d]).forEach((x) => {
+              const id = x && x.id; if (id && serverEmpIds.indexOf(id) < 0) serverEmpIds.push(id);
+            });
+            r({ error: null, data: null });
+          }, opts.empDelay));
         }
         /* ★★`companyReplyDelay`＝★会社の 書きの ★返りだけ★ 遅らせる★★★（2026-09-28）
            ★訳（指示役1 の ③）★ … `pay_companies` の POST の 行き帰りは ★実測 627〜643ms★。
@@ -109,7 +121,20 @@ function makeMock(opts) {
         return p;
       },
       select: (cols, sopts) => { calls.selects.push({ table, cols, opts: sopts || {} }); return query(table === 'pay_ledger' ? 'ledger' : table === 'pay_companies' ? 'companyData' : cols === 'id' ? 'empIds' : 'emps', cols); },
-      delete: () => ({ in: (col, ids) => { calls.deletes.push(ids); return Promise.resolve({ error: null }); } }),
+      /* ★★消しも ★棚を 実際に 減らす★／`.select('id')` で ★消えた id を 返す★★★（2026-09-28）
+         ★訳★ … `store.js` は `.delete().in('id',rm)★.select('id')★` を 呼びます（指示役1 の ④）
+           ⇒ ★前の 偽の 倉庫には `.select` が ★無く★、しかも ★棚も 減らなかった★
+           ⇒ ★★＝差分削除の 道は ★偽の 倉庫で 1度も 通って いませんでした★★★（★25段 緑 なのに★）
+         ★`204` では なく ★消えた 行★を 返す★＝★本物と 同じ 形★ */
+      delete: () => ({
+        in: (col, ids) => {
+          calls.deletes.push(ids);
+          const kieta = (ids || []).filter((id) => serverEmpIds.indexOf(id) >= 0);
+          serverEmpIds = serverEmpIds.filter((id) => (ids || []).indexOf(id) < 0);
+          const res = { error: null, data: kieta.map((id) => ({ id })) };
+          return { select: () => Promise.resolve(res), then: (f, r2) => Promise.resolve(res).then(f, r2) };
+        },
+      }),
     };
   }
   /* ★`opts.noUser`★ … ★入口を 通って いない 端末★（既定＝通って いる）
@@ -128,6 +153,8 @@ function makeMock(opts) {
       },
     },
     __calls: calls,
+    /* ★今 棚に 居る 人の id★（★書き戻しが 起きたか を 数える 口★） */
+    __tana: tanaIma,
   };
 }
 
@@ -514,7 +541,18 @@ runs.push(T('★㋒: 会社の 書きの ★返りが 遅れても★ 次の 保
   const niP = Store.cloudSaveState(SNAP);
   const [, ni] = await Promise.all([ichiP, niP]);
   const o = Store.okuttaNoKazu();
-  ok(o.toshita > 0, '★自分が 送った 値だから 通した 回数が 0＝この 試験は 何も 見て いません（未測定）★（' + JSON.stringify(o) + '）');
+  /* ★★★守りが ★2枚★に なりました★★★（2026-09-28・★保存を 列に した 後★）
+     ★1枚目（新）★ … ★保存を 1本ずつ 並べる★ ⇒ ★★この 窓（前の 保存の 返り待ち）は ★構造的に 開きません★★★
+       ＝★2本目は 1本目が 返ってから 走る＝★重なりが 起きない★
+     ★2枚目（元）★ … ★自分が 送った 値の 名簿★（`okuttaNoKazu().toshita`）
+       ＝★別の 道（読み込みと 保存が 重なる 等）では まだ 働きます★
+     ⇒ ★★＝『名簿の 門が 0回』は ★穴では なく ★列が 先に 塞いだ★ 印★★
+     ⇒ ★★但し ★どちらも 0回 なら この 試験は 空振り★★＝★そこは 今まで通り 赤に します★
+     ★★P0 の 判じ（誤 conflict に しない）は 1文字も 変えて いません★★ */
+  const q = (typeof Store.retsuNoKazu === 'function') ? Store.retsuNoKazu() : null;
+  ok(o.toshita > 0 || (q && (q.matta > 0 || q.tatanda > 0)),
+    '★どちらの 守りも 働いて いません＝この 試験は 何も 見て いません（未測定）★'
+    + '（名簿の 門 ' + JSON.stringify(o) + '／列 ' + JSON.stringify(q) + '）');
   ok(!(ni && ni.reason === 'conflict'),
     '★★返りの 前に 自分で 自分を 弾きました★★（出たのは ' + JSON.stringify(ni) + '）');
 }));
@@ -548,6 +586,54 @@ runs.push(T('★㋓: ★倉庫には 書けて 返りが 落ちた★ 後でも 
   ok(ni.neverSynced === true, '★`neverSynced` が 立って いない＝画面の 文言が 変わります★（' + JSON.stringify(ni) + '）');
   ok(mock.__calls.companyUpsert.length === 1, '★2回目も 会社の 行を 書いて います＝巻き戻して います★（' + mock.__calls.companyUpsert.length + '本）');
 }));
+
+/* ★★★㋔: ★消した 人が ★前の 保存★で 書き戻らない★★★（2026-09-28・★本番の 赤から★）
+   ★実測（WebKit `36441683363`／押し `ef49647`／`soshitsu-ui`）★
+     ⑤-3 差分削除 … ★走った 32回／読み込めて いない 0回／手元が 空 0回★ ⇒ ★㋒（走って いない）は 死亡★
+     ⑥-2 … DELETE ★1本★（消せと 言った id ★1件★）／★頼んだ 1件・消えた 1件（合う）★ ⇒ ★㋑（消せて いない）は 死亡★
+           ★★㋐＝消せと 言った id（`e592de8zk`）が ★後から 着いた 書きに 入って いた★★
+     ⑥ … ★残り 1人★
+   ★客に 出る 形★
+     ★人を 消すと ★消す 前の 名簿を 積んだ 保存が まだ 飛んで います★★
+     ⇒ ★それが 消した 後に 着くと ★消した 人が 復活します★★
+     ⇒ ★画面には「『◯◯』を 削除しました」と 出た まま★（`app.js:5545`〜＝★頭の 1文は 無条件★）
+   ★この 段が 見る 物★ … ★倉庫（偽）の 棚に ★消した 人が 残って いないか★★
+     ＝★『送った 本数』でも『返り値』でも なく ★最後に 棚に 誰が 居るか★★
+   ★★ブラウザも 本物の 倉庫も 使いません★★＝★毎回 機械が 押せます★ */
+runs.push(T('★★㋔: 消した 人が ★前の 保存★で 書き戻らない（客の 穴）★★', async () => {
+  const AB = Object.assign({}, SNAP, { employees: [{ id: 'eA', name: 'A' }, { id: 'eB', name: 'B' }] });
+  const A = Object.assign({}, SNAP, { employees: [{ id: 'eA', name: 'A' }] });
+  const mock = makeMock({
+    serverEmpIds: ['eA', 'eB'],
+    serverEmps: [{ data: { id: 'eA' } }, { data: { id: 'eB' } }],
+    companyData: { company: {} }, companyUpdatedAt: '2026-09-28T00:00:00Z', dbFormat: true,
+    empDelay: 150,                 /* ★人の 書きだけ 遅らせる＝★飛んで いる 保存★を 作る★ */
+  });
+  const Store = loadStore(mock, { machiMs: 100 });
+  Store.setSnapshotFn(() => AB);
+  await Store.cloudLoadState();    /* ★読み込めた＝差分削除の 門を 通す★ */
+  ok(mock.__tana().indexOf('eB') >= 0, '★前提が 崩れて います＝棚に eB が 居ません★');
+  /* ⑴★消す前の 名簿で 保存を 出す（まだ 待たない＝飛んで いる 状態）★ */
+  const mae = Store.cloudSaveState(AB);
+  /* ⑵★人を 消して もう 1回 保存＝ここで 差分削除が 走る★ */
+  Store.setSnapshotFn(() => A);
+  await Store.cloudSaveState(A);
+  /* ★★中途の 棚は 見ません★★（2026-09-28＝★一度 そこで 落として 訳を 誤りました★）
+     ★訳★ … ★前の 保存の 書きが 着く のは ★消しの 前か 後か 時刻で 変わります★★
+       ⇒ ★中途で 落とすと『差分削除が 効いて いない』と ★嘘の 訳★が 出ます★
+     ⇒ ★★見るのは ⑴★消しが 走ったか★（決まって います）／⑵★最後に 棚に 誰が 居るか★★ */
+  ok(mock.__calls.deletes.length >= 1, '★差分削除が 走って いません＝この 段は 何も 測れません（未測定）★');
+  ok(mock.__calls.deletes.some((a) => (a || []).indexOf('eB') >= 0),
+    '★消せと 言った 相手に eB が 入って いません＝この 段は 別の 事を 測って います（未測定）★（'
+    + JSON.stringify(mock.__calls.deletes) + '）');
+  /* ⑶★飛んで いた 保存が 後から 着く★ */
+  await mae;
+  await new Promise((r) => setTimeout(r, 250));
+  ok(mock.__tana().indexOf('eB') < 0,
+    '★★消した 人（eB）が ★前の 保存★で 書き戻りました＝★客の 穴★★（今 棚に 居るのは '
+    + JSON.stringify(mock.__tana()) + '）');
+}));
+
 
 await Promise.all(runs);
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

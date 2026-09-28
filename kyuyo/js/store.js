@@ -323,7 +323,7 @@
       /* ★出る 時に ★待った ms★ を 1件 控える★（待って いなければ 何も しない） */
       var _oeru = function(){
         if(_konoMachiKara != null) _machiMsIreru(Date.now() - _konoMachiKara);
-        return _hozonNoTsugi(state);
+        return _retsuNiNoseru(state);
       };
       /* ★★①読み込みが まだ 始まって いない★★＝★少し 待つ★（上に 訳を 書いた） */
       if(!saveHold && !cloudLoaded && lastCompanyUpdatedAt === null){
@@ -376,6 +376,74 @@
       }
       return _oeru();
     };
+    /* ★★★保存を ★1本ずつ★ 並べる（★客の 穴の 直し★）★★★（2026-09-28・★本番の 赤から★）
+       ★★何が 起きて いたか（実測）★★
+         WebKit `36441683363`（`soshitsu-ui`）… ⑥ ★残り 1人★
+           ⑤-3 差分削除 … ★走った 32回／読み込めて いない 0回★ ⇒ ㋒（走って いない）は 違う
+           ⑥-2 … DELETE 1本／★頼んだ 1件・消えた 1件（合う）★ ⇒ ㋑（消せて いない）も 違う
+                 ★★消せと 言った id（`e592de8zk`）が ★後から 着いた 書きに 入って いた★★
+       ★★客に 出る 形★★
+         ★人を 消すと ★消す 前の 名簿を 積んだ 保存が まだ 飛んで います★★
+         ⇒ ★それが 消した 後に 着くと ★消した 人が 復活します★★
+         ⇒ ★画面は「『◯◯』を 削除しました」と 出た まま★＝★客は 気づけません★
+       ★★なぜ『消す 前に 待つ』では ないか★★
+         ★消しは ★保存の 中★に 在ります（`splice` → 次の 保存の 差分削除）★
+         ＝★『消す』という 独立の 操作が 無い＝★待つ 主体が 居ません★★
+       ★★直しの 形★★
+         ⑴★走って いる 保存が 終わるまで 次を 出さない★（★並ぶ＝追い越しが 消える★）
+         ⑵★★送る 直前に 中身を 取り直す（`Store._snapFn()`）★★
+            ＝★待たせた 保存を ★古い 名簿の まま★ 出すと ★同じ 穴を 自分で 作ります★
+            ＝★`:345` の 待ちで 既に 使って いる 形と ★同じ★★（指示役1 の ③）
+       ★★失う 物は 0★★ … `kyuyo.pay_employees` に ★版を 持つ 欄は 1つも ありません★
+         （`id`/`account_id`/`sort`/`data`/`updated_at`）＝★元々 毎回 上書き★
+       ★空振り止め★ … `kyuyo/tests/cloud-sync.mjs` の ★㋔★（★直す前は 赤★） */
+    var _retsu = Promise.resolve();   /* ★今 走って いる 保存★ */
+    var _machiP = null;               /* ★待って いる 1本（★ここへ 畳む★）★ */
+    var _retsuTatanda = 0, _retsuHashitta = 0, _retsuMatta = 0, _retsuTorenakatta = 0;
+    var _ugoiteiru = false;           /* ★今 1本 走って いるか★（★『待った』を 数える 為★） */
+    /* ★並びの 数を 外から 読む 口★
+       `hashitta`＝実際に 送った 回数／★`tatanda`＝待って いる 1本に 畳んだ 回数★
+       ⇒ ★★`tatanda` が 0 なら この 直しは ★1回も 効いて いません（未測定）★★ */
+    Store.retsuNoKazu = function(){
+      /* ★`matta`＝前の 保存が まだ 走って いた ので ★待たせた★ 回数
+         ★`tatanda`＝待って いる 1本に 畳んだ 回数（★2本目以降★）
+         ⇒ ★★どちらも 0 なら ★重なりが 1回も 起きて いない＝この 直しは 未測定★★★ */
+      return { hashitta:_retsuHashitta, tatanda:_retsuTatanda, matta:_retsuMatta,
+               torenakatta:_retsuTorenakatta };
+    };
+    function _retsuNiNoseru(state){
+      /* ★★待って いる 1本が 在れば ★そこへ 畳む★★★（2026-09-28）
+         ★なぜ 畳んで よいか★ … ★走る 直前に 中身を 取り直す★ので
+           ★待って いた 分を 別々に 走らせても ★同じ 物を 何回も 送るだけ★★
+         ★★＋畳まないと 壊れる 決まりが 在ります★★
+           `P0-race②`「★保留した 保存は 読み込みの 後に ★1回だけ★ 出る★」
+           ＝★畳まずに 並べたら ★3回 出ました（実測）★★＝★この 決まりを 破ります★
+         ⇒ ★★＝『並べる』と『畳む』は ★2つで 1つ★★ */
+      if(_ugoiteiru || _machiP){ _retsuMatta++; }
+      if(_machiP){ _retsuTatanda++; return _machiP; }
+      var tsugi = _retsu.then(function(){ return null; }, function(){ return null; }).then(function(){
+        _machiP = null;              /* ★★走り出す 前に 外す★★＝走って いる 間の 頼みは ★次の 1本★へ */
+        _ugoiteiru = true;
+        _retsuHashitta++;
+        /* ★★送る 直前に 中身を 取り直す★★＝★古い 名簿で 上書きしない★
+           ★受け皿を 付けます★ … 取り直せなかった 時に ★黙って 古い 名簿で 出す★と
+             ★この 直しが ★静かに 無効★に なります★
+           ⇒ ★★言ってから 受け取った 名簿で 出す（★黙らない★）★★ */
+        var fresh = null;
+        try {
+          fresh = (typeof Store._snapFn === 'function') ? Store._snapFn() : null;
+        } catch(_eS) {
+          _retsuTorenakatta++;
+          console.error('★送る 直前に 中身を 取り直せませんでした＝この 回は 受け取った 名簿で 出します★', _eS);
+        }
+        return _hozonNoTsugi(fresh || state);
+      });
+      _machiP = tsugi;
+      _retsu = tsugi.then(function(){ _ugoiteiru = false; return null; },
+                          function(){ _ugoiteiru = false; return null; });
+      return tsugi;
+    }
+
     function _hozonNoTsugi(state){
       // ★②初回の読み込みが 走っている間は 保存しない★=済んでから 1回だけ 出す(中身は取り直す)
       if(saveHold){
