@@ -173,6 +173,8 @@
        ★★学んだ 事：消す 時は『宣言・使う 所・読む 口』を 全部 数える★★ */
 
     /* ★`|| now` に 落ちた 回数★（実測 09-27：保存 33回／返した 33回／★落ちた 0回★） */
+    /* ★人を 消した 口の 控え★（★宣言は 使う 所より 前に 置く＝今日 1回 `ReferenceError` を 踏んだ★） */
+    var _kesuTanomi = [], _kesuKieta = [];
     var _uaAtta = 0, _uaNakatta = 0;
     /* ★★束を 待たずに 控えた 回数★★（2026-09-28＝★『倉庫は 新しい／控えは 旧い』窓を 閉じた 回数★）
        ★0 なら この 直しは ★1回も 効いて いません★＝★未測定★★ */
@@ -258,6 +260,20 @@
     }
     function _jibunGaOkuttaKa(v){ var t = _msNi(v); return t !== null && _okuttaUA.indexOf(t) >= 0; }
     /* ★測る 口★ */
+    /* ★★人を 消した 口を 数える★★（2026-09-28・指示役1 の ④）
+       ★`tanomi`＝頼んだ 件数／`kieta`＝★本当に 消えた 件数★（★-1＝返りが 無い＝未測定★）
+       ★`kuizure`＝頼んだ ≠ 消えた の 回数／★`ookusugi`＝消えた ＞ 頼んだ（★事故★）★
+       ⇒ ★★『黙って 0件 消して いる』を ★数で★ 捕まえる 口★★ */
+    Store.kesuNoKazu = function(){
+      var t = _kesuTanomi, k = _kesuKieta, n = Math.min(t.length, k.length);
+      var kui = 0, oo = 0, sukunai = 0, mi = 0;
+      for(var i=0;i<n;i++){
+        if(k[i] < 0){ mi++; continue; }
+        if(k[i] !== t[i]){ kui++; if(k[i] > t[i]) oo++; else sukunai++; }
+      }
+      return { kai:n, tanomi:t.slice(0), kieta:k.slice(0),
+               kuizure:kui, ookusugi:oo, sukunasugi:sukunai, mitei:mi };
+    };
     Store.okuttaNoKazu = function(){
       return { toshita:_jibunDeToshita, meibo:_okuttaUA.length };
     };
@@ -539,7 +555,26 @@
         // ★差分削除は「★読み込めた(cloudLoaded)★かつ手元に従業員が居る」時だけ=空/古い端末が本番を消さない
         //  (2026-09-03 変更: cloudSynced=書けた→cloudLoaded=読めた。理由は上の宣言部)
         if(cloudLoaded && emps.length>0){
-          ops.push(fetchAllQ(function(a,b){ return sb.from('pay_employees').select('id',{count:'exact'}).eq('account_id',uid).range(a,b); }).then(function(r){ var ex=(r.data||[]).map(function(x){return x.id;}); var rm=ex.filter(function(id){ return ids.indexOf(id)<0; }); return rm.length? sb.from('pay_employees').delete().in('id',rm) : { error:null }; }));
+          ops.push(fetchAllQ(function(a,b){ return sb.from('pay_employees').select('id',{count:'exact'}).eq('account_id',uid).range(a,b); }).then(function(r){ var ex=(r.data||[]).map(function(x){return x.id;}); var rm=ex.filter(function(id){ return ids.indexOf(id)<0; }); if(!rm.length){ _kesuTanomi.push(0); _kesuKieta.push(0); return { error:null }; }
+            /* ★★★消した 行を ★返させる★（`.select('id')`）★★★（2026-09-28・指示役1 の ④）
+               ★前★ … `.delete().in('id',rm)` だけ ⇒ 返りは ★`204`★
+                 ⇒ ★★`204` は「命令が 通った」だけ＝★消えた 行数を 教えません★★★
+                 ⇒ ★★＝★0行 消えても 黙って 成功★★（RLS で 弾かれた／id が 違う／他の 席が 先に 消した）
+                 ⇒ ★★＝客の 側でも『何人 消えたか』が 分かりません★★
+               ★今★ … ★頼んだ 件数（`rm.length`）★ と ★消えた 件数（返りの 行数）★ を ★両方 控えます★
+               ★★意味は 向きで 逆です（指示役1 の ②）★★
+                 ・★頼んだ ＞ 消えた★ ⇒ ★消せて いない★（★『消したのに 戻る』の 片方の 説★）
+                 ・★★頼んだ ＜ 消えた★ ⇒ ★頼んだ より 多く 消えた＝★事故★★★
+                   （`in()` の 組み立て／`eq('account_id')` の 抜け）
+                   ⇒ ★★＝★お金の 紙が 消える 側＝一番 危ない★★
+               ★★判じは 1文字も 変えて いません★★＝★消す 相手（`rm`）も 条件も 同じ★
+               ★出しが `204`→`200＋本文` に なります★＝★前の 回の 数と 比べる 時は そう 書く★ */
+            _kesuTanomi.push(rm.length);
+            return sb.from('pay_employees').delete().in('id',rm).select('id').then(function(d){
+              var kieta = (d && d.data) ? d.data.length : -1;   /* ★-1＝返りが 無い＝未測定★ */
+              _kesuKieta.push(kieta);
+              return d;
+            }); }));
         }
         return Promise.all(ops).then(function(res){
           var bad=res.filter(function(x){ return x && x.error; })[0];
