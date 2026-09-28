@@ -130,7 +130,36 @@ export async function katazukeru(pg, opt) {
       try {
         if (!tanaKa(r.url())) return;
         const n = ++_hitoN;
-        HITO.push({ n: n, muki: r.method(), dashi: Date.now(), tsuita: 0, jotai: 0, shippai: '' });
+        /* ★★どの id を 触った 要求か まで 控える★★（2026-09-28）
+           ★訳（★『組 5組』だけでは 2つの 説を 割れません★）★
+             ㋐★飛んで いた 書きが DELETE の 後に 着いて 書き戻した★
+             ㋑★★DELETE の `in(...)` に 狙いの id が 入って いなかった★★
+                （`store.js:542` … `rm = 倉庫のid − 今の名簿のid` ⇒ `delete().in('id', rm)`
+                  ★`.select()` を 付けて いない★＝★`204` は「消えた 行数」を 教えません★
+                  ＋★この 試験口座には 前の 回の 人が 28人 残って います★
+                  ⇒ ★DELETE は ★別の 残り物★を 消して 204 を 返せます★）
+           ⇒ ★★どちらも「残り 1人」を 作ります＝★組の 数では 割れません★★★
+           ★割り方★ … ★DELETE が 消せと 言った id★ ∩ ★DELETE の 後に 着いた 書きの 中の id★
+             ・★重なり ≥1★ ⇒ ★★㋐（消した 行が 書き戻された）★★
+             ・★重なり 0★  ⇒ ★★㋑（そもそも 狙いを 消して いない）★★
+           ★倉庫にも アプリにも 触りません★＝★要求の 字を 読むだけ★ */
+        let ids = [];
+        try {
+          if (r.method() === 'DELETE') {
+            /* supabase-js の `.in('id', rm)` は `?id=in.(a,b,c)` に なります */
+            /* ★★括弧は `%28`/`%29` に 逃がされます★★（2026-09-28 手元で 実測
+               … 逃がしたまま 合わせに 行って ★「id 一覧が 読めません（未測定）」★と 出ました
+               ＝★物差しが 自分の 穴を 言ったので 気づけました★） */
+            const u0 = (() => { try { return decodeURIComponent(String(r.url())); } catch (e) { return String(r.url()); } })();
+            const m = u0.match(/[?&]id=in\.\(([^)]*)\)/);
+            if (m) ids = String(m[1]).split(',').map((x) => x.replace(/^"|"$/g, '').trim()).filter(Boolean);
+          } else {
+            const b = r.postData();
+            if (b) ids = (String(b).match(/"id"\s*:\s*"([^"]+)"/g) || [])
+              .map((x) => (x.match(/"id"\s*:\s*"([^"]+)"/) || [])[1]).filter(Boolean);
+          }
+        } catch (e) { ids = []; }
+        HITO.push({ n: n, muki: r.method(), dashi: Date.now(), tsuita: 0, jotai: 0, shippai: '', ids: ids });
         r.__hitoN = n;
       } catch (e) { /* 控えで 転ばない */ }
     });
@@ -164,10 +193,34 @@ export async function katazukeru(pg, opt) {
         if ((p.tsuita || p.dashi) > t) ato.push('出' + d.n + '(DELETE)→出' + p.n + '(' + p.muki + ')');
       });
     });
+    /* ★★2つの 説を 割る 数★★＝★DELETE が 消せと 言った id★ ∩ ★後から 着いた 書きの id★ */
+    const kesuId = [];
+    del.forEach((d) => (d.ids || []).forEach((i) => { if (kesuId.indexOf(i) < 0) kesuId.push(i); }));
+    const atoNoKaki = [];
+    del.forEach((d) => {
+      const t = d.tsuita || d.dashi;
+      kaki.forEach((p) => { if ((p.tsuita || p.dashi) > t && atoNoKaki.indexOf(p) < 0) atoNoKaki.push(p); });
+    });
+    const kasanari = [];
+    atoNoKaki.forEach((p) => (p.ids || []).forEach((i) => {
+      if (kesuId.indexOf(i) >= 0 && kasanari.indexOf(i) < 0) kasanari.push(i);
+    }));
+    const wake = (del.length === 0)
+      ? '★★DELETE が 1本も 無い＝差分削除が 走って いません（㋒）★★'
+      : (kesuId.length === 0
+        ? '★★DELETE の id 一覧が 読めません＝割れません（未測定）★★'
+        : (atoNoKaki.length === 0
+          ? '★後から 着いた 書きが 0本＝★㋐（書き戻し）は 在りません★'
+          : (kasanari.length
+            ? '★★㋐＝★消せと 言った id が 後から 着いた 書きに 入って います（' + kasanari.length
+              + '件・例 ' + kasanari.slice(0, 2).join(',').slice(0, 40) + '）★＝書き戻し★★'
+            : '★★㋑＝★後から 着いた 書きに ★消せと 言った id は 1つも 入って いません★'
+              + '⇒ ★DELETE が 狙いを 消して いない 疑い★（`204` は 消えた 行数では ない）★★')));
     return '★人の 棚（pay_employees）… 全 ' + HITO.length + '本'
-      + '／DELETE ' + del.length + '本／書き ' + kaki.length + '本'
+      + '／DELETE ' + del.length + '本（★消せと 言った id ' + kesuId.length + '件★）／書き ' + kaki.length + '本'
       + '／★★DELETE の 後に 書きが 着いた 組 ' + ato.length + '組★★'
-      + (ato.length ? '（' + ato.slice(0, 5).join('・') + '）★⇒ ★書き戻しの 疑い★★' : '')
+      + (ato.length ? '（' + ato.slice(0, 5).join('・') + '）' : '')
+      + '／★★' + wake + '★★'
       + (del.length === 0 ? '（★★DELETE が 1本も 無い＝差分削除が 走って いません★★）' : '')
       + '／並び … ' + HITO.slice(0, 12).map((x) => '出' + x.n + ' ' + x.muki
         + (x.jotai ? ' ' + x.jotai : '') + (x.shippai ? '「' + x.shippai + '」' : '')).join('・')
