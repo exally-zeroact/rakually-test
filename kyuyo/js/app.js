@@ -6159,6 +6159,67 @@
   function naoshitaKa(ym, id){ return !!(state._naoshita && state._naoshita[ym] && state._naoshita[ym][id]); }
   function naoshitaKesu(ym, id){ if(state._naoshita && state._naoshita[ym]) delete state._naoshita[ym][id]; }
 
+  /* ★★★明細の 保存を ★同時 何本まで★ に する★★★（2026-09-28・★実測から★）
+     ★何が 起きて いたか（WebKit run `36355182975`）★
+       ・★同時に 飛んで いた 最大 ★299本★★（その 前の 回は 45本）
+       ・★保存(POST)の 失敗 276本＝全部「Load request cancelled」★
+       ・★送ってから 失敗まで ★25,952〜36,411ms★★
+     ⇒ ★Supabase は HTTP/2＝同時に 流せる 数に 上限が 在り、超えた 分は ブラウザが 並べて 待たせる★
+     ⇒ ★★客が 26〜36秒 待たずに 画面を 閉じたら ★その 保存は 切られる★★★
+     ⇒ ★★＝「○名分を保存できませんでした（台帳・年末調整に入っていません）」が 出る★★
+     ★★上限の 数（`SLIP_DOJI_UE`）は ★まだ 測って いません★★
+       ＝★指示役1 と 決めた やり方＝★2・4・6・8 で 走らせて
+         『同時に 飛んだ 最大』『閉じる 前の 失敗』『1人分が 終わるまでの 秒』を 並べて から 決める★★
+       ⇒ ★★今の 5 は ★見立て★です（★字に 残します★）★★
+     ★直列に しません★＝★人数が 多い 会社で 遅く なる★ */
+  var SLIP_DOJI_UE = 5;
+  var _slipDojiIma = 0, _slipDojiSaidai = 0, _slipMataseta = 0, _slipOkutta = 0;
+  var _slipYakusokuNashi = 0;   /* ★約束を 返さなかった 回数★（★0 が 普通／1以上は 倉庫の 口が おかしい★） */
+  /* ★測る 口★＝★`saidai` が 上限を 超えたら 効いて いません／0 なら 未測定★ */
+  window.PayslipDojiNoKazu = function(){
+    return { ue:SLIP_DOJI_UE, saidai:_slipDojiSaidai, mataseta:_slipMataseta, okutta:_slipOkutta, yakusokuNashi:_slipYakusokuNashi };
+  };
+  /* ★見張りから 上限を 変えられる★＝★上限そのものを 測る 為★（★判じは 変わりません★） */
+  window.PayslipDojiUeSet = function(n){
+    if(typeof n === 'number' && n >= 1){ SLIP_DOJI_UE = n; }
+    _slipDojiIma = 0; _slipDojiSaidai = 0; _slipMataseta = 0; _slipOkutta = 0;
+    _slipYakusokuNashi = 0;
+    return SLIP_DOJI_UE;
+  };
+  function _slipRetsuOkuru(ym, retsu, todoita){
+    if(!(retsu && retsu.length)) return Promise.resolve();
+    if(_slipDojiIma === 0){ _slipDojiSaidai = 0; }   /* ★1回の 束ごとに 測る★ */
+    var i = 0;
+    function tsugi(){
+      if(i >= retsu.length) return Promise.resolve();
+      var x = retsu[i++];
+      _slipDojiIma++; _slipOkutta++;
+      if(_slipDojiIma > _slipDojiSaidai) _slipDojiSaidai = _slipDojiIma;
+      var _oe = function(){ _slipDojiIma--; return tsugi(); };
+      /* ★★★約束を 返さない 物も 受ける★★★（2026-09-28・★門が 止めて くれた★）
+         ★踏んだ 穴★ … 前の コードは `forEach` の `try{}catch(_e){}` の ★中★ だった
+           ⇒ ★約束でない 物に `.then` を 当てて 転んでも ★黙って 飲まれて いた★★
+           ⇒ ★私が 列に 出した ので ★その 飲み込みが 外れ★、
+             `kyuyo/tests/integration.mjs` と `kyuyo/tests/ui-smoke.mjs` が
+             ★`Cannot read properties of undefined (reading 'then')` で 赤★ に なった★
+           （★この 事は `naoshitara-todoku` の 覚書に ★先に 書いて 在りました★＝私が 読み落とした★）
+         ★直し★ … `Promise.resolve()` で 包む＝★転ばない★
+         ★★でも 黙りません★★ … ★数えて 口に 出す★（`yakusokuNashi`）
+           ＝★『飲み込んだ』と『無かった』を 混ぜない★ */
+      var _p = Store.savePayslip(ym, x.id, x.slip);
+      if(!(_p && typeof _p.then === 'function')){ _slipYakusokuNashi++; _p = Promise.resolve(_p); }
+      return _p
+        .then(function(){ if(x.nao) todoita.push(x.id); })
+        .catch(saveFailed)   /* ★約束の失敗は ここでしか捕まらない★ */
+        .then(_oe, _oe);
+    }
+    var n = Math.min(SLIP_DOJI_UE, retsu.length);
+    if(retsu.length > n) _slipMataseta += (retsu.length - n);   /* ★待たせた 本数★ */
+    var ps = [];
+    for(var k = 0; k < n; k++) ps.push(tsugi());
+    return Promise.all(ps);
+  }
+
   /* ★★`hitoriId` を 渡すと ★その人 1人だけ★ 書く★★（2026-09-25 司さん「1人だけ修正の時も わざわざ 全員確定せないかんのか？」）
      ★前は どうだったか（実測 2026-09-24）★
        個人の「確認」の 箱は `saveMonthlyPayslips()`（★force 無し★）を ★確定を 立てる 前★に 呼び、
@@ -6171,12 +6232,19 @@
        ⇒ ★1人 直したいだけなのに 他人の 紙が 変わる★＝★D1 で 止めた 事故に 戻る★
      ⇒ ★★`hitoriId` の 人 ★だけ★ 凍結を 解いて 書く★★（他の 人は 今まで どおり） */
   function saveMonthlyPayslips(force, hitoriId){
-    if(!(window.Store&&Store.savePayslip)) return; var ym=state.month; if(!ym) return;
+    /* ★★★約束を 返します★★★（2026-09-28・★見張りが 捕まえた★）
+       ★訳★ … ★『いつ 全部 届いたか』を 呼ぶ 側が 知る 道が ★1本も 無かった★★
+       ⇒ ★★下の `setTimeout(…,0)` が ★倉庫の 返りを 待てない★ 因の 半分★★
+       ★どの 道でも 約束を 返す★＝★早く 抜ける 所も `Promise.resolve()`★
+         （★`undefined` を 返すと 呼ぶ 側の `await` が ★何も 待たずに 通ります★
+           ＝★これで 私の 見張りは 1束目しか 見られて いませんでした★） */
+    if(!(window.Store&&Store.savePayslip)) return Promise.resolve(); var ym=state.month; if(!ym) return Promise.resolve();
     var method=(state.company||{}).paymentDaysMethod||'';
     var conf=(state.confirmed&&state.confirmed[ym])||null;
     /* ★`_machi` は ★賞与の 確定★で 既に 使って いる名前（app.js:2785）なので 避ける★
        （別の 関数なので 壊れませんが ★次に 見る 人が 間違える★） */
     var _naoshiHito=[], _todoita=[];   /* ★確定済みを 打った 人／記録に 届いた 人★ */
+    var _slipRetsu=[];                 /* ★順番待ちの 列★（★一斉に 投げない★・2026-09-28） */
     state.employees.filter(function(e){return isActiveInMonth(e,ym);}).forEach(function(e){ try{ // 母集合を入力/印刷/集計/賃金台帳と統一(退職後/入社前の月を保存しない)
       /* ★★確定した 後に 直したら ★紙にも 記録にも 届く★★★（2026-09-21 司さん「直したなら 直らないかん やろ」）
          ★前★ … 確定済みは ★何が あっても 書かない★＝★画面だけ 新しく、紙と 記録は 古いまま★
@@ -6209,11 +6277,25 @@
         confirmed:!!(conf&&conf[e.id]), // ★確定フラグ=賃金台帳/年調は確定済みだけ集計(未確定の下書き月を混入させない)。旧データ(無し)は後方互換で集計対象
         shikyu:r.shikyu, kojo:r.kojo, hyojun:r.hyojun, dept:(e.dept||''), tax:num(r.incomeTax), jumin:num(r.residentTax),
         si:{ health:num(si.health), kaigo:num(si.kaigo), pension:num(si.pension), employ:num(si.employ) }, work:work };
-      Store.savePayslip(ym, e.id, _slip)
-        .then(function(){ if(_nao) _todoita.push(e.id); })   /* ★届いてから 印を 消す★ */
-        .catch(saveFailed);   /* ★約束の失敗は ここでしか捕まらない★ */
+      /* ★★★ここで ★投げません★＝列に 並べます★★★（2026-09-28・★実測から★）
+         ★前は ここで 人数ぶん ★一斉に★ 投げて いました★
+         ★実測（WebKit run `36355182975`）★
+           ・★同時に 飛んで いた 最大 ★299本★★（前の 回は 45本）
+           ・★保存(POST)の 失敗 276本＝全部「Load request cancelled」★
+           ・★送ってから 失敗まで ★25,952〜36,411ms★★＝★閉じる まで 並んで 待って いた★
+         ⇒ ★★Supabase は HTTP/2＝同時に 流せる 数に 上限が 在り、超えた 分は
+            ブラウザが 並べて 待たせます★★（★客の 電話なら もっと 細い★）
+         ⇒ ★★客が 26〜36秒 待たずに 画面を 閉じたら ★その 保存は 切られます★★★
+         ⇒ ★★＝客に「○名分を保存できませんでした（台帳・年末調整に入っていません）」が 出る★★
+            （`app.js` の `saveFailed` が 自分で 数えて 出して います）
+         ★直し★ … ★★下で ★同時 `SLIP_DOJI_UE` 本まで★ に して 流す★★
+            ＝★直列に しません★（★人数が 多い 会社で 遅く なる★） */
+      _slipRetsu.push({ id:e.id, slip:_slip, nao:_nao });
       if(_nao) _naoshiHito.push(e.id);
     }catch(_e){} });
+    /* ★列を ★上限つき★ で 流す★（★測る 口は `window.PayslipDojiNoKazu`★）
+       ★この 約束を ★下で 返します★★＝★呼ぶ 側が『全部 届いた』を 待てる ように なる★ */
+    var _okuriP = _slipRetsuOkuru(ym, _slipRetsu, _todoita);
     /* ★★★紙にも 届ける（司さん 2026-09-21「直したなら 直らないかん やろ」）★★★
        ★記録（pay_payslips）だけ 直しても ★従業員の 紙は 古いまま★＝★半分しか 直って いない★
        ⇒ ★確定済みを 打った 人が 1人でも 居たら ★その月を 出し直す★★
@@ -6234,6 +6316,20 @@
         });
       }, 0);
     }
+    /* ★★★ここの `setTimeout(…,0)` は ★倉庫の 返りを 待って いません★★★（2026-09-28・★実測★）
+       ★測った 物★ … `kyuyo/tests/naoshitara-todoku.test.mjs` の 偽物の 倉庫を
+         ★その場で 返る 約束 → 120ms（雲の 道と 同じ）★ に 変えたら
+         ★★11 passed → ★4 failed★★★
+           ✗ 紙も 出し直す（`publishMeisai` が 呼ばれる）… ★呼ばれた 回数 0★
+           ✗ 届いたら 印を 消す ／ ✗ 未読に 戻す ／ ✗ 紙に「直し」の 印
+       ⇒ ★★＝雲を 使う お客さんでは ★毎回 ここで 黙って 終わって います★★★
+         （`_todoita` は ★この 回の 中だけの 箱★＝次の 回に 持ち越しません）
+       ⇒ ★★しかも `return` が 先＝★成功も 失敗も 何も 言いません★★★
+       ★★この 押しでは ★わざと 直して いません★★＝★1押し＝1件★
+         ＝★下の `return` で ★待てる 形★に した ので ★次の 押しで ここを 繋ぎます★★
+       ★逃げ道は 在ります★ … ★人が「今月を確定」を 押せば 紙は 出ます★
+         （紙は ★画面の 値★から 作る＝倉庫を 読まない／指示役1 が 字で 数えた） */
+    return _okuriP;
   }
   // 定時決定: 当年の4・5・6月の履歴から 総支給+支払基礎日数 を自動セット(無い月は空欄=手入力)
   function autoFillTeijiMonths(emp, cb){
