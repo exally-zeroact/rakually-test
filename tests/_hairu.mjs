@@ -307,7 +307,18 @@ export async function ooiWoMiru(pg) {
      ⇒ ★★この 3つの どれかで 直し方が 変わります★★
        （`onaji`＝書式を 揃える／`chigau`＝倉庫を 分ける／`miyomi`＝隙を 閉じる）
      ★読めない 時は 黙らず そう 書きます★＝★0件を 根拠に しない★ */
-  let wake = '';
+  /* ★★『旗が 立ったか』を ★覆いが 出て いなくても★ 必ず 返す★★（2026-09-28・指示役1 の ㋐）
+     ★訳（指示役1 が 数えた）★ … ★実ブラウザらしい 紙 44本の うち `hairu()` を 呼ぶのは 21本★
+       ⇒ ★★23本は 旗が 立ちません★★（`admin-ui` `meisai-ui` `load-before-delete-live` …）
+     ⇒ ★★旗の 無い 試験の「覆い 0回」を ★緑と 読んで しまいます★★
+        ＝★今日 私が まさに それを しました★（覆い 12回 なのに `souko=` が 0本＝★割れない★）
+     ⇒ ★★『0』と『未測定』を 混ぜない★★＝★旗の 立ち を 数に 添える★ */
+  const hata = await pg.evaluate(() => {
+    try { return !!window.__OOI_KIROKU__; } catch (e) { return null; }
+  }).catch(() => null);
+  let wake = (hata === true ? '' : (hata === false
+    ? '★旗が 立って いません＝覆いの 内訳は ★未測定★（0 では ない）★'
+    : '★旗を 読めません＝★未測定★★'));
   if (conflict) {
     wake = await pg.evaluate(() => {
       try {
@@ -318,6 +329,16 @@ export async function ooiWoMiru(pg) {
         return '覆い ' + k.honsu + '回（★同じ瞬間=偽 ' + k.onaji + '／★別の書き ' + k.chigau
           + '／★読む前の隙 ' + k.miyomi + '★）'
           + (o ? ' ／自分が送った値で通した ' + o.toshita + '回・送った名簿 ' + o.meibo + '件' : '')
+          + (function(){
+              /* ★★`miyomi` の 直の 証し★★＝★読み込みを 待つ 8秒が 切れた 回数★
+                 ★切れた ら 控えが null の まま 保存に 進む★＝★覆いが 出る★
+                 ⇒ ★`kire` が 1回でも 在れば ★待ちの 上限が 足りて いない★★（客にも 出ます） */
+              if (typeof S.machiNoKazu !== 'function') return ' ／★待ちの 口が 無い（未測定）★';
+              const m = S.machiNoKazu();
+              return ' ／待った ' + m.kai + '回・★8秒で 切れた ' + m.kire + '回★'
+                + '・読み終えた ' + (m.yondaKa ? 'はい' : '★いいえ★')
+                + (m.msSaidai != null ? '・最長 ' + m.msSaidai + 'ms' : '');
+            })()
           + (k.ji && k.ji.length ? ' ／' + k.ji.join(' ｜ ') : '');
       } catch (e) { return '★控えが 読めません … ' + ((e && e.message) || e) + '（未測定）★'; }
     }).catch((e) => '★控えを 引けません … ' + ((e && e.message) || e) + '（未測定）★');

@@ -526,8 +526,18 @@ export async function katazukeru(pg, opt) {
       michi.push('⑥★落ち着きません★（札 ' + zen + '枚／この人 ' + mae + '人＝最後に 見た 数）');
     }
   } catch (e) { nokori2 = -1; }
+  /* ★★『覆いは 出なかった』と 言う 時は ★旗が 立って いたか★ を 添える★★（2026-09-28・指示役1 の ㋐）
+     ★訳★ … 旗（`window.__OOI_KIROKU__`）が 立って いなければ
+       `store.js` は 覆いの 内訳を ★出しに 出しません★
+       ⇒ ★★『出なかった』は『出て いない』でなく『★見て いない★』★★
+       ⇒ ★『0』と『未測定』を 混ぜない★（★今日 私が それで 半日 因を 見失いました★） */
+  const _ooiWake = await (async () => {
+    try { const { ooiWoMiru } = await import('../../tests/_hairu.mjs');
+      const m = await ooiWoMiru(pg); return m.wake || ''; } catch (e) { return '★内訳を 引けません（未測定）★'; }
+  })();
   michi.push('⑥開き直して 数えた … 残り ' + nokori2 + '人（待った ' + matta + '回'
-    + '／クラウドの 覆い ' + (kumo ? '「' + kumo + '」を 押した' : '出なかった') + '）');
+    + '／クラウドの 覆い ' + (kumo ? '「' + kumo + '」を 押した' : '出なかった') + '）'
+    + (_ooiWake ? '　★' + _ooiWake + '★' : ''));
   /* ★★★『消したのに 戻る』を 割る 1行★★★（2026-09-28）
      ★★必ず 出します（残っても 残らなくても）★★
        ＝★『0人だった 回の 並び』も 材料に なります★（★正しい 回と 見比べられる★）

@@ -72,10 +72,10 @@ if (SELF) {
 }
 
 /* ── ここから 実ブラウザ ───────────────────────────────── */
-let borrow, pwLaunch, hairu, osu;
+let borrow, pwLaunch, hairu, osu, eraboFuda, fudaWoAtsumeru;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
-  ({ hairu, osu } = await import('../../tests/_hairu.mjs'));
+  ({ hairu, osu, eraboFuda, fudaWoAtsumeru } = await import('../../tests/_hairu.mjs'));
 } catch (e) { console.log('🟡 ★未測定★ 道具が 読めない … ' + (e && e.message)); process.exit(2); }
 const wk = await borrow('shutoku-ui', 'webkit');
 if (!wk) { console.log('🟡 ★未測定★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
@@ -190,16 +190,32 @@ await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(700);
     if (!fueta) console.log('       🟡 ★札が 増えない★（20秒 待った）＝この先は 当てに ならない');
     await machi(400);
   }
-/* ★この 口座には 前の 回の 人が 残る★（実測 2026-09-05）＝★今 足した 人＝一番 下の 札★だけを 触る。
-   1人目を 触ると ★前の 回の 人を 書き換える★事に なる（実際 1回 やって 空振りした）。 */
-const IDX = await pg.evaluate(() => {
-  const c = Array.from(document.querySelectorAll('#emp-list .mco'));
-  return c.length ? c[c.length - 1].getAttribute('data-i') : null;
-});
-if (IDX === null) { console.log('  🟡 ★未測定★ 従業員の 札が 1枚も 無い'); await b.close(); srv.close(); process.exit(2); }
+/* ★★『今 足した 人』の 札は ★番号の 最大値★で 当てる★★（2026-09-28）
+   ★前の 字（★間違い★）★ … `c[c.length - 1]`＝★DOM の 一番 下の 札★
+   ★なぜ 外れるか（`kyuyo/js/app.js` を 読んだ）★
+     `visibleEmpIdx()` / `renderEmpMaster()` は ★①`dept` で 束ねて 出す★／★②絞る★
+     ⇒ ★`data-i` は 名簿の 番号＝★DOM の 順とは 別★★
+     ⇒ ★一番 下の 札は 足した 人 とは 限らず★、その 直後に 名前を 打つので
+        ★★他人の 人の 名前を 上書きして いました★★
+   ★判じは `tests/_hairu.mjs` の `eraboFuda()` ★1か所だけ★★
+     ＝★画面からは 材料を 取るだけ★（★同じ 状態を 2か所で 別々に 判じない★）
+   ★字だけの 見張り＝`tests/hairu-erabo.test.mjs`（★14通り★・ブラウザも 倉庫も 使いません）★ */
+const FUDAS = await fudaWoAtsumeru(pg);
+const FUDA = eraboFuda(FUDAS);
+if (FUDA.idx === null) {
+  console.log('  🟡 ★未測定★ ' + FUDA.naze
+    + '（全 ' + (FUDA.mai != null ? FUDA.mai : 0) + '枚／番号の 最大値の 札の 名前＝「'
+    + (FUDA.na != null ? FUDA.na : '（取れない）') + '」／一番 下の 札は 番号 '
+    + (FUDA.shita != null ? FUDA.shita : '（無い）') + '）'
+    + '★＝他人の 人に 名前を 打ち込まない ので 止めます★'
+    + '（★絞り込み／部署の 束ね／描き直しの 遅れ の どれか★）');
+  await b.close(); srv.close(); process.exit(2);
+}
+const IDX = FUDA.idx;
 const CARD = '#emp-list .mco[data-i="' + IDX + '"]';
-console.log('  （今 足した 人＝札 ' + IDX + '番目／全 '
-  + (await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length)) + '枚）');
+console.log('  （今 足した 人＝★番号 ' + IDX + '（最大）★／名前「' + FUDA.na + '」／全 ' + FUDA.mai + '枚'
+  + '／★一番 下の 札は 番号 ' + FUDA.shita + '★'
+  + (String(FUDA.shita) === String(IDX) ? '＝同じ' : '★＝違う＝前の 形なら ここで 外れて いました★') + '）');
 /* ★足した その場で もう 開いている★（#b-add-emp が state.open[e.id]=true を している）
    ⇒★ここで 押すと 逆に 閉じる★（2026-09-05 実測＝これで 1時間 空振りした） */
 await tataku(pg, CARD + ' [data-dtoggle]'); await machi(800);          /* 「詳細設定」 */
