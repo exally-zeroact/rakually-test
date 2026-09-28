@@ -106,6 +106,73 @@ export async function katazukeru(pg, opt) {
   const osu = (opt && opt.osu) || null;
   const michi = [];
   if (!na && ban0 === null) return { ok: false, michi, naze: '名前も 札の 番号も 無い' };
+  /* ★★★『消したのに 開き直すと 戻る』を 割る 為の 控え★★★（2026-09-28）
+     ★実物★ … WebKit `36373592452`（`shutoku-ui`）
+        「⑤画面に 残り 0人」→「★⑥開き直して 数えた … 残り 1人★」（★覆いは 出て いない★）
+     ★これは 試験の 都合では ありません★ … ★客の 道（本物の click）で 消して います★
+        ⇒ ★★＝『お客さんが 人を 消しても 開き直すと 戻る』の 疑い★★
+     ★★指示役1 の 見立て（★3択★・★字だけ／まだ 見立て★）★★
+        ㋐`doSave` の 束は ①会社 ②`pay_employees` の 書き ③差分削除＝★並んで 走る★（`Promise.all`）
+           ⇒ ★★③が 消した 人を ②が ★書き戻す★ 競走★★
+              （②が 送る 一覧は ★消す 前★の 物＝その 人が まだ 入って いる 回が 在る）
+        ㋑★`DELETE` が 1本も 無い★ ⇒ ★③が 走って いない（別の 因）★
+        ㋒★`DELETE` は 在り 書きは その 前★ ⇒ ★倉庫の 側／別の 因★
+     ★★割る には ★出した 順・着いた 順★が 要ります★★
+        ⇒ ★この 道具は ★要求を 1本も 控えて いませんでした★（数えた＝0件）★
+        ⇒ ★★だから ここに 入れます＝★片づけを 使う 試験 ぜんぶに 効きます★★★
+     ★控えるのは `pay_employees` だけ★＝★出しを 膨らませません★
+     ★倉庫にも アプリにも 触りません★（★見るだけ★） */
+  const HITO = [];
+  let _hitoN = 0;
+  try {
+    const tanaKa = (u) => String(u).indexOf('/rest/v1/pay_employees') >= 0;
+    pg.on('request', (r) => {
+      try {
+        if (!tanaKa(r.url())) return;
+        const n = ++_hitoN;
+        HITO.push({ n: n, muki: r.method(), dashi: Date.now(), tsuita: 0, jotai: 0, shippai: '' });
+        r.__hitoN = n;
+      } catch (e) { /* 控えで 転ばない */ }
+    });
+    pg.on('response', (res) => {
+      try {
+        if (!tanaKa(res.url())) return;
+        const e = HITO.find((x) => x.n === res.request().__hitoN);
+        if (e) { e.tsuita = Date.now(); e.jotai = res.status(); }
+      } catch (e) { /* 同上 */ }
+    });
+    pg.on('requestfailed', (r) => {
+      try {
+        if (!tanaKa(r.url())) return;
+        const e = HITO.find((x) => x.n === r.__hitoN);
+        if (e) { e.tsuita = Date.now(); e.shippai = (r.failure() && r.failure().errorText) || '★訳が 取れない★'; }
+      } catch (e) { /* 同上 */ }
+    });
+  } catch (e) {
+    michi.push('⚠ ★人の 棚の 要求を 控えられません＝『消したのに 戻る』は 割れません★ … ' + (e && e.message));
+  }
+  /* ★出しに 出す 字を 作る★（★片づけの 終わりで 1行★） */
+  const hitoNoJi = () => {
+    if (!HITO.length) return '★人の 棚（pay_employees）への 要求 … ★0本＝控えられて いません（未測定）★★';
+    const del = HITO.filter((x) => x.muki === 'DELETE');
+    const kaki = HITO.filter((x) => x.muki === 'POST' || x.muki === 'PATCH');
+    /* ★★DELETE の 後に 書きが 着いて いるか★★＝★書き戻しの 競走★ */
+    const ato = [];
+    del.forEach((d) => {
+      const t = d.tsuita || d.dashi;
+      kaki.forEach((p) => {
+        if ((p.tsuita || p.dashi) > t) ato.push('出' + d.n + '(DELETE)→出' + p.n + '(' + p.muki + ')');
+      });
+    });
+    return '★人の 棚（pay_employees）… 全 ' + HITO.length + '本'
+      + '／DELETE ' + del.length + '本／書き ' + kaki.length + '本'
+      + '／★★DELETE の 後に 書きが 着いた 組 ' + ato.length + '組★★'
+      + (ato.length ? '（' + ato.slice(0, 5).join('・') + '）★⇒ ★書き戻しの 疑い★★' : '')
+      + (del.length === 0 ? '（★★DELETE が 1本も 無い＝差分削除が 走って いません★★）' : '')
+      + '／並び … ' + HITO.slice(0, 12).map((x) => '出' + x.n + ' ' + x.muki
+        + (x.jotai ? ' ' + x.jotai : '') + (x.shippai ? '「' + x.shippai + '」' : '')).join('・')
+      + (HITO.length > 12 ? '（★他 ' + (HITO.length - 12) + '本＝切りました★）' : '') + '★';
+  };
 
   /* ── ①確定が 在れば 先に 取り消す（入力の 画面） ─────────────
      ★`data-undo-month` は ★今 選んでいる 1か月だけ★を 下書きに 戻す★
@@ -461,6 +528,14 @@ export async function katazukeru(pg, opt) {
   } catch (e) { nokori2 = -1; }
   michi.push('⑥開き直して 数えた … 残り ' + nokori2 + '人（待った ' + matta + '回'
     + '／クラウドの 覆い ' + (kumo ? '「' + kumo + '」を 押した' : '出なかった') + '）');
+  /* ★★★『消したのに 戻る』を 割る 1行★★★（2026-09-28）
+     ★★必ず 出します（残っても 残らなくても）★★
+       ＝★『0人だった 回の 並び』も 材料に なります★（★正しい 回と 見比べられる★）
+     ★見る 所★
+       ・★DELETE が 0本★ ⇒ ★差分削除が 走って いない★
+       ・★DELETE の 後に 書きが 着いた 組 ≥1★ ⇒ ★★書き戻しの 疑い★★
+       ・★どちらでも ない★ ⇒ ★倉庫の 側／別の 因★ */
+  michi.push('⑥-2 ' + hitoNoJi());
   if (nokori2 < 0) {
     return { ok: false, michi, naze: '★開き直しても 数えられない★（0人とは 言えません）' };
   }
