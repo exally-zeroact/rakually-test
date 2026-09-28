@@ -5523,33 +5523,108 @@
     if(activeEmps().length<=1&&!emp.retired){ uiAlert('稼働中は最低1名必要です'); return; }
     var cmz=confirmedMonthsOf(emp);
     if(cmz.length){ uiAlert('この方には確定した給与明細が '+cmz.length+'か月分あります（'+cmz[0]+'〜'+cmz[cmz.length-1]+'）。賃金台帳に必要なので削除できません。辞めた方は「退職にする」を押してください。'); return; }
-    uiConfirm('「'+(emp.name||'この従業員')+'」を削除します。元に戻せません。\n（給与明細を確定したことがない方だけ削除できます）').then(function(ok){
+    uiConfirm('「'+(emp.name||'この従業員')+'」を削除します。元に戻せません。' + String.fromCharCode(10) + '（給与明細を確定したことがない方だけ削除できます）').then(function(ok){
       if(!ok) return;
       var id=emp.id, na=(emp.name||'従業員');
-      if(window.Store&&Store.unpublishMeisai){ try{ Store.unpublishMeisai(id); }catch(_){} } // Web明細リンクを失効(docsは物理削除しない・オフラインはno-op)
-      state.employees.splice(i,1); renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced();
-      if(!(window.Store&&Store.deletePayslipsOf)){ toast('「'+na+'」を削除しました。給与明細は消せませんでした（画面を開き直して、もう一度お試しください）'); return; }
-      /* ★同じ 1押しで「明細」と「Web明細の 鍵」を どちらも 消す★（2026-09-18）
-         ★訳★＝unpublishMeisai(5314) は ★リンクを 殺すだけで 行は 残る★。
-           テスト線で 数えたら ★公開 78行 中 73行が「もう 居ない 人」★＝残骸が 貯まり続けて いた。
-           ⇒ ★人を 消したら 鍵も 消す★。紙(pay_meisai_docs)は ★お金の 記録＝残す★（先の 決め）。
-         ★押す回数は 増やさない★＝[[feedback_dont_add_steps_to_what_worked]]。 */
-      Store.deletePayslipsOf(id).then(function(r){
-        if(!(window.Store&&Store.deleteMeisaiPubOf)) return { r:r, p:{ ok:true, n:0, souko:false } };
-        return Store.deleteMeisaiPubOf(id).then(function(p){ return { r:r, p:p }; })
-          .catch(function(e){ return { r:r, p:{ ok:false, n:0, naze:String(e&&e.message||e) } }; });
-      }).then(function(x){
-        var r=x.r, p=x.p;
-        /* ★鍵が 消せなかった時は 必ず 言う★＝黙って 残さない（リンクは 失効済みなので 見られはしない） */
-        var pNG=(p&&p.ok)?'':'（Web明細の登録は消せませんでした。画面を開き直して、もう一度「削除」を押してください）';
-        if(r&&r.ok&&r.souko) toast('「'+na+'」を削除しました（給与明細 '+r.n+'件も消しました）'+pNG);
-        else if(r&&r.ok) toast('「'+na+'」を削除しました（この端末の給与明細 '+r.n+'件も消しました）'+pNG);
-        else toast('「'+na+'」を削除しました。給与明細は消せませんでした（'+((r&&r.naze)||'理由不明')+'）。もう一度「削除」を押してください。');
+      /* ★★★『言う のも 消える のも ★済んでから★』★★★（2026-09-28・指示役1 と 決めた）
+         ★★前の 形（★嘘を 言って いました★）★★
+           ⑴`unpublishMeisai(id)`（★リンクを 失効★）／⑵`splice`＋描き直し
+           ⑶`persistSaveDebounced()`（★500ms 後／★返事を 1回も 見ない★）
+           ⑷★無条件で★「『◯◯』を 削除しました」
+           ⇒ ★★倉庫へ 消しが 行って いなくても ★同じ 字が 出ます★★
+           ⇒ ★★＝`:5520` の 覚書（★消せたか どうかは 倉庫の 返事で 言う★）が ★人の 行では 守られて いなかった★★
+         ★★今の 形★★
+           ⑴★画面から 抜く（押した 感じ）／その 行の ボタンは 止める★
+           ⑵★`persistSave()` の 返事を 待つ★（★転ばない 約束＝必ず `{ok,reason}`★）
+           ⑶★★`ok:false` なら ★元の 位置に 戻して★ 描き直す★★
+              ＝★★画面と 倉庫が 食い違った まま に しない★★（★開き直すと 人が 戻って 見える のを 作らない★）
+              ＝★★だから 客の 字は ★2つで 足ります★★（★『この端末から 消しました』は 要らない★）
+           ⑷★★`ok` の 時だけ★ リンクの 失効・明細・鍵を 消す★★
+              ＝★★戻す 可能性が 在る のに 先に 消しては いけません★★（★順が 大事★）
+           ⑸★客の 字は 2つ／★6通りの 中身は 出しへ★★
+         ★★列が 在る ので 重なりません★★（今日 入れた 直し）／`Debounced` を 使わない＝★客が 押した 1回の 決め★ */
+      /* ★★★★ボタンを 止める のは ★やめました（飾りに なる ので）★★★★（2026-09-28）
+         ★指示役1 の 案★ … ★二度 押されない ように その 行の ボタンを `disabled` に する★
+         ★私が 書いた 字★ … 名札で 引く 形（★その 名札は 私が 今 作った 物★）
+         ★★数えたら その 名札は ★私が 書いた その 1か所だけ★★★
+           ＝★本物の ボタンは `class="m-del-emp"`★（`:5660` が それで 拾って います）
+           ⇒ ★★＝★永久に 何も 見つけない＝★静かに 死ぬ 飾り★★★
+         ★なぜ 直さず 外すか★
+           ⑴★押した 感じは ★もう 在ります★★＝★札が その場で 消えます（`splice`＋描き直し）★
+           ⑵★同じ 人を 二度 押せません★＝★札が もう 無い★
+           ⇒ ★★＝要らない 部品★＝★『1押しで 出来て いた 物に 手順を 足すな』★★
+         ★★＝『口を 確かめずに 書いた コードは 静かに 死ぬ』を ★門が 捕まえました★★
+           （★黙って 空を 返す 受け皿★を 見る 門が 赤に しました）
+         ★★＋もう 1つ 学びました★★ … ★覚書に ★本物に 見える 字★を 書くと
+           ★字だけ 見る 門は 見本と 本物の 別が 付きません★
+           ⇒ ★★＝★言葉で 言う★（この 段落が その 形）★★ */
+      state.employees.splice(i,1); renderEmpMaster();
+      var _modosu = function(naze){
+        /* ★★元の 位置に 戻す★★＝★『消える のも 済んでから』★ */
+        try{ state.employees.splice(i,0,emp); }catch(_){ state.employees.push(emp); }
+        renderEmpMaster();
+        console.error('★人を 消せませんでした＝画面に 戻しました★', naze);
+        toast('「'+na+'」を消せませんでした（'+(naze||'理由不明')+'）。もう一度「削除」を押してください');
+      };
+      /* ★★★`window.` を 見ては いけません★★★（2026-09-28・★動く 画面で 数えた★）
+         ★私が 最初に 書いた 字★ … `window.persistSave` が 在れば 呼ぶ
+         ★動く 画面で 数えた 結果★ … ★`window.persistSave` ＝ undefined／`window.persistSaveDebounced` ＝ undefined★
+           （`kyuyo/js/app.js` は ★2行目から 全体が 包み（IIFE）の 中★＝★窓には 出て いません★）
+         ⇒ ★★＝私の 枝は ★毎回『口が ありません』に 落ちて★ ★消した 人を 毎回 戻して いました★★★
+           （実測＝`soshitsu-ui` で 「⑤画面に 残り ★1人★」／8 passed, 2 failed）
+         ⇒ ★★＝★包みの 中から は ★そのまま 呼ぶ★★★
+         ★★＋この 紙の 中に 同じ 形が ★52か所★ 在ります★★（`if(window.persistSaveDebounced)…`）
+           ＝★★どれも 1つも 走って いません＝★別件として 直します★★ */
+      var _hozon = Promise.resolve().then(function(){ return persistSave(); })
+        .catch(function(_e){ return { ok:false, reason:(_e&&_e.message)||'保存が 落ちました' }; });
+      _hozon.then(function(h){
+        if(!(h && h.ok !== false)){ _modosu((h&&h.reason)||'クラウドに 届いて いません'); return null; }
+        /* ★★ここから 先は ★倉庫から 人が 消えた 後★★★＝リンク・明細・鍵を 片づける */
+        if(window.Store&&Store.unpublishMeisai){ try{ Store.unpublishMeisai(id); }catch(_){} }
+        if(!(window.Store&&Store.deletePayslipsOf)){
+          toast('「'+na+'」を削除しました。給与明細は消せませんでした（画面を開き直して、もう一度「削除」を押してください）');
+          return null;
+        }
+        /* ★同じ 1押しで「明細」と「Web明細の 鍵」を どちらも 消す★（2026-09-18）
+           ★訳★＝unpublishMeisai は ★リンクを 殺すだけで 行は 残る★。
+             テスト線で 数えたら ★公開 78行 中 73行が「もう 居ない 人」★＝残骸が 貯まり続けて いた。
+             ⇒ ★人を 消したら 鍵も 消す★。紙(pay_meisai_docs)は ★お金の 記録＝残す★（先の 決め）。
+           ★押す回数は 増やさない★＝[[feedback_dont_add_steps_to_what_worked]]。
+           ★★2026-09-28 追記＝この 覚書を ★私が 一度 消しました★★
+             ＝書き直す 時に ★元の 字を 150字で 切って 見て いた★ ので 落ちた。
+             ★同じ 切り方で ★`uiAlert` の 1文（辞めた方は「退職にする」を押してください）も 消えました★★
+             ⇒ ★★実測＝`integration.mjs` が ★6段 赤★（★1段の 赤が 5段を 連れた★）★★
+             ⇒ ★★＝『出しを 自分で 切ったら 書く』／★切った 字から 書き直すな★★ */
+        return Store.deletePayslipsOf(id).then(function(r){
+          if(!(window.Store&&Store.deleteMeisaiPubOf)) return { r:r, p:{ ok:true, n:0, souko:false } };
+          return Store.deleteMeisaiPubOf(id).then(function(p){ return { r:r, p:p }; })
+            .catch(function(e){ return { r:r, p:{ ok:false, n:0, naze:String(e&&e.message||e) } }; });
+        }).then(function(x){
+          var r=x.r, p=x.p;
+          /* ★★客の 字は 2つ／★中身は 出しへ★★★（指示役1 の ②）
+             ＝★『全部 済んだ』か『済んで いない』★／★人の 行・明細・鍵 の 3つの ok は console へ★ */
+          var subete = !!(r && r.ok) && !!(p && p.ok);
+          console.log('★人を 消した … 人の行 ok／明細 ' + ((r&&r.ok)?'ok':'ng') + '（' + ((r&&r.n)||0) + '件・クラウド '
+            + ((r&&r.souko)?'あり':'なし') + '）／鍵 ' + ((p&&p.ok)?'ok':'ng') + '（' + ((p&&p.n)||0) + '件）★');
+          if(subete){
+            toast('「'+na+'」を削除しました（給与明細 '+((r&&r.n)||0)+'件も消しました'+((r&&r.souko)?'':'・この端末のみ')+'）');
+          } else {
+            var nokori=[];
+            if(!(r&&r.ok)) nokori.push('給与明細（'+((r&&r.naze)||'理由不明')+'）');
+            if(!(p&&p.ok)) nokori.push('Web明細の登録（'+((p&&p.naze)||'理由不明')+'）');
+            toast('「'+na+'」は消しましたが、'+nokori.join('と')+'が残りました。もう一度「削除」を押してください');
+          }
+          return null;
+        });
       }).catch(function(err){
-        toast('「'+na+'」を削除しました。給与明細は消せませんでした（'+((err&&err.message)||'理由不明')+'）。もう一度「削除」を押してください。');
+        /* ★★ここまで 来たら 人の 行は 消えて います★★＝★戻しません（消えたのは 本当）★
+           ＝★但し 黙りません★ */
+        console.error('★人は 消えたが 後片づけが 落ちました★', err);
+        toast('「'+na+'」は消しましたが、後片づけが落ちました（'+((err&&err.message)||'理由不明')+'）。もう一度「削除」を押してください');
       });
     });
   }
+
 
     el.addEventListener('click',function(ev){
       if(ev.target.dataset.showret){ state.showRetired=!state.showRetired; renderEmpMaster(); return; }
@@ -6447,7 +6522,7 @@
     var _ss=document.getElementById('save-status'); if(_ss) _ss.textContent='⚠ クラウド保存の 準備に 失敗（開き直してください）';
   }
   function persistSave(){
-    var snap=snapshot(), lsOk=true;
+    var snap=snapshot(), lsOk=true, _kumoP=null;
     try{ localStorage.setItem(PKEY, JSON.stringify(snap)); }catch(e){ lsOk=false; }
     var d=new Date(), hhmm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     var setS=function(t){ var e=document.getElementById('save-status'); if(e) e.textContent=t; };
@@ -6456,7 +6531,17 @@
       // ★クラウド保存の成否を待ってから表示(失敗を「保存済」と嘘表示しない)
       /* ★雲に保存できていないのに 黙らない★（この端末にしか無い状態になる）
          受け皿は ★その呼び出しの直後★に置く（外側に置くと どの呼び出しの受け皿か分からない） */
-      Promise.resolve().then(function(){
+      /* ★★★約束を ★返す★ ように した★★★（2026-09-28・★『言う のは 済んでから』の 為★）
+         ★何の ため か★ … `empKesu`（人を 消す）は 今まで
+           `persistSaveDebounced()` を 呼んで ★返事を 1回も 見ずに★
+           「『◯◯』を 削除しました」と 言って いました。
+           ⇒ ★★倉庫へ 消しが 行って いなくても ★同じ 字が 出ます★★
+           ⇒ ★★＝★『消しました』と 言って 消えて いない★★＝`:5520` の 覚書が 禁じて いる 事
+         ★判じは 1文字も 変えて いません★＝★`setS` の 3分け・覆いの 箱は そのまま★
+         ★返る 物★ … `{ok, reason}`（`Store.cloudSaveState` の 返り）
+           ・転んだ 時は ★言ってから 投げ直す★（今まで通り）＝★受けた 側が 決められる★
+         ★呼ぶ 側が 返りを 見なくても 今まで通り 動きます★（★`persistSaveDebounced` は そのまま★） */
+      _kumoP = Promise.resolve().then(function(){
         return Store.cloudSaveState(snap).catch(function(e){
           toast('クラウドに保存できませんでした（' + ((e&&e.message)||'つながりません') + '）。この端末にだけ残っています。');
           throw e;
@@ -6505,9 +6590,23 @@
         }
         else if(r&&r.ok===false&&r.reason!=='no-user'){ setS('⚠ クラウド未保存（'+(r.reason||'通信エラー')+'）'); }
         else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm); }
-      }).catch(function(){ if(lsOk) setS('⚠ ローカルのみ保存（クラウド通信エラー）'); });
+        return r;                       /* ★★返事を そのまま 返す★★＝★呼んだ 側が 言い回しを 決められる★ */
+      }).catch(function(e){
+        if(lsOk) setS('⚠ ローカルのみ保存（クラウド通信エラー）');
+        /* ★★飲み込みません★★＝★呼んだ 側が『届いて いない』と 言える 形で 返す★
+           （★投げ直すと 今までの 呼び出し（返りを 見ない 物）が ★未処理の 転び★に なります★
+             ⇒ ★だから ★値で 返す★＝`ok:false`★） */
+        return { ok:false, reason:(e&&e.message)||'通信エラー' };
+      });
     } else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm); }
+    /* ★★★ここを 飛ばすと 明細の 保存が 止まります★★★（2026-09-28・★自分の 直しで 1回 踏んだ★）
+       ★踏んだ 形★ … 雲の 枝で `return` した ⇒ ★この 行に 来なく なった★
+       ⇒ ★★＝★人の 保存は 通る のに 明細が 保存されない★★＝★お金の 紙が 出なく なる★
+       ⇒ ★★＝『返り値を 足す』直しは ★`return` の 位置で お金を 壊せます★★
+       ⇒ ★だから ★返すのは 一番 下 1か所だけ★★ */
     try{ saveMonthlyPayslips(); }catch(e){}
+    /* ★雲が 在れば その 返事／無ければ ★手元に 書けたか★を 返す★ */
+    return _kumoP || Promise.resolve({ ok:!!lsOk, reason: lsOk ? null : 'local' });
   }
   function persistSaveDebounced(){ if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(persistSave, 500); }
   // 旧テンプレ名→新テンプレ名(実体準拠)への移行。保存済みstate.preferを吸収
