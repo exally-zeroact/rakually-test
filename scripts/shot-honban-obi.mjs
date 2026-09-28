@@ -18,7 +18,19 @@ import { borrow, launch as pwLaunch } from './_borrow-playwright.mjs';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = process.argv[2] || path.join(ROOT, '.shot-obi');
 fs.mkdirSync(OUT, { recursive: true });
-const URL_ = 'https://rakually.vercel.app/';
+/* ★★★見る 画面を 選べる ように した★★★（2026-09-28）
+   ★訳（実測で 足りなかった）★
+     この 道具は ★入口（`/`）だけ★ を 見て いました。
+     ★でも 帯は ★どの 画面にも 出ます★★（`js/env-badge.js` は 全ページで 走る）
+     ⇒ ★★『入口に 無い』は『給与の 画面に 無い』の 証しでは ありません★★
+     ⇒ ★★＝分母が 1枚 でした★★
+   ★使い方★ … `node scripts/shot-honban-obi.mjs [出し先] [URL]`
+     ★既定は 今までと 同じ（入口）★＝★前の 呼び方を 壊しません★
+   ★絵の 名前は URL から 作る★＝★上書きで 混ざらない★（★どの 画面の 絵か 字で 分かる★） */
+const URL_ = process.argv[3] || 'https://rakually.vercel.app/';
+/* ★名前に 使える 字だけ 残す★（★空に なったら `nyuguchi`★） */
+const NA = (URL_.replace(/^https?:\/\//, '').replace(/[^0-9a-zA-Z]+/g, '-')
+  .replace(/^-+|-+$/g, '') || 'nyuguchi');
 
 const ch = await borrow('shot-honban-obi', 'chromium');
 if (!ch) { console.log('🟡 ★未測定★ playwright を 借りられない'); process.exit(2); }
@@ -47,7 +59,7 @@ const m = await pg.evaluate(() => {
     haba: document.documentElement.clientWidth,
   };
 });
-const f = path.join(OUT, 'honban-obi.png');
+const f = path.join(OUT, 'honban-obi-' + NA + '.png');   /* ★どの 画面の 絵か 名前で 分かる★ */
 await pg.screenshot({ path: f });
 await br.close();
 const buf = fs.readFileSync(f);
