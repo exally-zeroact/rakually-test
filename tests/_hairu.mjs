@@ -118,7 +118,33 @@ export async function shizumaru(pg, shizuMs = 1500, ueMs = 20000) {
   }
 }
 
+/* ★★覆いの 中身を 出しに 出す 旗を ★道具に 持たせる★★★（2026-09-28・実測から）
+   ★何が 起きて いたか★
+     `store.js` は conflict の 覆いが 出た 瞬間の
+       ①倉庫の `updated_at` ②控えの `updated_at` ③★同じ 瞬間か★
+     を `Store._conflictLog` に 積み、★`window.__OOI_KIROKU__` が 立って いる 時だけ★
+     ★その場で 出しに 出します★（★開き直しても 残る 為★）。
+   ★ところが その 旗は `kyuyo/tests/fuyo-ui.mjs` ★1本にしか 立って いませんでした★
+     ⇒ ★他の 試験（`shutoku-ui` 等）では 中身が ★画面の 中に 溜まるだけ★★
+     ⇒ ★開き直すと 消える★＝★覆いが 12回 出ても 訳が 1つも 残らない★
+     （実測 2026-09-28 手元 `node kyuyo/tests/shutoku-ui.mjs`
+        … 覆い ★12回★／`souko=`／`hikae=` の 行 ★0本★＝★割れない★）
+   ⇒ ★★覚書は「読む」では 効かない＝★道具に 1回だけ 持たせる★★★
+     （`hairu()` は ★全部の 実ブラウザ 試験が 通る 1か所★）
+   ★客の 画面は 汚れません★＝旗が 無ければ `store.js` は 何も 出しません。
+   ★`addInitScript` は `goto` の 前に 要る★ので ★ここ（goto の 前）に 置きます★。
+   ★同じ 面に 二度 足さない★＝`_HATA` で 数えます。 */
+const _HATA = new WeakSet();
+async function _hataWoTateru(pg) {
+  if (_HATA.has(pg)) return;
+  _HATA.add(pg);
+  await pg.addInitScript(() => {
+    try { window.__OOI_KIROKU__ = true; } catch (e) { /* 黙らない＝下で 出ます */ }
+  }).catch((e) => { console.log('       🟡 覆いの 控えの 旗が 立ちません … ' + ((e && e.message) || e)); });
+}
+
 export async function hairu(pg, url, matsu, opt = 3) {
+  await _hataWoTateru(pg);
   const kaiMax = typeof opt === 'number' ? opt : (opt && opt.kaiMax) || 3;
   const kumoKotaeru = typeof opt === 'number' ? true : (opt && opt.kumo !== false);
   let matta = 0, naze = '', kumoNi = '';   /* kumoNi＝クラウドの 覆いに 答えた 字（空＝出なかった） */
@@ -272,7 +298,31 @@ export async function ooiWoMiru(pg) {
     if (!ov) return { aru: false, ji: '' };
     return { aru: true, ji: String(ov.innerText || ov.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 200) };
   }, OOI).catch(() => ({ aru: false, ji: '★引けない★' }));
-  return Object.assign({}, r, { conflict: !!r.aru && TOJINAI_JI.some((w) => r.ji.indexOf(w) >= 0) });
+  const conflict = !!r.aru && TOJINAI_JI.some((w) => r.ji.indexOf(w) >= 0);
+  /* ★★覆いを ★3つに 割って★ 返す★★（2026-09-28）
+     ★足した 判じは 1つも ありません★＝`store.js` が 既に 積んで いる 物を ★読むだけ★。
+       `onaji`  … ①と②が ★同じ 瞬間★＝★字の 形だけの 偽 conflict★（`…Z` と `…+00:00`）
+       `chigau` … ★本当に 別の 書き★（他の 機械／他の 試験）
+       `miyomi` … ★控えが まだ 無い★＝★読み込みが 始まる 前の 隙★
+     ⇒ ★★この 3つの どれかで 直し方が 変わります★★
+       （`onaji`＝書式を 揃える／`chigau`＝倉庫を 分ける／`miyomi`＝隙を 閉じる）
+     ★読めない 時は 黙らず そう 書きます★＝★0件を 根拠に しない★ */
+  let wake = '';
+  if (conflict) {
+    wake = await pg.evaluate(() => {
+      try {
+        const S = window.Store;
+        if (!S || typeof S.ooiNoKazu !== 'function') return '★Store.ooiNoKazu が 無い＝割れません（未測定）★';
+        const k = S.ooiNoKazu();
+        const o = (typeof S.okuttaNoKazu === 'function') ? S.okuttaNoKazu() : null;
+        return '覆い ' + k.honsu + '回（★同じ瞬間=偽 ' + k.onaji + '／★別の書き ' + k.chigau
+          + '／★読む前の隙 ' + k.miyomi + '★）'
+          + (o ? ' ／自分が送った値で通した ' + o.toshita + '回・送った名簿 ' + o.meibo + '件' : '')
+          + (k.ji && k.ji.length ? ' ／' + k.ji.join(' ｜ ') : '');
+      } catch (e) { return '★控えが 読めません … ' + ((e && e.message) || e) + '（未測定）★'; }
+    }).catch((e) => '★控えを 引けません … ' + ((e && e.message) || e) + '（未測定）★');
+  }
+  return Object.assign({}, r, { conflict: conflict, wake: wake });
 }
 
 /* ★案内の 覆いを 本物の 閉じる ボタンで 閉じる★（消す のでは ない＝お客さんの 道）
@@ -288,7 +338,7 @@ export async function toziru(pg, kaiMax = 12) {
     const mi = await ooiWoMiru(pg);
     if (mi.conflict) {
       console.log('  ★★覆いが 出て います（押せません）／★閉じません（答えません）★／箱の 字＝「'
-        + mi.ji + '」★★');
+        + mi.ji + '」★★' + (mi.wake ? String.fromCharCode(10) + '       ★訳の 内訳 … ' + mi.wake + '★' : ''));
       return (await pg.$$(OOI)).length;      /* ★残したまま 戻る★＝呼んだ側が 赤に する */
     }
     const oseta = await pg.evaluate((sel) => {
