@@ -74,13 +74,32 @@ console.log('\n[naoshitara-todoku] ★確定した 後に 直したら 紙にも
 /* ★★口を 1つに する★★＝この 紙の どの 試しも ★同じ 偽物の 倉庫★を 使う
    （★約束を 返す★＝本物と 同じ形。integration.mjs の 偽物は 約束を 返さないので
      `.then` が 落ちて `catch(_e){}` に 飲まれます＝★そこを 踏まない★） */
+/* ★★★2026-09-28 ★この 偽物は ★客の 道を 1回も 見て いませんでした★★★★
+   ★前★ … `savePayslip` は ★`Promise.resolve()`＝その場で 返る★
+      ＝★小さい 順番待ち★＝★`setTimeout(…,0)` より ★必ず★ 先に 片づく★
+   ★でも 客の 道（雲）は 通信＝数百ms★
+      ＝★★タイマーの 方が ずっと 先＝`_todoita` は 空＝黙って 終わる★★
+   ★実測（わざと 120ms に した）★ … ★★11 passed → ★4 failed★★★
+      ✗ ⑹ 紙も 出し直す（`publishMeisai`）… ★呼ばれた 回数 ★0★★
+      ✗ ⑺ 届いたら 印を 消す ／ ✗ ⑺ 未読に 戻す ／ ✗ ⑻ 紙に「直し」の 印
+   ⇒ ★★＝★試験だけ 速い 道で 測って いた＝『待っているつもりで待っていない』★★★
+   ★★直し＝★遅い 道を 既定に する★／★速い 道も 1本 残す★★★
+     ＝★片方だけ だと また 盲に なる★（★『0ms でも 緑』と『遅くても 緑』は ★別の 事★★）
+   ★★`OKURE_MS`（120）も ★測って いない 数★です★★
+     ＝★`pay_companies` の 行き帰りの 実測は 208〜643ms／120 は その 下★
+     ＝★狙いは『★タイマー（0ms）より 後に なる★』＝★0 より 大きければ 足りる★★ */
+const OKURE_MS = 120;
 function souko(win2, opt) {
   const o = opt || {};
   const kiroku = [], kami = [];
+  /* ★`hayai:true` の 時だけ 速い 道★（★既定は 遅い＝客の 道★） */
+  const okure = o.hayai ? 0 : OKURE_MS;
   win2.Store = win2.Store || {};
   win2.Store.savePayslip = function (ym, id) {
     kiroku.push(id);
-    return o.kirokuKowasu ? Promise.reject(new Error('わざと 倉庫が 落ちた')) : Promise.resolve({ ok: true });
+    if (o.kirokuKowasu) return Promise.reject(new Error('わざと 倉庫が 落ちた'));
+    if (!okure) return Promise.resolve({ ok: true });
+    return new Promise((r) => setTimeout(() => r({ ok: true }), okure));
   };
   win2.Store.publishMeisai = function (items, popt) {
     /* ★誰が 呼んだかを 残す★＝★『2回 呼ばれた』の 訳を 当てずに 見る為★ */
@@ -113,7 +132,7 @@ function shitaku(tsuki) {
   const { e0 } = shitaku('2026-04');
   e0.base = '999999';                      /* ★マスタだけ 変わった（＝開いた だけ の 形）★ */
   kiroku.length = 0;
-  A.saveMonthlyPayslips(false);
+  await A.saveMonthlyPayslips(false);
   T('⑴ ★開いただけ★＝確定済みは 書かれない（凍結が 生きている）',
     kiroku.indexOf('k1') < 0 && kiroku.indexOf('m1') >= 0, '書いた … ' + kiroku.join(','));
 }
@@ -124,7 +143,7 @@ function shitaku(tsuki) {
   shitaku('2026-04');
   A.naoshitaShirushi('2026-04', 'k1');     /* ★打った 印★（⑷で 本物の 打ち込みからも 付く事を 見る） */
   kiroku.length = 0;
-  A.saveMonthlyPayslips(false);
+  await A.saveMonthlyPayslips(false);
   T('⑵ ★打った 人（k1）は 書き直される★', kiroku.indexOf('k1') >= 0, '書いた … ' + kiroku.join(','));
   T('⑶ ★打って いない 確定済み（k2）は 凍結のまま★', kiroku.indexOf('k2') < 0, '書いた … ' + kiroku.join(','));
 }
@@ -186,8 +205,8 @@ function shitaku(tsuki) {
   shitaku('2026-04');
   A.naoshitaShirushi('2026-04', 'k1');
   kiroku.length = 0; kami.length = 0;
-  A.saveMonthlyPayslips(false);
-  await machi(60);
+  await A.saveMonthlyPayslips(false);   /* ★時間で 待たない＝★約束を 待つ★（2026-09-28） */
+  await machi(5);                       /* ★出し直しの `.then` が 1回 回るぶん★ */
   if (kami.length !== 1) kami.forEach(function (k, i) { console.log('       ★呼ばれた ' + (i + 1) + '★ 人 ' + k.nin + ' ／ ' + k.doko); });
   T('⑹ ★紙も 出し直す（publishMeisai が 呼ばれる）★', kami.length === 1,
     '呼ばれた 回数 ' + kami.length + '＝★記録だけ 直して 紙が 古いまま★');
@@ -212,8 +231,8 @@ function shitaku(tsuki) {
   shitaku('2026-04');
   A.naoshitaShirushi('2026-04', 'k1');
   kami.length = 0;
-  A.saveMonthlyPayslips(false);
-  await machi(60);
+  await A.saveMonthlyPayslips(false);   /* ★時間で 待たない＝★約束を 待つ★（2026-09-28） */
+  await machi(5);                       /* ★出し直しの `.then` が 1回 回るぶん★ */
   T('⑻ ★記録が 落ちたら 紙も 出さない★', kami.length === 0, '記録が 落ちたのに 紙を 出しました');
   T('⑻ ★印を 消さない（次に もう一度 出す）★', A.naoshitaKa('2026-04', 'k1') === true,
     '★落ちたのに 印を 消しました＝二度と 届きません★');
@@ -224,8 +243,8 @@ function shitaku(tsuki) {
   souko(win, { kamiKowasu: true });
   shitaku('2026-04');
   A.naoshitaShirushi('2026-04', 'k1');
-  A.saveMonthlyPayslips(false);
-  await machi(60);
+  await A.saveMonthlyPayslips(false);   /* ★時間で 待たない＝★約束を 待つ★（2026-09-28） */
+  await machi(5);                       /* ★出し直しの `.then` が 1回 回るぶん★ */
   T('⑼ ★紙が 落ちたら 印を 消さない★', A.naoshitaKa('2026-04', 'k1') === true,
     '★落ちたのに 印を 消しました★');
 }
@@ -237,8 +256,8 @@ function shitaku(tsuki) {
   const e = A.defEmp('だれか'); e.id = 'n1'; e.payType = '月給'; e.base = '200000';
   st.employees = [e]; st.month = '2026-05'; st.confirmed = {}; st._naoshita = {};
   kami.length = 0;
-  A.saveMonthlyPayslips(false);
-  await machi(60);
+  await A.saveMonthlyPayslips(false);   /* ★時間で 待たない＝★約束を 待つ★（2026-09-28） */
+  await machi(5);                       /* ★出し直しの `.then` が 1回 回るぶん★ */
   T('⑽ ★確定が 無い 月では 紙を 出し直さない★', kami.length === 0, '出し直した 回数 ' + kami.length);
 }
 
@@ -264,7 +283,7 @@ if (WAZA) {
   const { e0 } = shitaku('2026-04');
   e0.base = '999999';
   kiroku.length = 0;
-  A.saveMonthlyPayslips(true);            /* ★force＝凍結を 外した 時と 同じ★ */
+  await A.saveMonthlyPayslips(true);            /* ★force＝凍結を 外した 時と 同じ★ */
   const akaDeru = kiroku.indexOf('k1') >= 0;
   T('★わざと 凍結を 外したら ⑴の 判じが 赤に なる★', akaDeru,
     '★force でも 書かれません＝この 見張りは 空振りです★');

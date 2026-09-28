@@ -6186,6 +6186,12 @@
     _slipYakusokuNashi = 0;
     return SLIP_DOJI_UE;
   };
+  /* ★約束を 返さない 物を 包む★（★数えて から★）＝★呼び出しと 同じ 文に 置ける ように 関数に した★ */
+  function _slipYakusoku(v){
+    if(v && typeof v.then === 'function') return v;
+    _slipYakusokuNashi++;
+    return Promise.resolve(v);
+  }
   function _slipRetsuOkuru(ym, retsu, todoita){
     if(!(retsu && retsu.length)) return Promise.resolve();
     if(_slipDojiIma === 0){ _slipDojiSaidai = 0; }   /* ★1回の 束ごとに 測る★ */
@@ -6203,12 +6209,18 @@
              `kyuyo/tests/integration.mjs` と `kyuyo/tests/ui-smoke.mjs` が
              ★`Cannot read properties of undefined (reading 'then')` で 赤★ に なった★
            （★この 事は `naoshitara-todoku` の 覚書に ★先に 書いて 在りました★＝私が 読み落とした★）
-         ★直し★ … `Promise.resolve()` で 包む＝★転ばない★
+         ★直し★ … `_slipYakusoku()` で 包む＝★転ばない★
          ★★でも 黙りません★★ … ★数えて 口に 出す★（`yakusokuNashi`）
-           ＝★『飲み込んだ』と『無かった』を 混ぜない★ */
-      var _p = Store.savePayslip(ym, x.id, x.slip);
-      if(!(_p && typeof _p.then === 'function')){ _slipYakusokuNashi++; _p = Promise.resolve(_p); }
-      return _p
+           ＝★『飲み込んだ』と『無かった』を 混ぜない★
+         ★★包みを 別の 文に しない★★（2026-09-28・★門が もう 一度 止めた★）
+           ★一度 `var _p = 倉庫の 明細の 保存の 呼び;` と ★文を 切って★ 書いたら
+             ★その 文に `.catch(` が 無い★★
+           ⇒ `scripts/silent-catch.mjs` が ★受け皿が 無い★ と 数える（★門の 言う 通り★）
+           ★★覚書に 呼びの 字を そのまま 書くと 門が ★それ自体★を 拾います★★
+             ＝09-27 に 同じ 型を 踏んだ ので ★ここは 字を 変えて 書いて います★
+             ＝★門は 1文字も 緩めて いません★
+           ⇒ ★★＝受け皿は ★呼び出しと 同じ 文★ に 置く★★（★際に 置かない★の 兄弟） */
+      return _slipYakusoku(Store.savePayslip(ym, x.id, x.slip))
         .then(function(){ if(x.nao) todoita.push(x.id); })
         .catch(saveFailed)   /* ★約束の失敗は ここでしか捕まらない★ */
         .then(_oe, _oe);
@@ -6305,7 +6317,27 @@
        ★間合い★ … ★保存と 同じ★（`persistSave` の 中＝1字ごとには 出さない）
        ★黙って やらない★ … ★出し直した 事を 1行 出す★ */
     if(_naoshiHito.length && window.Store && Store.publishMeisai){
-      setTimeout(function(){
+      /* ★★★`setTimeout(…,0)` を やめて ★保存の 約束★ に 繋ぎました★★★（2026-09-28・★実測★）
+         ★何が 起きて いたか★
+           `_todoita` に 入るのは ★保存が 倉庫から 返って から★（`.then` の 中）。
+           ★`setTimeout(…,0)` は ★大きい 順番待ち★★＝★小さい 約束の 後／但し 通信の 前★
+           ⇒ ★★雲の 道（数百ms）では ★タイマーが ずっと 先★＝`_todoita` は 空★★
+           ⇒ ★★`if(!_todoita.length) return;` で ★黙って 終わって いた★★★
+           ⇒ ★`_todoita` は ★この 回の 中だけの 箱★＝★次の 回に 持ち越しません★★
+           ⇒ ★★＝『次の 保存で もう一度 出す』は ★一度も 働きません★★★
+         ★実測（`kyuyo/tests/naoshitara-todoku.test.mjs`）★
+           ★偽物の 倉庫を ★その場で 返る 約束 → 120ms★ に したら★
+           ★★11 passed → ★4 failed★★★
+              ✗ ⑹ 紙も 出し直す（`publishMeisai`）… ★呼ばれた 回数 ★0★★
+              ✗ ⑺ 届いたら 印を 消す ／ ✗ ⑺ 未読に 戻す ／ ✗ ⑻ 紙に「直し」の 印
+           ⇒ ★★＝雲を 使う お客さんでは ★毎回 死んで いました★★★
+           ⇒ ★★しかも `return` が 先＝★成功も 失敗も 何も 言わない★★★
+         ★見張りも 直しました★ … ★偽物の 倉庫は ★遅い（120ms）を 既定★に した★
+           ＋★速い 道（0ms）も 1本 残す★（★片方だけ だと また 盲に なる★）
+         ★なぜ タイマーでは 駄目で 約束なら 良いか★
+           ★★『何ms 待つか』を 当てる のでは なく『★届いた★』を 待つ★★
+           ＝[[feedback_matte_inai_machi]]（★待って いるつもりで 待って いない★） */
+      _okuriP.then(function(){
         if(!_todoita.length) return;                       /* ★記録に 届いて いなければ 紙も 出さない★ */
         publishMeisaiNow(false, { silent:true, naoshi:true }).then(function(){
           _todoita.forEach(function(id){ naoshitaKesu(ym, id); });
@@ -6314,21 +6346,24 @@
           /* ★印は 消さない★＝★次の 保存で もう一度 出す★（★黙って 諦めない★） */
           toast('直した内容を 従業員のWeb明細に 出し直せませんでした。もう一度 直すか「今月を確定」を 押してください。');
         });
-      }, 0);
+      }).catch(function(_e){
+        /* ★黙って 飲み込まない★＝★保存の 束が 転んだら 字に 出す★
+           （★ここまで 来る のは `_slipRetsuOkuru` の 外で 転んだ 時だけ★） */
+        console.error('★直した 人の 紙を 出し直す 所まで 行けませんでした★', _e);
+      });
     }
-    /* ★★★ここの `setTimeout(…,0)` は ★倉庫の 返りを 待って いません★★★（2026-09-28・★実測★）
-       ★測った 物★ … `kyuyo/tests/naoshitara-todoku.test.mjs` の 偽物の 倉庫を
-         ★その場で 返る 約束 → 120ms（雲の 道と 同じ）★ に 変えたら
-         ★★11 passed → ★4 failed★★★
-           ✗ 紙も 出し直す（`publishMeisai` が 呼ばれる）… ★呼ばれた 回数 0★
-           ✗ 届いたら 印を 消す ／ ✗ 未読に 戻す ／ ✗ 紙に「直し」の 印
-       ⇒ ★★＝雲を 使う お客さんでは ★毎回 ここで 黙って 終わって います★★★
-         （`_todoita` は ★この 回の 中だけの 箱★＝次の 回に 持ち越しません）
-       ⇒ ★★しかも `return` が 先＝★成功も 失敗も 何も 言いません★★★
-       ★★この 押しでは ★わざと 直して いません★★＝★1押し＝1件★
-         ＝★下の `return` で ★待てる 形★に した ので ★次の 押しで ここを 繋ぎます★★
-       ★逃げ道は 在ります★ … ★人が「今月を確定」を 押せば 紙は 出ます★
-         （紙は ★画面の 値★から 作る＝倉庫を 読まない／指示役1 が 字で 数えた） */
+    /* ★★約束を 返します★★＝★呼ぶ 側が『全部 届いた』を 待てる★
+       ★これが 在るから 上の 出し直しも ★タイマーでなく 約束★ に 繋げました★
+       ★次に 使う 所（★まだ 直って いません／指示役1 が 測りました★）★
+         `:5741`「今月を確定」は ★`try{ 保存を 呼ぶ; }catch(_){}` で ★待たずに★ 札を 出す★
+         ⇒ ★★「今月を確定しました」と「○名分を保存できませんでした」が ★争います★★★
+            （`toast` は ★1枚の 札を 上書き★＝★後から 出た 方が 前を 黙って 消す★）
+         ★実測（指示役1・人 2名／保存は 100ms で 落ちる）★
+            公開 40ms … 赤が 残る（★客は 気づける★）
+            公開 500ms … ★赤が 1枚も 出ない★（★客は 知れない★）
+            公開 900ms … ★緑が 赤を 消す★（★客は「確定しました」だけ 見る★）
+         ⇒ ★★3通りの うち 2通りで 客は 何も 知れません★★
+         ⇒ ★★＝この `return` を 待って ★札を 1枚に まとめる★のが 次の 用件★★ */
     return _okuriP;
   }
   // 定時決定: 当年の4・5・6月の履歴から 総支給+支払基礎日数 を自動セット(無い月は空欄=手入力)
