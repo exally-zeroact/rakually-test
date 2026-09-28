@@ -154,7 +154,12 @@ export function kasanari(log, muki) {
      ⇒ ★★『26〜36秒 も 並んで 待って いた』事 その物は ★別の 門で 見ます★★★
         （＝★同時に 飛んで いた 最大 299本★／`app.js:6180` の 件） */
 export const SHIPPAI_HAYA_MS = 3000;
-export function shippaiWakeru(log) {
+/* ★画面が 動いた 時刻の ±この 幅★ に 落ちた 物は ㋐（★読み直しで 切られた★）と 見る
+   ★1500 は ★測って いない 数★です★（★字に 残します★）
+     ＝★狙いは『読み直しの 1回の 出来事を 束ねる』＝★64本の 幅（2484−123＝約2.4秒）より 広く★
+     ⇒ ★★足りなければ 出しの『固まり』の 数で 分かります★★（★決め打ちの まま 黙らない★） */
+export const IDO_MADO_MS = 1500;
+export function shippaiWakeru(log, idoJi, idoJibunJi) {
   const a = (Array.isArray(log) ? log : []).filter((x) => x && !x.tsuita && x.shippai);
   const kaki = a.filter((x) => x.muki !== 'GET' && x.muki !== 'HEAD');
   /* ★かかった ms が 取れない 物は ★安全側＝『閉じる 前』に 入れる★（★黙って 見逃さない★） */
@@ -163,8 +168,67 @@ export function shippaiWakeru(log) {
      ⇒ ★★数かどうかで 見る★★（★『0 と 無い』を 混ぜない★） */
   const ms = (x) => ((typeof x.owari === 'number' && typeof x.dashi === 'number')
     ? (x.owari - x.dashi) : null);
-  const kakiMae = kaki.filter((x) => { const m = ms(x); return m === null || m < SHIPPAI_HAYA_MS; });
-  const kakiAto = kaki.filter((x) => { const m = ms(x); return m !== null && m >= SHIPPAI_HAYA_MS; });
+  /* ★★★★2026-09-28（2度目の 直し） ★2つでは 足りませんでした★★★★
+     ★指示役1 が 数で 示した★ … WebKit `b3c87ec` の 2回目で ★『閉じる 前』が 64本★
+       その 64本の ms … 2484／2477／2388／…／135／123
+       ⇒ ★★番号が 増えるほど ms が ★単調に 減る★★★
+       ⇒ ★★＝『ある 一瞬 T − 出した 時刻』の 形＝★64本 ぜんぶ 同じ 一瞬に 切られた★★★
+       ⇒ ★★＝64回 別々に 落ちたのでは ない／★1回の 出来事★★
+     ★その 出来事★ … ★`pg.reload()`（画面の 読み直し）★
+       ⇒ ★★＝『閉じる』でも『客の 穴』でも ない ★第3の 場合★★★
+       ⇒ ★★＝私の 2つ分けでは ★全部『客の 穴』に 落ちる＝偽の 赤★★★
+     ★★だから 3つに 分けます★★
+       ㋐`kakiIdo` … ★画面が 動いた（読み直し／移動）★ ⇒ ★赤に しません★
+       ㋑`kakiAto` … ★閉じた 時★（今まで の 物） ⇒ ★赤に しません★
+       ㋒`kakiKyaku` … ★★㋐㋑を 引いた 残り＝★本当の 客の 穴★★★ ⇒ ★ここだけ 赤★
+     ★★画面が 動いた 時刻は ★ページ自身に 訊く★★★（`framenavigated`）
+       ＝★`pg.reload()` を 1か所ずつ 書き足すと ★漏れます★（今 4か所 在る）★
+     ★★割れない 時は ★未測定★ に する★★
+       ＝★㋒が 固まって いる（同じ 一瞬）のに ★画面の 動きが 1回も 控えられて いない★ 時★
+       ⇒ ★『客に 出る』とは 書きません★（★276本で 一度 取り下げた のと 同じ 型★） */
+  /* ★★★★2026-09-28（3度目の 直し）★誰が 画面を 動かしたか で 意味が 逆に なります★★★★
+     ㋐-1 ★試験が 動かした★（`pg.reload()`／`pg.goto()`）… ★道具の 都合＝★客の 穴では ない★★
+     ㋐-2 ★★アプリ自身が 動かした★★（`location.reload()`＝覆いの「はい」など）
+          ⇒ ★★お客さんの 画面でも 同じ事が 起きます★★
+          ⇒ ★★＝★保存の 途中で アプリが 読み直して その 保存が 消える＝★客の 穴★★★★
+     ⇒ ★★＝`framenavigated` だけでは ★2つを 分けられません★★
+        ＝★『出す 側に 訊く』は 正しいが ★『誰が 頼んだか』は 訊いて いない★★（指示役1）
+     ★★㋐-2 は ★赤に します★★（★今まで 隠れて いた 客の 穴★）
+     ★★比べるのは ★『落ちた 時刻 − 動いた 時刻』★★★
+       ＝★『出してからの 長さ』では ありません★
+       （★64本は ★切られた 時刻が ほぼ 同じ★＝それが ms が 単調に 減る 形の 意味★）
+       ⇒ ★その 距離を ★出しに 書きます★＝★1500 が 広すぎ／狭すぎ が 字で 分かる★ */
+  const ido = (Array.isArray(idoJi) ? idoJi : []).filter((t) => typeof t === 'number');
+  const idoJibun = (Array.isArray(idoJibunJi) ? idoJibunJi : []).filter((t) => typeof t === 'number');
+  /* ★★一番 近い 動きまでの 距離★★（★落ちた 時刻 − 動いた 時刻★／無ければ null） */
+  const hedatari = (x, ra) => {
+    if (typeof x.owari !== 'number' || !ra.length) return null;
+    let m = null;
+    for (const t of ra) { const d = Math.abs(x.owari - t); if (m === null || d < m) m = d; }
+    return m;
+  };
+  const chikaku = (x, ra) => { const d = hedatari(x, ra); return d !== null && d <= IDO_MADO_MS; };
+  /* ㋐-1＝★試験が 動かした★／㋐-2＝★動いたが 試験では ない＝アプリ★ */
+  const kakiIdo = kaki.filter((x) => chikaku(x, idoJibun));
+  const kakiApp = kaki.filter((x) => !chikaku(x, idoJibun) && chikaku(x, ido));
+  const nokori1 = kaki.filter((x) => !chikaku(x, idoJibun) && !chikaku(x, ido));
+  /* ★出しに 出す 距離（★測って いない 数を その場の 数に する★） */
+  const hedRa = kaki.map((x) => hedatari(x, ido)).filter((d) => d !== null).sort((p, q) => p - q);
+  const kakiAto = nokori1.filter((x) => { const m = ms(x); return m !== null && m >= SHIPPAI_HAYA_MS; });
+  /* ★★㋒＝『残り（短い）』＋『アプリが 動かした』★★＝★どちらも 客に 起きます★ */
+  const kakiKyaku = nokori1.filter((x) => { const m = ms(x); return m === null || m < SHIPPAI_HAYA_MS; })
+    .concat(kakiApp);
+  /* ★★『同じ 一瞬に まとまって いるか』を 数える★★（★指示役1 の 見つけ方★）
+     ＝★終わりの 時刻が ★`IDO_MADO_MS` の 幅に 何本 入るか★の 最大★ */
+  const owariRa = kakiKyaku.map((x) => x.owari).filter((t) => typeof t === 'number').sort((p, q) => p - q);
+  let katamari = 0;
+  for (let i = 0; i < owariRa.length; i++) {
+    let c = 1;
+    for (let j = i + 1; j < owariRa.length && owariRa[j] - owariRa[i] <= IDO_MADO_MS; j++) c++;
+    if (c > katamari) katamari = c;
+  }
+  /* ★★割れない 形★★ … ★2本以上 固まって いる のに 画面の 動きを 1本も 控えて いない★ */
+  const warenai = (katamari >= 2 && ido.length === 0);
   const msRa = kaki.map(ms).filter((m) => m !== null).sort((p, q) => p - q);
   const tana = {};
   a.forEach((x) => {
@@ -172,7 +236,15 @@ export function shippaiWakeru(log) {
     tana[k] = (tana[k] || 0) + 1;
   });
   return { zen: a.length, kaki, kakiKazu: kaki.length, tana,
-    kakiMae, kakiMaeKazu: kakiMae.length, kakiAto, kakiAtoKazu: kakiAto.length,
+    kakiIdo: kakiIdo, kakiIdoKazu: kakiIdo.length,
+    kakiApp: kakiApp, kakiAppKazu: kakiApp.length,
+    idoJibunKazu: idoJibun.length,
+    hedSaisho: hedRa.length ? hedRa[0] : null, hedSaidai: hedRa.length ? hedRa[hedRa.length - 1] : null,
+    kakiAto: kakiAto, kakiAtoKazu: kakiAto.length,
+    kakiKyaku: kakiKyaku, kakiKyakuKazu: kakiKyaku.length,
+    /* ★前の 名前も 残す★＝★他の 所が 読んで いたら 黙って 壊さない★（★中身は ㋒＋㋐★） */
+    kakiMae: kakiKyaku, kakiMaeKazu: kakiKyaku.length,
+    idoKazu: ido.length, katamari: katamari, warenai: warenai,
     msSaisho: msRa.length ? msRa[0] : null, msSaidai: msRa.length ? msRa[msRa.length - 1] : null,
     ji: Object.keys(tana).sort().map((k) => k + ' ' + tana[k] + '本').join(' ／ ') };
 }
@@ -478,8 +550,66 @@ if (SELF) {
           shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 0, owari: SHIPPAI_HAYA_MS - 1 }]).kakiMaeKazu === 1);
         iu('★★境目 ちょうど（3000ms）は ★閉じた 時★★',
           shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 0, owari: SHIPPAI_HAYA_MS }]).kakiAtoKazu === 1);
-        iu('★★30秒級だけ なら 閉じる 前は 0本（★偽の 赤に しない★）★★',
-          shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 0, owari: 31000 }]).kakiMaeKazu === 0);
+        iu('★★30秒級だけ なら 客の 穴は 0本（★偽の 赤に しない★）★★',
+          shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x', dashi: 0, owari: 31000 }]).kakiKyakuKazu === 0);
+      }
+      /* ★★★★㋐『画面が 動いた』で 切られた 分★★★★（2026-09-28・★3度目の 直しまで 入って います★）
+         ★1度目★ … 2つに 分けた（閉じる 前／閉じた 時）
+            ⇒ ★★足りなかった★★（★読み直しで まとめて 切られた 64本が 全部『客の 穴』に 落ちた★）
+         ★2度目★ … ㋐『画面が 動いた』を 足して 3つに した
+            ⇒ ★★まだ 足りなかった★★（指示役1）
+              ＝★★動かす 者は 2種類★★
+                 ㋐-1 ★試験が 動かした★（`pg.reload()`）… ★道具の 都合＝客の 穴では ない★
+                 ㋐-2 ★★アプリが 動かした★★（`location.reload()`）… ★★客にも 起きる＝客の 穴★★
+         ★3度目（今）★ … ★『誰が 頼んだか』を 分ける★（`pg.reload`/`goto` を 1回 包んで 控える）
+         ★比べる 数★ … ★★『落ちた 時刻 − 動いた 時刻』★★（★『出してからの 長さ』では ない★）
+            ⇒ ★その 距離を 出しに 書く★＝★窓 1500 が 広すぎ／狭すぎ が 字で 分かる★ */
+      {
+        const T0 = 100000;
+        /* ★同じ 一瞬 T0 で 切られた 3本★（★ms は 2400→130 と 単調に 減る★） */
+        const mata = [
+          { n: 1, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x', dashi: T0 - 2400, owari: T0 },
+          { n: 2, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x', dashi: T0 - 1200, owari: T0 },
+          { n: 3, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x', dashi: T0 - 130, owari: T0 },
+        ];
+        /* ㋐-1 … ★試験が 動かした★（3つ目の 引数に 時刻が 在る） */
+        const a1 = shippaiWakeru(mata, [T0], [T0]);
+        iu('★★㋐-1 ★試験が★ 動かした 3本は ★客の 穴に しない★★★',
+          a1.kakiIdoKazu === 3 && a1.kakiKyakuKazu === 0 && a1.kakiAppKazu === 0);
+        iu('★㋐-1 本数は 数える（全 3本）★', a1.kakiKazu === 3);
+        iu('★★㋐-1 距離を 出す（0ms／窓 ' + IDO_MADO_MS + 'ms）★★',
+          a1.hedSaisho === 0 && a1.hedSaidai === 0);
+        /* ★★㋐-2 … ★アプリが★ 動かした（試験の 控えが 無い）＝★客の 穴★★★ */
+        const a2 = shippaiWakeru(mata, [T0], []);
+        iu('★★★㋐-2 ★アプリが★ 動かした 3本は ★客の 穴に する★★★★',
+          a2.kakiAppKazu === 3 && a2.kakiKyakuKazu === 3 && a2.kakiIdoKazu === 0);
+        iu('★★㋐-2 ＝『保存の 途中で アプリが 読み直して 保存が 消える』★★',
+          a2.kakiKyaku.length === 3);
+        /* ㋒ … ★動きと 無関係の 1本★ */
+        const kyaku = [{ n: 9, tana: 'pay_payslips', muki: 'POST', tsuita: 0, shippai: 'x',
+          dashi: T0 + 60000, owari: T0 + 60300 }];
+        const a3 = shippaiWakeru(mata.concat(kyaku), [T0], [T0]);
+        iu('★★㋒ 動きと 無関係の 1本は ★客の 穴に なる★★★',
+          a3.kakiKyakuKazu === 1 && a3.kakiKyaku[0].n === 9);
+        iu('★★㋐-1 と ㋒を 同時に 出せる（3本／1本）★★', a3.kakiIdoKazu === 3 && a3.kakiKyakuKazu === 1);
+        iu('★★距離の 最大が 出る（無関係の 1本＝60300ms）★★', a3.hedSaidai === 60300);
+        /* ⑶ ★動きを 1本も 控えて いない＝割れない（未測定）★ */
+        const a4 = shippaiWakeru(mata, [], []);
+        iu('★★⑶ 画面の 動きを 控えて いなければ ★割れない（未測定）★★★',
+          a4.warenai === true && a4.katamari === 3 && a4.idoKazu === 0);
+        iu('★★⑶ ★但し 本数は 隠さない★（㋒に 3本と 出す）★★', a4.kakiKyakuKazu === 3);
+        iu('★⑶ 距離は 出せない（null）＝★0 と 混ぜない★', a4.hedSaisho === null);
+        /* ★1本だけ なら 固まりでは ない＝★赤に する★ */
+        const a5 = shippaiWakeru(kyaku, [], []);
+        iu('★1本だけ なら『割れない』に しない（★赤に する★）★',
+          a5.warenai === false && a5.kakiKyakuKazu === 1);
+        /* ★窓の 端★（★試験が 動かした 側で 見る★） */
+        iu('★★窓の 端（ちょうど ' + IDO_MADO_MS + 'ms 離れ）は ㋐-1★★',
+          shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x',
+            dashi: T0, owari: T0 + IDO_MADO_MS }], [T0], [T0]).kakiIdoKazu === 1);
+        iu('★★窓の 外（1ms 多い）は ㋐-1に しない★★',
+          shippaiWakeru([{ n: 1, tana: 'x', muki: 'POST', tsuita: 0, shippai: 'x',
+            dashi: T0, owari: T0 + IDO_MADO_MS + 1 }], [T0], [T0]).kakiIdoKazu === 0);
       }
     }
     /* ★★自分で 自分を 弾いた 組★★＝★門の 空振り止め★ */
@@ -711,6 +841,21 @@ pg.on('console', (m) => {
 });
 
 const soukoLog = [];
+/* ★画面が 動いた 時刻★（`framenavigated` で 拾う＝★読み直しで まとめて 切られた 物を 分ける★） */
+const IDO_JI = [];
+/* ★★★試験が 自分で 動かした 時刻★★★（2026-09-28・指示役1 の ①）
+   ★なぜ 分けるか★
+     ★画面を 動かす 者は 2種類★
+       ㋐-1 ★試験が 動かした★（`pg.reload()`／`pg.goto()`）… ★道具の 都合＝客の 穴では ない★
+       ㋐-2 ★★アプリ自身が 動かした★★（`location.reload()`＝覆いの「はい」など）
+            ⇒ ★★お客さんの 画面でも 同じ事が 起きます★★
+            ⇒ ★★＝保存の 途中で アプリが 読み直して その 保存が 消える＝★客の 穴★★★
+     ⇒ ★★`framenavigated` だけでは ★2つを 分けられません★★
+        ＝★『出す 側に 訊く』は 正しいが ★『誰が 頼んだか』は 訊いて いない★★
+   ★どう 分けるか★ … ★`pg.reload` / `pg.goto` を ★1回 包む★★
+     ⇒ ★★呼ぶ 所を 1つも 書き換えません★★（★今 4か所／片づけや 入る 所も 同じ `pg` を 使う★）
+     ⇒ ★★＝『後で 足された 呼び』も 自然に 入ります★★ */
+const IDO_JIBUN = [];
 {
   let dashi = 0, tsuki = 0;
   const jiOf = (s) => { try { const o = JSON.parse(s || '{}'); return o.updated_at || (Array.isArray(o) && o[0] && o[0].updated_at) || ''; } catch (e) { return ''; } };
@@ -769,6 +914,38 @@ const soukoLog = [];
       e.owari = Date.now();
     } catch (e) { /* 控えで 転ばない */ }
   });
+  /* ★★★画面が 動いた 時刻を ★ページ自身に 訊く★★★★（2026-09-28）
+     ★なぜ 1か所ずつ 書き足さないか★
+       `pg.reload()` は ★今 4か所★（この 紙 1／片づけ 2／入る 所 1）
+       ⇒ ★★1か所 漏れると ★そこだけ 嘘を 言う★／後で 足された 物も 漏れます★★
+     ⇒ ★★＝『動いた』は ★ページに 訊く★（`framenavigated`）★★
+     ★これで 拾える 物★ … `pg.reload()` ／ `pg.goto()`
+       ／★アプリ自身の `location.reload()`★（覆いの「はい」など＝★試験の 外から 起きる 動き★）
+     ★何に 使うか★ … ★この 時刻の ±`IDO_MADO_MS` に 落ちた 失敗は
+       ★『読み直しで まとめて 切られた』＝客の 穴では ない★ と 分ける★ */
+  pg.on('framenavigated', (fr) => {
+    try { if (fr === pg.mainFrame()) IDO_JI.push(Date.now()); } catch (e) { /* 控えで 転ばない */ }
+  });
+  /* ★★★『試験が 動かした』だけを ★もう 1本★ 控える★★★（2026-09-28・指示役1 の ①）
+     ★`pg.reload` / `pg.goto` を ★1回 包む★★＝★呼ぶ 所を 1つも 書き換えません★
+       （★今 4か所／片づけ・入る 所も ★同じ `pg`★ を 使う／後で 足された 呼びも 入る★）
+     ★前と 後の 2つ 控える★＝★動きに 幅が 在る★（読み直しは 一瞬では 終わらない）
+     ⇒ ★★これで ㋐-1（試験）と ㋐-2（アプリ）を 分けられます★★
+     ★★包みで 転ばない★★＝★元の 返りを そのまま 返す／控えで 例外を 出さない★ */
+  for (const na of ['reload', 'goto']) {
+    try {
+      if (typeof pg[na] !== 'function') continue;
+      const moto = pg[na].bind(pg);
+      pg[na] = async (...a) => {
+        try { IDO_JIBUN.push(Date.now()); } catch (e) { /* 控えで 転ばない */ }
+        try { return await moto(...a); }
+        finally { try { IDO_JIBUN.push(Date.now()); } catch (e) { /* 同上 */ } }
+      };
+    } catch (e) {
+      /* ★黙らない★＝包めなければ ★㋐-1 と ㋐-2 を 分けられません★ */
+      console.log('  🟡 ★`pg.' + na + '` を 包めません＝★試験が 動かしたか どうかを 分けられません★');
+    }
+  }
   pg.on('requestfinished', (r) => {
     try {
       if (!tanaOf(r.url())) return;
@@ -1840,15 +2017,33 @@ soukoDasu('★走りの 終わり★', 12);
       + '（★控えの 値その 物は 画面の 中の 閑し＝★読めません★／★保存の 返りと 控えの 更新の 間は ★ミリ秒より 細かい★ 事も 在る★）'));
   }
   {
-    const sw = shippaiWakeru(soukoLog);
+    const sw = shippaiWakeru(soukoLog, IDO_JI, IDO_JIBUN);
     console.log('  ★失敗の 中身（棚ごと） … ' + (sw.ji || '★無し★') + '★');
-    /* ★★★『閉じる 前』と『閉じた 時』を 分けて 出す★★★（2026-09-28・指示役1 が 止めた 偽の 赤）
-       ★赤に するのは ★閉じる 前★ だけ★／★閉じた 時は 数えて 出すが 赤に しない★ */
-    console.log('  ★★保存(POST)の 失敗を 時間で 分けた★★ … 全 ' + sw.kakiKazu + '本'
-      + '／★閉じる 前（' + SHIPPAI_HAYA_MS + 'ms 未満）＝★' + sw.kakiMaeKazu + '本★'
-      + '／閉じた 時（以上）＝' + sw.kakiAtoKazu + '本'
+    /* ★★★失敗を ★3つ★ に 分けて 出す★★★（2026-09-28・★2度目の 直し★）
+       ㋐★画面が 動いた（読み直し／移動）★ ⇒ ★赤に しません★
+       ㋑★閉じた 時★ ⇒ ★赤に しません★
+       ㋒★★㋐㋑を 引いた 残り＝★本当の 客の 穴★★★ ⇒ ★ここだけ 赤★
+       ★なぜ 3つ に したか★ … ★2つだと ★読み直しで まとめて 切られた 64本が 全部 客の 穴に 落ちた★★
+         （指示役1 の 実測＝ms が 2484→123 と ★単調に 減る＝同じ 一瞬★） */
+    console.log('  ★★保存(POST)の 失敗を 3つに 分けた★★ … 全 ' + sw.kakiKazu + '本'
+      + '／㋐画面が 動いた（±' + IDO_MADO_MS + 'ms）＝' + sw.kakiIdoKazu + '本'
+      + '（★試験が 動かした＝㋐-1★）'
+      + '／★★㋐-2 アプリが 動かした（`location.reload()`）＝' + sw.kakiAppKazu + '本★★'
+      + '／㋑閉じた 時（' + SHIPPAI_HAYA_MS + 'ms 以上）＝' + sw.kakiAtoKazu + '本'
+      + '／★★㋒客の 穴＝' + sw.kakiKyakuKazu + '本（★㋐-2 を 含む★）★★'
+      + '（画面が 動いた 回数 ' + sw.idoKazu + '回／うち ★試験が 動かした ' + sw.idoJibunKazu + '回★'
+      + '／★同じ 一瞬に 固まって いる 最大 ' + sw.katamari + '本★）'
+      + '★★（★落ちた 時刻 − 動いた 時刻★ … 最小 ' + String(sw.hedSaisho) + 'ms／最大 '
+      + String(sw.hedSaidai) + 'ms／窓 ' + IDO_MADO_MS + 'ms）★★'
+      + (sw.kakiAppKazu > 0
+        ? '★★⇒ ★アプリが 読み直して 保存が 消えて います＝★客にも 起きます★★★'
+        : '')
       + '（かかった ms … 最小 ' + String(sw.msSaisho) + '／最大 ' + String(sw.msSaidai) + '）'
       + (sw.kakiKazu === 0 ? '＝★1本も 失敗して いません★' : '')
+      + (sw.warenai
+        ? '★★⇒ ★割れて いません（未測定）★＝★2本以上 固まって いる のに'
+          + ' 画面の 動きを 1本も 控えて いません★＝★『客に 出る』とは 書きません★★★'
+        : '')
       /* ★★★『閉じた 時の 分』を ★緑に 数えません★★★（2026-09-28・指示役1 の ⑤）
          ★私が 一度 こう 書きかけた★ … 「㋑だから 客の 穴では ない」
          ★★それは ★試験の 中だけの 話★★★
@@ -1863,12 +2058,17 @@ soukoDasu('★走りの 終わり★', 12);
           + '／★★客が その 前に 画面を 閉じれば ★客にも 落ちます★★★'
           + '／★直す 所＝★同時に 投げる 本数の 上限★（`app.js:6180`）★'
         : '') + '★');
-    T('★★保存(POST)の 失敗（★閉じる 前★）が 0本★★', sw.kakiMaeKazu === 0,
-      '★閉じる 前の 保存の 失敗 ' + sw.kakiMaeKazu + '本★'
-      + '（保存の 失敗 全部 ' + sw.kakiKazu + '本／うち 閉じた 時 ' + sw.kakiAtoKazu + '本'
-      + '／失敗 全部 ' + sw.zen + '本）'
-      + '：' + sw.kakiMae.map((x) => '出' + x.n + ' ' + (x.tana || '?') + ' ' + x.muki
-        + '「' + x.shippai + '」' + ((x.owari && x.dashi) ? ('／' + (x.owari - x.dashi) + 'ms') : '／★ms 不明★')).join('・')
+    /* ★★割れない 時は 赤に しません★★＝★『客に 出る』と 書ける 材料が 無い★
+       ＝★276本で 一度 取り下げた のと 同じ 型★（★数える／出す／但し 赤に しない★） */
+    T('★★保存(POST)の 失敗（★㋒客の 穴★）が 0本★★', sw.kakiKyakuKazu === 0 || sw.warenai,
+      '★★㋒客の 穴 ' + sw.kakiKyakuKazu + '本★★'
+      + '（保存の 失敗 全部 ' + sw.kakiKazu + '本／㋐画面が 動いた ' + sw.kakiIdoKazu + '本'
+      + '／㋑閉じた 時 ' + sw.kakiAtoKazu + '本／失敗 全部 ' + sw.zen + '本'
+      + '／画面が 動いた 回数 ' + sw.idoKazu + '回／同じ 一瞬に 固まって いる 最大 ' + sw.katamari + '本）'
+      + '：' + sw.kakiKyaku.slice(0, 20).map((x) => '出' + x.n + ' ' + (x.tana || '?') + ' ' + x.muki
+        + '「' + x.shippai + '」' + ((typeof x.owari === 'number' && typeof x.dashi === 'number')
+          ? ('／' + (x.owari - x.dashi) + 'ms') : '／★ms 不明★')).join('・')
+      + (sw.kakiKyakuKazu > 20 ? '（★他 ' + (sw.kakiKyakuKazu - 20) + '本＝切りました★）' : '')
       + '★＝★★客に「○名分を保存できませんでした（台帳・年末調整に入っていません）」が 出る★★'
       + '（因の 元＝`app.js:6180` が ★人数ぶん 一斉に 投げる★）');
   }
