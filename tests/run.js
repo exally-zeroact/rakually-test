@@ -73,12 +73,30 @@ const FILES = [
   ['op-boundary.test.mjs', '--self-test']
 ];
 
+/* ★★★落ちた ★ファイルの 名前★ を 出す★★★（2026-09-28・★指示役1 が 実際に 困った★）
+   ★何が 起きたか★
+     この 束が 赤に なった 時、出るのは 「★1 ファイルで失敗★」だけ でした。
+     ⇒ ★★どの 紙が 落ちたか ★1文字も 出ません★★
+     ⇒ ★指示役1 は ★33本を 1本ずつ 終わり値で 数えて★ `stamp.test.mjs` に 絞りました★
+     ⇒ ★★＝人が 33回 走らせる 事に なって いた★★
+   ★なぜ 出て いなかったか★ … `stdio:'inherit'` で 子の 字は ★画面に 流れる★が、
+     ★どの 子が 0 で 返らなかったか★は ★この 束が 知って いるのに 捨てて いた★
+   ★直し★ … ★名前と 終わり値を 控えて、終わりに 並べて 出す★
+   ★★これは 押す前の 網の『赤の 出しを 捨てる』と ★同じ 家★★★
+     ＝★網は この 段を『1本の 段』として 見る＝★中の 何十本は 見えません★★ */
 let ng = 0;
+const ochita = [];
 for (const f of FILES) {
   const [file, ...args] = Array.isArray(f) ? f : [f];
-  console.log('\n=== ' + file + (args.length ? ' ' + args.join(' ') : '') + ' ===');
+  const na = file + (args.length ? ' ' + args.join(' ') : '');
+  console.log('\n=== ' + na + ' ===');
   try { execFileSync(process.execPath, [path.join(__dirname, file), ...args], { stdio: 'inherit' }); }
-  catch (e) { ng++; }
+  catch (e) { ng++; ochita.push({ na: na, owari: (e && typeof e.status === 'number') ? e.status : '（終わり値が 無い）' }); }
 }
 console.log('\n' + (ng ? '★ ' + ng + ' ファイルで失敗' : '全テストファイル 緑'));
+/* ★★落ちた 名前を 並べる★★＝★これが 無いと 何十本を 1本ずつ 数える 事に なります★ */
+if (ochita.length) {
+  console.log('★★落ちた ファイル（' + ochita.length + '本／全 ' + FILES.length + '本）★★');
+  ochita.forEach((x) => console.log('   ★' + x.na + '★  終わり値 ' + x.owari));
+}
 process.exit(ng ? 1 : 0);
