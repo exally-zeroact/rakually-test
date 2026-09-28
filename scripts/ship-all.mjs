@@ -74,10 +74,50 @@ export function fileList(root) {
   return out.filter((f) => NEVER_SHIP.indexOf(f) < 0);
 }
 
+/* ★★★運び先の 名簿＝★名前で 白黒を 付ける★★★★（2026-09-28・指示役1 の ①）
+   ★何が 起きたか★ … 「本番に 入れて いない 物」を 数える 為に
+     `--to C:/Users/zeroa/payslip-app` を 走らせた（★給与の 本番は `rakually`★）。
+     出た 数 … ★新しく置く 480本／運び先の 門 無い★。★`--dry` だったので 1バイトも 書いて いません★。
+   ★私が 最初に 書いた 直し（★捨てました★）★
+     「★新しく置く 本数が 多すぎたら 印を 出す★」
+     ⇒ ★★『多すぎ』の 境目は ★私が 決め打った 数★＝また 測って いない 数★★（指示役1 が 止めた）
+   ⇒ ★★＝この 件は 数で 決める 必要が ありません＝★`origin` の 名前で 決まります★★★
+   ★★`--dry` でも 止めます★★
+     ★訳★ … ★相手 違いを 数えた 数は ★嘘★★＝★『数えるだけ』でも 意味が ありません★
+     （★他の 門は「数えるだけなら 通す」ですが ★訳が 違う★＝★ここは 相手が 違う★）
+   ★枝も 見ます★ … ★名簿だけでは 枝違いを 捕まえられません★
+     （`rakually`＝`main` ／ `payslip-app`＝`p1-ops-payroll-monthly`）
+   ★増やす 時は ここに 1行★＝★`NEVER_SHIP` の 兄弟★（★人の 頭に 置かない★） */
+const OKU_SAKI_OK = [
+  { origin: 'exally-zeroact/rakually', eda: 'main', nani: '★給与(Rakunally) の 本番★' },
+];
+/* ★★判じは ここ 1か所★★＝★自己確認から 叩けます（偽の repo を 作らずに 済む）★
+   ★返り★ … `{ ok, naze }`（`ok:false` なら `naze` を そのまま 出して 止める） */
+export function okuSakiWoMiru(okuNa, okuEda, meibo = OKU_SAKI_OK) {
+  const na = String(okuNa == null ? '' : okuNa).trim();
+  if (!na || na === '★取れない★') {
+    return { ok: false, naze: '★運び先の origin が 取れません＝止めます（★取れない を 通すと 何処へでも 運べます★）★' };
+  }
+  const atta = (Array.isArray(meibo) ? meibo : []).find((x) => x && x.origin === na);
+  if (!atta) {
+    return { ok: false, naze: '★運び先が 名簿に 在りません★ … 今 ' + na
+      + ' ／ 名簿 ' + (Array.isArray(meibo) && meibo.length ? meibo.map((x) => x.origin).join(' / ') : '（空）') };
+  }
+  const eda = String(okuEda == null ? '' : okuEda).trim();
+  if (atta.eda && eda && eda !== atta.eda) {
+    return { ok: false, naze: '★運び先の 枝が 違います★ … 今 ' + eda + ' ／ 名簿は ' + atta.eda };
+  }
+  if (atta.eda && !eda) {
+    return { ok: false, naze: '★運び先の 枝が 取れません＝止めます（★枝違いを 見逃します★）★' };
+  }
+  return { ok: true, atta: atta };
+}
+
 if (process.argv.includes('--self-test')) {
   console.log('\n[ship-all] ★自己確認★（★わざと 壊して 赤になるか★）');
   let ng = 0;
-  const say = (nm, ok) => { if (!ok) ng++; console.log('  ' + (ok ? '✓' : '✗') + ' ' + nm + (ok ? '' : '  ★思っていたのと 違う★')); };
+  let zen = 0;
+  const say = (nm, ok) => { zen++; if (!ok) ng++; console.log('  ' + (ok ? '✓' : '✗') + ' ' + nm + (ok ? '' : '  ★思っていたのと 違う★')); };
   const list = fileList(ROOT);
   say('★倉庫の向き先（js/supa-config.js）を 運ぶ一覧に 入れていない★', list.indexOf('js/supa-config.js') < 0);
   say('請求書の画面は 運ぶ', list.indexOf('seikyu/index.html') >= 0);
@@ -96,8 +136,27 @@ if (process.argv.includes('--self-test')) {
   say('★門の 字（hooks/pre-push）を 運ぶ 名簿に 入れて いる★', list.indexOf('hooks/pre-push') >= 0);
   console.log('     運ぶ一覧 ' + list.length + '本（★運ばない物 ' + NEVER_SHIP.length + '本＝'
     + NEVER_SHIP.join(' , ') + '★）');
-  if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★10通り ぜんぶ 思った通り★');
+  /* ★★運び先の 名簿の 門＝★わざと 間違えて 赤に なるか★★★（2026-09-28）
+     ★偽の repo を 作りません★＝★判じが 純粋な 関数だから★（`okuSakiWoMiru`） */
+  const M = [{ origin: 'exally-zeroact/rakually', eda: 'main', nani: 'テスト用' }];
+  say('★正しい 先は 通る★', okuSakiWoMiru('exally-zeroact/rakually', 'main', M).ok === true);
+  say('★★別の repo は 止まる（これが 今朝 私が 踏んだ 穴）★★',
+    okuSakiWoMiru('exally-zeroact/payslip-app', 'p1-ops-payroll-monthly', M).ok === false);
+  say('★枝が 違えば 止まる（名簿だけでは 捕まえられない）★',
+    okuSakiWoMiru('exally-zeroact/rakually', 'p1-ops-payroll-monthly', M).ok === false);
+  say('★origin が 取れなければ 止まる★', okuSakiWoMiru('', 'main', M).ok === false);
+  say('★★『★取れない★』の 字でも 止まる（出しの 字を そのまま 通さない）★★',
+    okuSakiWoMiru('★取れない★', 'main', M).ok === false);
+  say('★枝が 取れなければ 止まる★', okuSakiWoMiru('exally-zeroact/rakually', '', M).ok === false);
+  say('★名簿が 空なら 何も 通さない★', okuSakiWoMiru('exally-zeroact/rakually', 'main', []).ok === false);
+  say('★止めた 時は 訳を 返す（黙って 止めない）★',
+    typeof okuSakiWoMiru('x/y', 'main', M).naze === 'string'
+    && okuSakiWoMiru('x/y', 'main', M).naze.indexOf('x/y') >= 0);
+  say('★前後の 余白は 落として 見る★', okuSakiWoMiru('  exally-zeroact/rakually  ', ' main ', M).ok === true);
+  say('★★今の 名簿に 本番が 在る（名簿が 空に なって いない）★★',
+    OKU_SAKI_OK.some((x) => x.origin === 'exally-zeroact/rakually'));
+  if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい（全 ' + zen + '通り）★'); process.exit(1); }
+  console.log('  ★' + zen + '通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -109,6 +168,39 @@ if (!TO || !fs.existsSync(TO)) {
   process.exit(2);
 }
 if (path.resolve(TO) === path.resolve(ROOT)) { console.error('★運び先が 自分です★'); process.exit(2); }
+
+const GIT_ENV = Object.assign({}, process.env, {
+  /* ★`git` を 運び先で 訊く 時は ★`GIT_DIR` を 外す★★
+     ★訳★ … この 道具は ★押す前の 網（`hooks/pre-push`）の 中からも 呼ばれます★。
+       ★git は hook に `GIT_DIR` を 渡します★（worktree から 押した 時は とくに）
+       ⇒ ★`cwd: TO` を 付けても ★`GIT_DIR` が 勝つ★＝★運び元の repo を 訊いて しまう★
+       ⇒ ★★＝『運び先の 門が 在る』と 嘘を 出します★★
+     （★同じ 穴で 主の repo の `core.bare` を 2回 壊しました★
+       … `feedback_worktree_kara_osu_to_GIT_DIR_ga_watasareru`） */
+  GIT_DIR: undefined, GIT_WORK_TREE: undefined, GIT_INDEX_FILE: undefined, GIT_PREFIX: undefined,
+});
+const gitToi = (...a) => {
+  try { return execFileSync('git', a, { cwd: TO, encoding: 'utf8', env: GIT_ENV }).trim(); }
+  catch { return ''; }
+};
+const okuOrigin = gitToi('remote', 'get-url', 'origin');
+const okuEda = gitToi('rev-parse', '--abbrev-ref', 'HEAD');
+/* ★`https://github.com/x/y.git` も `git@github.com:x/y` も 同じ 形に する★ */
+const okuNa = (okuOrigin.replace(/^.*github\.com[:/]/, '').replace(/\.git$/, '') || '★取れない★');
+console.log('[ship-all] ★運び先の 素性★ … ' + TO
+  + String.fromCharCode(10) + '           origin ＝ ' + (okuOrigin || '★取れない★') + '（' + okuNa + '）'
+  + ' ／ 枝 ＝ ' + (okuEda || '★取れない★')
+  + ' ／ HEAD ＝ ' + (gitToi('rev-parse', '--short', 'HEAD') || '★取れない★'));
+{
+  const mi = okuSakiWoMiru(okuNa, okuEda);
+  if (!mi.ok) {
+    console.error('★★' + mi.naze + '＝' + (DRY ? '★--dry でも 止めます★' : '運びません') + '★★');
+    console.error('   ★訳★ … ★相手 違いを 数えた 数は 嘘★＝★数えるだけでも 意味が ありません★');
+    console.error('   ★正しいのに 止まったら★ … `OKU_SAKI_OK` に 1行 足す（★人の 頭に 置かない★）');
+    process.exit(2);
+  }
+  console.log('           ★名簿に 在ります★ … ' + mi.atta.nani + '（枝 ' + mi.atta.eda + '）');
+}
 
 /* ★運び先の 倉庫の向き先を 先に 控える★（運んだ後に 同じか 見る） */
 const cfg = path.join(TO, 'js/supa-config.js');
@@ -161,6 +253,13 @@ const cfgUrlAfter = fs.existsSync(cfg)
 
 console.log('\n[ship-all] ' + (DRY ? '★数えるだけ（1バイトも 書いていません）★' : '運びました')
   + ' … ' + ROOT + ' → ' + TO);
+/* ★★運び先の 素性を ★数の 前に★ 出す★★（2026-09-28・指示役1 の ③＋私の 実測）
+   ★何が 起きたか★ … 「本番に 入れて いない 物」を 数える 為に
+     `--to C:/Users/zeroa/payslip-app` を 走らせた（★給与の 本番は `rakually`★）。
+     出た 数 … ★新しく置く 480本／門 無い★。★`--dry` だったので 1バイトも 書いて いません★。
+   ★なぜ 気づくのが 遅れたか★ … ★出しに 『運び先が どの repo か』が 1行も 無かった★
+     ＝★フォルダ名だけで 決めて いた★（記憶の 決まり … repo名・フォルダ名は 環境の 証しに ならない）
+   ⇒ ★★＝『人が 覚えて いないと 効かない』を ★出しの 数に 移す★★ */
 console.log('  運ぶ一覧 ' + list.length + '本 ／ ★新しく置く ' + added + '本／上書き ' + updated
   + '本／同じ ' + same + '本★');
 addedNames.forEach((f) => console.log('     ＋ ' + f));
@@ -173,10 +272,7 @@ console.log('  ★倉庫の向き先★ … 前 ' + cfgUrlBefore + '（' + cfgBe
 if (cfgBefore !== cfgAfter) process.exit(1);
 /* ★⑥運び先の 門を 数える（★止めません／読むだけ★）★
  *   `core.hooksPath` は ★手元ごとの 設定★＝運べない ので ★運んだ 後に 数えて 出す★ */
-let monJi = "（打たれて いません）";
-try {
-  monJi = execFileSync('git', ['config', '--get', 'core.hooksPath'], { cwd: TO, encoding: 'utf8' }).trim() || '（空）';
-} catch { /* 無い */ }
+let monJi = gitToi('config', '--get', 'core.hooksPath') || "（打たれて いません）";
 const monP = path.join(TO, (monJi.indexOf('（') === 0 ? 'hooks' : monJi), 'pre-push');
 const monAru = fs.existsSync(monP);
 console.log('  ★運び先の 押す前の 門★ … core.hooksPath ＝ ' + monJi
