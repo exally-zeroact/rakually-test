@@ -79,6 +79,13 @@ jobs:
       #   ⇒ `ship-all` は `git ls-files` で 選ぶので ★永久に 運べなかった★。
       - name: ★押す前の 網の 門が 別の 手元にも 付いて 行くか (git の 名簿に 載っているか・6通り)
         run: node tests/mon-ga-tsuite-iru.test.mjs && node tests/mon-ga-tsuite-iru.test.mjs --self-test
+      # ★2026-09-28 指示役が 足した★ … 「今月を確定」で 保存が 落ちた 時、
+      #   ★`#app-toast` は 1枚★なので ★緑と 赤が 争い 後の 方が 前を 黙って 消して いた★。
+      #   実測（直す 前）＝3通りの うち ★2通りで 客は 台帳に 入って いない事を 知れない★。
+      #   ⇒ ★札を 1枚に まとめ、保存を 待ってから 出す★ に 直した。
+      #   ★この 門は ★言い回しでは なく「落ちた 事を 言って いるか」★で 見る★（直した 日に 黙らない為）。
+      - name: ★「今月を確定」の 札が 保存の 失敗を 消さないか (本物のapp.jsを押す・公開40/500/900ms・4通り)
+        run: node kyuyo/tests/kakutei-fuda.test.mjs && node kyuyo/tests/kakutei-fuda.test.mjs --self-test
       - name: ★運ぶ道具 ship-all の 自己確認 (倉庫の向き先を 運ばない・作りかけを 運ばない・門を 運ぶ・10通り)
         run: node scripts/ship-all.mjs --self-test
       - name: ★配信ガード (href="/…" 等の絶対パス・本番倉庫への誤接続を止める)

@@ -2165,9 +2165,26 @@
      前は try{...}catch(_e){} で囲むだけ＝★約束の失敗は捕まらない★ので、
      ★台帳にも年調にも入っていないのに「確定しました」と出ていた★。
      人ごとに言うと うるさいので、数えて 少し待ってから1回だけ言う。 */
+  /* ★★2026-09-28＝★札を 1枚に まとめる ための 口★★（指示役1・★押して 測った★）
+     ★踏んだ 穴★ … `toast()` は ★`#app-toast` ★1枚★に 上書き★＝★後の 札が 前を 黙って 消す★。
+       「今月を確定」で 保存が 落ちても ★紙は 画面の 値から 作る ので 成功する★ ので、
+       ★緑「今月を確定しました（従業員のWeb明細に公開）」★ と
+       ★赤「N名分を保存できませんでした」★ の ★2つが 争って いました★。
+     ★実測（`kyuyo/tests/kakutei-fuda.test.mjs`／本物の app.js を jsdom で 押す）★
+       公開 ★40ms★ … 緑 548ms → 赤 1004ms  ⇒ 赤が 残る（★客は 気づける★）
+       公開 ★500ms★ … 緑 982ms ★のみ★      ⇒ ★★赤が 1枚も 出ない★★（★訳は 未測定★）
+       公開 ★900ms★ … 赤 958ms → 緑 1356ms ⇒ ★★緑が 赤を 消した★★
+       ⇒ ★★＝3通りの うち ★2通りで 客は 何も 知れません★★
+     ★直し方★ … ★呼ぶ 側が 待って ★1枚の 文★に まとめる★。
+       ⇒ その間 `saveFailed` は ★数えるだけ／札は 出さない★（`_saveFailDamaru`）。
+       ⇒ ★`.catch(saveFailed)` の 3か所は ★1文字も 変えて いません★★
+         （`silent-catch` と `publish-fail-ui` の 門を 緩めない＝★呼び出しと 同じ 文の まま★） */
+  var _saveFailKei = 0;      /* ★戻らない 合計★＝呼ぶ 側が 前後の 差で 落ちた 人数を 知る */
+  var _saveFailDamaru = 0;   /* ★>0 の 間は 札を 出さない（数えるだけ）★ */
   var _saveFailN = 0, _saveFailT = null;
   function saveFailed(){
-    _saveFailN++;
+    _saveFailN++; _saveFailKei++;
+    if(_saveFailDamaru > 0){ _saveFailN = 0; clearTimeout(_saveFailT); return; }   /* ★呼ぶ 側が まとめて 言う★ */
     clearTimeout(_saveFailT);
     _saveFailT = setTimeout(function(){
       toast(_saveFailN + '名分を保存できませんでした（台帳・年末調整に入っていません）。もう一度 確定してください。');
@@ -5736,11 +5753,32 @@
          「取り消せる」と誤解させない＝取り消せないことを、そのまま書く。 */
       if(cmb){ uiConfirm(CONFIRM_MONTH_MSG).then(function(ok){
           if(!ok) return;
-          state.employees.forEach(function(emp){ if(isActiveInMonth(emp,state.month)) setConfirm(emp.id,true); }); try{ saveMonthlyPayslips(true); }catch(_){} persistSave(); renderInput();
-          // ★確定した月は自動で従業員のWeb明細に公開(会社が「Web明細で公開」を押さなくても、従業員はいつでもどの月でも閲覧可)
-          publishMeisaiNow(false,{silent:true}).then(function(n){ toast('今月を確定しました'+(n?'（従業員のWeb明細に公開）':'')); },
-            /* ★確定は出来たが 公開は出来なかった★を はっきり分けて言う */
-            function(){ toast('今月を確定しました。★従業員のWeb明細には公開できていません★'); });
+          state.employees.forEach(function(emp){ if(isActiveInMonth(emp,state.month)) setConfirm(emp.id,true); });
+          /* ★★★保存を ★待ってから★ 札を 出す＝★札は 1枚★★★★（2026-09-28・指示役1）
+             ★前は こう だった★ … `try{ saveMonthlyPayslips(true); }catch(_){}` の 直後に 公開して 札を 出す。
+               ⇒ ★中は 約束＝`try/catch` は ★1つも 掴みません★★
+               ⇒ ★保存が 落ちても 公開は 通る（紙は 画面の 値から 作る）★
+               ⇒ ★緑と 赤が 争い ★後の 方が 前を 黙って 消して いた★★（上の 覚書に 実測）
+             ★今は こう する★ … ★落ちた 人数を 数えて ★1枚の 文★に 入れる★
+             ★お金の 判じは 1文字も 変えて いません★（★札と 順番だけ★） */
+          var _maeKei = _saveFailKei; _saveFailDamaru++;
+          var _kakuteiP;
+          try{ _kakuteiP = saveMonthlyPayslips(true); }catch(_){ _kakuteiP = null; }
+          persistSave(); renderInput();
+          var _tsugi = function(){
+            var _ochita = _saveFailKei - _maeKei;
+            var _ato = (_ochita > 0) ? ('。★但し ' + _ochita + '名分は 台帳・年末調整に 入って いません★（もう一度 確定してください）') : '';
+            // ★確定した月は自動で従業員のWeb明細に公開(会社が「Web明細で公開」を押さなくても、従業員はいつでもどの月でも閲覧可)
+            return publishMeisaiNow(false,{silent:true}).then(function(n){
+              toast('今月を確定しました' + (n?'（従業員のWeb明細に公開）':'') + _ato);
+            }, function(){
+              /* ★確定は出来たが 公開は出来なかった★を はっきり分けて言う */
+              toast('今月を確定しました。★従業員のWeb明細には公開できていません★' + _ato);
+            });
+          };
+          var _shimai = function(){ _saveFailDamaru--; };
+          (_kakuteiP && typeof _kakuteiP.then === 'function' ? _kakuteiP : Promise.resolve())
+            .then(_tsugi, _tsugi).then(_shimai, _shimai);
         }); return; }
       var fs=e.target.closest('[data-fillsche]');
       if(fs){ var sd=fs.dataset.fillsche;
