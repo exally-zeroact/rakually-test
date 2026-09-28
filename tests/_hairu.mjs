@@ -316,11 +316,15 @@ export async function ooiWoMiru(pg) {
   const hata = await pg.evaluate(() => {
     try { return !!window.__OOI_KIROKU__; } catch (e) { return null; }
   }).catch(() => null);
-  let wake = (hata === true ? '' : (hata === false
+  /* ★★立った 時も 字に 出します★★（2026-09-28・後から 足した）
+     ★訳★ … 立った 時に 黙ると ★「出なかった）」の 1行が ★裸★に なります★
+       ⇒ ★★『見て いて 0回』と『見て いない』が ★見分けられません★★★
+       ＝★『0』と『未測定』を 混ぜない の ★裏側★★ */
+  let wake = (hata === true ? '旗 立った' : (hata === false
     ? '★旗が 立って いません＝覆いの 内訳は ★未測定★（0 では ない）★'
     : '★旗を 読めません＝★未測定★★'));
   if (conflict) {
-    wake = await pg.evaluate(() => {
+    const uchi = await pg.evaluate(() => {
       try {
         const S = window.Store;
         if (!S || typeof S.ooiNoKazu !== 'function') return '★Store.ooiNoKazu が 無い＝割れません（未測定）★';
@@ -342,6 +346,7 @@ export async function ooiWoMiru(pg) {
           + (k.ji && k.ji.length ? ' ／' + k.ji.join(' ｜ ') : '');
       } catch (e) { return '★控えが 読めません … ' + ((e && e.message) || e) + '（未測定）★'; }
     }).catch((e) => '★控えを 引けません … ' + ((e && e.message) || e) + '（未測定）★');
+    wake = wake + '／' + uchi;
   }
   return Object.assign({}, r, { conflict: conflict, wake: wake });
 }
