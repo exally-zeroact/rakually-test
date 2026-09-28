@@ -27,6 +27,56 @@ import { fileURLToPath } from 'node:url';
    ★黙って 緑に しない★＝★「ここでは 測れない・テスト線で 測っている」と 字で 言ってから★ 抜ける。
    ★これを 入れないと どうなるか★＝本番の CI が ★毎回 赤★（＝人が 赤を 見なくなる）。
    ★戻す条件★＝本番の CI に 試験用の 鍵を 置いた日。 */
+
+/* ★★★『今 足した 人』の 札を 選ぶ★★★（2026-09-28・★5本が 同じ 穴を 持って いた★）
+   ★ここに 置く 訳★ … ★判じを 1か所に する★（★同じ 状態を 5か所で 別々に 判じない★）
+     ＋★この 紙は ★読んでも 走りません★★（★`soshitsu-ui.mjs` から 借りると ★試験が 走り出す★）
+   ★入れる 物★ … `[{ i:'0', na:'山田' }, …]` ＝★DOM の 並び順★の 札（番号と 名前）
+   ★決め★
+     ⑴★番号（`data-i`）の ★最大値★ を 取る★
+        ＝`#b-add-emp` は `state.employees.★push★(e)`（`kyuyo/js/app.js:5504`）
+        ⇒ ★足した 人は ★いつも 最大の 番号★★（★部署で 束ね直しても 変わらない★）
+     ⑵★その 札の 名前が `従業員 N` の 形か★
+        ＝`defEmp('従業員 ' + (state.employees.length + 1))`（同 `:5504`）
+        ⇒ ★違えば ★止める（未測定）★＝★他人の 人に 名前を 打ち込まない★★
+   ★★なぜ 要るか（実測）★★
+     ★前の 形★ … `c[c.length - 1]`＝★DOM の 一番 下の 札★
+     `visibleEmpIdx()` は ★`dept` で 束ね／`empMatchesFilter` で 絞る★
+     ⇒ ★★`data-i` は 名簿の 番号＝★DOM の 順とは 別★★★
+     ⇒ ★★＝『一番 下の 札』は 足した 人 とは 限らない★★
+     ⇒ ★★＋その 直後に ★その 札に 名前を 打ち込む★＝★他人の 名前を 上書き★★★
+     ★赤に なった 実物★ … WebKit `36362080874`（資格喪失届・札 27）
+                        ／ WebKit `36369444650`（被扶養者・★前 27 → 後 28★）
+   ★★一度 間違えた 案（★残す★）★★
+     「足す 前の 番号を 控えて ★無かった 番号★ を 取る」
+     ⇒ 番号は `push` で ★0..n-1 に 詰まって いる★
+     ⇒ ★★『無かった 番号』は ★いつも 最大★＝並び順に 頼るのと 同じ★★
+     ⇒ ★★＋差分は ★いつも 1個★＝★『0個か2個以上で 止める』は 1回も 働かない★★（★偽の 見張り★） */
+export function eraboFuda(fudas) {
+  const a = Array.isArray(fudas) ? fudas : [];
+  if (!a.length) return { idx: null, naze: '札が 1枚も 無い' };
+  const shita = String(a[a.length - 1] && a[a.length - 1].i);
+  let saidai = -1, mono = null;
+  for (const x of a) {
+    const n = Number(x && x.i);
+    if (Number.isFinite(n) && n > saidai) { saidai = n; mono = x; }
+  }
+  if (!mono) return { idx: null, naze: '番号が 読めない 札しか 無い', shita: shita };
+  const na = String((mono.na || '')).replace(/\s+/g, ' ').trim();
+  if (!/^従業員\s*\d+$/.test(na)) {
+    return { idx: null, naze: '今 足した 人が 画面に 出て いない（名前が `従業員 N` の 形では ない）',
+      na: na, mai: a.length, shita: shita };
+  }
+  return { idx: String(saidai), na: na, mai: a.length, shita: shita };
+}
+
+/* ★★画面から 材料だけ 取る★★（★判じは 上の `eraboFuda` 1か所★） */
+export async function fudaWoAtsumeru(pg) {
+  return pg.evaluate(() => Array.from(document.querySelectorAll('#emp-list .mco'))
+    .map((x) => ({ i: x.getAttribute('data-i'),
+      na: ((x.querySelector('.mco-nm') || {}).textContent || '') })));
+}
+
 export async function kagiAru(root) {
   try {
     const { repoEnv } = await import('../scripts/repo-env.mjs');

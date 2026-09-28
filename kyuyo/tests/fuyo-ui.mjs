@@ -601,10 +601,10 @@ if (SELF) {
     process.exit(0);
   }
 }
-let borrow, pwLaunch, hairu, osu, ooiWoMiru, shizumaru, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU, SHIKEN_NA;
+let borrow, pwLaunch, hairu, osu, ooiWoMiru, shizumaru, KAZOERU, AWASERU, GOMI_KESU, IMA, KATAZUKERU, KAISHA_HIKAE, KAISHA_MODOSU, SHIKEN_NA, eraboFuda, fudaWoAtsumeru;
 try {
   ({ borrow, launch: pwLaunch } = await import('../../scripts/_borrow-playwright.mjs'));
-  ({ hairu, osu, ooiWoMiru, shizumaru } = await import('../../tests/_hairu.mjs'));
+  ({ hairu, osu, ooiWoMiru, shizumaru, eraboFuda, fudaWoAtsumeru } = await import('../../tests/_hairu.mjs'));
   ({ kazoeru: KAZOERU, awaseru: AWASERU, konkaiNoGomiKesu: GOMI_KESU, ima: IMA,
      kaishaHikaeru: KAISHA_HIKAE, kaishaModosu: KAISHA_MODOSU, shikenNa: SHIKEN_NA } = await import('./_souko-kazoeru.mjs'));
   ({ katazukeru: KATAZUKERU } = await import('./_kyaku_no_michi_de_katazukeru.mjs'));
@@ -1019,13 +1019,31 @@ try {
         if (!fueta) console.log('       🟡 ★札が 増えない★（20秒 待った）＝この先は 当てに ならない');
         await machi(400);
       }
-  const IDX = await pg.evaluate(() => {
-    const c = Array.from(document.querySelectorAll('#emp-list .mco'));
-    return c.length ? c[c.length - 1].getAttribute('data-i') : null;
-  });
-  if (IDX === null) { console.log('  🟡 ★未測定★ 従業員の 札が 1枚も 無い'); throw new Error('no-card'); }
+  /* ★★★『一番 下の 札』を やめました★★★（2026-09-28・★この 段が 実際に 赤に なった★）
+     ★実物★ … WebKit `36369444650`（★前 27 → 後 28★／`requestfailed` 0本＝通信の 話では ない）
+        ✗ ★家族の 欄が 0個★ ／ ✗ 増えた・減った・変わった ＝ ★ボタンが 押せない★
+     ★因★ … `visibleEmpIdx()` は ★`dept` で 束ね／`empMatchesFilter` で 絞る★
+        ⇒ ★★`data-i` は 名簿の 番号＝★DOM の 順とは 別★★
+        ⇒ ★★＝『一番 下の 札』は ★足した 人 とは 限らない★★
+        ⇒ ★★＋この 下で ★その 札に 名前を 打ち込む★＝★他人の 名前を 上書き★★★
+     ★判じは 1か所★ … `tests/_hairu.mjs` の `eraboFuda`（★5本 とも ここを 使う★）
+        ＝★同じ 状態を 5か所で 別々に 判じない★
+     ★空振り止め★ … `node tests/hairu-erabo.test.mjs`（★同じ 材料で 新旧を 並べる★） */
+  const FUDA = eraboFuda(await fudaWoAtsumeru(pg));
+  if (FUDA.idx === null) {
+    console.log('  🟡 ★未測定★ ' + FUDA.naze
+      + '（全 ' + (FUDA.mai != null ? FUDA.mai : 0) + '枚／番号の 最大値の 札の 名前＝「'
+      + (FUDA.na != null ? FUDA.na : '（取れない）') + '」／一番 下の 札は 番号 '
+      + (FUDA.shita != null ? FUDA.shita : '（無い）') + '）'
+      + '★＝他人の 人に 名前を 打ち込まない ので 止めます★');
+    throw new Error('no-card');
+  }
+  const IDX = FUDA.idx;
   const CARD = '#emp-list .mco[data-i="' + IDX + '"]';
-  console.log('  （はじめに 居た 人 ' + mae + '人 → 今 足した 人＝札 ' + IDX + '番目）');
+  console.log('  （はじめに 居た 人 ' + mae + '人 → 今 足した 人＝★番号 ' + IDX + '（最大）★'
+    + '／名前「' + FUDA.na + '」／全 ' + FUDA.mai + '枚'
+    + '／★一番 下の 札は 番号 ' + FUDA.shita + '★'
+    + (String(FUDA.shita) === String(IDX) ? '＝同じ' : '★＝違う＝前の 形なら ここで 外れて いました★') + '）');
   katazukeSuru = async () => {
     /* ★★片づけは 客の 道で★★（2026-09-15・裏口を 閉じた）
        前は ここで ★JSで イベントを 投げて★ 削除ボタンを 叩いていた
