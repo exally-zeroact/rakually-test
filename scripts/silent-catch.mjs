@@ -183,12 +183,76 @@ export function inTryCatch(src, at, stLen) {
   return /\}\s*catch\s*\(/.test(after);
 }
 
+/* ★★★覚書（コメント）を 外して から 探す★★★（2026-09-28）
+   ★なぜ 要るか（★2回 踏んだ★）★
+     2026-09-27 … 私の 覚書に `` `Store.ooiNoKazu()` `` と 書いたら
+        ★この 門が それを ★本物の 呼び★ と 数えて 赤に した★
+     2026-09-28 … 同じ 型を もう 一度（覚書の 中の `Store.savePayslip(`）
+     ⇒ ★★1度目は ★私が 字を 変えて★ 済ませました＝★門は 直って いない★★★
+     ⇒ ★★＝『紙に した』は『効いて いる』の 証しに ならない★★
+     ⇒ ★★＝★道具に 持たせる★★（記憶の 決まり）
+   ★やり方★ … ★覚書の 中身を ★空白に 置き換える★（★長さと 改行は そのまま★）
+     ⇒ ★★行番号も 文の 切れ目も 1つも ずれません★★
+   ★★おまけ★★ … ★覚書の 中に だけ 書いた `.catch(` も 消えます★
+     ＝★★『覚書に 受け皿を 書いて 緑』という ★偽の 緑★も 同時に 閉まります★★
+   ★弱い 所（★先に 書く★）★
+     ・★字の 中（`'…'` `"…"` `` `…` ``）は 外しません★＝★字に 呼びを 書けば 数えます★（★安全側★）
+     ・★正規表現の 中の `//` `/*` は 見分けません★
+       ⇒ ★だから ★長さと 改行の 数が 変わって いない事★を 毎回 確かめます★
+       ⇒ ★＋『覚書で 落ちた 数』を 出します★（★急に 増えたら 人が 気づける★） */
+export function oboegakiWoKesu(src) {
+  const n = src.length;
+  let out = '', i = 0;
+  while (i < n) {
+    const c = src[i], d = src[i + 1];
+    if (c === '/' && d === '/') {                     /* ★行の 覚書★ */
+      let j = i; while (j < n && src[j] !== '\n') j++;
+      out += ' '.repeat(j - i); i = j; continue;
+    }
+    if (c === '/' && d === '*') {                     /* ★囲みの 覚書★ */
+      let j = i + 2;
+      while (j < n && !(src[j] === '*' && src[j + 1] === '/')) j++;
+      j = Math.min(n, j + 2);
+      /* ★改行は 残す★＝行番号を ずらさない */
+      for (let k = i; k < j; k++) out += (src[k] === '\n' ? '\n' : ' ');
+      i = j; continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {        /* ★字は そのまま★（外しません） */
+      const q = c; let j = i + 1;
+      while (j < n) {
+        if (src[j] === '\\') { j += 2; continue; }
+        if (src[j] === q) { j++; break; }
+        j++;
+      }
+      out += src.slice(i, j); i = j; continue;
+    }
+    out += c; i++;
+  }
+  return out;
+}
+
 /* 倉庫（外）を呼ぶ所。約束を返す物だけ見る */
 const OUT_RX = /\b(?:Store|suite|SD|S\.store)\.([A-Za-z_$][\w$]*)\s*\(/g;
 const OUT_SKIP = new Set(['getUser', 'getSession']);   /* 約束を返さない・見ても意味が無い物 */
 const calls = [];
+let oboegakiDeOchita = 0;   /* ★覚書の 中だったので 数えなかった 所★（★急に 増えたら 人が 気づける★） */
 for (const f of FILES) {
-  const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  const nama = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  const src = oboegakiWoKesu(nama);
+  /* ★★長さと 改行が 1つも 変わって いない事を 毎回 確かめる★★
+     ＝★正規表現の 中の `//` を 覚書と 見間違えて ★本物の コードを 消す★のを 防ぐ★
+     ⇒ ★消したら ★偽の 緑★に なる＝一番 危ない★ */
+  const gyo = (s) => s.split('\n').length;
+  if (src.length !== nama.length || gyo(src) !== gyo(nama)) {
+    console.error('★★覚書を 外したら 長さか 行数が 変わりました＝★数えません★★ … ' + f
+      + '（字 ' + nama.length + '→' + src.length + ' ／ 行 ' + gyo(nama) + '→' + gyo(src) + '）');
+    process.exit(1);
+  }
+  /* ★覚書の 中に 在った 呼びの 数★（★出しに 出す★） */
+  { let a = 0, b = 0, mm;
+    OUT_RX.lastIndex = 0; while ((mm = OUT_RX.exec(nama))) a++;
+    OUT_RX.lastIndex = 0; while ((mm = OUT_RX.exec(src))) b++;
+    oboegakiDeOchita += (a - b); }
   let m;
   OUT_RX.lastIndex = 0;
   while ((m = OUT_RX.exec(src))) {
@@ -229,6 +293,10 @@ if (process.argv.includes('--list')) {
     console.log('    ' + k + ' … ' + (byKind[k] || 0) + '件');
   });
   console.log('  ★外へ出す呼び出し（呼んでいる場所ごと）… ' + calls.length + 'か所／受け皿が無い ' + noCatch.length + 'か所★');
+  /* ★覚書の 中だったので 数えなかった 数★＝★急に 増えたら 人が 気づける★
+     （★0 なら『覚書に 呼びの 字は 1つも 無い』／1以上 なら『在るが 数えて いない』★） */
+  console.log('  ★覚書（コメント）の 中だったので 数えなかった 所 … ' + oboegakiDeOchita + 'か所★'
+    + (oboegakiDeOchita ? '（★門は それを 本物の 呼びと 数えません★）' : '') + '★');
   if (noCatch.length) { console.log('  ★受け皿が無い所（1か所ずつ）★'); noCatch.forEach((x)=>console.log('    '+x)); }
   if (halfDone.length) {
     console.log('  ★1か所だけ直っている関数 … ' + halfDone.length + '本★');
@@ -251,8 +319,36 @@ if (process.argv.includes('--self-test')) {
   const isMoney = MONEY.test(fake);
   console.log('\n★自己確認★ わざと「合計の所で0を返す catch」を作ると … '
     + (isZero && isMoney ? '★見つけられる★' : '★見つけられない（見張りが効いていない）★'));
-  if (!(isZero && isMoney)) process.exit(1);
-  process.exit(0);
+  let ng = (isZero && isMoney) ? 0 : 1;
+  /* ★★★『覚書（コメント）を 外して から 探す』が 効いて いるか★★★（2026-09-28）
+     ★なぜ 自己確認で 証すか★
+       ★今の repo は 覚書の 中の 呼びが ★0か所★★（私が 字を 変えた ので）
+       ⇒ ★★『0か所』は 効いて いる 証しに なりません★★（★材料が 無い★）
+       ⇒ ★★＝わざと 材料を 作って 見る★★
+     ★★偽の 緑を 一番 恐れます★★＝★本物の 呼びまで 消したら 受け皿が 無くても 緑★
+       ⇒ ★『本物は 数える』『長さと 行数が 変わらない』を 必ず 見る★ */
+  {
+    const NL = String.fromCharCode(10);
+    const iu = (na, ok) => { if (!ok) ng++; console.log('  ' + (ok ? '✓' : '✗') + ' ' + na + (ok ? '' : '  ★思っていたのと 違う★')); };
+    const kazu = (t) => { let c = 0, mm; OUT_RX.lastIndex = 0; while ((mm = OUT_RX.exec(t))) c++; return c; };
+    const honmono = 'Store.savePayslip(a).then(f).catch(g);';
+    const kakoi = '/* ' + honmono + ' */';
+    const gyo = '// ' + honmono;
+    const ji = 'var s = ' + String.fromCharCode(39) + 'Store.savePayslip(x)' + String.fromCharCode(39) + ';';
+    iu('★囲みの 覚書の 中の 呼びは 数えない★', kazu(oboegakiWoKesu(kakoi)) === 0);
+    iu('★行の 覚書の 中の 呼びは 数えない★', kazu(oboegakiWoKesu(gyo)) === 0);
+    iu('★★本物の 呼びは 数える（★偽の 緑に しない★）★★', kazu(oboegakiWoKesu(honmono)) === 1);
+    iu('★字（クォート）の 中は 外さない＝安全側で 数える★', kazu(oboegakiWoKesu(ji)) === 1);
+    const mix = kakoi + NL + honmono + NL + gyo + NL + honmono;
+    iu('★★混ぜても 本物だけ 2件★★', kazu(oboegakiWoKesu(mix)) === 2);
+    iu('★★長さが 変わらない★★', oboegakiWoKesu(mix).length === mix.length);
+    iu('★★行数が 変わらない★★', oboegakiWoKesu(mix).split(NL).length === mix.split(NL).length);
+    iu('★覚書の 中の 受け皿も 消える（★覚書で 緑に しない★）★',
+      oboegakiWoKesu(kakoi).indexOf('.catch(') < 0);
+    iu('★閉じて いない 囲みの 覚書でも 転ばない★', typeof oboegakiWoKesu('/* ' + honmono) === 'string');
+  }
+  console.log(ng ? '★自己確認 ' + ng + '件 おかしい★' : '  ★★自己確認 ぜんぶ 思った通り★★');
+  process.exit(ng ? 1 : 0);
 }
 
 if (process.argv.includes('--check')) {
