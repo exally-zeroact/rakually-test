@@ -10,7 +10,7 @@
  *   ・㋐鍵なし ㋑でたらめ鍵 ㋒A鍵+Bの合言葉 ㋓合言葉なし ㋔A鍵+Bの紙id … ★全部 拒まれる★
  *   ★陽が 通らなければ その 関数は 🟡未測定（呼び方が 合っていない）＝緑に しない・終わり値 非0★
  *
- * ★鍵★ … 管理の 鍵は ~/.supabase-token（★写しを 増やさない＝直に 読む★）。無ければ ㋐＝この 機械では 測らない（終わり値0）
+ * ★鍵★ … 倉庫へ 問う 入口は _souko-kazoeru の toiawase() 1本だけ（鍵は そこが ~/.supabase-token から 読む）。鍵が 無ければ GitHub は 0・手元は 止める
  *        /rpc/ は 配信の 公開鍵（anon）で 叩く＝お客さんの 道。★試験の 倉庫だけ★
  *
  * ★わざと 穴を 開ける 回（--waza）★ … 倉庫の 関数は 壊せないので、★試験の 側で 穴を 真似る★
@@ -20,42 +20,36 @@
  * ★片づけ★ … 作る 人の 名前は `ztestKagi-<時刻>-<乱数>`。finally で 必ず 消す。
  *   始める 前に ★名前の 時刻が 1時間より 古い 置き土産だけ★ 消す（同じ時に 別の 回が 走っても 消さない）
  */
-import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const WAZA = process.argv.indexOf('--waza') >= 0;
 
-/* ── 鍵が 無い 時の 分け方（指示役 2026-10-02）──
-   ・GitHub の 上（GITHUB_ACTIONS=true）＝鍵は 元から 無い＝「ここでは 測らない」で 終わり値0（CI を 赤に しない）
-   ・それ以外（手元＝押す前の 網）＝★鍵が 無いのは 事故★（%TEMP% が 消えた・置き場が 変わった 等）
-     ＝「測れないので 止める」で ★終わり値 非0★。黙って 抜けると どこでも 走らない 日が できる
-   ★WAZA_NOKAGI＝わざと 鍵を 見えなくする★（手元で 非0に なる事を 1回 見る） */
-const KAGI_FILE = path.join(os.homedir(), '.supabase-token');
-const CI_UE = String(process.env.GITHUB_ACTIONS || '') === 'true';
-const WAZA_NOKAGI = process.argv.indexOf('--waza-nokagi') >= 0;
-let TOK = null;
-try { if (!WAZA_NOKAGI) TOK = JSON.parse(fs.readFileSync(KAGI_FILE, 'utf8')).token; } catch (e) { TOK = null; }
-if (!TOK) {
-  if (CI_UE) { console.log('🟡 ★未測定★ ★GitHub には 倉庫の 鍵が 無い（ここでは 測らない）★'); process.exit(0); }
-  console.log('✗ ★鍵が 無い（' + KAGI_FILE + '）のに 手元（押す前の 網）＝★事故★。黙って 抜けさせない＝止めます★'
-    + (WAZA_NOKAGI ? '（--waza-nokagi＝わざと 見えなくした）' : ''));
-  process.exit(1);
-}
 /* ★本番の 倉庫を 指す repo では 走らせない★（repoEnv が test の 時だけ） */
 let env = 'test';
 try { const { repoEnv } = await import('../../scripts/repo-env.mjs'); env = repoEnv(ROOT); } catch (e) { env = 'test'; }
 if (env !== 'test') { console.log('🟡 ★未測定★ ★この repo は 本番（' + env + '）を 指す＝試験の 倉庫では 無い ので 測りません★'); process.exit(0); }
 
-/* ★向き先・公開鍵は 直書きしない★＝js/supa-config.js を 読む 1か所（tests/repo-supa.mjs）経由（門 no-hardcoded-supa） */
+/* ★倉庫へ 問う 入口は _souko-kazoeru の toiawase() 1本だけ★（門 souko-mon ①②＝鍵を 直に 読まない・api.supabase.com を 直に 叩かない）
+   向き先・公開鍵は js/supa-config.js を 読む 1か所（repo-supa）経由。/rpc/ は 客の 道（<ref>.supabase.co・api.supabase.com では ない） */
 const { repoSupa } = await import('../../tests/repo-supa.mjs');
-const { url: URL, key: ANON, ref: REF } = repoSupa(ROOT);
+const { toiawase } = await import('./_souko-kazoeru.mjs');
+const { url: URL, key: ANON } = repoSupa(ROOT);
 const qs = (v) => "'" + String(v).replace(/'/g, "''") + "'";
 async function sql(q) {
-  const r = await fetch('https://api.supabase.com/v1/projects/' + REF + '/database/query', { method: 'POST', headers: { Authorization: 'Bearer ' + TOK, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
-  if (!r.ok) throw new Error('倉庫が ' + r.status + ' を 返した（管理API）');
-  return r.json();
+  const r = await toiawase(q);                                   /* ★入口は 1本★＝鍵の 読みも ここが 持つ */
+  if (!r.ok) throw new Error('倉庫に 問えない … ' + (r.naze || ''));
+  return r.gyo;
+}
+/* ── 鍵が 無い 時の 分け方（指示役 2026-10-02）＝toiawase を 1回 試して 判じる（鍵は _souko-kazoeru が 読む）
+   ・GitHub（GITHUB_ACTIONS=true）＝鍵は 元から 無い＝「測らない」で 終わり値0（CI を 赤に しない）
+   ・手元（押す前の 網）で 鍵が 無い＝★事故★＝終わり値 非0 で 止める（黙って 抜けると どこでも 走らない 日が できる） */
+{
+  const probe = await toiawase('select 1 as x');
+  if (!probe.ok) {
+    if (String(process.env.GITHUB_ACTIONS || '') === 'true') { console.log('🟡 ★未測定★ ★GitHub には 倉庫の 鍵が 無い（ここでは 測らない）★'); process.exit(0); }
+    console.log('✗ ★倉庫に 問えない（' + (probe.naze || '') + '）のに 手元（押す前の 網）＝★事故★。黙って 抜けさせない＝止めます★'); process.exit(1);
+  }
 }
 async function rpc(fn, args) {
   const r = await fetch(URL + '/rest/v1/rpc/' + fn, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
@@ -75,14 +69,28 @@ function kobamareta(j) {
 }
 
 const INIT = 'INITCODE9';
+/* ★従業員＋pub＋docs（＋合言葉）を 1つの SQL（CTE）で 作る★（2026-10-03）
+   ★訳★ … 別々の HTTP だと 接続が 変わり、直前に 入れた 行が まだ 見えず（複製の 遅れ）
+     pub insert の SELECT が 0行 → token 無し → docs に 'undefined' → 400。4回に 1回ほど 踏んだ。
+   ⇒ ★1文（1トランザクション）に まとめれば 必ず 見える★。pw／keepInit は 列の 値で 決める（crypt は 倉庫側）。 */
 async function mkEmp(na, pw, keepInit) {
   const id = 'e' + Math.random().toString(36).slice(2, 10);
-  await sql("insert into kyuyo.pay_employees (id, account_id, sort, data) select " + qs(id) + ", u.id, coalesce((select max(e.sort) from kyuyo.pay_employees e where e.account_id=u.id),-1)+1, jsonb_build_object('id'," + qs(id) + ",'name'," + qs(na) + ",'employmentType','employee') from auth.users u where u.email='test@test.com'");
-  const r = await sql("insert into kyuyo.pay_meisai_pub (account_id, employee_id, init_code) select e.account_id, e.id, " + qs(INIT) + " from kyuyo.pay_employees e where e.id=" + qs(id) + ' returning token');
-  const token = (r[0] || {}).token;
   const did = 'd' + Math.random().toString(36).slice(2, 12);
-  await sql("insert into kyuyo.pay_meisai_docs (id, token, account_id, ym, kind, data, published_at) select " + qs(did) + ", " + qs(token) + ", account_id, '2026-06','monthly','{\"doc\":{\"month\":\"2026-06\"},\"person\":{\"net\":234567}}'::jsonb, now() from kyuyo.pay_meisai_pub where token=" + qs(token));
-  if (pw) await sql('update kyuyo.pay_meisai_pub set pw_hash=crypt(' + qs(pw) + ",gen_salt('bf')), consent_at=now()" + (keepInit ? '' : ', init_code=null') + ', fail_count=0, locked_until=null where token=' + qs(token));
+  const pwCol = pw ? ('crypt(' + qs(pw) + ", gen_salt('bf'))") : 'null';
+  const consentCol = pw ? 'now()' : 'null';
+  const initCol = (pw && !keepInit) ? 'null' : qs(INIT);   /* 合言葉を 決めたら（keepInit で ない 限り）初回コードは 消す＝本物の 流れ */
+  const docData = "'{\"doc\":{\"month\":\"2026-06\"},\"person\":{\"net\":234567}}'::jsonb";
+  const r = await sql(
+    'with e as (insert into kyuyo.pay_employees (id, account_id, sort, data)'
+    + ' select ' + qs(id) + ', u.id, coalesce((select max(x.sort) from kyuyo.pay_employees x where x.account_id=u.id),-1)+1,'
+    + " jsonb_build_object('id'," + qs(id) + ",'name'," + qs(na) + ",'employmentType','employee')"
+    + " from auth.users u where u.email='test@test.com' returning id, account_id),"
+    + ' p as (insert into kyuyo.pay_meisai_pub (account_id, employee_id, init_code, pw_hash, consent_at, fail_count, locked_until)'
+    + ' select account_id, id, ' + initCol + ', ' + pwCol + ', ' + consentCol + ', 0, null from e returning token, account_id)'
+    + ' insert into kyuyo.pay_meisai_docs (id, token, account_id, ym, kind, data, published_at)'
+    + ' select ' + qs(did) + ', token, account_id, ' + "'2026-06','monthly'," + docData + ', now() from p returning token');
+  const token = (r[0] || {}).token;
+  if (!token) throw new Error('mkEmp が token を 作れなかった（' + na + '）');
   return { id, token };
 }
 async function rmEmp(e) {
@@ -94,7 +102,8 @@ async function rmEmp(e) {
 }
 async function docId(token) { const r = await sql('select id from kyuyo.pay_meisai_docs where token=' + qs(token) + ' limit 1'); return (r[0] || {}).id; }
 async function pwPrint(token) { const r = await sql('select md5(coalesce(pw_hash,' + qs('') + ')) as h from kyuyo.pay_meisai_pub where token=' + qs(token)); return String((r[0] || {}).h).slice(0, 8); }
-async function rowCnt(token, tbl) { const r = await sql('select count(*) as n, coalesce(max(updated_at)::text,' + qs('-') + ') as u from kyuyo.' + tbl + ' where token=' + qs(token)); const g = r[0] || {}; return g.n + '/' + String(g.u).slice(0, 19); }
+/* 行の 数＋★中身の 指紋★（更新時刻だけだと 同じ秒の 2回書きで 変わらず 見えない＝--waza が 赤に ならなかった） */
+async function rowCnt(token, tbl, col) { const r = await sql('select count(*) as n, md5(coalesce(string_agg(' + col + '::text, ' + qs('|') + " order by updated_at), '')) as h from kyuyo." + tbl + ' where token=' + qs(token)); const g = r[0] || {}; return g.n + '/' + String(g.h).slice(0, 10); }
 
 const BAD = '00000000-0000-4000-8000-000000000000';
 let you = 0, kobamu = 0, mi = 0, akaWaza = 0, wazaKai = 0;
@@ -210,21 +219,21 @@ try {
     miru('mark_meisai_opened(㋔)', true, false, !b0.opened_at && !b1.opened_at);
   }
 
-  /* 書く2本＝陽で 書けて（A の 行 0→1）／㋐㋒違う鍵で 変わらない */
-  for (const [fn, tbl, mk] of [
-    ['save_emp_profile', 'pay_emp_profile', (t, pw) => ({ p_token: t, p_device: null, p_pw: pw, p_data: { t: 1 } })],
-    ['save_nencho_decl', 'pay_nencho_decl', (t, pw) => ({ p_token: t, p_device: null, p_pw: pw, p_year: 2026, p_decl: { t: 1 } })],
+  /* 書く2本＝陽で 中身が 変わる／㋐㋒違う鍵で 変わらない（★毎回 ちがう 値を 書く★＝指紋で 見る為） */
+  for (const [fn, tbl, col, mk] of [
+    ['save_emp_profile', 'pay_emp_profile', 'data', (t, pw, v) => ({ p_token: t, p_device: null, p_pw: pw, p_data: { t: v } })],
+    ['save_nencho_decl', 'pay_nencho_decl', 'decl', (t, pw, v) => ({ p_token: t, p_device: null, p_pw: pw, p_year: 2026, p_decl: { t: v } })],
   ]) {
-    const mae = await rowCnt(A.token, tbl);
-    const you1 = await rpc(fn, mk(A.token, AI));
-    const ato1 = await rowCnt(A.token, tbl);
-    const youOk = you1.j && you1.j.ok === true && ato1 !== mae;   /* 陽＝書けた（数か 時刻が 変わった）*/
-    if (WAZA) { const h = await rpc(fn, mk(A.token, AI)); const ato2 = await rowCnt(A.token, tbl); miru(fn, youOk, true, ato2 === ato1); }  /* 穴の 真似＝負の側に 正しい鍵→書けて ato 変わる→「変わらない」が 偽→赤 */
+    const mae = await rowCnt(A.token, tbl, col);
+    const you1 = await rpc(fn, mk(A.token, AI, 'you' + Date.now() + Math.random()));
+    const ato1 = await rowCnt(A.token, tbl, col);
+    const youOk = you1.j && you1.j.ok === true && ato1 !== mae;   /* 陽＝書けた（中身の 指紋が 変わった）*/
+    if (WAZA) { await rpc(fn, mk(A.token, AI, 'waza' + Date.now() + Math.random())); const ato2 = await rowCnt(A.token, tbl, col); miru(fn, youOk, true, ato2 === ato1); }  /* 穴の 真似＝負の側に 正しい鍵→別の 値が 書けて 指紋 変わる→「変わらない」が 偽→赤 */
     else {
-      await rpc(fn, mk(BAD, AI));
-      await rpc(fn, mk(A.token, BI));
-      const ato2 = await rowCnt(A.token, tbl);
-      miru(fn, youOk, false, ato2 === ato1);                      /* 違う鍵で 変わらない */
+      await rpc(fn, mk(BAD, AI, 'bad' + Date.now()));
+      await rpc(fn, mk(A.token, BI, 'bad2' + Date.now()));
+      const ato2 = await rowCnt(A.token, tbl, col);
+      miru(fn, youOk, false, ato2 === ato1);                      /* 違う鍵で 書けない＝指紋 変わらない */
     }
   }
 
@@ -248,6 +257,8 @@ try {
 
 if (WAZA) {
   console.log('\n★わざと 穴を 開けた ' + wazaKai + '本／赤に なった ' + akaWaza + '本★（★開けた 数＝赤の 数 なら 門は 効く★）');
+  /* ★1本も 開けられなかった（途中で 止まった 等）は 赤★＝「0本開けて0本＝合格」の 偽の 緑を 作らない（想定 9本） */
+  if (wazaKai < 9) { console.log('  ✗ ★開けた 穴が ' + wazaKai + '本＝想定の 9本に 足りない（途中で 止まった？）＝何も 確かめていない★'); process.exit(1); }
   const ng = (akaWaza !== wazaKai) ? 1 : 0;
   console.log(ng ? '  ✗ ★開けた 数と 赤の 数が 違う＝門に 穴★' : '  ✓ ★開けた 穴は 全部 赤に なった★');
   process.exit(ng ? 1 : 0);
