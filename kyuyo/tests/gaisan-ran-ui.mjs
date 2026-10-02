@@ -147,6 +147,39 @@ try {
         '★打っている 時と 作り直した 時で 計算が 違う★');
     }
   }
+
+  /* ── ⑤ 労災率の 欄（業種＝一覧に無い）＝★打つ たびに 精算が 変わり、開き直しと 同じ★（2026-10-02） ──
+     前は 率の 受け手が 労災保険料 だけ 直し、★精算は「—」の まま★だった（実測：開き直すと ¥22,780）
+     ★書きは 網で 止めて いる＝この 窓の 中だけ★ */
+  if (!WAZA) {
+    const RITSU = '[data-rousai-rate]';
+    await pg.selectOption('[data-rousai-shurui]', '__te__').catch(() => null);
+    for (let i = 0; i < 40; i++) { if (await pg.$(RITSU)) break; await matsu(250); }
+    if (!(await pg.$(RITSU))) MI('⑤ 率の 欄', '「一覧に無い」を 選んでも 率の 欄が 出ない');
+    else {
+      await pg.click(RAN); await pg.keyboard.press('Control+A'); await pg.keyboard.press('Backspace');
+      await pg.keyboard.type('100000', { delay: 40 }); await matsu(400);
+      await pg.click(RITSU); await pg.keyboard.press('Control+A'); await pg.keyboard.press('Backspace');
+      const r5 = [];
+      for (const c of ['3', '5']) {
+        await pg.keyboard.type(c); await matsu(400);
+        r5.push(await pg.evaluate(([R, J]) => { const e = document.querySelector(R), j = document.querySelector(J); return { v: e && e.value, f: !!e && document.activeElement === e, ji: j ? j.textContent : null }; }, [RITSU, JI]));
+      }
+      console.log('    ── ⑤ 率を 打つ たびの 精算の 字 … ' + r5.map((x) => '「' + x.v + '」→「' + x.ji + '」').join(' ／ '));
+      T('★⑤ 率の 欄に 打てて 焦点が その 欄（値「' + r5[1].v + '」）★', r5[1].v === '35' && r5[1].f, '値「' + r5[1].v + '」・焦点 ' + r5[1].f);
+      T('★⑤ 率を 打つ たびに 精算の 字が 変わる（「—」の ままに しない）★',
+        r5[0].ji && r5[0].ji !== '—' && r5[1].ji && r5[0].ji !== r5[1].ji, r5.map((x) => '「' + x.ji + '」').join('→'));
+      await pg.keyboard.press('Tab');
+      await osu(pg, '[data-cho="shakai"]');
+      if (!(await osu(pg, '[data-cho="roudou"]'))) MI('⑤ 開き直し', '労働保険を 押せない');
+      else {
+        let ato5 = null;
+        for (let i = 0; i < 40; i++) { ato5 = await pg.$eval(JI, (e) => e.textContent).catch(() => null); if (ato5) break; await matsu(250); }
+        T('★⑤ 開き直した 時の 精算（「' + ato5 + '」）＝ 率を 打った 直後（「' + r5[1].ji + '」）★', ato5 === r5[1].ji,
+          '★率を 打った 時と 作り直した 時で 精算が 違う★');
+      }
+    }
+  }
   await cx.close();
 } catch (e) {
   if (String(e && e.message) !== 'skip') MI('途中で 止まった', String(e && e.message || e).slice(0, 160));
