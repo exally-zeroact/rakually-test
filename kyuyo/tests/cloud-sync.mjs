@@ -131,6 +131,11 @@ function makeMock(opts) {
           calls.companyUpdate = calls.companyUpdate || [];
           calls.companyUpdate.push(d);
           if (opts.failUpsert) return { data: [], error: { message: 'update失敗' } };
+          /* ★★TOCTOUの隙＝事前SELECTと本書きの間に、自分の別の書き（この now）が倉庫へ着いた★★（新path専用）
+             ＝storedUA を この更新の updated_at（＝自分が送った値・名簿に在る）へ進めてから 0行を返す。
+               follow-up select は storedUA を返す → _jibunGaOkuttaKa で自分送りと分かり conflict にしない道を縛る。
+             ★一発★（次の やり直しでは 当たって 通る）。 */
+          if (opts.gapBumpStored) { opts.gapBumpStored = false; storedUA = dbFmt(d.updated_at); return { data: [], error: null }; }
           /* ★ログイン切れ＝RLSで 行が 見えない★＝0行・書かない（follow-up select も null） */
           if (opts.hideCompanyRow) return { data: [], error: null };
           /* ★倉庫には書けて 返りだけ落ちた★＝storedUA は 進む／返りは error（控えは進まない） */
@@ -722,6 +727,23 @@ runs.push(T('★⑦ログイン切れ: 0行かつ行が見えない＝conflict�
   ok(r.reason !== 'conflict', '★conflictにした＝ログイン切れを別端末更新と嘘をつく（' + JSON.stringify(r) + '）');
   ok(r.reason !== 'no-user', '★no-userにした＝帯が出ず黙る退化（' + JSON.stringify(r) + '）');
   ok(r.reason === 'sync-check-failed', '★帯が出る理由(sync-check-failed)で返していない（出たのは ' + r.reason + '）');
+}));
+
+/* ★★★⑦-TOCTOU: ★新しい0行follow-upの名簿分岐★だけを縛る★★★（2026-10-03・指示役）
+   事前SELECTが捕まえない隙＝SELECTは控えと同じ値を返す（通す）→その後、本書きの .eq(控え) の前に
+   自分の別の書き(この now)が倉庫へ着く→0行→follow-up select は自分送りの値→conflictにせず控えを進め1回で通る。
+   ★この分岐を外すと（--waza相当）follow-up値!=控え で conflict に化ける＝下で手で確かめた（赤）。 */
+runs.push(T('★⑦TOCTOU: 事前SELECT後・本書き前に自分の書きが着いても、新path名簿で誤conflictにしない', async function () {
+  const o = { dbFormat: true, companyData: { name: 'A' }, companyUpdatedAt: '2026-10-03T01:00:00.000+00:00' };
+  const mock = makeMock(o);
+  const Store = loadStore(mock);
+  await Store.cloudLoadState();                 // 控え=initialUA
+  const rA = await Store.cloudSaveState(SNAP);  // save A（通常）→ 控え=nowA・名簿に nowA
+  ok(rA.ok === true, 'save A ok（' + JSON.stringify(rA) + '）');
+  o.gapBumpStored = true;                        // ★隙に自分の書き(nowB)が着く★＝本書きの直前に storedUA を進める
+  const rB = await Store.cloudSaveState(SNAP);   // save B：pre-check は控えと同値で通る→本書き0行→follow-upは自分送り
+  ok(!(rB && rB.reason === 'conflict'), '★新pathが自分の書きを誤conflictにした（出たのは ' + JSON.stringify(rB) + '）');
+  ok(rB.ok === true, '★save B が通っていない（' + JSON.stringify(rB) + '）');
 }));
 
 await Promise.all(runs);
