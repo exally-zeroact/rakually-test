@@ -668,6 +668,8 @@ jobs:
         run: node kyuyo/tests/rls-tanin.mjs
       - name: ★同 判定そのものが空振りしていないか（自己確認）
         run: node kyuyo/tests/rls-tanin.mjs --self-test
+      - name: ★倉庫の鍵を ~/.supabase-token から読む（倉庫に触らない・偽のHOMEで確かめる）
+        run: node kyuyo/tests/kagi-no-okiba.test.mjs
       - name: ★明細・申告の 関数（/rpc/）が 鍵を 照らしているか（試験の倉庫・anon・鍵が無いGitHubでは測らず抜ける）
         run: node kyuyo/tests/kagi-terasu.mjs
       - name: ★同 わざと穴を開けたら 開けた数ぶん赤になるか（kagi-terasu の空振り止め）

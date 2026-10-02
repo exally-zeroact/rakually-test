@@ -22,6 +22,8 @@
  * ★1か所に 置く 訳★＝3本が 写しを 持つと ★1本 直して 2本 古いまま★に なる。
  */
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 /* ★★向き先を 直書きしない（2026-09-14 見張りが 捕まえた）★★
    私は ★試験の 倉庫の ref を この紙に 直に 書いた★。★見張りが 赤に した★＝正しい 赤。
@@ -39,13 +41,16 @@ function souko() {
   const { ref } = repoSupa();
   return ref;
 }
-const TOKEN_FILE = process.env.TEMP
-  ? process.env.TEMP.replace(/\\/g, '/') + '/nomiya-db-url-prod.json'
-  : 'C:/Users/zeroa/AppData/Local/Temp/nomiya-db-url-prod.json';
-
-function kagi() {
-  try { return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8')).token; } catch (e) { return null; }
+/* ★鍵の 置き場は ~/.supabase-token 1本だけ★（2026-10-03・棚⑨）
+   ★訳★ … %TEMP% は 掃除で 消える（10-02 に 消えて 半日 止まった）／記憶の HARD「%TEMP% に 鍵を 置くな」。
+     後ろで %TEMP% を 試すと ①また そこへ 置く 道が 残る ②古い 鍵が 戻った 時「鍵は 在るが 倉庫に 断られた」に 化けて 因が 見えにくい。
+   ⇒ ~/.supabase-token（{"token":"…"}）だけを 読む。無ければ ★止める★（0と 言わない）。 */
+export const TOKEN_FILE = path.join(os.homedir(), '.supabase-token');
+/* ★鍵を 1つの ファイルから 読む（純粋）★＝確かめ（kagi-no-okiba）が 子プロセス 無しで 試せる */
+export function kagiYomu(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')).token; } catch (e) { return null; }
 }
+function kagi() { return kagiYomu(TOKEN_FILE); }
 
 async function toi(sql) {
   const t = kagi();
