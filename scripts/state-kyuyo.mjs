@@ -218,12 +218,29 @@ const SHIP = ['index.html', 'kyuyo/index.html', 'kyuyo/meisai.html', 'kyuyo/admi
        ★数が 45 → 42 に 減った★（git の 差分…★消えた 行の catch は 0★）
      ★訳★ … 下の 式は ★`{` と `}` の 間に 説明が 在っても 通す★ ので
        ★間に 字が 増えると 組み合わせが 変わる★（隣の catch と 繋がって 1つに 見える）
-     ⇒ ★★「減った＝良く なった」と 読まない★★／数え方を 直すなら ★別の 1押し★ */
+     ⇒ ★★「減った＝良く なった」と 読まない★★／数え方を 直すなら ★別の 1押し★
+   ★★2026-10-02 に 割れて 直した★★（指示役と 2人で）
+     ★穴★ … 覚書の 部分（スラッシュ星 から 星スラッシュ まで を 遅延で 取る 所）が ★覚書の 終わりを 越えて★
+       遠くの「覚書の 終わりの すぐ後の 閉じ波括弧」まで 伸びた
+       ⇒ ★中身の 在る catch が「空」に 数えられ、その 陰の 本物の 空 catch が 数えられなかった★
+       （実物＝偽の 当たり 3つ … 長さ 47,174／27,804／13,582字＝★42 は 偽3＋本物39★／直した 式で ★51★）
+     ★直し★ … 覚書の 部分を ★覚書の 終わりを 越えない★ 形に（下の KARA_SHIKI）／★括弧の 無い catch（ES2019）も 拾う★
+     ★空振り止め★ … 下の KARA_JIKO を --self-test で 当てる（★古い 式では 5つ中 2つ 赤★）
+     ★この 覚書に 式の 字を そのまま 書かない★＝覚書の 終わりの 字が 混ざると 覚書が そこで 閉じる（10-02 に 踏んだ） */
+const KARA_SHIKI = /catch\s*(?:\([^)]*\))?\s*\{\s*(\/\*(?:(?!\*\/)[\s\S])*\*\/)?\s*\}/g;
+function karaCatchKazu(s) { return (s.match(KARA_SHIKI) || []).length; }
+const KARA_JIKO = [
+  ['中身の 在る catch の 後ろに「*/ の すぐ後の }」（10-02 の 形）', 'try{a()}catch(e){ /* x */ console.error(e); }\nfunction f(){ g(); /* y */\n}', 0],
+  ['catch(e){}', 'try{}catch(e){}', 1],
+  ['catch(_){ /* 覚書 */ }', 'try{}catch(_){ /* 古い */ }', 1],
+  ['括弧の 無い catch{}（ES2019）', 'try{}catch{}', 1],
+  ['字の 中に /* が 在る 行の 後ろの 空 catch（★7 の 仲間）', "var s='/*'; try{}catch(e){}", 1],
+];
 {
   let n = 0;
   for (const f of ['kyuyo/js/app.js', 'kyuyo/js/store.js']) {
     const s = fs.readFileSync(path.join(ROOT, f), 'utf8');
-    n += (s.match(/catch\s*\([^)]*\)\s*\{\s*(\/\*[\s\S]*?\*\/)?\s*\}/g) || []).length;
+    n += karaCatchKazu(s);
   }
   N.何もしないcatch = n;
 }
@@ -297,6 +314,15 @@ if (process.argv.includes('--check') || process.argv.includes('--self-test')) {
     console.log('\n★自己確認★ 数を1つ ずらすと … 合わない数 ' + bad.length + '件');
     if (!bad.length) { console.error('  NG ★ずらしても赤にならない＝見張りが効いていない★'); process.exit(1); }
     console.log('  ok  ちゃんと赤になる');
+    /* ★空 catch を 数える 式の 自己確認★（字を 決めて 当てる＝★式の 穴が 戻れば 赤★） */
+    let jikoNg = 0;
+    console.log('\n★自己確認★ 空 catch を 数える 式（' + KARA_JIKO.length + '通り）');
+    for (const [na, src, hoshii] of KARA_JIKO) {
+      const deta = karaCatchKazu(src);
+      if (deta !== hoshii) jikoNg++;
+      console.log('  ' + (deta === hoshii ? 'ok' : 'NG') + '  ' + na + ' … 欲しい ' + hoshii + '／出た ' + deta);
+    }
+    if (jikoNg) { console.error('  NG ★空 catch の 数え方に 穴（' + jikoNg + '通り）★'); process.exit(1); }
     process.exit(0);
   }
   const bad = Object.keys(want).filter((x) => String(want[x]) !== String(N[x]));
