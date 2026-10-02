@@ -638,8 +638,10 @@ jobs:
         run: node kyuyo/tests/shutoku-csv.test.mjs && node kyuyo/tests/shutoku-csv.test.mjs --self-test
       - name: ★スマホ幅で潰れ0・はみ出し0（代行請求の物差しを借用・給与5画面＋請求書＋明細×3幅）
         run: node tests/sumaho-haba.mjs --self-test && node tests/sumaho-haba.mjs
-      - name: ★真ん中を突いて本当に押せるか／出た時に下の物がずれないか（ダイコメの物差しを借用・実測129px）
-        run: node tests/oseru-ka.mjs --self-test && node tests/oseru-ka.mjs
+      - name: ★真ん中を突いて本当に押せるか（段1＝①ログイン前と入った後の5画面・ダイコメの物差しを借用）
+        run: node tests/oseru-ka.mjs --self-test && node tests/oseru-ka.mjs --bu=1
+      - name: ★出た時に下の物がずれないか（段2＝②Ａ／Ｂ・実測129px）／1段だと押す前の網の上限180秒を越える回が出たので2段に分けた（2026-10-02）
+        run: node tests/oseru-ka.mjs --bu=2
       - name: ★給与の紙は白黒で刷っても読める（代行請求の物差しを借用・罫線が消えない）
         run: node kyuyo/tests/kami-shiro-kuro.mjs --self-test && node kyuyo/tests/kami-shiro-kuro.mjs
       - name: Payroll pagination (1000件超が黙って欠落しない)

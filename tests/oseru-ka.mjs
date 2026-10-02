@@ -27,6 +27,51 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SELF = process.argv.includes('--self-test');
 
+/* ★★段を 2つに 分ける（--bu=1／--bu=2）★★（2026-10-02・指示役と 決めた）
+   ★なぜ★ … 押す前の 網の 1段の 上限は 180秒。この 紙は 単独で 125〜146秒＝★網の 中では 180秒を 越える 回が 出た★（10-02 に 2回）
+     中身＝ログイン 約8秒×9回／②の「何も 生えない事を 待つ」2秒×6回（★縮めると 判じが 弱まる★ので 縮めない）
+   ⇒ ★中身は 1つも 変えず★ 走る 部分を 分ける＝各段 約60秒
+   ★空振り止め（指示役）★
+     ①--bu の 字が 1／2 以外なら ★止める★（打ち間違いで 何も 走らず 緑、を 作らない）
+     ②各段で 見た 通りが 0 なら ★赤★
+     ③確かめは 全部 下の 名簿（KAKUNIN）に ★段の 札付きで★ 載せる。載っていない 確かめを 走らせようと したら ★止める★
+       ＋--self-test で「札の 無い 確かめ 0」「段1＋段2＝全部（重なり 0・抜け 0）」を ブラウザ 無しで 見る
+   ★--bu 無し★ … 今まで どおり 全部 走る（手元で 人が 打つ 形は 変えない） */
+export const KAKUNIN = [
+  { na: '①ログイン前の 入口', bu: 1 },
+  { na: '①入ってからの 5画面', bu: 1 },
+  { na: '②Ａ先に 数え終わっている時', bu: 2 },
+  { na: '②Ｂあとから 答えが 来た時', bu: 2 },
+];
+export function fudaWoMiru(meibo) {
+  const ng = [];
+  const nashi = meibo.filter((k) => k.bu !== 1 && k.bu !== 2);
+  if (nashi.length) ng.push('札の 無い 確かめ ' + nashi.length + '個（' + nashi.map((k) => k.na).join('／') + '）');
+  const na = meibo.map((k) => k.na);
+  if (new Set(na).size !== na.length) ng.push('同じ 名前の 確かめが 2つ 在る');
+  const b1 = meibo.filter((k) => k.bu === 1).map((k) => k.na), b2 = meibo.filter((k) => k.bu === 2).map((k) => k.na);
+  const kasanari = b1.filter((x) => b2.indexOf(x) >= 0);
+  const nuke = na.filter((x) => b1.indexOf(x) < 0 && b2.indexOf(x) < 0);
+  if (kasanari.length) ng.push('段1と 段2に 重なる 確かめ ' + kasanari.length + '個');
+  if (nuke.length) ng.push('どちらの 段にも 入らない 確かめ ' + nuke.length + '個');
+  if (!b1.length || !b2.length) ng.push('空の 段が 在る（段1 ' + b1.length + '個／段2 ' + b2.length + '個）');
+  return ng;
+}
+const BU = (() => {
+  const a = process.argv.filter((x) => x === '--bu' || x.indexOf('--bu=') === 0 || x.indexOf('--bu ') === 0);
+  if (!a.length) return null;
+  if (a.length !== 1 || (a[0] !== '--bu=1' && a[0] !== '--bu=2')) {
+    console.error('★--bu の 字が 違います（' + a.join(' ') + '）＝何も 走らせずに 止めます★（使えるのは --bu=1 か --bu=2 だけ）');
+    process.exit(1);
+  }
+  return a[0] === '--bu=1' ? 1 : 2;
+})();
+function hashiru(na) {
+  const k = KAKUNIN.find((x) => x.na === na);
+  if (!k) { console.error('★確かめの 名簿（KAKUNIN）に 無い 確かめ「' + na + '」＝段の 札が 無い まま 走らせない★'); process.exit(1); }
+  return BU === null || BU === k.bu;
+}
+
 /* ── ★物差しそのもの★（ブラウザを 使わずに 確かめられる 形にしておく）──────── */
 
 /* ★突く所★＝見えている 部分の 真ん中（画面の 外に はみ出していても 見えている 所を 突く）
@@ -63,8 +108,13 @@ if (SELF) {
   say('ずれ … 動いていない', zure(502, 502) === 0);
   say('★ずれ … ダイコメ実測 42px★', zure(502, 544) === 42);
   say('ずれ … 上に 動いたら 負の数', zure(502, 460) === -42);
+  /* ★段の 札★（ブラウザ 無し）＝今の 名簿に 穴が 無い／★わざと 札を 1つ 外した 名簿は 捕まる★ */
+  const fudaNg = fudaWoMiru(KAKUNIN);
+  say('★段の 札★ 確かめ ' + KAKUNIN.length + '個に 札が 在り 段1＋段2＝全部（重なり 0・抜け 0）' + (fudaNg.length ? '（' + fudaNg.join('／') + '）' : ''), fudaNg.length === 0);
+  const waza = KAKUNIN.map((x, j) => (j === 0 ? { na: x.na } : x));
+  say('★わざと 札を 1つ 外した 名簿は 捕まる★（' + fudaWoMiru(waza).join('／') + '）', fudaWoMiru(waza).length > 0);
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★12通り ぜんぶ 思った通り★');
+  console.log('  ★14通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -149,6 +199,9 @@ const HABA = [375, 390, 412];
 const NAKA = ['scr-input', 'scr-list', 'scr-print', 'scr-furikomi', 'scr-settings'];
 
 let akai = 0, mihakari = 0, mita = 0, botanKei = 0, sotoKei = 0;
+/* ★ログインの 再試し★を 数える（指示役）＝⑤（なぜ 3回 掛かるか）を 割る 数が 網と CI から 溜まる。h.kai＝何回目で 入れたか */
+const LOGIN = { n: 0, saitameshi: 0, saidai: 0, mieta: 0 };
+function loginKazoeru(h) { LOGIN.n++; if (h && h.kai) { LOGIN.mieta++; if (h.kai > 1) LOGIN.saitameshi++; if (h.kai > LOGIN.saidai) LOGIN.saidai = h.kai; } }
 const atarazuKei = [];
 
 function iu(tag, m) {
@@ -161,10 +214,11 @@ function iu(tag, m) {
   m.atarazu.slice(0, 4).forEach((x) => console.log('       ★当たらない★ 「' + x.fuda + '」 ' + x.doko + '  ←上に ' + x.ueni));
 }
 
+console.log('\n[oseru-ka] 段 ' + (BU === null ? '全部（--bu 無し）' : BU));
 console.log('\n[oseru-ka] ①★真ん中を 突いて 当たるか★（借り元＝ダイコメ obd-keikoku-de-botan-ga-ugokanai.spec.js）');
 
 /* ── ログイン前の 入口（★お客さんの 最初の 1画面★）───────────────────── */
-for (const w of HABA) {
+if (hashiru('①ログイン前の 入口')) for (const w of HABA) {
   const pg = await (await b.newContext({ viewport: { width: w, height: 844 } })).newPage();
   await pg.goto('http://localhost:' + PORT + '/kyuyo/index.html', { waitUntil: 'domcontentloaded' });
   let deta = false;
@@ -176,9 +230,10 @@ for (const w of HABA) {
 }
 
 /* ── 入ってからの 5画面 ─────────────────────────────────── */
-for (const w of HABA) {
+if (hashiru('①入ってからの 5画面')) for (const w of HABA) {
   const pg = await (await b.newContext({ viewport: { width: w, height: 844 } })).newPage();
   const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-list"]');
+  loginKazoeru(h);
   if (!h.haitta) { console.log('  🟡 給与（入ってから） 幅' + w + ' … ★未測定★（' + h.kai + '回 試して 入れなかった）'); mihakari++; await pg.close(); continue; }
   if (h.kai > 1) console.log('  （入るのに ' + h.kai + '回 掛かりました＝倉庫の 通信の 気まぐれ）');
   /* ★覆いは 先に 消さない★＝★出たままが お客さんの 姿★。まず そのまま 測る。 */
@@ -296,6 +351,7 @@ const ICHI = `(function(){
 
 for (const osoi of [false, true]) {
   const nabe = osoi ? 'Ｂあとから 答えが 来た時' : 'Ａ先に 数え終わっている時';
+  if (!hashiru('②' + nabe)) continue;
   for (const w of HABA) {
     const pg = await (await b.newContext({ viewport: { width: w, height: 844 } })).newPage();
     /* ★倉庫の 数える口だけ 差し替える★
@@ -317,6 +373,7 @@ for (const osoi of [false, true]) {
       Object.defineProperty(window, 'Store', { configurable: true, get() { return _st; }, set(v) { _st = kaeru(v); } });
     }, osoi);
     const h2 = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-input"]');
+    loginKazoeru(h2);
     if (!h2.haitta) { console.log('  🟡 ' + nabe + ' 幅' + w + ' … ★未測定★（' + h2.kai + '回 試して 入れなかった）'); mihakari++; await pg.close(); continue; }
     if (h2.kai > 1) console.log('  （入るのに ' + h2.kai + '回 掛かりました）');
     const o2 = await osu(pg, '.bn[data-scr="scr-input"]');
@@ -370,4 +427,8 @@ await b.close(); srv.close();
 console.log('\n  見た ' + mita + '通り ／ 押す物 のべ ' + botanKei + '個 ／ ★当たらない ' + atarazuKei.length + '個★'
   + ' ／ 画面の外 ' + sotoKei + '個 ／ 🟡未測定 ' + mihakari);
 if (atarazuKei.length) { console.log('  ★当たらなかった 物★'); atarazuKei.forEach((x) => console.log('    ・' + x)); }
+/* ★見た 通りが 0 は 赤★（段を 分けた 時の 空振り止め＝何も 測らずに 緑に しない） */
+if (mita === 0) { console.log('  ✗ ★見た 通りが 0（段 ' + (BU === null ? '全部' : BU) + '）＝何も 測って いない★'); akai++; }
+console.log('  ★ログイン ' + LOGIN.n + '回 中、再試しが 要った 回 ' + LOGIN.saitameshi + '（最大 ' + (LOGIN.saidai || '—') + '回目で 入れた）★'
+  + (LOGIN.mieta < LOGIN.n ? '（★何回目か 分からない 回 ' + (LOGIN.n - LOGIN.mieta) + '★）' : '') + '（段 ' + (BU === null ? '全部' : BU) + '）');
 process.exit(akai ? 1 : 0);
