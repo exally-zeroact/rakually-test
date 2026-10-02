@@ -129,7 +129,7 @@ async function hiraku(haba) {
     if (kaki.mode === 'tosu') return rt.continue();
     if (kaki.mode === 'otosu') { kaki.otoshita++; kaki.wazato.add(rt.request()); return rt.abort(); }
     kaki.nise500++;
-    return rt.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'わざと 落とした（試験）', code: 'XX000' }) });
+    return rt.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: kaki.nise500Ji || 'わざと 落とした（試験）', code: 'XX000' }) });
   });
   const hai = await hairu(pg, URL, '.bn[data-scr]');
   if (!hai.haitta) return { naze: 'アプリに 入れない … ' + (hai.naze || ('試した ' + hai.kai + '回')), cx };
@@ -276,7 +276,11 @@ try {
       await matsu(1500);
       await shizumaru(C.pg, 2000, 20000);
       if (!(await C.pg.$('[data-confirm-month]'))) { MI('⑥ 幅 ' + (haba || '既定'), '確定の ボタンが 出ていない'); await C.cx.close(); continue; }
-      C.kaki.mode = 'otosu';
+      /* 390px の 回は ★長い 理由の 偽の 500★ で 落とす＝帯の 字が 折り返し、⑦で 幅を 広げると 高さが 変わる */
+      if (haba === 390) {
+        C.kaki.nise500Ji = 'わざと 落とした（試験・折り返しを 作る 為の 長い 理由の 字です。幅を 変えると 帯の 高さが 変わります）';
+        C.kaki.mode = '500';
+      } else C.kaki.mode = 'otosu';
       const mae = C.kaki.zen;
       /* ★書きを 落として いる 間だけ★ 入力画面の 欄を 1つ 打つ（倉庫には 届かない） */
       const aru = await C.pg.$$eval('#input-list input:not([type=checkbox]):not([type=hidden]):not([readonly]):not([disabled])', (a) => {
@@ -298,10 +302,30 @@ try {
         return { obi: !!(eo && (eo === ob || ob.contains(eo))), obiSoko: nani(eo), btn: !!(eb && (eb === bt || bt.contains(eb))), btnSoko: nani(eb), ji: ob ? ob.textContent : '' };
       });
       const na = '幅 ' + (haba || '既定');
-      console.log('    ── ⑥ 入力画面 ' + na + ' … 落とした 書き ' + C.kaki.otoshita + '本／帯の 真ん中に ' + o6.obiSoko + '／確定の 真ん中に ' + o6.btnSoko);
-      if (C.kaki.otoshita === 0) MI('⑥ ' + na, '書きが 1本も 出ていない');
+      console.log('    ── ⑥ 入力画面 ' + na + ' … 落とした 書き ' + (C.kaki.otoshita + C.kaki.nise500) + '本／帯の 真ん中に ' + o6.obiSoko + '／確定の 真ん中に ' + o6.btnSoko);
+      if (C.kaki.otoshita + C.kaki.nise500 === 0) MI('⑥ ' + na, '書きが 1本も 出ていない');
       else T('★⑥ 入力画面（' + na + '）で 帯も 確定ボタンも 描かれて いる（重ならない）★', o6.obi && o6.btn,
         '帯の 真ん中に ' + o6.obiSoko + '／確定の 真ん中に ' + o6.btnSoko);
+      /* ── ⑦ 帯が 出た まま 幅を 変える（390→700）＝折り返しで 帯の 高さが 変わっても 重ならない ──
+         （指示役：--sa-h は 帯を 出し入れした 時にしか 測って いなかった＝幅の 受け手でも 測り直す） */
+      if (haba === 390 && C.kaki.nise500 > 0) {
+        const takasaMae = await C.pg.$eval('#save-alert', (e) => Math.round(e.getBoundingClientRect().height));
+        await C.pg.setViewportSize({ width: 700, height: 844 });
+        await matsu(800);
+        const o7 = await C.pg.evaluate(() => {
+          const ob = document.getElementById('save-alert'), bt = document.querySelector('[data-confirm-month]');
+          const naka = (e) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; };
+          const po = naka(ob), pb = naka(bt);
+          const eo = document.elementFromPoint(po.x, po.y), eb = document.elementFromPoint(pb.x, pb.y);
+          const nani = (e) => (!e ? 'なし' : e.id ? '#' + e.id : e.tagName + (e.className ? '.' + String(e.className).split(' ')[0] : ''));
+          return { takasa: Math.round(ob.getBoundingClientRect().height), sah: getComputedStyle(document.documentElement).getPropertyValue('--sa-h').trim(),
+            obi: !!(eo && (eo === ob || ob.contains(eo))), obiSoko: nani(eo), btn: !!(eb && (eb === bt || bt.contains(eb))), btnSoko: nani(eb) };
+        });
+        console.log('    ── ⑦ 幅 390→700 … 帯の 高さ ' + takasaMae + '→' + o7.takasa + 'px／--sa-h ' + o7.sah + '／帯の 真ん中に ' + o7.obiSoko + '／確定の 真ん中に ' + o7.btnSoko);
+        if (o7.takasa === takasaMae) MI('⑦', '幅を 変えても 帯の 高さが 変わらない（' + o7.takasa + 'px）＝測り直しを 試せて いない');
+        else T('★⑦ 幅を 変えて 帯の 高さが 変わっても 帯も 確定ボタンも 描かれて いる（--sa-h ' + o7.sah + '＝帯 ' + o7.takasa + 'px）★',
+          o7.obi && o7.btn && o7.sah === o7.takasa + 'px', '帯の 真ん中に ' + o7.obiSoko + '／確定の 真ん中に ' + o7.btnSoko + '／--sa-h ' + o7.sah);
+      }
       await C.cx.close();
     }
   }

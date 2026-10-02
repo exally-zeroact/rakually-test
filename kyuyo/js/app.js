@@ -6535,10 +6535,16 @@
     if(kind==='ng'){ el.textContent=t; el.hidden=false; }
     else if(kind==='ok'){ el.hidden=true; el.textContent=''; }
     else return;
-    /* ★帯の 高さを 字で 置く（--sa-h）★＝入力画面の「今月を確定」の 帯（同じく 下のナビの 上に 貼り付く）を その分 持ち上げる
-       ★無いと★ … 確定の 帯の 下の 警告の 箱が ★この 帯を 隠した★（2026-10-02 WebKit 実測・帯の 真ん中に DIV.cr-warn）
-       ★高さは 決め打ちに しない★＝実物を 測る（--bn-h と 同じ 手）／隠れている 時は 0 */
-    try{ document.documentElement.style.setProperty('--sa-h', (el.hidden?0:Math.round(el.getBoundingClientRect().height))+'px'); }catch(_){ /* 古い browser */ }
+    saFit();
+  }
+  /* ★帯の 高さを 字で 置く（--sa-h）★＝入力画面の「今月を確定」の 帯（同じく 下のナビの 上に 貼り付く）を その分 持ち上げる
+     ★無いと★ … 確定の 帯の 下の 警告の 箱が ★この 帯を 隠した★（2026-10-02 WebKit 実測・帯の 真ん中に DIV.cr-warn）
+     ★高さは 決め打ちに しない★＝実物を 測る（--bn-h と 同じ 手）／隠れている 時は 0
+     ★呼ぶ 所は 2つ★ … 帯を 出し入れした 時（hozonFuda）と ★幅が 変わった 時（bnFit と 同じ 受け手）★＝折り返しで 高さが 変わる */
+  function saFit(){
+    var el=document.getElementById('save-alert');
+    var h=(el&&!el.hidden)?Math.round(el.getBoundingClientRect().height):0;
+    try{ document.documentElement.style.setProperty('--sa-h', h+'px'); }catch(_){ /* 古い browser */ }
   }
   // ★保留した保存を 出す時に「その時点の 新しい中身」を 渡す★(store.js の saveHold が呼ぶ)。
   //  これが無いと、読み込み前の 古い一覧で 倉庫を 上書きしてしまう(2026-09-03 P0)。
@@ -6787,6 +6793,7 @@
       var n=document.querySelector('.botnav');
       var h=n?Math.round(n.getBoundingClientRect().height):0;
       try{ document.documentElement.style.setProperty('--bn-h', h+'px'); }catch(_){ /* 古い browser */ }
+      saFit();   /* ★幅が 変わると 帯の 折り返しも 変わる★＝同じ 受け手で 測り直す */
     }
     bnFit();
     window.addEventListener('resize', bnFit);
