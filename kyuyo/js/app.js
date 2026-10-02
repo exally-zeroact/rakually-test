@@ -6544,7 +6544,8 @@
   function saFit(){
     var el=document.getElementById('save-alert');
     var h=(el&&!el.hidden)?Math.round(el.getBoundingClientRect().height):0;
-    try{ document.documentElement.style.setProperty('--sa-h', h+'px'); }catch(_){ /* 古い browser */ }
+    // 包まない＝転んだら 黙らずに 出る（何もしない catch を 増やさない）
+    document.documentElement.style.setProperty('--sa-h', h+'px');
   }
   // ★保留した保存を 出す時に「その時点の 新しい中身」を 渡す★(store.js の saveHold が呼ぶ)。
   //  これが無いと、読み込み前の 古い一覧で 倉庫を 上書きしてしまう(2026-09-03 P0)。
