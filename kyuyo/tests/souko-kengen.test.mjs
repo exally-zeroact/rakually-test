@@ -94,9 +94,17 @@ if (SELF) {
    司さんに もらったのは「本番を 1回 読む」許し＝押すたびでは ない。⇒ test の 倉庫を 指す 時だけ 読む。
    （本番でも 読みたいなら 司さんに 1件で 訊く／kagi-terasu と 同じ 守り） */
 {
-  let kankyo = 'test';
-  try { const { repoEnv } = await import('../../scripts/repo-env.mjs'); kankyo = repoEnv(ROOT); } catch (e) { kankyo = 'test'; }
-  if (kankyo !== 'test') { console.log('🟡 ★未測定★ ★この repo は 本番（' + kankyo + '）を 指す＝試験の 倉庫では 無い ので 権限を 数えません★'); process.exit(0); }
+  /* ★分からない時は 読まない側へ 倒す（fail-closed・2026-10-03 指示役）★
+     ＝初期値 null・転んだら null。test の 倉庫を 指す 時★だけ★ 先へ 進む（!== 'test' で 止める、では なく）。
+     向き先が 分からない（null）＝手元は 止める（非0）・GitHub は 抜ける（0）。本番(prod)＝抜ける（0・読まない） */
+  let kankyo = null;
+  try { const { repoEnv } = await import('../../scripts/repo-env.mjs'); kankyo = repoEnv(ROOT); } catch (e) { kankyo = null; }
+  if (kankyo !== 'test') {
+    if (kankyo == null && String(process.env.GITHUB_ACTIONS || '') !== 'true') {
+      console.log('✗ ★向き先が 分からない（repo-env が 読めない）＝倉庫を 読まない・手元は 止める★'); process.exit(1);
+    }
+    console.log('🟡 ★未測定★ ★test の 倉庫を 指す repo では 無い（' + (kankyo || '不明') + '）＝権限を 数えません★'); process.exit(0);
+  }
 }
 const { kankyoKa, kankyoIu, toiawase } = await import('./_souko-kazoeru.mjs');
 

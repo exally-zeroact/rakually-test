@@ -25,10 +25,17 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const WAZA = process.argv.indexOf('--waza') >= 0;
 
-/* ★本番の 倉庫を 指す repo では 走らせない★（repoEnv が test の 時だけ） */
-let env = 'test';
-try { const { repoEnv } = await import('../../scripts/repo-env.mjs'); env = repoEnv(ROOT); } catch (e) { env = 'test'; }
-if (env !== 'test') { console.log('🟡 ★未測定★ ★この repo は 本番（' + env + '）を 指す＝試験の 倉庫では 無い ので 測りません★'); process.exit(0); }
+/* ★本番の 倉庫を 指す repo では 走らせない（fail-closed・2026-10-03 指示役）★
+   ＝初期値 null・転んだら null。test の 倉庫を 指す 時★だけ★ 先へ 進む。
+   向き先が 分からない（null）＝手元は 止める（非0）・GitHub は 抜ける（0）。本番(prod)＝抜ける（0） */
+let env = null;
+try { const { repoEnv } = await import('../../scripts/repo-env.mjs'); env = repoEnv(ROOT); } catch (e) { env = null; }
+if (env !== 'test') {
+  if (env == null && String(process.env.GITHUB_ACTIONS || '') !== 'true') {
+    console.log('✗ ★向き先が 分からない（repo-env が 読めない）＝倉庫を 触らない・手元は 止める★'); process.exit(1);
+  }
+  console.log('🟡 ★未測定★ ★test の 倉庫を 指す repo では 無い（' + (env || '不明') + '）ので 測りません★'); process.exit(0);
+}
 
 /* ★倉庫へ 問う 入口は _souko-kazoeru の toiawase() 1本だけ★（門 souko-mon ①②＝鍵を 直に 読まない・api.supabase.com を 直に 叩かない）
    向き先・公開鍵は js/supa-config.js を 読む 1か所（repo-supa）経由。/rpc/ は 客の 道（<ref>.supabase.co・api.supabase.com では ない） */
