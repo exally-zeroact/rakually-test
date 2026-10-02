@@ -89,6 +89,15 @@ if (SELF) {
 }
 
 /* ── ここから 実物の 倉庫を 引く ── */
+/* ★本番の 倉庫を 指す repo では 読まない★（2026-10-03）＝この 門は toiawase で 倉庫の 権限を 読む。
+   向き先は repo の supa-config＝本番 repo の 押す前の 網で 回すと ★押すたびに 本番の 倉庫を 読む★。
+   司さんに もらったのは「本番を 1回 読む」許し＝押すたびでは ない。⇒ test の 倉庫を 指す 時だけ 読む。
+   （本番でも 読みたいなら 司さんに 1件で 訊く／kagi-terasu と 同じ 守り） */
+{
+  let kankyo = 'test';
+  try { const { repoEnv } = await import('../../scripts/repo-env.mjs'); kankyo = repoEnv(ROOT); } catch (e) { kankyo = 'test'; }
+  if (kankyo !== 'test') { console.log('🟡 ★未測定★ ★この repo は 本番（' + kankyo + '）を 指す＝試験の 倉庫では 無い ので 権限を 数えません★'); process.exit(0); }
+}
 const { kankyoKa, kankyoIu, toiawase } = await import('./_souko-kazoeru.mjs');
 
 const q = "select n.nspname as heya, c.relname as na, c.relkind as shurui,"

@@ -56,7 +56,8 @@ if (process.argv.includes('--self-test')) {
   const e = erabu(mihon);
   iu('★段を yml から 拾う（6段）★', e.zen === 6);
   iu('★実ブラウザの 段は 除く★', !!e.nozoku.find((x) => /b-ui\.mjs/.test(x.c)));
-  iu('★倉庫の 段は 除く★', !!e.nozoku.find((x) => /souko-mon/.test(x.c)));
+  iu('★静的な 門（souko-mon）は 名前で 除かない＝回す★（2026-10-03・飾りの字の門を 直した）',
+    !!e.hashiru.find((x) => /souko-mon/.test(x.c)) && !e.nozoku.find((x) => /souko-mon/.test(x.c)));
   iu('★掃きの 道具は 除く（二重に 走る）★', !!e.nozoku.find((x) => /clock-sweep/.test(x.c)));
   iu('★支度は 除く★', !!e.nozoku.find((x) => /npm install/.test(x.c)));
   iu('★★`scripts/` の 段も 回す★★（今日 ここが 抜けて いた）',

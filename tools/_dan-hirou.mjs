@@ -29,7 +29,11 @@ export function hirouDan(ymlJi) {
 /* ★重い 段の 見分け（字で 決める）★＝当たった 訳も 返す（★黙って 除けない★） */
 export const OMOI = [
   { re: /\bborrow\(|-ui\.mjs|playwright/i, wake: '実ブラウザを 借りる' },
-  { re: /_souko-kazoeru|souko-|koji-mon|maboroshi|nomiya-db-url/i, wake: '倉庫を 触る' },
+  /* ★「倉庫を 触る」は 名前で 外さない（2026-10-03）★＝名前の 字で 決めると 静的な 門（souko-mon・koji-mon）まで 飛ばす
+     ＝手元 緑・CI 赤 の 元に なった（souko-mon が 手元で 飛ばされ CI だけで 回って 赤）。
+     ★この 名簿は「重い段」を 速さの為に 外す物（安全では ない）★ので、倉庫の 試験は 外さず 網で 回す
+       （手元は 鍵在りで 通る／鍵無しの 機械は 各試験が 自分で 抜ける＝kagi-terasu・rls-tanin・souko-kengen と 同じ）。
+     本番の 倉庫を 読む 恐れの ある souko-kengen は、その 頭に「repoEnv が test 以外は 抜ける」を 置いた。 */
   { re: /clock-sweep|souname/i, wake: '中で 他の 段を 回す' },
   { re: /^npm\s|^npx\s/i, wake: '支度' },
 ];
