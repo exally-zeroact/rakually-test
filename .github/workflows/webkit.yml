@@ -1,5 +1,21 @@
 name: WebKit（iOSと同じエンジンで測る）
 
+# ★★同じ repo の WebKit を ★1本ずつ★ に 直列化する★★（2026-10-03・指示役と）
+#   ★なぜ★ … WebKit の 実ブラウザ試験は 共有口 test@test.com を 読み書きする。2本が 同時に 走ると
+#     互いの 書きが 相手の 保存を conflict にし、覆いが タブを 塞いで ★嘘の 赤（はかれない）★に なる
+#     （10-03 実測＝3本 同時で 2本 赤・単独1本で success 59段）。
+#   ★cancel-in-progress: false が 肝★ … 走って いる 回は 消さない（消すと 測定が 飛ぶ＝門を 緩める）。
+#   ★★GitHub の 決まりの 穴（docs で 確かめた 2026-10-03）★★ … 同じ group は「走行中 1本＋待機 1本」まで。
+#     待機が 在る所に もう1本 来ると ★前に 待っていた 回は cancelled★（cancel-in-progress:false でも 待機側は 消える）。
+#     ⇒ 30分内に 3回 押すと 真ん中の 押しの WebKit は 走らず cancelled。
+#     ⇒ ★決まり★＝★WebKit が cancelled の commit は 緑ではなく『走って いない』。本番へ写すのは
+#        WebKit が success の commit か、その上の commit だけ★。
+#   ★repo 単位★ … テスト線と 本番は 別々に 直列化（干渉しない）。本番 rakually の WebKit は
+#     test@test.com を 使わず 自己抜け＝ここが 在っても 無害。
+concurrency:
+  group: webkit-shared-account
+  cancel-in-progress: false
+
 # ★なぜ 別のワークフローか★（指示役 2026-08-28 の裁定＝案A）
 #   ・Chromium だけでは iOS は分からない（scripts/input-size.mjs は Chrome で毎回 測っている）
 #   ・でも ★毎回 WebKit を入れるのは 重い★（ブラウザのダウンロードが要る）
