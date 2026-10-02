@@ -13,6 +13,7 @@
  *   ② 下へ 巻いても 帯は 同じ 所に 在る／★失敗が 続いて もう1回 打っても 消えない★
  *   ③ 書きを 通して 打つと ★帯が 消える★（保存できた 時だけ 消す）
  *   ⑤ iPhone の 幅（390px）でも ① が 同じ
+ *   ⑥ 入力画面で「今月を確定」の 帯と 重ならない（帯の 真ん中に 帯／確定の 真ん中に 確定ボタン・既定と 390px）
  * ★倉庫の 中身は 動かさない★ … 違う 値を 打つのは ★書きを 止めて いる 間だけ★／書きを 通す ③は ★元の 値★を 打つ
  * ★わざと 壊す 回（--waza）★ … 配る 時だけ setS から 帯への 1行を 外す ⇒ ① が 赤
  */
@@ -258,6 +259,50 @@ try {
       if (B.kaki.otoshita === 0) MI('⑤', '書きが 1本も 出ていない');
       else T('★⑤ iPhone の 幅（390px）でも 帯が 描かれる★', o5.mieru && !!o5.ji, '点に 在るのは ' + o5.soko);
       await B.cx.close();
+    }
+  }
+
+  /* ── ⑥ 入力画面＝「今月を確定」の 帯と 重ならない（★帯も 確定ボタンも 両方 描かれて いる★） ──
+     ★なぜ★ … 確定の 帯も 下のナビの 上に 貼り付く（sticky・同じ z）。直す前は 確定の 帯の 下の 警告の 箱が
+       ★この 帯を 隠した★（指示役が 読んで 見つけ、2026-10-02 実測で 確かめた）⇒ 帯が 出て いる 間は --sa-h で 確定の 帯を 持ち上げる */
+  if (!WAZA) {
+    for (const haba of [0, 390]) {
+      const C = await hiraku(haba);
+      if (!C.pg) { MI('⑥ 入力画面（幅 ' + (haba || '既定') + '）', C.naze); continue; }
+      for (let i = 0; i < 30; i++) {
+        if (await C.pg.click('.bn[data-scr="scr-input"]', { timeout: 1000 }).then(() => true).catch(() => false)) break;
+        await matsu(300);
+      }
+      await matsu(1500);
+      await shizumaru(C.pg, 2000, 20000);
+      if (!(await C.pg.$('[data-confirm-month]'))) { MI('⑥ 幅 ' + (haba || '既定'), '確定の ボタンが 出ていない'); await C.cx.close(); continue; }
+      C.kaki.mode = 'otosu';
+      const mae = C.kaki.zen;
+      /* ★書きを 落として いる 間だけ★ 入力画面の 欄を 1つ 打つ（倉庫には 届かない） */
+      const aru = await C.pg.$$eval('#input-list input:not([type=checkbox]):not([type=hidden]):not([readonly]):not([disabled])', (a) => {
+        const e = a.find((x) => x.offsetParent); if (!e) return false; e.setAttribute('data-hf6', '1'); return true;
+      });
+      if (!aru) { MI('⑥ 幅 ' + (haba || '既定'), '入力画面に 打てる 欄が 無い'); await C.cx.close(); continue; }
+      await C.pg.click('[data-hf6="1"]');
+      await C.pg.keyboard.press('Control+A');
+      await C.pg.keyboard.type('7');
+      await C.pg.keyboard.press('Tab');
+      for (let i = 0; i < 160 && C.kaki.zen === mae; i++) await matsu(250);
+      await matsu(2000);
+      const o6 = await C.pg.evaluate(() => {
+        const ob = document.getElementById('save-alert'), bt = document.querySelector('[data-confirm-month]');
+        const naka = (e) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; };
+        const nani = (e) => { if (!e) return 'なし'; return e.id ? '#' + e.id : e.tagName + (e.className ? '.' + String(e.className).split(' ')[0] : ''); };
+        const po = ob && !ob.hidden ? naka(ob) : null, pb = bt ? naka(bt) : null;
+        const eo = po && document.elementFromPoint(po.x, po.y), eb = pb && document.elementFromPoint(pb.x, pb.y);
+        return { obi: !!(eo && (eo === ob || ob.contains(eo))), obiSoko: nani(eo), btn: !!(eb && (eb === bt || bt.contains(eb))), btnSoko: nani(eb), ji: ob ? ob.textContent : '' };
+      });
+      const na = '幅 ' + (haba || '既定');
+      console.log('    ── ⑥ 入力画面 ' + na + ' … 落とした 書き ' + C.kaki.otoshita + '本／帯の 真ん中に ' + o6.obiSoko + '／確定の 真ん中に ' + o6.btnSoko);
+      if (C.kaki.otoshita === 0) MI('⑥ ' + na, '書きが 1本も 出ていない');
+      else T('★⑥ 入力画面（' + na + '）で 帯も 確定ボタンも 描かれて いる（重ならない）★', o6.obi && o6.btn,
+        '帯の 真ん中に ' + o6.obiSoko + '／確定の 真ん中に ' + o6.btnSoko);
+      await C.cx.close();
     }
   }
 } catch (e) {

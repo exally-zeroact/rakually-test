@@ -2541,7 +2541,7 @@
     /* ★★「今月を確定」も 下に 貼り付く★★（2026-09-25 司さんの 条件・上の 帯と 同じ 訳）
        ★背景を 必ず 持たせる★＝持たせないと ★下の 札が 透けて 字が 重なる★
        ★`bottom:0`★＝窓の 一番 下／`z-index` は 上の 帯と 同じ 30 */
-    var confirmBtn='<div style="position:sticky;bottom:var(--bn-h,0px);z-index:29;background:#F0FAF4;border-top:1px solid #C8ECD8;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 0;padding:10px 0 8px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映'))+'）</button>'
+    var confirmBtn='<div style="position:sticky;bottom:calc(var(--bn-h,0px) + var(--sa-h,0px));z-index:29;background:#F0FAF4;border-top:1px solid #C8ECD8;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 0;padding:10px 0 8px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映'))+'）</button>'
       +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700;white-space:nowrap">✓ 確認済</span>')
       /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
          ★確定済みの 月にだけ 出す★＝押せない物を 並べない。
@@ -6534,6 +6534,11 @@
     var el=document.getElementById('save-alert'); if(!el) return;
     if(kind==='ng'){ el.textContent=t; el.hidden=false; }
     else if(kind==='ok'){ el.hidden=true; el.textContent=''; }
+    else return;
+    /* ★帯の 高さを 字で 置く（--sa-h）★＝入力画面の「今月を確定」の 帯（同じく 下のナビの 上に 貼り付く）を その分 持ち上げる
+       ★無いと★ … 確定の 帯の 下の 警告の 箱が ★この 帯を 隠した★（2026-10-02 WebKit 実測・帯の 真ん中に DIV.cr-warn）
+       ★高さは 決め打ちに しない★＝実物を 測る（--bn-h と 同じ 手）／隠れている 時は 0 */
+    try{ document.documentElement.style.setProperty('--sa-h', (el.hidden?0:Math.round(el.getBoundingClientRect().height))+'px'); }catch(_){ /* 古い browser */ }
   }
   // ★保留した保存を 出す時に「その時点の 新しい中身」を 渡す★(store.js の saveHold が呼ぶ)。
   //  これが無いと、読み込み前の 古い一覧で 倉庫を 上書きしてしまう(2026-09-03 P0)。
