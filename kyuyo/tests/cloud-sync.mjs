@@ -746,6 +746,32 @@ runs.push(T('★⑦TOCTOU: 事前SELECT後・本書き前に自分の書きが�
   ok(rB.ok === true, '★save B が通っていない（' + JSON.stringify(rB) + '）');
 }));
 
+/* ★★★⑦-連鎖: 応答落ちが ★続いて★ も 控えが前進し、収まれば通る（自分で自分を弾き続けない）★★★（2026-10-03・指示役）
+   ★fuyo-ui で 1回 踏んだ赤（控えが止まり souko だけ進む conflict 連鎖）が、直しの狙いの真ん中。
+     線が落ちた間 会社の書きの応答が 連続で 落ちる＝倉庫は自分のnowに進む／控えは返らず古いまま。
+     ★縛る物★＝毎回 事前SELECTの自分送り分岐で控えが ★1つずつ前進★し、落ちが収まれば ★保存が通る★。
+   ★控えが前進しない＝conflict連鎖＝赤★（＝直す前の穴 or 新path穴。どちらでも ここで止める）。 */
+runs.push(T('★⑦連鎖: 応答落ちが続いても 控えが前進し 連鎖しない（収まれば通る）', async function () {
+  const o = { dbFormat: true, companyData: { name: 'A' }, companyUpdatedAt: '2026-10-03T02:00:00.000+00:00' };
+  const mock = makeMock(o);
+  const Store = loadStore(mock);
+  await Store.cloudLoadState();                 // 控え=U0
+  o.companyStoredButError = true;               // ★線落ちが続く＝会社の書きの応答が連続で落ちる★
+  let last = Store.okuttaNoKazu().toshita, stuck = 0;
+  for (let i = 0; i < 6; i++) {
+    await new Promise((r) => setTimeout(r, 3));  // ★実機は 保存が ≥500ms 間隔＝now が別の時刻★（mock が速すぎて同じ ms に なるのを防ぐ）
+    const r = await Store.cloudSaveState(SNAP);
+    const t = Store.okuttaNoKazu().toshita;     // 自分送りで控えが前進した回数
+    ok(r.ok === false, '落ちている間は ok:false（' + JSON.stringify(r) + '）');
+    if (i >= 1 && t <= last) stuck++;           // 2回目以降 前進していないと 連鎖
+    last = t;
+  }
+  ok(stuck === 0, '★控えが前進していない＝自分で自分を弾き続ける連鎖（停滞 ' + stuck + '回）');
+  o.companyStoredButError = false;              // 線が戻った
+  const rec = await Store.cloudSaveState(SNAP);
+  ok(rec.ok === true && rec.reason !== 'conflict', '★線が戻っても保存が通らない＝連鎖が残った（' + JSON.stringify(rec) + '）');
+}));
+
 await Promise.all(runs);
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
