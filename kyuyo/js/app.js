@@ -1154,7 +1154,7 @@
       var ids=Object.keys(sel.ids).filter(function(id){return sel.ids[id];});
       if(!ids.length){ uiAlert('適用する人が選ばれていません。'); return; }
       var n=0; state.employees.forEach(function(e){ if(ids.indexOf(e.id)>=0){ applyPayPattern(e,pat); n++; } });
-      renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced(); toast('「'+pat.name+'」を '+n+'名に適用しました');
+      renderEmpMaster(); toast('「'+pat.name+'」を '+n+'名に適用しました');
     });
   }
   // 雑入力ウィザード(給料の決め方を言葉で→読み取る→数字例つき確認→設定)
@@ -5033,7 +5033,7 @@
   function bind(){
     $$('.bn').forEach(function(b){ b.addEventListener('click',function(){ showScreen(b.dataset.scr); }); });
     // 💡 ヘルプ（全画面共通）
-    document.addEventListener('click',function(e){ var hi=e.target.closest('.help-i'); if(hi){ openHelp(hi.dataset.help); return; } if(e.target.closest('[data-taishoku-calc]')){ openTaishokuCalc(null); return; } if(e.target.closest('[data-onboard-close]')){ state.onboardDone=true; renderOnboard(); if(window.persistSaveDebounced)persistSaveDebounced(); return; }
+    document.addEventListener('click',function(e){ var hi=e.target.closest('.help-i'); if(hi){ openHelp(hi.dataset.help); return; } if(e.target.closest('[data-taishoku-calc]')){ openTaishokuCalc(null); return; } if(e.target.closest('[data-onboard-close]')){ state.onboardDone=true; renderOnboard(); return; }
       var gob=e.target.closest('[data-onboard-goto]'); if(gob){ var g=gob.dataset.onboardGoto; // はじめかたガイド: 未完ステップ→その画面へジャンプ
         if(g==='company'||g==='emp'){ showScreen('scr-settings'); var b=$('#set-seg .seg-b[data-set="'+g+'"]'); if(b)b.click(); }
         else if(g==='input'){ showScreen('scr-input'); } else if(g==='print'){ showScreen('scr-print'); }
@@ -5312,26 +5312,26 @@
             /* ★確定は出来たが 公開は出来なかった★を はっきり分けて言う（黙って同じ文にしない） */
             function(){ toast('賞与を確定しました（年調・台帳に反映）。★従業員のWeb明細には公開できていません★'); }); return; }
         if(ev.target.closest('[data-bonus-harau]')){ try{ downloadBonusHarau(); }catch(_){} return; } // 賞与支払届 Excel出力
-        var addS=ev.target.closest('[data-bsadd]'); if(addS){ var es=bonusById(addS.dataset.bsadd); if(es){ var i1=inScr.querySelector('[data-bsaddl="'+addS.dataset.bsadd+'"]'); var l1=(i1&&i1.value||'').trim()||'特別賞与'; bonusEntry(es).addShikyu.push({label:l1,value:'',hikazei:false}); renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); } return; }
-        var addK=ev.target.closest('[data-bkadd]'); if(addK){ var ek=bonusById(addK.dataset.bkadd); if(ek){ var i2=inScr.querySelector('[data-bkaddl="'+addK.dataset.bkadd+'"]'); var l2=(i2&&i2.value||'').trim()||'控除'; bonusEntry(ek).addKojo.push({label:l2,value:''}); renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); } return; }
-        var dS=ev.target.closest('[data-bsx]'); if(dS){ var rS=bxParse(dS.dataset.bsx,'addShikyu'); if(rS){ rS.arr.splice(rS.idx,1); renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); } return; }
-        var dK=ev.target.closest('[data-bkx]'); if(dK){ var rK=bxParse(dK.dataset.bkx,'addKojo'); if(rK){ rK.arr.splice(rK.idx,1); renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); } return; }
-        var m=ev.target.closest('.imode'); if(!m)return; state.inputMode=m.dataset.imode==='bonus'?'bonus':'monthly'; renderInputArea(); if(window.persistSaveDebounced)persistSaveDebounced(); });
+        var addS=ev.target.closest('[data-bsadd]'); if(addS){ var es=bonusById(addS.dataset.bsadd); if(es){ var i1=inScr.querySelector('[data-bsaddl="'+addS.dataset.bsadd+'"]'); var l1=(i1&&i1.value||'').trim()||'特別賞与'; bonusEntry(es).addShikyu.push({label:l1,value:'',hikazei:false}); renderBonus(); } return; }
+        var addK=ev.target.closest('[data-bkadd]'); if(addK){ var ek=bonusById(addK.dataset.bkadd); if(ek){ var i2=inScr.querySelector('[data-bkaddl="'+addK.dataset.bkadd+'"]'); var l2=(i2&&i2.value||'').trim()||'控除'; bonusEntry(ek).addKojo.push({label:l2,value:''}); renderBonus(); } return; }
+        var dS=ev.target.closest('[data-bsx]'); if(dS){ var rS=bxParse(dS.dataset.bsx,'addShikyu'); if(rS){ rS.arr.splice(rS.idx,1); renderBonus(); } return; }
+        var dK=ev.target.closest('[data-bkx]'); if(dK){ var rK=bxParse(dK.dataset.bkx,'addKojo'); if(rK){ rK.arr.splice(rK.idx,1); renderBonus(); } return; }
+        var m=ev.target.closest('.imode'); if(!m)return; state.inputMode=m.dataset.imode==='bonus'?'bonus':'monthly'; renderInputArea(); });
       // 入力中は値を保存のみ(再描画しない=フォーカス維持)。結果はblur(change)で更新。
       inScr.addEventListener('input',function(ev){
         var bsl=ev.target.closest('[data-bsl]'), bsv=ev.target.closest('[data-bsv]'), bkl=ev.target.closest('[data-bkl]'), bkv=ev.target.closest('[data-bkv]');
-        if(bsl||bsv||bkl||bkv){ var t=bsl||bsv||bkl||bkv, isS=!!(bsl||bsv), isLbl=!!(bsl||bkl); var r=bxParse(t.dataset[bsl?'bsl':bsv?'bsv':bkl?'bkl':'bkv'], isS?'addShikyu':'addKojo'); if(r&&r.arr[r.idx]){ if(isLbl) r.arr[r.idx].label=t.value; else r.arr[r.idx].value=t.value.replace(/[^0-9]/g,''); } if(window.persistSaveDebounced)persistSaveDebounced(); return; }
+        if(bsl||bsv||bkl||bkv){ var t=bsl||bsv||bkl||bkv, isS=!!(bsl||bsv), isLbl=!!(bsl||bkl); var r=bxParse(t.dataset[bsl?'bsl':bsv?'bsv':bkl?'bkl':'bkv'], isS?'addShikyu':'addKojo'); if(r&&r.arr[r.idx]){ if(isLbl) r.arr[r.idx].label=t.value; else r.arr[r.idx].value=t.value.replace(/[^0-9]/g,''); } return; }
         var ba=ev.target.closest('[data-ba]'), bp=ev.target.closest('[data-bp]'), by=ev.target.closest('[data-by]'); if(!ba&&!bp&&!by)return;
         var e=bonusEmpOf(ba||bp||by); if(!e)return; var en=bonusEntry(e);
         if(ba) en.amount=ba.value.replace(/[^0-9]/g,''); else if(bp) en.prevAfter=bp.value.replace(/[^0-9]/g,''); else en.ytd=by.value.replace(/[^0-9]/g,'');
-        if(window.persistSaveDebounced)persistSaveDebounced(); });
+ });
       inScr.addEventListener('change',function(ev){
-        var bsh=ev.target.closest('[data-bsh]'); if(bsh){ var rh=bxParse(bsh.dataset.bsh,'addShikyu'); if(rh&&rh.arr[rh.idx]) rh.arr[rh.idx].hikazei=bsh.checked; renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); return; }
-        if(ev.target.closest('[data-bsl],[data-bsv],[data-bkl],[data-bkv]')){ renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); return; } // 追加項目のblur=再描画(整形)
+        var bsh=ev.target.closest('[data-bsh]'); if(bsh){ var rh=bxParse(bsh.dataset.bsh,'addShikyu'); if(rh&&rh.arr[rh.idx]) rh.arr[rh.idx].hikazei=bsh.checked; renderBonus(); return; }
+        if(ev.target.closest('[data-bsl],[data-bsv],[data-bkl],[data-bkv]')){ renderBonus(); return; } // 追加項目のblur=再描画(整形)
         var bn=ev.target.closest('[data-bn]');
-        if(bn){ if(!state.bonus)state.bonus={byEmp:{}}; if(bn.dataset.bn==='payYm'){ state.bonus.payYm=bn.value; state._bonusPrevYm=null; state._bonusYtdYm=null; } else { state.bonus.payDay=bn.value; } renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); return; }
+        if(bn){ if(!state.bonus)state.bonus={byEmp:{}}; if(bn.dataset.bn==='payYm'){ state.bonus.payYm=bn.value; state._bonusPrevYm=null; state._bonusYtdYm=null; } else { state.bonus.payDay=bn.value; } renderBonus(); return; }
         var ba=ev.target.closest('[data-ba]'), bp=ev.target.closest('[data-bp]'), by=ev.target.closest('[data-by]');
-        if(ba||bp||by){ var e=bonusEmpOf(ba||bp||by); if(e){ var en=bonusEntry(e); if(ba) en.amount=ba.value.replace(/[^0-9]/g,''); else if(bp) en.prevAfter=bp.value.replace(/[^0-9]/g,''); else en.ytd=by.value.replace(/[^0-9]/g,''); } renderBonus(); if(window.persistSaveDebounced)persistSaveDebounced(); }
+        if(ba||bp||by){ var e=bonusEmpOf(ba||bp||by); if(e){ var en=bonusEntry(e); if(ba) en.amount=ba.value.replace(/[^0-9]/g,''); else if(bp) en.prevAfter=bp.value.replace(/[^0-9]/g,''); else en.ytd=by.value.replace(/[^0-9]/g,''); } renderBonus(); }
       });
     }
 
@@ -5390,7 +5390,6 @@
         /* ★描き直さない★＝答えの1行と ボタンだけ書き換える（焦点を外さない） */
         var qq=ASK_Q().filter(function(x){return x.key===f;})[0];
         askLive(askHost, qq&&qq.answer&&qq.answer(), f, 'data-ask-src');
-        if(window.persistSaveDebounced) persistSaveDebounced();
       });
       askHost.addEventListener('change',function(ev){
         var f=ev.target.dataset&&ev.target.dataset.ask; if(!f) return;
@@ -5409,9 +5408,9 @@
     ['close'].forEach(function(k){ var el=$('#c-'+k); if(el) el.addEventListener('input',function(){ state.company[k]=this.value; }); });
     var pr=$('#c-payrel'); if(pr) pr.addEventListener('change',function(){ state.company.paydayRel=this.value; updatePaydayPreview(); });
     var pd=$('#c-payday-day'); if(pd) pd.addEventListener('input',function(){ state.company.paydayDay=this.value.replace(/[^0-9末]/g,''); updatePaydayPreview(); });
-    var pcy=$('#c-paycycle'); if(pcy) pcy.addEventListener('change',function(){ state.company.payCycle=this.value; payCycleNote(); renderAsk(); if(window.persistSaveDebounced)persistSaveDebounced(); });
+    var pcy=$('#c-paycycle'); if(pcy) pcy.addEventListener('change',function(){ state.company.payCycle=this.value; payCycleNote(); renderAsk(); });
     /* ★N週の欄★（締め方の c-shimen と 同じ作り） */
-    var pcn=$('#c-paycyclen'); if(pcn) pcn.addEventListener('input',function(){ state.company.payCycleN=this.value.replace(/[^0-9]/g,''); this.value=state.company.payCycleN; payCycleNote(); renderAsk(); if(window.persistSaveDebounced)persistSaveDebounced(); });
+    var pcn=$('#c-paycyclen'); if(pcn) pcn.addEventListener('input',function(){ state.company.payCycleN=this.value.replace(/[^0-9]/g,''); this.value=state.company.payCycleN; payCycleNote(); renderAsk(); });
     /* ★支給日（10,25 のように , で区切る）★＝数と , だけ通す（打っている途中は 直さない） */
     /* ★入れたら その場で 追いつく★（穴②と 同じ考え＝丸ごと 描き直さない） */
     var kp=$('#c-pref');
@@ -5420,9 +5419,9 @@
       renderAsk();                       /* 問いの 進み具合も その場で */
       var cho=$('#view-cho'); if(cho && cho.offsetParent) renderChoView();   /* ★名前は renderChoView★（renderCho は 無い＝実物で 確かめた） */
     });
-    var pdy=$('#c-paydays'); if(pdy) pdy.addEventListener('input',function(){ var v=this.value.replace(/[^0-9,]/g,''); if(v!==this.value) this.value=v; state.company.payDays=v; payCycleNote(); renderAsk(); if(window.persistSaveDebounced)persistSaveDebounced(); });
-    var shm=$('#c-shime'); if(shm) shm.addEventListener('change',function(){ state.company.shimeMethod=this.value; shimeNote(); if(state.employees)renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); });
-    var shn=$('#c-shimen'); if(shn) shn.addEventListener('input',function(){ state.company.shimeN=this.value; shimeNote(); if(state.employees)renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); });
+    var pdy=$('#c-paydays'); if(pdy) pdy.addEventListener('input',function(){ var v=this.value.replace(/[^0-9,]/g,''); if(v!==this.value) this.value=v; state.company.payDays=v; payCycleNote(); renderAsk(); });
+    var shm=$('#c-shime'); if(shm) shm.addEventListener('change',function(){ state.company.shimeMethod=this.value; shimeNote(); if(state.employees)renderInput(); });
+    var shn=$('#c-shimen'); if(shn) shn.addEventListener('input',function(){ state.company.shimeN=this.value; shimeNote(); if(state.employees)renderInput(); });
     // 会社の決まり：項目チップ
     $('#rule-chips').addEventListener('click',function(ev){
       var ch=ev.target.closest('[data-rule]'); if(ch){ var k=ch.dataset.rule; if(!state.company.ruleOn)state.company.ruleOn={}; state.company.ruleOn[k]=!state.company.ruleOn[k]; renderRuleChips(); renderCompanyRules(); return; }
@@ -5505,7 +5504,6 @@
         /* ★描き直さない★＝答えの1行と ボタンだけ書き換える（焦点を外さない） */
         var qq = EMP_ASK_Q(e).filter(function (x) { return x.key === f || (f === 'payText' && x.key === 'pay'); })[0];
         askLive(eaHost, qq && qq.answer && qq.answer(), (qq && qq.key) || f, 'data-eask-src');
-        if (window.persistSaveDebounced) persistSaveDebounced();
       });
       eaHost.addEventListener('change', function (ev) {
         var f = ev.target.dataset && ev.target.dataset.eask; if (!f) return;
@@ -5649,10 +5647,10 @@
       var md=ev.target.closest('[data-movedn]'); if(md){ moveEmp(+md.dataset.movedn,1); return; }
       if(ev.target.dataset.goleave!=null){ var gl=+ev.target.dataset.goleave; var ge=state.employees[gl]; state.open[ge.id]=true; state.open['D'+ge.id]=true; renderEmpMaster(); return; } // カードの詳細(就業状況)を開く=1経路に集約
       if(ev.target.dataset.goretire!=null){ var gr=+ev.target.dataset.goretire; if(activeEmps().length<=1){ uiAlert('稼働中は最低1名必要です'); return; } uiConfirm((state.employees[gr].name||'この従業員')+' を退職にします。給与計算・印刷の対象から外れます（データは残ります）。').then(function(ok){ if(!ok)return; state.employees[gr].retired=true; state.employees[gr].retiredYmd=state.month; renderEmpMaster(); }); return; }
-      var pdl=ev.target.closest('[data-patdel]'); if(pdl){ var pdid=pdl.dataset.patdel; uiConfirm('この給与パターンを削除しますか？（適用済みの従業員の設定は変わりません）').then(function(ok){ if(!ok)return; state.payPatterns=(state.payPatterns||[]).filter(function(x){return x.id!==pdid;}); renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced(); }); return; } // パターン削除
+      var pdl=ev.target.closest('[data-patdel]'); if(pdl){ var pdid=pdl.dataset.patdel; uiConfirm('この給与パターンを削除しますか？（適用済みの従業員の設定は変わりません）').then(function(ok){ if(!ok)return; state.payPatterns=(state.payPatterns||[]).filter(function(x){return x.id!==pdid;}); renderEmpMaster(); }); return; } // パターン削除
       if(ev.target.closest('.pat-bulk')){ openBulkPatternApply(); return; } // 給与パターンを複数人へ一括適用
-      var pim=ev.target.closest('[data-profimport]'); if(pim){ if(importEmpProfile(pim.dataset.profimport)){ renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced(); toast('振込先を取り込みました'); } return; } // 本人の振込先を取り込む
-      if(ev.target.closest('[data-profimportall]')){ var did=false; pendingProfileEmps().slice().forEach(function(e){ if(importEmpProfile(e.id)) did=true; }); if(did){ renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced(); toast('全員の振込先を取り込みました'); } return; } // 全員の振込先を取り込む
+      var pim=ev.target.closest('[data-profimport]'); if(pim){ if(importEmpProfile(pim.dataset.profimport)){ renderEmpMaster(); toast('振込先を取り込みました'); } return; } // 本人の振込先を取り込む
+      if(ev.target.closest('[data-profimportall]')){ var did=false; pendingProfileEmps().slice().forEach(function(e){ if(importEmpProfile(e.id)) did=true; }); if(did){ renderEmpMaster(); toast('全員の振込先を取り込みました'); } return; } // 全員の振込先を取り込む
       var card=ev.target.closest('.mco');
       var tg=ev.target.closest('[data-toggle]');
       if(tg){ var ti=+tg.dataset.toggle; var e=state.employees[ti]; state.open[e.id]=!state.open[e.id]; renderEmpMaster(); return; }
@@ -5681,11 +5679,11 @@
       var kzA = ev.target.closest('[data-kzadd]');
       if (kzA) { var ea = state.employees[+kzA.dataset.kzadd];
         if (ea) { ea.kazoku = ea.kazoku || []; ea.kazoku.push({ kanji: '', kana: '', seiKanji: '', meiKanji: '', seiKana: '', meiKana: '', birthYmd: '', seibetsu: '', zokugara: '', doukyo: null, zip: '', jusho: '', shunyu: '', shokugyo: '', nattaYmd: '', nattaRiyu: '', idou: '1', yametaYmd: '', yametaRiyu: '', bikou: '' });
-          renderEmpMaster(); if (window.persistSaveDebounced) persistSaveDebounced(); }
+          renderEmpMaster(); }
         return; }
       var kzD = ev.target.closest('[data-kzdel]');
       if (kzD) { var dp = String(kzD.dataset.kzdel).split(':'); var ed = state.employees[+dp[0]];
-        if (ed && ed.kazoku) { ed.kazoku.splice(+dp[1], 1); renderEmpMaster(); if (window.persistSaveDebounced) persistSaveDebounced(); }
+        if (ed && ed.kazoku) { ed.kazoku.splice(+dp[1], 1); renderEmpMaster(); }
         return; }
 
       if(ev.target.classList.contains('chip')){ var key=ev.target.dataset.chip, lab=ev.target.dataset.lab; var arr=emp[key]; var idx=arr.findIndex(function(x){return x.label===lab;}); if(idx>=0)arr.splice(idx,1); else arr.push({label:lab,value:'0'}); renderEmpMaster(); return; }
@@ -5694,9 +5692,9 @@
         var r=pp?pp.parse(ptxt):{ok:false};
         if(!r.ok){ uiAlert('「'+ptxt+'」から給料の決め方を読み取れませんでした。\n例：時給1200 ／ 月給25万 ／ 売上の3.5割か時給1200の高い方 ／ 1件1500円'); return; }
         var body='読み取り：'+r.summary+'\n\n'+parseExampleText(r)+(r.unrecognized?'\n\n※「'+r.unrecognized+'」は読み取れませんでした（あとで手で足せます）':'');
-        uiModal({ title:'この内容でいいですか？', msg:body, buttons:[{label:'キャンセル',val:false},{label:'この内容で設定',val:true,primary:true}] }).then(function(ok){ if(!ok)return; applyParse(emp,r); renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced(); toast('給与形態を設定しました'); });
+        uiModal({ title:'この内容でいいですか？', msg:body, buttons:[{label:'キャンセル',val:false},{label:'この内容で設定',val:true,primary:true}] }).then(function(ok){ if(!ok)return; applyParse(emp,r); renderEmpMaster(); toast('給与形態を設定しました'); });
         return; }
-      if(ev.target.classList.contains('pat-save')){ uiPrompt('パターン名を入力','','例：ドライバー・事務・バイト').then(function(nm){ nm=(nm||'').trim(); if(!nm)return; if(!state.payPatterns)state.payPatterns=[]; state.payPatterns.push(makePayPattern(emp,nm)); renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced(); toast('パターン「'+nm+'」を保存しました'); }); return; } // 給与パターン保存
+      if(ev.target.classList.contains('pat-save')){ uiPrompt('パターン名を入力','','例：ドライバー・事務・バイト').then(function(nm){ nm=(nm||'').trim(); if(!nm)return; if(!state.payPatterns)state.payPatterns=[]; state.payPatterns.push(makePayPattern(emp,nm)); renderEmpMaster(); toast('パターン「'+nm+'」を保存しました'); }); return; } // 給与パターン保存
       if(ev.target.closest('[data-pradd]')){ ensurePayRule(emp).variable.parts.push({type:'hourly',amount:''}); renderEmpMaster(); return; } // カスタム給: 部品追加
       var prd=ev.target.closest('[data-prdel]'); if(prd){ ensurePayRule(emp).variable.parts.splice(+String(prd.dataset.prdel).split(':')[1],1); renderEmpMaster(); return; } // 部品削除
       var prta=ev.target.closest('[data-prtieradd]'); if(prta){ var _tp=ensurePayRule(emp).variable.parts[+String(prta.dataset.prtieradd).split(':')[1]]; if(_tp){ if(!_tp.tiers||!_tp.tiers.length)_tp.tiers=[{from:0,rate:''}]; _tp.tiers.push({from:'',rate:''}); } renderEmpMaster(); return; } // 段追加
@@ -5735,10 +5733,10 @@
            減った→「外れた日／外れた理由」／変わった→「何を 変えたか」。
            描き直さないと ★選んだのに 欄が 出てこない★＝出せない物を 出せると 見せる形に なる。 */
         if(fld==='zokugara'||fld==='idou'){ renderEmpMaster(); }
-          if(window.persistSaveDebounced)persistSaveDebounced(); }
+ }
         return; }
       if(ev.target.classList.contains('sh-days')){ renderEmpMaster(); return; }
-      if(ev.target.classList.contains('pat-apply')){ var pid=ev.target.value; if(!pid){ renderEmpMaster(); return; } var pat=(state.payPatterns||[]).find(function(x){return x.id===pid;}); if(pat){ uiConfirm('「'+pat.name+'」を '+(emp.name||'この従業員')+' に適用します。給与形態・決め方・支給/控除項目が置き換わります（氏名・扶養・通勤などは変わりません）。よろしいですか？').then(function(ok){ if(!ok){ renderEmpMaster(); return; } applyPayPattern(emp,pat); renderEmpMaster(); if(window.persistSaveDebounced)persistSaveDebounced(); toast('「'+pat.name+'」を適用しました'); }); } return; } // 給与パターン適用
+      if(ev.target.classList.contains('pat-apply')){ var pid=ev.target.value; if(!pid){ renderEmpMaster(); return; } var pat=(state.payPatterns||[]).find(function(x){return x.id===pid;}); if(pat){ uiConfirm('「'+pat.name+'」を '+(emp.name||'この従業員')+' に適用します。給与形態・決め方・支給/控除項目が置き換わります（氏名・扶養・通勤などは変わりません）。よろしいですか？').then(function(ok){ if(!ok){ renderEmpMaster(); return; } applyPayPattern(emp,pat); renderEmpMaster(); toast('「'+pat.name+'」を適用しました'); }); } return; } // 給与パターン適用
       // カスタム給の決め方(mode/部品type/固定給/部品金額)。data-f無しなので先に処理
       if(ev.target.dataset.prmode!=null){ ensurePayRule(emp).variable.mode=ev.target.value; renderEmpMaster(); return; }
       var prt=ev.target.closest('[data-prtype]'); if(prt){ var _pt=ensurePayRule(emp).variable.parts[+String(prt.dataset.prtype).split(':')[1]]; if(_pt){ _pt.type=prt.value; if(prt.value==='tiered'&&(!_pt.tiers||!_pt.tiers.length))_pt.tiers=[{from:0,rate:''},{from:'',rate:''}]; } renderEmpMaster(); return; }
@@ -5758,7 +5756,7 @@
       if(ev.target.classList.contains('sh-henko')){
         var _c=ev.target.closest('.mco'); if(_c){ var _i=+_c.dataset.i, _e=state.employees[_i];
           if(_e){ if(!_e.shaho)_e.shaho={months:[]}; _e.shaho.henkoYm=ev.target.value; refreshZuiji(_i);
-            if(window.persistSaveDebounced)persistSaveDebounced(); } }
+ } }
         return; }
       var f=ev.target.dataset.f; if(!f)return;
       if((f==='dept'||f==='role')&&ev.target.value==='__new'){ var label=f==='dept'?'部署':'役職'; var fld=f; uiPrompt('新しい'+label+'名を入力').then(function(nv){ nv=(nv||'').trim(); if(nv){ var list=fld==='dept'?state.depts:state.roles; if(list.indexOf(nv)<0)list.push(nv); emp[fld]=nv; } renderEmpMaster(); }); return; }
@@ -5813,7 +5811,7 @@
            ★Web明細への 公開は これまで どおり「今月を確定」だけ★（★1人の 確認では 公開しない★） */
         setConfirm(emc.id, true); try{ saveMonthlyPayslips(false, emc.id); }catch(_){} renderInput(); persistSave(); return; }
       if(e.target.dataset.reviewonly!=null){ state._reviewOnly=e.target.checked; renderInput(); return; }
-      var ivw=e.target.closest('[data-ivw]'); if(ivw){ state.inputView=ivw.dataset.ivw==='table'?'table':'card'; renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); return; }
+      var ivw=e.target.closest('[data-ivw]'); if(ivw){ state.inputView=ivw.dataset.ivw==='table'?'table':'card'; renderInput(); return; }
       /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
          ★戻すのは 3つ★＝①全員の 確認済 を外す ②Web明細から その月を 下げる
                          ③下書きに 戻る（賃金台帳・年調の 集計対象から 外れる）
@@ -5873,7 +5871,7 @@
       var fs=e.target.closest('[data-fillsche]');
       if(fs){ var sd=fs.dataset.fillsche;
         var hasManual=state.employees.some(function(emp){ if(!isActiveInMonth(emp,state.month))return false; var mi=kinIdx(emp,/出勤/); return mi>=0 && emp.kintai[mi].value!=='' && emp.kintai[mi].value!=null && String(emp.kintai[mi].value)!==String(sd); });
-        var doFill=function(){ state.employees.forEach(function(emp){ if(!isActiveInMonth(emp,state.month))return; ensureKintai(emp); var oi=kinIdx(emp,/出勤/); if(oi>=0) emp.kintai[oi].value=sd; }); renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); };
+        var doFill=function(){ state.employees.forEach(function(emp){ if(!isActiveInMonth(emp,state.month))return; ensureKintai(emp); var oi=kinIdx(emp,/出勤/); if(oi>=0) emp.kintai[oi].value=sd; }); renderInput(); };
         if(hasManual){ uiConfirm('手入力した出勤日数がある人も含めて、全員の出勤を所定（'+sd+'日）で上書きします。よろしいですか？').then(function(ok){ if(ok)doFill(); }); } else { doFill(); }
         return; }
       if(e.target.closest('[data-csvimport]')){ var kf=$('#kintai-file'); if(kf){ kf.value=''; kf.click(); } return; }
@@ -5882,13 +5880,13 @@
       var tg=e.target.closest('[data-toggle]');
       if(tg){ var i=+tg.dataset.toggle; var emp=state.employees[i]; state.open['I'+emp.id]=!state.open['I'+emp.id]; il.querySelector('.acc[data-i="'+i+'"]').classList.toggle('open'); return; }
       var wm=e.target.closest('.wi-mode'); if(wm){ var c1=e.target.closest('.acc'); var ci1=+c1.dataset.i; var em1=state.employees[ci1]; if(!em1.warimashi)em1.warimashi={}; em1.warimashi.mode=wm.dataset.wm; renderInput(); return; }
-      if(e.target.closest('[data-dladd]')){ var dai=+e.target.closest('[data-dladd]').dataset.dladd; var dae=state.employees[dai]; if(dae){ if(!dae.dailyEntries)dae.dailyEntries=[]; dae.dailyEntries.push({ymd:'',hm:'',amount:''}); renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); } return; } // 日別: 日を追加
-      var dld=e.target.closest('[data-dldel]'); if(dld){ var dp2=String(dld.dataset.dldel).split(':'); var dde=state.employees[+dp2[0]]; if(dde&&dde.dailyEntries){ dde.dailyEntries.splice(+dp2[1],1); renderInput(); if(window.persistSaveDebounced)persistSaveDebounced(); } return; } // 日別: 日を削除
+      if(e.target.closest('[data-dladd]')){ var dai=+e.target.closest('[data-dladd]').dataset.dladd; var dae=state.employees[dai]; if(dae){ if(!dae.dailyEntries)dae.dailyEntries=[]; dae.dailyEntries.push({ymd:'',hm:'',amount:''}); renderInput(); } return; } // 日別: 日を追加
+      var dld=e.target.closest('[data-dldel]'); if(dld){ var dp2=String(dld.dataset.dldel).split(':'); var dde=state.employees[+dp2[0]]; if(dde&&dde.dailyEntries){ dde.dailyEntries.splice(+dp2[1],1); renderInput(); } return; } // 日別: 日を削除
       if(e.target.dataset.add){ var ai=+e.target.dataset.i, g=e.target.dataset.add; state.employees[ai][g].push({label:'',value:''}); renderInput(); return; }
       if(e.target.classList.contains('m-del')&&e.target.closest('#input-list')){ var card=e.target.closest('.acc'); var ci=+card.dataset.i; var g=e.target.dataset.g, ri=+e.target.dataset.ri; state.employees[ci][g].splice(ri,1); renderInput(); return; }
     });
     il.addEventListener('input',function(e){ var card=e.target.closest('.acc,.trow'); if(!card)return; var ci=+card.dataset.i; var emp=state.employees[ci];
-      var dl=e.target.closest('[data-dl]'); if(dl){ var dpp=String(dl.dataset.dl).split(':'); if(emp.dailyEntries&&emp.dailyEntries[+dpp[1]]){ var f2=dpp[2]; emp.dailyEntries[+dpp[1]][f2]=(f2==='amount')?e.target.value.replace(/[^0-9]/g,''):e.target.value; } if(window.persistSaveDebounced)persistSaveDebounced(); return; } // 日別入力(再描画せずフォーカス維持)
+      var dl=e.target.closest('[data-dl]'); if(dl){ var dpp=String(dl.dataset.dl).split(':'); if(emp.dailyEntries&&emp.dailyEntries[+dpp[1]]){ var f2=dpp[2]; emp.dailyEntries[+dpp[1]][f2]=(f2==='amount')?e.target.value.replace(/[^0-9]/g,''):e.target.value; } return; } // 日別入力(再描画せずフォーカス維持)
       if(e.target.classList.contains('wk-f')){ emp[e.target.dataset.wkf]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
       if(e.target.classList.contains('cm-f')){ emp[e.target.dataset.cmf]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
       if(e.target.classList.contains('wi-f')){ if(!emp.warimashi)emp.warimashi={}; emp.warimashi[e.target.dataset.wk]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
@@ -5916,7 +5914,6 @@
          ★確定して いない 人には 何も しません★（今までどおり） */
       if(emp && state.confirmed && state.confirmed[state.month] && state.confirmed[state.month][emp.id]){
         naoshitaShirushi(state.month, emp.id);
-        if(window.persistSaveDebounced) persistSaveDebounced();
       }
       if(e.target.classList.contains('ck-gb')){emp[g][ri].genbutsu=e.target.checked;refreshCard(ci);return;}   /* ★現物の印★（2026-09-03） */
       if(e.target.classList.contains('ck')){emp[g][ri].hikazei=e.target.checked;refreshCard(ci);return;} if(g&&!isNaN(ri)&&f){emp[g][ri][f]=e.target.value;refreshCard(ci);} });
@@ -5924,30 +5921,30 @@
     // 一覧/集計
     $$('.seg-b[data-view]').forEach(function(b){ b.addEventListener('click',function(){ $$('.seg-b[data-view]').forEach(function(x){x.classList.toggle('on',x===b);}); var v=b.dataset.view; state.listView=v; $('#view-list').style.display=v==='list'?'':'none'; $('#view-sum').style.display=v==='sum'?'':'none'; var vc=$('#view-cho'); if(vc)vc.style.display=v==='cho'?'':'none'; var vn=$('#view-nen'); if(vn)vn.style.display=v==='nen'?'':'none'; renderListActive(); }); });
     // 年末調整ビュー: 入力(申告)ハンドラ
-    var vnen=$('#view-nen'); if(vnen) vnen.addEventListener('input',function(e){ var f=e.target.closest('[data-nf]'); if(!f)return; if(f.tagName==='SELECT'||f.type==='checkbox')return; /* checkbox/selectはchangeに任せ二重発火を防ぐ */ nenSetField(f.dataset.eid, f.dataset.nf, f.value); nenRefreshEmp(f.dataset.eid); if(window.persistSaveDebounced)persistSaveDebounced(); });
-    if(vnen) vnen.addEventListener('change',function(e){ var f=e.target.closest('[data-nf]'); if(!f)return; if(f.tagName==='SELECT'||f.type==='checkbox'){ nenSetField(f.dataset.eid, f.dataset.nf, f.type==='checkbox'?f.checked:f.value); nenRefreshEmp(f.dataset.eid); if(window.persistSaveDebounced)persistSaveDebounced(); } });
+    var vnen=$('#view-nen'); if(vnen) vnen.addEventListener('input',function(e){ var f=e.target.closest('[data-nf]'); if(!f)return; if(f.tagName==='SELECT'||f.type==='checkbox')return; /* checkbox/selectはchangeに任せ二重発火を防ぐ */ nenSetField(f.dataset.eid, f.dataset.nf, f.value); nenRefreshEmp(f.dataset.eid); });
+    if(vnen) vnen.addEventListener('change',function(e){ var f=e.target.closest('[data-nf]'); if(!f)return; if(f.tagName==='SELECT'||f.type==='checkbox'){ nenSetField(f.dataset.eid, f.dataset.nf, f.type==='checkbox'?f.checked:f.value); nenRefreshEmp(f.dataset.eid); } });
     if(vnen) vnen.addEventListener('click',function(e){ var t=e.target.closest('[data-ntoggle]'); if(t){ var b=$('#nen-detail-'+t.dataset.ntoggle); if(b){ var op=b.style.display==='none'; b.style.display=op?'':'none'; t.textContent=op?'閉じる ▲':'年調の申告入力 ▾'; } return; }
       if(e.target.closest('[data-nenreflectall]')){ // 過不足を対象月の給与明細に反映(各人の過不足を凍結してe.nenchoAdjに保存)
         var rM=state.month, did=0; (state._nenEmps||[]).forEach(function(em){ var c=nenCompute(nenAggregate(state._nenRecs,em.id), nenStore(em.id)); if(c && c.res.kabusoku!==0){ em.nenchoAdj={ ym:rM, amount:c.res.kabusoku }; did++; } });
-        if(did){ renderNenView(); if(window.persistSaveDebounced)persistSaveDebounced(); toast(did+'名の過不足を'+rM+'の給与明細に反映しました'); } return; }
+        if(did){ renderNenView(); toast(did+'名の過不足を'+rM+'の給与明細に反映しました'); } return; }
       if(e.target.closest('[data-nenreflectclear]')){ var cM=state.month, cn=0; (state._nenEmps||[]).forEach(function(em){ if(em.nenchoAdj && em.nenchoAdj.ym===cM){ em.nenchoAdj=null; cn++; } });
-        if(cn){ renderNenView(); if(window.persistSaveDebounced)persistSaveDebounced(); toast(cM+'の反映を解除しました'); } return; }
+        if(cn){ renderNenView(); toast(cM+'の反映を解除しました'); } return; }
       if(e.target.closest('[data-nendecl-import-all]')){ var ndAll=NDcl(); if(!ndAll) return;
         uiConfirm('提出された本人のWeb申告を、対象の従業員にまとめて取り込みます。\n各人の申告入力欄は本人の申告内容で置き換わります（手入力していた分は上書きされます）。よろしいですか？').then(function(ok){ if(!ok) return;
           var did=0; (state._nenEmps||[]).forEach(function(em){ var dc=(state._nenDecls||{})[em.id]; if(dc&&dc.decl){ ndAll.applyToNencho(nenStore(em.id), dc.decl); did++; } });
-          if(did){ renderNenView(); if(window.persistSaveDebounced)persistSaveDebounced(); toast(did+'名の申告を取り込みました'); } });
+          if(did){ renderNenView(); toast(did+'名の申告を取り込みました'); } });
         return; } // 提出分を全員まとめて取り込む(一括=上書きになるため確認)
       var imp=e.target.closest('[data-nendecl-import]'); if(imp){ var ieid=imp.dataset.nendeclImport, dd=(state._nenDecls||{})[ieid], nd2=NDcl();
         if(dd&&dd.decl&&nd2){ nd2.applyToNencho(nenStore(ieid), dd.decl); // 従業員の申告をn.*へ反映(従業員の申告を正とする)
           var det=$('#nen-detail-'+ieid); if(det&&det.style.display==='none'){ det.style.display=''; var tg=vnen.querySelector('[data-ntoggle="'+ieid+'"]'); if(tg)tg.textContent='閉じる ▲'; } // 反映を見せるため開く
-          nenRefreshDetail(ieid); nenRefreshEmp(ieid); if(window.persistSaveDebounced)persistSaveDebounced();
+          nenRefreshDetail(ieid); nenRefreshEmp(ieid);
           imp.textContent='取り込み済み ✓'; imp.style.background='#EAF7F0'; imp.style.color='#2E7D54'; } // 反映済みを明示(再クリックで再取り込み可)
         return; }
       var yn=e.target.closest('[data-nfbool]'); if(yn){ var ynk=yn.dataset.nfbool, yne=yn.dataset.eid, ynv=yn.dataset.v==='1'; nenSetField(yne, ynk, ynv);
         var nd=NDcl(); var isParent=!!(nd&&nd.FIELDS.some(function(f){ return f.when===ynk; })); // この項目に依存する行があるか
         if(isParent){ nenRefreshDetail(yne); } // 依存行(配偶者の所得等)を出し入れするため申告フォームを再描画
         else { Array.prototype.forEach.call(vnen.querySelectorAll('[data-nfbool="'+ynk+'"][data-eid="'+yne+'"]'), function(p){ p.classList.toggle('on', (p.dataset.v==='1')===ynv); }); } // pillのon即更新
-        nenRefreshEmp(yne); if(window.persistSaveDebounced)persistSaveDebounced(); return; } // はい/いいえトグル
+        nenRefreshEmp(yne); return; } // はい/いいえトグル
       var x=e.target.closest('[data-nxlsx]'); if(x){ nenDownloadXlsx(); return; }
       var g=e.target.closest('[data-ngensen]'); if(g){ nenPrintGensen(); return; }
       var gw=e.target.closest('[data-ngensenweb]'); if(gw){ nenPublishGensen(); return; }
@@ -5959,7 +5956,6 @@
     if(vcho) vcho.addEventListener('input',function(e){ var zg=e.target.closest('[data-zennendo-gaisan]'); if(!zg)return;
       /* ★前年度に 納めた 概算＝精算（不足／充当）の 元★ */
       if(!state.company)state.company={}; state.company.zennendoGaisan=zg.value.replace(/[^0-9]/g,'');
-      if(window.persistSaveDebounced)persistSaveDebounced();
       /* ★精算の 字だけ その場で 書き換える★（2026-10-02）＝★画面を 作り直さない★
          前は ここで renderChoView() を 呼んでいた ⇒ 労働保険は「読込中…」に 作り直してから 描く ⇒ ★打っている 欄が 消える★
          ⇒ ★1文字 打つと 焦点が 外れ、2桁以上 続けて 打てなかった★（WebKit 実測：打った値「」・焦点 BODY／954欄中 この1欄だけ）
@@ -5969,10 +5965,9 @@
       /* ★業種を 選んだら 率は そこから 出る★（手入力は 一覧に 無い時だけ） */
       if(!state.company)state.company={}; state.company.rousaiShurui=sh.value;
       if(sh.value!=='__te__') state.company.rousaiRate='';
-      if(window.persistSaveDebounced)persistSaveDebounced();
       renderChoView(); });
     if(vcho) vcho.addEventListener('input',function(e){ var rr=e.target.closest('[data-rousai-rate]'); if(!rr)return; // 労災率(‰)入力→労災保険料だけ即時再計算(集計は再取得しない=入力フォーカス維持)
-      if(!state.company)state.company={}; state.company.rousaiRate=rr.value.replace(/[^0-9.]/g,''); if(window.persistSaveDebounced)persistSaveDebounced();
+      if(!state.company)state.company={}; state.company.rousaiRate=rr.value.replace(/[^0-9.]/g,'');
       /* ★率に 依る 6つを 全部 出し直す★（2026-10-02）＝表の 描画と 同じ roudouRitsuKeisan を 呼ぶ
          前は 労災保険料 だけ 直していた ⇒ ★打っている 間の 精算は「—」のまま★（実測：開き直すと ¥22,780）
          ＋★Excel は state._roudouSum を 読む★＝合計・概算・延納・期別・精算が 古い まま 出ていた
@@ -5986,7 +5981,7 @@
     $('#p-emp').addEventListener('change',doPreview);
     // #p-monthは.scr-monthに統合(P1-18)→共通ハンドラ(対象月change)が state.month同期＋doPreviewを行う
     $('#print-mode-seg').addEventListener('click',function(e){ var b=e.target.closest('.pmode'); if(!b)return; state.printMode=b.dataset.pmode==='bonus'?'bonus':'monthly'; $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===state.printMode); }); updatePrintMonthUI(); updateDailyLayoutUI(); doPreview(); });
-    $('#daily-layout-seg').addEventListener('click',function(e){ var b=e.target.closest('.dls'); if(!b)return; state.dailySlipLayout=b.dataset.dls==='2col'?'2col':'1col'; $$('.dls').forEach(function(x){ x.classList.toggle('on', x.dataset.dls===state.dailySlipLayout); }); if(window.persistSaveDebounced)persistSaveDebounced(); doPreview(); });
+    $('#daily-layout-seg').addEventListener('click',function(e){ var b=e.target.closest('.dls'); if(!b)return; state.dailySlipLayout=b.dataset.dls==='2col'?'2col':'1col'; $$('.dls').forEach(function(x){ x.classList.toggle('on', x.dataset.dls===state.dailySlipLayout); }); doPreview(); });
     function afterDesign(){ renderDesign(); if($('#scr-print')&&$('#scr-print').classList.contains('active')) doPreview(); }
     $('#tpl-row').addEventListener('click',function(e){ var b=e.target.closest('[data-tpl]'); if(!b)return; state.prefer=b.dataset.tpl; afterDesign(); });
     $('#color-pickers').addEventListener('click',function(e){
@@ -5994,7 +5989,7 @@
       if(e.target.closest('[data-reset]')){ state.theme={accent:'#6f5a3e',line:'#cfc9b8',ink:'#23261f'}; state._oc=null; afterDesign(); return; } // 色のみ初期化(レイアウトは維持)
       var tg=e.target.closest('.cp-toggle:not(.cp-reset)'); if(tg){ state._oc=(state._oc===tg.dataset.cpk)?null:tg.dataset.cpk; renderDesign(); return; }
       var w=e.target.closest('.cw'); if(w){ state.theme[w.dataset.ck]=w.dataset.col; state._oc=null; afterDesign(); } });
-    function markOutput(){ if(!state.onboardOutput){ state.onboardOutput=true; if(window.persistSaveDebounced)persistSaveDebounced(); } } // はじめかたガイド④の達成
+    function markOutput(){ if(!state.onboardOutput){ state.onboardOutput=true; } } // はじめかたガイド④の達成
     // 印刷/PDF保存 = ★jsPDFで自前生成(A4ぴったり・iOSのURL/日付フッター無し・新窓を開かないので戻れる)。
     //   iOSのwebページ印刷(window.print/window.open)はフッターが必ず付き余白で2ページ化+戻れないため不採用。
     //   プレビューiframe内の各ページ(.sheet/.page)をhtml2canvasでA4寸法固定(潰れ防止)で焼き、複数人=複数ページに対応。
