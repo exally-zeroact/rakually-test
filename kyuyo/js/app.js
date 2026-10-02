@@ -3438,6 +3438,20 @@
     if(!RS) return { rousai:null, koyo:null, gokei:null, awaseta:false };
     return RS.hokenryo(rousaiWage, koyoWage, rousaiRate, koyoRate);
   }
+  /* ★精算＝確定 −（前年度に 納めた 概算）★（★計算も 字も ここ 1か所★＝表の 描画と 概算の 欄の 打ち込みが 同じ物を 呼ぶ）
+     ★入れていない時は 数字を 作らない★（seisan.measured=false）／★額は 会社に 聞く★（申告書の 控え・領収済通知書） */
+  function roudouSeisan(gokei){
+    var RS=window.RoudouShinkoku, zenGai=(state.company||{}).zennendoGaisan;
+    return (RS && gokei!=null && zenGai!=='' && zenGai!=null)
+      ? RS.seisan(gokei, num(zenGai)) : { measured:false, why:'前年度に 納めた 概算保険料を 入れてください' };
+  }
+  function roudouSeisanJi(seisan){
+    return (seisan&&seisan.measured)
+      ? (seisan.kubun==='fusoku'?('不足 '+yen(seisan.gaku))
+        :seisan.kubun==='amari'?('多く 納めています '+yen(seisan.gaku))
+        :'ちょうど')
+      : '—';
+  }
   function roudouSummary(recs, fy, emps){
     var rows=roudouRows(recs, fy, emps);
     var rousaiWageTotal=rows.reduce(function(a,x){return a+x.rousaiWage;},0), koyoWageTotal=rows.reduce(function(a,x){return a+x.koyoWage;},0);
@@ -3465,9 +3479,7 @@
     /* ★精算＝確定 −（前年度に 納めた 概算）★
        ★額は 会社に 聞く★（申告書の 控え・領収済通知書に 書いてある）。
        ★入れていない時は 数字を 作らない★（seisan.measured=false） */
-    var zenGai=(state.company||{}).zennendoGaisan;
-    var seisan=(RS && g.gokei!=null && zenGai!=='' && zenGai!=null)
-      ? RS.seisan(g.gokei, num(zenGai)) : { measured:false, why:'前年度に 納めた 概算保険料を 入れてください' };
+    var seisan=roudouSeisan(g.gokei);
     return { rows:rows, fy:fy, rousaiWageTotal:rousaiWageTotal, koyoWageTotal:koyoWageTotal, gyoshu:gyoshu, koyoFull:koyoFull, koyoRyo:koyoRyo, rousaiPermil:rousaiPermil, rousaiRyo:rousaiRyo , gokeiRyo:g.gokei, awaseta:g.awaseta, ippan:ippan, gaisan:gaisan, enno:enno, kibetsu:kibetsu, seisan:seisan };
   }
   function roudouAoa(sum, fy){
@@ -3548,13 +3560,7 @@
       +'<div><div class="hint">前年度に 納めた 概算保険料</div>'
         +'<input class="finput num" data-zennendo-gaisan="1" inputmode="numeric" style="width:130px" value="'+esc(String((state.company||{}).zennendoGaisan||''))+'">'
         +'<div class="hint2" style="margin-top:2px">申告書の 控え・領収済通知書に 書いてあります</div>'
-        +'<div style="margin-top:4px"><b style="font-size:16px">'
-          +((sum.seisan&&sum.seisan.measured)
-            ? (sum.seisan.kubun==='fusoku'?('不足 '+yen(sum.seisan.gaku))
-              :sum.seisan.kubun==='amari'?('多く 納めています '+yen(sum.seisan.gaku))
-              :'ちょうど')
-            : '—')
-        +'</b></div></div>'
+        +'<div style="margin-top:4px"><b id="roudou-seisan" style="font-size:16px">'+roudouSeisanJi(sum.seisan)+'</b></div></div>'
             +'</div><p class="hint" style="margin:8px 0 0">雇用保険 全体率は年度で自動（厚労省照合）。労災率は<b>法令の 労災保険率表（別表第１・53業種）</b>から 出しています。<b>細目</b>で 決まる 場合が ありますので、申告書の 率と 違う 時は 労働局へ ご確認ください。</p></div>';
     return note+'<div class="card"><div class="card-h">労働保険 算定基礎賃金集計表（'+fy+'年度）</div><div class="dc-wrap"><table class="dc-tab"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+ryoBox;
   }
@@ -5945,7 +5951,11 @@
       /* ★前年度に 納めた 概算＝精算（不足／充当）の 元★ */
       if(!state.company)state.company={}; state.company.zennendoGaisan=zg.value.replace(/[^0-9]/g,'');
       if(window.persistSaveDebounced)persistSaveDebounced();
-      renderChoView(); });
+      /* ★精算の 字だけ その場で 書き換える★（2026-10-02）＝★画面を 作り直さない★
+         前は ここで renderChoView() を 呼んでいた ⇒ 労働保険は「読込中…」に 作り直してから 描く ⇒ ★打っている 欄が 消える★
+         ⇒ ★1文字 打つと 焦点が 外れ、2桁以上 続けて 打てなかった★（WebKit 実測：打った値「」・焦点 BODY／954欄中 この1欄だけ）
+         ⇒ 隣の 労災率の 欄と 同じ 形（state._roudouSum を 直して 字だけ 書く）に そろえた */
+      var s=state._roudouSum; if(s){ s.seisan=roudouSeisan(s.gokeiRyo); var sj=$('#roudou-seisan'); if(sj) sj.textContent=roudouSeisanJi(s.seisan); } });
     if(vcho) vcho.addEventListener('change',function(e){ var sh=e.target.closest('[data-rousai-shurui]'); if(!sh)return;
       /* ★業種を 選んだら 率は そこから 出る★（手入力は 一覧に 無い時だけ） */
       if(!state.company)state.company={}; state.company.rousaiShurui=sh.value;

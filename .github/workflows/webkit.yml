@@ -306,3 +306,7 @@ jobs:
         run: node kyuyo/tests/meibo-ui.mjs
       - name: ★わざと 30人以上に したら「記入不要」が 消えるか（meibo-ui の 空振り止め）★
         run: node kyuyo/tests/meibo-ui.mjs --waza
+      - name: ★「前年度に 納めた 概算」に 続けて 打てるか（3桁＋焦点・精算の 字が その場で 変わる・倉庫には 書かない）★
+        run: node kyuyo/tests/gaisan-ran-ui.mjs
+      - name: ★わざと 打つ たびの 作り直し（renderChoView）を 戻したら 崩れるか（gaisan-ran-ui の 空振り止め）★
+        run: node kyuyo/tests/gaisan-ran-ui.mjs --waza
