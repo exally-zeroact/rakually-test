@@ -573,9 +573,12 @@
           }
           return doSave();
         }).catch(function(){
-          // 競合確認クエリ自体が失敗: 同期実績あり(手元が本番の正と確定済み)ならブラインド保存(可用性優先)。
-          //  未同期(cloudSynced=false)なら安全側=上書きせず失敗を返す(app側はローカル保持のまま警告=データ消失しない)。
-          return cloudSynced ? doSave() : { ok:false, reason:'sync-check-failed' };
+          // ★競合確認クエリ自体が失敗(「線が約19秒で落ちる」等)★（2026-10-03 ⑦）
+          //  ★blind upsert に戻さない★＝条件付きupdateは事前SELECT無しでも .eq(控え) で守る。
+          //   事前SELECTが転ぶのは守りたい時そのもの。控えが在ればdoSaveの条件付きが塞ぐ。
+          //  控えnull && 同期実績=一度も読めていない新規→doSave内でupsert。
+          //  それ以外(控えnull && 未同期)=安全側=上書きせず失敗(app側はローカル保持のまま帯)。
+          return (lastCompanyUpdatedAt!=null || cloudSynced) ? doSave() : { ok:false, reason:'sync-check-failed' };
         });
         function doSave(){
         /* ★★★控えを ★倉庫が 書けた 瞬間★ に 新しく する★★★（2026-09-28・★実測から★）
@@ -610,71 +613,85 @@
            ★口ごとに 持つ★＝`uid` が 変わったら 名簿を 捨てる */
         _okuttaKuchi(uid);
         _okuttaIreru(now);
-        var kaishaOp = sb.from('pay_companies').upsert({ account_id:uid, data:settings, updated_at:now })
-          // ★.select('updated_at').single()=DBが実際に保存した updated_at を受け取り、競合基準に使う(下記)。
-          .select('updated_at').single()
-          .then(function(r){
-            if(r && !r.error){
-              var _ua = (r.data && r.data.updated_at);
-              if(_ua){ _uaAtta++; } else { _uaNakatta++; }
-              /* ★倉庫が 返した 値も 名簿へ★（★丸めの 保険★／★NaN は 入りません★） */
-              if(_ua){ _okuttaIreru(_ua); }
-              lastCompanyUpdatedAt = _ua || now;
-              _hikaeHayaku++;   /* ★★束を 待たずに 控えた 回数★★（★この 直しが 効いた 回数★） */
-            }
-            return r;
-          });
-        var ops=[
-          kaishaOp,
-          emps.length? sb.from('pay_employees').upsert(emps) : Promise.resolve({ error:null })
-        ];
-        // ★差分削除は「★読み込めた(cloudLoaded)★かつ手元に従業員が居る」時だけ=空/古い端末が本番を消さない
-        //  (2026-09-03 変更: cloudSynced=書けた→cloudLoaded=読めた。理由は上の宣言部)
-        /* ★★差分削除を 飛ばした 回を ★訳つきで★ 数える★★（2026-09-28・★実測から★）
-           ★何が 起きたか★ … WebKit `36438495165` の 赤（`shutoku-ui`）
-             「⑥開き直して 数えた … ★残り 1人★」
-             「⑥-2 … ★DELETE ★0本★（消せと 言った id 0件）★／書き 5本／組 0組」
-             ⇒ ★★＝★差分削除が 1回も 走って いません★★（㋐書き戻しでも ㋑消せて いないでも ない）
-           ★どちらの 門で 止まったか★ … ★書きが 5本 出て いる★
-             ＝`emps.length ? upsert : …` を 通った ⇒ ★`emps.length > 0` は 真★
-             ⇒ ★★＝偽なのは `cloudLoaded`★★（★この 数で 押さえます★）
-           ★この 門は 消しません★＝★空／古い 端末が 本番を 消さない ための P0 の 守り★
-             ⇒ ★但し ★黙って 飛ばす★のを やめます（数に 出す）★
-           ★お金の 判じは 1文字も 変えて いません★＝★数えるだけ★ */
-        if(!(cloudLoaded && emps.length>0)){
-          if(!cloudLoaded){ _sabunYomazu++; } else { _sabunKara++; }
-        } else { _sabunHashitta++; }
-        if(cloudLoaded && emps.length>0){
-          ops.push(fetchAllQ(function(a,b){ return sb.from('pay_employees').select('id',{count:'exact'}).eq('account_id',uid).range(a,b); }).then(function(r){ var ex=(r.data||[]).map(function(x){return x.id;}); var rm=ex.filter(function(id){ return ids.indexOf(id)<0; }); if(!rm.length){ _kesuTanomi.push(0); _kesuKieta.push(0); return { error:null }; }
-            /* ★★★消した 行を ★返させる★（`.select('id')`）★★★（2026-09-28・指示役1 の ④）
-               ★前★ … `.delete().in('id',rm)` だけ ⇒ 返りは ★`204`★
-                 ⇒ ★★`204` は「命令が 通った」だけ＝★消えた 行数を 教えません★★★
-                 ⇒ ★★＝★0行 消えても 黙って 成功★★（RLS で 弾かれた／id が 違う／他の 席が 先に 消した）
-                 ⇒ ★★＝客の 側でも『何人 消えたか』が 分かりません★★
-               ★今★ … ★頼んだ 件数（`rm.length`）★ と ★消えた 件数（返りの 行数）★ を ★両方 控えます★
-               ★★意味は 向きで 逆です（指示役1 の ②）★★
-                 ・★頼んだ ＞ 消えた★ ⇒ ★消せて いない★（★『消したのに 戻る』の 片方の 説★）
-                 ・★★頼んだ ＜ 消えた★ ⇒ ★頼んだ より 多く 消えた＝★事故★★★
-                   （`in()` の 組み立て／`eq('account_id')` の 抜け）
-                   ⇒ ★★＝★お金の 紙が 消える 側＝一番 危ない★★
-               ★★判じは 1文字も 変えて いません★★＝★消す 相手（`rm`）も 条件も 同じ★
-               ★出しが `204`→`200＋本文` に なります★＝★前の 回の 数と 比べる 時は そう 書く★ */
-            _kesuTanomi.push(rm.length);
-            return sb.from('pay_employees').delete().in('id',rm).select('id').then(function(d){
-              var kieta = (d && d.data) ? d.data.length : -1;   /* ★-1＝返りが 無い＝未測定★ */
-              _kesuKieta.push(kieta);
-              return d;
-            }); }));
+        /* ★★⑦ 会社を ★先に★ 書く＝古い書きで 巻き戻るのを 塞ぐ★★（2026-10-03・指示役と）
+           ・控え!=null → ★条件付き update `.eq('updated_at',控え)`★＝控えと 同じ時だけ 当たる（事前SELECTと
+             本書きの 間＝TOCTOU を 塞ぐ・事前SELECTが 転んだ時も 効く）。
+             ★0行を 衝突と 決めつけない★＝続けて 1回 select して 分ける：
+               見えて 控えと 違う＝conflict（別の端末で更新）／見えない（ログイン切れ・行無し）＝帯が出る理由で返す
+               （★no-user に しない★＝使用中に 切れた人を 黙らせない・app.js:6644 で 帯が出る）。
+           ・控え==null → 従来 upsert（新規・空倉庫＝first-save を 壊さない）。
+           ★控えを 新しく するのは 会社の書きが 返った その場★（上の ④ の 訳どおり・束を 待たない）。
+           ★人(pay_employees)・差分削除は 会社が 通った後に だけ★＝衝突の 時に 半書きを 残さない。 */
+        /* ★会社の書き（控え基準の条件付き）★。0行は select して 分ける。やり直しは saiShi（1回だけ）。 */
+        function kakuKaisha(kiso, saiShi){
+          return sb.from('pay_companies').update({ data:settings, updated_at:now })
+            .eq('account_id',uid).eq('updated_at',kiso).select('updated_at').then(function(res){
+              if(res.error) return { r:res };
+              if((res.data||[]).length>0) return { r:{ data:res.data[0], error:null } };
+              /* 0行＝控えが倉庫と違う or 見えない。続けて1回 select して分ける */
+              return sb.from('pay_companies').select('updated_at').eq('account_id',uid).maybeSingle().then(function(cur){
+                var _ua2 = cur && cur.data && cur.data.updated_at;
+                if(!_ua2) return { nomieai:true };                       // 見えない＝ログイン切れ/行無し→帯
+                /* ★応答だけ 落ちた 自分の 書き★（2026-10-03・指示役）
+                   ＝倉庫は 自分が 送った now に 進んで いるが、返りが 来ず 控えは 古いまま→0行。
+                     これを conflict に すると「自分の 保存に 自分で 弾かれる」（朝の ①）が 別の道から 戻る。
+                   ⇒ ★自分が 送った値の 名簿（_jibunGaOkuttaKa・字形は Date.parse で 正規化／送る前の now も 入る）★に
+                      在れば conflict に せず、控えを _ua2 に 進めて 1回だけ やり直す。 */
+                if(saiShi && _jibunGaOkuttaKa(_ua2)){ _jibunDeToshita++; lastCompanyUpdatedAt=_ua2; _okuttaIreru(_ua2); return kakuKaisha(_ua2, false); }
+                if(_ua2 !== kiso) return { conflict:true };              // 見えて違う＝別の端末で更新
+                if(saiShi) return kakuKaisha(kiso, false);               // _ua2===控え なのに0行（矛盾・ほぼ無い）＝1回やり直し
+                return { writeFail:'書きが 0行' };
+              });
+            });
         }
-        return Promise.all(ops).then(function(res){
-          var bad=res.filter(function(x){ return x && x.error; })[0];
-          // ★競合基準は必ず「DBが返した updated_at」にする。JS生成の now(…Z) はDB返却(…+00:00)と書式が違い、
-          //  文字列比較で毎回不一致=読込直後や2回目保存(スクロール等の自動保存)で誤conflictが多発する(P0根治)。
-          /* ★★控えは もう ★上の `kaishaOp` の 中★ で 新しく して います★★（2026-09-28）
-             ＝★ここで 待つと『倉庫は 新しい／控えは 旧い』窓が 開く★（上に 訳と 実測） */
-          if(!bad){ cloudSynced=true; }
-          return { ok:!bad, reason: bad?((bad.error&&bad.error.message)||'error'):null };
-        }).catch(function(e){ return { ok:false, reason:(e&&e.message)||'exception' }; });
+        var kaishaP;
+        if(lastCompanyUpdatedAt==null){
+          kaishaP = sb.from('pay_companies').upsert({ account_id:uid, data:settings, updated_at:now })
+            .select('updated_at').single().then(function(r){ return { r:r }; });
+        } else {
+          kaishaP = kakuKaisha(lastCompanyUpdatedAt, true);   /* 控え＝倉庫が返したUAそのまま */
+        }
+        return kaishaP.then(function(k){
+          if(k.conflict)  return { ok:false, reason:'conflict', neverSynced:false };  // ★人は書かない（半書き防止）★
+          if(k.nomieai)   return { ok:false, reason:'sync-check-failed' };            // ★帯が出る(app.js:6644)・no-userにしない★
+          if(k.writeFail) return { ok:false, reason:k.writeFail };                     // ★帯が出る★
+          var r = k.r;
+          if(r && r.error) return { ok:false, reason:(r.error.message)||'error' };     // 会社の書きが落ちた＝帯
+          if(r && !r.error){
+            var _ua = (r.data && r.data.updated_at);
+            if(_ua){ _uaAtta++; } else { _uaNakatta++; }
+            /* ★倉庫が 返した 値も 名簿へ★（丸めの 保険／NaN は 入りません）＝束を 待たず その場で 控えを 新しく */
+            if(_ua){ _okuttaIreru(_ua); }
+            lastCompanyUpdatedAt = _ua || now;
+            _hikaeHayaku++;
+          }
+          /* ★会社が 通った後に だけ★ 人・差分削除（半書き防止・2026-10-03 ⑦） */
+          var ops=[
+            emps.length? sb.from('pay_employees').upsert(emps) : Promise.resolve({ error:null })
+          ];
+          /* ★差分削除は cloudLoaded かつ 手元に従業員が居る 時だけ＝空/古い端末が 本番を 消さない(P0の守り)★
+             飛ばした回は 訳つきで 数える（黙って 飛ばさない）。判じは 変えない。 */
+          if(!(cloudLoaded && emps.length>0)){
+            if(!cloudLoaded){ _sabunYomazu++; } else { _sabunKara++; }
+          } else { _sabunHashitta++; }
+          if(cloudLoaded && emps.length>0){
+            ops.push(fetchAllQ(function(a,b){ return sb.from('pay_employees').select('id',{count:'exact'}).eq('account_id',uid).range(a,b); }).then(function(r){ var ex=(r.data||[]).map(function(x){return x.id;}); var rm=ex.filter(function(id){ return ids.indexOf(id)<0; }); if(!rm.length){ _kesuTanomi.push(0); _kesuKieta.push(0); return { error:null }; }
+              /* ★消した行を 返させる(.select('id'))＝頼んだ件数と 消えた件数を 両方 控える(指示役1 の ②)★ */
+              _kesuTanomi.push(rm.length);
+              return sb.from('pay_employees').delete().in('id',rm).select('id').then(function(d){
+                var kieta = (d && d.data) ? d.data.length : -1;   /* ★-1＝返りが 無い＝未測定★ */
+                _kesuKieta.push(kieta);
+                return d;
+              }); }));
+          }
+          return Promise.all(ops).then(function(res){
+            var bad=res.filter(function(x){ return x && x.error; })[0];
+            /* ★逆向きの半書き（会社通り・人転び）＝ok:falseで帯が出る。次の保存は丸ごとの写しで人も揃う(見立て)★
+               控えは 会社の書きの その場で 新しく済み（束を 待たない・上の ④ の 訳） */
+            if(!bad){ cloudSynced=true; }
+            return { ok:!bad, reason: bad?((bad.error&&bad.error.message)||'error'):null };
+          }).catch(function(e){ return { ok:false, reason:(e&&e.message)||'exception' }; });
+        });
         }
       });
     }

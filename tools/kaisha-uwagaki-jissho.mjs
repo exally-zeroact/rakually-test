@@ -37,7 +37,7 @@ const SENYOU = { email: 'exally.supoort+uwagaki-jissho@gmail.com', pass: 'Uwagak
 const KYOYU = { email: 'test@test.com', pass: 'test1234' };
 const matsu = (ms) => new Promise((r) => setTimeout(r, ms));
 
-if (MODE !== 'now' && MODE !== 'fix') { console.log('✗ --mode は now か fix'); process.exit(1); }
+if (MODE !== 'now' && MODE !== 'fix' && MODE !== 'noauth') { console.log('✗ --mode は now / fix / noauth'); process.exit(1); }
 
 /* ★本番の倉庫では 走らせない★ */
 {
@@ -103,14 +103,48 @@ console.log('  元の会社行 … updated_at=' + orig.ua + ' ／ data鍵=' + Ob
 
 let shippai = 0;
 try {
-  if (SEQ) {
-    /* ───── 陽の対照：1窓で 普通の保存を SEQ回・偽衝突0・保存秒 ───── */
+  if (MODE === 'noauth') {
+    /* ───── 鍵を外した呼び（ログイン切れ）で 0行を 作り「衝突でない・帯が出る理由」を 示す ───── */
+    console.log('  ── noauth（鍵を外した＝ログイン切れの形）A.uid=' + A.uid + ' に 対して ──');
+    const anon = createClient(URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
+    /* 直す前の形（条件なし upsert）＝ログイン切れの時 今 何が出るか */
+    const rNow = await anon.from('pay_companies').upsert({ account_id: A.uid, data: base, updated_at: new Date().toISOString() }).select('updated_at').single();
+    console.log('    [直す前 upsert] error=' + (rNow.error && rNow.error.message) + ' / rows=' + (rNow.data ? 1 : 0)
+      + ' ⇒ ' + (rNow.error ? '★転ぶ＝app.js の catch で 帯（ローカルのみ保存）★' : '通った(?)'));
+    /* 直しの形（条件付き update）＝0行→follow-up select→見えない→sync-check-failed（帯・no-userでない） */
+    const rUpd = await anon.from('pay_companies').update({ data: base, updated_at: new Date().toISOString() })
+      .eq('account_id', A.uid).eq('updated_at', orig.ua).select('updated_at');
+    const updRows = (rUpd.data || []).length;
+    const cur = await anon.from('pay_companies').select('updated_at').eq('account_id', A.uid).maybeSingle();
+    const mieru = !!(cur.data && cur.data.updated_at);
+    const han = (updRows === 0 && !mieru) ? 'sync-check-failed（帯が出る・no-userでない）'
+      : (updRows === 0 && mieru && cur.data.updated_at !== orig.ua) ? 'conflict' : '不明';
+    console.log('    [直し update] rows=' + updRows + ' / follow-up select 見える=' + mieru + '（err=' + (cur.error && cur.error.message) + '）');
+    console.log('    ⇒ 判じ＝' + han);
+    const okNotConflict = (han !== 'conflict');
+    const okBanner = (han === 'sync-check-failed（帯が出る・no-userでない）');
+    if (okNotConflict && okBanner) console.log('  ✓ ★0行かつ見えない＝conflictにしない AND 帯が出る理由(sync-check-failed)で返る（no-userにしない）★');
+    else { console.log('  ✗ ★期待（not conflict AND 帯が出る理由）に 合わない★'); shippai++; }
+  } else if (SEQ) {
+    /* ───── 陽の対照：1窓で SEQ回・偽衝突0・保存秒（会社＋人）───── */
+    /* ★直す前の順＝会社と人を 同時（Promise.all）／直し後の順＝会社を先に await→1行なら人★
+       ⇒ 同じ回で 直す前(now)/直し後(fix) の 保存秒を 並べて 出す（指示役 ②・中央と最長） */
+    const EMP = Array.from({ length: 5 }, (_, i) => ({ id: 'jissho-emp-' + i, sort: i }));
     let hikae = orig.ua, nise = 0, toshita = 0; const byo = [];
-    console.log('  ── 陽の対照（mode=' + MODE + '・1窓で ' + SEQ + '回 続けて 保存）──');
+    console.log('  ── 陽の対照（mode=' + MODE + '・1窓で ' + SEQ + '回・会社＋人' + EMP.length + '＝' + (MODE === 'fix' ? '会社先→人(直し後)' : '会社と人 同時(直す前)') + '）──');
     for (let i = 1; i <= SEQ; i++) {
+      const now = new Date().toISOString();
       const d = Object.assign({}, base, { _jissho: { seq: i, t: Date.now() } });
+      const emps = EMP.map((e) => ({ id: e.id, account_id: A.uid, sort: e.sort, data: { name: '実証' + e.sort, seq: i }, updated_at: now }));
       const t0 = Date.now();
-      const r = MODE === 'fix' ? await kakuFix(A.sb, A.uid, d, hikae) : await kakuNow(A.sb, A.uid, d);
+      let r;
+      if (MODE === 'fix') {
+        r = await kakuFix(A.sb, A.uid, d, hikae);
+        if (r.ok) await A.sb.from('pay_employees').upsert(emps);
+      } else {
+        const both = await Promise.all([kakuNow(A.sb, A.uid, d), A.sb.from('pay_employees').upsert(emps)]);
+        r = both[0];
+      }
       byo.push(Date.now() - t0);
       if (r.conflict) { nise++; console.log('    [' + i + '] ★偽衝突（0行）★ 控え=' + hikae); }
       else if (r.ok) { toshita++; hikae = r.ua; }
@@ -118,9 +152,11 @@ try {
     }
     byo.sort((a, b) => a - b);
     const chuou = byo[Math.floor(byo.length / 2)], saidai = byo[byo.length - 1];
-    console.log('  → 通った ' + toshita + '/' + SEQ + ' ／ ★偽衝突 ' + nise + '回★ ／ 保存の秒 中央 ' + chuou + 'ms・最長 ' + saidai + 'ms（会社の書き1本ぶん）');
+    console.log('  → 通った ' + toshita + '/' + SEQ + ' ／ ★偽衝突 ' + nise + '回★ ／ ★保存の秒（会社＋人' + EMP.length + '）中央 ' + chuou + 'ms・最長 ' + saidai + 'ms★（' + (MODE === 'fix' ? '直し後＝会社先→人' : '直す前＝同時') + '）');
     if (nise > 0) { console.log('  ✗ ★偽衝突が 出た＝客が 保存できない＝本番に 出せない★'); shippai++; }
     else console.log('  ✓ ★偽衝突 0＝字形は 安全（Z と +00:00 の食い違いなし・控えは 倉庫が返したUAそのまま）★');
+    try { await A.sb.from('pay_employees').delete().in('id', EMP.map((e) => e.id)); console.log('  （後始末：実証の人 ' + EMP.length + '件を 消した）'); }
+    catch (e) { console.log('  ★実証の人の 消しに 失敗 … ' + ((e && e.message) || e)); shippai++; }
   } else {
     /* ───── ㋐ 2つの窓（A と B）が 同じ会社を 直す ───── */
     const B = await kuchiHiraku(CRED);
