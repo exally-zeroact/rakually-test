@@ -136,6 +136,9 @@ function makeMock(opts) {
                follow-up select は storedUA を返す → _jibunGaOkuttaKa で自分送りと分かり conflict にしない道を縛る。
              ★一発★（次の やり直しでは 当たって 通る）。 */
           if (opts.gapBumpStored) { opts.gapBumpStored = false; storedUA = dbFmt(d.updated_at); return { data: [], error: null }; }
+          /* ★網で書きを偽の200・空配列[]で止めた★（倉庫は動かない）＝新store.jsが「0行」と読む道。
+             follow-up select は 倉庫そのまま（控えと同値）→ conflict にせず writeFail（帯）で返る、を確かめる為。 */
+          if (opts.fakeOk200Empty) return { data: [], error: null };   /* 0行・error無し・storedUA 動かさない */
           /* ★ログイン切れ＝RLSで 行が 見えない★＝0行・書かない（follow-up select も null） */
           if (opts.hideCompanyRow) return { data: [], error: null };
           /* ★倉庫には書けて 返りだけ落ちた★＝storedUA は 進む／返りは error（控えは進まない） */
@@ -770,6 +773,22 @@ runs.push(T('★⑦連鎖: 応答落ちが続いても 控えが前進し 連鎖
   o.companyStoredButError = false;              // 線が戻った
   const rec = await Store.cloudSaveState(SNAP);
   ok(rec.ok === true && rec.reason !== 'conflict', '★線が戻っても保存が通らない＝連鎖が残った（' + JSON.stringify(rec) + '）');
+}));
+
+/* ★★★⑦-網で偽200: 網で書きを 偽の200・空配列[] で止めても ★conflict覆いにしない★（帯で返る）★★★（2026-10-03・指示役）
+   ★訳★ … 実ブラウザ試験の中には 書きを 網で止める物が在る。偽の200で空配列を返す形だと、新store.jsの
+     条件付きupdateは「0行」と読む → follow-up select（GETは本物の倉庫・止めていない）は 倉庫そのまま（控えと同値）
+     → ★conflict にせず writeFail（帯）で返る★。＝客の画面を塞ぐ覆い（別の端末で更新）は出ない。
+   ★これが縛る物★ … 網で止めた書きが 偽の conflict 覆いに化けない（覆いはタブのクリックを塞ぐ＝はかれないの元）。 */
+runs.push(T('★⑦網で偽200: 書きを偽200・空配列で止めても conflict覆いにせず writeFail（帯）で返る', async function () {
+  const o = { dbFormat: true, companyData: { name: 'A' }, companyUpdatedAt: '2026-10-03T03:00:00.000+00:00' };
+  const mock = makeMock(o);
+  const Store = loadStore(mock);
+  await Store.cloudLoadState();                 // 控え=initialUA
+  o.fakeOk200Empty = true;                        // ★網で 偽200・空配列[] で止める★（倉庫は動かない）
+  const r = await Store.cloudSaveState(SNAP);
+  ok(r.ok === false, 'ok:false（' + JSON.stringify(r) + '）');
+  ok(r.reason !== 'conflict', '★偽200空配列を conflict にした＝タブを塞ぐ覆いが出る（はかれないの元）（' + JSON.stringify(r) + '）');
 }));
 
 await Promise.all(runs);
