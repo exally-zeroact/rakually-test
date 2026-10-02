@@ -206,6 +206,11 @@ select.finput{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://w
 .cr-fixed{font-size:11px;color:#8A8A7C;background:#f3f5f4;border:1px solid #e0e6e2;border-radius:8px;padding:8px 10px;margin-top:4px;}.cr-fixed b{font-family:'DM Mono',monospace;color:#6A6A5C;}
 .cr-ok{font-size:11px;color:#2E7D54;font-weight:700;margin-top:6px;}
 .cr-warn{font-size:11px;color:#92500A;background:#fff8e1;border:1px solid #F4D8A8;border-radius:7px;padding:7px 9px;margin-top:6px;line-height:1.55;}
+/* 保存できなかった時の帯＝どの画面でも 下のナビのすぐ上に 固定（普段は hidden＝1pxも動かない）。字は app.js の hozonFuda() が書く
+   ★頭の帯の下（sticky）に しなかった訳★＝html,body{height:100%} の為 頭の帯は 画面1枚ぶん巻くと 一緒に流れる（2026-10-02 WebKit 実測）
+   ⇒ 頭に 付けると 巻いた客には 見えない。下のナビの高さは --bn-h（実物を測った値） */
+.save-alert{position:fixed;left:0;right:0;bottom:var(--bn-h,0px);z-index:29;margin:0;border-radius:0;border-left:0;border-right:0;text-align:center;}
+.save-alert[hidden]{display:none;}
 .wi-seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
 .wi-seg b{text-align:center;border:1.5px solid #d4eae0;border-radius:9px;padding:7px 4px;font-size:12px;font-weight:700;color:#555555;background:#fff;cursor:pointer;}
 .wi-seg b.on{border-color:#52B788;background:#F0FAF4;color:#2E7D54;}

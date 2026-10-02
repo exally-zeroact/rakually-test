@@ -310,3 +310,7 @@ jobs:
         run: node kyuyo/tests/gaisan-ran-ui.mjs
       - name: ★わざと 打つ たびの 作り直し（renderChoView）を 戻したら 崩れるか（gaisan-ran-ui の 空振り止め）★
         run: node kyuyo/tests/gaisan-ran-ui.mjs --waza
+      - name: ★保存できなかった 時に どの 画面でも 帯が 見えるか（設定画面・網で 落とす／偽の 500・巻いても 在る・通れば 消える・390px）★
+        run: node kyuyo/tests/hozon-fuda-ui.mjs
+      - name: ★わざと 帯への 1行を 外したら 帯が 描かれないか（hozon-fuda-ui の 空振り止め）★
+        run: node kyuyo/tests/hozon-fuda-ui.mjs --waza
