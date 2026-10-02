@@ -14,6 +14,8 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -200,6 +202,25 @@ export function inTryCatch(src, at, stLen) {
      ・★正規表現の 中の `//` `/*` は 見分けません★
        ⇒ ★だから ★長さと 改行の 数が 変わって いない事★を 毎回 確かめます★
        ⇒ ★＋『覚書で 落ちた 数』を 出します★（★急に 増えたら 人が 気づける★） */
+/* ★★正規表現を 見分ける★★（2026-10-02・指示役引き継ぎ ★7）
+   ★穴★ … 正規表現の 中の 引用符を「字の 始まり」と 読み、次の 引用符まで 飲んでいた
+     ⇒ ★その 先の 覚書が 剥がれない★（実測 app.js … 剥がせた 覚書 621字／本当は 70,806字）
+     ⇒ 覚書の 中の 呼びの 字（app.js:6406）を ★本物の 呼び★と 数えていた
+   ★見分け方★ … 直前の 意味の 在る 字が 演算子・開き括弧・区切り か、return などの 言葉 か、頭 なら ★正規表現★
+     ／++ と -- の 後、名前・数・閉じ括弧の 後は ★割り算★
+   ★知っている 穴（★緩めない・自己確認に 名前で 載せる★）★ … 閉じ丸括弧の 後の 正規表現（if(a) の 直後 など）は 割り算と 読む
+     （10-02 に 23本で 数えた＝閉じ丸括弧の 直後の スラッシュは 24個とも 割り算／正規表現 0個）
+   ★本物を 消して いない 証し★ … 剥がした 字を ★毎回 node --check に 通す★（下の 走査）＝転べば 赤 */
+const RX_MAE_JI = /[(,=:\[!&|?{};+\-*%<>~^]/;
+const RX_MAE_KOTOBA = /(?:^|[^\w$])(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await)$/;
+function seikiHyougenKa(out) {
+  let k = out.length - 1;
+  while (k >= 0 && /\s/.test(out[k])) k--;
+  if (k < 0) return true;
+  const mae = out.slice(Math.max(0, k - 11), k + 1);
+  if (mae.endsWith('++') || mae.endsWith('--')) return false;
+  return RX_MAE_JI.test(out[k]) || RX_MAE_KOTOBA.test(mae);
+}
 export function oboegakiWoKesu(src) {
   const n = src.length;
   let out = '', i = 0;
@@ -216,6 +237,20 @@ export function oboegakiWoKesu(src) {
       /* ★改行は 残す★＝行番号を ずらさない */
       for (let k = i; k < j; k++) out += (src[k] === '\n' ? '\n' : ' ');
       i = j; continue;
+    }
+    if (c === '/' && seikiHyougenKa(out)) {           /* ★正規表現★＝字の まま 写す（中の 引用符を 字と 読まない） */
+      let j = i + 1, kakko = false, toji = false;
+      while (j < n && src[j] !== '\n') {              /* ★改行で 打ち切る★＝割り算の 見間違いで 遠くまで 飲まない */
+        if (src[j] === '\\') { j += 2; continue; }
+        if (src[j] === '[') kakko = true;
+        else if (src[j] === ']') kakko = false;
+        else if (src[j] === '/' && !kakko) { toji = true; j++; break; }
+        j++;
+      }
+      if (toji) {
+        while (j < n && /[a-z]/i.test(src[j])) j++;   /* 旗（g i m など） */
+        out += src.slice(i, j); i = j; continue;
+      }
     }
     if (c === "'" || c === '"' || c === '`') {        /* ★字は そのまま★（外しません） */
       const q = c; let j = i + 1;
@@ -235,6 +270,7 @@ export function oboegakiWoKesu(src) {
 const OUT_RX = /\b(?:Store|suite|SD|S\.store)\.([A-Za-z_$][\w$]*)\s*\(/g;
 const OUT_SKIP = new Set(['getUser', 'getSession']);   /* 約束を返さない・見ても意味が無い物 */
 const calls = [];
+const kouboSumi = new Set();   /* ★構文を 確かめ済みの ファイル★ */
 let oboegakiDeOchita = 0;   /* ★覚書の 中だったので 数えなかった 所★（★急に 増えたら 人が 気づける★） */
 for (const f of FILES) {
   const nama = fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -247,6 +283,20 @@ for (const f of FILES) {
     console.error('★★覚書を 外したら 長さか 行数が 変わりました＝★数えません★★ … ' + f
       + '（字 ' + nama.length + '→' + src.length + ' ／ 行 ' + gyo(nama) + '→' + gyo(src) + '）');
     process.exit(1);
+  }
+  /* ★★剥がした 字が まだ 構文として 通るか★★（2026-10-02・指示役）
+     ＝★覚書 以外（本物の コード）を 空白に したら ここで 転ぶ★＝剥がしが 本物を 消した 日に その場で 止まる
+     （長さと 行数が 同じ だけ では 分からない＝空白に 置き換えても 長さは 変わらない） */
+  if (!kouboSumi.has(f)) {
+    const tmp = path.join(os.tmpdir(), 'silent-catch-hagashi-' + process.pid + '-' + path.basename(f));
+    fs.writeFileSync(tmp, src);
+    try { execFileSync(process.execPath, ['--check', tmp], { stdio: 'pipe' }); }
+    catch (e) {
+      console.error('★★覚書を 剥がしたら 構文が 壊れました＝★本物の コードを 消した★★★ … ' + f);
+      console.error('  ' + String(e.stderr || e.message).split('\n').slice(0, 4).join(' | ').slice(0, 300));
+      process.exit(1);
+    } finally { try { fs.unlinkSync(tmp); } catch (e2) { console.error('  （剥がした 字の 一時ファイルを 消せません … ' + tmp + '）'); } }
+    kouboSumi.add(f);
   }
   /* ★覚書の 中に 在った 呼びの 数★（★出しに 出す★） */
   { let a = 0, b = 0, mm;
@@ -346,6 +396,32 @@ if (process.argv.includes('--self-test')) {
     iu('★覚書の 中の 受け皿も 消える（★覚書で 緑に しない★）★',
       oboegakiWoKesu(kakoi).indexOf('.catch(') < 0);
     iu('★閉じて いない 囲みの 覚書でも 転ばない★', typeof oboegakiWoKesu('/* ' + honmono) === 'string');
+    /* ★★正規表現の 見分け★★（2026-10-02・★7）＝★直す 前の 形では ①③ が 赤（10-02 実測・②④⑤⑥ は 前の 形でも たまたま 通る）★ */
+    const Q = String.fromCharCode(39), BQ = String.fromCharCode(96), BS = String.fromCharCode(92);
+    const kakoiNi = '/* ' + honmono + ' */';
+    iu('★① 引用符を 含む 正規表現の 後ろの 覚書が 剥がれる（本物 1）★',
+      kazu(oboegakiWoKesu('var r=/' + Q + '/;' + NL + kakoiNi + NL + honmono)) === 1);
+    iu('★② 割り算を 正規表現と 見違えない（a = b / c; の 後ろの 覚書が 剥がれる）★',
+      kazu(oboegakiWoKesu('a = b / c; ' + kakoiNi)) === 0);
+    iu('★③ 正規表現の [ ] の 中の / で 閉じない★',
+      kazu(oboegakiWoKesu('var r=/[/]' + Q + '/;' + NL + kakoiNi)) === 0);
+    iu('★④ テンプレート字の ${ } の 中に 引用符と 覚書の 始まりが 在っても 後ろの 覚書が 剥がれる★',
+      kazu(oboegakiWoKesu('var t=' + BQ + 'a${ "/*" }b' + BQ + '; ' + kakoiNi)) === 0);
+    const rxKakoi = 'var r=/' + BS + '/' + BS + '*/; ' + kakoiNi;
+    const rxDeta = oboegakiWoKesu(rxKakoi);
+    iu('★⑤ 正規表現の 中に 覚書の 始まりの 字が 在っても 正規表現は 残り 覚書は 剥がれる★',
+      kazu(rxDeta) === 0 && rxDeta.indexOf('/' + BS + '/' + BS + '*/') === 6);
+    iu('★⑥ ++ の 後の / は 割り算（x++ / 2 の 後ろの 覚書が 剥がれる）★',
+      kazu(oboegakiWoKesu('x++ / 2 ' + kakoiNi)) === 0);
+    /* ★★知っている 穴（★緩めない・名前で 載せる★）★★ … 閉じ丸括弧の 直後の 正規表現は 割り算と 読む
+       ＝if(a) の 直後に 引用符入りの 正規表現が 来ると 後ろの 覚書が 剥がれない
+       ★今の 23本に その 形は 0個★（10-02 に 数えた＝閉じ丸括弧の 直後の スラッシュ 24個とも 割り算）
+       ★この 行が「剥がれる」に 変わったら 誰かが 穴を 塞いだ★＝その日に 穴の 覚書を 消す */
+    {
+      const ana = kazu(oboegakiWoKesu('if(a) /' + Q + '/.test(b);' + NL + kakoiNi));
+      console.log('  ' + (ana === 1 ? '△' : '★') + ' ★知っている 穴★ if(a) の 直後の 引用符入り 正規表現の 後ろの 覚書 … '
+        + (ana === 1 ? '剥がれない（穴の まま・今の 23本に この 形は 0個）' : '★剥がれた＝穴が 塞がった？ 覚書を 見直す★'));
+    }
   }
   console.log(ng ? '★自己確認 ' + ng + '件 おかしい★' : '  ★★自己確認 ぜんぶ 思った通り★★');
   process.exit(ng ? 1 : 0);
