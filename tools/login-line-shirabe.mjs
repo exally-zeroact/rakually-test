@@ -1,5 +1,6 @@
-/* souko-line-10kai.mjs — ★客の ログイン→倉庫 の 線が 詰まるのは この PC だけか★を 数える（測り専用・使い捨て）
+/* login-line-shirabe.mjs — ★客の ログイン→倉庫 の 線が 詰まるのは この PC だけか★を 数える（測り専用・使い捨て）
  * =============================================================================
+ * ★置き場★ tools/（試験では なく 道具＝tests-registered の 対象外・ci.yml にも 網にも 載せない）
  * ★棚③（指示役と 合わせた・2026-10-03）★
  *   症状：①ログインの 再試し（3回目で 79.8秒 の 回が あった）／②倉庫への 線が ときどき 丸ごと
  *         止まり ★約19秒で 落ちて 返る★（実測 18,973〜18,983ms・WebKit/Chromium 両方・10回に1回）。
@@ -8,8 +9,8 @@
  *
  * ★数える 物（2つ・別々に）★
  *   ㋐ ログインの 再試し … hairu() の kai（何回目で 入れたか）・1回の 秒（_hairu.mjs の 使い回し）
- *   ㋑ 線落ち … 網で 手を 入れて いない 要求（auth/v1・rest/v1 の GET 等）で
- *      requestfailed に なった／≥15秒 掛かった 物を 道（auth/v1・rest/v1/<棚>）と 方法で 分けて 数える
+ *   ㋑ 線落ち … ★≥15秒 掛かった／≥15秒で 落ちた 要求だけ★（19秒の 線落ちの 印）を 道と 方法で 数える。
+ *      ★1秒級の 速い requestfailed は 線落ちでは ない★＝別に「速い失敗」として 出す（混ぜない）
  *
  * ★書きの 扱い（指示役・案A＋穴ふさぎ）★
  *   客の 道「ログイン→読み」だけでも アプリは 自分で 書きに 行く 事が ある（auth.js:61→PersistSave 等）。
@@ -21,9 +22,9 @@
  * ★安全★ 試験の 倉庫だけ（repoEnv==='test' 以外は 抜ける）・試験の 口だけ（test@test.com）・書き 0。
  *
  * 使い方:
- *   node tests/souko-line-10kai.mjs                 … WebKit+Chromium を 各10回
- *   node tests/souko-line-10kai.mjs --n=10 --kind=webkit
- *   node tests/souko-line-10kai.mjs --self-test     … ブラウザ 無しで 選び方だけ 見る
+ *   node tools/login-line-shirabe.mjs                 … WebKit+Chromium を 各10回
+ *   node tools/login-line-shirabe.mjs --n=10 --kind=webkit
+ *   node tools/login-line-shirabe.mjs --self-test     … ブラウザ 無しで 選び方だけ 見る
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -64,15 +65,15 @@ if (SELF) {
   iu('rest の 棚を 分ける', michiWake('https://x.supabase.co/rest/v1/pay_companies?select=*') === 'rest/v1/pay_companies');
   iu('その他は 道だけ', michiWake('https://x.supabase.co/health') === '/health');
   iu('OSOI_MS は 15秒（19秒の 線落ちを 拾う）', OSOI_MS === 15000);
-  console.log('\n[souko-line-10kai] --self-test ' + (ng ? '★' + ng + '個 おかしい★' : '★全部 合う★'));
+  console.log('\n[login-line-shirabe] --self-test ' + (ng ? '★' + ng + '個 おかしい★' : '★全部 合う★'));
   process.exit(ng ? 1 : 0);
 }
 
 /* ───────── 本番の repo では 走らせない（字で 言ってから 抜ける）───────── */
 {
-  const { kagiAru } = await import('./_hairu.mjs');
+  const { kagiAru } = await import('../tests/_hairu.mjs');
   if (!(await kagiAru(ROOT))) {
-    console.log('[souko-line-10kai] — ★この repo（本番）には 試験の 鍵が 無いので ここでは 測れません★'
+    console.log('[login-line-shirabe] — ★この repo（本番）には 試験の 鍵が 無いので ここでは 測れません★'
       + '（★テスト線で 測っています★）');
     process.exit(0);
   }
@@ -83,7 +84,7 @@ let borrow, pwLaunch;
 try { ({ borrow, launch: pwLaunch } = await import('../scripts/_borrow-playwright.mjs')); }
 catch (e) { console.log('🟡 ★未測定★ playwright を 借りる 道具が 読めない … ' + (e && e.message)); process.exit(2); }
 
-const { hairu, shizumaru } = await import('./_hairu.mjs');
+const { hairu, shizumaru } = await import('../tests/_hairu.mjs');
 
 /* ───────── アプリを 手元で 配信 ───────── */
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
@@ -142,12 +143,12 @@ async function hitokai(b) {
 }
 
 /* ───────── 回す ───────── */
-console.log('\n[souko-line-10kai] ★客の ログイン→倉庫 の 線（' + BA + '・各 ' + N + '回）★  接続先=' + URL);
+console.log('\n[login-line-shirabe] ★客の ログイン→倉庫 の 線（' + BA + '・各 ' + N + '回）★  接続先=' + URL);
 const subete = {};
 for (const kind of KINDS) {
-  const t = await borrow('souko-line-10kai', kind);
+  const t = await borrow('login-line-shirabe', kind);
   if (!t) continue;                         /* borrow が 未測定で 抜ける（ここには 来ない） */
-  const b = await pwLaunch('souko-line-10kai', t, { }, kind);
+  const b = await pwLaunch('login-line-shirabe', t, { }, kind);
   if (!b) continue;
   const runs = [];
   for (let i = 1; i <= N; i++) {
@@ -168,12 +169,13 @@ for (const kind of KINDS) {
   const haitta = runs.filter((r) => r.haitta).length;
   const saitameshi = runs.filter((r) => r.haitta && r.kai > 1).length;      /* ㋐ 再試しが 要った 回 */
   const saidaiKai = runs.reduce((a, r) => Math.max(a, r.kai || 0), 0);
-  const senochi = runs.filter((r) => r.shizen.length || r.osoi.length).length;  /* ㋑ 線落ちが 出た 回 */
+  const senochi = runs.filter((r) => r.osoi.length).length;  /* ㋑ 線落ち＝★≥15秒だけ★（19秒の 印）／速い失敗は 混ぜない */
+  const hayaiKai = runs.filter((r) => r.shizen.some((x) => x.ms == null || x.ms < OSOI_MS)).length;  /* 速い失敗（線落ちでない）が 出た 回 */
   const kakiIta = runs.filter((r) => r.tometa > 0).length;                   /* 書きに 行った 回 */
   const loginMss = runs.filter((r) => r.haitta).map((r) => r.loginMs).sort((a, b2) => a - b2);
   const chuou = loginMss.length ? loginMss[Math.floor(loginMss.length / 2)] : null;
   const saidaiMs = loginMss.length ? loginMss[loginMss.length - 1] : null;
-  subete[kind] = { n: N, haitta, saitameshi, saidaiKai, senochi, kakiIta, chuou, saidaiMs,
+  subete[kind] = { n: N, haitta, saitameshi, saidaiKai, senochi, hayaiKai, kakiIta, chuou, saidaiMs,
     shizenZen: runs.flatMap((r) => r.shizen), osoiZen: runs.flatMap((r) => r.osoi) };
 }
 
@@ -183,13 +185,13 @@ for (const kind of KINDS) {
   const s = subete[kind];
   if (!s) { console.log(kind + '：未測定（借りられない）'); continue; }
   console.log(kind + '：' + BA + ' ' + s.n + '回中  ㋐再試し ' + s.saitameshi + '回（最大 ' + (s.saidaiKai || '—') + '回目で 入れた）'
-    + '・㋑線落ち ' + s.senochi + '回');
+    + '・㋑線落ち(≥15秒) ' + s.senochi + '回');
   console.log('    入れた ' + s.haitta + '/' + s.n + '回 ／ ログインの 秒 中央 ' + (s.chuou != null ? s.chuou + 'ms' : '—') + '・最長 ' + (s.saidaiMs != null ? s.saidaiMs + 'ms' : '—'));
   console.log('    書きに 行った 回 ' + s.kakiIta + '/' + s.n + '（偽200で 止めた＝倉庫には 届かず）');
+  console.log('    ㋑線落ち(≥15秒)の 内訳：' + (s.osoiZen.length ? s.osoiZen.map((x) => x.hou + ' ' + x.michi + ' ' + x.ms + 'ms' + (x.ok ? '返' : '落')).join('／') : 'なし'));
   const byMichi = {};
-  for (const x of s.shizenZen) { const k = x.hou + ' ' + x.michi; byMichi[k] = (byMichi[k] || 0) + 1; }
-  console.log('    ㋑自然な失敗の 内訳：' + (Object.keys(byMichi).length ? Object.entries(byMichi).map(([k, v]) => k + '×' + v).join('／') : 'なし'));
-  console.log('    ㋑≥15秒の 内訳：' + (s.osoiZen.length ? s.osoiZen.map((x) => x.hou + ' ' + x.michi + ' ' + x.ms + 'ms' + (x.ok ? '返' : '落')).join('／') : 'なし'));
+  for (const x of s.shizenZen.filter((y) => y.ms == null || y.ms < OSOI_MS)) { const k = x.hou + ' ' + x.michi; byMichi[k] = (byMichi[k] || 0) + 1; }
+  console.log('    参考・速い失敗（線落ちでない・1秒級）' + s.hayaiKai + '/' + s.n + '回：' + (Object.keys(byMichi).length ? Object.entries(byMichi).map(([k, v]) => k + '×' + v).join('／') : 'なし'));
 }
 /* 機械で 拾える 1行（workflow で 表に する 為） */
 console.log('\nSUMMARY_JSON=' + JSON.stringify({ ba: BA, n: N, kinds: subete }));
