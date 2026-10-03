@@ -124,8 +124,10 @@ if (!SELF) {
     fs.writeFileSync(p, keep.replace(mark, ''));
     run('1欄 消した受け口（わざと壊した）');
   } finally { fs.writeFileSync(p, keep); }
+  const 取り逃し = Math.max(0, 2 - fail);            /* 2件以上のはず */
   console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（2件以上のはず）');
-  if (fail < 2) { console.log('  ✗ ★空振りです★ 壊しても赤にならない'); process.exit(1); }
-  console.log('  ✓ ★壊したら赤になった＝この見張りは本当に働いています★');
-  process.exit(0);
+  if (取り逃し) console.log('  ✗ ★空振りです★ 壊しても赤にならない');
+  else console.log('  ✓ ★壊したら赤になった＝この見張りは本当に働いています★');
+  console.log('KEKKA {"passed":' + fail + ',"failed":' + 取り逃し + ',"mimiso":0}');   /* その場で数える */
+  process.exit(取り逃し ? 1 : 0);
 }

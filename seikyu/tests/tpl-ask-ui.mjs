@@ -365,8 +365,10 @@ if (!SELF) {
   if (keep.indexOf(mark) < 0) { console.log('  ★壊す場所が見つからない＝この自己診断は古い★'); process.exit(2); }
   await run('設定を 入力に 効かせない seikyu-app.js（わざと壊した）',
     keep.replace(mark, '  function tplSync() { return;'));
+  const 取り逃し = Math.max(0, 2 - fail);            /* 2件以上のはず */
   console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（2件以上のはず）');
-  if (fail < 2) { console.log('  ✗ ★空振りです★ 壊しても赤にならない'); process.exit(1); }
-  console.log('  ✓ ★壊したら赤になった＝この試験は本当に見張っています★');
-  process.exit(0);
+  if (取り逃し) console.log('  ✗ ★空振りです★ 壊しても赤にならない');
+  else console.log('  ✓ ★壊したら赤になった＝この試験は本当に見張っています★');
+  console.log('KEKKA {"passed":' + fail + ',"failed":' + 取り逃し + ',"mimiso":0}');   /* その場で数える */
+  process.exit(取り逃し ? 1 : 0);
 }
