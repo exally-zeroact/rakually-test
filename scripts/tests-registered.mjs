@@ -332,28 +332,64 @@ function coveredByRanges(ranges, relPath) {
       ✕ 除外リストの鍵（'…': {…}）／覚書の中／ただの文字列の突き合わせ
    ⇒ ★見分けが付かない時は 緑にせず「走らせているか読めません（未測定）」で赤★ */
 
-/* 覚書を取り除く（文字列の中は 消さない）。1本で持ち運ぶため ここに置く。 */
-function stripComments(src) {
-  let out = '', i = 0; const n = src.length;
-  let q = null, last = '';
+/* 覚書を取り除く（文字列の中は 消さない）。★1本で持ち運ぶため ここに置く（他repoにも配る）＝import しない★。
+   ★ここは tools/_oboegaki.mjs の 正本（oboegakiWoKesu＋seikiHyougenKa＋RX定数）を ★逐語コピー★★（2026-10-03・⑥）。
+   ★正本と1字違い（正規化）を tests/oboegaki.test.mjs が 見る＝食い違えば 赤（道具 seikiHyougenKa・RX も含めて見る）。
+   前の 自前版は 正規表現 `/a\/\/b/` の \/\/ を 行覚書と 誤読して 残りを 食う 穴が あった。 */
+const RX_MAE_JI = /[(,=:\[!&|?{};+\-*%<>~^]/;
+const RX_MAE_KOTOBA = /(?:^|[^\w$])(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await)$/;
+function seikiHyougenKa(out) {
+  let k = out.length - 1;
+  while (k >= 0 && /\s/.test(out[k])) k--;
+  if (k < 0) return true;
+  const mae = out.slice(Math.max(0, k - 11), k + 1);
+  if (mae.endsWith('++') || mae.endsWith('--')) return false;
+  return RX_MAE_JI.test(out[k]) || RX_MAE_KOTOBA.test(mae);
+}
+function oboegakiWoKesu(src) {
+  const n = src.length;
+  let out = '', i = 0;
   while (i < n) {
     const c = src[i], d = src[i + 1];
-    if (q) {
-      if (c === BS) { out += c + (d || ''); i += 2; continue; }
-      if (c === q) q = null;
-      out += c; i++; continue;
+    if (c === '/' && d === '/') {                     /* ★行の 覚書★ */
+      let j = i; while (j < n && src[j] !== '\n') j++;
+      out += ' '.repeat(j - i); i = j; continue;
     }
-    if (c === Q || c === D || c === '`') { q = c; out += c; last = c; i++; continue; }
-    if (c === '/' && d === '/') { while (i < n && src[i] !== NL) { out += ' '; i++; } continue; }
-    if (c === '/' && d === '*') {
-      i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) { out += src[i] === NL ? NL : ' '; i++; }
-      i += 2; continue;
+    if (c === '/' && d === '*') {                     /* ★囲みの 覚書★ */
+      let j = i + 2;
+      while (j < n && !(src[j] === '*' && src[j + 1] === '/')) j++;
+      j = Math.min(n, j + 2);
+      for (let k = i; k < j; k++) out += (src[k] === '\n' ? '\n' : ' ');   /* 改行は 残す */
+      i = j; continue;
     }
-    out += c; if (!/\s/.test(c)) last = c; i++;
+    if (c === '/' && seikiHyougenKa(out)) {           /* ★正規表現★＝字の まま 写す */
+      let j = i + 1, kakko = false, toji = false;
+      while (j < n && src[j] !== '\n') {              /* 改行で 打ち切る＝割り算の 見間違いで 遠くまで 飲まない */
+        if (src[j] === '\\') { j += 2; continue; }
+        if (src[j] === '[') kakko = true;
+        else if (src[j] === ']') kakko = false;
+        else if (src[j] === '/' && !kakko) { toji = true; j++; break; }
+        j++;
+      }
+      if (toji) {
+        while (j < n && /[a-z]/i.test(src[j])) j++;   /* 旗（g i m など） */
+        out += src.slice(i, j); i = j; continue;
+      }
+    }
+    if (c === "'" || c === '"' || c === '`') {        /* ★字は そのまま★ */
+      const q = c; let j = i + 1;
+      while (j < n) {
+        if (src[j] === '\\') { j += 2; continue; }
+        if (src[j] === q) { j++; break; }
+        j++;
+      }
+      out += src.slice(i, j); i = j; continue;
+    }
+    out += c; i++;
   }
   return out;
 }
+const stripComments = oboegakiWoKesu;
 
 /* 文字列を すべて取り出す。★鍵（'…': ）は 走らせる物ではない★ので 印を付ける。 */
 function literals(src) {
