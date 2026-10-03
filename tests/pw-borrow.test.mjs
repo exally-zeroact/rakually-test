@@ -25,6 +25,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { oboegakiWoKesu } from '../tools/_oboegaki.mjs';   /* ★覚書はがしの正本（2026-10-03・⑥）★ */
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SELF = process.argv.includes('--self-test');
 
@@ -50,10 +51,9 @@ export function wrapped(src) {
   return hits.every((m) => /try\s*\{[^}]*$/.test(s.slice(Math.max(0, m.index - 400), m.index)));
 }
 
-/* ★注記を 外してから 数える★（// と /* *\/ を 消す。字の中の物までは 見ない＝十分） */
-export function stripComments(src) {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
-}
+/* ★注記を 外してから 数える★ … ★正本に 差し替え（2026-10-03・⑥）★＝自前版は 文字列の中の /* *\/ を
+   消す穴が あった（実測）＝tools/_oboegaki.mjs の oboegakiWoKesu（正規表現/文字列/テンプレ対応）に 寄せる。 */
+export const stripComments = oboegakiWoKesu;
 /* ★★字を 割って 逃げた 紙の 名簿（訳つき・本数を 決め打つ）★★（2026-09-19 指示役1 の 注文）
    ★何が 危ないか★ … この 見張りは ★字だけ★ 見る。だから 継いで 書くと ★素通りする★。
    ★逃げ道が 増えるほど この 見張りは 静かに 効かなく なる★
