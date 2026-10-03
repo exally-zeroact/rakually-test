@@ -17,6 +17,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { oboegakiWoKesu } from '../tools/_oboegaki.mjs';   /* ★覚書はがしの正本（2026-10-03・⑥-7＝写しを0に）★ */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -202,69 +203,11 @@ export function inTryCatch(src, at, stLen) {
      ・★正規表現の 中の `//` `/*` は 見分けません★
        ⇒ ★だから ★長さと 改行の 数が 変わって いない事★を 毎回 確かめます★
        ⇒ ★＋『覚書で 落ちた 数』を 出します★（★急に 増えたら 人が 気づける★） */
-/* ★★正規表現を 見分ける★★（2026-10-02・指示役引き継ぎ ★7）
-   ★穴★ … 正規表現の 中の 引用符を「字の 始まり」と 読み、次の 引用符まで 飲んでいた
-     ⇒ ★その 先の 覚書が 剥がれない★（実測 app.js … 剥がせた 覚書 621字／本当は 70,806字）
-     ⇒ 覚書の 中の 呼びの 字（app.js:6406）を ★本物の 呼び★と 数えていた
-   ★見分け方★ … 直前の 意味の 在る 字が 演算子・開き括弧・区切り か、return などの 言葉 か、頭 なら ★正規表現★
-     ／++ と -- の 後、名前・数・閉じ括弧の 後は ★割り算★
-   ★知っている 穴（★緩めない・自己確認に 名前で 載せる★）★ … 閉じ丸括弧の 後の 正規表現（if(a) の 直後 など）は 割り算と 読む
-     （10-02 に 23本で 数えた＝閉じ丸括弧の 直後の スラッシュは 24個とも 割り算／正規表現 0個）
-   ★本物を 消して いない 証し★ … 剥がした 字を ★毎回 node --check に 通す★（下の 走査）＝転べば 赤 */
-const RX_MAE_JI = /[(,=:\[!&|?{};+\-*%<>~^]/;
-const RX_MAE_KOTOBA = /(?:^|[^\w$])(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await)$/;
-function seikiHyougenKa(out) {
-  let k = out.length - 1;
-  while (k >= 0 && /\s/.test(out[k])) k--;
-  if (k < 0) return true;
-  const mae = out.slice(Math.max(0, k - 11), k + 1);
-  if (mae.endsWith('++') || mae.endsWith('--')) return false;
-  return RX_MAE_JI.test(out[k]) || RX_MAE_KOTOBA.test(mae);
-}
-export function oboegakiWoKesu(src) {
-  const n = src.length;
-  let out = '', i = 0;
-  while (i < n) {
-    const c = src[i], d = src[i + 1];
-    if (c === '/' && d === '/') {                     /* ★行の 覚書★ */
-      let j = i; while (j < n && src[j] !== '\n') j++;
-      out += ' '.repeat(j - i); i = j; continue;
-    }
-    if (c === '/' && d === '*') {                     /* ★囲みの 覚書★ */
-      let j = i + 2;
-      while (j < n && !(src[j] === '*' && src[j + 1] === '/')) j++;
-      j = Math.min(n, j + 2);
-      /* ★改行は 残す★＝行番号を ずらさない */
-      for (let k = i; k < j; k++) out += (src[k] === '\n' ? '\n' : ' ');
-      i = j; continue;
-    }
-    if (c === '/' && seikiHyougenKa(out)) {           /* ★正規表現★＝字の まま 写す（中の 引用符を 字と 読まない） */
-      let j = i + 1, kakko = false, toji = false;
-      while (j < n && src[j] !== '\n') {              /* ★改行で 打ち切る★＝割り算の 見間違いで 遠くまで 飲まない */
-        if (src[j] === '\\') { j += 2; continue; }
-        if (src[j] === '[') kakko = true;
-        else if (src[j] === ']') kakko = false;
-        else if (src[j] === '/' && !kakko) { toji = true; j++; break; }
-        j++;
-      }
-      if (toji) {
-        while (j < n && /[a-z]/i.test(src[j])) j++;   /* 旗（g i m など） */
-        out += src.slice(i, j); i = j; continue;
-      }
-    }
-    if (c === "'" || c === '"' || c === '`') {        /* ★字は そのまま★（外しません） */
-      const q = c; let j = i + 1;
-      while (j < n) {
-        if (src[j] === '\\') { j += 2; continue; }
-        if (src[j] === q) { j++; break; }
-        j++;
-      }
-      out += src.slice(i, j); i = j; continue;
-    }
-    out += c; i++;
-  }
-  return out;
-}
+/* ★★覚書はがしは 正本を 読む（2026-10-03・⑥-7＝写しを 0 に）★★
+   ＝tools/_oboegaki.mjs の oboegakiWoKesu（正規表現/文字列/テンプレ対応・長さ行数不変）を import（上）。
+   ★ここに 写しを 持たない★＝drift門を 増やすより 写しを 0 にする方が 強い（指示役）。
+   ★正規表現を 見分ける 訳・穴（閉じ丸括弧の後の / は 割り算と読む 等）は _oboegaki の 頭に 在る★。
+   ★本物を 消して いない 証し★ … 剥がした 字を ★毎回 node --check に 通す★（下の 走査）＝転べば 赤。 */
 
 /* 倉庫（外）を呼ぶ所。約束を返す物だけ見る */
 const OUT_RX = /\b(?:Store|suite|SD|S\.store)\.([A-Za-z_$][\w$]*)\s*\(/g;
