@@ -388,3 +388,11 @@ jobs:
       - name: ★わざと 6745(document capture) を外すと 答えが載らないか（ask-save-ui の 空振り止め）★
         if: ${{ !cancelled() }}
         run: node kyuyo/tests/ask-save-ui.mjs --waza
+      # ★iPhone 等 beforeunload が出ない端末の為＝hidden/pagehide で 待ち保存を 早出し（2026-10-03・司さんの「1問ごとに保存」の端末差を塞ぐ）
+      #   ★「早出しの受け手が在って効く」の門＝「iPhoneで本当に届く」の門ではない（実機の確認は別）★
+      - name: ★hidden/pagehide で 待ち保存が 早出しされる（500msを待たず・答えた値入り）★
+        if: ${{ !cancelled() }}
+        run: node kyuyo/tests/hidden-flush-ui.mjs
+      - name: ★わざと 早出しの受け手を外すと 500ms手前に出ないか（hidden-flush-ui の 空振り止め）★
+        if: ${{ !cancelled() }}
+        run: node kyuyo/tests/hidden-flush-ui.mjs --waza

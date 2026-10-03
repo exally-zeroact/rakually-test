@@ -6792,6 +6792,16 @@
   // 変更を自動保存(入力/選択/クリック後・離脱時)
   ['input','change','click'].forEach(function(ev){ document.addEventListener(ev, persistSaveDebounced, true); });
   window.addEventListener('beforeunload', persistSave);
+  /* ★★iPhone 等 beforeunload が 出ない 端末の 為＝hidden/pagehide で 早出し★★（2026-10-03・指示役と）
+     ★訳★ … iOS Safari は beforeunload を 発火しない。上の デバウンス(500ms)の 途中で 閉じ／ホームへ 戻ると
+       ★待っている 保存が 倉庫に 届かない★（localStorage には 残る）。hidden/pagehide は 発火するので、
+       ★待ち(_saveT)が 在る時だけ★ ★ページが 生きている内に★ 早出しする（keepalive は 使わない＝
+       人の写しが 64KB を 超え得る／(a)だけで ほぼ塞がる）。
+     ★_saveT を 必ず 消す★＝でないと 500ms 後に もう1本＝1操作2本に なる（指示役①）。
+     ★これは「iPhone で 本当に 届く」の 保証では ない★＝早出しの 受け手を 足すだけ（実機の 確認は 別）。 */
+  var _flushMachi = function(){ if(_saveT){ clearTimeout(_saveT); _saveT=null; persistSave(); } };
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='hidden') _flushMachi(); });
+  window.addEventListener('pagehide', _flushMachi);
   /* ★★下の 帯（`.botnav`）の 高さを 字で 置く★★（2026-09-25）
      ★訳★ … 下に 貼り付く 物（`bottom:0`）は ★下の 帯の 裏に 回ります★
        （09-25 実測＝「今月を確定」の 下の 警告の 箱が ★帯に 切られて いた★）
