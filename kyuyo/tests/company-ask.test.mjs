@@ -187,8 +187,12 @@ T('⑦ 答えていない所は空欄のまま（勝手に埋めない）＋7問
 
 T('⑧ 1問ごと保存の道が在る（答えた瞬間に保存する）', () => {
   ok(APP.indexOf('function askSave()') >= 0, 'askSave が無い');
-  const b = APP.slice(APP.indexOf('function askSave()'), APP.indexOf('function askSave()') + 400);
-  ok(/persistSave/.test(b), '保存を呼んでいない（閉じると消える）');
+  /* ★「1問ごとに保存」(司さん 2026-08-16) を ★実際に 保存する か★は ★振る舞いの門★が 守る（2026-10-03・指示役と）：
+       kyuyo/tests/ask-save-ui.mjs ②（#ask-host の問い=締め日に答える→答えが pay_companies の書きの本文に載る／
+       --waza で 6745(document capture) を外すと 載らない＝赤）。
+     ここに在った「askSave の字の近くに persistSave が在るか」の ★静的門は 飾り★だった＝
+       その呼び `if(window.persistSaveDebounced)…` は ★runtime 死★（window.persistSave* は IIFE の中＝代入0）で、
+       実際に 1問ごと保存を 満たすのは 6745。字は緑でも 要件は 字の上だけ だった＝外した。 */
   ok(/askOk\[k\]=true/.test(APP.replace(/\s/g, '')), '答えた印を1問ずつ付けていない');
 });
 

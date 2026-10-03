@@ -140,6 +140,10 @@ T('⑦ 機械が当てる物は聞かない（県・最賃・社保の加入・�
 T('⑧ 1問ごと保存＋画面の箱が在る＋既定の形を1バイトも変えていない', () => {
   ok(HTML.indexOf('id="emp-ask-host"') >= 0, '7問の箱が index.html に無い');
   ok(APP.indexOf('function empAskSave()') >= 0, 'empAskSave が無い');
+  /* ★★注記（2026-10-03・指示役と）★★ 下の `/persistSave/` は ★静的（飾り）の門★＝その呼びは runtime 死
+     （window.persistSave* は IIFE の中＝代入0・実保存は 6745）。会社ask は kyuyo/tests/ask-save-ui.mjs ② で
+     ★振る舞いの門★に 替えた。従業員ask（答え→pay_employees・別画面）の 振る舞いの門は ★棚に1件★（未）。
+     ＝それが出来るまでは この静的門を 残す（消すと emp の 1問ごと保存が 何にも 守られなくなる）。 */
   ok(/persistSave/.test(APP.slice(APP.indexOf('function empAskSave()'), APP.indexOf('function empAskSave()') + 300)), '保存を呼んでいない');
   /* ★defEmp に askOk を足していない★＝答えた時に生える（凍結した入力fixtureが動かない） */
   const def = APP.slice(APP.indexOf('function defEmp('), APP.indexOf('function defEmp(') + 1200);

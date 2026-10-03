@@ -330,3 +330,9 @@ jobs:
         run: node kyuyo/tests/hozon-fuda-ui.mjs
       - name: ★わざと 帯への 1行を 外したら 帯が 描かれないか（hozon-fuda-ui の 空振り止め）★
         run: node kyuyo/tests/hozon-fuda-ui.mjs --waza
+      # ★司さん要件「1問ごとに保存」(2026-08-16)を ★振る舞い★で守る門（飾りの字の門を 替えた・2026-10-03）
+      #   ①会社の欄(#c-payday-day)＝6745の全体／②#ask-host の問い(締め日)＝askSave道。答えが pay_companies の本文に載る。
+      - name: ★1問ごとに保存＝答えが倉庫の書きの本文に載る（①欄②問い・abort前の本文で見る）★
+        run: node kyuyo/tests/ask-save-ui.mjs
+      - name: ★わざと 6745(document capture) を外すと 答えが載らないか（ask-save-ui の 空振り止め）★
+        run: node kyuyo/tests/ask-save-ui.mjs --waza
