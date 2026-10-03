@@ -154,16 +154,21 @@ jobs:
       - name: Install WebKit
         run: npx playwright install --with-deps webkit
       - name: ★WebKitで 375/390/430 を実測 (16px未満0本／押す的20×20未満0個／横はみ出し0px)
+        if: ${{ !cancelled() }}
         run: node scripts/webkit-size.mjs
       # ★見た目の統一★（司さん 2026-08-29「統一感は？」）＝本物のブラウザで 色の値を読む物。
       #   ★毎回のCIには置かない★（ブラウザが無いので 毎回「未測定」になる＝在るのに0回）。
       - name: ★押す物の見た目が全画面で揃っているか (台帳9通り・緑1種類・角丸12/999/0)
+        if: ${{ !cancelled() }}
         run: node tests/button-uniform.test.mjs
       - name: ★同 わざと崩して赤になるか（緑を混ぜる／字を灰色に戻す）
+        if: ${{ !cancelled() }}
         run: node tests/button-uniform.test.mjs --self-test
       - name: ★請求書 聞く形のボタンの色 (画面の本命/ほかと同じ・緑は1種類・押す的20×20)
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/pask-color.test.mjs
       - name: ★同 わざと色を戻して赤になるか
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/pask-color.test.mjs --self-test
       # ★自作PDF★（司さん 2026-08-30「自作PDFのやり方しか指示してないわ」）
       #   ★本物のブラウザで 本物の紙から PDFを作って 数で見る★（chromium が要る）。
@@ -171,23 +176,28 @@ jobs:
       - name: Install Chromium (自作PDFを 本物のブラウザで 作る為)
         run: npx playwright install --with-deps chromium
       - name: ★自作PDF 紙の揃え方を そのまま写しているか (右端/左端が紙と同じ・自社4行の右端が揃う・化け0)
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/pdf-align.mjs
       # ★お客はiPhone＝中身はWebKit★（司さん 2026-08-30「知り合いに使ってもらう」）
       #   ★測っていない engine で「出る」と言わない★＝chromiumで出た だけでは 足りない。
       #   ここは「出る・本当にPDF・字が入る・化け0・待たされない」だけを見る
       #   （紙の中の位置は 上の pdf-align.mjs が chromium で 測っている）。
       - name: ★自作PDFが iPhoneの中身(WebKit)でも 出るか (請求書/領収書・先頭%PDF-・化け0・20秒以内)
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/pdf-webkit.mjs
       # ★判子の大きさを 形で選り分ける★（司さん 2026-08-30
       #   「個人の苗字の判子の大きさと 角印の判子の大きさも 自動で選別してるか？」）
       #   ★印影を その場で描いて 測る★（絵は repo に置かない＝形が命なので 形を作って試す）
       - name: ★判子が 角印か 個人の丸い印かを 見分ける (四隅の墨で判定・白抜き・実UIのmm欄まで)
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/seal-shape.mjs
       # ★判子の場所★（司さん 2026-08-31「場所は自由に変えれんのか？」）
       #   決まった置き方を選ばせる形は 2度 差し戻された。今は 紙の上の mm で 自由に置く。
       - name: ★判子を 紙のどこにでも置けるか (指した所へ・紙から出ない・2枚とも同じ所・実UIで押す)
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/seal-pos.mjs
       - name: ★同 紙から出さない蓋が効いているか
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/seal-pos.mjs --self-test
       # ★紙は 本物のブラウザで 測る★（2026-09-02・口座1〜6 × 明細1/10/20行 × 控除なし/あり＝36通り）
       #   直す前は ★6口座で 口座番号が 丸ごと 消えていた★（.sheet は overflow:hidden＝黙って 切れる）
@@ -196,27 +206,37 @@ jobs:
       # ★判子の 白抜き★（司さん 2026-09-09「判子が 自動で 透過されないから 背景が 邪魔になる」）
       #   ★画素を 数える★ので 実ブラウザが 要る＝ここ（webkit.yml）に 置く。
       - name: ★判子 (倉庫に残った白い地を自動で透かす/透けている物は触らない)
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/hanko-touka.mjs
       # ★列の 幅の 振り分け★（司さん 2026-09-10
       #   「消費税と備考欄の間が少な過ぎる／これを1塊として近づけて 項目と備考は多めに」）
       #   ★字の はみ出しは 画素でしか 分からない★ので 実ブラウザ＝ここ（webkit.yml）。
       - name: ★列の幅 (消費税の右にすきま/真ん中4列は1塊/字がはみ出さない/A4に収まる)
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/retsu-haba.mjs
       - name: 画面にブラウザ任せの英語を出さない（Choose File が出ていない）
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/eigo-dasanai.mjs
       - name: 同 わざと壊して赤になるか
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/eigo-dasanai.mjs --self-test
       - name: 2枚目・3枚目に入った紙（1枚目がスカスカにならない・A4に収まる）
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/maisuu.mjs
       - name: 同 わざと壊して赤になるか
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/maisuu.mjs --self-test
       - name: ★備考の枠を出しても 紙から はみ出さない（18通り 実測・A4 1122.5px）
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/memo-waku.mjs
       - name: ★同 足元を高くすると 赤になるか（自己確認・壊した数と赤の数を並べる）
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/memo-waku.mjs --self-test
       - name: ★口座を何個出しても 紙から 字が消えない（36通り 実測）
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/bank-paper.mjs
       - name: ★同 わざと直す前の形にすると はみ出すか（自己確認）
+        if: ${{ !cancelled() }}
         run: node seikyu/tests/bank-paper.mjs --self-test
       # ★聞く形の札が 読めるか★（指示役の判定 2026-09-02＝口座の札が「1つの塊」に見えて 差し戻し）
       #   ★これは 数字には 1つも 出ない★ので 描いた物を 375/390/430 で 測る。
@@ -224,11 +244,13 @@ jobs:
       #   ★「たまに赤」は まず 記録係★（赤の中身は 次の回で 上書きされる）＝tools/aka-kiroku.mjs
       #   ★止め方は 変えていない★＝赤は そのまま 赤で 止まる（握りつぶさない）
       - name: ★口座は1つずつ別の箱・選んだ札だけが光る（375/390/430で実測／赤は中身を残す）
+        if: ${{ !cancelled() }}
         run: node tools/aka-kiroku.mjs -- node seikyu/tests/ask-look-webkit.mjs
       # ★倉庫の 答えが 遅れても 画面が 動かない／押させない／黙らない★（2026-09-05 指示役の裁定・案D）
       #   ★犯人は 1つずつ 遅らせて 測って 突き止めた★＝倉庫の状態(cloudLoadState) だけが 3737px 動かした。
       #   ★人の一覧は 答えが来るまで描かない／その間は確定を押させない／失敗は失敗と言う★
       - name: ★倉庫の答えが遅れても 動かない/押させない/黙らない（375・390・412／わざと落として失敗も見る）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/souko-machi.mjs --self-test && node kyuyo/tests/souko-machi.mjs
       # ★被扶養者(異動)届を お客さんの道どおり 押して 本当に ファイルを 落とす（2026-09-14）
       #   ★増えた／減った／変わった の 3通りとも★ 押して SHFD0006.CSV を 落とし、
@@ -236,38 +258,46 @@ jobs:
       #   ★自己確認つき★＝物差し自身を わざと 壊して 赤が 出る事を 先に 見る。
       #   ★足した人は 必ず 消す★（前後の 人数を 数えて 合わない時は 赤）。
       - name: ★被扶養者(異動)届が 3通りとも 本当に 落ちる（実ブラウザ・139列／★CIでは 倉庫を 数えていない★）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/fuyo-ui.mjs --self-test && node kyuyo/tests/fuyo-ui.mjs
       # ★被保険者整理番号が 画面から 入り 紙まで 届くか（2026-09-14）
       #   ★入れる欄が 1つも 無いのに 6本の CSV が e.hokenshaNo を 読んでいた★所の 見張り。
       - name: ★被保険者整理番号が 表と Excel まで 届く（実ブラウザ・出た字で 見る）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/seirino-ui.mjs
       # ★会社の 住所が ログインの 後に 画面まで 届くか（2026-09-14）
       #   ★倉庫の 読み直しと 同時に 走らせていて、後から 着いた 読み直しが 住所を 消していた★。
       #   住所が 空だと ★電子申請の 届出が 1枚も 出せない★（事業所所在地は 必須）。
       #   ★手で 呼べば 出る は 緑に しない★＝客は 手で 呼べない。
       - name: ★会社の 住所が ログインの後に 画面まで 届く（実ブラウザ・持ち主と1文字ずつ）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/kaisha-jusho-todoku.mjs
       # ★CI から 外していた 2本を 戻す（2026-09-14）
       #   外していた 訳＝「★CIでは 打った 値が 次の 描き直しに 間に合わず 落ちる★（私の 待ち方）」。
       #   ★今日 その 直しを 入れた★＝fill() で 入れ、★読み返して 見比べ、違えば もう一度★。
       #   手元で 2回ずつ 走らせて ★10本とも 緑／倉庫の 行数 3604 で 不動★を 見た。
       - name: ★資格取得届が 本当に 落ちる（実ブラウザ・34列／★CIでは 倉庫を 数えていない★）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/shutoku-ui.mjs
       - name: ★資格喪失届が 本当に 落ちる（実ブラウザ・27列／★CIでは 倉庫を 数えていない★）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/soshitsu-ui.mjs
       # ★後始末の 物差し そのもの★＝倉庫を 読むだけ・★赤が 出る事★を 自分で 見る
       - name: ★置き土産の 物差しの 自己確認（わざと ずらして 赤が 出るか）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/_souko-kazoeru.mjs
       # ★算定基礎届（2225700・53項目）を 実ブラウザで 押す（2026-09-14）
       #   ★4〜6月を 画面から 入れて 確定★してから 押す＝★確定した 明細が 要る 届出★。
       #   月額変更届は ★随時改定の 材料を 画面から 入れられていない＝はかれない★（緑に しない）。
       - name: ★算定基礎届が 本当に 落ちる（実ブラウザ・53列・整理番号の 字まで）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/santei-gekkaku-ui.mjs --self-test && node kyuyo/tests/santei-gekkaku-ui.mjs
       # ★幻の『従業員 1』が 孤児を 作らないか（2026-09-15）
       #   ログインの 直後、初期値の 1人が 倉庫へ 書かれ、後から 本物が 着いて 消える
       #   ⇒ 書かれた 明細だけ 持ち主を 失う（孤児）。本番でも 過去に 起きている（12行中 9行）。
       #   ★数え方は 紙の 頭に 書いてある★（押す前にも 数える／分母つき／倉庫で 数える）。
       - name: ★幻の『従業員 1』が 孤児を 作らない（実ブラウザ・押す前と 後で 数える）★CIでは 倉庫を 数えていない（鍵が 無い＝未測定）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/maboroshi-ui.mjs
       # ★孤児（親の 居ない 鍵・紙）を 数えて 増えたら 赤（2026-09-20）
       #   実測(09-20) … 鍵 30本中 ★25本★が 孤児／紙 29枚中 ★18枚★が 鎖で 人まで 届かない だった。
@@ -286,12 +316,16 @@ jobs:
       #   ★弱い所★ … ★本物の 覆いでは なく 同じ 形の 札★＝class は `kyuyo/js/app.js` から 取り、
       #     取れなければ ★未測定（exit 2）★で 止める。
       - name: ★覆いの 扱い（conflict は 閉じない・案内は 閉じる・閉じた物を1行出す）★倉庫に 触らない★
+        if: ${{ !cancelled() }}
         run: node tests/ooi-mon.mjs
       - name: ★孤児 3種類（鍵・紙・明細）が 増えていない（決め打ち 0／0／★明細13＝消す 許し 未★・増えたら 赤）★CIでは 倉庫を 数えていない（鍵が 無い＝未測定）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/koji-mon.test.mjs --self-test && node kyuyo/tests/koji-mon.test.mjs
       - name: ★わざと 孤児を 1本 足しても 赤に ならなければ 空振り（koji-mon の 空振り止め・足した 物は 必ず 消す）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/koji-mon.test.mjs --waza
       - name: ★わざと ★相手の席（CI）の 置き去り★を 1人 作っても 赤に ならなければ 空振り（09-21 fuyo-ui が 赤に なった 因＝門は 席で 除くが お客さんの 紙は 除かない）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/koji-mon.test.mjs --waza-oki
       # ★自動計算の 行に 打った 時の 注意文（2026-09-20 司さん「1が ほれなら 注意文 出せや」）
       #   実測 … 払い方 6通り × 基本給／通勤 ＝ 12通り すべてで ★打てる・字は残る・合計は動かない★だった。
@@ -299,40 +333,58 @@ jobs:
       #   出し方は 世の中を 調べて ★インライン（消えない）★＝NN/g「toast は フォームの誤りに 向かない」。
       #   ★min-height で 場所を 先に 空ける★＝★1px も 動かない★（35px 逃げた 前科を 潰した）。
       - name: ★自動計算の 行（基本給・通勤）に 打ったら 注意文が 出て 字が 戻る（実ブラウザ・払い方 6通り）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/jidou-gyou.mjs
       - name: ★わざと 文を 消したら 赤に なるか（jidou-gyou の 空振り止め・その1）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/jidou-gyou.mjs --waza-bun
       - name: ★わざと min-height を 外したら 高さが 動いて 赤に なるか（空振り止め・その2）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/jidou-gyou.mjs --waza-taka
       - name: ★従業員が 自分の 明細を 開く 道（実ブラウザ・09-19＝ここを 見る 試験が 1本も 無かった／幅と 転がりだけ 見て いた）
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/meisai-ui.mjs
       - name: ★管理者で ない 人に 他人の 一覧が 出ないか（実ブラウザ・09-19＝この紙の 中身を 見る 試験が 0本だった／守りの 本体は サーバ側の RLS）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/admin-ui.mjs
       - name: ★わざと 画面の 門を 外しても サーバが 止めるか（admin-ui の 空振り止め）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/admin-ui.mjs --waza
       - name: ★従業員に 渡る リンクの 字（実ブラウザ・09-19＝この 字を 見る 試験が 0本だった／3か所と 全員QR の 4つが 揃うか）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/link-ji.mjs
       - name: ★わざと 置き場（/kyuyo/）を 落としたら リンクが 崩れるか（link-ji の 空振り止め）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/link-ji.mjs --waza
       - name: ★勤怠CSV の 文字コードの 見分け（UTF-8／Shift-JIS／BOM／英字見出し＝4通りを 本物の ファイル選択で）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/csv-moji.mjs
       - name: ★わざと 前の 見分けに 戻しても 4通りとも 同じか（＝この直しは 予防だと 字で 出す）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/csv-moji.mjs --waza
       - name: ★労働者名簿の 紙（実ブラウザ・法の11項目／30人未満の但し書き／未記入を空にしない）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/meibo-ui.mjs
       - name: ★わざと 30人以上に したら「記入不要」が 消えるか（meibo-ui の 空振り止め）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/meibo-ui.mjs --waza
       - name: ★「前年度に 納めた 概算」に 続けて 打てるか（3桁＋焦点・精算の 字が その場で 変わる・倉庫には 書かない）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/gaisan-ran-ui.mjs
       - name: ★わざと 打つ たびの 作り直し（renderChoView）を 戻したら 崩れるか（gaisan-ran-ui の 空振り止め）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/gaisan-ran-ui.mjs --waza
       - name: ★保存できなかった 時に どの 画面でも 帯が 見えるか（設定画面・網で 落とす／偽の 500・巻いても 在る・通れば 消える・390px）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/hozon-fuda-ui.mjs
       - name: ★わざと 帯への 1行を 外したら 帯が 描かれないか（hozon-fuda-ui の 空振り止め）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/hozon-fuda-ui.mjs --waza
       # ★司さん要件「1問ごとに保存」(2026-08-16)を ★振る舞い★で守る門（飾りの字の門を 替えた・2026-10-03）
       #   ①会社の欄(#c-payday-day)＝6745の全体／②#ask-host の問い(締め日)＝askSave道。答えが pay_companies の本文に載る。
       - name: ★1問ごとに保存＝答えが倉庫の書きの本文に載る（①欄②問い・abort前の本文で見る）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/ask-save-ui.mjs
       - name: ★わざと 6745(document capture) を外すと 答えが載らないか（ask-save-ui の 空振り止め）★
+        if: ${{ !cancelled() }}
         run: node kyuyo/tests/ask-save-ui.mjs --waza
