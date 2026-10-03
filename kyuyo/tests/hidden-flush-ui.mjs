@@ -9,6 +9,10 @@
  * ★この門が 見ない 事（頭に1行）★ … ★「iPhone の実機で 閉じた直後に 倉庫に 本当に 届くか」は 見ない★。
  *   pagehide を 試験で 起こしても ページは 死なない＝客の道の 完全な 真似では ない（memory:
  *   feedback_js_dispatched_event_is_not_the_customer_path）。ここは「早出しの受け手が 在り 効く」までの門。
+ * ★なぜ 答えと pagehide を ★1つの同期の evaluate★で 起こすか★ … ★答えてから 500ms 以内に 閉じた形★を 作る為。
+ *   答え(input/change)と 隠す(pagehide)を ★同じ瞬間★に 起こす＝500ms デバウンスが 先に走って _saveT が消える
+ *   のを 防ぐ（別々の await だと 遅いCIで デバウンスが 先＝GitHubで 空振りした）。★客の 打ち方とは 違う★（客は
+ *   打ってから 手で 閉じる）＝だから これは 受け手の 効きの門であって 客の道の門では ない。
  *
  * ★空振り止め（--waza）★ … サーバで app.js の 早出しの受け手（visibilitychange/pagehide の2行）を 外して 配る
  *   ⇒ pagehide を 起こしても 500ms 内に 書きが 出ない＝門が 受け手を 守っている 証し。
@@ -102,35 +106,47 @@ try {
   const ima = (await pg.$eval(RAN, (el) => el.value).catch(() => '')) || '';
   const ATAI = (ima === '27') ? '23' : '27';
 
-  /* ①写しのバイト（login/初期保存から・pay_employees は 人数で 伸びる＝keepalive64KB の 可否の数） */
-  const bytes = (s) => Buffer.byteLength(String(s || ''), 'utf8');
-  const coBytes0 = Math.max(0, ...kaki.filter((k) => k.tbl === 'pay_companies').map((k) => bytes(k.body)));
-  const empBytes0 = Math.max(0, ...kaki.filter((k) => k.tbl === 'pay_employees').map((k) => bytes(k.body)));
+  /* ①写しのバイト＝page内で 直接 測る（網を通さない・会社と人を分ける）＝keepalive 64KB の 可否の数 */
+  const snap = await pg.evaluate(() => {
+    let s = null; try { s = JSON.parse(localStorage.getItem('payslip_state_v1') || 'null'); } catch (e) {}
+    if (!s) return { total: 0, emp: 0, co: 0, hito: 0 };
+    const total = JSON.stringify(s).length;
+    const empArr = s.employees || [];
+    const emp = JSON.stringify(empArr).length;
+    return { total, emp, co: total - emp, hito: empArr.length };
+  });
 
-  /* 打つ（＝デバウンス500msが 走り出す）→ すぐ pagehide を 起こす → 500ms を 待たずに 出るか */
+  /* ★答え＋pagehide を 1つの同期 evaluate で★＝500ms デバウンスに 先んじる（別々の await だと 遅いCIで
+     デバウンスが 先に走り _saveT が消える＝GitHubで踏んだ）。input/change を投げる＝6745が _saveT を立て、
+     同じ流れで pagehide＝_flushMachi が 早出し（受け手が在れば）。 */
   kaki.length = 0;
-  await pg.click(RAN);
-  await pg.keyboard.press('Control+A');
-  await pg.keyboard.press('Backspace');
-  await pg.keyboard.type(ATAI, { delay: 10 });
+  const did = await pg.evaluate((val) => {
+    const el = document.querySelector('#c-payday-day');
+    if (!el) return false;
+    el.focus(); el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    window.dispatchEvent(new Event('pagehide'));
+    return true;
+  }, ATAI);
   const tType = Date.now();
-  await pg.evaluate(() => { window.dispatchEvent(new Event('pagehide')); });   /* ★hidden/pagehide を 起こす★ */
-  /* ★500ms(デバウンス)より 手前で 見る★＝早出しなら ここで 出ている・無ければ まだ 出ていない */
+  const NEEDLE = '"paydayDay":"' + ATAI + '"';
   let hayaDashi = false, tFirst = 0;
-  for (let i = 0; i < 16; i++) {   /* 最大 ~320ms */
-    const w = kaki.find((k) => k.tbl === 'pay_companies' && k.body.indexOf(ATAI) >= 0);
+  for (let i = 0; i < 14; i++) {   /* ~280ms（< 500ms デバウンス）*/
+    const w = kaki.find((k) => k.tbl === 'pay_companies' && k.body.indexOf(NEEDLE) >= 0);
     if (w) { hayaDashi = true; tFirst = w.t - tType; break; }
-    if (Date.now() - tType > 400) break;   /* 500ms デバウンスの手前で 止める */
+    if (Date.now() - tType > 300) break;
     await new Promise((r) => setTimeout(r, 20));
   }
-  console.log('     打った値=' + ATAI + ' → pagehide ／ 500ms手前で 書きが出た=' + hayaDashi + (hayaDashi ? '（' + tFirst + 'ms）' : '') + ' ／ pay_companies書き ' + kaki.filter((k) => k.tbl === 'pay_companies').length + '本');
+  console.log('     打った値=' + ATAI + '(did=' + did + ') → 同期pagehide ／ 書きが出た=' + hayaDashi + (hayaDashi ? '（' + tFirst + 'ms）' : ''));
 
   /* ═══ 指示役の3つの数 ═══ */
   const pagehideN = kaki.filter((k) => k.tbl === 'pay_companies').length;   /* ②pagehide後の本数 */
   await pg.evaluate(() => { window.dispatchEvent(new Event('beforeunload')); });   /* ②beforeunload も 起こす */
   for (let i = 0; i < 24; i++) { if (kaki.filter((k) => k.tbl === 'pay_companies').length > pagehideN) break; await new Promise((r) => setTimeout(r, 25)); }
   const beforeunloadN = kaki.filter((k) => k.tbl === 'pay_companies').length - pagehideN;
-  console.log('     【数①写しのバイト】pay_companies=' + coBytes0 + 'B ／ pay_employees=' + empBytes0 + 'B（keepalive上限 65536B＝' + (empBytes0 > 65536 || coBytes0 > 65536 ? '★超え得る＝(b)不可★' : 'この口では未超・但し人数で伸びる') + '）');
+  const over = snap.emp > 65536 || snap.co > 65536 || snap.total > 65536;
+  console.log('     【数①写しのバイト】会社 ' + snap.co + 'B ／ 人 ' + snap.emp + 'B（' + snap.hito + '人）／ 合計 ' + snap.total + 'B（keepalive上限 65536B を ' + (over ? '★超える＝(b)不可★' : '超えない・但し人数で伸びる') + '）');
   console.log('     【数②閉じた時の書き本数（' + (WAZA ? '直す前=受け手無し' : '直した後=早出し有り') + '・PCの形）】pagehide後 ' + pagehideN + '本＋beforeunload後 ' + beforeunloadN + '本＝計 ' + (pagehideN + beforeunloadN) + '本');
   console.log('     【数③hidden で conflict箱の道】在る（_flushMachi→persistSave→conflictなら箱・隠れ中に出て戻ると見える＝害なし）');
 
