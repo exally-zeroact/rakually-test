@@ -27,6 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { oboegakiWoKesu } from '../tools/_oboegaki.mjs';   /* ★覚書はがしの正本（2026-10-03・⑥）★ */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -38,53 +39,10 @@ let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
 
 /* ══ コメントを落とす（文字列は残す＝specifier を読むため） ═══════════════
- *  ・"..." '...' `...` の中は触らない（URL の // をコメントと誤認しないため）
- *  ・正規表現リテラル /.../ も飛ばす（中の引用符で文字列判定が壊れないため）
- *  ・後読み(?<=)は使わない（古いiOS Safariで正規表現ごと壊れるため。この決まりはリポジトリ共通）
+ *  ★正本に 差し替え（2026-10-03・⑥）★＝自前の 覚書はがしは 正規表現 `/a\/\/b/` を 消す 穴が あった
+ *    （実測）。tools/_oboegaki.mjs の oboegakiWoKesu（正規表現/文字列/テンプレ対応・長さ行数不変）に 寄せる。
  */
-export function stripComments(src) {
-  let out = '', i = 0, prev = '';
-  const n = src.length;
-  while (i < n) {
-    const ch = src[i];
-    if (ch === '/' && src[i + 1] === '/') { while (i < n && src[i] !== '\n') i++; continue; }
-    if (ch === '/' && src[i + 1] === '*') {
-      i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
-      i += 2; out += ' '; continue;
-    }
-    if (ch === '"' || ch === "'" || ch === '`') {
-      const q = ch; out += ch; i++;
-      while (i < n) {
-        if (src[i] === '\\') { out += src[i] + (src[i + 1] || ''); i += 2; continue; }
-        out += src[i];
-        if (src[i] === q) { i++; break; }
-        i++;
-      }
-      prev = q; continue;
-    }
-    // 直前の「意味のある文字」が値で終わっていない時だけ、/ を正規表現の始まりとみなす
-    if (ch === '/' && (prev === '' || '(,=:[!&|?{};+-*%~^'.indexOf(prev) >= 0)) {
-      i++; let cls = false, closed = false;
-      while (i < n) {
-        const c = src[i];
-        if (c === '\\') { i += 2; continue; }
-        if (c === '[') cls = true;
-        else if (c === ']') cls = false;
-        else if (c === '/' && !cls) { i++; closed = true; break; }
-        else if (c === '\n') break;
-        i++;
-      }
-      out += ' ';
-      if (!closed) { /* 割り算だった可能性。以降は普通に読み進める */ }
-      prev = '/'; continue;
-    }
-    out += ch;
-    if (!/\s/.test(ch)) prev = ch;
-    i++;
-  }
-  return out;
-}
+export const stripComments = oboegakiWoKesu;
 
 /* 1ファイルから require/import の指定子を取り出す（コメント除去後） */
 export function specifiersOf(src) {
