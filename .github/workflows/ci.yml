@@ -108,6 +108,8 @@ jobs:
         run: node scripts/tests-registered.mjs
       - name: ★同じ見張りを わざと壊して 赤になるか
         run: node scripts/tests-registered.mjs --self-test
+      - name: ★段の分類器 (緑を 測った/一部抜け/丸ごと抜け/読めない に割る・KEKKA優先・✓だけは抜けと言わない)
+        run: node tests/bunrui.test.mjs
       - name: ★参照ガード (require/importの先が実在するか・api/が実際に読み込めるか)
         run: node tests/refs-resolve.test.mjs && node tests/refs-resolve.test.mjs --self-test
       - name: ★法定値の直書きガード (率・額が説明文に固定されていないか)

@@ -85,7 +85,7 @@ await new Promise((r) => srv.listen(0, r));
 const URL = 'http://localhost:' + srv.address().port + '/kyuyo/index.html';
 const b = await launch('hidden-flush-ui', wk);
 
-let pass = 0, fail = 0, shippai = 0;
+let pass = 0, fail = 0, shippai = 0, miso = 0;   /* miso＝真の未測定（KEKKA の mimiso・②が測れない回）*/
 const T = (n, c, m) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ ' + n + (m ? ' — ' + m : '')); } };
 
 console.log('\n[hidden-flush-ui] hidden/pagehide で 待ち保存を 早出し（デバウンス500msを 待たずに 出る）' + (WAZA ? '  ★★受け手を外した回★★' : ''));
@@ -198,7 +198,7 @@ try {
       T('★②pagehide で クラウド(pay_companies)が 早出しされる（答えた値・別端末で在る）★', kumo,
         'デバウンスを殺した上で（＝出たら早出し）読込済みなのに pay_companies の書きが出ていない');
     } else {
-      pass++; console.log('  🟡 ②クラウドは 未測定（初回読み込みが ~20s で 済まなかった＝この口には クラウドの材料が 無い）');
+      pass++; miso++; console.log('  🟡 ②クラウドは 未測定（初回読み込みが ~20s で 済まなかった＝この口には クラウドの材料が 無い）');
     }
   } else {
     T('★わざ置換が効いた（早出しの受け手を 外した）★', mongae === 2, '外せた箇所=' + mongae);
@@ -208,7 +208,7 @@ try {
       T('★--waza②: 受け手を外すと クラウドも 出ない（源が 1つも 無い＝受け手が要る証し）★', !kumo,
         '受け手を外したのに クラウドが 出た');
     } else {
-      pass++; console.log('  🟡 --waza② クラウドは 未測定（読み込み未了）');
+      pass++; miso++; console.log('  🟡 --waza② クラウドは 未測定（読み込み未了）');
     }
   }
 } catch (e) {
@@ -221,4 +221,5 @@ try {
   srv.close();
 }
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
+console.log('KEKKA {"passed":' + pass + ',"failed":' + (fail + shippai) + ',"mimiso":' + miso + '}');   /* ★約束の行（_bunrui用）★mimiso＝②が測れなかった回 */
 process.exit((fail + shippai) ? 1 : 0);

@@ -217,4 +217,5 @@ T('⑥ ★変換中（日本語を打っている最中）は 一切 触らな�
 });
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
+console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');   /* ★約束の行（_bunrui用）★静的＝未測定0 */
 process.exit(fail ? 1 : 0);

@@ -182,4 +182,5 @@ T('⑩ ★施行日より前の月に 黙って新しい表を当てない（分
 });
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
+console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');   /* ★約束の行（_bunrui用）★静的＝未測定0 */
 process.exit(fail ? 1 : 0);

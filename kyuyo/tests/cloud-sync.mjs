@@ -793,4 +793,5 @@ runs.push(T('★⑦網で偽200: 書きを偽200・空配列で止めても conf
 
 await Promise.all(runs);
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
+console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');   /* ★約束の行（_bunrui用）★表明式＝未測定0（本文の「未測定」は 覆い等の 説明） */
 process.exit(fail ? 1 : 0);

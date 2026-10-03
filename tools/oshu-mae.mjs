@@ -27,6 +27,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { erabu, omoiKa, hirouDan } from './_dan-hirou.mjs';
+import { bunrui, OKE_JUN } from './_bunrui.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -167,6 +168,9 @@ let aka = 0, mi = 0;
 let tometa = 0;               /* ★空き不足で 途中で 止めた 段の 数★ */
 let kuukiSaigo = null;
 const akaDan = [], miDan = [];
+/* ★★回った 緑を 4つ組に 割る★★（2026-10-03・⑤）＝「回った N＝赤0」でなく 中で 測ったかを 出す */
+const tally = {}; OKE_JUN.forEach((k) => (tally[k] = []));
+const yomikata = { 約束: 0, 目印: 0 };
 e.hashiru.forEach((d, ban) => {
   /* ★★途中でも 測る★★＝★下限を 割ったら ★止めて 『走らせられなかった 段』に 数える★ */
   if (tometa === 0 && ban > 0 && ban % KUUKI_MAI === 0) {
@@ -224,12 +228,28 @@ e.hashiru.forEach((d, ban) => {
       se: se.slice(-AKA_GYO),
     });
     console.log('  ✗ ' + d.i + '段 … ' + d.c.slice(0, 90));
+    return;
   }
+  /* ★緑（終わり値0）＝中で 測ったかを 分ける（赤/走らせられない には しない＝診断）★ */
+  const b = bunrui(0, (r.stdout || '') + String.fromCharCode(10) + (r.stderr || ''));
+  tally[b.oke].push({ c: d.c, b: b });
+  if (b.how === '約束') yomikata.約束++; else if (b.how === '目印') yomikata.目印++;
 });
 console.log('  ★空き（終わり） … ' + kuukiIu(kuukiSaigo === null ? kuukiGB() : kuukiSaigo)
   + (tometa ? '／★★' + tometa + '段まで 走って 止めました★★' : '') + '★');
 console.log('  ★赤 ' + aka + '段★ ／ ★走らせられない ' + mi + '段★'
   + ' ／ 回った ' + (e.hashiru.length - mi) + '段（回すつもり ' + e.hashiru.length + '段）');
+/* ★★回った 緑の 中を 割る★★＝「回った N＝赤0」を 盛りに しない（測った/一部抜け/丸ごと抜け/読めない/exit0failed） */
+{
+  const n = (k) => tally[k].length;
+  console.log('  ★回った の 中身★ … 測った ' + n('測った') + '／一部抜け ' + n('一部抜け')
+    + '／丸ごと抜け ' + n('丸ごと抜け') + '／読めない ' + n('読めない') + '／exit0failed ' + n('exit0failed'));
+  console.log('    読み方 … 約束の行 ' + yomikata.約束 + '本／字の目印 ' + yomikata.目印 + '本（KEKKA を 増やし 目印を 減らす）');
+  const dasu = (k, mark) => { if (n(k)) { console.log('    ' + mark + ' ' + k + ' ' + n(k) + '本：'); tally[k].forEach((x) => console.log('      ' + mark + ' ' + x.c.slice(0, 100) + '  [' + x.b.how + ' p' + x.b.passed + ' f' + x.b.failed + ' ✓' + x.b.ok + ' ✗' + x.b.ng + ' 未' + x.b.mimiso + ']')); } };
+  dasu('exit0failed', '◆');   /* ★赤を 緑と 言う 疑い＝名指し★ */
+  dasu('丸ごと抜け', '○');
+  dasu('読めない', '?');
+}
 /* ★★赤は ★字つきで★ 出す★★＝★『何が 赤か』でなく『★何と 言って 赤か★』★
    （★出しを 捨てると 網の 赤と 単独の 緑を 並べられない★＝09-28 に 踏んだ） */
 akaDan.forEach((x) => {
@@ -252,5 +272,6 @@ miDan.slice(0, 5).forEach((x) => console.log('     ★走らせられない★ '
 if (miDan.length > 5) console.log('     （他 ' + (miDan.length - 5) + '段）');
 if (aka) console.log(String.fromCharCode(10) + '★★押す前に 止めました＝赤 ' + aka + '段★★');
 else if (mi) console.log(String.fromCharCode(10) + '★★★「赤 0」とは 書けません＝走らせられない ' + mi + '段★★★');
-else console.log(String.fromCharCode(10) + '★押す前の 網 … 回した ' + e.hashiru.length + '段 ／ 赤 0★');
+else console.log(String.fromCharCode(10) + '★押す前の 網 … 回した ' + (e.hashiru.length - mi)
+  + '段 ／ 赤 0（但し「回った＝測った」では ない＝上の 中身を 見る／測った ' + tally['測った'].length + '段）★');
 process.exitCode = (aka || mi) ? 1 : 0;

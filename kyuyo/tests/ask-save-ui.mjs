@@ -87,7 +87,7 @@ await pg.route('**/rest/v1/pay_**', (rt) => {
 });
 
 const hai = await hairu(pg, URL, '.bn[data-scr]');
-let shippai = 0;
+let shippai = 0, miso = 0;   /* miso＝真の未測定（KEKKA の mimiso・②の問いが出ない回）*/
 if (!hai.haitta) { console.log('🟡 ★未測定★ ログインできない（' + (hai.naze || hai.kai + '回試') + '）'); await b.close().catch(() => {}); srv.close(); process.exit(2); }
 await shizumaru(pg, 1500, 20000);
 
@@ -148,7 +148,7 @@ try {
   const closeSel = '#ask-host select[data-ask="close"]';   /* 1問目＝締め日（答えるまで 常に 出る） */
   const hasClose = await pg.$(closeSel);
   if (!hasClose) {
-    console.log('     🟡 ② #ask-host の 締め日(close)の 問いが 出ていない＝②は 未測定（①で 6745 は 守れている）');
+    miso++; console.log('     🟡 ② #ask-host の 締め日(close)の 問いが 出ていない＝②は 未測定（①で 6745 は 守れている）');
   } else {
     const opt = await pg.$eval(closeSel, (el) => ({ cur: el.value, vals: Array.prototype.map.call(el.options, (o) => o.value) }));
     const pick = opt.vals.find((v) => v && v !== 'other' && v !== opt.cur) || opt.vals.find((v) => v && v !== 'other') || '';
@@ -176,4 +176,5 @@ try {
   srv.close();
 }
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
+console.log('KEKKA {"passed":' + pass + ',"failed":' + (fail + shippai) + ',"mimiso":' + miso + '}');   /* ★約束の行（_bunrui用）★mimiso＝②の問いが出なかった回 */
 process.exit((fail + shippai) ? 1 : 0);
