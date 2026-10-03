@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { oboegakiWoKesu } from '../tools/_oboegaki.mjs';   /* ★JS用の覚書はがし正本（2026-10-03・⑥）★ */
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -50,15 +51,19 @@ const EXCEPTIONS = {
      戻す条件＝Rakunally に表(ブック)を置く日に、部品と一緒にこの例外も戻す。 */
 };
 
-/* コメントを落とす（実際に動くコードだけ見る）。
-   落とさないと、この作りを説明したコメント（「type="month" は使わない」等）まで拾って
-   ★空振りの赤★になる。赤が空振りすると、人は赤を見なくなる。 */
-export function stripComments(src) {
+/* ★HTML用の覚書はがし★（この門は .html も走査する＝<!-- --> を落とす）。
+   ★JS(.js/.mjs)は 正本 oboegakiWoKesu を使う（下の findViolations で 拡張子で分ける）★（2026-10-03・⑥）
+     ＝自前の naive は 文字列の中の /* *\/ を消す穴が あった（JS分の穴を 残さない）。
+   ★HTML用の正本は 作らない★＝JS正本を HTMLに当てると `</div>` の / を 正規表現と誤読して タグを食う。
+     HTMLの中の <script> の中身も、今回は この naive のまま（HTML用の 正本が 出来るまで）。 */
+export function stripHtmlComments(src) {
   return String(src)
     .replace(/<!--[\s\S]*?-->/g, ' ')          // HTMLのコメント
     .replace(/\/\*[\s\S]*?\*\//g, ' ')          // /* … */
     .replace(/(^|[^:])\/\/[^\n]*/g, '$1');       // // …（http:// は残す）
 }
+/* 互換（外から呼ぶ物は無いが 残す）＝HTML用を指す */
+export const stripComments = stripHtmlComments;
 
 /* ★純関数: ファイル(path→中身)から違反を返す。self-test で作り物を通せる。 */
 export function findViolations(files) {
@@ -68,7 +73,8 @@ export function findViolations(files) {
     return !!(e && e.rules.indexOf(rule) >= 0);
   };
   for (const [rel, raw] of Object.entries(files)) {
-    const src = stripComments(raw);
+    /* ★拡張子で 分ける★＝.js/.mjs は 正本（正規表現/文字列対応）／.html は HTML用（<!-- --> 対応） */
+    const src = /\.(?:mjs|js)$/.test(rel) ? oboegakiWoKesu(raw) : stripHtmlComments(raw);
     const m = src.match(/type\s*=\s*"(month|week|datetime-local)"/g);
     if (m && !allowed(rel, 'iosInput')) m.forEach(x => out.iosInput.push({ file: rel, what: x }));
     if (/application\/octet-stream/.test(src) && !allowed(rel, 'octet')) out.octet.push({ file: rel });
