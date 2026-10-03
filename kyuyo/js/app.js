@@ -2674,10 +2674,14 @@
       if($('#scr-input')&&$('#scr-input').classList.contains('active')&&state.inputMode==='bonus') renderBonus(); }).catch(function(){});
   }
   // 健保573万上限用: 当年度(健保は4月〜翌3月)の「当月より前」の保存済み賞与の標準賞与額を自動合計→state._bonusYtd。
-  function loadBonusYtd(){ if(!(window.Store&&Store.getPayslipsByYm)) return; var ym=bonusYmOf(); if(!ym) return; if(state._bonusYtdYm===ym) return; state._bonusYtdYm=ym;
+  function loadBonusYtd(){ if(!(window.Store&&Store.getPayslipsByYm)) return; var ym=bonusYmOf(); if(!ym) return; if(state._bonusYtdYm===ym) return; state._bonusYtdYm=ym; state._bonusYtdErr=false;
     var y=+ym.slice(0,4), m=+ym.slice(5,7), fyStart=(m>=4?y:y-1)+'-04';
-    Store.getPayslipsByYm(fyStart, ym).then(function(rows){ var acc={}; (rows||[]).forEach(function(r){ if(r&&r.data&&r.data.kind==='bonus'&&String(r.ym)<ym&&r.data.hyojun!=null) acc[r.employee_id]=(acc[r.employee_id]||0)+num(r.data.hyojun); }); state._bonusYtd=acc;
-      if($('#scr-input')&&$('#scr-input').classList.contains('active')&&state.inputMode==='bonus') renderBonus(); }).catch(function(){});
+    Store.getPayslipsByYm(fyStart, ym).then(function(rows){ var acc={}; (rows||[]).forEach(function(r){ if(r&&r.data&&r.data.kind==='bonus'&&String(r.ym)<ym&&r.data.hyojun!=null) acc[r.employee_id]=(acc[r.employee_id]||0)+num(r.data.hyojun); }); state._bonusYtd=acc; state._bonusYtdErr=false;
+      if($('#scr-input')&&$('#scr-input').classList.contains('active')&&state.inputMode==='bonus') renderBonus(); })
+      /* ★年の累計が 読めなかった事を 黙らない（⑧a・bonusPrev:2765 と同じ形・赤で止めない）★
+         ＝空だと 健保573万 cap が 累計0扱いで 黙って違う＝「読めません・手で入れて」を 画面に出す。 */
+      .catch(function(){ state._bonusYtdErr=true; state._bonusYtdYm=null;   /* 次の描画で 読み直せる */
+        if($('#scr-input')&&$('#scr-input').classList.contains('active')&&state.inputMode==='bonus') renderBonus(); });
   }
   function bonusEntry(e){ var b=state.bonus||(state.bonus={payYm:'',payDay:'',byEmp:{}}); if(!b.byEmp)b.byEmp={}; if(!b.byEmp[e.id])b.byEmp[e.id]={amount:'',prevAfter:'',ytd:''};
     var en=b.byEmp[e.id]; if(!en.addShikyu)en.addShikyu=[]; if(!en.addKojo)en.addKojo=[]; return en; } // addShikyu=追加支給[{label,value,hikazei}]・addKojo=任意控除[{label,value}]
@@ -2795,6 +2799,7 @@
         +'<div style="padding:0 12px 12px">'
         +'<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><span style="font-size:12px;color:#2E7D54;font-weight:700;min-width:54px">賞与額</span><input class="finput num" data-ba="'+e.id+'" inputmode="numeric" value="'+attr(en.amount)+'" placeholder="円" style="flex:1"></div>'
         +prevBox
+        +((state._bonusYtdErr && !(en.ytd!=null&&en.ytd!==''))?'<div class="cr-warn" style="margin:6px 0">⚠ <b>本年度の既往賞与（標準賞与額）累計</b>を読めませんでした（健保 年573万上限の計算に使います）。2回目以降の賞与がある方は、下に手で入れてください（赤で止めません）。</div>':'')
         +'<div style="font-size:11px;color:#4b6b58;margin:5px 0">本年度の既往賞与（標準賞与額）累計 <input class="finput num" data-by="'+e.id+'" inputmode="numeric" value="'+attr(en.ytd)+'" placeholder="'+(c.ytdAuto?fmtN(c.ytdVal):'0')+'" style="width:110px"> 円 <span style="color:#6E6E6E">'+(c.ytdAuto?'（当年度の確定賞与から<b>自動 '+yen(c.ytdVal)+'</b>・上書き可）':'（2回目以降のみ・健保 年573万上限用）')+'</span></div>'
         +editor
         +(caps?'<div style="margin:4px 0">'+caps+'</div>':'')+warn
@@ -4695,13 +4700,17 @@
       /* ★賞与は「賞与を もらう人」だけ★（金額が 入っていない人は 振込に 出さない） */
       return bonus ? (num(bonusEntry(e).amount)>0) : true;
     }).map(function(e){
-      var net=0; try{ net = bonus ? computeBonus(e).net : compute(e).net; }catch(_){}
+      /* ★計算が 転んだ人を 黙って 落とさない★（2026-10-03・⑧a）
+         ＝前は `catch(_){}` で net=0 に し、呼ぶ側が amount>0 で 絞る＝★compute が 転んだ人が
+         振込の 画面からも ファイルからも 黙って 消えて いた＝その人だけ 未払いの まま 銀行へ★。
+         ⇒ 転んだ事を 旗(keisanOchi)で 持ち回り、呼ぶ側が「◯名は 計算できなかったので 入れていません」と 出す。 */
+      var net=0, keisanOchi=false; try{ net = bonus ? computeBonus(e).net : compute(e).net; }catch(_){ keisanOchi=true; }
       /* ★受取人名が 銀行に出せる字になるか まで見る★（2026-08-28 実際に動かして見つけた）
          カナが空だと ★漢字の氏名で代わりを埋めていた★ので、全銀に直す時に
          ★全部スペース＝名前の無い振込★になっていた。★出せない物は ready にしない★。 */
       var kana=(typeof Zengin!=='undefined'&&Zengin.toHankaku)?Zengin.toHankaku(e.furiKana||e.name):String(e.furiKana||'');
-      var ready=!!(String(e.furiBankNo||'').trim() && String(e.furiBranchNo||'').trim() && String(e.furiAccount||'').trim() && String(kana).trim() && net>0);
-      return { emp:e, name:(e.furiKana||e.name), kanaOk:!!String(kana).trim(), bankNo:e.furiBankNo, bankName:e.furiBankName, branchNo:e.furiBranchNo, branchName:e.furiBranchName, yokin:e.furiYokin, account:e.furiAccount, amount:net, ready:ready };
+      var ready=!!(String(e.furiBankNo||'').trim() && String(e.furiBranchNo||'').trim() && String(e.furiAccount||'').trim() && String(kana).trim() && net>0 && !keisanOchi);
+      return { emp:e, name:(e.furiKana||e.name), kanaOk:!!String(kana).trim(), bankNo:e.furiBankNo, bankName:e.furiBankName, branchNo:e.furiBranchNo, branchName:e.furiBranchName, yokin:e.furiYokin, account:e.furiAccount, amount:net, ready:ready, keisanOchi:keisanOchi };
     });
   }
   /* ── 「銀行に取り込めなかった時」の中身（普段は閉じている） ────────────────
@@ -4850,7 +4859,8 @@
     var box=$('#furi-box'); if(!box) return;
     /* ★賞与も 作れるように した★（2026-09-03 裁定＝甲）＝前は ここで「月次給与で作成します」と 断っていた */
     var c=state.company, tr=buildTransfers();
-    var ready=tr.filter(function(t){return t.ready;}), notReady=tr.filter(function(t){return !t.ready && t.amount>0;});
+    var ready=tr.filter(function(t){return t.ready;}), notReady=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi;});
+    var keisanOchi=tr.filter(function(t){return t.keisanOchi;});   /* ★計算が転んだ人＝黙って落とさない（⑧a）★ */
     function fi(k,ph,extra){ return '<input class="finput" data-fc="'+k+'" value="'+attr(c[k])+'" placeholder="'+ph+'" '+(extra||'')+'>'; }
     /* ★銀行との 契約を 聞く★（2026-09-03 指示役の裁定＝甲’）
        全銀の 種別コードは ★21：総合振込／11：給与振込／12：賞与振込★（一次情報・PDF 2本で 確認）。
@@ -4902,6 +4912,13 @@
         var who=nm.length<=2?nm.join('・'):(nm[0]+'<b class="mw-fix" data-fix-emp-id="'+attr(notReady[1].emp.id)+'" data-fix-sub="teate">ほか'+(nm.length-1)+'名 ▸</b>');
         listHTML+='<div class="cr-warn" style="margin:8px 0 0">⚠ '+who+' は振込先が未入力（押すと その欄を 開きます）</div>';
       }
+      /* ★計算が 転んだ人を 名指しで 出す（黙って ファイルから 落とさない・⑧a）★
+         ＝compute/computeBonus が 転ぶと 金額0＝ファイルの amount>0 絞りで 消える＝未払いの まま 銀行へ、を 防ぐ。 */
+      if(keisanOchi.length){
+        var konm=keisanOchi.map(function(t){ return esc(t.emp.name); });
+        var kowho=konm.length<=3?konm.join('・'):(konm.slice(0,3).join('・')+'ほか'+(konm.length-3)+'名');
+        listHTML+='<div class="cr-warn" style="margin:8px 0 0;color:#C0392B">⚠ <b>'+kowho+'</b> は 計算できなかったので 振込に入れていません（給与の入力を 見直してから もう一度）</div>';
+      }
     }
     var total=ready.reduce(function(a,t){return a+t.amount;},0);
     /* ★押せるかは furikomiGate が決める。押せない理由は【ボタンの中】に出す。
@@ -4950,6 +4967,17 @@
     window.FileOut.deliver(bytes, filename, type?{type:type}:undefined)
       .catch(function(e){ uiAlert('ファイルを渡せませんでした：'+((e&&e.message)||e)); });
   }
+  /* ★計算できなかった人を 黙って ファイルから 落とさない（⑧a・2026-10-03）★
+     ＝赤い字は 見落とせる・箱は 見落とせない＝出す前に 1回 確かめを 聞く（止めはしない）。
+     keisanOchi が 居なければ そのまま onOk を 呼ぶ。 */
+  function furiKeisanOchiKaku(mode, onOk){
+    var ko=buildTransfers(mode).filter(function(t){ return t.keisanOchi; });
+    if(!ko.length){ onOk(); return; }
+    var nm=ko.map(function(t){ return t.emp.name||'（名前なし）'; });
+    var who=nm.length<=3?nm.join('・'):(nm.slice(0,3).join('・')+'ほか'+(nm.length-3)+'名');
+    uiConfirm(who+' は 計算できなかったので、このファイルに 入っていません。\n（給与の入力を 見直すと 直ります）\n\nそれでも このまま 出しますか？', '計算できない人がいます')
+      .then(function(ok){ if(ok) onOk(); });
+  }
   function downloadZengin(){
     if(typeof Zengin==='undefined'){ uiAlert('全銀モジュールが読み込まれていません'); return; }
     var c=state.company;
@@ -4965,25 +4993,29 @@
     var committer={ code:c.furiCode, name:c.furiName, torikumiMMDD:d, shubetsu:furiShubetsuFor(mode), bankNo:c.furiBankNo, bankName:c.furiBankName, branchNo:c.furiBranchNo, branchName:c.furiBranchName, yokin:c.furiYokin, account:c.furiAccount };
     var tr=buildTransfers(mode).filter(function(t){return t.ready;});
     if(!tr.length){ uiAlert('振込対象がありません。従業員マスタの「総合振込データ用」に銀行/支店/口座を入力してください。'); return; }
-    /* ★改行は会社の設定どおり。決めるのは lib（銀行→確認済みならその形／それ以外は既定CR+LF）。
-       未設定・未確認の銀行・一覧にない銀行は、今まで通っている形（CR+LF）のまま。 */
-    /* ★lib の門番で止まったら 1バイトも作らない★（黙って 0000 を出さない） */
-    var r;
-    try { r=Zengin.build(committer, tr, { bank:c.furiBank, newline:c.furiNewline }); }
-    catch(e){ uiAlert('全銀ファイルを作れませんでした。\n'+((e&&e.message)||e)); return; }
-    dlBytes(r.bytes, 'furikomi_'+state.month+'.txt', 'text/plain');
-    // 既定から変えている時だけ、何で作ったかを言う（既定の人には余計な字を出さない）。
-    toast('全銀ファイルを作成しました（'+r.count+'件・'+yen(r.total)
-      +(r.newline===Zengin.NEWLINE_DEFAULT?'':'・行の終わり='+(FURI_NL_LABEL[r.newline]||r.newline))+'）');
+    /* ★lib の門番で止まったら 1バイトも作らない★（黙って 0000 を出さない）
+       ★改行は会社の設定どおり。決めるのは lib（銀行→確認済みならその形／それ以外は既定CR+LF）。 */
+    var dasu=function(){
+      var r;
+      try { r=Zengin.build(committer, tr, { bank:c.furiBank, newline:c.furiNewline }); }
+      catch(e){ uiAlert('全銀ファイルを作れませんでした。\n'+((e&&e.message)||e)); return; }
+      dlBytes(r.bytes, 'furikomi_'+state.month+'.txt', 'text/plain');
+      toast('全銀ファイルを作成しました（'+r.count+'件・'+yen(r.total)
+        +(r.newline===Zengin.NEWLINE_DEFAULT?'':'・行の終わり='+(FURI_NL_LABEL[r.newline]||r.newline))+'）');
+    };
+    furiKeisanOchiKaku(mode, dasu);   /* ★計算できない人が居れば 出す前に 確かめる（⑧a）★ */
   }
   function downloadFuriExcel(){
     if(typeof PayslipXlsx==='undefined'||!PayslipXlsx.downloadSheets){ uiAlert('Excelモジュールが読み込まれていません'); return; }
     var tr=buildTransfers().filter(function(t){return t.amount>0;});
     if(!tr.length){ uiAlert('対象がありません。'); return; }
-    var aoa=[['氏名','受取人名(ｶﾅ)','銀行名','銀行コード','支店名','支店コード','科目','口座番号','差引支給額']];
-    tr.forEach(function(t){ aoa.push([t.emp.name, t.name, t.bankName||'', t.bankNo||'', t.branchName||'', t.branchNo||'', t.yokin||'', t.account||'', t.amount]); });
-    aoa.push(['合計','','','','','','','', tr.reduce(function(a,t){return a+t.amount;},0)]);
-    PayslipXlsx.downloadSheets([{ name:'振込一覧', aoa:aoa, cols:[{wch:14},{wch:16},{wch:12},{wch:10},{wch:12},{wch:10},{wch:6},{wch:12},{wch:12}] }], { filename:'振込一覧_'+state.month+'.xlsx' });
+    var dasu=function(){
+      var aoa=[['氏名','受取人名(ｶﾅ)','銀行名','銀行コード','支店名','支店コード','科目','口座番号','差引支給額']];
+      tr.forEach(function(t){ aoa.push([t.emp.name, t.name, t.bankName||'', t.bankNo||'', t.branchName||'', t.branchNo||'', t.yokin||'', t.account||'', t.amount]); });
+      aoa.push(['合計','','','','','','','', tr.reduce(function(a,t){return a+t.amount;},0)]);
+      PayslipXlsx.downloadSheets([{ name:'振込一覧', aoa:aoa, cols:[{wch:14},{wch:16},{wch:12},{wch:10},{wch:12},{wch:10},{wch:6},{wch:12},{wch:12}] }], { filename:'振込一覧_'+state.month+'.xlsx' });
+    };
+    furiKeisanOchiKaku(furiMode(), dasu);   /* ★計算できない人は 除いて 出す前に 確かめる（⑧a・全銀と同じ）★ */
   }
   // プレビューiframeの高さを「ページ数×1ページ高」にする=複数人/複数期間が全員見える(1ページ固定で2人目以降が隠れる問題の修正)。
   //  ★PDF本体(b-print)は各.sheetを個別に焼くので不変=ここはプレビュー表示専用。dataset.pwは向き判定用に維持。
@@ -6515,7 +6547,7 @@
   /* 統合テスト用API。★本番ブラウザには露出しない（jsdomのときだけ）★=RC1対策の自動統合テスト(tests/integration.mjs)の入口。 */
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
-      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit,
+      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers,
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
          kyuyo/tests/shoyo-kami-hizuke.test.mjs */
@@ -6767,7 +6799,9 @@
            kyuyo/lib/shouhizei-ritsu.js を 請求書側が そのまま 読んでいる（seikyu/lib/seikyu-tax.js）。
            ⇒ 消費税の 流し込みは ★請求書の画面側（seikyu/js/seikyu-app.js の hydrateShouhizei）★で やる。
            給与明細では 消費税を 使わないので ここでは 流し込まない（それ自体は そのまま）。 */
-      }catch(e){} });
+      /* ★落ちた行を 黙らない（⑧a・診断）★＝倉庫は「訂正の上書き」の道＝落ちると 内蔵（権威の既定）で進むが、
+         ★訂正が 当たらなかった事★は 残す（客向けの 印は 棚1件＝「古い値で動いている」を 画面に出す）。 */
+      }catch(e){ console.error('★法定率の 流し込みが 1行 落ちました（内蔵の値で 進みます・' + ((r&&r.kind)||'?') + '/' + ((r&&r.year)||'?') + '）★', e); } });
       if(applied){ var act=$('.screen.active'); if(act&&act.id) showScreen(act.id); } // 値が変わった可能性→表示中を再描画
       return applied>0;
     }).catch(function(){ return false; });
