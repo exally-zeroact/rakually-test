@@ -140,11 +140,12 @@ T('⑦ 機械が当てる物は聞かない（県・最賃・社保の加入・�
 T('⑧ 1問ごと保存＋画面の箱が在る＋既定の形を1バイトも変えていない', () => {
   ok(HTML.indexOf('id="emp-ask-host"') >= 0, '7問の箱が index.html に無い');
   ok(APP.indexOf('function empAskSave()') >= 0, 'empAskSave が無い');
-  /* ★★注記（2026-10-03・指示役と）★★ 下の `/persistSave/` は ★静的（飾り）の門★＝その呼びは runtime 死
-     （window.persistSave* は IIFE の中＝代入0・実保存は 6745）。会社ask は kyuyo/tests/ask-save-ui.mjs ② で
-     ★振る舞いの門★に 替えた。従業員ask（答え→pay_employees・別画面）の 振る舞いの門は ★棚に1件★（未）。
-     ＝それが出来るまでは この静的門を 残す（消すと emp の 1問ごと保存が 何にも 守られなくなる）。 */
-  ok(/persistSave/.test(APP.slice(APP.indexOf('function empAskSave()'), APP.indexOf('function empAskSave()') + 300)), '保存を呼んでいない');
+  /* ★★2026-10-03・指示役と＝静的（飾り）の /persistSave/ 門を 外した★★
+     ＝empAskSave 内の `if(window.persistSave) persistSave()` は ★runtime 死★（window.persistSave は IIFE の中＝代入0）。
+     実際に 1問ごと保存を 満たすのは ★6745（document capture の click）★。従業員ask の「答え→pay_employees の本文に
+     askOk が載る」は ★振る舞いの門 kyuyo/tests/ask-save-ui.mjs ③★ で守る（会社の書きは 偽200で通し・人の本文を 見る）。
+     ＝字で persistSave を数える 静的門は 飾り（6745 を 変えた日に 黙って崩れ・門は緑のまま）ので 外した。
+     （empAskSave の 存在チェックは 残す＝関数が 消えたら ここで 気づく。） */
   /* ★defEmp に askOk を足していない★＝答えた時に生える（凍結した入力fixtureが動かない） */
   const def = APP.slice(APP.indexOf('function defEmp('), APP.indexOf('function defEmp(') + 1200);
   ok(def.indexOf('askOk') < 0, '★defEmp に askOk を足している（fixtureが動く）★');

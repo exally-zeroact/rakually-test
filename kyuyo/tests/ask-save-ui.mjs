@@ -10,9 +10,13 @@
  *   ＝字の門は 飾り（6745 を 誰かが 変えた日に 要件は 黙って 崩れ・門は 緑のまま）。so 門を 振る舞いに 替えた。
  *   （memory: feedback_kazari_no_ji_ni_tayotta_mon_wa_wareru）
  *
- * ★見る 事★ … 設定画面で 会社の欄（#c-payday-day＝振込指定日）に ★一意な値★を 打つ →
- *   倉庫への 書き（pay_companies・網で 偽200・update には 1行 返す＝⑦安全）の ★本文に その値が 在る★。
- *   #c-payday-day の 欄ごとの handler は 死んだ守り（if(window.persistSaveDebounced)）＝★保存するのは 6745 だけ★。
+ * ★見る 事（①②会社＝pay_companies／③人＝pay_employees）★ …
+ *   ① 会社の欄（#c-payday-day）に 一意な値を 打つ → pay_companies の 書きの 本文に その値。
+ *   ② #ask-host の 問い（締め日 close）に 答える → pay_companies の 本文に その答え（askSave道）。
+ *   ③ 従業員ask（#emp-ask-host の [data-eask-ok]＝はい）に 答える → ★pay_employees の 本文に askOk.<key>=true★（empAskSave道）。
+ *     ③だけ ★会社の書きを 偽200（倉庫の今の updated_at を そのまま返す）で 通す★＝⑦「会社が通った後にだけ人を書く」が
+ *     進んで 人の書きが 出る（会社を abort すると 人は 永久に出ない）。偽の値が 本物と同じ＝控えが 倉庫から 離れない。
+ *   どの欄も handler は 死んだ守り（if(window.persistSave*)）＝★保存するのは 6745（document capture）だけ★。
  *
  * ★空振り止め（--waza）★ … サーバで app.js の 6745（1行）を 外して 配る ⇒ 打っても 保存されない ⇒
  *   「答えた値が 本文に 在る」が ★偽★に なる＝門が 6745 を 守っている 証し。--waza の 時は それを 緑と 読む。
@@ -75,6 +79,18 @@ const pg = await cx.newPage();
      時計ずれでない・GitHub run 0本と 合致）。abort なら 控えは 動かず 覆いも 出ない（帯は 出るが クリックは 塞がない）。
    ★判じは 送った本文で★＝abort の 前に postData を 読む（＝アプリが 答えた値を 倉庫へ 送ろうとしたか）。 */
 const kaki = [];   /* { tbl, hou, body } */
+let moyou = 'abort';   /* 'abort'＝①②（会社の本文だけ見る・全書きを止める）／'emp3'＝③（会社は偽200で通し・人の本文を捕まえて止める） */
+let lastCoUA = null;   /* ★pay_companies の GET が返した 今の updated_at★（③で 会社の update に そのまま返す＝偽200でも 控えが 倉庫から 離れない） */
+/* GET は 通している＝その 返りの 本物の updated_at を 捕まえる（③で 偽の1行に 使う） */
+pg.on('response', async (res) => {
+  try {
+    const u = res.url(); if (u.indexOf('/rest/v1/pay_companies') < 0) return;
+    if (res.request().method() !== 'GET') return;
+    const j = await res.json().catch(() => null);
+    const row = Array.isArray(j) ? j[0] : j;
+    if (row && row.updated_at) lastCoUA = row.updated_at;
+  } catch (e) { /* 読めなくても 止めない */ }
+});
 await pg.route('**/rest/v1/pay_**', (rt) => {
   const m = rt.request().method();
   if (m === 'GET' || m === 'HEAD') return rt.continue();
@@ -83,6 +99,13 @@ await pg.route('**/rest/v1/pay_**', (rt) => {
   let body = '';
   try { body = rt.request().postData() || ''; } catch (e) { body = ''; }
   kaki.push({ tbl, hou: m, body });
+  /* ★③だけ★：会社(pay_companies)の書きは ★倉庫の今の updated_at を そのまま返す 偽の1行★で 通す
+     ＝⑦「会社が通った後にだけ 人を書く」が 進む＝人(pay_employees)の 書きが 出る。倉庫は 1バイトも 動かない
+     （返す値が 本物と 同じ＝偽200の『控えが 倉庫から 離れる』穴は 起きない）。人の書きは 本文を 読んで abort。 */
+  if (moyou === 'emp3' && tbl === 'pay_companies' && lastCoUA) {
+    return rt.fulfill({ status: 200, contentType: 'application/json',
+      headers: { 'content-range': '0-0/1' }, body: JSON.stringify([{ updated_at: lastCoUA }]) });
+  }
   return rt.abort();
 });
 
@@ -165,6 +188,49 @@ try {
     } else {
       T('★② --waza: 6745を外すと 問いの答え(close)も 書きに載らない★', !atta2, '6745外したのに載った');
     }
+  }
+  /* ═══ ★③ 従業員ask（empAskSave道・答え→pay_employees の本文）★ ═══
+     ①②は 会社（pay_companies）。③は 人の問い（#emp-ask-host の [data-eask-ok]＝はい）を 押すと
+     e.askOk[key]=true になり、6745(click capture)が 保存を起こす＝pay_employees に 載る。
+     ★⑦＝会社が通った後にだけ人を書く★ので、会社の書きを abort すると 人は 永久に出ない。だから ③だけ
+     ★会社は 偽200（倉庫の今の updated_at をそのまま返す）で 通し★、人(pay_employees)の 本文を 読んで abort。 */
+  await toziru(pg);
+  /* ★従業員サブタブを 開く★＝#set-emp は 既定 display:none（emp-ask-host は その中）。
+     押すと 表示される＝はい に サイズが 出る（押さないと 0×0 で 客道の click が 打てない）。 */
+  await pg.click('#set-seg .seg-b[data-set="emp"]', { timeout: 5000 }).catch(() => {});
+  await shizumaru(pg, 1200, 15000);
+  await toziru(pg);
+  const easkSel = '#emp-ask-host [data-eask-ok]';
+  let okBtn = await pg.$(easkSel);
+  const bbox = okBtn ? await okBtn.boundingBox().catch(() => null) : null;
+  if (!okBtn) {
+    miso++; console.log('     🟡 ③ #emp-ask-host の [data-eask-ok] の 問いが 出ていない＝③は 未測定（人が 全部 答え済み 等）');
+  } else if (!bbox || bbox.width < 2 || bbox.height < 2) {
+    /* ★実測（2026-10-03）＝この導線では はい が 0×0（emp-ask の 節が 今の onboarding 状態で 表示されていない）＝
+       客道の click が 打てない。①②で 6745→保存→本文 は 実証済み・emp-ask も 同じ 6745＝保存の 仕組みは 同じ。
+       emp-ask 固有の「人(pay_employees)の本文」まで 客道で 押す導線は 棚（emp-ask の 表示状態の 作り直しが要る）。 */
+    miso++; console.log('     🟡 ③ #emp-ask-host の はい が 0×0（この導線では emp-ask の節が 非表示）＝③は 未測定（客道で押せない・棚）');
+  } else if (!lastCoUA) {
+    miso++; console.log('     🟡 ③ pay_companies の 今の updated_at を まだ 読めていない＝③は 未測定（偽の1行を 作れない）');
+  } else {
+    const k = (await okBtn.getAttribute('data-eask-ok')) || '';
+    moyou = 'emp3';   /* ここから 会社は 偽200で 通す＝人の書きが 出る */
+    kaki.length = 0;
+    await okBtn.click().catch(() => {});
+    for (let i = 0; i < 160; i++) { if (kaki.some((x) => x.tbl === 'pay_employees')) break; await new Promise((r) => setTimeout(r, 250)); }
+    await new Promise((r) => setTimeout(r, 1500));
+    const empW = kaki.filter((x) => x.tbl === 'pay_employees');
+    const needle = '"' + k + '":true';
+    const atta3 = empW.some((x) => x.body.indexOf('"askOk"') >= 0 && x.body.indexOf(needle) >= 0);
+    console.log('     ③ 人の問い(data-eask-ok=' + k + ')に答えた ／ pay_companies書き ' + kaki.filter((x) => x.tbl === 'pay_companies').length
+      + '本(偽200で通す)／ pay_employees書き ' + empW.length + '本 ／ 本文に askOk.' + k + '=true が載った=' + atta3);
+    if (!WAZA) {
+      T('★③ 人の問い(data-eask-ok)に答えると 答え(askOk.' + k + ')が pay_employees の本文に載る（empAskSave道・1問ごと保存）★', atta3,
+        'pay_employees書き ' + empW.length + '本・本文に答えなし');
+    } else {
+      T('★③ --waza: 6745を外すと 人の答えも 書きに載らない★', !atta3, '6745外したのに載った');
+    }
+    moyou = 'abort';
   }
 } catch (e) {
   if (String((e && e.message) || e) !== 'ran-nai') { console.log('  ✗ 途中で転んだ … ' + ((e && e.message) || e)); shippai++; }
