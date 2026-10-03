@@ -46,7 +46,9 @@ let hiShiken = 0;   /* 非試験（passed/未測定/KEKKA を 1つも 持たな�
 const yomikata = { 約束: 0, 目印: 0 };
 
 for (const [key, out] of dan.entries()) {
-  const hasSignal = /\d+\s*passed|未測定|はかれない|測りません|^\s*KEKKA\s/m.test(out);
+  /* ★✓/✗ の 印も 信号に 含める（2026-10-03・⑧b）★＝✗だけの 段（わざと壊す 自己確認 等）を
+     「非試験」として 黙って 除くと ★本物の「赤を緑」も 見逃す★。行頭の ✓␠/✗␠ だけ（凡例 ✓＝… は 外す）。 */
+  const hasSignal = /\d+\s*passed|未測定|はかれない|測りません|^\s*KEKKA\s|^\s*[✓✗]\s+\S/m.test(out);
   if (!hasSignal) { hiShiken++; continue; }   /* 試験でない段は 4つ組に 入れない */
   const con = ketsuron.get(key);
   const status = con === 'success' ? 0 : (con === 'skipped' ? 'skip' : 1);
