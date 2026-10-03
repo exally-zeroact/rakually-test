@@ -636,6 +636,8 @@ jobs:
         run: node kyuyo/tests/roudou-ritsu-onaji.test.mjs && node kyuyo/tests/roudou-ritsu-onaji.test.mjs --waza
       - name: ★計算が転んだ人を 振込から 黙って落とさない（keisanOchi旗・jsdom）／わざと旗立てを外すと赤
         run: node kyuyo/tests/furikomi-keisanochi.test.mjs && node kyuyo/tests/furikomi-keisanochi.test.mjs --waza
+      - name: ★労災の札が 率入力で その場で変わる（開き直さず・jsdom）／わざと札更新を外すと赤
+        run: node kyuyo/tests/rousai-fuda-live.test.mjs && node kyuyo/tests/rousai-fuda-live.test.mjs --waza
       - name: ★年金機構の検査をこちらで再現（公式の項目表 csv225/csv221・出す前の門）
         run: node kyuyo/tests/todokede-check.test.mjs && node kyuyo/tests/todokede-check.test.mjs --self-test
       - name: ★賞与支払届の電子申請CSV（様式2265700・21項目／標準賞与額は1,000円未満切捨・支払日は未来不可）
