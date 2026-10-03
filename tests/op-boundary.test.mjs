@@ -21,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { oboegakiWoKesu } from '../tools/_oboegaki.mjs';   /* ★覚書はがしの正本（2026-10-03・⑥）★ */
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require_ = createRequire(import.meta.url);
@@ -66,40 +67,9 @@ export function findUncalled(opNames, files) {
   return out;
 }
 
-/* コメントを落とす（文字列は残す）。refs-resolve と同じ考え方・後読みは使わない。 */
-export function stripComments(src) {
-  let out = '', i = 0, prev = '';
-  const n = src.length;
-  while (i < n) {
-    const ch = src[i];
-    if (ch === '/' && src[i + 1] === '/') { while (i < n && src[i] !== '\n') i++; continue; }
-    if (ch === '/' && src[i + 1] === '*') { i += 2; while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++; i += 2; out += ' '; continue; }
-    if (ch === '"' || ch === "'" || ch === '`') {
-      const q = ch; out += ch; i++;
-      while (i < n) {
-        if (src[i] === '\\') { out += src[i] + (src[i + 1] || ''); i += 2; continue; }
-        out += src[i]; if (src[i] === q) { i++; break; } i++;
-      }
-      prev = q; continue;
-    }
-    if (ch === '/' && (prev === '' || '(,=:[!&|?{};+-*%~^'.indexOf(prev) >= 0)) {
-      i++; let cls = false;
-      while (i < n) {
-        const c = src[i];
-        if (c === '\\') { i += 2; continue; }
-        if (c === '[') cls = true; else if (c === ']') cls = false;
-        else if (c === '/' && !cls) { i++; break; }
-        else if (c === '\n') break;
-        i++;
-      }
-      out += ' '; prev = '/'; continue;
-    }
-    out += ch;
-    if (!/\s/.test(ch)) prev = ch;
-    i++;
-  }
-  return out;
-}
+/* コメントを落とす（文字列は残す）。★正本に 差し替え（2026-10-03・⑥）★＝自前版は 正規表現を 消す穴が
+   あった（実測）＝tools/_oboegaki.mjs の oboegakiWoKesu（正規表現/文字列/テンプレ対応）に 寄せる。 */
+export const stripComments = oboegakiWoKesu;
 
 /* ══ self-test ═══════════════════════════════════════════════════════ */
 if (process.argv.includes('--self-test')) {
