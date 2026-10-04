@@ -69,10 +69,25 @@ if (!WAZA) {
   T('★転んだ人に keisanOchi 旗が 立つ★', !!th && th.keisanOchi === true, 'th=' + JSON.stringify(th && { ko: th.keisanOchi, ready: th.ready, amount: th.amount }));
   T('★転んだ人は ready で ない（ファイルに 入れない）★', !!th && th.ready === false);
   T('普通の人は keisanOchi が 立たない', !!ok && !ok.keisanOchi);
+  /* ★司さん 2026-10-04＝計算できない人が 1人でも 居たら ★ファイルを 作らない（止める）★★
+     ＝furiKeisanOchiKaku は onOk を 呼ばない（前は「除いて 確かめを 聞く」＝押し流すと 足りない ファイルが 銀行へ）。 */
+  if (A.furiKeisanOchiKaku) {
+    let dashita = false;
+    A.furiKeisanOchiKaku('monthly', function () { dashita = true; });
+    T('★計算できない人が 居ると 振込ファイルは 作られない（onOk が 呼ばれない＝止める）★', dashita === false,
+      '止まっていない＝onOk が 呼ばれた（足りないファイルが 出る）');
+  }
 } else {
   T('★わざ置換が効いた（旗立てを外した）★', kesita === 1, '外せた箇所=' + kesita);
   T('★--waza: 旗立てを外すと 転んでも keisanOchi が 立たない（門が旗を守る証し）★', !!th && !th.keisanOchi,
     '外したのに 旗が 立った');
+  /* 旗が 立たない＝ko 0＝furiKeisanOchiKaku は 通す（onOk 呼ぶ）＝止まらない＝旗が 止めの 源の 証し */
+  if (A.furiKeisanOchiKaku) {
+    let dashita2 = false;
+    A.furiKeisanOchiKaku('monthly', function () { dashita2 = true; });
+    T('★--waza: 旗が 立たないと 止まらない（onOk が 呼ばれる）＝止めは 旗に 繋がっている証し★', dashita2 === true,
+      '旗が無いのに 止まった');
+  }
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

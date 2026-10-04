@@ -4967,16 +4967,18 @@
     window.FileOut.deliver(bytes, filename, type?{type:type}:undefined)
       .catch(function(e){ uiAlert('ファイルを渡せませんでした：'+((e&&e.message)||e)); });
   }
-  /* ★計算できなかった人を 黙って ファイルから 落とさない（⑧a・2026-10-03）★
-     ＝赤い字は 見落とせる・箱は 見落とせない＝出す前に 1回 確かめを 聞く（止めはしない）。
+  /* ★計算できない人が 1人でも 居たら ★ファイルを 作らない（止める）★★（⑧a・2026-10-04 司さん決定）
+     ★訳★ … 前は「その人を 除いて、出す前に 確かめを 聞く」にしていたが、★確かめを 押し流すと 足りない
+       ファイルが 銀行へ 行く＝給料の 未払いが 通る★。だから ★全員 計算できるまで 1バイトも 作らない★。
+     ＝止める＝onOk を 呼ばない。名前を 出して「止めた」と 知らせる（画面の 赤い字とは 別に・箱は 見落とせない）。
      keisanOchi が 居なければ そのまま onOk を 呼ぶ。 */
   function furiKeisanOchiKaku(mode, onOk){
     var ko=buildTransfers(mode).filter(function(t){ return t.keisanOchi; });
     if(!ko.length){ onOk(); return; }
     var nm=ko.map(function(t){ return t.emp.name||'（名前なし）'; });
     var who=nm.length<=3?nm.join('・'):(nm.slice(0,3).join('・')+'ほか'+(nm.length-3)+'名');
-    uiConfirm(who+' は 計算できなかったので、このファイルに 入っていません。\n（給与の入力を 見直すと 直ります）\n\nそれでも このまま 出しますか？', '計算できない人がいます')
-      .then(function(ok){ if(ok) onOk(); });
+    uiAlert(who+' は 計算できませんでした。\n\n★給料の 未払いを 防ぐため、この 振込ファイルは 作りません。★\n入力を 見直して、全員 計算できるように してから もう一度 出してください。', '計算できない人がいます（止めました）');
+    /* ★onOk は 呼ばない＝ファイルは 作らない（司さん 2026-10-04「止めて警告するべき」）★ */
   }
   function downloadZengin(){
     if(typeof Zengin==='undefined'){ uiAlert('全銀モジュールが読み込まれていません'); return; }
@@ -5003,7 +5005,7 @@
       toast('全銀ファイルを作成しました（'+r.count+'件・'+yen(r.total)
         +(r.newline===Zengin.NEWLINE_DEFAULT?'':'・行の終わり='+(FURI_NL_LABEL[r.newline]||r.newline))+'）');
     };
-    furiKeisanOchiKaku(mode, dasu);   /* ★計算できない人が居れば 出す前に 確かめる（⑧a）★ */
+    furiKeisanOchiKaku(mode, dasu);   /* ★計算できない人が1人でも居れば ファイルを作らず止める（⑧a・司さん2026-10-04）★ */
   }
   function downloadFuriExcel(){
     if(typeof PayslipXlsx==='undefined'||!PayslipXlsx.downloadSheets){ uiAlert('Excelモジュールが読み込まれていません'); return; }
@@ -5015,7 +5017,7 @@
       aoa.push(['合計','','','','','','','', tr.reduce(function(a,t){return a+t.amount;},0)]);
       PayslipXlsx.downloadSheets([{ name:'振込一覧', aoa:aoa, cols:[{wch:14},{wch:16},{wch:12},{wch:10},{wch:12},{wch:10},{wch:6},{wch:12},{wch:12}] }], { filename:'振込一覧_'+state.month+'.xlsx' });
     };
-    furiKeisanOchiKaku(furiMode(), dasu);   /* ★計算できない人は 除いて 出す前に 確かめる（⑧a・全銀と同じ）★ */
+    furiKeisanOchiKaku(furiMode(), dasu);   /* ★計算できない人が1人でも居れば 作らず止める（⑧a・全銀と同じ）★ */
   }
   // プレビューiframeの高さを「ページ数×1ページ高」にする=複数人/複数期間が全員見える(1ページ固定で2人目以降が隠れる問題の修正)。
   //  ★PDF本体(b-print)は各.sheetを個別に焼くので不変=ここはプレビュー表示専用。dataset.pwは向き判定用に維持。
@@ -6550,7 +6552,7 @@
   /* 統合テスト用API。★本番ブラウザには露出しない（jsdomのときだけ）★=RC1対策の自動統合テスト(tests/integration.mjs)の入口。 */
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
-      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi,
+      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku,
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
          kyuyo/tests/shoyo-kami-hizuke.test.mjs */
