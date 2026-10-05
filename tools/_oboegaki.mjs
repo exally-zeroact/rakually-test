@@ -85,6 +85,48 @@ export function oboegakiWoKesu(src) {
   return out;
 }
 
+/* ★文字列リテラルだけ 取り出す★（'…' "…" `…` ＝テンプレの ${} の 中も 字の 一部として 丸ごと）。
+   ★oboegakiWoKesu と 同じ 走査★＝注記は 先に 空白化し、正規表現は 飛ばし（割り算/正規表現の 見分けも 同じ RX）、
+   引用符で 始まる 塊だけを 集める。返り＝[{ lit, index, line }]（lit は 引用符 込み・index は 元 src の 文字位置）。
+   ★これで 客向けの 字（★など）を 数える 門も 覚書はがしも 同じ 土台を 使う（別実装の 見落としを 作らない）★ */
+export function stringLiterals(src) {
+  const su = oboegakiWoKesu(src);     /* 注記は 空白化済み＝注記の 中の 引用符を 字の 始まりと 読まない */
+  const n = su.length;
+  const out = [];
+  let i = 0, acc = '';
+  while (i < n) {
+    const c = su[i];
+    if (c === '/' && seikiHyougenKa(acc)) {          /* ★正規表現★＝飛ばす（中の 引用符を 字と 読まない） */
+      let j = i + 1, kakko = false, toji = false;
+      while (j < n && su[j] !== '\n') {
+        if (su[j] === '\\') { j += 2; continue; }
+        if (su[j] === '[') kakko = true;
+        else if (su[j] === ']') kakko = false;
+        else if (su[j] === '/' && !kakko) { toji = true; j++; break; }
+        j++;
+      }
+      if (toji) {
+        while (j < n && /[a-z]/i.test(su[j])) j++;
+        acc += su.slice(i, j); i = j; continue;
+      }
+    }
+    if (c === "'" || c === '"' || c === '`') {       /* ★文字列★＝集める */
+      const q = c; let j = i + 1;
+      while (j < n) {
+        if (su[j] === '\\') { j += 2; continue; }
+        if (su[j] === q) { j++; break; }
+        j++;
+      }
+      const lit = su.slice(i, j);
+      const line = su.slice(0, i).split('\n').length;
+      out.push({ lit, index: i, line });
+      acc += lit; i = j; continue;
+    }
+    acc += c; i++;
+  }
+  return out;
+}
+
 /* ★長さと 行数が 1つも 変わって いない か★＝正規表現/文字列を 誤って 消すと ここで 分かる（偽の緑止め） */
 export function nagasaGyouFuhen(nama, su) {
   const gyo = (s) => s.split('\n').length;

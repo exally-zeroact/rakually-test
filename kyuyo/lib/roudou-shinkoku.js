@@ -112,7 +112,7 @@
     if (n(gaisanGokei) >= sen) return { ok: true, sen: sen, riyu: '概算保険料 ' + Math.floor(n(gaisanGokei)).toLocaleString() + '円 ≧ ' + sen.toLocaleString() + '円' };
     return { ok: false, sen: sen,
       riyu: '概算保険料 ' + Math.floor(n(gaisanGokei)).toLocaleString() + '円 が ' + sen.toLocaleString() + '円 未満'
-        + '（★確定の 不足額と 足しても 延納は できません★）' };
+        + '（確定の 不足額と 足しても 延納は できません）' };
   }
 
   /* ④⑤ 期ごとに 分ける＝÷期数、★端数は すべて 最初の 期に 合算★ */

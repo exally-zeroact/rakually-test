@@ -107,7 +107,7 @@
         ? { value: true, why: 'ほかの取引先 ' + yes + '社が「する」（' + no + '社が「しない」）', kind: 'freq' }
         : { value: false, why: 'ほかの取引先 ' + no + '社が「しない」（' + yes + '社が「する」）', kind: 'freq' };
     }
-    return { value: false, why: '手がかりがありません（源泉を引くかは ★払う側が決めます★）', kind: 'none' };
+    return { value: false, why: '手がかりがありません（源泉を引くかは 払う側が決めます）', kind: 'none' };
   }
 
   /* ═══ ④住所の頭（都道府県＋市区町村まで）を よく出る順に ═══ */
@@ -208,7 +208,7 @@
       now: (d.gensen === true ? 'yes' : d.gensen === false ? 'no' : ''),
       guess: { value: gg.value ? 'yes' : 'no', why: gg.why, kind: gg.kind },
       done: !!ok.gensen,
-      hint: '引くかどうかを決めるのは ★払う側（この相手）★です。1通ごとに変える事も出来ます。',
+      hint: '引くかどうかを決めるのは 払う側（この相手）です。1通ごとに変える事も出来ます。',
       result: function (v) {
         return v === 'yes'
           ? 'これから作る請求書は 最初から「源泉徴収する」で出ます。'
@@ -221,7 +221,7 @@
       key: 'addr', q: '住所は？', kind: 'text', now: s(d.addr),
       chips: ah.map(function (x) { return { v: x.head, t: x.head + '（' + x.n + '社）' }; }),
       guess: null, done: !!ok.addr, skipLabel: '入れない',
-      hint: '★ふだんの紙（PDF）のあて名の下には 出しません★（司さん 2026-08-16）。'
+      hint: 'ふだんの紙（PDF）のあて名の下には 出しません（司さん 2026-08-16）。'
         + '自社の Excel の様式を使う時だけ 出ます。',
       result: function (v) { return s(v) ? 'Excel の様式では あて名の下に出ます。' : '住所は持ちません。'; },
     });
@@ -230,7 +230,7 @@
       list.push({
         key: 'code', q: 'この相手の 取引先コードは？', kind: 'text', now: s(d.code),
         guess: codeGuess(others, p && p.id), done: !!ok.code,
-        hint: '★請求番号の形を「取引先＋年月＋連番」にしているので★ この相手のコードが要ります。',
+        hint: '請求番号の形を「取引先＋年月＋連番」にしているので この相手のコードが要ります。',
         result: function (v) { return s(v) ? '請求番号は「' + s(v) + '-YYYYMM-001」の形で作ります。' : ''; },
       });
     }

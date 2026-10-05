@@ -1160,7 +1160,7 @@
     if (hikiD) hiki.push('控除 ' + hikiD + '行');
     box('edit-ok', (g.no ? '前回（No.' + g.no + '）と 同じで 用意しました' : '前回と 同じで 用意しました')
       + (hiki.length ? '＝' + hiki.join('・') : '')
-      + (hikiL ? '。★金額を 確かめてください★（要らない行は × で 消せます）。'
+      + (hikiL ? '。金額を 確かめてください（要らない行は × で 消せます）。'
         : '。明細を 打てば 出せます（直したい所は「細かく決める」から）。'));
   }
 
@@ -2221,7 +2221,7 @@
       ? ('明細 ' + n + ' 行 ＝ 紙は ' + pages + ' 枚になります（1枚の枠は ' + frame
         + ' 行）。1枚に収めたい時は 枠を増やしてください。')
       : ('明細 ' + n + ' 行 ＝ 紙は ' + pages + ' 枚になります。控除や区分が多いので '
-        + '★最後の紙は 締めと振込先だけ★ になります。'));
+        + '最後の紙は 締めと振込先だけ になります。'));
     /* ★その場から飛べる★＝設定のどこを触ればよいか探させない */
     var b = document.createElement('button');
     b.type = 'button'; b.className = 'btn-ghost'; b.id = 'b-goto-rows';
@@ -2926,7 +2926,7 @@
         if (!chk.ok) { box('seal-err', chk.reason); return false; }
         sealPending = next;
         fillSeal();
-        box('seal-ok', '前に 入れた 判子の ★白い背景を 透かしました★'
+        box('seal-ok', '前に 入れた 判子の 白い背景を 透かしました'
           + '（白かった所 ' + r.shiro + '%）。「保存」を押すと 紙に 出ます。');
         return true;
       });
@@ -4356,14 +4356,14 @@
       ? '今は 会社の口座を 全部（' + all.length + '）出します。'
       : ('この相手には ' + n + '／' + all.length + ' を 出します。');
     if (pick.missing.length) {
-      why += '★会社の設定から 消えた口座が ' + pick.missing.length + ' あります（出しません）：'
-        + pick.missing.join(' ／ ') + '★';
+      why += '会社の設定から 消えた口座が ' + pick.missing.length + ' あります（出しません）：'
+        + pick.missing.join(' ／ ') + '';
     }
     why += ' 1つも 選ばないと 全部 出します（紙から 振込先が 消えないように）。';
     if (n > PAPER.BANK_ROWS_FREE) {
-      why += ' ★口座が ' + n + ' なので 明細に使える行が '
+      why += ' 口座が ' + n + ' なので 明細に使える行が '
         + (PAPER.maxRowsOf(false, 0, 0, PAPER.BANK_ROWS_FREE) - PAPER.maxRowsOf(false, 0, 0, n))
-        + ' 減ります（紙から 字が 切れないように）。★';
+        + ' 減ります（紙から 字が 切れないように）。';
     }
     setText('s-pbanks-why', why);
   }

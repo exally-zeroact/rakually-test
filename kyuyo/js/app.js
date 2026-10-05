@@ -769,10 +769,10 @@
           var yotei=S.HATSUKO_MITEI?'（予定）':'';
           var shime='時給がこれを下回ると赤で止めます。';
           var honbun = mae
-            ? '★'+prefNameOf(c.pref)+'の最低賃金★<br>'
+            ? ''+prefNameOf(c.pref)+'の最低賃金<br>'
               +'今（'+askJpDate(askZenjitsu(hat))+'まで）　… '+askYen(ima)+'円<br>'
               +askJpDate(hat)+'から　… '+askYen(shin)+'円'+yotei+'<br>'+shime
-            : '★'+prefNameOf(c.pref)+'の最低賃金は '+askYen(ima)+'円★（'+askJpDate(hat)+'から）。'+shime;
+            : ''+prefNameOf(c.pref)+'の最低賃金は '+askYen(ima)+'円（'+askJpDate(hat)+'から）。'+shime;
           return { text:honbun,
                    /* ★2026-09-12＝出典の年を 手で 書かない（今日9つ目の 同じ形）★
                       2025 固定だった為、libを 令和8に しても ★客に 出る 出典だけ 令和7のまま★ に なる所だった。
@@ -787,7 +787,7 @@
         answer:function(){
           var r=employRateOf(c.gyoshu);
           if(!(r>0)) return null;
-          return { text:'★雇用保険（本人が払う分）は '+(r*1000).toFixed(1)+'／1000★ で計算します。',
+          return { text:'雇用保険（本人が払う分）は '+(r*1000).toFixed(1)+'／1000 で計算します。',
                    guessed:true, src:askSource('koyo', (KH()&&KH().LATEST)||2026) };   /* ★年を手で書かない（2026-09-12）★ */
         } },
 
@@ -844,7 +844,7 @@
         answer:function(){
           if(!(c.holidays||[]).length) return null;
           var w=askWeekCalc(c);
-          return { text:'★年間の休みは およそ '+w.annual+'日／週に働くのは '+w.workDays+'日・'+w.weekH+'時間★（国民の祝日は自動で入ります）',
+          return { text:'年間の休みは およそ '+w.annual+'日／週に働くのは '+w.workDays+'日・'+w.weekH+'時間（国民の祝日は自動で入ります）',
                    guessed:true, calc:'休みの曜日 '+w.restDays+'日 × 52週 ＝ '+w.annual+'日 ／ (7−'+w.restDays+')日 × '+w.dailyH+'時間 ＝ '+w.weekH+'時間' };
         } },
 
@@ -855,7 +855,7 @@
         answer:function(){
           if(!c.dailyWorkH && !c.dailyWorkM) return null;
           var w=askWeekCalc(c);
-          return { text:'週に働くのは '+w.workDays+'日・★'+w.weekH+'時間★です。' };
+          return { text:'週に働くのは '+w.workDays+'日・'+w.weekH+'時間です。' };
         } },
 
       { key:'shahoKanyu', q:'社会保険に入っていますか？', sub:'健康保険・厚生年金',
@@ -866,8 +866,8 @@
         answer:function(){
           if(!c.shahoKanyu) return null;
           return c.shahoKanyu==='yes'
-            ? { text:'健康保険・厚生年金を ★毎月の明細から引きます★（率は'+(c.pref?prefNameOf(c.pref):'県')+'の表から自動）。' }
-            : { text:'健康保険・厚生年金は ★引きません★（雇用保険と所得税だけになります）。' };
+            ? { text:'健康保険・厚生年金を 毎月の明細から引きます（率は'+(c.pref?prefNameOf(c.pref):'県')+'の表から自動）。' }
+            : { text:'健康保険・厚生年金は 引きません（雇用保険と所得税だけになります）。' };
         } }
     ];
   }
@@ -911,7 +911,7 @@
     if(idx<0){
       host.innerHTML='<div class="ask-done">'
         +'<div class="ask-done-t">✓ 会社の設定はこれで動きます</div>'
-        +'<div class="ask-done-s">★'+cnt.answered+'問 答えていただきました。あと こちらで決めた物は '+askGuessText(cnt)+'★</div>'
+        +'<div class="ask-done-s">'+cnt.answered+'問 答えていただきました。あと こちらで決めた物は '+askGuessText(cnt)+'</div>'
         +'<div class="ask-acts"><span class="ask-again" data-ask-again="1">もう一度 確かめる</span></div></div>';
       return;
     }
@@ -1666,9 +1666,9 @@
     var age=empAge(e.birthYmd, ym);
     if(age!=null) out.push({ t:age+'歳（'+ym+'の時点）' });
     if(pc.isKaigoTarget) out.push({ t:pc.isKaigoTarget(e.birthYmd,ym)?'介護保険を引きます（40〜64歳）':'介護保険は引きません（40歳未満か65歳以上）', src:'shakaihoken' });
-    if(pc.isPensionTarget) out.push({ t:pc.isPensionTarget(e.birthYmd,ym)?'厚生年金を引きます':'★厚生年金は引きません（70歳で資格喪失）★', src:'shakaihoken' });
-    if(pc.isHealthTarget) out.push({ t:pc.isHealthTarget(e.birthYmd,ym)?'健康保険を引きます':'★健康保険は引きません（75歳から後期高齢者医療）★', src:'shakaihoken' });
-    if(pc.isMinor && pc.isMinor(e.birthYmd,ym)) out.push({ t:'★18歳未満です（深夜の仕事と時間外に決まりがあります）★' });
+    if(pc.isPensionTarget) out.push({ t:pc.isPensionTarget(e.birthYmd,ym)?'厚生年金を引きます':'厚生年金は引きません（70歳で資格喪失）', src:'shakaihoken' });
+    if(pc.isHealthTarget) out.push({ t:pc.isHealthTarget(e.birthYmd,ym)?'健康保険を引きます':'健康保険は引きません（75歳から後期高齢者医療）', src:'shakaihoken' });
+    if(pc.isMinor && pc.isMinor(e.birthYmd,ym)) out.push({ t:'18歳未満です（深夜の仕事と時間外に決まりがあります）' });
     return out;
   }
   /* 通勤の型（★マイカーは片道kmだけ聞いて 非課税限度は機械★） */
@@ -1729,8 +1729,8 @@
         answer:function(){
           if(!e.taxClass) return null;
           return e.taxClass==='ko'
-            ? { text:'所得税は ★甲欄★ で計算します（扶養の人数で列が決まります）。', guessed:true, src:askSource('shotokuzei_densan', densanYearNow()) }
-            : { text:'所得税は ★乙欄★ で計算します（掛け持ちの方など。扶養の人数は使いません）。', guessed:true, src:askSource('shotokuzei_densan', densanYearNow()) };
+            ? { text:'所得税は 甲欄 で計算します（扶養の人数で列が決まります）。', guessed:true, src:askSource('shotokuzei_densan', densanYearNow()) }
+            : { text:'所得税は 乙欄 で計算します（掛け持ちの方など。扶養の人数は使いません）。', guessed:true, src:askSource('shotokuzei_densan', densanYearNow()) };
         } },
 
       { key:'fuyou', q:'扶養は何人ですか？', sub:'税額表の「列」が決まります（16歳未満は数えません）',
@@ -1742,15 +1742,15 @@
         answer:function(){
           if(e.taxClass==='otsu') return { text:'乙欄なので 扶養の人数は使いません。' };
           if(e.fuyou===''||e.fuyou==null) return null;
-          return { text:'税額表の ★'+num(e.fuyou)+'人の列★ で引きます。' };
+          return { text:'税額表の '+num(e.fuyou)+'人の列 で引きます。' };
         } },
 
       { key:'bank', q:'振込先は？', sub:'あとで本人に入れてもらえます',
         now:(e.bank?'登録あり':''),
-        input:function(){ return '<div class="ask-note">★あとで大丈夫です★。ご本人が「Web明細」から自分で登録できます。'
+        input:function(){ return '<div class="ask-note">あとで大丈夫です。ご本人が「Web明細」から自分で登録できます。'
           +'<br>今 入れるなら「一覧」で開いて入力してください。</div>'
           +'<span class="ask-row" style="margin-top:8px"><span class="ask-yn" data-eask-bank="later">あとで（本人に入れてもらう）</span></span>'; },
-        answer:function(){ return { text:'振込先は ★あとで本人が登録できます★（Web明細から）。空欄のままでも先に進めます。' }; } }
+        answer:function(){ return { text:'振込先は あとで本人が登録できます（Web明細から）。空欄のままでも先に進めます。' }; } }
     ];
   }
 
@@ -1767,7 +1767,7 @@
     if(t.trim()){
       var pp=PP(); if(!pp) return null;
       var r=pp.parse(t);
-      if(!r||!r.ok) return { text:'★読み取れませんでした★（'+esc(String(r&&r.unrecognized||t).slice(0,30))+'）。書き方を変えるか、「一覧」で直接 入れてください。' };
+      if(!r||!r.ok) return { text:'読み取れませんでした（'+esc(String(r&&r.unrecognized||t).slice(0,30))+'）。書き方を変えるか、「一覧」で直接 入れてください。' };
       /* ★読んだ結果を見せるだけ★。押されるまで emp には入れない（勝手に確定しない） */
       var prev={ payType:e.payType, base:e.base, hourly:e.hourly };
       var tmp=Object.assign({}, e, { payType:r.payType }, r.fields||{});
@@ -1775,9 +1775,9 @@
       /* ★キー名は実物を読んで確かめた★（total/deduct は無い＝NaN が出ていた・2026-08-18 実測で直した）
          shikyuTotal=総支給 ／ kojoTotal=控除の合計 ／ net=手取り */
       var money=(c&&isFinite(c.shikyuTotal)&&isFinite(c.net))
-        ?('その月の実数で計算すると ★総支給 '+yen(c.shikyuTotal)+'／控除 '+yen(num(c.kojoTotal))+'／手取り '+yen(c.net)+'★')
+        ?('その月の実数で計算すると 総支給 '+yen(c.shikyuTotal)+'／控除 '+yen(num(c.kojoTotal))+'／手取り '+yen(c.net)+'')
         :'';
-      return { text:'こう読みました → ★'+esc(r.summary||r.payType)+'★'+(money?'<br>'+money:'')
+      return { text:'こう読みました → '+esc(r.summary||r.payType)+''+(money?'<br>'+money:'')
         + '<br><span class="ask-note">合っていたら「これで」を押してください（押すまで入れません）。</span>', pending:tmp };
     }
     if(!e.base && !e.hourly) return null;
@@ -1797,12 +1797,12 @@
          前は所得税の税額表(shotokuzei_densan)の出典を出していた＝★押すと出る根拠が嘘★だった。
          通勤の非課税限度は ★国税庁 No.2585★（lib が自分で持っている）。 */
       var info=PM().carCommuteNonTaxInfo(num(e.commuteKm), state.month);
-      var t='片道'+num(e.commuteKm)+'km なら ★月 '+yen(info.yen)+'まで所得税がかかりません★（超えた分は課税）。';
+      var t='片道'+num(e.commuteKm)+'km なら 月 '+yen(info.yen)+'まで所得税がかかりません（超えた分は課税）。';
       /* ★施行日より前の月に、黙って新しい表を当てない★ */
-      if(info.notForThisMonth) t+='<br>★'+state.month+'は この表（'+info.source.from+'〜）より前の月です。この月の限度額は分かりません★（当時の表を持っていません）。';
+      if(info.notForThisMonth) t+='<br>'+state.month+'は この表（'+info.source.from+'〜）より前の月です。この月の限度額は分かりません（当時の表を持っていません）。';
       return { text:t, guessed:true, srcLib:info.source };
     }
-    if(num(e.commute)>0) return { text:'電車・バスは ★月 15万円まで★ 所得税がかかりません。' };
+    if(num(e.commute)>0) return { text:'電車・バスは 月 15万円まで 所得税がかかりません。' };
     if(e.commuteType==='none') return { text:'通勤手当は無しで計算します。' };
     return null;
   }
@@ -1988,7 +1988,7 @@
            ★既定は 通貨★＝印を 付けない限り 今までどおり ⑪通貨に 入る（★今の 数字は 1円も 動かない★）。
            ★非課税の 印とは 別の 軸★＝社宅や 食事は 現物だが 課税の物も 在る（混ぜない）。 */
         var isGB = (it.genbutsu===true);
-        hz += '<label class="row-gb" title="社宅・食事など ★現物で 渡した物★（算定基礎届の ⑫に 入ります／お金で 渡した物は 付けない）" style="font-size:10px;color:'+(isGB?'#7A5B00':'#6E6E6E')+';font-weight:'+(isGB?'700':'400')+';white-space:nowrap;display:inline-flex;align-items:center;gap:2px;margin-left:6px"><input type="checkbox" class="ck-gb" data-g="shikyu" data-ri="'+ri+'"'+(isGB?' checked':'')+'>現物</label>';
+        hz += '<label class="row-gb" title="社宅・食事など 現物で 渡した物（算定基礎届の ⑫に 入ります／お金で 渡した物は 付けない）" style="font-size:10px;color:'+(isGB?'#7A5B00':'#6E6E6E')+';font-weight:'+(isGB?'700':'400')+';white-space:nowrap;display:inline-flex;align-items:center;gap:2px;margin-left:6px"><input type="checkbox" class="ck-gb" data-g="shikyu" data-ri="'+ri+'"'+(isGB?' checked':'')+'>現物</label>';
       }
       return '<div class="row" style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input class="finput" data-g="'+g+'" data-ri="'+ri+'" data-f="label" value="'+attr(it.label)+'" style="flex:1.3" placeholder="項目"><input class="finput num"'+(g==='shikyu'&&jidouGyou(it.label)?' aria-describedby="'+jidouNoteId(e,g,ri)+'"':'')+' data-g="'+g+'" data-ri="'+ri+'" data-f="value" value="'+attr(it.value)+'" style="flex:1" placeholder="'+(g==='kintai'?'値':'金額')+'">'+hz+'<button class="b-del m-del" data-g="'+g+'" data-ri="'+ri+'" aria-label="この項目を削除">×</button></div>'
         + (g==='shikyu' && jidouGyou(it.label)
@@ -3116,7 +3116,7 @@
       var row=santeiKisoRow(months, rule.primary, rule.fallback);
       var sb=shahoBasisOf(e), prevHoshu=(sb&&sb.hoshu>0)?sb.hoshu:0;
       var prevP=(SHH&&prevHoshu)?SHH.gradeOf(prevHoshu).hyojun:0, prevH=(SHH&&prevHoshu)?SHH.gradeOfHealth(prevHoshu).hyojun:0;
-      var notes=[]; if(stLabel(e))notes.push(stLabel(e)); if(isOver70(e,year+'-07'))notes.push('70歳以上'); if(row.noQualify)notes.push(rule.primary+'日以上の月なし=要確認／★電子申請の CSV には 入りません★'+'（従前の 標準報酬月額の まま 決まります）');
+      var notes=[]; if(stLabel(e))notes.push(stLabel(e)); if(isOver70(e,year+'-07'))notes.push('70歳以上'); if(row.noQualify)notes.push(rule.primary+'日以上の月なし=要確認／電子申請の CSV には 入りません'+'（従前の 標準報酬月額の まま 決まります）');
       var hasData=months.some(function(m){return m.days>0||m.pay>0;});
       return { emp:e, name:e.name||'', birthYmd:e.birthYmd||'', months:months, prevH:prevH, prevP:prevP, r:row, note:notes.join('／'), hasData:hasData };
     });
@@ -4825,7 +4825,7 @@
          （★出るのを 止めない／当てずっぽうの 日付は 出さない★＝銀行へ 行く データだから） */
       return '<div class="frow"><div class="flabel">振込指定日</div>'
         +'<div class="cr-warn" style="margin:0">この月の振込指定日を決められませんでした。'
-        +'会社の「支給日」が 空か、数字として 読めません（★全角の数字は 読めません★）。'
+        +'会社の「支給日」が 空か、数字として 読めません（全角の数字は 読めません）。'
         +'<div style="margin-top:6px"><b class="mw-fix" data-fix-payday>会社の 支給日を 入れる ▸</b></div></div></div>';
     }
     var dt=new Date(Number(d.ymd.slice(0,4)),Number(d.ymd.slice(5,7))-1,Number(d.ymd.slice(8,10)));
@@ -5344,7 +5344,7 @@
         if(ev.target.closest('[data-confirm-bonus]')){ try{ saveBonusPayslips(); }catch(_){} persistSave();
           publishMeisaiNow(true,{silent:true}).then(function(n){ toast('賞与を確定しました（年調・台帳に反映'+(n?'・従業員のWeb明細に公開）':'）')); },
             /* ★確定は出来たが 公開は出来なかった★を はっきり分けて言う（黙って同じ文にしない） */
-            function(){ toast('賞与を確定しました（年調・台帳に反映）。★従業員のWeb明細には公開できていません★'); }); return; }
+            function(){ toast('賞与を確定しました（年調・台帳に反映）。従業員のWeb明細には公開できていません'); }); return; }
         if(ev.target.closest('[data-bonus-harau]')){ try{ downloadBonusHarau(); }catch(_){} return; } // 賞与支払届 Excel出力
         var addS=ev.target.closest('[data-bsadd]'); if(addS){ var es=bonusById(addS.dataset.bsadd); if(es){ var i1=inScr.querySelector('[data-bsaddl="'+addS.dataset.bsadd+'"]'); var l1=(i1&&i1.value||'').trim()||'特別賞与'; bonusEntry(es).addShikyu.push({label:l1,value:'',hikazei:false}); renderBonus(); } return; }
         var addK=ev.target.closest('[data-bkadd]'); if(addK){ var ek=bonusById(addK.dataset.bkadd); if(ek){ var i2=inScr.querySelector('[data-bkaddl="'+addK.dataset.bkadd+'"]'); var l2=(i2&&i2.value||'').trim()||'控除'; bonusEntry(ek).addKojo.push({label:l2,value:''}); renderBonus(); } return; }
@@ -5652,7 +5652,7 @@
              ＝★『全部 済んだ』か『済んで いない』★／★人の 行・明細・鍵 の 3つの ok は console へ★ */
           var subete = !!(r && r.ok) && !!(p && p.ok);
           console.log('★人を 消した … 人の行 ok／明細 ' + ((r&&r.ok)?'ok':'ng') + '（' + ((r&&r.n)||0) + '件・クラウド '
-            + ((r&&r.souko)?'あり':'なし') + '）／鍵 ' + ((p&&p.ok)?'ok':'ng') + '（' + ((p&&p.n)||0) + '件）★');
+            + ((r&&r.souko)?'あり':'なし') + '）／鍵 ' + ((p&&p.ok)?'ok':'ng') + '（' + ((p&&p.n)||0) + '件）');
           if(subete){
             toast('「'+na+'」を削除しました（給与明細 '+((r&&r.n)||0)+'件も消しました'+((r&&r.souko)?'':'・この端末のみ')+'）');
           } else {
@@ -5858,15 +5858,15 @@
           var ym=state.month;
           state.employees.forEach(function(emp){ if(isActiveInMonth(emp,ym)) setConfirm(emp.id,false); });
           persistSave(); renderInput();
-          if(!(window.Store&&Store.unpublishMonth)){ toast('この月を 下書きに 戻しました。★Web明細からは 下げられていません★'); return; }
+          if(!(window.Store&&Store.unpublishMonth)){ toast('この月を 下書きに 戻しました。Web明細からは 下げられていません'); return; }
           /* ★失敗の 受け皿は .catch で 書く★＝家の 書き方に そろえる
              （scripts/silent-catch.mjs が 見ているのは .catch の 形。
                then の 2つ目でも 動くが、★見張りから 見えない書き方を しない★） */
           Store.unpublishMonth(ym).then(function(r){
             if(r&&r.ok) toast('この月の確定を取り消しました'+(r.n?'（Web明細から '+r.n+'件 下げました）':'（Web明細に この月は ありませんでした）'));
-            else toast('下書きに戻しました。★Web明細からは 下げられていません★（'+((r&&r.err)||'理由不明')+'）。もう一度 押してください。');
+            else toast('下書きに戻しました。Web明細からは 下げられていません（'+((r&&r.err)||'理由不明')+'）。もう一度 押してください。');
           }).catch(function(err){
-            toast('下書きに戻しました。★Web明細からは 下げられていません★（'+((err&&err.message)||'理由不明')+'）。もう一度 押してください。');
+            toast('下書きに戻しました。Web明細からは 下げられていません（'+((err&&err.message)||'理由不明')+'）。もう一度 押してください。');
           });
         }); return; }
 
@@ -5889,13 +5889,13 @@
           persistSave(); renderInput();
           var _tsugi = function(){
             var _ochita = _saveFailKei - _maeKei;
-            var _ato = (_ochita > 0) ? ('。★但し ' + _ochita + '名分は 台帳・年末調整に 入って いません★（もう一度 確定してください）') : '';
+            var _ato = (_ochita > 0) ? ('。但し ' + _ochita + '名分は 台帳・年末調整に 入って いません（もう一度 確定してください）') : '';
             // ★確定した月は自動で従業員のWeb明細に公開(会社が「Web明細で公開」を押さなくても、従業員はいつでもどの月でも閲覧可)
             return publishMeisaiNow(false,{silent:true}).then(function(n){
               toast('今月を確定しました' + (n?'（従業員のWeb明細に公開）':'') + _ato);
             }, function(){
               /* ★確定は出来たが 公開は出来なかった★を はっきり分けて言う */
-              toast('今月を確定しました。★従業員のWeb明細には公開できていません★' + _ato);
+              toast('今月を確定しました。従業員のWeb明細には公開できていません' + _ato);
             });
           };
           var _shimai = function(){ _saveFailDamaru--; };
@@ -6208,7 +6208,7 @@
       var cp=e.target.closest('.wm-copy'); if(cp){ try{ navigator.clipboard.writeText(cp.dataset.link); toast('コピーしました'); }catch(err){} return; }
       var qb=e.target.closest('.wm-qr'); if(qb){ showMeisaiQR(qb.dataset.qrName, qb.dataset.qrUrl); return; } // 個人のQR表示/印刷
       if(e.target.closest('.wm-qrall')){ // 全員のQRを印刷(リンク+初回コード同梱)
-        Store.listMeisaiPub(rosterIds()).catch(function(e){ toast('公開ずみの明細を読み込めませんでした（' + ((e&&e.message)||'つながりません') + '）。★0件ではありません★'); throw e; }).then(function(list){ var origin=(location.origin&&location.origin.indexOf('http')===0)?location.origin+location.pathname.replace(/[^\/]*$/,''):'';
+        Store.listMeisaiPub(rosterIds()).catch(function(e){ toast('公開ずみの明細を読み込めませんでした（' + ((e&&e.message)||'つながりません') + '）。0件ではありません'); throw e; }).then(function(list){ var origin=(location.origin&&location.origin.indexOf('http')===0)?location.origin+location.pathname.replace(/[^\/]*$/,''):'';
           printQRCards((list||[]).map(function(p){ var code=(!p.hasPassword?p.initCode:''); return { name:p.name, url:origin+p.link+(code?('&c='+encodeURIComponent(code)):''), initCode:code }; })); }); // QRに初回コードを埋め込む=スキャンで自動入力
         return; }
       var ri=e.target.closest('.wm-reissue'); if(ri){ var tok=ri.dataset.token; uiConfirm('初回コードを再発行しますか？\n現在のパスワードと端末の記憶は無効になり、従業員は新しい初回コードで再設定します。').then(function(ok){ if(!ok)return;
@@ -6284,7 +6284,7 @@
   function rosterIds(){ return (state.employees||[]).map(function(e){ return e.id; }); }
   function renderWebMeisai(){
     var card=$('#webmeisai-card'), host=$('#webmeisai-body'); if(!card||!host||!(window.Store&&Store.listMeisaiPub))return;
-    Store.listMeisaiPub(rosterIds()).catch(function(e){ toast('公開ずみの明細を読み込めませんでした（' + ((e&&e.message)||'つながりません') + '）。★0件ではありません★'); throw e; }).then(function(list){
+    Store.listMeisaiPub(rosterIds()).catch(function(e){ toast('公開ずみの明細を読み込めませんでした（' + ((e&&e.message)||'つながりません') + '）。0件ではありません'); throw e; }).then(function(list){
       card.style.display=list.length?'':'none'; if(!list.length){ host.innerHTML=''; return; }
       var unread=0; list.forEach(function(p){ (p.docs||[]).forEach(function(d){ if(!d.openedAt)unread++; }); });
       var origin=(location.origin&&location.origin.indexOf('http')===0)?location.origin+location.pathname.replace(/[^\/]*$/,''):'';
@@ -6806,7 +6806,7 @@
            給与明細では 消費税を 使わないので ここでは 流し込まない（それ自体は そのまま）。 */
       /* ★落ちた行を 黙らない（⑧a・診断）★＝倉庫は「訂正の上書き」の道＝落ちると 内蔵（権威の既定）で進むが、
          ★訂正が 当たらなかった事★は 残す（客向けの 印は 棚1件＝「古い値で動いている」を 画面に出す）。 */
-      }catch(e){ console.error('★法定率の 流し込みが 1行 落ちました（内蔵の値で 進みます・' + ((r&&r.kind)||'?') + '/' + ((r&&r.year)||'?') + '）★', e); } });
+      }catch(e){ console.error('★法定率の 流し込みが 1行 落ちました（内蔵の値で 進みます・' + ((r&&r.kind)||'?') + '/' + ((r&&r.year)||'?') + '）', e); } });
       if(applied){ var act=$('.screen.active'); if(act&&act.id) showScreen(act.id); } // 値が変わった可能性→表示中を再描画
       return applied>0;
     }).catch(function(){ return false; });

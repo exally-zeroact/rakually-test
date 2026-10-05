@@ -112,6 +112,8 @@ jobs:
         run: node tests/bunrui.test.mjs
       - name: ★覚書はがしの正本 (正規表現/文字列/テンプレを消さない・長さ行数不変・node --check・素朴版は赤)
         run: node tests/oboegaki.test.mjs
+      - name: ★お客さんの字に ★ を使わない (配信される文字列リテラル/HTMLタグ外の★=0本・console/注記/借り物は除く・自己テスト同梱)
+        run: node tests/kyaku-hoshi.test.mjs
       - name: ★参照ガード (require/importの先が実在するか・api/が実際に読み込めるか)
         run: node tests/refs-resolve.test.mjs && node tests/refs-resolve.test.mjs --self-test
       - name: ★法定値の直書きガード (率・額が説明文に固定されていないか)

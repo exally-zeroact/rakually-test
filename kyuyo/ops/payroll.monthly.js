@@ -165,7 +165,7 @@
          ★同じ札の 中で nendo は lib から 作るのに source だけ 手打ち＝直し漏れ★だった。 */
       source: (SAI && SAI.SOURCE_URL) || '',
       note: '発効日は県ごとに違う（' + ((SAI && SAI.HATSUKO_KIKAN) || '') + '）。対象月が未収録年度なら STATUTORY_STALE で黄警告を出す（推測値を入れない）。'
-        + ((SAI && SAI.HATSUKO_MITEI) ? ' ★' + SAI.HATSUKO_MITEI_RIYU + '★' : ''),
+        + ((SAI && SAI.HATSUKO_MITEI) ? ' ' + SAI.HATSUKO_MITEI_RIYU + '' : ''),
       noteSource: 'https://www.mhlw.go.jp/content/11302000/001745621.pdf' },
     roukiho: { basis: '労働基準法 26条(休業手当)/27条(保障給)/32条(法定労働時間)/36条(時間外上限)/37条(割増)/60・61条(年少者)',
       source: 'https://laws.e-gov.go.jp/law/322AC0000000049' },

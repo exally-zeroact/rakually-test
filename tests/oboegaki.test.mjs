@@ -3,7 +3,7 @@
  *   ③長さ・行数は 変えない（偽の緑止め） ④剥がした 字が node --check を 通る
  *   ⑤★素朴版（正規表現を 見ない）だと この電池で 赤に なる＝門に 歯が 在る証し★
  * ★最後に KEKKA を 出す★（約束のドッグフード）。 */
-import { oboegakiWoKesu, nagasaGyouFuhen, kousoTooruKa } from '../tools/_oboegaki.mjs';
+import { oboegakiWoKesu, nagasaGyouFuhen, kousoTooruKa, stringLiterals } from '../tools/_oboegaki.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,6 +64,30 @@ for (const [bn, src, keep, gone] of bat) {
     if (!keep.every((k) => n.includes(k)) || !gone.every((g) => !n.includes(g))) naiveBad++;
   }
   T('⑤ 素朴版は この電池で 1件以上 おかしい（歯が在る）', naiveBad >= 1, '素朴版が 全部 通った＝電池が 甘い');
+}
+
+/* ⑦ ★stringLiterals★（客向けの字を 数える門と 同じ土台）＝文字列リテラルだけ 取り出す。
+   '…'・"…"・`…${x}…` は 字に 数える／正規表現の 中の 引用符・割り算の /・注記の 中の 引用符は 数えない。
+   ★正本に 新しい口を 足したら その口も 正本の門が 守る★（指示役①）。 */
+{
+  const lits = (src) => stringLiterals(src).map((x) => x.lit);
+  const has = (src, s) => lits(src).some((l) => l.indexOf(s) >= 0);
+  const cnt = (src) => lits(src).length;
+  /* 単引用・二重引用・テンプレ＝3本 取れる */
+  T('⑦ 単/二重/テンプレ の 3本が 取れる', cnt("var a='A'; var b=\"B\"; var c=`C`;") === 3, '取れた=' + cnt("var a='A'; var b=\"B\"; var c=`C`;"));
+  /* テンプレの ${x} の 中まで 1本の 字として 丸ごと */
+  T('⑦ テンプレは ${x} 込みで 1本', lits('var s=`x ${a+1} y`;').length === 1 && has('var s=`x ${a+1} y`;', '${a+1}'));
+  /* 正規表現の 中の 引用符は 字に 数えない（/'/ は 文字列でない） */
+  T('⑦ 正規表現の 中の 引用符は 数えない', cnt("var re=/it's/; var y=2;") === 0, '誤って 取れた=' + cnt("var re=/it's/; var y=2;"));
+  /* 注記の 中の 引用符は 数えない */
+  T('⑦ 行注記の 中の 引用符は 数えない', cnt("var y=2; // it's a note") === 0, '取れた=' + cnt("var y=2; // it's a note"));
+  T('⑦ 囲み注記の 中の 引用符は 数えない', cnt("var y=2; /* it's \"q\" */") === 0, '取れた=' + cnt("var y=2; /* it's \"q\" */"));
+  /* 割り算の / は 正規表現と 誤読しない＝字は 取れない */
+  T('⑦ 割り算 a/b は 字を 作らない', cnt("var z = a / b; var s = 'ok';") === 1 && has("var z = a / b; var s = 'ok';", 'ok'));
+  /* 字の 中の // や /* は 字の 一部（注記でない） */
+  T('⑦ 字の 中の // は 字の まま', has('var s="http://a"; var y=2;', 'http://a'));
+  /* 行・位置が 付く（門で ファイル:行 を 出せる） */
+  T('⑦ line が 付く', stringLiterals('a;\nvar s="x";').some((x) => x.line === 2 && x.lit === '"x"'));
 }
 
 /* ⑥ ★drift門★：tests-registered は「1本で どのrepoでも動く」設計＝正本を import できない＝★逐語コピー★。

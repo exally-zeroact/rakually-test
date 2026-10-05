@@ -133,7 +133,7 @@ T('★⑦ その場の返しが 数で出る（2枚になる時は そう言う�
   const rq = qs.filter((q) => q.key === 'rows')[0];
   ok(rq, '行数の問いが 無い');
   ok(/いちばん多い月（4行）も 1枚に入ります/.test(rq.result('4')), '4行の返し：' + rq.result('4'));
-  ok(/★4行の月は 2枚になります★/.test(rq.result('2')), '2行の返し：' + rq.result('2'));
+  ok(/4行の月は 2枚になります/.test(rq.result('2')), '2行の返し：' + rq.result('2'));
   eq(rq.result(''), '', '空に 何か言っている');
   const cq = qs.filter((q) => /^col:/.test(q.key))[0];
   ok(cq, '列の問いが 無い');

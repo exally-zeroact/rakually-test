@@ -258,8 +258,8 @@
     var head = '数式 ' + f.total + '本';
     if (kinds.length) head += '（' + kinds.map(function (k) { return k + ' ' + f.byKind[k]; }).join('・') + '）';
     if (f.unreadable && f.unreadable.length) {
-      head += ' ／ ★読めなかったシート ' + f.unreadable.length + '枚：'
-        + f.unreadable.map(function (u) { return u.sheet; }).join('・') + '★';
+      head += ' ／ 読めなかったシート ' + f.unreadable.length + '枚：'
+        + f.unreadable.map(function (u) { return u.sheet; }).join('・') + '';
     }
     return head;
   }
@@ -475,7 +475,7 @@
         if (lost > 0) {
           bad = bad.concat([{
             addr: '(シート全体)', want: beforeLen + 'マス', got: (beforeLen - lost) + 'マス',
-            why: '★書き換えでマスが ' + lost + '個 消えました（空のマスを飲み込んでいます）★',
+            why: '書き換えでマスが ' + lost + '個 消えました（空のマスを飲み込んでいます）',
           }]);
         }
         if (bad.length) {

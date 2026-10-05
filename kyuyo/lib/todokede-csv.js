@@ -226,9 +226,9 @@
   function kanaWhy(emp) {
     var k = String((emp || {}).kana || '').trim();
     if (!k) return '氏名（カナ）が 入っていません（設定 ▸ 従業員マスタ の 「氏名（カナ）」）';
-    if (!/^[｡-ﾟ ]+$/.test(k)) return '氏名（カナ）は ★半角カナ★で 入れてください（今 「' + k + '」）';
-    if (k.indexOf(' ') <= 0) return '氏名（カナ）は ★姓と名の 間に 半角スペースを 1つ★ 入れてください（今 「' + k + '」）';
-    return '氏名（カナ）に ★半角スペースが 続いています★（今 「' + k + '」）';
+    if (!/^[｡-ﾟ ]+$/.test(k)) return '氏名（カナ）は 半角カナで 入れてください（今 「' + k + '」）';
+    if (k.indexOf(' ') <= 0) return '氏名（カナ）は 姓と名の 間に 半角スペースを 1つ 入れてください（今 「' + k + '」）';
+    return '氏名（カナ）に 半角スペースが 続いています（今 「' + k + '」）';
   }
 
   function dasuKa(inp) {
@@ -325,10 +325,10 @@
        ⇒★0 と 書かず、この人を CSV に 入れず、名前を 挙げて 知らせる★ */
     if ((inp.bikou || {}).over70) {
       out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
-        + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+        + '（基礎年金番号が 要るのに このアプリでは お預かりしていない為）。紙で ご提出ください');
     }
     if (!(inp.zenzen || {}).kaiteiYmd) {
-      out.push(namae + '＝従前の 改定月が 空です（電子申請では ★必ず 要ります★）。'
+      out.push(namae + '＝従前の 改定月が 空です（電子申請では 必ず 要ります）。'
         + '前に 標準報酬月額が 決まった 月を 入れてください（電子申請の ファイルに 入れていません）');
     }
     var tai2 = taishoMonths(ms, inp.rule);
@@ -346,13 +346,13 @@
     var kanji = String((inp.emp || {}).kanji || '');
     var kana = String((inp.emp || {}).kana || '');
     if (kanji && kanji.split(FULL_SP).length !== 2) {
-      out.push(namae + ' 漢字の 名前＝姓と名の 間に ★全角の すき間を 1つだけ★ 入れてください（例「東京　太郎」）');
+      out.push(namae + ' 漢字の 名前＝姓と名の 間に 全角の すき間を 1つだけ 入れてください（例「東京　太郎」）');
     }
     if (kana && kana.split(' ').length !== 2) {
-      out.push(namae + ' カナの 名前＝姓と名の 間に ★半角の すき間を 1つだけ★ 入れてください（例「ﾄｳｷｮｳ ﾀﾛｳ」）');
+      out.push(namae + ' カナの 名前＝姓と名の 間に 半角の すき間を 1つだけ 入れてください（例「ﾄｳｷｮｳ ﾀﾛｳ」）');
     }
     if (kanji.length > 12) {
-      out.push(namae + ' 漢字の 名前＝すき間を 入れて ★12文字以内★にしてください（今 ' + kanji.length + '文字）');
+      out.push(namae + ' 漢字の 名前＝すき間を 入れて 12文字以内にしてください（今 ' + kanji.length + '文字）');
     }
     var bad = badChars(((inp.emp || {}).kanji || '') + ((inp.emp || {}).kana || ''));
     if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
@@ -512,10 +512,10 @@
     var namae = ((inp.emp || {}).kanji) || ((inp.emp || {}).kana) || '';
     if (b.over70) {
       out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
-        + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+        + '（基礎年金番号が 要るのに このアプリでは お預かりしていない為）。紙で ご提出ください');
       return out;
     }
-    if (!(inp.zenzen || {}).kaiteiYmd) out.push(namae + '＝従前の 改定月が 空です（月額変更届では ★必ず 要ります★）');
+    if (!(inp.zenzen || {}).kaiteiYmd) out.push(namae + '＝従前の 改定月が 空です（月額変更届では 必ず 要ります）');
     var lim = gekkakuDays(inp), nums = gekkakuNums(inp);
     var soto = [];
     ['前三ヶ月', '前二ヶ月', '前一ヶ月'].forEach(function (lb, i) {
@@ -524,10 +524,10 @@
     });
     if (soto.length) {
       out.push(namae + '＝' + soto.join('・') + '＝支払基礎日数が ' + lim.min + '〜' + lim.max + '日の 外です。'
-        + '★3か月 とも 満たしていないと 月額変更届は 出せません★（電子申請の ファイルに 入れていません）');
+        + '3か月 とも 満たしていないと 月額変更届は 出せません（電子申請の ファイルに 入れていません）');
     } else if (nums.heikin < GEKKAKU_MIN) {
       out.push(namae + '＝平均額が ' + nums.heikin.toLocaleString() + '円です。'
-        + '★1,000円未満は 出せません★（電子申請の ファイルに 入れていません）');
+        + '1,000円未満は 出せません（電子申請の ファイルに 入れていません）');
     }
     var bad = badChars(((inp.emp || {}).kanji || '') + ((inp.emp || {}).kana || ''));
     if (bad.length) out.push(namae + '＝この字は電子申請で使えません：' + bad.join('・'));
@@ -655,19 +655,19 @@
     var namae = ((inp.emp || {}).kanji) || ((inp.emp || {}).kana) || '';
     if (b.over70) {
       out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
-        + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+        + '（基礎年金番号が 要るのに このアプリでは お預かりしていない為）。紙で ご提出ください');
       return out;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.harauYmd || ''))) {
       out.push(namae + '＝賞与を 払った 日が 入っていません（年月日が 要ります）');
     } else if (!shoyoHiOk(inp.harauYmd, inp.kyou)) {
-      out.push(namae + '＝賞与を 払った 日（' + inp.harauYmd + '）が ★先の 日付★です。'
+      out.push(namae + '＝賞与を 払った 日（' + inp.harauYmd + '）が 先の 日付です。'
         + '払った 後でないと 出せません（電子申請の ファイルに 入れていません）');
     } else {
       var g = shoyoGoukei(inp.tsuka, inp.genbutsu);
       if (g < SHOYO_MIN) {
         out.push(namae + '＝賞与額が ' + g.toLocaleString() + '円（1,000円未満切捨後）です。'
-          + '★1,000円未満は 出せません★（電子申請の ファイルに 入れていません）');
+          + '1,000円未満は 出せません（電子申請の ファイルに 入れていません）');
       }
     }
     if (!kanaOk(inp.emp)) out.push(namae + '＝' + kanaWhy(inp.emp));
@@ -773,34 +773,34 @@
     var namae = e.kanji || e.kana || '';
     if (b.over70) {
       out.push(namae + '＝70歳以上のため、電子申請の ファイルに 入れていません'
-        + '（★基礎年金番号が 要る★のに このアプリでは お預かりしていない為）。紙で ご提出ください');
+        + '（基礎年金番号が 要るのに このアプリでは お預かりしていない為）。紙で ご提出ください');
       return out;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.shutokuYmd || ''))) {
       out.push(namae + '＝入社日（資格取得日）が 入っていません（年月日が 要ります）');
     } else if (!shutokuHiOk(inp.shutokuYmd, inp.kyou)) {
-      out.push(namae + '＝入社日（' + inp.shutokuYmd + '）が ★先の 日付★です。'
+      out.push(namae + '＝入社日（' + inp.shutokuYmd + '）が 先の 日付です。'
         + '入社した 後でないと 出せません（電子申請の ファイルに 入れていません）');
     }
     if (!seibetsuCode(e.seibetsu)) {
-      out.push(namae + '＝★性別★が 入っていません（届出の「種別」に 要ります）。'
+      out.push(namae + '＝性別が 入っていません（届出の「種別」に 要ります）。'
         + '設定 ▸ 従業員マスタ で 選んでください');
     }
     if (!zip3(e.zip) || !zip4(e.zip)) {
-      out.push(namae + '＝★郵便番号★が 入っていません。'
+      out.push(namae + '＝郵便番号が 入っていません。'
         + 'このアプリは マイナンバーを お預かりしないので、代わりに 住所が 要ります');
     }
     if (!String(e.jushoKana || '').trim()) {
-      out.push(namae + '＝★住所（カナ）★が 入っていません。'
+      out.push(namae + '＝住所（カナ）が 入っていません。'
         + 'このアプリは マイナンバーを お預かりしないので、代わりに 住所が 要ります');
     }
     var wa2 = n(inp.tsuka) + n(inp.genbutsu);
     if (wa2 <= 0) {
-      out.push(namae + '＝★入社時の 見込みの 報酬月額★が 入っていません。'
+      out.push(namae + '＝入社時の 見込みの 報酬月額が 入っていません。'
         + '設定 ▸ 従業員マスタ の 社会保険で 入れてください（資格取得届の「報酬月額」に なります）');
     } else if (wa2 < SHUTOKU_MIN) {
       out.push(namae + '＝報酬月額の 合計が ' + wa2.toLocaleString() + '円です。'
-        + '★1,000円未満は 出せません★（電子申請の ファイルに 入れていません）');
+        + '1,000円未満は 出せません（電子申請の ファイルに 入れていません）');
     }
     if (!kanaOk(e)) out.push(namae + '＝' + kanaWhy(e));
     var bad = badChars((e.kanji || '') + (e.kana || '') + (e.jushoKanji || '') + (e.jushoKana || ''));
@@ -923,15 +923,15 @@
     var namae = e.kanji || e.kana || '';
     if (!kanaOk(e)) out.push(namae + '＝' + kanaWhy(e));
     if (!splitKisoNenkin(e.kisoNenkin)) {
-      out.push(namae + '＝★基礎年金番号★が 入っていません（または 形が ちがいます）。'
-        + '年金手帳・ねんきん定期便の ★4桁-6桁★（例 1234-567890）を '
+      out.push(namae + '＝基礎年金番号が 入っていません（または 形が ちがいます）。'
+        + '年金手帳・ねんきん定期便の 4桁-6桁（例 1234-567890）を '
         + '設定 ▸ 従業員マスタ で 入れてください'
         + '（このアプリは マイナンバーを お預かりしないので、退社の 届出には この 番号が 要ります）');
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.taishokuYmd || ''))) {
       out.push(namae + '＝退職日が 入っていません（設定 ▸ 従業員マスタ の 在籍・勤務）');
     } else if (inp.kyou && String(inp.soshitsuYmd) > String(inp.kyou)) {
-      out.push(namae + '＝資格喪失日（' + inp.soshitsuYmd + '）が ★先の 日付★です。'
+      out.push(namae + '＝資格喪失日（' + inp.soshitsuYmd + '）が 先の 日付です。'
         + '退職した 後でないと 出せません（電子申請の ファイルに 入れていません）');
     }
     var bad = badChars((e.kanji || '') + (e.kana || ''));
