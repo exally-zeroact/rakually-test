@@ -22,10 +22,14 @@ const ROOT = path.join(HERE, '..');
 
 const SKIP = new Set(['node_modules', '.git', 'tools', 'scripts', 'tests', '.github', '.vercel', 'dist', 'docs']);
 /* ★借り物＝repo外から持ってきた物だけ★（うちが書いた lib は 除かない） */
+/* ★借り物の見分けは「名前の黒名簿」でなく「構造で外部と判る物」だけ★（kensan 2026-10-05）。
+   前は /lib\/(xlsx|…)/ で lib/ の名前を拾っていたが、★自前の lib/xlsx-edit.js（SheetJSを包むうちの手書き）を
+   誤除外★していた（門のこのコメント自身「うちが書いた lib は除かない」に反する白名簿穴）。
+   うちの lib/*.js は全部 自前＝除かない。真の第三者は ①圧縮配布物(*.min.js) ②vendor/ 配下＝この2つだけで足りる
+   （repo内 実測：lib/ の非minは全て自前・第三者の非min は 0本）。 */
 const KARIMONO = [
   { rx: /\.min\.js$/, naze: '圧縮済みの配布物（min）' },
   { rx: /(^|\/)vendor\//, naze: 'vendor＝第三者の配布物' },
-  { rx: /(^|\/)lib\/(xlsx|hyperformula|jspdf|qrcode|fontkit|chart)/i, naze: '第三者ライブラリ' },
 ];
 const karimonoNaze = (rel) => { for (const k of KARIMONO) if (k.rx.test(rel)) return k.naze; return null; };
 const CONSOLE_RX = /console\.(log|warn|error|debug|info|trace|assert)\s*\([^)]*$/;
