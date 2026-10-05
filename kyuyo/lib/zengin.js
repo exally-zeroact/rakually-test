@@ -228,11 +228,11 @@
 
   function build(committer, transfers, opts) {
     var bad = checkTorikumi((committer || {}).torikumiMMDD) || checkCommitter(committer);
-    if (bad) throw new Error('★全銀ファイルを作れません★ ' + bad);
+    if (bad) throw new Error('全銀ファイルを作れません ' + bad);
     var list = (transfers || []).filter(function (t) { return num(t.amount) > 0; });
     for (var i = 0; i < list.length; i++) {
       var nb = checkName(list[i], i);
-      if (nb) throw new Error('★全銀ファイルを作れません★ ' + nb);
+      if (nb) throw new Error('全銀ファイルを作れません ' + nb);
     }
     var recs = [header(committer)];
     var total = 0;
