@@ -588,6 +588,8 @@ jobs:
         run: node kyuyo/tests/payroll-patterns.mjs
       - name: Payroll UI smoke (全ボタンをクリックしてJS例外0)
         run: node kyuyo/tests/ui-smoke.mjs
+      - name: ★会社の一括PDFで1人分の描画失敗を黙って抜けさせない（欠けた人数を警告・全失敗なら空PDFを開かない）
+        run: node kyuyo/tests/bulk-pdf-skip.mjs
       - name: Payroll cloud sync (保存層・Supabaseモック)
         run: node kyuyo/tests/cloud-sync.mjs
       - name: ★ロード側 newer-wins (古いクラウドが新しいローカル編集を消さない・confirmed等はunionで消さない・本物のapplyCloudState)

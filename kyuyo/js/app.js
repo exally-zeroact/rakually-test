@@ -6045,20 +6045,25 @@
       var CW=isLand?1123:794, CH=isLand?794:1123, pw=isLand?842:595, ph=isLand?595:842; // ★A4ページ
       var doc=new window.jspdf.jsPDF({ orientation:isLand?'landscape':'portrait', unit:'pt', format:[pw,ph] });
       try{ toast('PDFを作成中…'); }catch(e){}
-      var i=0;
+      var i=0, ng=0, wrote=0;   // ★ng=焼けなかった人数／wrote=実際に載せた枚数（2026-10-08 ダイコメ横断(b)5）
       (function next(){
         if(i>=pages.length){
+          /* ★前は1人分のhtml2canvasが失敗すると catch で黙って飛ばし、会社が ★1人欠けたPDF★ を 気づかず 配っていた★
+             （顧客側 meisai.js は 失敗を出すのに 会社一括側だけ 無警告＝非対称）。
+             ⇒ 欠けた人数を 必ず 出す／全員失敗なら 空PDFを 開かず 知らせる。★金額・保存・焼くページは1つも変えない＝抜けを黙らせないだけ★。 */
+          if(wrote<=0){ uiAlert('PDFを作成できませんでした（'+ng+'人分すべて失敗）。時間をおいて もう一度お試しください。'); return; }
           // ★blobを新しいタブで開く(代行請求書と同じ・iOSのWebKitBlobResourceエラー回避)。ポップアップ不可時のみsave。
           try{ var url=URL.createObjectURL(doc.output('blob')); var w=window.open(url,'_blank'); if(!w){ doc.save('給与明細.pdf'); } setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(_){} },60000); }catch(e){ try{ doc.save('給与明細.pdf'); }catch(_){} }
+          if(ng>0){ uiAlert('⚠ '+ng+'人分の明細をPDFにできませんでした（その分は抜けています）。時間をおいて もう一度お試しください。'); }
           return;
         }
         window.html2canvas(pages[i], { scale:3, backgroundColor:'#ffffff', useCORS:true, width:CW, height:CH, windowWidth:CW, windowHeight:CH }).then(function(canvas){
-          if(i>0){ doc.addPage([pw,ph], isLand?'landscape':'portrait'); }
+          if(wrote>0){ doc.addPage([pw,ph], isLand?'landscape':'portrait'); }   // ★i>0でなくwrote>0＝前の人が失敗しても空白の先頭ページを作らない
           // ★A4ページのまま横幅いっぱい(比率維持=潰さない・左右余白ゼロ)。縦長でも幅いっぱいで載せ下端の空白はA4で自然に収まる
           var iw=canvas.width, ih=canvas.height;
           doc.addImage(canvas.toDataURL('image/jpeg',0.92), 'JPEG', 0, 0, pw, pw*ih/iw);
-          i++; next();
-        }).catch(function(){ i++; next(); });
+          wrote++; i++; next();
+        }).catch(function(){ ng++; i++; next(); });   // ★黙って飛ばさず 欠けた人数を 数える
       })();
     });
     // 総合振込データ(委託者入力の保存 + 全銀/Excel ダウンロード)。#furi-boxは静的なので委譲で1回だけ配線。
