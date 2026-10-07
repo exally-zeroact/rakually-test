@@ -306,6 +306,9 @@
   function shoteiMonthlyWage(e){ return PW().shoteiMonthlyWage(e, ctxOf()); }
   function shahoKanyuWarn(e){ return PW().shahoKanyuWarn(e, ctxOf()); }
   function statutoryStaleWarn(){ return PW().statutoryStaleWarn(ctxOf()); }
+  /* ★過去の残業履歴(36協定の複数月/年チェックの材料)が 読めなかった時だけ 出す警告（2026-10-08 (a)3）★
+     ＝読めないと チェックが 発火せず「問題なし」に 見える＝黙らせない。赤で止めない（loadBonusYtd と同形）。 */
+  function otHistErrWarn(){ return state._otHistErr ? '<div class="cr-warn" style="margin:0 2px 10px">⚠ <b>過去の残業時間の履歴</b>を読めませんでした（36協定の複数月／年の上限チェックに使います）。通信が戻ってから開き直すと再確認できます（このまま保存・計算はできます）。</div>' : ''; }
   function empWarnings(e){ return PW().empWarnings(e, ctxOf()); }
   /* 都道府県の選択肢。★先頭に「未選択」を置く★＝新しい人を勝手に東京にしない。
      空のままだと健保が黙って東京の率で計算され、最賃の判定も動かないので、
@@ -2127,14 +2130,23 @@
       if($('#scr-list')&&$('#scr-list').classList.contains('active')) renderListView(); }).catch(function(){});
   }
   // 36協定の複数月/年チェック用に、直近11ヶ月の残業(otMin/holidayMin)を履歴から読む。当月はlive(warimashiMins)で合成。
-  function loadOtHistory(){ if(!(window.Store&&Store.getPayslipsByYm)) return; var ym=state.month; if(state._otHistYm===ym) return; state._otHistYm=ym;
+  function loadOtHistory(){ if(!(window.Store&&Store.getPayslipsByYm)) return; var ym=state.month; if(state._otHistYm===ym) return; state._otHistYm=ym; state._otHistErr=false;
     var from=ymAddLocal(ym,-11), to=ymAddLocal(ym,-1); if(!from||!to) return;
     Store.getPayslipsByYm(from,to).then(function(rows){ var m={};
       (rows||[]).forEach(function(r){ if(r&&r.data&&r.data.kind!=='bonus'&&r.data.work){ (m[r.employee_id]=m[r.employee_id]||[]).push({ ym:String(r.ym), otMin:num(r.data.work.otMin), holidayMin:num(r.data.work.holidayMin) }); } });
       Object.keys(m).forEach(function(k){ m[k].sort(function(a,b){ return a.ym<b.ym?-1:1; }); });
-      state._otHist=m;
+      state._otHist=m; state._otHistErr=false;
       if($('#scr-input')&&$('#scr-input').classList.contains('active')) renderInput();
-      if($('#scr-list')&&$('#scr-list').classList.contains('active')) renderListView(); }).catch(function(){}); // 表/一覧ビューもロード後に再描画(F2)
+      if($('#scr-list')&&$('#scr-list').classList.contains('active')) renderListView(); })
+      /* ★過去の残業履歴が 読めなかった事を 黙らない（赤で止めない・2026-10-08 ダイコメ横断(a)3）★
+         ＝空だと 36協定の 複数月/年の 上限チェックが 発火せず「問題なし」に 見える＝「読めません」を 画面に出す。
+         ★_otHistYm は ym のまま 保つ（null に戻さない）★＝この catch は renderInput を 呼ぶが、
+         renderInput は loadOtHistory を 再度 呼ぶので、ym を 戻すと ★失敗→再描画→再失敗★の 無限ループになる
+         （loadBonusYtd は renderBonus から 呼ばれ 直さないので 戻せるが、otHistory は renderInput が 呼ぶので 戻せない）。
+         ＝同じ月では 再読込しない。再確認は「通信が戻ってから 開き直す」(state が 新しくなり ym 未設定で 読み直す)。 */
+      .catch(function(){ state._otHistErr=true;
+        if($('#scr-input')&&$('#scr-input').classList.contains('active')) renderInput();
+        if($('#scr-list')&&$('#scr-list').classList.contains('active')) renderListView(); }); // 表/一覧ビューもロード後に再描画(F2)
   }
   function diffBadge(e,r){ var pv=state._prev||{}; if(!(e.id in pv)) return ''; var d=r.net-pv[e.id]; if(d===0) return ''; var cls=d>0?'up':'dn'; var t=d>0?'▲+'+fmtN(d):'▼'+fmtN(-d); return '<span class="diffb '+cls+'" title="前月比('+state._prevYm+')">'+t+'</span>'; }
   // ── 確認(未入力)ハイブリッド: 自動の前月比＋手動の確認✓・変動なしは自動済扱い ──
@@ -2572,7 +2584,7 @@
          ⇒ 出すのは ★お知らせと 確定ボタン（押せない）★だけ。答えが 来たら 一度で 描く。 */
       host.innerHTML=statutoryStaleWarn()+soukoHTML()+confirmBtn; return;
     }
-    if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+renderInputTableHTML(reviewOnly)+confirmBtn; return; }
+    if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+renderInputTableHTML(reviewOnly)+confirmBtn; return; }
     var cards=state.employees.map(function(e,i){
       if(!isActiveInMonth(e,state.month)) return '';
       ensureKintai(e);
@@ -2608,7 +2620,7 @@
       return;
     }
     var emptyMsg=(reviewOnly && !cards) ? '<p class="hint" style="text-align:center;padding:18px 0">要確認の人はいません（全員確認済み）。</p>' : '';
-    host.innerHTML=statutoryStaleWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+cards+emptyMsg+confirmBtn;
+    host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+cards+emptyMsg+confirmBtn;
   }
   // 表でまとめて入力(全従業員1画面・弥生の弱点/Exallyモデル)。列は既存と同じdata属性を再利用=同じハンドラで書ける。
   function renderInputTableHTML(reviewOnly){
