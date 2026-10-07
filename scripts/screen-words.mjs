@@ -11,6 +11,13 @@
  *     ・.html … <!-- --> を取り除き、<script> の中は 上の .js と同じ扱い
  *   数えない所 … 覚書の中（例「代行請求の『全額／残額／半額』から採った」）＝画面に出ない。
  *
+ *   ★2026-10-07 門の堅牢化（姉妹門 kyaku-hoshi と 揃えた・taiketsu/kensan 付き）★
+ *     ・(穴①) HTMLの タグを外した 地の文の 業者名(VENDOR)も 数える（前は 引用符リテラルだけ＝タグ外本文を すり抜けた）。
+ *     ・(穴②) 実体参照 &#DDD;/&#xHH; と JS \uXXXX/\u{XXXX} を 行ごと／リテラルごとに 復号してから 数える
+ *            （客には その文字が 見える＝生で 書いた時と 同じ／逃がし逆斜線 \\u は 客に "\u…" が 見える＝数えない）。
+ *     ・★min.js は 除外していない（kyaku-hoshi は 除外＝非対称・勝手に揃えない）★。復号は 必ず 行ごと後掛け
+ *       ＝lib/xlsx.full.min.js の &#10; を blob先復号すると 行番号が ずれる（kensan 実測）ので やらない。
+ *
  *   使い方: node scripts/screen-words.mjs [--list] [--self-test]
  */
 import fs from 'node:fs';
@@ -104,6 +111,31 @@ const VENDOR = [
 ];
 const JP = /[぀-ヿ一-龯]/;
 
+/* ★客に見える字へ復号してから数える（姉妹門 tests/kyaku-hoshi.test.mjs と 揃える・2026-10-07 門の堅牢化）★
+   前は 生の字しか見ず、★実体参照 &#20195;&#34892;（＝「代行」）や JS 代 で書くと すり抜けた★（実測で reachable）。
+   ・JS … \uXXXX / \u{XXXX} を その文字に。★逃がし逆斜線 \\u（客には 文字列 "\u…" が 見える＝禁句でない）は 復号しない★
+     ＝先に 逃がし逆斜線 \\ を 退避してから 直す（kyaku-hoshi の decodeJs と 同じ型）。
+   ・HTML … &#DDD; / &#xHH;（; は任意＝ブラウザは ;無しも 描画）を そのコードポイントの字に。
+     ★一般復号（実コードポイントに戻す）なので kyaku-hoshi の 固定点向け 桁境界ガード（&#97331 を ★にしない）は 不要★
+     ＝&#201950 は 97331… でなく そのまま 別のコードポイントになり 禁句と 一致しない（kensan 2026-10-07 指摘＝写すのは カーゴカルト）。
+   ・名前実体（&amp; 等）は 変えない＝客にも 記号で 見えるだけで 禁句検出に 無関係。
+   ★必ず 行ごと／リテラルごとに 後掛けする（blob 全体を 先に復号すると &#10; が 改行になり lib/xlsx.full.min.js で 行番号が ずれる・kensan 実測）★。 */
+function cpChar(str, radix, orig) {
+  const n = parseInt(str, radix);
+  if (!Number.isFinite(n) || n < 0 || n > 0x10FFFF) return orig;
+  try { return String.fromCodePoint(n); } catch { return orig; }
+}
+function decodeVisible(s) {
+  const PH = String.fromCharCode(1);
+  let t = String(s).replace(/\\\\/g, PH);                               /* 逃がし逆斜線を 退避（\\u… を 守る） */
+  t = t.replace(/\\u\{([0-9a-fA-F]+)\}/g, (m, h) => cpChar(h, 16, m));
+  t = t.replace(/\\u([0-9a-fA-F]{4})/g, (m, h) => cpChar(h, 16, m));
+  t = t.split(PH).join('\\\\');                                         /* 退避を 戻す */
+  t = t.replace(/&#x([0-9a-fA-F]+);?/g, (m, h) => cpChar(h, 16, m));
+  t = t.replace(/&#([0-9]+);?/g, (m, d) => cpChar(d, 10, m));
+  return t;
+}
+
 /* ── 覚書を取り除く（文字列の中は 消さない） ───────────────── */
 function stripJsComments(src) {
   let out = '', i = 0, n = src.length;
@@ -174,23 +206,39 @@ function countIn(file, src) {
   const BSL = String.fromCharCode(92);
   const litRx = new RegExp('([' + QS + '])([^' + QS + ']{1,300}?)' + BSL + '1', 'g');
   for (const m of clean.matchAll(litRx)) {
-    const lit = m[2];
+    const raw = m[2];
+    const lit = decodeVisible(raw);     /* ★リテラルごとに 後掛け復号（行番号は pre-decode の clean から取る＝ズレ無し）★ */
     if (!JP.test(lit)) continue;
     const line = clean.slice(0, m.index).split(String.fromCharCode(10)).length;
     for (const v of VENDOR) {
       if (lit.indexOf(v.w) >= 0) {
-        hits.push({ file, line, word: v.w, why: v.why, text: lit.trim().slice(0, 80) });
+        hits.push({ file, line, word: v.w, why: v.why, text: raw.trim().slice(0, 80) });
       }
     }
   }
+  /* ★(穴①) HTMLの タグを外した 地の文の 業者名も 数える（2026-10-07 門の堅牢化）★
+     前は VENDOR は 引用符リテラル(litRx)しか 見ず、<p>Supabaseに保存しました</p> の様な タグ外本文を すり抜けた
+     （BAD語は 下の 全行走査で 拾うのに VENDOR だけ 非対称＝実測で reachable）。
+     ★タグを外した 地の文だけ★を 見る＝.js の Store.mode==='supabase'（タグ外経路に 来ない）に 触れない・
+     属性値は 上の litRx が 既に 見る（タグは ここで 外れて 地の文には 残らない）＝二重計上しない。JP同居ルールは 維持。 */
+  if (/\.html?$/i.test(file)) {
+    lines.forEach((ln, idx) => {
+      const text = decodeVisible(ln.replace(/<[^>]*>/g, ' '));
+      if (!JP.test(text)) return;
+      for (const v of VENDOR) {
+        if (text.indexOf(v.w) >= 0) hits.push({ file, line: idx + 1, word: v.w, why: v.why, text: ln.trim().slice(0, 80) });
+      }
+    });
+  }
   for (const b of WATCH) {
     lines.forEach((ln, idx) => {
+      const dln = decodeVisible(ln);     /* ★行ごとに 後掛け復号（実体参照/エスケープの禁句も 拾う・採番は idx で 固定＝行ズレ無し）★ */
       let at = -1;
-      while ((at = ln.indexOf(b.w, at + 1)) >= 0) {
-        /* 客の言葉として正しい並びなら 数えない */
+      while ((at = dln.indexOf(b.w, at + 1)) >= 0) {
+        /* 客の言葉として正しい並びなら 数えない（復号後の行で 揃えて 照合） */
         if (b.allow.some((a) => {
           const p = a.indexOf(b.w);
-          return ln.slice(at - p, at - p + a.length) === a;
+          return dln.slice(at - p, at - p + a.length) === a;
         })) continue;
         hits.push({ file, line: idx + 1, word: b.w, why: b.why, text: ln.trim().slice(0, 80) });
       }
@@ -243,9 +291,17 @@ if (process.argv.includes('--self-test')) {
       must(1, run(ROOT, ['kyuyo/js/app.js'], '⑦ ★本物に1件 戻した★'), '本物に戻したら赤になる');
     } finally { fs.writeFileSync(real, keep); }
     must(0, run(ROOT, ['kyuyo/js/app.js'], '⑧ 戻した物を 元へ戻した'), '元へ戻したら緑に戻る');
+    /* ★(穴①) HTMLの タグを外した 地の文の 業者名を 数える／JP同居ルールは 維持★ */
+    must(1, run(tmp, [w('f.html', '<p>Supabaseに保存しました</p>\n')], '⑨ タグ外本文の業者名(Supabase)を数える'), '穴①: タグ外本文の業者名を数える');
+    must(0, run(tmp, [w('g.html', '<p>Supabase saved</p>\n')], '⑩ 日本語なしなら数えない（中の合図を守る）'), '穴①: JP同居ルールを維持');
+    /* ★(穴②) 実体参照/JSエスケープで 書いた 禁句も 復号して 数える（逃がし逆斜線は 数えない）★
+       &#20195;&#34892; と 代行 は ともに「代行」＝BAD。 */
+    must(1, run(tmp, [w('h.html', '<p>&#20195;&#34892;で送ります</p>\n')], '⑪ HTML実体参照の禁句(代行)を復号して数える'), '穴②: HTML実体参照を復号して数える');
+    must(1, run(tmp, [w('i.js', "var t='\\u4ee3\\u884cで送る';\n")], '⑫ JSエスケープの禁句(代行)を復号して数える'), '穴②: JSエスケープを復号して数える');
+    must(0, run(tmp, [w('j.js', "var t='\\\\u4ee3\\\\u884c';\n")], '⑬ 逃がし逆斜線 \\\\u… は 客に "\\u…" が 見える＝数えない'), '穴②: 逃がし逆斜線は復号しない');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   if (ng) { console.error('\n★自己診断 ' + ng + '件 失敗★'); process.exit(1); }
-  console.log('\n自己診断 8件 とも 正しい');
+  console.log('\n自己診断 13件 とも 正しい');
   process.exit(0);
 }
 
