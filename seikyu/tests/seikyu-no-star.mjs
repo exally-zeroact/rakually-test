@@ -16,6 +16,11 @@
  *   畳み（details）や、発行してから出る箱（入金）は、開かないと本文が無い。
  *   開くたびに溜めておいて、最後にまとめて数える＝★後から開く箱を見落とさない★。
  *
+ * ★2026-10-08 堅牢化（odan 横断で 見つけ・taiketsu/kensan 付き）★
+ *   穴①＝前は 葉だけ+textContent で ★子要素を持つ親の直の字（<p>★注意<b>x</b></p>）を見落とし★・属性も placeholder/title/aria-label だけ。
+ *   直し＝各要素の「直の字」（直下のテキストノードだけ・二重計上しない）を見る＋属性に alt/value を足す（getAttribute＝客の入力を偽赤にしない）。
+ *   穴②（実体参照/エスケープ）は 非該当＝描いた画面から読むので ブラウザが復号済。歯も 3本足した（親直字・alt・value＝本物の soakUp を通す load-bearing）。
+ *
  * 依存: jsdom。★入っていなければ赤（SKIPを緑と呼ばない）★
  * 使い方: node seikyu/tests/seikyu-no-star.mjs
  *         node seikyu/tests/seikyu-no-star.mjs --self-test
@@ -103,13 +108,25 @@ function soakUp(where) {
     const el = $(scr);
     if (!el || !el.classList.contains('active')) continue;
     for (const node of el.querySelectorAll('*')) {
-      if (node.children.length) continue;              // 葉だけ見る（親で二重に数えない）
       if (!shown(node)) continue;
-      const txt = (node.textContent || '').trim();
+      /* ★「直の字」だけ見る＝自分の直下のテキストノードを連結（子孫textは含めない）★（2026-10-08 odan/taiketsu）
+         前は `if(node.children.length)continue;`＝★子要素を持つ親の直の字を丸ごと見落としていた★
+         （例 <p>★注意<b>x</b></p> の「★注意」＝客に見えるのに 葉でないから飛ばしていた）。
+         直の字なら ★ は 所有要素で 1回だけ数える＝親子で 二重計上しない。
+         ★属性も 葉だけでなく 全要素で読む★（改善・実画面の偽赤0＝taiketsu実測）。 */
+      let txt = '';
+      for (const c of node.childNodes) if (c.nodeType === 3) txt += c.nodeValue || '';
+      txt = txt.trim();
       const ph = node.getAttribute && node.getAttribute('placeholder');
       const ttl = node.getAttribute && node.getAttribute('title');
       const aria = node.getAttribute && node.getAttribute('aria-label');
-      for (const [kind, t] of [['本文', txt], ['placeholder', ph], ['title', ttl], ['aria-label', aria]]) {
+      /* ★客面の属性に alt/value も足す（姉妹門 kyaku-hoshi と揃える）★。
+         ★live の node.value でなく getAttribute★＝客が入力欄に打った生データ（★を含み得る）を
+         偽赤にせず、我々が静的に書いた字だけ見る。select の表示値は option の直字で既に拾う＝live不要。
+         ※JS が el.value='★' と プロパティ代入した字は ここでは拾えない＝ソース門 kyaku-hoshi が担保。 */
+      const alt = node.getAttribute && node.getAttribute('alt');
+      const val = node.getAttribute && node.getAttribute('value');
+      for (const [kind, t] of [['本文', txt], ['placeholder', ph], ['title', ttl], ['aria-label', aria], ['alt', alt], ['value', val]]) {
         if (t && markRe.test(t)) seen.push({ where, kind, id: node.id || node.className || node.tagName, text: t.slice(0, 90) });
       }
     }
@@ -225,6 +242,55 @@ if (process.argv.includes('--self-test')) {
     d.open = keepOpen;
     if (hidden) throw new Error('畳んだままの物を数えている（開いた時に数える）');
     if (!opened) throw new Error('★開いても見つけられない＝この確認が空振り★');
+  });
+
+  S('★親の「直の字」の印も見つける（子要素を持つ親を飛ばすと見落とす）', () => {
+    /* ★load-bearing★＝葉だけ見る(旧 if(children.length)continue)に戻すと この歯は赤になる。
+       ★を親の直の字にだけ置き、子<b>はマーク無し＝葉経由では拾えない＝直字走査でしか通らない。 */
+    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    const host = $('pay-card');
+    if (!host || win.getComputedStyle(host).display === 'none') throw new Error('見えている箱が無い（発行まで進んでいない）');
+    const p = doc.createElement('p');
+    p.id = 'mix-probe';
+    p.appendChild(doc.createTextNode('★大事'));           // 親の直の字に印
+    const b = doc.createElement('b'); b.textContent = 'ふつう'; p.appendChild(b);   // 子はマーク無し
+    host.appendChild(p);
+    seen.length = 0;
+    soakUp('自己確認');
+    const hit = seen.filter((x) => x.id === 'mix-probe');
+    p.remove();
+    if (!hit.length) throw new Error('★親の直の字の印を見落とす（葉だけ見ている）★');
+  });
+
+  S('★alt の中の印も見つける（本文・属性を 葉だけで見ていたら見落とす）', () => {
+    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    const host = $('pay-card');
+    if (!host || win.getComputedStyle(host).display === 'none') throw new Error('見えている箱が無い');
+    const img = doc.createElement('img');
+    img.id = 'alt-probe';
+    img.setAttribute('alt', '★図★');
+    host.appendChild(img);
+    seen.length = 0;
+    soakUp('自己確認');
+    const hit = seen.filter((x) => x.kind === 'alt');
+    img.remove();
+    if (!hit.length) throw new Error('★alt の印を見落とす★');
+  });
+
+  S('★value（ボタン表示等）の中の印も見つける', () => {
+    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    const host = $('pay-card');
+    if (!host || win.getComputedStyle(host).display === 'none') throw new Error('見えている箱が無い');
+    const btn = doc.createElement('input');
+    btn.id = 'value-probe';
+    btn.setAttribute('type', 'button');
+    btn.setAttribute('value', '★送る★');
+    host.appendChild(btn);
+    seen.length = 0;
+    soakUp('自己確認');
+    const hit = seen.filter((x) => x.kind === 'value');
+    btn.remove();
+    if (!hit.length) throw new Error('★value の印を見落とす★');
   });
 
   console.log('\n[self-test] ' + sp + ' passed, ' + sf + ' failed');
