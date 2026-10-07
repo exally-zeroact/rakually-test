@@ -39,7 +39,7 @@ let pass = 0, fail = 0;
 const T = (n, c, m) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ ' + n + (m ? ' — ' + m : '')); } };
 
 const A = win.__PAYSLIP_TEST;
-if (!A || !A.applyCloudState || !A.state || !A.persistSaveDebounced) { console.log('✗ ★app.js から applyCloudState／state／persistSaveDebounced が 取れない★'); process.exit(1); }
+if (!A || !A.applyCloudState || !A.state || !A.persistSaveDebounced || !win.PayslipSyncMeta) { console.log('✗ ★app.js から applyCloudState／state／persistSaveDebounced／PayslipSyncMeta が 取れない★'); process.exit(1); }
 if (!win.Store || typeof win.Store.reconcileOnLoad !== 'function' || typeof win.Store.unionNeverLose !== 'function') { console.log('✗ ★Store.reconcileOnLoad／unionNeverLose が 読めない★'); process.exit(1); }
 
 if (WAZA) {
@@ -88,6 +88,18 @@ if (!WAZA) {
   T('⑤ ★dirty=false で 賞与の値が 巻き戻らない（クラウドの 200 になる・100 に戻らない）★', !!(A.state.bonus && A.state.bonus.byEmp && A.state.bonus.byEmp.e1 && A.state.bonus.byEmp.e1.amount === 200),
     '巻き戻った＝' + JSON.stringify(A.state.bonus && A.state.bonus.byEmp));
   T('⑤ 別端末が足した賞与(e2)も 入る（消さない）', !!(A.state.bonus && A.state.bonus.byEmp && A.state.bonus.byEmp.e2 && A.state.bonus.byEmp.e2.amount === 9), JSON.stringify(A.state.bonus && A.state.bonus.byEmp));
+
+  /* ⑥ ★Phase3＝未送信(dirty)を online/タブ復帰で 送り直す（離脱イベントが発火しない端末の本線）★（PayslipSyncMeta は上で必須済＝fail-openしない） */
+  var d0 = win.PayslipSyncMeta().drainKai;             /* ⑤直後は dirty=false（クラウド採用） */
+  win.dispatchEvent(new win.Event('online'));
+  T('⑥ dirty=false なら online で 送り直さない（無駄打ちしない）', win.PayslipSyncMeta().drainKai === d0, 'drainKai=' + win.PayslipSyncMeta().drainKai + ' / dirty=' + win.PayslipSyncMeta().dirty);
+  A.persistSaveDebounced();                            /* 編集＝dirty=true（未送信） */
+  T('⑥ 編集で dirty=true', win.PayslipSyncMeta().dirty === true, JSON.stringify(win.PayslipSyncMeta()));
+  win.dispatchEvent(new win.Event('online'));
+  T('⑥ ★dirty=true なら online（線が戻った）で 送り直す（drain）★', win.PayslipSyncMeta().drainKai === d0 + 1, 'drainKai=' + win.PayslipSyncMeta().drainKai);
+  try { Object.defineProperty(doc, 'visibilityState', { value: 'visible', configurable: true }); } catch (e) {}
+  doc.dispatchEvent(new win.Event('visibilitychange'));
+  T('⑥ ★dirty=true なら タブ可視(visible)でも 送り直す★', win.PayslipSyncMeta().drainKai === d0 + 2, 'drainKai=' + win.PayslipSyncMeta().drainKai);
 } else {
   T('③ ★--waza: newer-wins を 殺すと ローカル編集が クラウドで 消える（＝門が 守っている証し）★', (A.state.employees[0] && A.state.employees[0].name) === 'クラウド太郎',
     '殺したのに 残った＝' + (A.state.employees[0] && A.state.employees[0].name));

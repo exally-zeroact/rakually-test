@@ -6576,9 +6576,10 @@
   var SMKEY='payslip_syncmeta_v1';
   var _syncMeta={ dirty:false, baseCoUA:null };
   var _loadLocalKept=0;   /* ★診断＝ロードで「ローカルが新しいので保持した」回数（読み取り専用・判じに使わない）★ */
+  var _drainKai=0;        /* ★診断＝online/可視で 未送信を 送り直した回数（Phase3・読み取り専用）★ */
   function _loadSyncMeta(){ try{ var m=JSON.parse(localStorage.getItem(SMKEY)||'null'); if(m&&typeof m==='object'){ _syncMeta.dirty=!!m.dirty; _syncMeta.baseCoUA=(m.baseCoUA==null?null:String(m.baseCoUA)); } }catch(e){} }
   function _saveSyncMeta(){ try{ localStorage.setItem(SMKEY, JSON.stringify(_syncMeta)); }catch(e){} }
-  if(typeof window!=='undefined') window.PayslipSyncMeta=function(){ return { dirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, loadLocalKept:_loadLocalKept }; };   /* 診断用（window代入＝投げない＝try不要） */
+  if(typeof window!=='undefined') window.PayslipSyncMeta=function(){ return { dirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, loadLocalKept:_loadLocalKept, drainKai:_drainKai }; };   /* 診断用（window代入＝投げない＝try不要） */
   // 保存時はcomputeが書く一時フィールド(_prorate/_wari/_shahoExemptThisMonth等)を除外→DB/LS汚染防止(in-memoryは描画用に保持)
   function stripTransient(e){ var o={}; for(var k in e){ if(Object.prototype.hasOwnProperty.call(e,k)&&k.charAt(0)!=='_') o[k]=e[k]; } return o; }
   function snapshot(){ return { v:1, company:state.company, employees:(state.employees||[]).map(stripTransient), month:state.month, theme:state.theme, prefer:state.prefer, depts:state.depts, roles:state.roles, showRetired:state.showRetired, bonus:state.bonus, confirmed:state.confirmed, nencho:state.nencho, onboardDone:state.onboardDone, onboardOutput:state.onboardOutput, payPatterns:state.payPatterns }; }
@@ -6893,6 +6894,14 @@
   var _flushMachi = function(){ if(_saveT){ clearTimeout(_saveT); _saveT=null; persistSave(); } };
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='hidden') _flushMachi(); });
   window.addEventListener('pagehide', _flushMachi);
+  /* ★★Phase3（2026-10-07 司さん・棚d）＝離脱時の送信を「保証」にしない＝未送信(dirty)を 戻ってきた時に 必ず送る★★
+     ＝iPhone は Background Sync 不可＝「次回ロード／オンライン復帰／タブに戻った時」が本線。
+     ・次回ロードの drain は stage1 の applyCloudState（手元が新しければ 保持して push）が担う。
+     ・ここで online（線が戻った）と visibilitychange=visible（タブに戻った）を足す＝離脱イベントが
+       発火しない端末でも 開き直し/復帰で 未送信が 送られる。persistSaveDebounced は 500ms で畳む＝連打しても1本。 */
+  var _drainIfDirty = function(){ if(_syncMeta.dirty){ _drainKai++; persistSaveDebounced(); } };
+  window.addEventListener('online', _drainIfDirty);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') _drainIfDirty(); });
   /* ★★下の 帯（`.botnav`）の 高さを 字で 置く★★（2026-09-25）
      ★訳★ … 下に 貼り付く 物（`bottom:0`）は ★下の 帯の 裏に 回ります★
        （09-25 実測＝「今月を確定」の 下の 警告の 箱が ★帯に 切られて いた★）
