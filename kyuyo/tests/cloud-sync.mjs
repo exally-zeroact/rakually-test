@@ -791,6 +791,64 @@ runs.push(T('★⑦網で偽200: 書きを偽200・空配列で止めても conf
   ok(r.reason !== 'conflict', '★偽200空配列を conflict にした＝タブを塞ぐ覆いが出る（はかれないの元）（' + JSON.stringify(r) + '）');
 }));
 
+/* ★★ロード側 newer-wins 純関数 Store.reconcileOnLoad の 歯（2026-10-07 棚(d)・司さん方針）★★
+   ＝applyCloudState(app.js) と この試験が ★同じ本物の関数★を 呼ぶ（真似ない）。判じ＝①not dirty→cloud
+   ②未同期(base=null)→cloud(P0) ③dirty&cloud据置→local保持push（消失の核止め）④自分書きecho→競合でない
+   ⑤両方編集→ローカル優先＋保護union。 */
+runs.push(T('★reconcile: 未送信編集が無ければ クラウドを採る＋保護は replace（巻き戻し無し・従来挙動）', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.reconcileOnLoad({ localDirty: false, baseCoUA: 'A', cloudCoUA: 'B' });
+  ok(r.apply === 'cloud' && r.push === false && r.conflict === false && r.protect === 'replace', JSON.stringify(r));
+}));
+runs.push(T('★reconcile: 手元dirtyでも 未同期(base=null)は クラウドを採る＋保護はunion/値クラウド優先(P0・記録は消さない)', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.reconcileOnLoad({ localDirty: true, baseCoUA: null, cloudCoUA: 'B' });
+  ok(r.apply === 'cloud' && r.protect === 'cloud', JSON.stringify(r));
+}));
+runs.push(T('★reconcile: dirty & クラウド据置(cloud==base)＝ローカルが新しい→保持して押す＋保護local(消失の核止め)', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.reconcileOnLoad({ localDirty: true, baseCoUA: 'A', cloudCoUA: 'A' });
+  ok(r.apply === 'local' && r.push === true && r.conflict === false && r.protect === 'local', JSON.stringify(r));
+}));
+runs.push(T('★reconcile: dirty & クラウドが進んだが「自分が送った値」＝競合にせず ローカル保持(跨ぎ汚染の自分書き除外)', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.reconcileOnLoad({ localDirty: true, baseCoUA: 'A', cloudCoUA: 'B', isOwnUA: function (ua) { return ua === 'B'; } });
+  ok(r.apply === 'local' && r.push === true && r.conflict === false, JSON.stringify(r));
+}));
+runs.push(T('★reconcile: dirty & 両方編集(cloud!=base・自分でない)＝stage1はクラウド採用+競合旗+保護は値クラウド優先union', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.reconcileOnLoad({ localDirty: true, baseCoUA: 'A', cloudCoUA: 'B', isOwnUA: function () { return false; } });
+  ok(r.apply === 'cloud' && r.conflict === true && r.protect === 'cloud', JSON.stringify(r));
+}));
+
+/* ★★消さない union Store.unionNeverLose の 歯（2026-10-07 棚(d)・司さん「confirmed等は絶対に消さない/巻き戻さない」）★★ */
+runs.push(T('★union: confirmed 深union＝両端末の確定を1つも落とさない', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.unionNeverLose({ '2026-01': { e1: true } }, { '2026-01': { e2: true }, '2026-02': { e3: true } });
+  ok(r['2026-01'].e1 === true && r['2026-01'].e2 === true && r['2026-02'].e3 === true, JSON.stringify(r));
+}));
+runs.push(T('★union: 既定(prefer=b)は ★値がクラウド優先＝巻き戻さない★・キーは両方残す', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.unionNeverLose({ payYm: 'A', byEmp: { e1: { amount: 100 } } }, { payYm: 'B', payDay: '25', byEmp: { e1: { amount: 200 }, e2: { amount: 9 } } });
+  ok(r.payYm === 'B' && r.payDay === '25' && r.byEmp.e1.amount === 200 && r.byEmp.e2.amount === 9, '巻き戻し or キー消失: ' + JSON.stringify(r));
+}));
+runs.push(T('★union: prefer=a は ローカル値優先（オフライン保全）・キーは両方残す', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.unionNeverLose({ byEmp: { e1: { amount: 100 } } }, { byEmp: { e1: { amount: 200 }, e2: { amount: 9 } } }, 'a');
+  ok(r.byEmp.e1.amount === 100 && r.byEmp.e2.amount === 9, JSON.stringify(r));
+}));
+runs.push(T('★union: payPatterns 同id は idで畳む（重複を作らない）・別idは両方残す', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.unionNeverLose([{ id: 1, n: 'local' }], [{ id: 1, n: 'cloud' }, { id: 2, n: 'y' }]);
+  ok(r.length === 2 && r.filter(p => p.id === 1).length === 1 && r.some(p => p.id === 2), '重複 or 消失: ' + JSON.stringify(r));
+}));
+runs.push(T('★union: ローカルに無い物はクラウドを採る（消さない）／既定の葉衝突はクラウド優先', async function () {
+  const Store = loadStore(makeMock({}));
+  ok(Store.unionNeverLose(undefined, { a: 1 }).a === 1, 'local無→cloud');
+  ok(Store.unionNeverLose({ a: 2 }, { a: 1 }).a === 1, '既定(b)葉衝突→cloud');
+  ok(Store.unionNeverLose({ a: 2 }, { a: 1 }, 'a').a === 2, 'prefer=a 葉衝突→local');
+}));
+
 await Promise.all(runs);
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');   /* ★約束の行（_bunrui用）★表明式＝未測定0（本文の「未測定」は 覆い等の 説明） */

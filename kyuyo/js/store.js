@@ -129,6 +129,73 @@
       onChange:function(cb){ sb.auth.onAuthStateChange(function(_e,s){ cb(s); }); }
     };
   }
+  /* ★★ロード側 newer-wins の 判じ（純関数・副作用0・★supabase 有無に関わらず 常に定義★・2026-10-07 棚(d)）★★
+     ★なぜ★＝前は applyCloudState が クラウドで 無条件上書き＝離脱で クラウド保存を 取りこぼすと
+       次回ロードで ★古いクラウドが 新しいローカル編集を 消す★（remote-always-wins 退化）。
+     ★司さんの方針（2026-10-07）★＝①一般の競合は ★後から触った端末(ローカル)優先★
+       ②確定明細/賃金台帳(confirmed)・年末調整(nencho)・賞与(bonus)・給与テンプレ(payPatterns)は
+       ★絶対に消さない/巻き戻さない＝保護ドメインは union（protect）★。
+     ★入れ（o）★… localDirty(手元に未送信編集が在るか)／baseCoUA(最後に取り込んだ会社updated_at)／
+       cloudCoUA(今クラウドに在る会社updated_at)／isOwnUA(ua→自分が送った値か＝跨ぎ汚染の自分書き除外)。
+     ★返り★… { apply:'cloud'|'local', push(未送信を押すか), conflict(両方編集), protect(保護ドメインをunion) }。
+     ★本物を 真似ない★＝app.js(applyCloudState) と 試験(cloud-sync.mjs/load-newer-wins) は ★この同じ関数★を 呼ぶ。
+     ★純関数＝hasSupa ブロックの外に置く★（supabase 無しの jsdom/local でも 定義される＝applyCloudState が 常に 使える）。 */
+  Store.reconcileOnLoad = function(o){
+    o = o || {};
+    var localDirty = !!o.localDirty;
+    var base  = (o.baseCoUA  == null) ? null : String(o.baseCoUA);
+    var cloud = (o.cloudCoUA == null) ? null : String(o.cloudCoUA);
+    var own   = (typeof o.isOwnUA === 'function') ? !!o.isOwnUA(o.cloudCoUA) : false;
+    /* ★protect＝保護ドメイン(confirmed/nencho/bonus/payPatterns)を どう扱うか★
+       'replace'＝クラウドで置換(失う物なし)／'local'＝union・葉はローカル優先(オフライン保全)／'cloud'＝union・葉はクラウド優先(記録は消さず 値は巻き戻さない) */
+    /* 手元に未送信編集が無い＝クラウドが正（今までの挙動・安全・置換＝値の巻き戻し無し） */
+    if(!localDirty) return { apply:'cloud', push:false, conflict:false, protect:'replace' };
+    /* 未同期(baseCoUA=null)で手元dirty＝P0どおりクラウドを採る（未読の端末が本番を巻き戻さない・保存側:507と対）。
+       ★但し ローカルのオフライン確定記録を 消さない＝union・値はクラウド優先(P0＝未読端末が本番の値を 上書きしない)★ */
+    if(base == null) return { apply:'cloud', push:false, conflict:false, protect:'cloud' };
+    /* クラウドが base から 動いていない（or 自分が送った値）＝手元が 新しい＝★保持して押す★（消失の核を止める）。保護はローカル優先で絶対に消さない */
+    var advanced = (cloud !== base) && !own;
+    if(!advanced) return { apply:'local', push:true, conflict:false, protect:'local' };
+    /* 両方 編集＝真の競合＝stage1は クラウド採用（他端末の従業員を黙って消さない）＋保護は union・値はクラウド優先（記録は消さず 値は巻き戻さない）。
+       ★Q1「競合でローカル優先」は Phase4(tombstone)＋司さんの「競合で他端末の従業員を消してよいか」判断の後の次段★ */
+    return { apply:'cloud', push:false, conflict:true, protect:'cloud' };
+  };
+
+  /* ★★消さない union（純関数・副作用0・★常に定義★・2026-10-07 棚(d)）★★
+     ＝司さん「確定明細/賃金台帳(confirmed)・年末調整(nencho)・賞与(bonus)・給与テンプレ(payPatterns)は
+       ★絶対に消さない/巻き戻さない★」の為。a=ローカル・b=クラウド。
+     ★どちらに在る キー/要素も 必ず残す（消さない）★。★葉(値)の衝突は prefer で決める★＝
+       prefer='a'（ローカルの値を残す＝オフライン未同期の保全）／prefer='b'（クラウドの値を残す＝巻き戻さない）。
+       ★既定は 'b'（クラウド優先）＝通常ロードで 別端末の新しい値が 古い値に 巻き戻らない（taiketsu 2026-10-07）★。
+     配列：要素が id を持てば ★id で畳む★（同id は prefer 側を1つ・重複を作らない）。id無しは JSON 和集合。
+     confirmed {ym:{empid:true}}・bonus {…,byEmp:{}}・payPatterns [{id}] の どの形でも 1つも 落とさない。 */
+  function _isPlainObj(x){ return x && typeof x === 'object' && !Array.isArray(x); }
+  Store.unionNeverLose = function(a, b, prefer){
+    prefer = (prefer === 'a') ? 'a' : 'b';                                 /* 既定=クラウド優先 */
+    if(a === undefined || a === null) return (b === undefined ? a : b);    /* 片方 無→在る方（消さない） */
+    if(b === undefined || b === null) return a;
+    if(_isPlainObj(a) && _isPlainObj(b)){
+      var out = {}, k;
+      for(k in a){ if(Object.prototype.hasOwnProperty.call(a, k)) out[k] = a[k]; }            /* まず ローカル 全部 */
+      for(k in b){ if(Object.prototype.hasOwnProperty.call(b, k)){
+        out[k] = Object.prototype.hasOwnProperty.call(a, k) ? Store.unionNeverLose(a[k], b[k], prefer) : b[k];  /* 両方＝再帰／クラウドだけ＝足す */
+      } }
+      return out;
+    }
+    if(Array.isArray(a) && Array.isArray(b)){
+      var hasId = a.concat(b).every(function(x){ return _isPlainObj(x) && x.id != null; });
+      if(hasId){
+        var byId = {}, order = [];                                         /* id で畳む＝同id は prefer 側・重複を作らない */
+        (prefer === 'a' ? b.concat(a) : a.concat(b)).forEach(function(x){ if(!(x.id in byId)) order.push(x.id); byId[x.id] = x; });
+        return order.map(function(id){ return byId[id]; });
+      }
+      var seen = {}, res = [];
+      a.concat(b).forEach(function(x){ var key; try{ key = JSON.stringify(x); }catch(e){ key = String(x); } if(!seen[key]){ seen[key] = 1; res.push(x); } });
+      return res;                                                          /* id無し＝JSON 和集合（両方の要素を残す） */
+    }
+    return (prefer === 'a') ? a : b;   /* 葉(値)の衝突＝prefer 側（キーは どちらも 消えていない） */
+  };
+
   // ── アプリ状態をクラウドへ(棚分け: pay_companies=会社/設定・pay_employees=従業員) ──
   // RLSで本人(account_id=auth.uid)のみ。未ログイン時はnull/no-op(app.js側はlocalStorageで動作)
   if(hasSupa){
@@ -695,6 +762,10 @@
         }
       });
     }
+    /* ★ロード側 newer-wins が「自分が送った会社UAか」を見る為の read-only 口（2026-10-07 棚(d)）
+       ＝保存側の _jibunGaOkuttaKa(会社専用・字形は Date.parse 正規化・uidごと・上限8)をそのまま読む。判じは変えない。 */
+    Store.isOwnCompanyUA = function(ua){ try{ return _jibunGaOkuttaKa(ua); }catch(e){ return false; } };
+
     Store.cloudLoadState = function(){
       var p = curUid().then(function(uid){ if(!uid) return null;
         return Promise.all([
@@ -724,7 +795,9 @@
                 + ' hito=' + String(emps.length));
             }
           }catch(_e3){}
-          if(!co && !emps.length) return null; var s=co||{}; s.employees=emps; return s;
+          if(!co && !emps.length) return null; var s=co||{}; s.employees=emps;
+          s._coUA=(res[0].data && res[0].data.updated_at)||null;   /* ★ロード側 newer-wins 用＝クラウドの会社 updated_at を 返りに載せる（追加のみ・既存の読み手は無視＝挙動不変・2026-10-07 棚(d)）★ */
+          return s;
         });
       });
       // ★読み込みが 終わる(成功でも 失敗でも)まで 保存を 待たせる★。★必ず 解く★=永久に待たない。

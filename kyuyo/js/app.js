@@ -6552,6 +6552,7 @@
   /* 統合テスト用API。★本番ブラウザには露出しない（jsdomのときだけ）★=RC1対策の自動統合テスト(tests/integration.mjs)の入口。 */
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
+      applyCloudState:applyCloudState, persistSaveDebounced:persistSaveDebounced,   /* ★棚(d) ロード側 newer-wins の 統合試験用（本物を呼ぶ・真似ない）★ */
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku,
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
@@ -6567,6 +6568,17 @@
   }catch(e){}
   /* ---------- 永続化(localStorage既定・window.SUPA設定でSupabaseにも保存) ---------- */
   var PKEY='payslip_state_v1';
+  /* ★★ロード側 newer-wins 用の 同期メタ（2026-10-07 棚(d)・司さん方針）★★
+     ★別キーに持つ★＝クラウド(pay_companies settings)へ漏らさない（snapshot/realSave に混ぜない）。
+       dirty＝手元に クラウド未確定の編集が 在る／baseCoUA＝最後に取り込んだ 会社 updated_at。
+     ★離脱で クラウド保存を 取りこぼしても、編集の度に dirty=true を同期書きするので 次回ロードで 消失を止められる★。
+     ★旧localStorage(メタ無し)＝既定 dirty=false＝初回はクラウド採用（＝現行挙動・taiketsu 後方互換）★。 */
+  var SMKEY='payslip_syncmeta_v1';
+  var _syncMeta={ dirty:false, baseCoUA:null };
+  var _loadLocalKept=0;   /* ★診断＝ロードで「ローカルが新しいので保持した」回数（読み取り専用・判じに使わない）★ */
+  function _loadSyncMeta(){ try{ var m=JSON.parse(localStorage.getItem(SMKEY)||'null'); if(m&&typeof m==='object'){ _syncMeta.dirty=!!m.dirty; _syncMeta.baseCoUA=(m.baseCoUA==null?null:String(m.baseCoUA)); } }catch(e){} }
+  function _saveSyncMeta(){ try{ localStorage.setItem(SMKEY, JSON.stringify(_syncMeta)); }catch(e){} }
+  if(typeof window!=='undefined') window.PayslipSyncMeta=function(){ return { dirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, loadLocalKept:_loadLocalKept }; };   /* 診断用（window代入＝投げない＝try不要） */
   // 保存時はcomputeが書く一時フィールド(_prorate/_wari/_shahoExemptThisMonth等)を除外→DB/LS汚染防止(in-memoryは描画用に保持)
   function stripTransient(e){ var o={}; for(var k in e){ if(Object.prototype.hasOwnProperty.call(e,k)&&k.charAt(0)!=='_') o[k]=e[k]; } return o; }
   function snapshot(){ return { v:1, company:state.company, employees:(state.employees||[]).map(stripTransient), month:state.month, theme:state.theme, prefer:state.prefer, depts:state.depts, roles:state.roles, showRetired:state.showRetired, bonus:state.bonus, confirmed:state.confirmed, nencho:state.nencho, onboardDone:state.onboardDone, onboardOutput:state.onboardOutput, payPatterns:state.payPatterns }; }
@@ -6675,6 +6687,7 @@
            ★知らない 理由は 失敗として 出す★（出す 側に 倒す） */
         else if(r&&r.ok===false&&r.reason!=='no-user'&&r.reason!=='held-skipped'&&r.reason!=='held-skipped-maboroshi'){ setS('⚠ クラウド未保存（'+(r.reason||'通信エラー')+'）', 'ng'); }
         else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); }
+        if(r&&r.ok===true){ _syncMeta.dirty=false; _saveSyncMeta(); }   /* ★クラウドに 届いた＝未送信編集は 無い（棚d）★ */
         return r;                       /* ★★返事を そのまま 返す★★＝★呼んだ 側が 言い回しを 決められる★ */
       }).catch(function(e){
         if(lsOk) setS('⚠ ローカルのみ保存（クラウド通信エラー）', 'ng');
@@ -6693,11 +6706,12 @@
     /* ★雲が 在れば その 返事／無ければ ★手元に 書けたか★を 返す★ */
     return _kumoP || Promise.resolve({ ok:!!lsOk, reason: lsOk ? null : 'local' });
   }
-  function persistSaveDebounced(){ if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(persistSave, 500); }
+  function persistSaveDebounced(){ _syncMeta.dirty=true; _saveSyncMeta(); if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(persistSave, 500); }   /* ★編集の度に dirty=true を同期書き＝離脱で取りこぼしても次回ロードで消失を止める（棚d）★ */
   // 旧テンプレ名→新テンプレ名(実体準拠)への移行。保存済みstate.preferを吸収
   var PREFER_MIGRATE={cols:'col2_1',cols2:'col2_2',cols3:'col2_3',vstack:'col1_1',vstack2:'col1_2',strips:'col1_3'};
   function migPrefer(p){ return PREFER_MIGRATE[p]||p||'col2_1'; }
   function persistLoad(){
+    _loadSyncMeta();   /* ★手元の同期メタ(dirty/baseCoUA)を先に読む＝ロード側 newer-wins の材料（棚d）★ */
     var s=null; try{ s=JSON.parse(localStorage.getItem(PKEY)||'null'); }catch(e){}
     if(s&&s.employees&&s.employees.length){
       if(s.company) state.company=Object.assign(defCompany(), s.company); state.employees=s.employees.map(mergeEmp);
@@ -6713,14 +6727,52 @@
     reloadCloud();
   }
   function applyCloudState(cs){ if(!(cs&&cs.employees&&cs.employees.length)) return false;
+    /* ★★ロード側 newer-wins（2026-10-07 棚(d)・司さん方針）★★
+       前は ★updated_at を見ず クラウドで 無条件上書き★＝離脱で クラウド保存を 取りこぼすと
+       次回ロードで ★古いクラウドが 新しいローカル編集を 消していた★（remote-always-wins 退化）。
+       判じは store.js の 純関数 Store.reconcileOnLoad（app と 試験が 同じ本物を 呼ぶ）。 */
+    var dec=null;
+    try{ if(window.Store&&Store.reconcileOnLoad){ dec=Store.reconcileOnLoad({
+      localDirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, cloudCoUA:cs._coUA,
+      isOwnUA:(Store.isOwnCompanyUA?function(ua){ return Store.isOwnCompanyUA(ua); }:null)
+    }); } }catch(e){ console.error('★reconcileOnLoad が 呼べません（これまでの道で クラウド適用に 倒す）★', e); dec=null; }
+    var protect=(dec&&dec.protect)||'replace';
+    /* ★保護ドメイン(confirmed/nencho/bonus/payPatterns)の 扱い★（司さん②・2026-10-07＝絶対に消さない/巻き戻さない）
+       protect='replace'＝クラウドで置換(手元に未送信編集なし＝失う物なし・値の巻き戻し無し)／
+       'local'＝union・葉はローカル優先(オフライン保全)／'cloud'＝union・葉はクラウド優先(記録は消さず・値は巻き戻さない)。
+       ★prefer を 取り違えると 賞与/年調の値が 巻き戻る（taiketsu 2026-10-07）＝向きは reconcile が 決める★。 */
+    function _mamoru(){
+      if(protect==='replace'){
+        if(cs.confirmed)state.confirmed=cs.confirmed; if(cs.nencho)state.nencho=cs.nencho;
+        if(cs.bonus)state.bonus=cs.bonus; if(cs.payPatterns)state.payPatterns=cs.payPatterns; return;
+      }
+      var pf=(protect==='local')?'a':'b';
+      try{ if(window.Store&&Store.unionNeverLose){
+        state.confirmed=Store.unionNeverLose(state.confirmed, cs.confirmed, pf);
+        state.nencho=Store.unionNeverLose(state.nencho, cs.nencho, pf);
+        state.bonus=Store.unionNeverLose(state.bonus, cs.bonus, pf);
+        state.payPatterns=Store.unionNeverLose(state.payPatterns, cs.payPatterns, pf);
+      } }catch(e){ console.error('★保護ドメインの union が 落ちました（消失なし・片方は 残る）★', e); }
+    }
+    /* ★消失を止める核（stage1）＝手元が新しく、クラウドが据置(cloud==base)の時だけ ローカルを保持して 送り直す★
+       ＝離脱で 取りこぼした 保存の 回収。★両方編集(conflict)は reconcile が apply='cloud' を返す★＝stage1 では
+       ローカル優先で 上書きしない（「次の保存で 他端末が追加した 従業員を 黙って消す」穴 taiketsu A を避ける）。
+       Q1「競合でローカル優先」は Phase4(tombstone)＋司さんの判断後の 次段。 */
+    if(dec && dec.apply==='local'){
+      _loadLocalKept++;
+      _mamoru();                      /* protect='local'＝クラウドの保護ドメインも 取り込む（据置なので ほぼ同値・消さない保険） */
+      if(dec.push) persistSaveDebounced();   /* 据置＝安全に 送り直し（presence削除も クラウド未進行で 安全） */
+      $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); warmLedger();
+      var actL=$('.screen.active'); if(actL)showScreen(actL.id);
+      return true;
+    }
+    /* apply==='cloud'（未送信編集なし=replace／未同期・競合=union・向きは protect）＝クラウドで 置換。保護は _mamoru が 向きどおり。 */
     state.company=cs.company?Object.assign(defCompany(),cs.company):state.company; state.employees=cs.employees.map(mergeEmp);
     if(cs.month)state.month=cs.month; if(cs.theme)state.theme=cs.theme; if(cs.prefer)state.prefer=migPrefer(cs.prefer);
     if(cs.depts)state.depts=cs.depts; if(cs.roles)state.roles=cs.roles; if(cs.showRetired!=null)state.showRetired=cs.showRetired;
-    if(cs.bonus)state.bonus=cs.bonus;
-    if(cs.confirmed)state.confirmed=cs.confirmed;
-    if(cs.nencho)state.nencho=cs.nencho; // 年末調整の申告入力もクラウド復元(漏れ修正)
-    if(cs.payPatterns)state.payPatterns=cs.payPatterns;
     if(cs.onboardDone)state.onboardDone=true;
+    _mamoru();   /* ★confirmed/nencho/bonus/payPatterns＝replace か union（向きは reconcile・消さない/巻き戻さない）★ */
+    _syncMeta.baseCoUA=(cs._coUA==null?null:String(cs._coUA)); _syncMeta.dirty=false; _saveSyncMeta();   /* ★クラウドを採った＝基準を更新・cleanに（棚d）★ */
     state._prevYm=null; state._bonusPrevYm=null; state._bonusYtdYm=null; // クラウド復元で前月比キャッシュを無効化(stale防止)
     $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); warmLedger(); var act=$('.screen.active'); if(act)showScreen(act.id); return true; }
   /* ★倉庫の 答えが 来るまで 人の 一覧を 描かない★（2026-09-05 指示役の裁定・案D）
