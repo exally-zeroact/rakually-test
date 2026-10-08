@@ -24,6 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repoEnv } from './repo-env.mjs';
+import { oboegakiWoKesu } from '../tools/_oboegaki.mjs';   /* ★覚書はがしの正本（2026-10-09 横断の続き）＝13/13 正しく剥がす物に寄せる。kyaku-hoshi も同じ正本を import 済み（非対称の解消）★ */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -137,50 +138,17 @@ function decodeVisible(s) {
 }
 
 /* ── 覚書を取り除く（文字列の中は 消さない） ───────────────── */
+/* ★2026-10-09 覚書はがしの正本に寄せた（横断 odan の続き・taiketsu/kensan 付き）★
+   前は この門だけ 独自の stripJsComments を持ち、odan 実測で `var z=a++/2; // 代行` の型
+   （++/-- の直後の 割り算を 正規表現の始まりと 誤認）で 同行の 注記を 剥がし損ねていた。
+   ★向きは false-red 専用★＝剥がし損ねると 注記内の禁句を「客の字」と 誤検出して 赤になる（厳しすぎる）だけで、
+   本物の文字列の禁句を 消す（見逃す＝false-green）向きには 構造上 起きない（taiketsu 966入力で 実証・
+   正規表現誤認分岐も 全字を out に残す＝削除は 注記分岐だけ・文字列内は 注記分岐に来ない）。
+   それでも 正本 oboegakiWoKesu（13/13 正しく剥がす・tests/oboegaki.test.mjs で固定・kyaku-hoshi も import 済み）に
+   寄せて 非対称と 将来のドリフトを 断つ。★長さは 旧と違う（新は 区切り4字も 空白化＝長さ不変）が、
+   countIn は 行単位 split('\n')+indexOf／VENDOR は matchAll＝長さ非依存＝門の件数は 不変（taiketsu 実測）★。 */
 function stripJsComments(src) {
-  let out = '', i = 0, n = src.length;
-  let q = null;      /* 今いる文字列の囲み（' " ` のどれか） */
-  let last = '';     /* 直前の 空白でない字（/ が 割り算か 正規表現かを決める） */
-  while (i < n) {
-    const c = src[i], d = src[i + 1];
-    if (q) {
-      if (c === '\\') { out += c + (d || ''); i += 2; continue; }
-      if (c === q) q = null;
-      out += c; i++; continue;
-    }
-    if (c === "'" || c === '"' || c === '`') { q = c; out += c; last = c; i++; continue; }
-    /* ★正規表現リテラルを 文字列と間違えない★（2026-08-21 実際に間違えた）
-       /['"]/ の中の ' で「文字列に入った」と思い込み、そこから先の覚書を 消さずに数えていた
-       ＝★見張りが 覚書を「画面に出る字」と言う嘘★（10件のうち 8件が それ）。
-       直前の字が 値を取り得ない物なら、その / は 正規表現の始まり。 */
-    if (c === '/' && d !== '/' && d !== '*' && (last === '' || '(,=:[!&|?{};+-*%~^<>'.indexOf(last) >= 0 || /[\n\r]/.test(last))) {
-      out += c; i++;
-      let esc = false, cls = false;
-      while (i < n) {
-        const ch = src[i];
-        out += ch; i++;
-        if (esc) { esc = false; continue; }
-        if (ch === '\\') { esc = true; continue; }
-        if (ch === '[') cls = true;
-        else if (ch === ']') cls = false;
-        else if (ch === '/' && !cls) break;
-        else if (ch === '\n') break;            /* 割り算だった＝行をまたがない */
-      }
-      last = '/';
-      continue;
-    }
-    if (c === '/' && d === '/') {              /* 行の覚書 */
-      while (i < n && src[i] !== '\n') { out += src[i] === '\n' ? '\n' : ' '; i++; }
-      continue;
-    }
-    if (c === '/' && d === '*') {              /* 囲みの覚書 */
-      i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) { out += src[i] === '\n' ? '\n' : ' '; i++; }
-      i += 2; continue;
-    }
-    out += c; if (!/\s/.test(c)) last = c; i++;
-  }
-  return out;
+  return oboegakiWoKesu(src);
 }
 
 function stripHtmlComments(src) {
@@ -305,9 +273,17 @@ if (process.argv.includes('--self-test')) {
          退避を 外すと 代 が 誤復号され \代+生の行＝「代行」が 連続して 1件＝赤。
          ＝退避コード(.replace(/\\\\/g, PH)) を 外すと この歯が 必ず 赤になる＝偽赤を 止めている事を 守る。 */
     must(0, run(tmp, [w('j.js', "var t='\\\\u4ee3行で送る';\n")], '⑬ 逃がし逆斜線 \\u… は 客に "\\u…" が 見える＝数えない'), '穴②: 逃がし逆斜線は復号しない（退避が効いている）');
+    /* ★⑭ 覚書はがしを正本に寄せた証し（2026-10-09 横断 odan の続き）★
+       入力 `var z=a++ / 2; // 代行` ＝ ++/-- の直後の 割り算。旧 stripJsComments は この / を 正規表現の始まりと
+       誤認し、同じ行の `// 代行` 注記を 剥がし損ねて「代行」を 残した（＝門が 注記内の禁句を 誤検出して 赤＝false-red）。
+       正本 oboegakiWoKesu は 正しく 注記を 剥がす＝0件（緑）。
+       ★この歯の向きは 他(⑨⑫⑬の穴①②)と 逆★：⑨⑫⑬は『穴を塞ぐ＝戻すと ★見逃す(false-green)★＝赤』。
+       ⑭は『誤検出が戻る(false-red)＝旧 stripJsComments へ戻すと 代行を 残して 1件＝赤』。
+       ＝旧実装（screen-words 独自 stripJsComments）へ一時的に戻すと must(0) が 1 を受けて 赤になる load-bearing。混同するな。 */
+    must(0, run(tmp, [w('k.js', "var z=a++ / 2; // 代行\n")], '⑭ ++/-- 直後除算の同行注記内の禁句を 正本が正しく剥がす（false-redを断つ）'), '正本化: ++/-- 直後除算の同行注記を 正しく剥がす');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   if (ng) { console.error('\n★自己診断 ' + ng + '件 失敗★'); process.exit(1); }
-  console.log('\n自己診断 13件 とも 正しい');
+  console.log('\n自己診断 14件 とも 正しい');
   process.exit(0);
 }
 
