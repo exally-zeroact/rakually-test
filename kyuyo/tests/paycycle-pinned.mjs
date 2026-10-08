@@ -48,13 +48,14 @@ console.log('   KNOWN             … ' + JSON.stringify(KNOWN));
 
 T('① 両UI源とも 読めている（空でない）', uiSettings.length >= 3 && uiAsk.length >= 3, 'settings=' + uiSettings.length + ' ask=' + uiAsk.length);
 T('② はじめかたの opts は 設定 #c-paycycle と 同じ集合（片方に足して片方に忘れるを捕まえる）', setEq(uiSettings, uiAsk), 'settings=' + JSON.stringify([...uiSettings].sort()) + ' ask=' + JSON.stringify([...uiAsk].sort()));
-T('③ ★設定の支給サイクルは すべて KNOWN(配線済み集合)に在る（無いと黙って monthly に倒れる）★', setEq(settingsCheck, KNOWN), '食い違い set=' + JSON.stringify([...settingsCheck].sort()) + ' known=' + JSON.stringify([...KNOWN].sort()));
-
+/* ③ 本体の門。★--waza は 裏返し検証＝「混ぜた未登録を 検出できる」事を ✓ で通す（✗を出さない＝CIログ/集計を汚さない・bonus-nolib-block と同型）。
+   退行で本当に赤になるのは 通常実行(fix/UI/KNOWN がずれると setEq が false)＝kensan が変異A〜Fで実証済み。 */
 if (WAZA) {
-  T('★--waza: KNOWN に無い値を混ぜたら 必ず赤（③が落ちる＝歯が守っている）', !setEq(settingsCheck, KNOWN), '混ぜたのに 赤にならない＝飾りの歯');
+  T('③ ★--waza: KNOWN に無い値を混ぜたら 検出する（setEq=false＝歯が新旧を見分けられる）★', !setEq(settingsCheck, KNOWN), '混ぜたのに 検出しない＝飾りの歯');
+} else {
+  T('③ ★設定の支給サイクルは すべて KNOWN(配線済み集合)に在る（無いと黙って monthly に倒れる）★', setEq(settingsCheck, KNOWN), '食い違い set=' + JSON.stringify([...settingsCheck].sort()) + ' known=' + JSON.stringify([...KNOWN].sort()));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');
-const realFail = WAZA ? (pass < 3) : (fail > 0);
-process.exit(realFail ? 1 : 0);
+process.exit(fail ? 1 : 0);   /* 通常も --waza も 全て ✓ が正（--waza は 裏返し検証で ✓）＝✗が出たら 本当の赤 */
