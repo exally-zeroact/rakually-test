@@ -594,6 +594,8 @@ jobs:
         run: node kyuyo/tests/othist-warn.mjs
       - name: ★締め方の白名簿を固定（UIの締め方を periods.js METHODS に足し忘れると黙ってmonthlyに倒れる将来穴を赤に）
         run: node kyuyo/tests/shime-methods-pinned.mjs
+      - name: ★支給サイクルの白名簿を固定（設定＝はじめかた＝KNOWN・新サイクルを足して配線を忘れると黙ってmonthlyに倒れる将来穴を赤に）
+        run: node kyuyo/tests/paycycle-pinned.mjs && node kyuyo/tests/paycycle-pinned.mjs --waza
       - name: ★賞与の計算部品(ShoyoZei)が読めない時 社保0+源泉0を黙って確定/振込/保存させない（計算できないなら止めて警告）
         run: node kyuyo/tests/bonus-nolib-block.mjs && node kyuyo/tests/bonus-nolib-block.mjs --waza
       - name: Payroll cloud sync (保存層・Supabaseモック)
