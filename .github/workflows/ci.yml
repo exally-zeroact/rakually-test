@@ -598,6 +598,8 @@ jobs:
         run: node kyuyo/tests/paycycle-pinned.mjs && node kyuyo/tests/paycycle-pinned.mjs --waza
       - name: ★賞与の計算部品(ShoyoZei)が読めない時 社保0+源泉0を黙って確定/振込/保存させない（計算できないなら止めて警告）
         run: node kyuyo/tests/bonus-nolib-block.mjs && node kyuyo/tests/bonus-nolib-block.mjs --waza
+      - name: ★localStorage 枠超でも フル中身をクラウドへ退避し 全画面の帯で警告（保存の安全網・IDBの代わり）
+        run: node kyuyo/tests/quota-cloud-fallback.mjs && node kyuyo/tests/quota-cloud-fallback.mjs --waza
       - name: Payroll cloud sync (保存層・Supabaseモック)
         run: node kyuyo/tests/cloud-sync.mjs
       - name: ★ロード側 newer-wins (古いクラウドが新しいローカル編集を消さない・confirmed等はunionで消さない・本物のapplyCloudState)
