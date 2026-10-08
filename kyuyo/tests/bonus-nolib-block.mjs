@@ -9,7 +9,10 @@
  * ★この歯★… 本物の app.js を jsdom に読み(ShoyoZei は index.html:209 で載る)、computeBonus/buildTransfers/saveBonusPayslips を直接叩く。
  *   ①lib在り＝taxMitei/szMissing=false(確定可) ②win.ShoyoZei を消す＝szMissing/taxMitei=true(ブロック) ③業務委託は lib無しでも false
  *   ④振込: lib無し＝その人の keisanOchi=true・ready=false(全銀作らせない) ⑤保存: lib無し＝savePayslip を1回も呼ばない(門が止める)。
- * ★わざと(--waza)★… szMissing を taxMitei に足さない旧判定を注入＝②④⑤が赤＝load-bearing。
+ * ★わざと(--waza)★… 旧コード(szMissing を taxMitei に足さない/振込で keisanOchi にしない)を注入し、②④⑤が
+ *   ★旧挙動(taxMitei=false/keisanOchi=false/savePayslip≥1)を再現する事★を確かめる＝緑6/0(load-newer-wins と同型の裏返し検証)。
+ *   ★本当の load-bearing は通常実行★＝fix を消すと ②szMissing/taxMitei=true・④keisanOchi=true・⑤save=0 が崩れて通常が赤になる
+ *   （kensan/taiketsu が注入で実測）。--waza は「旧挙動を再現できる＝この歯が新旧を見分けられる」証し（anchor がずれれば --waza が赤）。
  * 依存: jsdom。使い方: node kyuyo/tests/bonus-nolib-block.mjs   ／   --waza
  */
 import fs from 'node:fs';
