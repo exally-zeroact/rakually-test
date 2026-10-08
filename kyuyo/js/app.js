@@ -2757,10 +2757,15 @@
        ②特例なのに 税額表が 読めなかった … 月額表で 人が 計算する事に なる
        ★どちらも 中では 税額0で 進む★ので、額を 出す所と 確定の 門は ★この1つ★を 見る。
        ★業務委託は 源泉なしが 正しい★ので 未定では ない。 */
-    var taxMitei = !_contractor && (noPrev || !!(tax.special && !tax.specialComputed));
+    /* ★計算部品(ShoyoZei=賞与の税/社保)が 読めていない＝計算できない★（2026-10-08 ダイコメ横断(a)2）
+       SZl 無しだと 上で si={total:0,…}・tax={tax:0} に なる＝★社保0・源泉0の 賞与★。これを 黙って 確定/振込 させると
+       年調・賃金台帳に 混入し 銀行へ フル額が 出る。司さんの原則「計算できないなら 止めて警告」(2026-10-04 振込)を 賞与にも 当てる。
+       ★金額/式は 変えない＝『未定(taxMitei)』の 旗を 立てて 確定・振込・保存を 止めるだけ★。業務委託は 源泉なしが 正しい＝対象外。 */
+    var szMissing = !_contractor && !SZl;
+    var taxMitei = !_contractor && (szMissing || noPrev || !!(tax.special && !tax.specialComputed));
     var taxAmt=(noPrev||_contractor)?0:(tax.tax||0);
     return { bonus:bonus, base:base, totalGross:totalGross, addShikyu:addShikyu, addKojo:addKojo, addTaxable:addTaxable, addNonTax:addNonTax, addKojoTotal:addKojoTotal,
-      prevAfter:prevAfter, fromHistory:(!manualPrev&&histPrev), noPrev:noPrev, taxMitei:taxMitei, ytdVal:ytdVal, ytdAuto:(!manualYtd&&ytdVal>0), si:si, tax:tax, taxAmt:taxAmt, net:totalGross-si.total-taxAmt-addKojoTotal };
+      prevAfter:prevAfter, fromHistory:(!manualPrev&&histPrev), noPrev:noPrev, szMissing:szMissing, taxMitei:taxMitei, ytdVal:ytdVal, ytdAuto:(!manualYtd&&ytdVal>0), si:si, tax:tax, taxAmt:taxAmt, net:totalGross-si.total-taxAmt-addKojoTotal };
   }
   function renderBonus(){
     var host=$('#bonus-view'); if(!host) return; loadBonusPrev(); loadBonusYtd();
@@ -2784,7 +2789,8 @@
       if(hyojun>0&&c.si.kenpoBase<hyojun) caps+='<span class="cap-badge">健保 年573万上限</span>';
       if(hyojun>0&&c.si.koseiBase<hyojun) caps+='<span class="cap-badge">厚年 1回150万上限</span>';
       var taxLine, warn='';
-      if(c.noPrev){ taxLine='<div class="calc-line"><span>源泉所得税</span><span class="v">前月給与の入力待ち</span></div>'; }
+      if(c.szMissing){ taxLine='<div class="calc-line"><span>源泉所得税</span><span class="v">計算部品の読み込み待ち</span></div>'; warn='<div class="cr-warn" style="margin:6px 0">⚠ 賞与の<b>税・社会保険を計算する部品</b>が読み込めていません。通信が戻ってから<b>開き直して</b>ください（このままでは確定できません）。</div>'; }
+      else if(c.noPrev){ taxLine='<div class="calc-line"><span>源泉所得税</span><span class="v">前月給与の入力待ち</span></div>'; }
       else if(c.tax.special && c.tax.specialComputed){ taxLine='<div class="calc-line"><span>源泉所得税（特例・月額表）</span><span class="v">'+yen(c.taxAmt)+'</span></div>'; warn='<div class="hint" style="margin:6px 0;color:#3D6B53">この賞与は<b>特例</b>（前月に給与がない、または賞与が前月給与（社保後）の<b>10倍超</b>）のため、算出率表でなく<b>月額表で自動計算</b>しました（'+(c.tax.months||6)+'か月で按分）。<span class="help-i" data-help="bonusPrev">💡</span></div>'; }
       else if(c.tax.special){ taxLine='<div class="calc-line"><span>源泉所得税</span><span class="v">月額表で要計算</span></div>'; warn='<div class="cr-warn" style="margin:6px 0">⚠ この賞与は<b>特例</b>です（前月に給与がない、または賞与が前月給与（社保後）の<b>10倍超</b>）。税額表が読み込めなかったため、源泉所得税は月額表で確認してください。<span class="help-i" data-help="bonusPrev">💡</span></div>'; }
       else { taxLine='<div class="calc-line"><span>源泉所得税（率 '+c.tax.rate+'%'+(c.tax.otsu?'・乙欄':'')+'）</span><span class="v">'+yen(c.taxAmt)+'</span></div>'; }
@@ -2833,7 +2839,9 @@
           +(c.taxMitei
             ? '<div class="calc-line net tot"><span>差引支給額（手取り）</span><span class="v" style="color:#C0392B">まだ 出せません</span></div>'
               +'<div class="hint" style="margin:6px 0 0;color:#C0392B">'
-              +(c.noPrev
+              +(c.szMissing
+                ? '賞与の <b>税・社会保険を 計算する部品</b>が 読み込めていません。通信が戻ってから <b>開き直して</b>ください。確定できません。'
+                : c.noPrev
                 ? '前月の給与（社保を引いた後）が 入るまで <b>源泉所得税が 決まりません</b>ので、手取りも 出せません。上の 赤い箱に 入れてください。'
                 : '<b>源泉所得税が 決まっていません</b>（特例・月額表で ご確認ください）ので、手取りも 出せません。')
               +'</div></div>'
@@ -2872,6 +2880,12 @@
   //  ★定時決定/前月比は賞与を除外して集計する(取得側フィルタ)ので、この保存は法令上の月額報酬に混入しない。
   function saveBonusPayslips(){
     if(!(window.Store&&Store.savePayslip)) return; var ym=bonusYmOf(); if(!ym) return;
+    /* ★確定の門を save層にも置く（ボタンの disabled 1枚に頼らない・「門は引き継がれない」）★（2026-10-08 (a)2）
+       源泉/社保が 未定(taxMitei=前月給与待ち／計算部品(ShoyoZei)が無い／特例月額表)の人が 1人でも 居たら、
+       0社保0税の 賞与が 年調・賃金台帳に 混入するので ★保存しない★（司さん原則＝計算できないなら 止めて警告）。 */
+    var _machi=state.employees.filter(function(e){ return isActiveInMonth(e,ym) && num(bonusEntry(e).amount)>0; })
+      .filter(function(e){ try{ return computeBonus(e).taxMitei; }catch(_){ return true; } });
+    if(_machi.length){ uiAlert('源泉所得税・社会保険が まだ 決まっていない人が '+_machi.length+'名 います。\n\n0円のまま 賞与を 確定すると 年末調整と 賃金台帳が 狂うため、確定しません。\n各行の 案内に従って 直してから もう一度 確定してください。','確定できません'); return; }
     state.employees.filter(function(e){ return isActiveInMonth(e,ym); }).forEach(function(e){
       var en=bonusEntry(e); if(num(en.amount)<=0) return;
       try{ var c=computeBonus(e); var si=c.si||{};
@@ -4716,7 +4730,10 @@
          ＝前は `catch(_){}` で net=0 に し、呼ぶ側が amount>0 で 絞る＝★compute が 転んだ人が
          振込の 画面からも ファイルからも 黙って 消えて いた＝その人だけ 未払いの まま 銀行へ★。
          ⇒ 転んだ事を 旗(keisanOchi)で 持ち回り、呼ぶ側が「◯名は 計算できなかったので 入れていません」と 出す。 */
-      var net=0, keisanOchi=false; try{ net = bonus ? computeBonus(e).net : compute(e).net; }catch(_){ keisanOchi=true; }
+      /* ★賞与で 計算部品(ShoyoZei)が 無い(szMissing)時は 計算落ち扱い＝振込ファイルを 作らせない★（2026-10-08 (a)2）
+         ＝lib欠落だと 社保0・源泉0の フル総支給が 止まらず 銀行へ出得る（taiketsu実測）ので keisanOchi に倒す。
+         既存の furiKeisanOchiKaku が「作らず 止めて警告」する（司さん 2026-10-04 原則）。noPrev の現挙動は 変えない（szMissing だけ）。 */
+      var net=0, keisanOchi=false; try{ if(bonus){ var _cb=computeBonus(e); net=_cb.net; if(_cb.szMissing) keisanOchi=true; } else { net=compute(e).net; } }catch(_){ keisanOchi=true; }
       /* ★受取人名が 銀行に出せる字になるか まで見る★（2026-08-28 実際に動かして見つけた）
          カナが空だと ★漢字の氏名で代わりを埋めていた★ので、全銀に直す時に
          ★全部スペース＝名前の無い振込★になっていた。★出せない物は ready にしない★。 */
@@ -6571,7 +6588,7 @@
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       applyCloudState:applyCloudState, persistSaveDebounced:persistSaveDebounced,   /* ★棚(d) ロード側 newer-wins の 統合試験用（本物を呼ぶ・真似ない）★ */
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku,
-      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
+      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, saveBonusPayslips:saveBonusPayslips, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
          kyuyo/tests/shoyo-kami-hizuke.test.mjs */
       /* ★★2026-09-21 司さん「直したなら 直らないかん やろ」を 見張る 為★★
