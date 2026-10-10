@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repoEnv } from './repo-env.mjs';
-import { oboegakiWoKesu } from '../tools/_oboegaki.mjs';   /* ★覚書はがしの正本（2026-10-09 横断の続き）＝13/13 正しく剥がす物に寄せる。kyaku-hoshi も同じ正本を import 済み（非対称の解消）★ */
+import { oboegakiWoKesu } from '../tools/_oboegaki.mjs';   /* ★覚書はがしの正本（2026-10-09 横断の続き）＝13/13 正しく剥がす物に寄せる。★2026-10-10 から kyaku-hoshi は acorn の 構文木で 読む（この 正本は 使わない）★ */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -144,7 +144,7 @@ function decodeVisible(s) {
    ★向きは false-red 専用★＝剥がし損ねると 注記内の禁句を「客の字」と 誤検出して 赤になる（厳しすぎる）だけで、
    本物の文字列の禁句を 消す（見逃す＝false-green）向きには 構造上 起きない（taiketsu 966入力で 実証・
    正規表現誤認分岐も 全字を out に残す＝削除は 注記分岐だけ・文字列内は 注記分岐に来ない）。
-   それでも 正本 oboegakiWoKesu（13/13 正しく剥がす・tests/oboegaki.test.mjs で固定・kyaku-hoshi も import 済み）に
+   それでも 正本 oboegakiWoKesu（13/13 正しく剥がす・tests/oboegaki.test.mjs で固定）に
    寄せて 非対称と 将来のドリフトを 断つ。★長さは 旧と違う（新は 区切り4字も 空白化＝長さ不変）が、
    countIn は 行単位 split('\n')+indexOf／VENDOR は matchAll＝長さ非依存＝門の件数は 不変（taiketsu 実測）★。 */
 function stripJsComments(src) {
