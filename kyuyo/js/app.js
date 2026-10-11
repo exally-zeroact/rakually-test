@@ -2154,7 +2154,48 @@
   function empAutoOk(e,r){ var pv=state._prev||{}; return (e.id in pv) && (r.net-pv[e.id])===0; } // 前月あり且つ変動なし=自動済扱い
   function empNeedsReview(e,r){ return !empConfirmed(e) && !empAutoOk(e,r); }      // 変化あり/新規 かつ 未確認
   function reviewCounts(){ var done=0,total=0; state.employees.forEach(function(e){ if(!isActiveInMonth(e,state.month))return; total++; var r=compute(e); if(empConfirmed(e)||empAutoOk(e,r))done++; }); return {done:done,total:total,need:total-done}; }
-  function setConfirm(id,on){ if(!state.confirmed[state.month])state.confirmed[state.month]={}; if(on)state.confirmed[state.month][id]=true; else delete state.confirmed[state.month][id]; }
+  /* ★★確定を 外した 人の 控え★★（2026-10-12・指示役＝確定の 扱いは 変えず 失敗を 言うだけ）
+     外すと その人の 明細は confirmed:false で 送られる。落ちると クラウドには confirmed:true の 古い 行が 残り、
+     賃金台帳・年末調整が 数え続ける＝★お金の 数★。下書きの 保存と 見分ける 為に「確定から 外した 人」だけ 控える。
+     'machi'＝送る 待ち／'ochi'＝落ちた（帯で 言う）。送りが 通ったら 消す。もう一度 確定したら 消す。 */
+  var _hazushi = {};
+  /* ★取り消しの 帯を 見分ける 目印は ここ 1つ★（taiketsu 10-12＝字で 4か所に 分かれて いると 言い回しを 変えた 時に 割れる） */
+  var HAZUSHI_MEJIRUSHI = '確定の 取り消し';
+  /* ★持ち主の 居ない 控えを 片付ける★（taiketsu 10-12）＝人を 消した／もう一度 確定に 戻った 人の 控えは 二度と 送られず、帯が 消えなく なる */
+  function _hazushiSoji(){ for(var k in _hazushi){ var p=k.split('|'), ym=p[0], id=p.slice(1).join('|');
+    var iru=(state.employees||[]).some(function(e){ return e && e.id===id; });
+    var kakutei=!!(state.confirmed && state.confirmed[ym] && state.confirmed[ym][id]);
+    if(!iru || kakutei) delete _hazushi[k]; } }
+  function _hazushiOchiN(){ _hazushiSoji(); var n=0; for(var k in _hazushi){ if(_hazushi[k]==='ochi') n++; } return n; }
+  function _ymJi(ym){ var m=/^(\d{4})-(\d{2})$/.exec(String(ym||'')); return m ? (m[1]+'年'+(+m[2])+'月') : String(ym||''); }
+  /* ★月を 名指しする★（taiketsu 10-12）＝送るのは 開いて いる 月だけ。別の 月に 居る 間に「次の 保存で 送り直します」と 言うと 嘘になる */
+  function _hazushiJi(){ var n=0, tsuki=[]; for(var k in _hazushi){ if(_hazushi[k]!=='ochi') continue; n++; var j=_ymJi(k.split('|')[0]); if(tsuki.indexOf(j)<0) tsuki.push(j); }
+    /* ★どの 月に 居ても 通る 1文★＋★閉じないで★（控えは 開き直すと 消える＝閉じると 誰も 送り直さない・taiketsu 10-12） */
+    return '⚠ '+n+'名分の '+HAZUSHI_MEJIRUSHI+'（'+tsuki.join('・')+'）を クラウドに 保存できていません（賃金台帳・年末調整には まだ 確定のまま 入っています）。通信が 戻ったら、月を '+tsuki.join('・')+' に して 画面を 1回 押すと 送り直します。それまで この画面を 閉じないでください'; }
+  /* ★帯は 前の 字を 消さずに 後ろへ 足す★（taiketsu 10-12）＝「閉じないで」（印が 書けない）や「別の端末で 更新」を 上書きすると 前からの 守りが 消える。
+     消す 時も 取り消しの 部分だけを 外す。★札でなく 帯★＝月の 取り消しは 後から「Web明細から 下げました」の 札を 出す（札は 1枚を 上書き＝取り合う） */
+  var HAZUSHI_KUGIRI='　／　';
+  function _hazushiObi(){
+    var el=document.getElementById('save-alert'); var ima=(el && !el.hidden) ? (el.textContent||'') : '';
+    var moto=ima.split(HAZUSHI_KUGIRI)[0]; if(moto.indexOf(HAZUSHI_MEJIRUSHI)>=0) moto='';
+    var n=_hazushiOchiN(); var t=n>0 ? (moto ? moto+HAZUSHI_KUGIRI+_hazushiJi() : _hazushiJi()) : moto;
+    var st=document.getElementById('save-status');
+    if(t){ if(st) st.textContent=t; hozonFuda('ng', t); } else { if(st && (st.textContent||'').indexOf(HAZUSHI_MEJIRUSHI)>=0) st.textContent=''; hozonFuda('ok',''); }
+  }
+  function _hazushiOchita(ym, id, err){
+    if(err && err.noUser) return;                  /* ★ログインして いない 時は 言わない★（saveFailed と 同じ 決め） */
+    var k=ym+'|'+id; if(!_hazushi[k]) return;      /* ★確定から 外した 人 だけ★＝一度も 確定して いない 下書きは 言わない */
+    _hazushi[k]='ochi'; _hazushiObi();
+  }
+  function _hazushiTodoita(ym, id){
+    var k=ym+'|'+id; if(!_hazushi[k]) return;
+    var ochiteita=(_hazushi[k]==='ochi'); delete _hazushi[k];
+    if(ochiteita) _hazushiObi();
+  }
+  function setConfirm(id,on){ if(!state.confirmed[state.month])state.confirmed[state.month]={};
+    var _hk=state.month+'|'+id;
+    if(on){ state.confirmed[state.month][id]=true; delete _hazushi[_hk]; }
+    else { if(state.confirmed[state.month][id]) _hazushi[_hk]='machi'; delete state.confirmed[state.month][id]; } }
   /* ★この月が「確定済」か＝従業員に見せてよい状態か。ここ1か所だけで決める。
      入力画面のバッジ（下書き／確定済）と「Web明細で公開」の可否が食い違わないようにするため。
      ★「前月と同じだから自動で確認済み扱い」(empAutoOk)は入れない★
@@ -6428,8 +6469,8 @@
              ＝★門は 1文字も 緩めて いません★
            ⇒ ★★＝受け皿は ★呼び出しと 同じ 文★ に 置く★★（★際に 置かない★の 兄弟） */
       return _slipYakusoku(Store.savePayslip(ym, x.id, x.slip))
-        .then(function(){ if(x.nao) todoita.push(x.id); })
-        .catch(function(err){ if(x.slip && x.slip.confirmed) saveFailed(err); })   /* ★約束の失敗は ここでしか捕まらない★／★言うのは 確定済みの 明細だけ★（下書きは 台帳に 入らない＝「もう一度 確定して」は 誤り。通信の 失敗は 会社の 保存の 帯が 言う・2026-10-12） */
+        .then(function(){ if(x.nao) todoita.push(x.id); _hazushiTodoita(ym, x.id); })
+        .catch(function(err){ if(x.slip && x.slip.confirmed) saveFailed(err); else _hazushiOchita(ym, x.id, err); })   /* ★約束の失敗は ここでしか捕まらない★／★言うのは 確定済みの 明細だけ★（下書きは 台帳に 入らない＝「もう一度 確定して」は 誤り。通信の 失敗は 会社の 保存の 帯が 言う・2026-10-12） */
         .then(_oe, _oe);
     }
     var n = Math.min(SLIP_DOJI_UE, retsu.length);
@@ -6677,7 +6718,10 @@
     /* kind＝'ng'（保存できなかった）／'ok'（保存できた）＝★どの画面でも 見える 帯★（hozonFuda）にも 渡す */
     var setS=function(t, kind){
       /* ★印が 書けない 間は「保存できた」と 言わない★＝帯も 字も「閉じないで」に（クラウドに 届いた 時は 下で 旗を 降ろしてから 言い直す） */
+      /* ★確定を 外した 人の 明細が 落ちて いる 間も「保存できた」と 言わない★（帯は 通るまで 残す・2026-10-12） */
       if(_inKakenai){ state._savedAt=null; if(kind==='ok'){ t=IN_KAKENAI_JI; kind='ng'; } else if(kind==='ng' && t.indexOf('閉じないで')<0){ t=t+'＝クラウドに 保存できるまで 閉じないでください'; } }
+      /* ★取り消しが 落ちて いる 間：ok は 取り消しの 字に／ng は 後ろへ 足す（前の 字を 消さない）★ */
+      if(_hazushiOchiN()>0){ if(kind==='ok'){ t=_hazushiJi(); kind='ng'; state._savedAt=null; } else if(kind==='ng' && t.indexOf(HAZUSHI_MEJIRUSHI)<0){ t=t+HAZUSHI_KUGIRI+_hazushiJi(); } }
       var e=document.getElementById('save-status'); if(e) e.textContent=t; hozonFuda(kind, t); };
     if(!lsOk) setS('⚠ 保存できません（このブラウザの空き容量）', 'ng'); // 容量超過を握り潰さず表示
     if(window.Store&&Store.cloudSaveState){
