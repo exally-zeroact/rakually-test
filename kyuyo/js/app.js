@@ -2194,7 +2194,10 @@
   var _saveFailKei = 0;      /* ★戻らない 合計★＝呼ぶ 側が 前後の 差で 落ちた 人数を 知る */
   var _saveFailDamaru = 0;   /* ★>0 の 間は 札を 出さない（数えるだけ）★ */
   var _saveFailN = 0, _saveFailT = null;
-  function saveFailed(){
+  function saveFailed(err){
+    /* ★ログインしていない 時は 言わない★（2026-10-12 taiketsu）＝persistSave の no-user（未ログイン＝クラウド対象外）と 同じ 決め。
+       言うと ログイン画面の 上に「保存できませんでした」が 出る（札 9999 ＞ 入口 400）。store.js が noUser の 印を 付けて 投げる */
+    if(err && err.noUser) return;
     _saveFailN++; _saveFailKei++;
     if(_saveFailDamaru > 0){ _saveFailN = 0; clearTimeout(_saveFailT); return; }   /* ★呼ぶ 側が まとめて 言う★ */
     clearTimeout(_saveFailT);
@@ -6426,7 +6429,7 @@
            ⇒ ★★＝受け皿は ★呼び出しと 同じ 文★ に 置く★★（★際に 置かない★の 兄弟） */
       return _slipYakusoku(Store.savePayslip(ym, x.id, x.slip))
         .then(function(){ if(x.nao) todoita.push(x.id); })
-        .catch(saveFailed)   /* ★約束の失敗は ここでしか捕まらない★ */
+        .catch(function(err){ if(x.slip && x.slip.confirmed) saveFailed(err); })   /* ★約束の失敗は ここでしか捕まらない★／★言うのは 確定済みの 明細だけ★（下書きは 台帳に 入らない＝「もう一度 確定して」は 誤り。通信の 失敗は 会社の 保存の 帯が 言う・2026-10-12） */
         .then(_oe, _oe);
     }
     var n = Math.min(SLIP_DOJI_UE, retsu.length);

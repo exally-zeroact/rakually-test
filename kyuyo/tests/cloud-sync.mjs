@@ -53,7 +53,7 @@ function makeMock(opts) {
       if (!Array.isArray(res.data)) return res; // 単一行(maybeSingle系)はそのまま
       return { data: res.data.slice(_lo, _lo + 1000), count: (res.count != null ? res.count : res.data.length), error: res.error };
     }
-    const q = { eq: () => q, is: () => q, gte: () => q, lte: () => q, order: () => q, range: (a) => { _lo = a; return q; }, maybeSingle: () => wait(res), then: (f, r) => wait(paged()).then(f, r) };
+    const q = { eq: () => q, is: () => q, gte: () => q, lte: () => q, order: () => q, limit: () => q, range: (a) => { _lo = a; return q; }, maybeSingle: () => wait(res), then: (f, r) => wait(paged()).then(f, r) };
     return q;
   }
   function from(table) {
@@ -116,7 +116,9 @@ function makeMock(opts) {
           : table === 'pay_payslips' ? calls.slipUpsert : calls.empUpsert).push(d);
         let retUA = null;
         if (table === 'pay_companies' && d && d.updated_at != null) { retUA = dbFmt(d.updated_at); if (opts.dbFormat) storedUA = retUA; }
-        const res = { error: opts.failUpsert ? { message: 'upsert失敗' } : null, data: retUA != null ? { updated_at: retUA } : null };
+        /* ★`failSlipUpsert`／`failDocsUpsert`＝明細の 行／紙 だけ 落とす★（2026-10-12）＝supabase は 失敗しても 投げず {error} を 返す。それを 失敗と 見るか */
+        const _ochiru = opts.failUpsert || (table === 'pay_payslips' && opts.failSlipUpsert) || (table === 'pay_meisai_docs' && opts.failDocsUpsert);
+        const res = { error: _ochiru ? { message: 'upsert失敗' } : null, data: retUA != null ? { updated_at: retUA } : null };
         // upsert(...) は Promise。さらに .select('updated_at').single() でDB保存後の updated_at を返せるようにする。
         const p = Promise.resolve(res);
         p.select = () => ({ single: () => Promise.resolve(res), maybeSingle: () => Promise.resolve(res), then: (f, r) => Promise.resolve(res).then(f, r) });
@@ -176,6 +178,8 @@ function makeMock(opts) {
            ⇒ ★前の 偽の 倉庫には `.select` が ★無く★、しかも ★棚も 減らなかった★
            ⇒ ★★＝差分削除の 道は ★偽の 倉庫で 1度も 通って いませんでした★★★（★25段 緑 なのに★）
          ★`204` では なく ★消えた 行★を 返す★＝★本物と 同じ 形★ */
+      /* ★`insert`＝紙の 公開で pay_meisai_pub を 作る 道（2026-10-12）＝トークンを 返すだけ（本物と 同じ .select('token').single() の 形） */
+      insert: (d) => { const r = opts.failPubInsert ? { data: null, error: { message: 'insert失敗' } } : { data: { token: 'tok_' + ((d && d.employee_id) || 'x') }, error: null }; return { select: () => ({ single: () => Promise.resolve(r) }) }; },
       delete: () => ({
         in: (col, ids) => {
           calls.deletes.push(ids);
@@ -199,6 +203,8 @@ function makeMock(opts) {
     auth: {
       getUser: () => {
         calls.getUser.push(1);
+        /* ★`tsushinKire`＝通信が 落ちた 時の 本物の 形★（2026-10-12 taiketsu 実測）＝投げずに user:null と AuthRetryableFetchError を 返す（session は 端末に 残る） */
+        if (opts.tsushinKire) return Promise.resolve({ data: { user: null }, error: { name: 'AuthRetryableFetchError', message: 'Failed to fetch' } });
         return Promise.resolve({ data: { user: opts.noUser ? null : { id: 'u1' } } });
       },
     },
@@ -889,6 +895,54 @@ runs.push(T('reconcileOnLoad: 基準と クラウドは ms で 比べる（…12
   ok(r.apply === 'local' && r.push === true, '同じ 時刻＝据置＝手元を 残して 送る(' + JSON.stringify(r) + ')');
   const r2 = Store.reconcileOnLoad({ localDirty: true, baseCoUA: '2026-10-12T01:00:01.120Z', cloudCoUA: '2026-10-12T01:00:01.121+00:00' });
   ok(r2.apply === 'cloud' && r2.conflict === true, '1ms でも 違えば conflict(' + JSON.stringify(r2) + ')');
+}));
+
+/* ★明細の 行・紙の 書きが 倉庫で 落ちたら 失敗として 返す★（2026-10-12・指示役の 別件【1】）
+   supabase は 失敗しても 投げず {error} を 返す（throwOnError 既定 false）。前は その まま 返し、受け手の .catch(saveFailed) が 1回も 走らず
+   「N名分を 保存できませんでした（台帳・年末調整に 入っていません）」が 出なかった。ログインが 切れた 時も 黙って null だった。 */
+runs.push(T('明細の 行が 倉庫で 落ちたら savePayslip は 断る（{error} を 成功に しない）', async function () {
+  const Store = loadStore(makeMock({ failSlipUpsert: true }));
+  let kotae = null;
+  await Store.savePayslip('2026-06', 'e1', { name: '山田' }).then((r) => { kotae = 'ok:' + JSON.stringify(r && (r.error || r)); }, (e) => { kotae = 'ことわった'; });
+  ok(kotae === 'ことわった', '断らない＝' + kotae);
+}));
+runs.push(T('ログインしていなければ savePayslip は noUser の 印付きで 断る（null で「届いた」に しない・警告は app 側で 黙る）', async function () {
+  const Store = loadStore(makeMock({ noUser: true }));
+  let kotae = null;
+  await Store.savePayslip('2026-06', 'e1', { name: '山田' }).then((r) => { kotae = 'ok:' + JSON.stringify(r); }, (e) => { kotae = (e && e.noUser) ? 'ことわった(noUser)' : 'ことわった(印なし)'; });
+  ok(kotae === 'ことわった(noUser)', '＝' + kotae);
+}));
+runs.push(T('明細の 行が 書ければ 今まで通り 成功', async function () {
+  const mock = makeMock({});
+  const Store = loadStore(mock);
+  let kotae = null;
+  await Store.savePayslip('2026-06', 'e1', { name: '山田' }).then(() => { kotae = 'ok'; }, (e) => { kotae = 'ことわった:' + (e && e.message); });
+  ok(kotae === 'ok' && mock.__calls.slipUpsert.length === 1, kotae + '／書いた 数 ' + mock.__calls.slipUpsert.length);
+}));
+runs.push(T('紙（pay_meisai_docs）が 倉庫で 落ちたら publishMeisai は 断る（公開できたと 言わない）', async function () {
+  const Store = loadStore(makeMock({ failDocsUpsert: true }));
+  let kotae = null;
+  await Store.publishMeisai([{ employeeId: 'e1', name: '山田', ym: '2026-06', kind: 'monthly', data: {} }]).then((r) => { kotae = 'ok:' + JSON.stringify(r); }, () => { kotae = 'ことわった'; });
+  ok(kotae === 'ことわった', '断らない＝' + kotae);
+}));
+
+runs.push(T('リンク（pay_meisai_pub）が 作れなければ publishMeisai は 断る（その人を 黙って 抜かさない）', async function () {
+  const Store = loadStore(makeMock({ failPubInsert: true }));
+  let kotae = null;
+  await Store.publishMeisai([{ employeeId: 'e1', name: '山田', ym: '2026-06', kind: 'monthly', data: {} }]).then((r) => { kotae = 'ok:' + JSON.stringify(r); }, () => { kotae = 'ことわった'; });
+  ok(kotae === 'ことわった', '断らない＝' + kotae);
+}));
+runs.push(T('紙と リンクが 書ければ publishMeisai は 今まで通り リンクを 返す', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = await Store.publishMeisai([{ employeeId: 'e1', name: '山田', ym: '2026-06', kind: 'monthly', data: {} }]);
+  ok(Array.isArray(r) && r.length === 1 && r[0].link === 'meisai.html?t=tok_e1', JSON.stringify(r));
+}));
+
+runs.push(T('通信が 落ちて 利用者が 取れない 時は noUser の 印を 付けずに 断る（警告を 黙らせない）', async function () {
+  const Store = loadStore(makeMock({ tsushinKire: true }));
+  let kotae = null;
+  await Store.savePayslip('2026-06', 'e1', { name: '山田' }).then((r) => { kotae = 'ok:' + JSON.stringify(r); }, (e) => { kotae = (e && e.noUser) ? 'ことわった(noUser)' : 'ことわった(印なし)'; });
+  ok(kotae === 'ことわった(印なし)', '＝' + kotae);
 }));
 
 await Promise.all(runs);

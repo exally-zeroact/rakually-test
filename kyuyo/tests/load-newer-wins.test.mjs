@@ -271,6 +271,36 @@ if (!WAZA) {
         T('⑳ ★届かずに 閉じても 開き直しで 確定が 残る（端末の 写しから）★', !!(A.state.confirmed && A.state.confirmed[ym20] && A.state.confirmed[ym20].e20), '確定=' + JSON.stringify(A.state.confirmed && A.state.confirmed[ym20]));
       }
     }
+
+    /* ㉑㉒㉓ ★明細の 行が 倉庫で 落ちた 時の 札★（2026-10-12・store.js が {error} を 投げる 様に なった 後）
+       ㉑ 下書き（確定して いない 月）が 落ちても「もう一度 確定して」の 札は 出さない（台帳に 入らない＝誤り。通信の 失敗は 会社の 帯が 言う）
+       ㉒ ログインして いない（noUser）なら 札は 出さない（ログイン画面の 上に 出ていた・taiketsu 10-12）
+       ㉓ 確定済みの 明細が 落ちたら 札が 出る（決めて 在った 警告） */
+    {
+      const slipMoto = win.Store.savePayslip;
+      const fudaJi = () => { const t = doc.getElementById('app-toast'); return t ? (t.textContent || '').trim() : ''; };
+      const fudaKesu = () => { const t = doc.getElementById('app-toast'); if (t) t.textContent = ''; };
+      const e21 = Object.assign(A.defEmp(), { id: 'e21', name: '下書きの人', pref: '東京都', birthYmd: '1990-01-01', base: 250000 });
+      try {
+        win.Store.cloudSaveState = () => Promise.resolve({ ok: true, coUA: '2026-10-12T07:00:00.000Z' });
+        A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [e21], confirmed: {}, _coUA: '2026-10-12T07:00:00.000Z' });
+        win.Store.savePayslip = () => Promise.reject(new Error('倉庫で 落ちた'));
+        fudaKesu(); A.persistSave(); await sleep(900);
+        T('㉑ 下書きの 明細が 落ちても「保存できませんでした…確定して」の 札は 出ない', !/保存できませんでした/.test(fudaJi()), '札=' + fudaJi());
+        /* ㉒ は ★本物の 確定の チェック★で 名指しの 保存を 走らせる（確定済みは 凍結で 送られない＝setConfirm＋persistSave では 空振りした） */
+        let yobi22 = 0;
+        win.Store.savePayslip = () => { yobi22++; const e = new Error('ログインしていない'); e.noUser = true; return Promise.reject(e); };
+        A.renderInput(); const b22 = doc.querySelector('#input-list .econf');
+        fudaKesu(); if (b22 && !b22.checked) b22.click(); await sleep(900);
+        T('㉒ ログインして いない 時は 確定の 保存が 落ちても 札を 出さない（noUser）', yobi22 >= 1 && !/保存できませんでした/.test(fudaJi()), '保存を 呼んだ 回数=' + yobi22 + '／札=' + fudaJi());
+        win.Store.savePayslip = () => Promise.reject(new Error('倉庫で 落ちた'));
+        A.renderInput(); const b23 = doc.querySelector('#input-list .econf');
+        fudaKesu();
+        if (b23 && b23.checked) { b23.click(); await sleep(200); const ok23 = [...doc.querySelectorAll('.ui-modal-ov button, .ui-modal-card button')].find((x) => /OK/.test(x.textContent || '')); if (ok23) ok23.click(); await sleep(400); A.renderInput(); const b23b = doc.querySelector('#input-list .econf'); fudaKesu(); if (b23b) b23b.click(); }
+        await sleep(900);
+        T('㉓ 確定済みの 明細が 落ちたら「保存できませんでした（台帳・年末調整に入っていません）」の 札が 出る', /保存できませんでした（台帳・年末調整に入っていません）/.test(fudaJi()), '札=' + fudaJi());
+      } finally { win.Store.savePayslip = slipMoto; }
+    }
   } finally { console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
 
 } else {

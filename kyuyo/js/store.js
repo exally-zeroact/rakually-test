@@ -885,8 +885,22 @@
   };
   function doSavePayslip(id, ym, employeeId, d){
     if(hasSupa){
-      return sb.auth.getUser().then(function(r){ var uid=r.data&&r.data.user&&r.data.user.id; if(!uid) return null;
-        return sb.from('pay_payslips').upsert({ id:id, account_id:uid, ym:ym, employee_id:employeeId, data:d, updated_at:new Date().toISOString() });
+      /* ★倉庫で 落ちたら 投げる★（2026-10-12・指示役の 別件【1】）＝supabase は 失敗しても 投げず {error} を 返す（throwOnError 既定 false）。
+         前は その まま 返し、受け手の .catch(saveFailed) が 1回も 走らず「N名分を 保存できませんでした（台帳・年末調整に 入っていません）」が 出なかった。
+         ログインが 切れた 時も 黙って null だった＝同じく 投げる。★確定の 立て方・凍結・計算は 変えない★（決めて 在った 警告を 出すだけ） */
+      return sb.auth.getUser().then(function(r){ var uid=r.data&&r.data.user&&r.data.user.id; if(!uid){
+          /* ★ログインして いない（session が 無い）時だけ noUser の 印★＝警告は しない（app.js の saveFailed が 黙る・ログイン画面の 上に 札を 出さない）。
+             ★通信が 落ちた 時は 印を 付けない★（2026-10-12 taiketsu 実測）＝getUser は 投げずに user:null と AuthRetryableFetchError を 返す（session は 残る）。
+             ここで 黙ると「確定しても 台帳・年末調整に 入っていない」を 誰も 言わない。null で 返すと 受け手が「届いた」に 数える＝どちらも 投げる */
+          var _ae = r && r.error;
+          var _ne = new Error(_ae ? ('つながりません（明細を クラウドに 保存できません・' + (_ae.name || _ae.message || '') + '）') : 'ログインしていません（明細を クラウドに 保存しません）');
+          _ne.noUser = !_ae || _ae.name === 'AuthSessionMissingError';
+          throw _ne;
+        }
+        return sb.from('pay_payslips').upsert({ id:id, account_id:uid, ym:ym, employee_id:employeeId, data:d, updated_at:new Date().toISOString() }).then(function(res){
+          if(res && res.error) throw new Error((res.error.message)||'明細を クラウドに 保存できません');
+          return res;
+        });
       });
     }
     var arr=psAll(); var i=arr.findIndex(function(x){ return x.id===id; }); var row={ id:id, ym:ym, employee_id:employeeId, data:d };
@@ -1093,11 +1107,14 @@
           var pubP = ex ? Promise.resolve(ex.token)
             : sb.from('pay_meisai_pub').insert({ employee_id:it.employeeId, init_code:rndCode() }).select('token').single().then(function(ir){ return ir.data&&ir.data.token; });
           return pubP.then(function(token){
-            if(!token) return null;
+            /* ★リンクが 作れない 人を 黙って 抜かさない★（2026-10-12）＝前は null で 抜け、残りの 人数で「N名 公開しました」と 言った */
+            if(!token) throw new Error((it.name||'')+' さんの Web明細の リンクを 作れません');
             var id='md_'+token+'_'+it.ym+'_'+it.kind;
             var _row = { id:id, token:token, ym:it.ym, kind:it.kind, data:it.data };
             if(opt.naoshi){ _row.opened_at = null; }   /* ★直し＝未読に 戻す★ */
-            return sb.from('pay_meisai_docs').upsert(_row).then(function(){
+            return sb.from('pay_meisai_docs').upsert(_row).then(function(ur){
+              /* ★紙が 倉庫で 落ちたら 投げる★（2026-10-12・明細の 行と 同じ）＝前は {error} でも「公開しました」に なった。受け手は「Web明細を 公開できませんでした」を 言う */
+              if(ur && ur.error) throw new Error((ur.error.message)||'Web明細を クラウドに 保存できません');
               return { employeeId:it.employeeId, name:it.name, token:token, link:'meisai.html?t='+token };
             });
           });
