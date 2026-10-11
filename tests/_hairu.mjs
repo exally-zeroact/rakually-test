@@ -144,7 +144,7 @@ async function _hataWoTateru(pg) {
   }).catch((e) => { console.log('       🟡 覆いの 控えの 旗が 立ちません … ' + ((e && e.message) || e)); });
 }
 
-/* ★画面が「合言葉が 違う」と 言った 時の 字★（js/rakunally-login.js:76・kyuyo/js/auth.js:28 が Invalid login credentials を 訳した 字）
+/* ★画面が「合言葉が 違う」と 言った 時の 字★（js/rakunally-login.js:76 の friendly が Invalid login credentials を 訳した 字・#loginErr に 出る）
    ★揺れ（通信）とは 別★＝倉庫が 返事を した 時しか 出ない（つながらない時は「つながりませんでした…」）。
    ⇒ ★開き直しても 入れない★ので その場で 赤（入れ替えの 日に secret が 古いまま＝黙って 未測定に しない・決め2 10-11） */
 export const AIKOTOBA_CHIGAU = 'メールかパスワードが違います';

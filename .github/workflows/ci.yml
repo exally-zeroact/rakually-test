@@ -42,6 +42,8 @@ jobs:
       #   テスト側は「SKIPを緑と呼ばない」作りなので赤になる（その振る舞いが正しい）。
       - name: Install test deps (jsdom / jsqr)
         run: npm install --no-audit --no-fund
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
 
       # ── Rakunally 共通（入口・共有データ・台帳・集計。元 Exally 由来を据置） ──
       - name: Cache-buster stamp guard (貼り忘れ検知・コードより先に見る)

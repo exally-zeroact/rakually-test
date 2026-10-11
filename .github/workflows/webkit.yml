@@ -154,9 +154,13 @@ jobs:
           node-version: '20'
       - name: Install test deps
         run: npm install --no-audit --no-fund
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
       # ★webkit だけ★ 入れる（chromium/firefox は要らない＝そのぶん速い）
       - name: Install WebKit
         run: npx playwright install --with-deps webkit
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
       - name: ★WebKitで 375/390/430 を実測 (16px未満0本／押す的20×20未満0個／横はみ出し0px)
         if: ${{ !cancelled() }}
         run: node scripts/webkit-size.mjs
@@ -179,6 +183,8 @@ jobs:
       #   司さんの指摘「なんでここが揃ってないんど／右揃えか左揃えかやろが」を 数で 押さえた物。
       - name: Install Chromium (自作PDFを 本物のブラウザで 作る為)
         run: npx playwright install --with-deps chromium
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
       - name: ★自作PDF 紙の揃え方を そのまま写しているか (右端/左端が紙と同じ・自社4行の右端が揃う・化け0)
         if: ${{ !cancelled() }}
         run: node seikyu/tests/pdf-align.mjs

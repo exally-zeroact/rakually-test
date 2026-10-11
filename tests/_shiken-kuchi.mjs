@@ -89,11 +89,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   fs.writeFileSync(fake, '{ こわれた');
   t('⑨ 置き場が 壊れていれば 止まる', !kuchiYomu('kyoyu', o()).ok);
   fs.rmSync(tmp, { recursive: true, force: true });
-  /* ⑩ 合言葉違いの 判じの 字が 画面の 字と 同じか（字で 判じる 門＝画面が 字を 変えたら 空振り） */
+  /* ⑩ 合言葉違いの 判じの 字が ★効いている 画面の 字★と 同じか（字で 判じる 門＝画面が 字を 変えたら 空振り）
+     ★見るのは 2本だけ★＝hairu が 読む #loginErr を 書く js/rakunally-login.js（friendly）と、admin-ui が 読む #msg を 書く kyuyo/js/admin.js。
+     kyuyo/js/auth.js の jpErr は RakunallyLogin が 在る時は 通らない 予備＝数えない（taiketsu 10-11） */
   /* ★_hairu.mjs は 読み込まない★（あちらが この 部品を 読む＝輪に なって 止まる）＝字を 拾う */
   const AIKOTOBA_CHIGAU = (/export const AIKOTOBA_CHIGAU = '([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'tests/_hairu.mjs'), 'utf8')) || [])[1] || '（拾えない）';
-  const gamen = ['js/rakunally-login.js', 'kyuyo/js/auth.js', 'kyuyo/js/admin.js'].filter((f) => fs.readFileSync(path.join(ROOT, f), 'utf8').includes(AIKOTOBA_CHIGAU));
-  t('⑩ 合言葉違いの 字が 画面 3本（入口・給与・管理）に 在る（' + gamen.length + '/3）', gamen.length === 3);
+  const gamen = ['js/rakunally-login.js', 'kyuyo/js/admin.js'].filter((f) => fs.readFileSync(path.join(ROOT, f), 'utf8').includes(AIKOTOBA_CHIGAU));
+  t('⑩ 合言葉違いの 字が 画面 2本（入口・管理）に 在る（' + gamen.length + '/2）', gamen.length === 2);
   console.log('\n  [shiken-kuchi --self-test] ok ' + ok + ' ／ ✗ ' + ng + ' ／ 全 ' + (ok + ng));
   console.log('自己確認: ' + ok + '/' + (ok + ng));
   process.exit(ng || ok !== 10 ? 1 : 0);
