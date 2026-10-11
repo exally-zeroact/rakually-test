@@ -115,7 +115,7 @@ try {
   const pg = await b.newPage();
   const APP = 'http://localhost:' + PORT + '/kyuyo/index.html';
   const hai = await hairu(pg, APP, '.bn[data-scr]');
-  if (!hai.haitta) { MI('アプリに 入れない', hai.naze || ('試した ' + hai.kai + '回')); throw new Error('skip'); }
+  if (!hai.haitta) { T('アプリに 入れた（★入れない＝測れない＝赤★・決め2 10-11）', false, hai.naze || ('試した ' + hai.kai + '回')); throw new Error('skip'); }
   /* ★★覆いは ★画面を 移る 前★に 片づける★★
      「OK」は `app.js:6016` で ★`location.reload()`★＝★画面が 最初に 戻る★。
      画面を 移った 後に 答えると ★印刷の 画面から 追い出される★＝行が 出ない。 */

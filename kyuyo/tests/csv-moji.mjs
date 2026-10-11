@@ -146,7 +146,7 @@ try {
 
   const pg = await b.newPage();
   const hai = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr]');
-  if (!hai.haitta) { MI('アプリに 入れない', hai.naze || ('試した ' + hai.kai + '回')); throw new Error('skip'); }
+  if (!hai.haitta) { T('アプリに 入れた（★入れない＝測れない＝赤★・決め2 10-11）', false, hai.naze || ('試した ' + hai.kai + '回')); throw new Error('skip'); }
 
   /* ★覆い（クラウドの 最新を 読みますか）は 先に 答える★＝OK は 画面を 開き直す */
   const ooiNiKotaeru = async () => {

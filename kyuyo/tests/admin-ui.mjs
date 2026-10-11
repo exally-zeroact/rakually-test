@@ -38,6 +38,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { kuchi } from '../../tests/_shiken-kuchi.mjs';
+import { AIKOTOBA_CHIGAU } from '../../tests/_hairu.mjs';
+import { repoEnv } from '../../scripts/repo-env.mjs';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const { kagiAru } = await import('../../tests/_hairu.mjs');
@@ -141,8 +144,10 @@ try {
     '入口' + mae1.login + '／台' + mae1.panel + '／字' + mae1.list);
 
   /* ── ② 管理者で ない 口で 入る（★本物の 打ち込みと click★） ── */
+  /* ★合言葉は repo に 置かない★（tests/_shiken-kuchi.mjs・決め2 10-11）。★本番を 向いた repo には 渡さない★＝前から ここは 未測定 */
+  if (repoEnv(ROOT) !== 'test') throw new Error('本番を 向いた repo＝試験の口の 合言葉を 渡さない（未測定）');
   await pg.fill('#email', KUCHI);
-  await pg.fill('#pw', 'test1234');
+  await pg.fill('#pw', kuchi('kyoyu').pass);
   await pg.click('#signin');
   let dekita = false;
   for (let i = 0; i < 120; i++) {
@@ -159,7 +164,10 @@ try {
     body: document.body.innerText || '',
     stat: (document.getElementById('stat').textContent || '').trim(),
   }));
-  if (!dekita) MI('★②③ 入った 後の 画面★', '30秒 待っても 断りも 台も 出なかった');
+  const msg = await pg.evaluate(() => (document.getElementById('msg').textContent || '').trim());
+  /* ★合言葉違いは 未測定に しない＝赤★（kyuyo/js/admin.js が Invalid を 訳した 字・入れ替えの 日に secret が 古いまま 等） */
+  if (!dekita && msg.includes(AIKOTOBA_CHIGAU)) T('★② 入れる（合言葉が 倉庫と 合っている）★', false, '画面＝' + msg + '＝secret SHIKEN_KUCHI_PASS か ~/.shiken-kuchi.json が 違う');
+  else if (!dekita) MI('★②③ 入った 後の 画面★', '30秒 待っても 断りも 台も 出なかった（画面＝' + (msg || '何も 言っていない') + '）');
   else {
     if (WAZA) {
       /* ★わざと 外した 回★＝★②が 赤に なる事★を ここで 数える（緑のままなら 見張りが 空振り） */

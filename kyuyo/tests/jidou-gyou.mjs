@@ -90,7 +90,9 @@ console.log('  ★前★ 人 ' + mae.hito + '／確定 ' + mae.kakutei + '／公
   + '　★従業員 1★ ' + (maeHito.ok ? JSON.stringify(maeHito.gyo) : maeHito.naze));
 
 const b = await launch('jidou-gyou', wk); const pg = await b.newPage();
-await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr]');
+/* ★入れなければ その場で 赤★（決め2 10-11）＝前は 返り値を 見ず、わざとの 回では 入れない 赤を「門が 効いた」と 数えた */
+{ const _h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr]');
+  if (!_h.haitta) { console.log('  ✗ アプリに 入れない＝測れない＝赤 … ' + (_h.naze || ('試した ' + _h.kai + '回'))); await b.close(); srv.close(); process.exit(1); } }
 const empHiraku = async () => {
   await pg.click('.bn[data-scr="scr-settings"]', { timeout: 20000 }).catch(() => null);
   await new Promise((r) => setTimeout(r, 700));

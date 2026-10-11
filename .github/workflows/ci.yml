@@ -28,6 +28,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # ★試験の口の 合言葉は repo に 置かない★＝secret（tests/_shiken-kuchi.mjs が 読む・無ければ exit 2・決め2 10-11）
+    env:
+      SHIKEN_KUCHI_PASS: ${{ secrets.SHIKEN_KUCHI_PASS }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -812,6 +815,15 @@ jobs:
         run: sh scripts/kinshi-ci.sh 7 -- node .githooks/pre-push-author.mjs --self-test
       - name: 押す commit の 中身の 門の自己確認（hooks/pre-push から 呼ぶ .githooks/pre-push-kinshi.mjs・16組・43回 以上）
         run: sh scripts/kinshi-ci.sh 16,43 -- node .githooks/pre-push-kinshi.mjs --self-test
+      # ★試験の口の 合言葉（決め2 10-11）★＝読む 所は tests/_shiken-kuchi.mjs 1か所・字が 追跡物に 戻れば 赤（値は secret・空なら 赤）
+      - name: 試験の口の合言葉を読む部品の自己確認（10組）
+        run: sh scripts/kinshi-ci.sh 10 -- node tests/_shiken-kuchi.mjs --self-test
+      - name: 試験の口の合言葉の戻り止めの自己確認（5組）
+        run: sh scripts/kinshi-ci.sh 5 -- node tests/shiken-kuchi-modori.test.mjs --self-test
+      - name: 試験の口の合言葉の字が追跡物に戻っていないか（値は secret）
+        run: node tests/shiken-kuchi-modori.test.mjs
+        env:
+          SHIKEN_KUCHI_PASS: ${{ secrets.SHIKEN_KUCHI_PASS }}
 
   # ★見張りだけを node 24 で 回す★（凍結版と 同じ 訳）
   #   node 24 では 奇数の 長さの toString("utf16le") が「double free」で 落ちた（node 20 は 通る）。見張りは u16le() で 偶数に 揃えて 読む。

@@ -22,12 +22,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { borrow, launch as pwLaunch } from '../../scripts/_borrow-playwright.mjs';
 import { repoEnv } from '../../scripts/repo-env.mjs';
+import { kuchi } from '../../tests/_shiken-kuchi.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CFG = fs.readFileSync(path.join(ROOT, 'js/supa-config.js'), 'utf8');
 const URL_ = (/url:\s*'([^']+)'/.exec(CFG) || [])[1];
 const KEY = (/key:\s*'([^']+)'/.exec(CFG) || [])[1];
-const MAIL = 'test@test.com', PW = 'test1234';
+/* ★合言葉は repo に 置かない★＝下の test の 判じの 後で tests/_shiken-kuchi.mjs から 読む（決め2 10-11） */
 const N = Number(process.argv.find((a) => /^\d+$/.test(a)) || 10);
 const SLOW = Number((/--slow=(\d+)/.exec(process.argv.join(' ')) || [])[1] || 0);
 const FAILLOAD = process.argv.includes('--fail-load');
@@ -41,6 +42,7 @@ if (ENV !== 'test') {
   process.exit(2);
 }
 console.log('  倉庫 … ' + URL_ + '（repo-env の答え … ' + ENV + '）');
+const { email: MAIL, pass: PW } = kuchi('kyoyu');
 
 const api = async (p, opt = {}) => {
   const r = await fetch(URL_ + p, { ...opt, headers: { apikey: KEY, 'content-type': 'application/json', ...(opt.headers || {}) } });

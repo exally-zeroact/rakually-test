@@ -21,9 +21,11 @@ const SuiteData = require('../js/suite-data.js');
 //   直書きだと、本番からスナップショットを持ってきたテストリポジトリで走らせた時に
 //   本番倉庫を触ってしまう。リポジトリ由来にすれば 本番repo→本番 / stagingのrepo→DB-test にしかならない。
 import { repoSupa } from './repo-supa.mjs';
+import { kuchi } from './_shiken-kuchi.mjs';
 const { url: URL, key: ANON } = repoSupa();
 console.log('接続先(このリポジトリの js/supa-config.js 由来): ' + URL);
-const CRED_FILE = process.env.EXALLY_TEST_CRED || path.join(process.env.TEMP || '/tmp', 'exally-e0-test-cred.json');
+// ★合言葉は repo の 外の 1か所★＝tests/_shiken-kuchi.mjs（~/.shiken-kuchi.json・無ければ exit 2・test の repo でしか 返さない）。
+//   %TEMP% の cred と 差し替えの 環境変数は やめた（決め2 10-11）。
 // ★このメール以外のアカウントでは絶対に走らせない（本番データを消さない最後の砦）
 const TEST_EMAIL = 'exally.supoort+e0test@gmail.com';
 
@@ -36,25 +38,13 @@ function ok(name, cond, detail) {
 
 async function login() {
   const sb = createClient(URL, ANON);
-  let cred = null;
-  try { cred = JSON.parse(fs.readFileSync(CRED_FILE, 'utf8')); } catch {}
-  if (cred) {
-    const { data, error } = await sb.auth.signInWithPassword({ email: cred.email, password: cred.password });
-    if (!error && data.session) { console.log('既存のテストアカウントでログイン: ' + cred.email); return { sb, email: cred.email, uid: data.user.id }; }
-    console.log('既存の認証情報で入れませんでした（作り直します）: ' + (error && error.message));
-  }
-  // 新規作成(テスト専用)。★司さんの受信箱に届く plus エイリアス＝素性が分かる形にする★
-  const email = TEST_EMAIL;
-  const password = 'E0test-' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  const { data, error } = await sb.auth.signUp({ email, password });
-  if (error || !data.session) {
-    // 既にそのメールで登録済み＝パスワードが分からない → 司さん手番
-    throw new Error('テストアカウントを用意できません: ' + ((error && error.message) || 'セッションが返らない(メール確認が必要な設定)') +
-      '\n  → 司さんへ: ' + email + ' のパスワードを教えてもらうか、別のテスト用ログインを作ってください。');
-  }
-  fs.writeFileSync(CRED_FILE, JSON.stringify({ email, password }, null, 2));
-  console.log('テストアカウントを新規作成: ' + email + '（認証情報は ' + CRED_FILE + ' に保存・リポジトリ外）');
-  return { sb, email, uid: data.user.id };
+  const k = kuchi('e0test');
+  const { data, error } = await sb.auth.signInWithPassword({ email: k.email, password: k.pass });
+  // ★口を 作り直さない★（前は 入れないと signUp で 作り直し、合言葉を %TEMP% に 書いていた）
+  if (error || !data.session) throw new Error('テスト用の口に 入れない: ' + ((error && error.message) || 'セッションが返らない') + '＝~/.shiken-kuchi.json の e0test が 倉庫と 合っていない');
+  if (k.email !== TEST_EMAIL) throw new Error('中止: テスト専用アカウント以外では走らせません');
+  console.log('テストアカウントでログイン: ' + k.email);
+  return { sb, email: k.email, uid: data.user.id };
 }
 
 const run = async () => {

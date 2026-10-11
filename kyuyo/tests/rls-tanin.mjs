@@ -85,8 +85,10 @@ if (ENV !== 'test') {
   process.exit(0);
 }
 
-const A = { email: 'test@test.com', pass: 'test1234' };   /* 中身を 持っている人 */
-const B = { email: 'test-b@test.com', pass: 'test1234' }; /* 何も 持っていない人 */
+/* ★合言葉は repo に 置かない★＝tests/_shiken-kuchi.mjs（無ければ exit 2・決め2 10-11）。★上の 本番の 抜けより 後で 呼ぶ★ */
+const { kuchi } = await import('file://' + ROOT + '/tests/_shiken-kuchi.mjs');
+const A = kuchi('kyoyu');   /* 中身を 持っている人（test@test.com） */
+const B = kuchi('b');       /* 何も 持っていない人（test-b@test.com） */
 /* ★給与だけでなく 請求書の 棚も 見る★（同じ ログインで 両方 使う 1つの器なので、
    片方だけ 守れていても 意味が ない。2026-09-07 実測＝どちらも 分かれていた） */
 const TANA = ['pay_companies', 'pay_employees', 'pay_payslips', 'pay_ledger',

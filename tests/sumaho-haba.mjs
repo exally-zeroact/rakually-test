@@ -345,4 +345,6 @@ for (const w of HUB_HABA) {
 await b.close(); srv.close();
 console.log('\n  見た ' + mita + '通り ／ ★赤 ' + akai + '★ ／ 🟡未測定 ' + mihakari + ' ／ 待った のべ ' + mattaKei + '回');
 console.log('  ★借りたのは 測り方だけ★（daikou-seikyu tests/e2e/paper-width.spec.js・2026-08-10）');
+/* ★見た 通りが 0 は 赤★（決め2 10-11＝全部 未測定で 緑に しない。oseru-ka と 同じ） */
+if (mita === 0) { console.log('  ✗ ★見た 通りが 0＝何も 測って いない★'); akai++; }
 process.exit(akai ? 1 : 0);

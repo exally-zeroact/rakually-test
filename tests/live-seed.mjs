@@ -12,13 +12,15 @@ import fs from 'fs'; import path from 'path';
 //   直書きだと、本番からスナップショットを持ってきたテストリポジトリで走らせた時に
 //   本番倉庫を触ってしまう。リポジトリ由来にすれば 本番repo→本番 / stagingのrepo→DB-test にしかならない。
 import { repoSupa } from './repo-supa.mjs';
+import { kuchi } from './_shiken-kuchi.mjs';
 const { url: URL, key: ANON } = repoSupa();
 console.log('接続先(このリポジトリの js/supa-config.js 由来): ' + URL);
 const TEST_EMAIL = 'exally.supoort+e0test@gmail.com';
-const CRED_FILE = process.env.EXALLY_TEST_CRED || path.join(process.env.TEMP || '/tmp', 'exally-e0-test-cred.json');
+// ★合言葉は repo の 外の 1か所★＝tests/_shiken-kuchi.mjs（~/.shiken-kuchi.json・無ければ exit 2・test の repo でしか 返さない）。
+//   %TEMP% の cred と 差し替えの 環境変数は やめた（決め2 10-11）。
 
 const mode = process.argv[2] || 'seed';
-const cred = JSON.parse(fs.readFileSync(CRED_FILE, 'utf8'));
+const cred = (({ email, pass }) => ({ email, password: pass }))(kuchi('e0test'));
 const sb = createClient(URL, ANON);
 const { data: auth, error } = await sb.auth.signInWithPassword({ email: cred.email, password: cred.password });
 if (error || !auth.session) { console.error('ログインできません: ' + (error && error.message)); process.exit(2); }

@@ -103,7 +103,7 @@ const HOU_DEDOKORO = '法107条 3個（氏名・生年月日・履歴）＋則53
 try {
   const pg = await b.newPage();
   const hai = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr]');
-  if (!hai.haitta) { MI('アプリに 入れない', hai.naze || ('試した ' + hai.kai + '回')); throw new Error('skip'); }
+  if (!hai.haitta) { T('アプリに 入れた（★入れない＝測れない＝赤★・決め2 10-11）', false, hai.naze || ('試した ' + hai.kai + '回')); throw new Error('skip'); }
 
   if (WAZA) T('★わざ 差し替えが 効いた（' + mongae + 'か所）★', mongae === MON_HONSU, '★外したつもり★');
 

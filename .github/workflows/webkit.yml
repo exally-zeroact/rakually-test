@@ -73,6 +73,7 @@ on:
       - 'kyuyo/admin-manifest.json'
       - 'kyuyo/meisai.webmanifest'
       - 'tests/_hairu.mjs'
+      - 'tests/_shiken-kuchi.mjs'
       - 'tests/ooi-mon.mjs'
       - 'tests/button-uniform.test.mjs'
       - 'tests/repo-supa.mjs'
@@ -127,6 +128,7 @@ on:
       - 'kyuyo/admin-manifest.json'
       - 'kyuyo/meisai.webmanifest'
       - 'tests/_hairu.mjs'
+      - 'tests/_shiken-kuchi.mjs'
       - 'tests/ooi-mon.mjs'
       - 'tests/button-uniform.test.mjs'
       - 'tests/repo-supa.mjs'
@@ -143,6 +145,8 @@ jobs:
     #   判定は scripts/_borrow-playwright.mjs が 1か所で 持つ（★yml に 書き足さない★）。
     env:
       MEASURE_REQUIRED: '1'
+      # ★試験の口の 合言葉は repo に 置かない★＝secret（tests/_shiken-kuchi.mjs が 読む・無ければ exit 2・決め2 10-11）
+      SHIKEN_KUCHI_PASS: ${{ secrets.SHIKEN_KUCHI_PASS }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

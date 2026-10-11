@@ -18,8 +18,7 @@
  *   ・消した後、本物の行の ★金額が1円も動いていない★ ことを数えて出す。
  *
  * ログインは live-seed.mjs と同じ置き場所の資格情報ファイルを使う（コードに書かない）。
- *   %TEMP%\exally-e0-test-cred.json  … { "email": "...", "password": "..." }
- *   別のアカウントで見たい時は EXALLY_TEST_CRED でファイルを差し替える。
+ *   ~/.shiken-kuchi.json の 口 e0test（tests/_shiken-kuchi.mjs が 読む・決め2 10-11 に %TEMP% から 移した）
  */
 import { createClient } from '@supabase/supabase-js';
 import fs from 'node:fs';
@@ -36,13 +35,10 @@ if (!/env:\s*'test'/.test(cfg)) {
   process.exit(2);
 }
 
-const CRED_FILE = process.env.EXALLY_TEST_CRED || path.join(process.env.TEMP || '/tmp', 'exally-e0-test-cred.json');
-if (!fs.existsSync(CRED_FILE)) {
-  console.error('中止: 資格情報ファイルがありません: ' + CRED_FILE);
-  console.error('  { "email": "...", "password": "..." } を置いてから走らせてください。');
-  process.exit(2);
-}
-const cred = JSON.parse(fs.readFileSync(CRED_FILE, 'utf8'));
+// ★合言葉は repo の 外の 1か所★＝tests/_shiken-kuchi.mjs（~/.shiken-kuchi.json・無ければ exit 2・test の repo でしか 返さない）。
+//   %TEMP% の cred と 差し替えの 環境変数は やめた（決め2 10-11）。
+const { kuchi } = await import('../tests/_shiken-kuchi.mjs');
+const cred = (({ email, pass }) => ({ email, password: pass }))(kuchi('e0test'));
 
 /* ★検証ゴミの見分け方★
    ・番号が「年月-連番」（202609-001）＝ 本物。★何があっても消さない★

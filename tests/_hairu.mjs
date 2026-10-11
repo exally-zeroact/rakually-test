@@ -20,6 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { kuchi } from './_shiken-kuchi.mjs';
 
 /* ★★試験の 鍵が 在る repo か★★（2026-09-05 本番へ 運ぶ 支度で 見つけた）
    ★本番の repo は 本番の 倉庫を 指す★＝★test@test.com は 本番には 居ません★
@@ -143,6 +144,11 @@ async function _hataWoTateru(pg) {
   }).catch((e) => { console.log('       🟡 覆いの 控えの 旗が 立ちません … ' + ((e && e.message) || e)); });
 }
 
+/* ★画面が「合言葉が 違う」と 言った 時の 字★（js/rakunally-login.js:76・kyuyo/js/auth.js:28 が Invalid login credentials を 訳した 字）
+   ★揺れ（通信）とは 別★＝倉庫が 返事を した 時しか 出ない（つながらない時は「つながりませんでした…」）。
+   ⇒ ★開き直しても 入れない★ので その場で 赤（入れ替えの 日に secret が 古いまま＝黙って 未測定に しない・決め2 10-11） */
+export const AIKOTOBA_CHIGAU = 'メールかパスワードが違います';
+
 export async function hairu(pg, url, matsu, opt = 3) {
   await _hataWoTateru(pg);
   const kaiMax = typeof opt === 'number' ? opt : (opt && opt.kaiMax) || 3;
@@ -157,8 +163,11 @@ export async function hairu(pg, url, matsu, opt = 3) {
          ★短く 切って 投げ捨てない★＝この 回を 失敗にして ★開き直して もう一度★（下の for が 回す）。 */
       try {
         await pg.waitForSelector('#loginEmail', { state: 'visible', timeout: 15000 });
-        await pg.fill('#loginEmail', 'test@test.com', { timeout: 10000 });
-        await pg.fill('#loginPass', 'test1234', { timeout: 10000 });
+        /* ★合言葉は repo に 置かない★＝tests/_shiken-kuchi.mjs（無ければ exit 2）。★ログインの 画面が 出てから 呼ぶ★
+           （この 部品を 中の 一部だけの 為に 読む 試験＝hairu-erabo 等が 在る＝読んだ 時点で 呼ぶと そちらが 赤） */
+        const K = kuchi('kyoyu');
+        await pg.fill('#loginEmail', K.email, { timeout: 10000 });
+        await pg.fill('#loginPass', K.pass, { timeout: 10000 });
         await pg.click('#btnLogin', { timeout: 10000 });
       } catch (e) {
         await new Promise((r) => setTimeout(r, 800));
@@ -229,6 +238,10 @@ export async function hairu(pg, url, matsu, opt = 3) {
       const t = e ? String(e.textContent || '').trim() : '';
       return t || '（画面は 何も 言っていない）';
     });
+    if (naze.includes(AIKOTOBA_CHIGAU)) {
+      console.log('✗ ★合言葉が 違う★（画面＝' + naze + '）＝secret SHIKEN_KUCHI_PASS か ~/.shiken-kuchi.json が 倉庫と 合っていない＝赤');
+      process.exit(1);
+    }
     /* ★入れなかった＝少し 待って 開き直す★（倉庫の 通信の 気まぐれ） */
     await new Promise((r) => setTimeout(r, 1200 * kai));
   }

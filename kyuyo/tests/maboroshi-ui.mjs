@@ -168,7 +168,7 @@ const pg = await ctx.newPage();
 
 try {
   const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-settings"]');
-  if (!h.haitta) { MI('ログイン', h.kai + '回 試して 入れなかった'); throw new Error('skip'); }
+  if (!h.haitta) { T('ログイン（★入れない＝測れない＝赤★・決め2 10-11）', false, h.kai + '回 試して 入れなかった'); throw new Error('skip'); }
   await machi(800);
 
   /* ── ★お客さんの 道で 明細を 1本 出す★（JS で イベントを 投げない） ── */

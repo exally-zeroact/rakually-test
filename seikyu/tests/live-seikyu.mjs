@@ -20,14 +20,15 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { repoSupa } from '../../tests/repo-supa.mjs';
+import { kuchi } from '../../tests/_shiken-kuchi.mjs';
 // ★本番倉庫の名前は門番から借りる（ここに直書きしない＝出どころを増やさない）
 import { PROD_WAREHOUSE_REF } from '../../scripts/seikyu-sql-guard.mjs';
 
 const { url: URL_, key: ANON } = repoSupa();
 if (URL_.includes(PROD_WAREHOUSE_REF)) { console.error('★中止: 本番倉庫に向いています'); process.exitCode = 1; }
 
-const CRED_FILE = process.env.SEIKYU_TEST_CRED
-  || path.join(process.env.TEMP || '/tmp', 'exally-seikyu-test-cred.json');
+// ★合言葉は repo の 外の 1か所★＝tests/_shiken-kuchi.mjs の 口 seikyu（~/.shiken-kuchi.json・無ければ exit 2）。
+//   %TEMP% の cred・差し替えの 環境変数・入れない時の signUp は やめた（決め2 10-11）。
 const TEST_EMAIL = 'exally.supoort+seikyu-test@gmail.com'; // ★このメール以外では走らせない
 
 let pass = 0, fail = 0;
@@ -39,23 +40,15 @@ const made = { invoices: [], receipts: [] };
 
 async function login() {
   const sb = createClient(URL_, ANON);
-  let cred = null;
-  try { cred = JSON.parse(fs.readFileSync(CRED_FILE, 'utf8')); } catch (e) { /* 無ければ作る */ }
-  if (cred) {
-    const r = await sb.auth.signInWithPassword({ email: cred.email, password: cred.password });
-    if (!r.error && r.data.session) { console.log('  ログイン: ' + cred.email); return { sb, uid: r.data.user.id }; }
-    console.log('  既存の認証情報で入れませんでした（作り直します）: ' + (r.error && r.error.message));
+  const k = kuchi('seikyu');
+  if (k.email !== TEST_EMAIL) throw new Error('中止: テスト用の口 以外では 走らせない');
+  const r = await sb.auth.signInWithPassword({ email: k.email, password: k.pass });
+  if (r.error || !r.data.session) {
+    throw new Error('テスト用の口に 入れない: ' + ((r.error && r.error.message) || 'セッションが返らない')
+      + '＝~/.shiken-kuchi.json の seikyu が 倉庫と 合っていない（★作り直さない★）');
   }
-  const password = 'Seikyu-' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + '!x';
-  const r2 = await sb.auth.signUp({ email: TEST_EMAIL, password });
-  if (r2.error || !r2.data.session) {
-    throw new Error('テスト用アカウントを用意できません: '
-      + ((r2.error && r2.error.message) || 'セッションが返らない（メール確認が要る設定）')
-      + '\n  → 司さんへ: ' + TEST_EMAIL + ' の合言葉を ' + CRED_FILE + ' に置いてください。');
-  }
-  fs.writeFileSync(CRED_FILE, JSON.stringify({ email: TEST_EMAIL, password }, null, 2));
-  console.log('  テスト用アカウントを新規作成: ' + TEST_EMAIL + '（合言葉は ' + CRED_FILE + '・リポジトリ外）');
-  return { sb, uid: r2.data.user.id };
+  console.log('  ログイン: ' + k.email);
+  return { sb, uid: r.data.user.id };
 }
 
 /* ★実行ごとに別の番号を使う★

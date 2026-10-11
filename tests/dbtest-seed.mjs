@@ -9,15 +9,16 @@
  *   ・本番用の tests/live-roundtrip.mjs / live-seed.mjs とは別ファイル(取り違え防止)。
  */
 import { createClient } from '@supabase/supabase-js';
+import { kuchi } from './_shiken-kuchi.mjs';
 
 // ★DB-test 固定（本番倉庫と1文字も被らないことを起動時に確認する）
 const URL = 'https://khawdrnvssdenumbiwfg.supabase.co';
 const KEY = 'sb_publishable_UrRIobyVFbaJI_85RBxBOA_GZ4OUxPm';
-const EMAIL = 'test@test.com';
-const PW = 'test1234';
 const PROD_REF = 'tnfwipbgfgjaymlszeid';           // 本番倉庫。ここに向いていたら即中止
 
 if (URL.includes(PROD_REF)) { console.error('中止: 本番倉庫を指しています'); process.exit(2); }
+// ★合言葉は repo に 置かない★＝tests/_shiken-kuchi.mjs（無ければ exit 2・決め2 10-11）
+const { email: EMAIL, pass: PW } = kuchi('kyoyu');
 
 const mode = process.argv[2] || 'show';
 const sb = createClient(URL, KEY);

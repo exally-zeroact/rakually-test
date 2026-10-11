@@ -32,9 +32,9 @@ const argv = process.argv.slice(2);
 const MODE = (() => { const m = argv.find((a) => a.startsWith('--mode=')); return m ? m.slice(7) : 'now'; })();
 const SEQ = (() => { const m = argv.find((a) => a.startsWith('--seq=')); const n = m ? Number(m.slice(6)) : 0; return Number.isInteger(n) && n > 0 ? n : 0; })();
 const DELAY = (() => { const m = argv.find((a) => a.startsWith('--delay=')); const n = m ? Number(m.slice(8)) : 300; return Number.isFinite(n) && n >= 0 ? n : 300; })();
-/* ★専用の口★（live-roundtrip と 同じ plus エイリアス＝素性が 分かる・固定の 合言葉で 作り直せる） */
-const SENYOU = { email: 'exally.supoort+uwagaki-jissho@gmail.com', pass: 'Uwagaki-jissho-2026-fixed-pw' };
-const KYOYU = { email: 'test@test.com', pass: 'test1234' };
+/* ★口の 合言葉は repo に 置かない★＝tests/_shiken-kuchi.mjs（決め2 10-11）。★下の test の 判じの 後で 読む★（本番の repo で exit 2 に しない）
+   ★口を 作り直さない★＝前は 入れないと signUp で 作り直していた（固定の 合言葉が 公開 repo に 在った）。 */
+let SENYOU = null, KYOYU = null;
 const matsu = (ms) => new Promise((r) => setTimeout(r, ms));
 
 if (MODE !== 'now' && MODE !== 'fix' && MODE !== 'noauth') { console.log('✗ --mode は now / fix / noauth'); process.exit(1); }
@@ -50,6 +50,8 @@ if (MODE !== 'now' && MODE !== 'fix' && MODE !== 'noauth') { console.log('✗ --
 }
 
 const { repoSupa } = await import('../tests/repo-supa.mjs');
+const { kuchi, kuchiYomu } = await import('../tests/_shiken-kuchi.mjs');
+{ const s = kuchiYomu('senyou'); if (s.ok) SENYOU = { email: s.email, pass: s.pass }; else console.log('  専用の口の 合言葉が 無い（' + s.naze + '）＝共有の口を 使う'); }
 const { url: URL, key: ANON } = repoSupa();
 
 /* ★口を 1つ 作る／入る★（同じ sb を 2回 呼べば 2クライアント＝同じ account_id） */
@@ -57,16 +59,15 @@ async function kuchiHiraku(cred) {
   const sb = createClient(URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   let r = await sb.auth.signInWithPassword({ email: cred.email, password: cred.pass });
   if (!r.error && r.data.session) return { sb, uid: r.data.user.id };
-  r = await sb.auth.signUp({ email: cred.email, password: cred.pass });
-  if (!r.error && r.data.session) return { sb, uid: r.data.user.id };
-  return null;   /* 入れない（確認メール要 等） */
+  console.log('  入れない（' + cred.email + '）… ' + ((r.error && r.error.message) || 'セッションが 返らない') + '＝置き場の 合言葉が 違う？（作り直さない）');
+  return null;
 }
 
 /* ★専用の口を 試す→駄目なら 共有★ */
-let CRED = SENYOU, SENYOU_OK = true;
-let probe = await kuchiHiraku(SENYOU);
-if (!probe) { CRED = KYOYU; SENYOU_OK = false; probe = await kuchiHiraku(KYOYU); }
-if (!probe) { console.log('✗ 専用も共有も 入れない（確認メール要 の恐れ）'); process.exit(2); }
+let CRED = SENYOU, SENYOU_OK = !!SENYOU;
+let probe = SENYOU ? await kuchiHiraku(SENYOU) : null;
+if (!probe) { KYOYU = kuchi('kyoyu'); CRED = KYOYU; SENYOU_OK = false; probe = await kuchiHiraku(KYOYU); }
+if (!probe) { console.log('✗ 専用も共有も 入れない（置き場の 合言葉が 倉庫と 合っていない）'); process.exit(2); }
 console.log('[kaisha-uwagaki-jissho] 接続先=' + URL + ' ／ mode=' + MODE + (SEQ ? ' ／ seq=' + SEQ : '') + ' ／ delay=' + DELAY + 'ms'
   + ' ／ 口=' + (SENYOU_OK ? '★専用（' + SENYOU.email + '）★' : '共有（test@test.com）'));
 if (!SENYOU_OK) console.log('  ★★この実証は 共有の口を 使う＝走っている間 網（oshu-mae/CI/他の席の 試験）を 回さないでください★★');
