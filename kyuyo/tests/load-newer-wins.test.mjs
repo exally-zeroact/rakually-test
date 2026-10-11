@@ -139,6 +139,29 @@ if (!WAZA) {
     T('⑪ 通信で 転んだら「閉じないで」を 言い続ける', !!(alertEl && !alertEl.hidden && /ローカルのみ/.test(alertEl.textContent) && /閉じないで/.test(alertEl.textContent)),
       '帯=' + (alertEl ? (alertEl.hidden ? '隠れた' : alertEl.textContent) : '無い'));
   } finally { SP.setItem = motoSet; console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
+
+  /* ⑫ ★古い 保存の ok で 旗を 降ろさない★（taiketsu 10-11 指摘A）
+     編集1を 送っている 途中に 編集2の 印も 書けず、編集1の 返事（ok）が 来た後に 編集2が 通信で 転ぶ。
+     編集1の ok は 編集2を 運んでいない＝旗は 立ったまま「閉じないで」を 言い続ける。
+     ⑬ 旗が 立っている 間は 小さな 字（#save-status の 元＝state._savedAt）にも「自動保存済」を 立てない（指摘B） */
+  console.error = () => {};
+  try {
+    let tokeru = null;
+    win.Store.cloudSaveState = () => new Promise((res) => { tokeru = res; });           /* 編集1の 送り＝返事を 止めておく */
+    inKowasu(); A.persistSaveDebounced(); SP.setItem = motoSet;                          /* 編集1（印 書けない） */
+    await sleep(700);                                                                     /* 本保存1 が 走って 返事待ち */
+    A.state._savedAt = '12:34';                                                           /* 前に 一度 ok が 在った 体 */
+    inKowasu(); A.persistSaveDebounced(); SP.setItem = motoSet;                          /* 編集2（印 書けない）＝本保存2 は まだ */
+    T('⑬ 旗を 立てた 直後に 古い「自動保存済」（state._savedAt）を 消す', !A.state._savedAt, '_savedAt=' + A.state._savedAt);
+    win.Store.cloudSaveState = () => Promise.reject(new Error('no net'));               /* 本保存2 は 転ぶ */
+    if (tokeru) tokeru({ ok: true });                                                     /* 編集1の 返事 ok が 先に 着く */
+    await sleep(50);
+    T('⑬ 旗が 立っている 間は state._savedAt を 立てない（小さな 字が「自動保存済」と 食い違わない）', !A.state._savedAt, '_savedAt=' + A.state._savedAt);
+    await sleep(800);                                                                     /* 本保存2 が 走って 転ぶ */
+    T('⑫ ★古い 保存の ok で 旗を 降ろさない＝後の 編集が 転んだら「閉じないで」★', !!(alertEl && !alertEl.hidden && /閉じないで/.test(alertEl.textContent)),
+      '帯=' + (alertEl ? (alertEl.hidden ? '隠れた' : alertEl.textContent) : '無い') + '／返事を 止めた=' + !!tokeru);
+  } finally { SP.setItem = motoSet; console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
+
 } else {
   T('③ ★--waza: newer-wins を 殺すと ローカル編集が クラウドで 消える（＝門が 守っている証し）★', (A.state.employees[0] && A.state.employees[0].name) === 'クラウド太郎',
     '殺したのに 残った＝' + (A.state.employees[0] && A.state.employees[0].name));

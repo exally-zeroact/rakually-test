@@ -6616,6 +6616,9 @@
   /* ★印が 書けない 旗★（2026-10-11 taiketsu）＝立っている 間は「保存できた」でも 帯を 消さない（中身の 控えが 書けても 印が 無ければ 次の 読み込みで 負ける）。
      降ろすのは ★クラウドに 届いた 時★と ★次の 編集で 印が 書けた 時★だけ。 */
   var _inKakenai=false;
+  /* ★編集の 番号★（taiketsu 10-11 指摘A）＝_kakenaiNo＝印が 最後に 書けなかった 編集の 番号。
+     クラウドの ok で 旗を 降ろすのは「その 保存が 中身を 取った 時の 番号 ≧ _kakenaiNo」の 時だけ（古い 保存の ok は 後の 編集を 運んでいない） */
+  var _henshuNo=0, _kakenaiNo=0;
   var IN_KAKENAI_JI='⚠ この端末に 保存できません（このブラウザの空き容量）＝クラウドに 保存できるまで 閉じないでください';
   function _saveSyncMeta(){ try{ localStorage.setItem(SMKEY, JSON.stringify(_syncMeta)); return true; }catch(e){ console.error('★未送信の 印を この端末に 書けません★', e); return false; } }
   if(typeof window!=='undefined') window.PayslipSyncMeta=function(){ return { dirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, loadLocalKept:_loadLocalKept, drainKai:_drainKai }; };   /* 診断用（window代入＝投げない＝try不要） */
@@ -6655,13 +6658,13 @@
     hozonFuda('ng', '⚠ クラウド保存の 準備に 失敗（開き直してください）');
   }
   function persistSave(){
-    var snap=snapshot(), lsOk=true, _kumoP=null;
+    var snap=snapshot(), lsOk=true, _kumoP=null, _koNo=_henshuNo;   /* ★この 保存が 運ぶ 編集の 番号★（store は 送る 直前に 取り直す＝これより 新しい 事は 在っても 古い 事は 無い） */
     try{ localStorage.setItem(PKEY, JSON.stringify(snap)); }catch(e){ lsOk=false; }
     var d=new Date(), hhmm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     /* kind＝'ng'（保存できなかった）／'ok'（保存できた）＝★どの画面でも 見える 帯★（hozonFuda）にも 渡す */
     var setS=function(t, kind){
       /* ★印が 書けない 間は「保存できた」と 言わない★＝帯も 字も「閉じないで」に（クラウドに 届いた 時は 下で 旗を 降ろしてから 言い直す） */
-      if(_inKakenai){ if(kind==='ok'){ t=IN_KAKENAI_JI; kind='ng'; } else if(kind==='ng' && t.indexOf('閉じないで')<0){ t=t+'＝クラウドに 保存できるまで 閉じないでください'; } }
+      if(_inKakenai){ state._savedAt=null; if(kind==='ok'){ t=IN_KAKENAI_JI; kind='ng'; } else if(kind==='ng' && t.indexOf('閉じないで')<0){ t=t+'＝クラウドに 保存できるまで 閉じないでください'; } }
       var e=document.getElementById('save-status'); if(e) e.textContent=t; hozonFuda(kind, t); };
     if(!lsOk) setS('⚠ 保存できません（このブラウザの空き容量）', 'ng'); // 容量超過を握り潰さず表示
     if(window.Store&&Store.cloudSaveState){
@@ -6730,7 +6733,7 @@
            ★知らない 理由は 失敗として 出す★（出す 側に 倒す） */
         else if(r&&r.ok===false&&r.reason!=='no-user'&&r.reason!=='held-skipped'&&r.reason!=='held-skipped-maboroshi'){ setS('⚠ クラウド未保存（'+(r.reason||'通信エラー')+'）', 'ng'); }
         else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); }
-        if(r&&r.ok===true){ var _maeKakenai=_inKakenai; _inKakenai=false; _syncMeta.dirty=false; _saveSyncMeta();
+        if(r&&r.ok===true){ var _maeKakenai=_inKakenai; if(_koNo>=_kakenaiNo) _inKakenai=false; else _maeKakenai=false; _syncMeta.dirty=false; _saveSyncMeta();
           if(_maeKakenai && lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); } }   /* ★クラウドに 届いた＝未送信編集は 無い（棚d）＝旗を 降ろして 言い直す★ */   /* ★クラウドに 届いた＝未送信編集は 無い（棚d）★ */
         return r;                       /* ★★返事を そのまま 返す★★＝★呼んだ 側が 言い回しを 決められる★ */
       }).catch(function(e){
@@ -6750,7 +6753,7 @@
     /* ★雲が 在れば その 返事／無ければ ★手元に 書けたか★を 返す★ */
     return _kumoP || Promise.resolve({ ok:!!lsOk, reason: lsOk ? null : 'local' });
   }
-  function persistSaveDebounced(){ _syncMeta.dirty=true; _inKakenai=!_saveSyncMeta(); if(_inKakenai) hozonFuda('ng', IN_KAKENAI_JI); if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(persistSave, 500); }   /* ★編集の度に dirty=true を同期書き＝離脱で取りこぼしても次回ロードで消失を止める（棚d）★ */
+  function persistSaveDebounced(){ _henshuNo++; _syncMeta.dirty=true; _inKakenai=!_saveSyncMeta(); if(_inKakenai){ _kakenaiNo=_henshuNo; state._savedAt=null; hozonFuda('ng', IN_KAKENAI_JI); }   /* ★小さな 字（#save-status）にも 古い「自動保存済」を 残さない★ */ if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(persistSave, 500); }   /* ★編集の度に dirty=true を同期書き＝離脱で取りこぼしても次回ロードで消失を止める（棚d）★ */
   // 旧テンプレ名→新テンプレ名(実体準拠)への移行。保存済みstate.preferを吸収
   var PREFER_MIGRATE={cols:'col2_1',cols2:'col2_2',cols3:'col2_3',vstack:'col1_1',vstack2:'col1_2',strips:'col1_3'};
   function migPrefer(p){ return PREFER_MIGRATE[p]||p||'col2_1'; }
