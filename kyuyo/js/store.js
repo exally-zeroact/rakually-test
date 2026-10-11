@@ -1301,7 +1301,7 @@
   //  declは lib/nencho-declaration.js の normalize済オブジェクト(サーバは中身を検証せず保管)。
   var MNCH_KEY='payslip_nencho_decl_v1';
   function mNch(){ return readList(MNCH_KEY); }   /* ★壊れていたら 書き込みを止める★（5対と同じ形） */
-  function mNchW(a){ try{ localStorage.setItem(MNCH_KEY, JSON.stringify(a)); }catch(e){} }
+  function mNchW(a){ writeList(MNCH_KEY, a); }   /* ★黙らない★（2026-10-11）＝前は catch が空＝書けなくても「保存しました」・壊れた控えも 上書きしていた。他の4対と 同じ writeList に */
   // 従業員: 申告を保存(認証必須)。返り={ok} or {unauth}
   Store.saveNenchoDecl = function(token, cred, year, decl){
     if(hasSupa){ cred=cred||{};
@@ -1314,7 +1314,9 @@
     var now=new Date().toISOString(), all=mNch();
     var i=all.findIndex(function(x){ return x.token===token && x.year===year; });
     var row={ token:token, employeeId:f.p.employeeId, year:year, decl:decl||{}, submittedAt:(i>=0?all[i].submittedAt:now), updatedAt:now };
-    if(i>=0) all[i]=row; else all.push(row); mNchW(all);
+    if(i>=0) all[i]=row; else all.push(row);
+    /* ★書けない時は 約束を 断る★＝呼ぶ側（meisai.js）の .catch が 画面に 出す（投げると click の 中で 消えて 何も 出ない） */
+    try{ mNchW(all); }catch(e){ return Promise.reject(e); }
     return Promise.resolve({ ok:true });
   };
   // 従業員: 自分の申告を取得(前回の続き/確認)。返り={found,decl,submittedAt,updatedAt} or {unauth}
@@ -1358,7 +1360,8 @@
     var now=new Date().toISOString(), all=mPrf();
     var i=all.findIndex(function(x){ return x.token===token; });
     var row={ token:token, employeeId:f.p.employeeId, data:data||{}, submittedAt:(i>=0?all[i].submittedAt:now), updatedAt:now };
-    if(i>=0) all[i]=row; else all.push(row); mPrfW(all);
+    if(i>=0) all[i]=row; else all.push(row);
+    try{ mPrfW(all); }catch(e){ return Promise.reject(e); }   /* ★書けない時は 断る★（申告と 同じ・2026-10-11） */
     return Promise.resolve({ ok:true });
   };
   // 従業員: 自分の登録を取得。返り={found,data,submittedAt,updatedAt} or {unauth}

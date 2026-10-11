@@ -122,5 +122,32 @@ await T('振込先: 再登録は上書き(submittedAt維持)', async () => {
   eq(after.submittedAt, before.submittedAt, 'submittedAtは初回のまま');
 });
 
+/* ★端末に 書けない時は 黙らない★（2026-10-11）＝前は 申告の 書き込み（mNchW）の catch が 空で、
+   書けなくても {ok:true}＝「申告を保存しました」と 出ていた。振込先（mPrfW）は 投げるが、click の 中で 消えて 何も 出なかった。
+   ⇒ どちらも ★約束を 断る★（meisai.js の .catch が 画面に 出す） */
+await T('端末に書けない時: 申告も振込先も 断る（ok:true を返さない）', async () => {
+  const SP = win.Storage.prototype, moto = SP.setItem;
+  SP.setItem = function () { throw new win.DOMException('QuotaExceededError', 'QuotaExceededError'); };
+  let a = null, b = null;
+  try {
+    await Store.saveNenchoDecl(token, cred, YEAR, { haiEnabled: true }).then((r) => { a = 'ok:' + JSON.stringify(r); }, () => { a = 'ことわった'; });
+    await Store.saveEmpProfile(token, cred, { furiBankNo: '0009' }).then((r) => { b = 'ok:' + JSON.stringify(r); }, () => { b = 'ことわった'; });
+  } catch (e) { a = a || '投げた（約束でなく）: ' + (e && e.message); b = b || a; }
+  finally { SP.setItem = moto; }
+  eq(a, 'ことわった', '申告'); eq(b, 'ことわった', '振込先');
+});
+
+await T('申告の控えが壊れている時: 上書きせず 断る（壊れた控えを残す）', async () => {
+  const KEY = 'payslip_nencho_decl_v1', kowa = '{こわれた';
+  const mae = win.localStorage.getItem(KEY);
+  win.localStorage.setItem(KEY, kowa);
+  let a = null;
+  try { await Store.saveNenchoDecl(token, cred, YEAR, { haiEnabled: true }).then(() => { a = 'ok'; }, () => { a = 'ことわった'; }); }
+  catch (e) { a = '投げた（約束でなく）'; }
+  const ato = win.localStorage.getItem(KEY);
+  if (mae != null) win.localStorage.setItem(KEY, mae); else win.localStorage.removeItem(KEY);
+  eq(a, 'ことわった', '断る'); eq(ato, kowa, '壊れた控えが そのまま');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
