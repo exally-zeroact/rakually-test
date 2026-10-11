@@ -100,6 +100,45 @@ if (!WAZA) {
   try { Object.defineProperty(doc, 'visibilityState', { value: 'visible', configurable: true }); } catch (e) {}
   doc.dispatchEvent(new win.Event('visibilitychange'));
   T('⑥ ★dirty=true なら タブ可視(visible)でも 送り直す★', win.PayslipSyncMeta().drainKai === d0 + 2, 'drainKai=' + win.PayslipSyncMeta().drainKai);
+
+  /* ⑦ ★未送信の 印が この端末に 書けない時は 黙らない★（2026-10-11・前は _saveSyncMeta の catch が 空）
+     書けないまま 閉じると 次に 開いた時 dirty=false で 読まれ、クラウドが 手元の 編集を 上書きする 道が 在る。
+     ⇒ 印の 鍵だけ setItem を 投げさせ、★どの画面でも 見える 帯（#save-alert）★が 出るかを 見る。 */
+  const alertEl = doc.getElementById('save-alert');
+  if (alertEl) { alertEl.hidden = true; alertEl.textContent = ''; }
+  const SP = win.Storage.prototype, motoSet = SP.setItem;
+  SP.setItem = function (k, v) { if (k === 'payslip_syncmeta_v1') throw new win.DOMException('QuotaExceededError', 'QuotaExceededError'); return motoSet.call(this, k, v); };
+  const _ce = console.error; console.error = () => {};
+  try { A.persistSaveDebounced(); } finally { SP.setItem = motoSet; console.error = _ce; }
+  T('⑦ ★未送信の 印が 書けない時は 帯（#save-alert）で 知らせる★', !!(alertEl && !alertEl.hidden && /保存できません/.test(alertEl.textContent)),
+    '帯=' + (alertEl ? (alertEl.hidden ? '隠れたまま' : alertEl.textContent) : '無い'));
+  /* ⑧ ★0.5秒後の 本保存（persistSave）の 後も 帯が 残り「閉じないで」を 言い続ける★（taiketsu 10-11）
+     前は 中身の 控えが 書ければ「自動保存済」（'ok'）で 帯が 消えた＝倉庫に 繋がらない形では 毎回この道。
+     ★印は 書けていない★＝閉じれば 次に dirty=false で 読まれ 手元の 編集が 負ける＝「保存済」は 嘘。 */
+  await sleep(800);
+  T('⑧ ★本保存の 後も 帯が 残り「閉じないで」と 言う（嘘の「自動保存済」で 消えない）★', !!(alertEl && !alertEl.hidden && /閉じないで/.test(alertEl.textContent)),
+    '帯=' + (alertEl ? (alertEl.hidden ? '隠れた' : alertEl.textContent) : '無い'));
+  /* ⑨ 次の 編集で 印が 書ければ 旗を 降ろし、本保存で 帯が 消える（出しっぱなしに しない） */
+  A.persistSaveDebounced();
+  await sleep(800);
+  T('⑨ 印が 書けたら 本保存で 帯が 消える', !!(alertEl && alertEl.hidden), '帯=' + (alertEl ? (alertEl.hidden ? '隠れた' : alertEl.textContent) : '無い'));
+  /* ⑩⑪ ★クラウドの 道★（jsdom には 倉庫が 無い＝偽の cloudSaveState を 差す）
+     ⑩ 印が 書けなくても クラウドに 届けば 帯を 消す（中身は クラウドに 在る＝言う事と 合う）
+     ⑪ 通信で 転んだら「ローカルのみ保存」に「閉じないで」を 足す（印が 無い＝手元は 次の 読み込みで 負ける） */
+  const kumoMoto = win.Store.cloudSaveState;
+  const inKowasu = () => { SP.setItem = function (k, v) { if (k === 'payslip_syncmeta_v1') throw new win.DOMException('QuotaExceededError', 'QuotaExceededError'); return motoSet.call(this, k, v); }; };
+  console.error = () => {};
+  try {
+    win.Store.cloudSaveState = () => Promise.resolve({ ok: true });
+    inKowasu(); A.persistSaveDebounced(); SP.setItem = motoSet;
+    await sleep(800);
+    T('⑩ 印が 書けなくても クラウドに 届けば 帯を 消す', !!(alertEl && alertEl.hidden), '帯=' + (alertEl ? (alertEl.hidden ? '隠れた' : alertEl.textContent) : '無い'));
+    win.Store.cloudSaveState = () => Promise.reject(new Error('no net'));
+    inKowasu(); A.persistSaveDebounced(); SP.setItem = motoSet;
+    await sleep(800);
+    T('⑪ 通信で 転んだら「閉じないで」を 言い続ける', !!(alertEl && !alertEl.hidden && /ローカルのみ/.test(alertEl.textContent) && /閉じないで/.test(alertEl.textContent)),
+      '帯=' + (alertEl ? (alertEl.hidden ? '隠れた' : alertEl.textContent) : '無い'));
+  } finally { SP.setItem = motoSet; console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
 } else {
   T('③ ★--waza: newer-wins を 殺すと ローカル編集が クラウドで 消える（＝門が 守っている証し）★', (A.state.employees[0] && A.state.employees[0].name) === 'クラウド太郎',
     '殺したのに 残った＝' + (A.state.employees[0] && A.state.employees[0].name));

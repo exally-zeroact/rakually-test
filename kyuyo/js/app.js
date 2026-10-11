@@ -6612,7 +6612,12 @@
   var _loadLocalKept=0;   /* ★診断＝ロードで「ローカルが新しいので保持した」回数（読み取り専用・判じに使わない）★ */
   var _drainKai=0;        /* ★診断＝online/可視で 未送信を 送り直した回数（Phase3・読み取り専用）★ */
   function _loadSyncMeta(){ try{ var m=JSON.parse(localStorage.getItem(SMKEY)||'null'); if(m&&typeof m==='object'){ _syncMeta.dirty=!!m.dirty; _syncMeta.baseCoUA=(m.baseCoUA==null?null:String(m.baseCoUA)); } }catch(e){} }
-  function _saveSyncMeta(){ try{ localStorage.setItem(SMKEY, JSON.stringify(_syncMeta)); }catch(e){} }
+  /* ★書けたかを 返す★（2026-10-11）＝前は catch が空。未送信の 印（dirty=true）だけ 書けずに 閉じると、次に 開いた時 dirty=false で 読まれ クラウドが 手元の 編集を 上書きする 道が 在る */
+  /* ★印が 書けない 旗★（2026-10-11 taiketsu）＝立っている 間は「保存できた」でも 帯を 消さない（中身の 控えが 書けても 印が 無ければ 次の 読み込みで 負ける）。
+     降ろすのは ★クラウドに 届いた 時★と ★次の 編集で 印が 書けた 時★だけ。 */
+  var _inKakenai=false;
+  var IN_KAKENAI_JI='⚠ この端末に 保存できません（このブラウザの空き容量）＝クラウドに 保存できるまで 閉じないでください';
+  function _saveSyncMeta(){ try{ localStorage.setItem(SMKEY, JSON.stringify(_syncMeta)); return true; }catch(e){ console.error('★未送信の 印を この端末に 書けません★', e); return false; } }
   if(typeof window!=='undefined') window.PayslipSyncMeta=function(){ return { dirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, loadLocalKept:_loadLocalKept, drainKai:_drainKai }; };   /* 診断用（window代入＝投げない＝try不要） */
   // 保存時はcomputeが書く一時フィールド(_prorate/_wari/_shahoExemptThisMonth等)を除外→DB/LS汚染防止(in-memoryは描画用に保持)
   function stripTransient(e){ var o={}; for(var k in e){ if(Object.prototype.hasOwnProperty.call(e,k)&&k.charAt(0)!=='_') o[k]=e[k]; } return o; }
@@ -6654,7 +6659,10 @@
     try{ localStorage.setItem(PKEY, JSON.stringify(snap)); }catch(e){ lsOk=false; }
     var d=new Date(), hhmm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     /* kind＝'ng'（保存できなかった）／'ok'（保存できた）＝★どの画面でも 見える 帯★（hozonFuda）にも 渡す */
-    var setS=function(t, kind){ var e=document.getElementById('save-status'); if(e) e.textContent=t; hozonFuda(kind, t); };
+    var setS=function(t, kind){
+      /* ★印が 書けない 間は「保存できた」と 言わない★＝帯も 字も「閉じないで」に（クラウドに 届いた 時は 下で 旗を 降ろしてから 言い直す） */
+      if(_inKakenai){ if(kind==='ok'){ t=IN_KAKENAI_JI; kind='ng'; } else if(kind==='ng' && t.indexOf('閉じないで')<0){ t=t+'＝クラウドに 保存できるまで 閉じないでください'; } }
+      var e=document.getElementById('save-status'); if(e) e.textContent=t; hozonFuda(kind, t); };
     if(!lsOk) setS('⚠ 保存できません（このブラウザの空き容量）', 'ng'); // 容量超過を握り潰さず表示
     if(window.Store&&Store.cloudSaveState){
       // ★クラウド保存の成否を待ってから表示(失敗を「保存済」と嘘表示しない)
@@ -6722,7 +6730,8 @@
            ★知らない 理由は 失敗として 出す★（出す 側に 倒す） */
         else if(r&&r.ok===false&&r.reason!=='no-user'&&r.reason!=='held-skipped'&&r.reason!=='held-skipped-maboroshi'){ setS('⚠ クラウド未保存（'+(r.reason||'通信エラー')+'）', 'ng'); }
         else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); }
-        if(r&&r.ok===true){ _syncMeta.dirty=false; _saveSyncMeta(); }   /* ★クラウドに 届いた＝未送信編集は 無い（棚d）★ */
+        if(r&&r.ok===true){ var _maeKakenai=_inKakenai; _inKakenai=false; _syncMeta.dirty=false; _saveSyncMeta();
+          if(_maeKakenai && lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); } }   /* ★クラウドに 届いた＝未送信編集は 無い（棚d）＝旗を 降ろして 言い直す★ */   /* ★クラウドに 届いた＝未送信編集は 無い（棚d）★ */
         return r;                       /* ★★返事を そのまま 返す★★＝★呼んだ 側が 言い回しを 決められる★ */
       }).catch(function(e){
         if(lsOk) setS('⚠ ローカルのみ保存（クラウド通信エラー）', 'ng');
@@ -6741,7 +6750,7 @@
     /* ★雲が 在れば その 返事／無ければ ★手元に 書けたか★を 返す★ */
     return _kumoP || Promise.resolve({ ok:!!lsOk, reason: lsOk ? null : 'local' });
   }
-  function persistSaveDebounced(){ _syncMeta.dirty=true; _saveSyncMeta(); if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(persistSave, 500); }   /* ★編集の度に dirty=true を同期書き＝離脱で取りこぼしても次回ロードで消失を止める（棚d）★ */
+  function persistSaveDebounced(){ _syncMeta.dirty=true; _inKakenai=!_saveSyncMeta(); if(_inKakenai) hozonFuda('ng', IN_KAKENAI_JI); if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(persistSave, 500); }   /* ★編集の度に dirty=true を同期書き＝離脱で取りこぼしても次回ロードで消失を止める（棚d）★ */
   // 旧テンプレ名→新テンプレ名(実体準拠)への移行。保存済みstate.preferを吸収
   var PREFER_MIGRATE={cols:'col2_1',cols2:'col2_2',cols3:'col2_3',vstack:'col1_1',vstack2:'col1_2',strips:'col1_3'};
   function migPrefer(p){ return PREFER_MIGRATE[p]||p||'col2_1'; }
