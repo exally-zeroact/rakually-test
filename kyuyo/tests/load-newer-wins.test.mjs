@@ -389,6 +389,76 @@ if (!WAZA) {
         win.Store.savePayslip = () => new Promise((_r, j) => setTimeout(() => j(new Error('倉庫で 落ちた')), 400));   /* 明細は 後から 落ちる */
         try { A.setConfirm('e32', false); A.persistSave(); await sleep(1200); } finally { win.Store.cloudSaveState = kumo32; }
         T('㉜ 前の 字（ローカルのみ保存）が 出た 後に 取り消しの 失敗が 届いても 両方 言う', /ローカルのみ保存/.test(obi()) && /確定の 取り消し/.test(obi()), '帯=' + obi());
+        /* ㉝ ★開き直しても 控えが 残り 帯が 戻る★（taiketsu 10-12 B＝前は メモリだけで 開き直すと 黙った） */
+        if (typeof A.hazushiWasureru !== 'function') { T('㉝ 試験の 口 hazushiWasureru が 在る', false, '無い'); }
+        else {
+          A.hazushiWasureru(); if (sae) { sae.hidden = true; sae.textContent = ''; }          /* メモリの 控えを 消す＝開き直しの 体 */
+          A.state.employees = [];                                                             /* ★開いた 直後は 名簿も まだ 無い★（本物の 開き直しと 同じ＝写しから 読む 前） */
+          A.persistLoad(); await sleep(300);
+          T('㉝ 開き直しても 端末に 控えが 残り 取り消しの 帯が 戻る', /確定の 取り消し/.test(obi()), '帯=' + obi() + '／端末=' + win.localStorage.getItem('payslip_hazushi_v1'));
+        }
+        /* ㉞ ★外した 後に 退職日を 前に 直して その月に 居ない 人は「自動では 送れない」と 言い分ける★（taiketsu 10-12 C） */
+        win.Store.savePayslip = () => Promise.reject(new Error('倉庫で 落ちた'));
+        const e32p = A.state.employees.find((x) => x.id === 'e32');
+        if (e32p) { e32p.retired = true; e32p.taishokuYmd = '2000-01-31'; }
+        A.persistSave(); await sleep(900);
+        T('㉞ その月に 居ない 人が 含まれる 時は 帯で「在籍」を 確かめる 様に 言う', /在籍/.test(obi()), '帯=' + obi());
+        if (e32p) { e32p.retired = false; e32p.taishokuYmd = ''; }
+        /* ㉟ ★月の 取り消しで 明細が 落ちたら 緑の「確定を取り消しました」を 出さない★（帯と 逆を 言わない） */
+        const e35 = Object.assign(A.defEmp(), { id: 'e35', name: '月の人35', pref: '東京都', birthYmd: '1990-01-01', base: 250000 });
+        const conf35 = {}; conf35[ym24] = { e35: true };
+        win.Store.savePayslip = () => Promise.resolve({});
+        A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [e35], confirmed: conf35, _coUA: '2026-10-12T08:50:00.000Z' });
+        await sleep(300); if (sae) { sae.hidden = true; sae.textContent = ''; }
+        win.Store.savePayslip = () => Promise.reject(new Error('倉庫で 落ちた'));
+        A.renderInput(); const um35 = doc.querySelector('[data-undo-month]');
+        const toastJi = () => { const t = doc.getElementById('app-toast'); return t ? (t.textContent || '').trim() : ''; };
+        if (um35) { const tt = doc.getElementById('app-toast'); if (tt) tt.textContent = ''; um35.click(); await okBtn(); await sleep(1500); }
+        T('㉟ 月の 取り消しで 明細が 落ちたら 札は「確定を取り消しました」と 言わない', !!um35 && !/確定を取り消しました/.test(toastJi()) && /保存できて/.test(toastJi()), '札=' + toastJi());
+
+        /* ㊱ ★送って いる 途中で 閉じた（machi の まま）控えも、開き直したら 帯で 言う★（taiketsu 10-12【2】） */
+        if (typeof A.hazushiWasureru === 'function') {
+          const e36 = Object.assign(A.defEmp(), { id: 'e36', name: '外す人36', pref: '東京都', birthYmd: '1990-01-01', base: 250000 });
+          const conf36 = {}; conf36[ym24] = { e36: true };
+          win.Store.savePayslip = () => Promise.resolve({});
+          A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [e36], confirmed: conf36, _coUA: '2026-10-12T09:00:00.000Z' });
+          await sleep(300); if (sae) { sae.hidden = true; sae.textContent = ''; }
+          win.Store.savePayslip = () => new Promise(() => {});                                 /* 返らない＝送って いる 途中 */
+          A.setConfirm('e36', false); A.persistSave(); await sleep(300);
+          A.hazushiWasureru(); A.state.employees = []; if (sae) { sae.hidden = true; sae.textContent = ''; }
+          A.persistLoad(); await sleep(300);                                                    /* 閉じて 開き直し */
+          T('㊱ 送って いる 途中で 閉じても 開き直したら 帯で「確定の 取り消し」と 言う', /確定の 取り消し/.test(obi()), '帯=' + obi() + '／端末=' + win.localStorage.getItem('payslip_hazushi_v1'));
+          win.Store.savePayslip = () => Promise.resolve({}); A.persistSave(); await sleep(900);
+          T('㊱ 送り直しが 通れば 帯は 消える', !/確定の 取り消し/.test(obi()), '帯=' + obi());
+        }
+        /* ㊲ ★月の 取り消しで 明細の 保存が 返らなくても 札は 待ち続けない（上限を 過ぎたら「まだ 終わって いない」と 言う）★（taiketsu【5】） */
+        {
+          const e37 = Object.assign(A.defEmp(), { id: 'e37', name: '月の人37', pref: '東京都', birthYmd: '1990-01-01', base: 250000 });
+          const conf37 = {}; conf37[ym24] = { e37: true };
+          win.Store.savePayslip = () => Promise.resolve({});
+          A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [e37], confirmed: conf37, _coUA: '2026-10-12T09:10:00.000Z' });
+          await sleep(300); if (sae) { sae.hidden = true; sae.textContent = ''; }
+          win.__HAZUSHI_MACHI_MS__ = 600;                                                       /* 試験では 上限を 短く */
+          win.Store.savePayslip = () => new Promise(() => {});                                 /* 返らない */
+          A.renderInput(); const um37 = doc.querySelector('[data-undo-month]');
+          const tt37 = doc.getElementById('app-toast'); if (tt37) tt37.textContent = '';
+          if (um37) { um37.click(); await okBtn(); await sleep(1500); }
+          T('㊲ 明細の 保存が 返らなくても 上限で「まだ 終わって いない」と 言う（黙らない・緑に しない）', !!um37 && /まだ 終わって いません/.test(toastJi()) && !/確定を取り消しました/.test(toastJi()), '札=' + toastJi());
+          delete win.__HAZUSHI_MACHI_MS__;
+        }
+        /* ㊳ ★明細の 保存が その場で 投げても 緑の 札を 出さない★（taiketsu【6】） */
+        {
+          const e38 = Object.assign(A.defEmp(), { id: 'e38', name: '月の人38', pref: '東京都', birthYmd: '1990-01-01', base: 250000 });
+          const conf38 = {}; conf38[ym24] = { e38: true };
+          win.Store.savePayslip = () => Promise.resolve({});
+          A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [e38], confirmed: conf38, _coUA: '2026-10-12T09:20:00.000Z' });
+          await sleep(300); if (sae) { sae.hidden = true; sae.textContent = ''; }
+          win.Store.savePayslip = () => { throw new Error('その場で 投げた'); };
+          A.renderInput(); const um38 = doc.querySelector('[data-undo-month]');
+          const tt38 = doc.getElementById('app-toast'); if (tt38) tt38.textContent = '';
+          if (um38) { um38.click(); await okBtn(); await sleep(1500); }
+          T('㊳ 明細の 保存が その場で 投げても 札は「確定を取り消しました」と 言わない（何かは 言う）', !!um38 && toastJi() !== '' && !/確定を取り消しました/.test(toastJi()), '札=' + toastJi() + '／帯=' + obi());
+        }
       } finally { win.Store.savePayslip = slipMoto; }
     }
   } finally { console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
