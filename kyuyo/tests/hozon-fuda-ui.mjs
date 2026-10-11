@@ -126,6 +126,8 @@ async function hiraku(haba) {
     const m = rt.request().method();
     if (m === 'GET' || m === 'HEAD') return rt.continue();
     kaki.zen++;
+    /* ★書きを 控える★（2026-10-12）＝③が CI でだけ 赤（手元 3回 緑）だった時に「どの 書きが いつ 出たか」が 出しに 無かった */
+    if (kaki.hikae) kaki.hikae.push(kaki.mode + ' ' + m + ' ' + (String(rt.request().url()).split('/rest/v1/')[1] || '').split('?')[0] + ' +' + (Date.now() - kaki.hikaeT) + 'ms');
     if (kaki.mode === 'tosu') return rt.continue();
     if (kaki.mode === 'otosu') { kaki.otoshita++; kaki.wazato.add(rt.request()); return rt.abort(); }
     kaki.nise500++;
@@ -240,10 +242,17 @@ try {
 
     /* ── ③ 通して 打つと 消える ── */
     A.kaki.mode = 'tosu';
+    A.kaki.hikae = []; A.kaki.hikaeT = Date.now();
     await utsu(A.pg, moto);
     console.log('    ── ③ 元の 値「' + moto + '」に 戻して 書きを 通した');
     const o3 = await obiWoMiru(A.pg);
     T('★③ 書きが 通ったら 帯が 消える（点 ' + o3.ten + ' に ' + o3.soko + '）★', !o3.mieru, '帯「' + o3.ji + '」が 残った');
+    /* ★判じは 変えない★＝上の 1回で 決める。その後 10秒の 帯の 字と、③の 間に 出た 書きを 出しに 残す（CI でだけ 赤の 訳を 読む為・2026-10-12） */
+    const ato3 = [];
+    for (let k = 0; k < 10; k++) { await matsu(1000); const ok3 = await obiWoMiru(A.pg); ato3.push((k + 1) + 's:' + (ok3.mieru ? '帯「' + (ok3.ji || '').slice(0, 24) + '」' : '無し') + (ok3.toast ? '／札「' + ok3.toast.slice(0, 20) + '」' : '')); }
+    console.log('       ③の 書き … ' + (A.kaki.hikae.join(' ／ ') || '0本'));
+    console.log('       ③の 後の 帯 … ' + ato3.join(' ／ '));
+    A.kaki.hikae = null;
   }
   await A.cx.close();
 
