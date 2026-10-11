@@ -243,6 +243,34 @@ if (!WAZA) {
     win.Store.cloudSaveState = (snap) => { okutta = snap; return Promise.resolve({ ok: true, coUA: '2026-10-12T05:01:00.000Z' }); };
     A.persistSaveDebounced(); await sleep(700);                                            /* 2回目＝1回目の .then で 写しを 書いた 後 */
     T('⑲ クラウドへ 送る 中身に _syncBase が 混ざらない', !!okutta && !Object.prototype.hasOwnProperty.call(okutta, '_syncBase'), okutta ? ('鍵=' + Object.keys(okutta).join(',')) : '送られていない');
+
+    /* ⑳ ★確定は クリックから 入る＝押した 時に 未送信の 印が 立つ★（2026-10-12・taiketsu 指摘7 の 確かめ）
+       確定の 受け手（app.js の #input-list の click・.econf）は persistSave() を 直接 呼び、自分では 印を 立てない。
+       印を 立てて いるのは document の capture の 受け手（input/change/click → persistSaveDebounced）だけ。
+       ⇒ ★本物の 確定の チェック（.econf）を 押し★、届かずに 閉じても、開き直しで 確定が 残る事を 縛る。
+       ★開き直しの 前に メモリの 確定を 消す★＝端末の 写しから 戻った 事を 見る（メモリが 残っているだけで 緑に しない）。
+       capture を 外すと 赤／受け手が 確定を 立てなく なっても 赤。 */
+    {
+      const T20 = '2026-10-12T06:00:00.000Z';
+      const e20 = Object.assign(A.defEmp(), { id: 'e20', name: '確定の人', pref: '東京都', birthYmd: '1990-01-01', base: 250000 });
+      A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [e20], confirmed: {}, _coUA: T20 });   /* dirty=false・確定 無し */
+      win.Store.cloudSaveState = () => Promise.resolve({ ok: false, reason: 'no net' });   /* 確定の 保存は 届かない */
+      const ym20 = A.state.month;
+      A.renderInput();
+      const box = doc.querySelector('#input-list .econf');
+      if (!box) { T('⑳ 確定の チェック（.econf）が 描かれる', false, '無い'); }
+      else {
+        box.click();                                                                           /* ★本物の 確定の チェック★ */
+        await sleep(800);
+        let k20 = null; try { k20 = JSON.parse(win.localStorage.getItem('payslip_syncmeta_v1') || 'null'); } catch (e) { k20 = null; }
+        T('⑳ 本物の 確定の チェックで 確定が 立つ', !!(A.state.confirmed[ym20] && A.state.confirmed[ym20].e20), JSON.stringify(A.state.confirmed[ym20]));
+        T('⑳ 確定の クリックで 未送信の 印が 立つ（端末にも）', win.PayslipSyncMeta().dirty === true && !!(k20 && k20.dirty === true), 'メモリ=' + win.PayslipSyncMeta().dirty + '／端末=' + JSON.stringify(k20));
+        A.state.confirmed = {};                                                                /* ★メモリの 確定を 消す★＝写しから 戻るかを 見る */
+        A.persistLoad();                                                                       /* 閉じて 開き直し（本物） */
+        A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [e20], confirmed: {}, _coUA: T20 });
+        T('⑳ ★届かずに 閉じても 開き直しで 確定が 残る（端末の 写しから）★', !!(A.state.confirmed && A.state.confirmed[ym20] && A.state.confirmed[ym20].e20), '確定=' + JSON.stringify(A.state.confirmed && A.state.confirmed[ym20]));
+      }
+    }
   } finally { console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
 
 } else {
