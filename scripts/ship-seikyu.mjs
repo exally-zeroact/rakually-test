@@ -99,10 +99,11 @@ export function unrunnableTests(to) {
   return out;
 }
 
-/* ★配信から外す物★＝repo には置くが Vercel には上げない（見張りは生かす・客には配らない） */
-const VERCELIGNORE = ['# ★運ぶ道具(scripts/ship-seikyu.mjs)が作る。手で書かない★',
-  '# repo には置く（見張りが見る）が ★客には配らない★ 物。',
-  'docs/', 'supabase/', 'tests/', 'seikyu/tests/', 'scripts/', 'node_modules/', ''];
+/* ★配信から外す物★＝repo には置くが Vercel には上げない（見張りは生かす・客には配らない）
+   ★2026-10-11＝中身は この repo の .vercelignore を そのまま 写す（1枚に 揃えた）★
+   前は ここに 6行を 書き写して 持っていた＝テスト線の .vercelignore に 行を 足しても、
+   この 道具を 走らせると 本番が 古い 6行に 黙って 戻った（.githooks/ 等が また 配られる・taiketsu 実測）。 */
+const VERCELIGNORE_SRC = path.join(ROOT, '.vercelignore');
 
 /* ★この repo では走らせない見張り★（黙って外さない＝ここに名前と理由を書く）
    ＝「見る物の量が この repo では違う」ので しきい値が意味を持たない物だけ。
@@ -394,7 +395,11 @@ function ship(to, dry) {
     console.log('★tests/run.js の一覧から ' + pr.gone.length + '本 外した★ … ' + pr.gone.join(' , '));
   }
   fs.writeFileSync(ciPath, ciHeaderNote(ci.yml, ci.dropped), 'utf8');
-  fs.writeFileSync(path.join(to, '.vercelignore'), VERCELIGNORE.join('\n'), 'utf8');
+  if (!fs.existsSync(VERCELIGNORE_SRC)) {
+    console.error('★運び元に .vercelignore が 無い★＝配信から 外す 物が 決められない（勝手に 作らない・止める）');
+    return 1;
+  }
+  fs.copyFileSync(VERCELIGNORE_SRC, path.join(to, '.vercelignore'));
   console.log('★配信から外す物を書いた★ … .vercelignore（docs/ supabase/ tests/ scripts/）');
   console.log('★CIを作り替えた★ … 運び先に無いファイルを指すステップを ' + ci.dropped.length + '本 外した');
   ci.dropped.forEach((d) => console.log('    外した: ' + d.name));
@@ -541,6 +546,12 @@ console.log('\n★自己診断★');
       "★見張りが見る docs/ と supabase/ も 一緒に運ばれている★");
     must(true, fs.readFileSync(path.join(tmp, '.vercelignore'), 'utf8').indexOf('docs/') >= 0,
       "★docs/ は 配信から外してある★");
+    /* ★2026-10-11★ 運び元の .vercelignore と 1字も 違わない（古い 6行に 戻さない）・門と 道具も 外してある */
+    const vi = fs.readFileSync(path.join(tmp, '.vercelignore'), 'utf8');
+    must(true, vi === fs.readFileSync(VERCELIGNORE_SRC, 'utf8'),
+      "★配信から外す物は 運び元の .vercelignore と 同じ（書き写しで 古くならない）★");
+    must(true, /^\.githooks\/$/m.test(vi) && /^tools\/$/m.test(vi) && /^hooks\/$/m.test(vi),
+      "★押す前の門(.githooks/ hooks/)と 道具(tools/)も 配信から外してある★");
     const shipped = fs.readFileSync(path.join(tmp, '.github/workflows/ci.yml'), 'utf8');
     must(true, /外したステップ \d+本/.test(shipped), '★外した物が CI の頭に書いてある★');
     must(false, /kyuyo\/tests\//.test(shipped.replace(/^\s*#.*$/gm, '')),

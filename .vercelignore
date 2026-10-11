@@ -1,0 +1,22 @@
+# ★repo には 置く（見張り・試験が 見る）が ★客には 配らない★ 物（テスト線と 本番で 同じ）★
+# ★ここ（テスト線）で 直す★＝scripts/ship-all.mjs が git の 名簿の 物を 本番へ 運ぶので、本番の .vercelignore も これで 上書きされる。
+#   scripts/ship-seikyu.mjs も この 1枚を そのまま 写す（前は 6行を 書き写して 持っていた＝走らせると 古く 戻った）。
+#   （前は 本番にだけ 在った＝ship-seikyu が 作った 物。2026-10-11 テスト線にも 置いて 1枚に 揃えた）
+# ★なぜ★ テスト線には これが 無く、tests/・scripts/・docs/・.githooks/ が URL で 取れた（2026-10-11 taiketsu 実測）。
+# 書き方は .gitignore と 同じ＝「tests/」は どの 深さの tests/ にも 効く（kyuyo/tests/ も 外れる＝本番で 404 を 実測）。
+# ★外す 前に★ 客の 画面（html/js/css/json）が 読みに 行かないかを 数えた（src/href/fetch/import で 0か所）。
+docs/
+supabase/
+tests/
+seikyu/tests/
+scripts/
+node_modules/
+# 押す前の 門・網・CI・道具・覚書（客の 画面は 1つも 使わない）
+.githooks/
+hooks/
+tools/
+.github/
+CLAUDE.md
+tests-no-ci.json
+.gitattributes
+.gitignore
