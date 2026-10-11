@@ -6586,7 +6586,7 @@
   /* 統合テスト用API。★本番ブラウザには露出しない（jsdomのときだけ）★=RC1対策の自動統合テスト(tests/integration.mjs)の入口。 */
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
-      applyCloudState:applyCloudState, persistSaveDebounced:persistSaveDebounced, persistSave:persistSave,   /* ★棚(d) ロード側 newer-wins の 統合試験用（本物を呼ぶ・真似ない）／persistSave＝枠超クラウド退避の歯 quota-cloud-fallback.mjs 用（test-only露出・判定/金額は不変）★ */
+      applyCloudState:applyCloudState, persistSaveDebounced:persistSaveDebounced, persistSave:persistSave, persistLoad:persistLoad,   /* ★棚(d) ロード側 newer-wins の 統合試験用（本物を呼ぶ・真似ない）／persistSave＝枠超クラウド退避の歯 quota-cloud-fallback.mjs 用（test-only露出・判定/金額は不変）★ */
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku,
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, saveBonusPayslips:saveBonusPayslips, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
@@ -6619,6 +6619,16 @@
   /* ★編集の 番号★（taiketsu 10-11 指摘A）＝_kakenaiNo＝印が 最後に 書けなかった 編集の 番号。
      クラウドの ok で 旗を 降ろすのは「その 保存が 中身を 取った 時の 番号 ≧ _kakenaiNo」の 時だけ（古い 保存の ok は 後の 編集を 運んでいない） */
   var _henshuNo=0, _kakenaiNo=0;
+  /* ★端末の 写し（PKEY）に「その 中身が 元に した 基準の 時刻」を 一緒に 書く★（2026-10-12 taiketsu）
+     ★なぜ 写しの 中か★ … 基準を 印（SMKEY）だけに 持つと、写しと 基準が 別々に 動く：
+       ①写しが 書けない（容量）のに 基準だけ 進む ②同じ 端末の 古い タブが 閉じる時に 古い 写しを 書き、基準は 新しいまま
+       ＝開き直すと 古い 写しが「据置」と 判じられて 勝ち、倉庫の 新しい 中身と 人を 消す。
+     ⇒ 写しと 基準を ★1回の setItem で★ 書く＝どちらも 同じ 時の 物。開き直しは 写しの 中の 基準を 使う（persistLoad）。
+     ★_syncBase は 写しにだけ 足す★（snapshot＝クラウドへ 送る 中身には 混ぜない）。 */
+  function _utsushiKaku(s, base){
+    var o=Object.assign({}, s); o._syncBase=(base===undefined)?_syncMeta.baseCoUA:base;
+    try{ localStorage.setItem(PKEY, JSON.stringify(o)); return true; }catch(e){ return false; }
+  }
   var IN_KAKENAI_JI='⚠ この端末に 保存できません（このブラウザの空き容量）＝クラウドに 保存できるまで 閉じないでください';
   function _saveSyncMeta(){ try{ localStorage.setItem(SMKEY, JSON.stringify(_syncMeta)); return true; }catch(e){ console.error('★未送信の 印を この端末に 書けません★', e); return false; } }
   if(typeof window!=='undefined') window.PayslipSyncMeta=function(){ return { dirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, loadLocalKept:_loadLocalKept, drainKai:_drainKai }; };   /* 診断用（window代入＝投げない＝try不要） */
@@ -6659,7 +6669,7 @@
   }
   function persistSave(){
     var snap=snapshot(), lsOk=true, _kumoP=null, _koNo=_henshuNo;   /* ★この 保存が 運ぶ 編集の 番号★（store は 送る 直前に 取り直す＝これより 新しい 事は 在っても 古い 事は 無い） */
-    try{ localStorage.setItem(PKEY, JSON.stringify(snap)); }catch(e){ lsOk=false; }
+    lsOk=_utsushiKaku(snap);
     var d=new Date(), hhmm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     /* kind＝'ng'（保存できなかった）／'ok'（保存できた）＝★どの画面でも 見える 帯★（hozonFuda）にも 渡す */
     var setS=function(t, kind){
@@ -6733,8 +6743,16 @@
            ★知らない 理由は 失敗として 出す★（出す 側に 倒す） */
         else if(r&&r.ok===false&&r.reason!=='no-user'&&r.reason!=='held-skipped'&&r.reason!=='held-skipped-maboroshi'){ setS('⚠ クラウド未保存（'+(r.reason||'通信エラー')+'）', 'ng'); }
         else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); }
-        if(r&&r.ok===true){ var _maeKakenai=_inKakenai; if(_koNo>=_kakenaiNo) _inKakenai=false; else _maeKakenai=false; _syncMeta.dirty=false; _saveSyncMeta();
-          if(_maeKakenai && lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); } }   /* ★クラウドに 届いた＝未送信編集は 無い（棚d）＝旗を 降ろして 言い直す★ */   /* ★クラウドに 届いた＝未送信編集は 無い（棚d）★ */
+        /* ★自分の 保存が 会社を 書けたら 基準の 時刻を 進める★（2026-10-12）＝前は 読み込みでしか 進まず、1回でも 届いた 後に 閉じると
+           送れなかった 編集が 開き直しで conflict→クラウドに 負けて 黙って 消えた。
+           ★新しい 基準を 入れた 写し（今の 中身＝送った 中身 ⊆ 今）が 書けた 時だけ 進める★（書けなければ 開き直しは conflict＝クラウド＝消えない） */
+        var _metaKaeta=false;
+        if(r && r.coUA!=null){ var _nb=String(r.coUA); if(_utsushiKaku(snapshot(), _nb)){ _syncMeta.baseCoUA=_nb; _metaKaeta=true; } }
+        if(r&&r.ok===true){ var _maeKakenai=_inKakenai; if(_koNo>=_kakenaiNo) _inKakenai=false; else _maeKakenai=false;
+          /* ★未送信の 印を 消すのは この 保存が 最後の 編集まで 運んだ 時だけ★（前は 古い 保存の ok でも 消した） */
+          if(_koNo>=_henshuNo){ _syncMeta.dirty=false; _metaKaeta=true; }
+          if(_maeKakenai && lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); } }   /* ★クラウドに 届いた＝旗を 降ろして 言い直す★ */
+        if(_metaKaeta) _saveSyncMeta();
         return r;                       /* ★★返事を そのまま 返す★★＝★呼んだ 側が 言い回しを 決められる★ */
       }).catch(function(e){
         if(lsOk) setS('⚠ ローカルのみ保存（クラウド通信エラー）', 'ng');
@@ -6760,6 +6778,8 @@
   function persistLoad(){
     _loadSyncMeta();   /* ★手元の同期メタ(dirty/baseCoUA)を先に読む＝ロード側 newer-wins の材料（棚d）★ */
     var s=null; try{ s=JSON.parse(localStorage.getItem(PKEY)||'null'); }catch(e){}
+    /* ★基準の 時刻は 写しの 中の 物を 使う★（写しと 同じ 時に 書いた 基準＝古い タブや 書けなかった 写しと 食い違わない・2026-10-12）。無い 写し（前の 形）は 印の 物のまま */
+    if(s && typeof s==='object' && Object.prototype.hasOwnProperty.call(s,'_syncBase')) _syncMeta.baseCoUA=(s._syncBase==null?null:String(s._syncBase));
     if(s&&s.employees&&s.employees.length){
       if(s.company) state.company=Object.assign(defCompany(), s.company); state.employees=s.employees.map(mergeEmp);
       if(s.month) state.month=s.month; if(s.theme) state.theme=s.theme; if(s.prefer) state.prefer=migPrefer(s.prefer);

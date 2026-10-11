@@ -65,6 +65,8 @@ function makeMock(opts) {
              ★①が 倉庫に 着いた 後 ②が 返るまで★
              『★倉庫は 新しい／控えは 旧い★』窓が 開く。
            ⇒ ★★その 窓を 試験で 作る には ②を 遅らせる しか ない★★ */
+        /* ★`failEmpUpsert`＝人の 書きだけ 落とす★（2026-10-12）＝会社は 書けて 人が 転んだ ok:false でも coUA が 載るかを 見る */
+        if (table === 'pay_employees' && opts.failEmpUpsert) { calls.empUpsert.push(d); return Promise.resolve({ error: { message: '人の 書き 失敗' }, data: null }); }
         if (table === 'pay_employees' && opts.empDelay) {
           calls.empUpsert.push(d);
           /* ★★★遅れて 着く 書きは ★着いた 時に★ 棚へ 入れる★★★（2026-09-28・実測から）
@@ -847,6 +849,46 @@ runs.push(T('★union: ローカルに無い物はクラウドを採る（消さ
   ok(Store.unionNeverLose(undefined, { a: 1 }).a === 1, 'local無→cloud');
   ok(Store.unionNeverLose({ a: 2 }, { a: 1 }).a === 1, '既定(b)葉衝突→cloud');
   ok(Store.unionNeverLose({ a: 2 }, { a: 1 }, 'a').a === 2, 'prefer=a 葉衝突→local');
+}));
+
+/* ★coUA＝この 保存が 書いた 会社の updated_at を 返す★（2026-10-12・app.js が 端末の 基準の 時刻を 進める 元）
+   会社が 書けた 時だけ 載る（ok も 人が 転んだ ok:false も）。書けていない 返り（conflict・会社の 書きの 失敗）には 載らない。
+   字は 倉庫が 返した 形（…+00:00）。 */
+runs.push(T('coUA: 会社が 書けたら 倉庫が 返した updated_at を 返す（DB書式）', async function () {
+  const mock = makeMock({ dbFormat: true, companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-12T00:00:00.000+00:00' });
+  const Store = loadStore(mock);
+  await Store.cloudLoadState();
+  const r = await Store.cloudSaveState(SNAP);
+  ok(r.ok === true, '保存ok(reason=' + r.reason + ')');
+  ok(typeof r.coUA === 'string' && /\+00:00$/.test(r.coUA), 'coUA が 倉庫の 字の 形（' + r.coUA + '）');
+  ok(r.coUA !== '2026-10-12T00:00:00.000+00:00', 'coUA は 読み込んだ 時の 値から 進んでいる');
+}));
+runs.push(T('coUA: conflict・会社の 書きの 失敗には 載らない', async function () {
+  let cua = '2026-07-17T00:00:00.000Z';
+  const mock = makeMock({ companyData: { company: { name: 'A' } }, companyUpdatedAt: () => cua });
+  const Store = loadStore(mock);
+  await Store.cloudLoadState();
+  cua = '2026-07-17T09:00:00.000Z';
+  const r = await Store.cloudSaveState(SNAP);
+  ok(r.reason === 'conflict' && r.coUA == null, 'conflict に coUA 無し(reason=' + r.reason + ' coUA=' + r.coUA + ')');
+  const Store2 = loadStore(makeMock({ failUpsert: true }));
+  const r2 = await Store2.cloudSaveState(SNAP);
+  ok(r2.ok === false && r2.coUA == null, '会社の 書きの 失敗に coUA 無し(coUA=' + r2.coUA + ')');
+}));
+runs.push(T('coUA: 会社は 書けて 人が 転んだ ok:false にも 載る（倉庫の 会社の 行は 自分の 字）', async function () {
+  const mock = makeMock({ dbFormat: true, failEmpUpsert: true, companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-12T00:00:00.000+00:00' });
+  const Store = loadStore(mock);
+  await Store.cloudLoadState();
+  const r = await Store.cloudSaveState(SNAP);
+  ok(r.ok === false, '人が 転んだので ok:false(reason=' + r.reason + ')');
+  ok(typeof r.coUA === 'string' && r.coUA !== '2026-10-12T00:00:00.000+00:00', 'coUA が 載って 進んでいる(' + r.coUA + ')');
+}));
+runs.push(T('reconcileOnLoad: 基準と クラウドは ms で 比べる（…120Z と …12+00:00 は 同じ）', async function () {
+  const Store = loadStore(makeMock({}));
+  const r = Store.reconcileOnLoad({ localDirty: true, baseCoUA: '2026-10-12T01:00:01.120Z', cloudCoUA: '2026-10-12T01:00:01.12+00:00' });
+  ok(r.apply === 'local' && r.push === true, '同じ 時刻＝据置＝手元を 残して 送る(' + JSON.stringify(r) + ')');
+  const r2 = Store.reconcileOnLoad({ localDirty: true, baseCoUA: '2026-10-12T01:00:01.120Z', cloudCoUA: '2026-10-12T01:00:01.121+00:00' });
+  ok(r2.apply === 'cloud' && r2.conflict === true, '1ms でも 違えば conflict(' + JSON.stringify(r2) + ')');
 }));
 
 await Promise.all(runs);

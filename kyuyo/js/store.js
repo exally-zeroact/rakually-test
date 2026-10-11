@@ -154,7 +154,10 @@
        ★但し ローカルのオフライン確定記録を 消さない＝union・値はクラウド優先(P0＝未読端末が本番の値を 上書きしない)★ */
     if(base == null) return { apply:'cloud', push:false, conflict:false, protect:'cloud' };
     /* クラウドが base から 動いていない（or 自分が送った値）＝手元が 新しい＝★保持して押す★（消失の核を止める）。保護はローカル優先で絶対に消さない */
-    var advanced = (cloud !== base) && !own;
+    /* ★ms で 比べる★（2026-10-12）＝倉庫は 末尾の 0 を 落とす（送「…01.120Z」／返「…01.12+00:00」）＝字では 同じ 時刻が 違って 見える。NaN の 時は 今まで通り 字で */
+    var _bMs = Date.parse(base), _cMs = Date.parse(cloud);
+    var onaji = (!isNaN(_bMs) && !isNaN(_cMs)) ? (_bMs === _cMs) : (cloud === base);
+    var advanced = !onaji && !own;
     if(!advanced) return { apply:'local', push:true, conflict:false, protect:'local' };
     /* 両方 編集＝真の競合＝stage1は クラウド採用（他端末の従業員を黙って消さない）＋保護は union・値はクラウド優先（記録は消さず 値は巻き戻さない）。
        ★Q1「競合でローカル優先」は Phase4(tombstone)＋司さんの「競合で他端末の従業員を消してよいか」判断の後の次段★ */
@@ -719,6 +722,9 @@
           kaishaP = kakuKaisha(lastCompanyUpdatedAt, true);   /* 控え＝倉庫が返したUAそのまま */
         }
         return kaishaP.then(function(k){
+          /* ★この 保存が 書いた 会社の updated_at★（2026-10-12）＝返す時に 共有の lastCompanyUpdatedAt を 読むと、その間に 読み込みが 別の 端末の 値を 入れ得る（taiketsu）。
+             会社が 書けた 時だけ 入る＝書けていない 返り（conflict 等）には 載らない。app.js が 端末の 基準の 時刻（baseCoUA）を 進める 元 */
+          var _kakiUA = null;
           if(k.conflict)  return { ok:false, reason:'conflict', neverSynced:false };  // ★人は書かない（半書き防止）★
           if(k.nomieai)   return { ok:false, reason:'sync-check-failed' };            // ★帯が出る(app.js:6644)・no-userにしない★
           if(k.writeFail) return { ok:false, reason:k.writeFail };                     // ★帯が出る★
@@ -730,6 +736,7 @@
             /* ★倉庫が 返した 値も 名簿へ★（丸めの 保険／NaN は 入りません）＝束を 待たず その場で 控えを 新しく */
             if(_ua){ _okuttaIreru(_ua); }
             lastCompanyUpdatedAt = _ua || now;
+            _kakiUA = lastCompanyUpdatedAt;
             _hikaeHayaku++;
           }
           /* ★会社が 通った後に だけ★ 人・差分削除（半書き防止・2026-10-03 ⑦） */
@@ -756,8 +763,8 @@
             /* ★逆向きの半書き（会社通り・人転び）＝ok:falseで帯が出る。次の保存は丸ごとの写しで人も揃う(見立て)★
                控えは 会社の書きの その場で 新しく済み（束を 待たない・上の ④ の 訳） */
             if(!bad){ cloudSynced=true; }
-            return { ok:!bad, reason: bad?((bad.error&&bad.error.message)||'error'):null };
-          }).catch(function(e){ return { ok:false, reason:(e&&e.message)||'exception' }; });
+            return { ok:!bad, reason: bad?((bad.error&&bad.error.message)||'error'):null, coUA:_kakiUA };
+          }).catch(function(e){ return { ok:false, reason:(e&&e.message)||'exception', coUA:_kakiUA }; });
         });
         }
       });

@@ -162,6 +162,89 @@ if (!WAZA) {
       '帯=' + (alertEl ? (alertEl.hidden ? '隠れた' : alertEl.textContent) : '無い') + '／返事を 止めた=' + !!tokeru);
   } finally { SP.setItem = motoSet; console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
 
+  /* ⑭⑮⑯ ★自分の 保存が 届いた 後に 閉じても、送れなかった 編集が 開き直しで 消えない★（2026-10-12・taiketsu が 見つけた 前からの 穴）
+     前は 自分の 保存が 届いても 基準の 時刻（baseCoUA）が 進まず、開き直すと「クラウドが 基準から 動いた」＝conflict で クラウドを 採り、
+     送れなかった 編集が 黙って 消えた（自分が 送った 時刻の 名簿 _okuttaUA は 手元に 書かれず 開き直すと 空）。
+     ＝倉庫の 字は 末尾の 0 を 落とす（送「…01.120Z」／返「…01.12+00:00」）ので、比べは ms で。 */
+  console.error = () => {};
+  try {
+    const U1_OKURU = '2026-10-12T01:00:01.120Z', U1_KAESU = '2026-10-12T01:00:01.12+00:00';
+    A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', '基準花子')], _coUA: 'UA9' });   /* 読み込み＝基準 UA9・dirty=false */
+    let tokeru3 = null;
+    win.Store.cloudSaveState = () => new Promise((res) => { tokeru3 = res; });
+    A.state.employees[0].name = '編集1'; A.persistSaveDebounced();                       /* 編集1 */
+    await sleep(700);                                                                     /* 本保存1 が 返事待ち */
+    A.state.employees[0].name = '編集2'; A.persistSaveDebounced();                       /* 編集2（本保存2 は まだ） */
+    win.Store.cloudSaveState = () => Promise.reject(new Error('no net'));               /* 本保存2 は 届かない（閉じた 体） */
+    if (tokeru3) tokeru3({ ok: true, coUA: U1_OKURU });                                   /* 編集1 が 届いた（倉庫は U1） */
+    await sleep(50);
+    let kaki2 = null; try { kaki2 = JSON.parse(win.localStorage.getItem('payslip_syncmeta_v1') || 'null'); } catch (e) { kaki2 = null; }
+    T('⑭ ★古い 保存の ok で 未送信の 印を 消さない（編集2 は まだ 送っていない）★', win.PayslipSyncMeta().dirty === true && !!(kaki2 && kaki2.dirty === true),
+      'メモリ=' + win.PayslipSyncMeta().dirty + '／端末=' + JSON.stringify(kaki2));
+    await sleep(800);                                                                     /* 本保存2 が 転ぶ */
+    /* 開き直し＝★手元の 中身は 端末の 写し（PKEY）から★（本物の 開き直しと 同じ）／倉庫は 編集1（U1・倉庫の 字の 形） */
+    const utsushi = (() => { try { return JSON.parse(win.localStorage.getItem('payslip_state_v1') || 'null'); } catch (e) { return null; } })();
+    if (utsushi && utsushi.employees) A.state.employees = utsushi.employees.map((x) => Object.assign(A.defEmp(), x));
+    let okuriKai = 0; win.Store.cloudSaveState = () => { okuriKai++; return Promise.resolve({ ok: true, coUA: '2026-10-12T01:30:00.000Z' }); };
+    A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', '編集1')], _coUA: U1_KAESU });
+    T('⑮ ★自分の 保存が 届いた 後に 閉じても 送れなかった 編集2 が 開き直しで 残る（端末の 写しから）★', (A.state.employees[0] && A.state.employees[0].name) === '編集2',
+      '名前=' + (A.state.employees[0] && A.state.employees[0].name) + '／写し=' + (utsushi && utsushi.employees && utsushi.employees[0] && utsushi.employees[0].name) + '／印=' + JSON.stringify(win.PayslipSyncMeta()));
+    await sleep(800);
+    T('⑮ 残した 編集2 を 送り直した（cloudSaveState が 呼ばれた）', okuriKai >= 1, '送った 回数=' + okuriKai);
+    /* ⑯ 別の 端末が その後 U2 に 進めていたら 今まで通り クラウド（stage1・他の 端末の 人を 黙って 消さない） */
+    A.state.employees[0].name = '編集3'; A.persistSaveDebounced();
+    await sleep(800);                                                                     /* 本保存3 も 転ぶ（dirty のまま） */
+    A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', '別の端末')], _coUA: '2026-10-12T02:00:00.5+00:00' });
+    T('⑯ 別の 端末が 進めていたら 今まで通り クラウドを 採る（conflict）', (A.state.employees[0] && A.state.employees[0].name) === '別の端末',
+      '名前=' + (A.state.employees[0] && A.state.employees[0].name));
+
+    /* ⑰ ★端末の 写し（PKEY）が 書けない 時は 基準を 進めない＝開き直しで 古い 写しが「据置」で 勝たない★（taiketsu 10-12 指摘1・組A）
+       写しは 大きいので 書けず、印は 小さいので 書ける。その時に 基準だけ U5 に 進むと、開き直しで 古い 写し（基準の 前の 中身）を 採って
+       送り直し＝倉庫の 新しい 中身と 人を 消す。⇒ 進めなければ conflict でクラウド（今まで通り・消えない） */
+    A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', '古い写し')], _coUA: '2026-10-12T03:00:00.000Z' });
+    A.persistSaveDebounced(); await sleep(700);                                          /* 写し＝『古い写し』が 端末に 書ける */
+    const mae17 = win.PayslipSyncMeta().baseCoUA;
+    const SP2 = win.Storage.prototype, moto2 = SP2.setItem;
+    SP2.setItem = function (k, v) { if (k === 'payslip_state_v1') throw new win.DOMException('QuotaExceededError', 'QuotaExceededError'); return moto2.call(this, k, v); };
+    try {
+      win.Store.cloudSaveState = () => Promise.resolve({ ok: false, reason: 'no net' });
+      A.state.employees[0].name = '新しい中身'; A.persistSaveDebounced(); await sleep(700);   /* dirty（写しは 書けない） */
+      win.Store.cloudSaveState = () => Promise.resolve({ ok: true, coUA: '2026-10-12T03:05:00.000Z' });
+      A.persistSaveDebounced(); await sleep(700);                                          /* 倉庫には『新しい中身』が 届く（写しは 古いまま） */
+    } finally { SP2.setItem = moto2; }
+    T('⑰ 写しが 書けない 間は 基準の 時刻を 進めない', win.PayslipSyncMeta().baseCoUA === mae17, '前=' + mae17 + '／今=' + win.PayslipSyncMeta().baseCoUA);
+
+    /* ⑱ ★同じ 端末の 古い タブが 後から 閉じても、古い 写しが「据置」で 勝たない★（taiketsu 10-12 指摘B）
+       タブ2（基準 T0 の 中身）を 開いたまま タブ1で 保存が 届き 基準 T1。タブ2が 閉じる時に 古い 写しを 書く。
+       前は 基準を 印（SMKEY）だけに 持ち T1 のまま＝開き直しで 倉庫 T1 と 同じ＝タブ2の 古い 中身を 採って 送り、人を 消した。
+       今は 写しの 中に 基準（T0）が 入る＝倉庫 T1 と 違う＝conflict で クラウド（消えない）。 */
+    if (typeof A.persistLoad !== 'function') { T('⑱ persistLoad が 試験の 口に 在る', false, '無い'); }
+    else {
+      const T0 = '2026-10-12T04:00:00.000Z', T1 = '2026-10-12T04:10:00.000Z';
+      A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', '始め')], _coUA: T0 });
+      win.Store.cloudSaveState = () => Promise.resolve({ ok: false, reason: 'no net' });
+      A.state.employees[0].name = 'タブ2の中身'; A.persistSaveDebounced(); await sleep(700);
+      const tab2Utsushi = win.localStorage.getItem('payslip_state_v1');                    /* タブ2が 持つ 写し（基準 T0 の 時の 物） */
+      win.Store.cloudSaveState = () => Promise.resolve({ ok: true, coUA: T1 });
+      A.state.employees[0].name = 'タブ1の人E'; A.persistSaveDebounced(); await sleep(700); /* タブ1＝倉庫に 届いた（T1） */
+      win.Store.cloudSaveState = () => Promise.resolve({ ok: false, reason: 'no net' });
+      A.state.employees[0].name = 'タブ1の編集F'; A.persistSaveDebounced(); await sleep(700); /* 届かない＝dirty */
+      win.localStorage.setItem('payslip_state_v1', tab2Utsushi);                           /* 古い タブ2が 後から 閉じて 写しを 書いた */
+      A.persistLoad();                                                                      /* 開き直し（本物） */
+      A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', 'タブ1の人E')], _coUA: T1 });
+      T('⑱ ★古い タブの 写しが 後から 書かれても 倉庫の 新しい 中身を 消さない（conflict→クラウド）★', (A.state.employees[0] && A.state.employees[0].name) === 'タブ1の人E',
+        '名前=' + (A.state.employees[0] && A.state.employees[0].name) + '／印=' + JSON.stringify(win.PayslipSyncMeta()));
+    }
+
+    /* ⑲ 写しに 足す 基準（_syncBase）は クラウドへ 送る 中身に 混ぜない（taiketsu 10-12・`var o=s` に 壊すと 混ざる） */
+    let okutta = null;
+    win.Store.cloudSaveState = (snap) => { okutta = snap; return Promise.resolve({ ok: true, coUA: '2026-10-12T05:00:00.000Z' }); };
+    A.persistSaveDebounced(); await sleep(700);
+    win.Store.cloudSaveState = (snap) => { okutta = snap; return Promise.resolve({ ok: true, coUA: '2026-10-12T05:01:00.000Z' }); };
+    A.persistSaveDebounced(); await sleep(700);                                            /* 2回目＝1回目の .then で 写しを 書いた 後 */
+    T('⑲ クラウドへ 送る 中身に _syncBase が 混ざらない', !!okutta && !Object.prototype.hasOwnProperty.call(okutta, '_syncBase'), okutta ? ('鍵=' + Object.keys(okutta).join(',')) : '送られていない');
+  } finally { console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
+
 } else {
   T('③ ★--waza: newer-wins を 殺すと ローカル編集が クラウドで 消える（＝門が 守っている証し）★', (A.state.employees[0] && A.state.employees[0].name) === 'クラウド太郎',
     '殺したのに 残った＝' + (A.state.employees[0] && A.state.employees[0].name));
