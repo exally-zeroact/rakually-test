@@ -1,0 +1,22 @@
+# 実在の字の見張り（tests/kinshi-ji.test.mjs）の 白名簿＝道<TAB>種類<TAB>git の blob の id 頭16字（git hash-object --path）<TAB>訳。
+# 中身か 件数が 変われば 赤＝絵を 目で 見直して 名指しし直す（2026-10-11 19枚とも 目で 見た）。
+docs/e-toast-kyuyo-2026-09-10.png	未測定1	5c47e37353d6d5c3	保存の 知らせの 絵（字は 知らせの 文だけ）
+docs/logo/rakunally-logo.png	未測定1	a96d1704340df1ab	ロゴの 絵（字は Rakunally だけ）
+docs/logo/rakunally-mark-src.png	未測定1	10195c0eb70b9444	アプリの ロゴの 絵（字は RA の 印だけ）
+img/apple-touch-icon-180.png	未測定1	de41ed07de0db2ea	アプリの ロゴの 絵（字は RA の 印だけ）
+img/favicon-16.png	未測定1	cccbd608c99e4fde	アプリの ロゴの 絵（字は RA の 印だけ）
+img/favicon-32.png	未測定1	966504335b0da7ca	アプリの ロゴの 絵（字は RA の 印だけ）
+img/icon-192.png	未測定1	6f026bb5623fc546	アプリの ロゴの 絵（字は RA の 印だけ）
+img/icon-512-maskable.png	未測定1	12c736a5fc1b35c4	アプリの ロゴの 絵（字は RA の 印だけ）
+img/icon-512.png	未測定1	ea17ab0c2a8eb016	アプリの ロゴの 絵（字は RA の 印だけ）
+kyuyo/img/admin-192.png	未測定1	141038f36796ee05	管理の アイコン（字は「管」だけ）
+kyuyo/img/admin-512-maskable.png	未測定1	0feb0b153ce1dea2	管理の アイコン（字は「管」だけ）
+kyuyo/img/admin-512.png	未測定1	e3ffa412cff0dd77	管理の アイコン（字は「管」だけ）
+kyuyo/img/meisai-180.png	未測定1	00d8233afaa1f790	明細の アイコン（字は「給」だけ）
+kyuyo/img/tpl_cols.png	未測定1	aeee9f3eed00bc81	給与明細の 見本の 絵（人名は 作り物・会社名＝自社・決め3）
+kyuyo/img/tpl_cols2.png	未測定1	6efd480fbf01941b	給与明細の 見本の 絵（人名は 作り物・会社名＝自社・決め3）
+kyuyo/img/tpl_cols3.png	未測定1	78d3dec49b8186a0	給与明細の 見本の 絵（人名は 作り物・会社名＝自社・決め3）
+kyuyo/img/tpl_strips.png	未測定1	ef54dfe26b96bba3	給与明細の 見本の 絵（人名は 作り物・会社名＝自社・決め3）
+kyuyo/img/tpl_vstack.png	未測定1	138ebfab5f2c3503	給与明細の 見本の 絵（人名は 作り物・会社名＝自社・決め3）
+kyuyo/img/tpl_vstack2.png	未測定1	e0176bdc05f286c0	給与明細の 見本の 絵（人名は 作り物・会社名＝自社・決め3）
+vendor/fonts/BIZUDPGothic-Regular.ttf	未測定1	0753da0963c2fa25	借り物の 字形（BIZ UDPゴシック）＝字の 形だけ・中の 名前の 欄は 作った 会社

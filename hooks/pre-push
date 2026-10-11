@@ -72,4 +72,14 @@ fi
 #   ★★お金も 時間も 増えません★★（★緑の 時は 数秒 足すだけ／赤の 時は 9分 減る★）
 echo "[pre-push] ★先に 焼き印だけ 見ます（数秒）★"
 node scripts/stamp-build.mjs --check
+# ★★★押す commit の 門 2つ（2026-10-11・Castally の 凍結版 .githooks/ を そのまま 呼ぶ）★★★
+#   1. commit の メールを 公開 repo に 出さない（.githooks/pre-push-author.mjs＝noreply か bot だけ）
+#   2. 押す commit の 中身に 実在の 字が 無いか（.githooks/pre-push-kinshi.mjs・一覧の 指紋は .githooks/kinshi-finger）
+#   ★網より 先★＝どちらも 数秒。赤なら 14分の 網を 回さずに 止める。
+#   ★$1（押す 先の 名）・$2（その 道）と 押す 物の 名簿（標準入力）を そのまま 渡す★（渡さないと 新しい 枝の 押しが 赤）
+#   ★.githooks/pre-push は この repo では 使わない★（core.hooksPath は hooks。中身を 揃えて 置いて あるだけ）
+push_input=$(cat)
+echo "[pre-push] ★押す commit の メールと 中身の 門（数秒）★"
+printf '%s\n' "$push_input" | node .githooks/pre-push-author.mjs "$@"
+printf '%s\n' "$push_input" | node .githooks/pre-push-kinshi.mjs "$@"
 node tools/oshu-mae.mjs

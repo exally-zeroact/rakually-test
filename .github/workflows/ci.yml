@@ -43,6 +43,7 @@ jobs:
       # ── Rakunally 共通（入口・共有データ・台帳・集計。元 Exally 由来を据置） ──
       - name: Cache-buster stamp guard (貼り忘れ検知・コードより先に見る)
         run: node scripts/stamp-build.mjs --check
+
       # ★★PDFに 字体を 丸ごと 埋めない（全アプリ 共通）★★ 2026-09-26
       #   ★★実測 2026-09-26★★ この 見張りは 2026-09-05 に 作られたが
       #     CI に 入っていたのは ★Exally-test と daikou-seikyu-test の 2本だけ★。
@@ -777,3 +778,59 @@ jobs:
         run: node tests/furui-namae.test.mjs --self-test
       - name: ★社保の 率の 読み取りの 自己確認（★外に 出ない★・漢数字と 幅の 取り方）★
         run: node kyuyo/scripts/check-shaho-ritsu.mjs --self-test
+
+
+  # ★公開 repo に 実在の 字（司さん・会社・お客さんの 本物）を 戻さない★（2026-10-11・Castally の 凍結版 nomiya-app b3dfea3 を 写した）
+  #   一覧は repo に 置かない＝secret KINSHI_JI（1行に 1語）。無ければ「未測定」で 赤。
+  #   指紋（変数 KINSHI_JI_FINGER）と 違えば 赤＝secret が 縮んだ・壊れた を 止める。
+  #   当たっても 字は 出さない（公開の CI ログは 誰でも 読める）。zip（xlsx 等）は ほどいて 中まで 見る。
+  #   通す 物は tests/kinshi-ji-shiro.txt に 名指しした 道だけ（中身の blob が 変われば 赤＝絵を 見直す）。
+  # ★凍結版と 違う 所（2つ）★
+  #   ①段の 中身は scripts/kinshi-ci.sh に 移し、run: は 1行＝この repo の 押す前の 網は run: の 1行しか 拾わない
+  #     （塊の run: | は「|」として 回って 9段 赤・見張りが 網で 1回も 走らない＝taiketsu 10-11 実測）
+  #   ②給与の 試験の job（test）と 分けた＝secret の 置き忘れ等で ここが 赤でも 給与の 約250段は 走る
+  kinshi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 床の物差しの自己確認（ubuntu の awk で 233・234x 等が 赤に なるか）
+        run: sh scripts/kinshi-ci.sh 20 -- sh scripts/ci-yuka.sh --self-test
+      - name: 実在の字が戻っていないか（一覧は secret・終わりの 行も 見る）
+        timeout-minutes: 10
+        run: sh scripts/kinshi-ci.sh owari -- node tests/kinshi-ji.test.mjs
+        env:
+          KINSHI_JI: ${{ secrets.KINSHI_JI }}
+          KINSHI_JI_FINGER: ${{ vars.KINSHI_JI_FINGER }}
+      - name: 実在の字の見張りの自己確認（29組・239回 以上）
+        timeout-minutes: 10
+        run: sh scripts/kinshi-ci.sh 29,239 -- node tests/kinshi-ji.test.mjs --self-test
+      - name: commit のメールの門の自己確認（hooks/pre-push から 呼ぶ .githooks/pre-push-author.mjs・7組 以上）
+        run: sh scripts/kinshi-ci.sh 7 -- node .githooks/pre-push-author.mjs --self-test
+      - name: 押す commit の 中身の 門の自己確認（hooks/pre-push から 呼ぶ .githooks/pre-push-kinshi.mjs・16組・43回 以上）
+        run: sh scripts/kinshi-ci.sh 16,43 -- node .githooks/pre-push-kinshi.mjs --self-test
+
+  # ★見張りだけを node 24 で 回す★（凍結版と 同じ 訳）
+  #   node 24 では 奇数の 長さの toString("utf16le") が「double free」で 落ちた（node 20 は 通る）。見張りは u16le() で 偶数に 揃えて 読む。
+  kinshi-node24:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: 床の物差しの自己確認（node 24 の job）
+        run: sh scripts/kinshi-ci.sh 20 -- sh scripts/ci-yuka.sh --self-test
+      - name: 実在の字が戻っていないか（node 24）
+        run: sh scripts/kinshi-ci.sh owari -- node tests/kinshi-ji.test.mjs
+        env:
+          KINSHI_JI: ${{ secrets.KINSHI_JI }}
+          KINSHI_JI_FINGER: ${{ vars.KINSHI_JI_FINGER }}
+      - name: 実在の字の見張りの自己確認（node 24）
+        run: sh scripts/kinshi-ci.sh 29,239 -- node tests/kinshi-ji.test.mjs --self-test
+      - name: 押す commit の 中身の 門の自己確認（node 24）
+        run: sh scripts/kinshi-ci.sh 16,43 -- node .githooks/pre-push-kinshi.mjs --self-test

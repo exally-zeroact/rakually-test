@@ -1,0 +1,9 @@
+#!/bin/sh
+# 押す 前の 門 2つ（置き方: git config --local core.hooksPath .githooks）
+#   1. commit の メールを 公開 repo に 出さない（pre-push-author.mjs）
+#   2. 押す commit の 中身に 実在の 字が 無いか（pre-push-kinshi.mjs・一覧の 指紋は .githooks/kinshi-finger）
+d="$(dirname "$0")"
+input=$(cat)
+# $1＝押す 先の 遠くの 名・$2＝その 道（新しい 枝の 範囲を 押す 先の 遠くの 今の 頭から 決める）
+printf '%s\n' "$input" | node "$d/pre-push-author.mjs" "$@" || exit 1
+printf '%s\n' "$input" | node "$d/pre-push-kinshi.mjs" "$@" || exit 1
