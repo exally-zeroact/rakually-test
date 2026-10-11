@@ -141,7 +141,7 @@ T('★⑥-b ★本当に紙に出ないのか 実物の紙で数える★（言�
   ok(ids.length >= 3, '様式が ' + ids.length + '個＝数えられていない');
   const hit = ids.map((id) => {
     const h = PAPER.build({ inv: v, tax: tax, partner: { name: '○○建設株式会社', honor: '御中' },
-      org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293' },
+      org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009' },
       template: TPL.getOrDefault(id) });
     const str = typeof h === 'string' ? h : ((h && h.html) || JSON.stringify(h));
     ok(str.length > 500, id + ' … 紙が作れていない（' + str.length + '字）＝数えても意味が無い');
@@ -153,7 +153,7 @@ T('★⑥-b ★本当に紙に出ないのか 実物の紙で数える★（言�
      ＝司さん 2026-08-29「件名がいる会社もあるやろうから対応させとけ」で 出せるようにした所。 */
   const on = ids.map((id) => {
     const h = PAPER.build({ inv: v, tax: tax, partner: { name: '○○建設株式会社', honor: '御中' },
-      org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293' },
+      org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009' },
       template: TPL.getOrDefault(id), style: { subjectOn: true } });
     const str = typeof h === 'string' ? h : ((h && h.html) || JSON.stringify(h));
     return { id: id, n: (str.match(new RegExp(MARK, 'g')) || []).length };

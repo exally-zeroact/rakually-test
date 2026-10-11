@@ -45,8 +45,8 @@ const LEDGER = [
   { id: 'lg_seed6', employee_id: 'e_seed3', ymd: d(8), data: { uriage: 12000 } }
 ];
 const PARTNERS = [
-  { id: 'pt_seed1', sort: 0, data: { name: '○○建設株式会社', keisho: '御中', addr: '愛媛県松山市本町1-1', invoiceNo: 'T9876543210987' } },
-  { id: 'pt_seed2', sort: 1, data: { name: '△△工務店', keisho: '御中', addr: '愛媛県今治市南町2-2', invoiceNo: '' } }
+  { id: 'pt_seed1', sort: 0, data: { name: '○○建設株式会社', keisho: '御中', addr: '東京都架空区見本台1-1', invoiceNo: 'T9876543210987' } },
+  { id: 'pt_seed2', sort: 1, data: { name: '△△工務店', keisho: '御中', addr: '東京都架空区見本台2-2', invoiceNo: '' } }
 ];
 
 async function clean() {
@@ -63,7 +63,7 @@ const nowIso = new Date().toISOString();
 let ng = 0;
 const put = async (t, rows) => { const { error } = await sb.from(t).upsert(rows); if (error) { ng++; console.log('  ✗ ' + t + ': ' + error.message); } else console.log('  ok ' + t + ' ' + rows.length + '件'); };
 
-await put('pay_org', [{ account_id: uid, data: { yago: '株式会社ゼロアクト', addr: '愛媛県今治市○○町1-2-3', tel: '0898-00-0000', invoiceNo: 'T1234567890123', businesses: ['代行', '空調'] }, updated_at: nowIso }]);
+await put('pay_org', [{ account_id: uid, data: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000', invoiceNo: 'T1234567890123', businesses: ['代行', '空調'] }, updated_at: nowIso }]);
 await put('pay_employees', EMPS.map((e, i) => ({ id: e.id, account_id: uid, sort: i, data: { id: e.id, name: e.name, birthYmd: '1985-04-01', payType: '月給', base: '250000', business: e.business, employmentType: e.employmentType }, updated_at: nowIso })));
 await put('pay_partners', PARTNERS.map(p => ({ ...p, account_id: uid, deleted_at: null, updated_at: nowIso })));
 await put('pay_ledger', LEDGER.map(r => ({ ...r, account_id: uid, deleted_at: null, updated_at: nowIso })));

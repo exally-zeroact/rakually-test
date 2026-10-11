@@ -24,8 +24,8 @@ const LINES = [
 ];
 const DED = [{ name: '弁当代', amount: '7310' }, { name: '健康診断代', amount: '10164' }];
 /* ★2口座★＝世の中で「1口座が ふつう・複数も ありうる」なので 両方 見えるように */
-const BANK = '伊予銀行 今治支店 普通 1234567 ド）ラクナリー\n'
-  + '愛媛銀行 今治支店 当座 7654321 ド）ラクナリー';
+const BANK = '伊予銀行 見本支店 普通 1234567 ド）ラクナリー\n'
+  + '愛媛銀行 見本支店 当座 7654321 ド）ラクナリー';
 
 function html(id) {
   const t = TAX.compute({ lines: LINES, taxMode: 'exclusive', rounding: 'floor' });
@@ -37,7 +37,7 @@ function html(id) {
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: LINES,
       totals: { grandTotal: t.grandTotal }, data: { deductions: dl } },
     tax: t, partner: { name: '黒田空調', honor: '御中' },
-    org: { yago: '合同会社Rakunally', addr: '愛媛県今治市1-2-3', tel: '0898-00-0000',
+    org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: BANK },
     template: tp, templateId: id, theme: tp.theme,
     cols: COLS.normalizeSpec(tp.cols), deduct: d, deductLines: dl,

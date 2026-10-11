@@ -45,7 +45,7 @@ function tsukuru(id, n) {
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal }, data: { deductions: dl } },
     tax: t, partner: { name: '黒田空調', honor: '御中' },
-    org: { yago: '合同会社Rakunally', addr: '愛媛県今治市1-2-3', tel: '0898-00-0000',
+    org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: BANK },
     template: tp, templateId: id, theme: tp.theme,
     cols: COLS.normalizeSpec(tp.cols), deduct: d, deductLines: dl,

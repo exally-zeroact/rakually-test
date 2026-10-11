@@ -27,8 +27,8 @@ const html = PAPER.build({
   inv: { no: '2026-07-001', issue_ymd: '2026-07-31', kind: 'invoice', lines: lines,
     totals: { grandTotal: t.grandTotal }, data: {}, template_id: 'genba' },
   tax: t, partner: { name: '黒田空調', honor: '御中' },
-  org: { yago: '株式会社ゼロアクト', addr: '愛媛県今治市1-2-3', tel: '0898-00-0000',
-    invoiceNo: 'T1234567890123', bank: '伊予銀行 今治支店 普通 1234567 カ）ゼロアクト' },
+  org: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
+    invoiceNo: 'T1234567890123', bank: '伊予銀行 見本支店 普通 1234567 カ）ゼロアクト' },
   template: tp, templateId: 'genba', theme: tp.theme,
   cols: COLS.normalizeSpec(tp.cols), deduct: 0, deductLines: [],
 }).html;

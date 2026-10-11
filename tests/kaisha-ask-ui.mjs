@@ -95,10 +95,10 @@ await (async () => {
 
   T('★⑤ 打った その場で 登録番号の形を 言う（外に出ない）', () => {
     const el = $('kask-t');
-    el.value = 'T350000300329';          // ★数字12桁＝あと1桁★
+    el.value = 'T900000000000';          // ★数字12桁＝あと1桁★
     el.dispatchEvent(new win.Event('input', { bubbles: true }));
     ok(/あと 1桁です/.test($('kask-live').textContent), '★途中で 何も言わない★：' + $('kask-live').textContent);
-    el.value = 'T3500003003293';
+    el.value = 'T9000000000009';
     el.dispatchEvent(new win.Event('input', { bubbles: true }));
     ok(/形は 合っています/.test($('kask-live').textContent), '★合っていると 言わない★：' + $('kask-live').textContent);
     console.log('     ' + $('kask-live').textContent);
@@ -106,7 +106,7 @@ await (async () => {
 
   T('★⑥ 最後まで答えると 箱が 自分で消える', () => {
     click('[data-kask-ok="invoiceNo"]');
-    eq($('org-invoice').value, 'T3500003003293', '登録番号が 欄に 入っていない');
+    eq($('org-invoice').value, 'T9000000000009', '登録番号が 欄に 入っていない');
     $('kask-t').value = '運転代行';
     click('[data-kask-ok="business"]');
     eq((H.state.businesses || [])[0], '運転代行', '★仕事が 入っていない★');

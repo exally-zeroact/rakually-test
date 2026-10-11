@@ -38,13 +38,13 @@ ok(H, '__RAKUNALLY_TEST 露出(hub.js の init 成功)');
 
 /* ── 偽のデータ層(SuiteDataと同じ形の返り) ── */
 const db = {
-  org: { yago: '株式会社ゼロアクト', addr: '愛媛県今治市1-2-3', tel: '0898-00-0000', invoiceNo: 'T1234567890123', businesses: ['代行', '空調'] },
+  org: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000', invoiceNo: 'T1234567890123', businesses: ['代行', '空調'] },
   employees: [
     { id: 'e1', sort: 0, name: '山田 太郎', employmentType: '従業員', business: '空調', data: {} },
     { id: 'e2', sort: 1, name: '鈴木 花子', employmentType: '業務委託', business: '代行', data: {} },
     { id: 'e3', sort: 2, name: '佐藤 次郎', employmentType: '従業員', business: '', data: {} }
   ],
-  partners: [{ id: 'pt_a', sort: 0, data: { name: '○○建設株式会社', keisho: '御中', addr: '松山市1-1', invoiceNo: '' } }],
+  partners: [{ id: 'pt_a', sort: 0, data: { name: '○○建設株式会社', keisho: '御中', addr: '東京都架空区見本台1-1', invoiceNo: '' } }],
   ledger: [
     { id: 'l1', employeeId: 'e2', ymd: '2026-07-01', data: { uriage: 4200, minutes: 90, business: '代行' } },
     { id: 'l2', employeeId: 'e2', ymd: '2026-07-01', data: { uriage: 3800, minutes: 75 } },

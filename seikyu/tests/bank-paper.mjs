@@ -40,7 +40,7 @@ const ok = (c, m) => { if (!c) throw new Error(m); };
 /* 実物と同じ形の口座（銀行名＋支店＋種別＋番号＋名義） */
 const BANKS = ['伊予銀行', '愛媛銀行', '愛媛信用金庫', 'ゆうちょ銀行', '三菱UFJ銀行', '広島銀行'];
 const accounts = (n) => BANKS.slice(0, n).map((b, i) =>
-  b + '　今治支店　普通　' + (4160657 + i * 1111) + '　ド）ゼロアクト');
+  b + '　見本支店　普通　' + (1234567 + i * 1111) + '　ド）ゼロアクト');
 
 /* ★waku＝明細の 枠の 行数（paperRows）★（2026-09-08 足した）
    ★明細の 行数を 増やしても 紙は 自分で 2枚に 割る★ので、
@@ -55,8 +55,8 @@ function paperHtml(bankN, rows, ded, tplId, waku) {
       totals: { grandTotal: tax.grandTotal }, data: {} },
     tax,
     partner: { name: 'ENEOSグローブエナジー株式会社', honor: '御中' },
-    org: { yago: '合同会社ZEROact', addr: '今治市本町7-3-40', tel: '090-5716-1946',
-      invoiceNo: 'T3500003003293', bank: accounts(bankN).join('\n') },
+    org: { yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
+      invoiceNo: 'T9000000000009', bank: accounts(bankN).join('\n') },
     template: TPL.getOrDefault(tplId),
     paperRows: waku,
     deduct: ded ? 11340 : 0,

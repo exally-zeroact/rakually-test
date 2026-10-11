@@ -71,7 +71,7 @@ function reset() {
     { id: 'daiko', data: { name: '△△代行株式会社', honor: '御中' } },
   ];
   S.list = [];
-  S.org = { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293' };
+  S.org = { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009' };
 }
 
 console.log('\n[scope-ui] 相手ごとの上書きを 本物の紙で 確かめる');

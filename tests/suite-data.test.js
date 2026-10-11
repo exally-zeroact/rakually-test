@@ -183,11 +183,11 @@ test('§3 org.save は pay_org に書く(pay_companies には絶対に書かな�
 
 test('§3 org.save は差分マージ(既存キーを消さない)', async () => {
   const { sd, tables } = setup();
-  await sd.org.save({ yago: 'ゼロアクト', addr: '愛媛県今治市' });
+  await sd.org.save({ yago: 'ゼロアクト', addr: '東京都架空区見本台' });
   await sd.org.save({ invoiceNo: 'T1234567890123' });
   const d = tables.pay_org[0].data;
   assert.strictEqual(d.yago, 'ゼロアクト');
-  assert.strictEqual(d.addr, '愛媛県今治市');
+  assert.strictEqual(d.addr, '東京都架空区見本台');
   assert.strictEqual(d.invoiceNo, 'T1234567890123');
 });
 

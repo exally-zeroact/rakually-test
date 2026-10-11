@@ -41,7 +41,7 @@ function paper(n, opt) {
     inv: { no: 'A-1', issue_ymd: '2026-09-02', kind: 'invoice', lines, totals: { grandTotal: tax.grandTotal }, data: {} },
     tax,
     partner: { name: 'テスト工業 株式会社', honor: '御中' },
-    org: { yago: '合同会社ZEROact', invoiceNo: 'T3500003003293', bank: '伊予銀行　今治支店　普通　4160657　ド）ゼロアクト' },
+    org: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
     template: TPL.getOrDefault(opt.ded ? 'ded1' : 'std1'),
     deduct: opt.ded ? 11340 : 0,
     deductLines: opt.ded ? [{ name: '弁当代 矢原', amount: 11340 }] : [],

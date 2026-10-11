@@ -45,8 +45,8 @@ function paper(kind) {
       kind: 'invoice', lines: LINES, totals: { grandTotal: TAX.grandTotal }, data: { memo: 'いつもありがとうございます' } },
     tax: TAX,
     partner: { name: '八木工業株式会社', honor: '御中' },
-    org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293',
-      bank: '伊予銀行 今治支店 普通 1234567 ド)ゼロアクト' },
+    org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009',
+      bank: '伊予銀行 見本支店 普通 1234567 ド)ゼロアクト' },
     template: TPL.getOrDefault('std1'),
     docKind: kind,
   });
@@ -91,7 +91,7 @@ T('★⑥ 中身（相手・明細・合計・自社）は 請求書と同じ物
   ok(/待機料/.test(t), '明細2行目');
   ok(/37,400|37400/.test(t), '★合計が 出ていない★');
   ok(/合同会社Rakunally/.test(t), '自社');
-  ok(/T3500003003293/.test(t), '★登録番号が 落ちている★');
+  ok(/T9000000000009/.test(t), '★登録番号が 落ちている★');
 });
 
 T('★⑦ 備考は そのまま出る（納品書でも 言いたい事は 書ける）', () => {

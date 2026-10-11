@@ -52,9 +52,9 @@ function invOf(over) {
   }, over || {});
 }
 const ORG = {
-  yago: '合同会社ZEROact', addr: '愛媛県今治市本町7-3-40 00コーポ1号', tel: '090-5716-1946',
-  invoiceNo: 'T3500003003293',
-  bank: '伊予銀行 今治支店 普通 4160657 ド）ゼロアクト',
+  yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
+  invoiceNo: 'T9000000000009',
+  bank: '伊予銀行 見本支店 普通 1234567 ド）ゼロアクト',
 };
 const PARTNER = { name: '八木工業 株式会社', keisho: '御中' };
 
@@ -138,7 +138,7 @@ T('★⑤ 振込先が1行★', () => {
   /* ★1行＝<br> が1つも無い★（口座番号だけ大きくする span は 行を割らない） */
   ok(box[1].indexOf('<br>') < 0, '振込先が 何行にも割れている: ' + JSON.stringify(box[1].slice(0, 80)));
   const one = box[1].replace(/<[^>]+>/g, '');
-  ok(/伊予銀行/.test(one) && /4160657/.test(one) && /ゼロアクト/.test(one),
+  ok(/伊予銀行/.test(one) && /1234567/.test(one) && /ゼロアクト/.test(one),
     '振込先の中身が足りない: ' + JSON.stringify(one));
   console.log('     振込先（1行）… ' + one.trim());
 });

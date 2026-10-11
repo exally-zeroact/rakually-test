@@ -55,7 +55,7 @@ win.addEventListener('unhandledrejection', (e) => errs.push('未処理:' + ((e.r
   win.__mkSb = () => m.exports.createFakeSupa({
     uid: 'u1',
     tables: {
-      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
+      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T9000000000009' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中' }, deleted_at: null }],
       /* ★行を 入れて 測る★（2026-09-02）
          前は pay_invoices: [] ＝★空の倉庫★で 測っていたので、⑩一覧は いつも 0行で

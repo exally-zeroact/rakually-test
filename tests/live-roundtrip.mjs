@@ -93,12 +93,12 @@ const run = async () => {
 
   /* ═══ 2. 自社情報 pay_org ═══ */
   ok('2. 未作成なら null（空を捏造しない）', (await sd.org.get()) === null);
-  const o1 = await sd.org.save({ yago: 'ゼロアクト', addr: '愛媛県今治市' });
+  const o1 = await sd.org.save({ yago: 'ゼロアクト', addr: '東京都架空区見本台' });
   created.org.push(uid);
   ok('2. org.save が実DBに通る', o1 && o1.ok === true, JSON.stringify(o1));
   await sd.org.save({ invoiceNo: 'T1234567890123' });
   const org = await sd.org.get();
-  ok('2. 差分マージ（既存キーが消えない）', org && org.yago === 'ゼロアクト' && org.addr === '愛媛県今治市' && org.invoiceNo === 'T1234567890123', JSON.stringify(org));
+  ok('2. 差分マージ（既存キーが消えない）', org && org.yago === 'ゼロアクト' && org.addr === '東京都架空区見本台' && org.invoiceNo === 'T1234567890123', JSON.stringify(org));
 
   /* ═══ 3. 取引先 pay_partners ═══ */
   const p1 = await sd.partners.upsert({ sort: 5, data: { name: 'A社', keisho: '御中' } });

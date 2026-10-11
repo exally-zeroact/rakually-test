@@ -40,8 +40,8 @@ function sample() {
   return {
     inv: { doc_type: 'invoice', no: '202609-001', issue_ymd: '2026-09-30', due_ymd: '2026-10-31', data: { subject: '9月分', memo: '備考です' } },
     tax,
-    partner: { name: '藤原建設株式会社', keisho: '御中', addr: '愛媛県今治市1-2-3' },
-    org: { yago: '株式会社ゼロアクト', addr: '今治市4-5-6', tel: '0898-00-0000', invoiceNo: 'T1234567890123', bank: '伊予銀行' },
+    partner: { name: '藤原建設株式会社', keisho: '御中', addr: '東京都架空区見本台1-2-3' },
+    org: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台4-5-6', tel: '090-0000-0000', invoiceNo: 'T1234567890123', bank: '伊予銀行' },
   };
 }
 

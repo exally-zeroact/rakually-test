@@ -51,8 +51,8 @@ function paperHtml(tplId, waku, opts) {
     inv: { no: '202609-001', issue_ymd: '2026-09-05', kind: 'invoice', lines,
       totals: { grandTotal: tax.grandTotal }, data: {} },
     tax, partner: { name: '株式会社テスト', honor: '御中' },
-    org: { yago: '株式会社ゼロアクト', addr: '愛媛県今治市本町7-3-40', tel: '0898-00-0000',
-      invoiceNo: 'T1234567890123', bank: '伊予銀行　今治支店　普通　1234567　ド）ゼロアクト' },
+    org: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
+      invoiceNo: 'T1234567890123', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
     template: t, templateId: tplId, theme: t.theme,
     cols: COLS.normalizeSpec(t.cols), paperRows: waku,
   };
@@ -132,7 +132,7 @@ const htmlM = PAPER.build({
   inv: { no: 'A', issue_ymd: '2026-08-01', kind: 'invoice', lines: linesM,
     totals: { grandTotal: taxM.grandTotal }, data: {} },
   tax: taxM, partner: { name: '株式会社黒田空調工業', honor: '御中' },
-  org: { yago: '合同会社ZEROact', bank: '伊予銀行　今治支店　普通　4160657' },
+  org: { yago: '合同会社ZEROact', bank: '伊予銀行　見本支店　普通　1234567' },
   template: tM, templateId: 'std1', theme: tM.theme, cols: specM, deduct: 0, deductLines: [],
 }).html;
 T('④ ★備考の 列に 現場名が 出る（消費税の 右隣）',

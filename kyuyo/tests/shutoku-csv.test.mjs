@@ -33,10 +33,10 @@ const t = (n, f) => { try { f(); pass++; console.log('  ✓ ' + n); } catch (e) 
 const ok = (c, m) => { if (!c) throw new Error(m || '違います'); };
 
 const JIMU = { todofuken: '38', gunshiku: '01', kigou: 'ｱｲ', jigyoshoNo: '12345',
-  zipOya: '790', zipKo: '0001', address: '愛媛県松山市1-2-3', name: '株式会社テスト', nushi: '山田　太郎',
+  zipOya: '790', zipKo: '0001', address: '東京都架空区見本台1-2-3', name: '株式会社テスト', nushi: '山田　太郎',
   tel1: '089', tel2: '123', tel3: '4567' };
 const EMP = { seiriNo: '1', kana: 'ﾔﾏﾀﾞ ﾀﾛｳ', kanji: '山田　太郎', birthYmd: '1985-05-15',
-  seibetsu: 'male', zip: '790-0001', jushoKana: 'ｴﾋﾒｹﾝ ﾏﾂﾔﾏｼ 1-2-3', jushoKanji: '愛媛県松山市1-2-3' };
+  seibetsu: 'male', zip: '790-0001', jushoKana: 'ｴﾋﾒｹﾝ ﾏﾂﾔﾏｼ 1-2-3', jushoKanji: '東京都架空区見本台1-2-3' };
 const KYOU = '2026-09-05';
 const base = (over = {}) => Object.assign({
   jimusho: JIMU, emp: Object.assign({}, EMP), shutokuYmd: '2026-04-01', kyou: KYOU,
@@ -123,7 +123,7 @@ t('★70歳以上は 出さない★（基礎年金番号が 要るのに 持っ
 });
 
 t('★住所（漢字）の 半角スペースは 全角1つに 直す★（原文＝半角スペース不可）', () => {
-  const r = T.shutokuRow(base({ emp: Object.assign({}, EMP, { jushoKanji: '愛媛県松山市1-2-3 ｺｰﾎﾟ101' }) }));
+  const r = T.shutokuRow(base({ emp: Object.assign({}, EMP, { jushoKanji: '東京都架空区見本台1-2-3 ｺｰﾎﾟ101' }) }));
   ok(r[31].indexOf(' ') < 0, '半角スペースが 残っている: ' + JSON.stringify(r[31]));
   ok(C.shutoku(r, KYOU).length === 0, '赤が 出た');
 });

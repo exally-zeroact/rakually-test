@@ -131,7 +131,7 @@ async function boot(appSrc, tane) {
   win.__mkSb = () => m.exports.createFakeSupa({
     uid: 'u1',
     tables: {
-      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
+      pay_org: [{ account_id: 'u1', data: { yago: '合同会社Rakunally', invoiceNo: 'T9000000000009' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中' }, deleted_at: null }],
       /* ★前に 出した1通は ★倉庫に★ 置く★（画面の 配列に 足すだけでは
          画面を 行き来した時に 倉庫から 読み直されて ★消える★＝2026-09-05 実測） */

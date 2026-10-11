@@ -72,7 +72,7 @@ const put = async (t, rows) => {
 
 // 締め方=10日締め(1〜10/11〜20/21〜末)。★Kyuallyの会社設定が唯一の源＝Exallyは読むだけ
 await put('pay_companies', [{ account_id: uid, data: { company: { name: '株式会社ゼロアクト', shimeMethod: 'ten', shimeN: '10' } }, updated_at: now }]);
-await put('pay_org', [{ account_id: uid, data: { yago: '株式会社ゼロアクト', addr: '愛媛県今治市1-2-3', tel: '0898-00-0000', invoiceNo: 'T1234567890123', businesses: ['代行', '空調'] }, updated_at: now }]);
+await put('pay_org', [{ account_id: uid, data: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000', invoiceNo: 'T1234567890123', businesses: ['代行', '空調'] }, updated_at: now }]);
 await put('pay_employees', EMPS.map((e, i) => ({
   id: e.id, account_id: uid, sort: i,
   data: { id: e.id, name: e.name, birthYmd: '1985-04-01', payType: '月給', base: '250000', business: e.business, employmentType: e.employmentType },

@@ -37,7 +37,7 @@ const t = (n, f) => { try { f(); pass++; console.log('  ✓ ' + n); } catch (e) 
 const ok = (c, m) => { if (!c) throw new Error(m || '違います'); };
 
 const JIMU = { todofuken: '38', gunshiku: '01', kigou: 'ｱｲ', jigyoshoNo: '12345',
-  zipOya: '790', zipKo: '0001', address: '愛媛県松山市1-2-3', name: '株式会社テスト', nushi: '健保　良一',
+  zipOya: '790', zipKo: '0001', address: '東京都架空区見本台1-2-3', name: '株式会社テスト', nushi: '健保　良一',
   tel1: '089', tel2: '123', tel3: '4567' };
 const EMP = { seiriNo: '1', kana: 'ﾔﾏﾀﾞ ﾀﾛｳ', kanji: '山田　太郎', birthYmd: '1985-05-15',
   kisoNenkin: '1234-567890' };

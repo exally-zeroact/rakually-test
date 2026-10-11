@@ -40,9 +40,9 @@ function T(name, fn) {
 
 /* ═══ 使う人の形（ほかの取引先が3社ある） ═══ */
 const OTHERS = [
-  { id: 'p2', data: { name: 'A株式会社', honor: '御中', addr: '愛媛県今治市1-1', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, code: 'A007' } },
-  { id: 'p3', data: { name: 'B工務店', keisho: '御中', addr: '愛媛県今治市2-2', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, code: 'A003' } },
-  { id: 'p4', data: { name: '山田 太郎', honor: '様', addr: '愛媛県松山市3-3', payTerm: { kind: 'eom', n: 0 }, gensen: true, code: 'A004' } },
+  { id: 'p2', data: { name: 'A株式会社', honor: '御中', addr: '東京都架空区見本台1-1', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, code: 'A007' } },
+  { id: 'p3', data: { name: 'B工務店', keisho: '御中', addr: '東京都架空区見本台2-2', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, code: 'A003' } },
+  { id: 'p4', data: { name: '山田 太郎', honor: '様', addr: '東京都見本市3-3', payTerm: { kind: 'eom', n: 0 }, gensen: true, code: 'A004' } },
 ];
 const ME = { id: 'p1', data: { name: '藤原建設株式会社' } };
 const ALL = OTHERS.concat([ME]);
@@ -68,10 +68,10 @@ T('② ★空欄を並べない★＝前に出た値が よく出る順で候補
   eq(tc[0].n, 2, '数え方');
   eq(tc[1].key, 'eom', '2番目');
   const heads = ASK.addrHeads(OTHERS);
-  eq(heads[0].head, '愛媛県今治市', '住所の頭の候補');
+  eq(heads[0].head, '東京都架空区', '住所の頭の候補');
   eq(heads[0].n, 2, '住所の頭の数');
   const q = ASK.questions(ctx()).list.filter((x) => x.key === 'addr')[0];
-  ok(q.chips.length > 0 && /今治市/.test(q.chips[0].t), '住所の候補が画面へ渡っていない');
+  ok(q.chips.length > 0 && /架空区/.test(q.chips[0].t), '住所の候補が画面へ渡っていない');
   console.log('     支払期限=' + tc.map((t) => t.label + ':' + t.n).join(' ') + ' ／ 住所=' + heads.map((h) => h.head + ':' + h.n).join(' '));
 });
 
@@ -137,26 +137,26 @@ T('⑥ ★1問ごとに保存する★（まとめて保存を待たせない）
 });
 
 T('⑦ ★登録番号は当てない・打ち間違いだけ弾く・通信しない★', () => {
-  /* 実在の法人番号（うちのテストに前から在る物）で 検査用数字の計算を確かめる */
-  eq(TOROKU.check('T3500003003293').level, 'ok', '実在の番号を弾いた');
-  eq(TOROKU.checkDigitOf('500003003293'), 3, '検査用数字の計算が違う');
+  /* 実在の法人番号（国税庁 自身の番号・国税庁の資料と公表サイトに載る公開の物）で 検査用数字の計算を確かめる */
+  eq(TOROKU.check('T7000012050002').level, 'ok', '実在の番号を弾いた');
+  eq(TOROKU.checkDigitOf('000012050002'), 7, '検査用数字の計算が違う');
   /* ★自分で作った値を真値にしない★（前科：読み取りライブラリの値を正にして 706件の逆さま）
      ＝作った番号を 同じ関数で確かめても、式を間違えたら 一緒に間違える（自己確認④で実際に素通りした）。
      杭にできるのは この2本だけ:
-       ①実在の法人番号（上の T3500003003293。うちの棚に前から在る物）
+       ①実在の法人番号（上の T7000012050002＝国税庁 自身）
        ②決まりそのもの「Σ を 9 で割った ★余りが 0 の時は 9★（0ではない）」 */
   eq(TOROKU.checkDigitOf('000000000000'), 9, '★余り0の時に 9 を返していない★（0 を返す式になっている）');
   eq(TOROKU.digitsOk('9000000000000'), true, '余り0の番号を弾いた');
   eq(TOROKU.digitsOk('0000000000000'), false, '検査用数字 0 を通した');
   /* 1桁ずらすと必ず落ちる（並びの重み 1,2,1,2… が効いているか） */
-  eq(TOROKU.digitsOk('3500003003239'), false, '★下2桁を入れ替えても通る＝重みが効いていない★');
+  eq(TOROKU.digitsOk('7000012050020'), false, '★下2桁を入れ替えても通る＝重みが効いていない★');
   eq(TOROKU.check('T123').ok, false, '形が違うのに通した');
   eq(TOROKU.check('1234567890123').ok, false, 'T が無いのに通した');
   /* ★検査用数字が合わなくても止めない★（個人の事業者の番号には この決まりが無い） */
   const d = TOROKU.check('T1234567890123');
   eq(d.level, 'digit', '検査用数字の違いを見ていない');
   eq(d.ok, true, '★個人の番号かもしれないのに 止めている★');
-  eq(TOROKU.check('Ｔ３５００００３００３２９３').level, 'ok', '全角で打つと弾かれる');
+  eq(TOROKU.check('Ｔ７００００１２０５０００２').level, 'ok', '全角で打つと弾かれる');
   /* ★通信しない★ */
   const src = fs.readFileSync(path.join(ROOT, 'lib/toroku-no.js'), 'utf8');
   ok(!/fetch\(|XMLHttpRequest|https?:\/\//.test(src.replace(/^\s*\*.*$/gm, '')), '★登録番号の判定が外へ出ている★');
@@ -321,7 +321,7 @@ if (process.argv.includes('--self-test')) {
   });
   S('④-b 重みの 1,2,1,2… を ぜんぶ 1 にする', () => {
     const bad = reload('lib/toroku-no.js', 'var q = (n % 2 === 1) ? 1 : 2;', 'var q = 1;');
-    eq(bad.check('T3500003003293').level, 'ok', '実在の番号を弾いた');
+    eq(bad.check('T7000012050002').level, 'ok', '実在の番号を弾いた');
   });
   S('⑦「決めていない」を先頭に戻す', () => {
     /* ★並べ替えを丸ごと止める★（1行だけ戻しても もう1行が効いてしまう＝壊し方が弱かった） */

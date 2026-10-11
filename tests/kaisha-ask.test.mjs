@@ -39,15 +39,15 @@ T('★① 聞く順（屋号→住所→登録番号→仕事）と、電話は 
 });
 
 T('★② 登録番号は 形だけ 機械で見る（T＋13桁・検査用数字）', () => {
-  eq(K.checkToroku('T3500003003293').level, 'ok', '正しい番号を はじいている');
-  eq(K.checkToroku('T3500003003294').level, 'warn', '★最後の1桁が 違っても 通している★');
-  eq(K.checkToroku('T35000030032').level, 'short', '途中を 完成として 扱っている');
+  eq(K.checkToroku('T9000000000009').level, 'ok', '正しい番号を はじいている');
+  eq(K.checkToroku('T9000000000008').level, 'warn', '★最後の1桁が 違っても 通している★');
+  eq(K.checkToroku('T90000000000').level, 'short', '途中を 完成として 扱っている');
   eq(K.checkToroku('あいう').level, 'bad', '字を 通している');
   eq(K.checkToroku('').level, 'empty', '空を 何かと言っている');
   /* ★止めるのは 形が違う時だけ★（検査用数字は 注意に留める） */
-  ok(K.checkToroku('T3500003003294').ok === true, '★検査用数字の違いで 止めている★');
+  ok(K.checkToroku('T9000000000008').ok === true, '★検査用数字の違いで 止めている★');
   ok(K.checkToroku('あいう').ok === false, '形が違うのに 通している');
-  console.log('     T3500003003293 → ' + K.checkToroku('T3500003003293').msg);
+  console.log('     T9000000000009 → ' + K.checkToroku('T9000000000009').msg);
 });
 
 T('★③ 当てられない物は 当てない（屋号・住所）', () => {
@@ -63,7 +63,7 @@ T('★④ 答えたら その場で 何が どこに 出るかを 返す', () =>
   ok(/合同会社/.test(yago.result('合同会社Rakunally')), '法人格を 見ていない');
   ok(/あとで入れます/.test(yago.result('')), '空の時の返し: ' + yago.result(''));
   const inv = qs.filter((q) => q.key === 'invoiceNo')[0];
-  ok(/紙に「登録番号　T3500003003293」と 出ます/.test(inv.result('T3500003003293')), inv.result('T3500003003293'));
+  ok(/紙に「登録番号　T9000000000009」と 出ます/.test(inv.result('T9000000000009')), inv.result('T9000000000009'));
   ok(/紙にも 出ません/.test(inv.result('')), '持っていない時の返し: ' + inv.result(''));
   const biz = qs.filter((q) => q.key === 'business')[0];
   ok(/「物販」ごとに 売上を まとめます/.test(biz.result('物販')), biz.result('物販'));
@@ -76,7 +76,7 @@ T('★⑤ 中身が入っていれば 答えたうち（何度も 同じ事を �
   const p1 = K.progress(ctx({ org: { yago: '合同会社Rakunally' } }));
   eq(p1.done, 1, '入っているのに 数えていない');
   eq(p1.next.key, 'addr', '2問目へ 進んでいない');
-  const all = K.progress(ctx({ org: { yago: 'A', addr: 'B', invoiceNo: 'T3500003003293' }, businesses: ['物販'] }));
+  const all = K.progress(ctx({ org: { yago: 'A', addr: 'B', invoiceNo: 'T9000000000009' }, businesses: ['物販'] }));
   eq(all.next, null, '★答え終わったのに まだ 聞いている★');
   console.log('     0問 → 1問 → 全部（' + all.done + '/' + all.total + '）で 箱が 消える');
 });
@@ -107,7 +107,7 @@ T('★⑨ 画面に出る字に 中の言葉（★）を 混ぜない', () => {
   const bad = [];
   K.questions(ctx()).forEach((q) => {
     [q.q, q.hint, q.skipLabel, q.placeholder].forEach((t) => { if (t && /★/.test(t)) bad.push(t); });
-    ['', 'あ', 'T3500003003294'].forEach((v) => { const r = q.result(v); if (/★/.test(r)) bad.push(r); });
+    ['', 'あ', 'T9000000000008'].forEach((v) => { const r = q.result(v); if (/★/.test(r)) bad.push(r); });
   });
   ok(!bad.length, '★画面に出る字に 印が 混ざっている★ ' + bad.slice(0, 2).join(' / '));
 });
@@ -119,18 +119,18 @@ if (process.argv.includes('--self-test')) {
   const S = (n, fn) => { try { fn(); sp++; console.log('  ✓ ' + n); } catch (e) { sf++; console.log('  ✗ ' + n + ' — ' + e.message); } };
   S('★自① 検査用数字を 見ていない作り物は この検査で 落ちる', () => {
     const naive = (v) => /^T\d{13}$/.test(v) ? 'ok' : 'bad';
-    eq(naive('T3500003003294'), 'ok', '作り物が 作れていない');
-    ok(K.checkToroku('T3500003003294').level !== 'ok', '★本物も 検査用数字を 見ていない★');
+    eq(naive('T9000000000008'), 'ok', '作り物が 作れていない');
+    ok(K.checkToroku('T9000000000008').level !== 'ok', '★本物も 検査用数字を 見ていない★');
   });
   S('★自② 電話を 聞く形に 戻したら 気づける', () => {
     const keys = K.questions(ctx()).map((q) => q.key);
     ok(keys.indexOf('tel') < 0, '★電話を 聞いている★');
     /* 形の検査そのものは 残してある（使う時に 使う） */
-    eq(K.checkTel('0898-00-0000').level, 'ok', '電話の形を 見る道具が 死んでいる');
+    eq(K.checkTel('090-0000-0000').level, 'ok', '電話の形を 見る道具が 死んでいる');
     eq(K.checkTel('あいう').ok, false, '字を 通している');
   });
   S('★自③ 「答えた」の数えが 空振りしていない', () => {
-    const p = K.progress(ctx({ org: { yago: 'A', addr: 'B', invoiceNo: 'T3500003003293' }, businesses: ['物販'] }));
+    const p = K.progress(ctx({ org: { yago: 'A', addr: 'B', invoiceNo: 'T9000000000009' }, businesses: ['物販'] }));
     eq(p.done, p.total, '全部 入れても 終わらない');
     const q = K.progress(ctx());
     eq(q.done, 0, '空でも 答えた事になっている');

@@ -88,10 +88,10 @@ function makeSb() {
   return createFakeSupa({
     uid: 'u1',
     tables: {
-      pay_org: [{ account_id: 'u1', data: { yago: '株式会社ゼロアクト', addr: '愛媛県今治市4-5-6', tel: '0898-00-0000', invoiceNo: 'T1234567890123' }, updated_at: '2026-08-01T00:00:00Z' }],
+      pay_org: [{ account_id: 'u1', data: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台4-5-6', tel: '090-0000-0000', invoiceNo: 'T1234567890123' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [
-        { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: '藤原建設株式会社', keisho: '御中', addr: '愛媛県今治市1-2-3', invoiceNo: 'T9876543210987' }, deleted_at: null },
-        { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: '株式会社しまなみ', keisho: '様', addr: '松山市1-1' }, deleted_at: null },
+        { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: '藤原建設株式会社', keisho: '御中', addr: '東京都架空区見本台1-2-3', invoiceNo: 'T9876543210987' }, deleted_at: null },
+        { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: '株式会社しまなみ', keisho: '様', addr: '東京都架空区見本台1-1' }, deleted_at: null },
       ],
       pay_invoices: [],
       pay_receipts: [],
@@ -752,13 +752,13 @@ await TA('6. 設定を保存すると自社の棚に入る（番号の形・丸�
   await sleep(20);
   $('s-format').value = 'y-seq'; $('s-format').dispatchEvent(new win.Event('change'));
   $('s-round').value = 'round'; $('s-round').dispatchEvent(new win.Event('change'));
-  $('s-bank').value = '伊予銀行 今治支店 普通 1234567';
+  $('s-bank').value = '伊予銀行 見本支店 普通 1234567';
   $('b-set-save').click();
   await sleep(40);
   const org = db.pay_org[0].data;
   eq(org.numbering.invoice.format, 'y-seq');
   eq(org.taxRounding, 'round');
-  eq(org.bank, '伊予銀行 今治支店 普通 1234567');
+  eq(org.bank, '伊予銀行 見本支店 普通 1234567');
   eq(org.yago, '株式会社ゼロアクト', '★ハブが入れた自社情報を消している★');
 });
 
@@ -787,7 +787,7 @@ await TA('6. ★取引先に請求書用の項目を足しても、ハブが入�
   eq(d.person, '山田');
   eq(d.payTerm.kind, 'nextEom');
   eq(d.name, '藤原建設株式会社', '★ハブが入れた名前が消えた★');
-  eq(d.addr, '愛媛県今治市1-2-3', '★ハブが入れた住所が消えた★');
+  eq(d.addr, '東京都架空区見本台1-2-3', '★ハブが入れた住所が消えた★');
   eq(d.invoiceNo, 'T9876543210987', '★ハブが入れた登録番号が消えた★');
   eq(d.keisho, d.honor, '敬称が2つのキーで食い違っている（ハブの画面で化ける）');
 });
@@ -1151,7 +1151,7 @@ await TA('9-d. ★①「前回から当てる」が源泉ありでも壊れな�
      「前回」がどれになるか検査ごとに変わる（＝当てにならない検査になる）。 */
   db.pay_partners.push({
     id: 'pt_g', account_id: 'u1', sort: 9,
-    data: { name: '源泉あり商店', keisho: '御中', addr: '今治市9-9', gensen: true },
+    data: { name: '源泉あり商店', keisho: '御中', addr: '東京都架空区見本台9-9', gensen: true },
     deleted_at: null,
   });
   await win.SeikyuApp._loadMasters();
@@ -1300,7 +1300,7 @@ T('11. ★この検査の手計算は標準税率10%を前提にしている（�
 await TA('11. 入金テスト用の取引先を足して、繰越を「入」にする', async () => {
   db.pay_partners.push({
     id: 'pt_p', account_id: 'u1', sort: 20,
-    data: { name: '入金テスト商店', keisho: '御中', addr: '今治市8-8' }, deleted_at: null,
+    data: { name: '入金テスト商店', keisho: '御中', addr: '東京都架空区見本台8-8' }, deleted_at: null,
   });
   /* ★倉庫の側に入れる★ … 画面の変数だけに入れると「読み直す」で消える
      （この検査は途中で b-reload を押すので、そこで繰越が切れて空振りになる） */

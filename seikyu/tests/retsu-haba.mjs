@@ -69,7 +69,7 @@ function htmlOf(id) {
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: LINES,
       totals: { grandTotal: t.grandTotal }, data: { deductions: dl } },
     tax: t, partner: { name: '黒田空調', honor: '御中' },
-    org: { yago: '合同会社Rakunally', bank: '伊予銀行 今治支店 普通 1234567' },
+    org: { yago: '合同会社Rakunally', bank: '伊予銀行 見本支店 普通 1234567' },
     template: tp, templateId: id, theme: tp.theme,
     cols: COLS.normalizeSpec(tp.cols),
     deduct: ded ? 7310 : 0, deductLines: dl,

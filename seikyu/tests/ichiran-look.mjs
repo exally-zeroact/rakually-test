@@ -89,7 +89,7 @@ S.receipts = []; S.fil = 'all'; S.docType = 'invoice';
 /* ★会社の情報が 無いと 紙が 作れない★（paperInput が null を 返す）＝
    その時 lookPaper は「中身が 整っていない」と 言って ★画面を 変えない★（正しい）。
    ここで 見たいのは ★整っている 時に 画面が 変わるか★なので 入れておく。 */
-S.org = { yago: '合同会社Rakunally', addr: '愛媛県今治市1-2-3', tel: '0898-00-0000',
+S.org = { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
   invoiceNo: 'T1234567890123', bank: '（見本）銀行 ◯◯支店 普通 1234567' };
 S.store = {
   partners: { list: () => Promise.resolve(S.partners) },

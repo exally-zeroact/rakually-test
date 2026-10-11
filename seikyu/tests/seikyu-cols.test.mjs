@@ -59,7 +59,7 @@ function invOf(over) {
     template_id: 'std1',
   }, over || {});
 }
-const PARTNER = { name: '藤原建設株式会社', keisho: '御中', addr: '愛媛県今治市喜田村5-6-7' };
+const PARTNER = { name: '藤原建設株式会社', keisho: '御中', addr: '東京都架空区見本台5-6-7' };
 const ORG = { yago: '株式会社ゼロアクト', invoiceNo: 'T1234567890123', bank: '伊予銀行' };
 
 /* ── self-test：わざと壊して赤になるか ─────────────────────────────── */

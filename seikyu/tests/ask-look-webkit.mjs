@@ -38,9 +38,9 @@ const srv = http.createServer((rq, rs) => {
 await new Promise((r) => srv.listen(0, r));
 const port = srv.address().port;
 
-const ACC = ['伊予銀行　今治支店　普通　4160657　ド）ゼロアクト',
-  '愛媛銀行　今治支店　普通　9570836　ド）ゼロアクト',
-  '愛媛信用金庫　今治支店　普通　0423107　ド）ゼロアクト'];
+const ACC = ['伊予銀行　見本支店　普通　1234567　ド）ゼロアクト',
+  '愛媛銀行　見本支店　普通　2345678　ド）ゼロアクト',
+  '愛媛信用金庫　見本支店　普通　3456789　ド）ゼロアクト'];
 
 const webkit = await borrow('ask-look', 'webkit');
 const b = await pwLaunch('ask-look', webkit);

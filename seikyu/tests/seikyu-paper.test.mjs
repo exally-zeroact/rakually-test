@@ -56,8 +56,8 @@ function sample(over) {
       data: { subject: '9月分 運転代行ご利用料金', memo: '振込手数料は貴社にてご負担ください' },
     },
     tax,
-    partner: { name: '藤原建設株式会社', keisho: '御中', person: '山田', zip: '794-0000', addr: '愛媛県今治市1-2-3', invoiceNo: 'T9876543210987' },
-    org: { yago: '株式会社ゼロアクト', addr: '愛媛県今治市4-5-6', tel: '0898-00-0000', invoiceNo: 'T1234567890123', bank: '伊予銀行 今治支店 普通 1234567' },
+    partner: { name: '藤原建設株式会社', keisho: '御中', person: '山田', zip: '100-0000', addr: '東京都架空区見本台1-2-3', invoiceNo: 'T9876543210987' },
+    org: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台4-5-6', tel: '090-0000-0000', invoiceNo: 'T1234567890123', bank: '伊予銀行 見本支店 普通 1234567' },
   }, over || {});
 }
 
@@ -340,7 +340,7 @@ T('★紙に [object Object] を刷らない（読めない物は出さない）
   // ★ちゃんとした文字列は今までどおり出る（消しすぎない）
   //   ★口座番号は <span> で包む★ ので、タグを外した「人が読む字」で見る。
   const flatH1 = H1.replace(/<[^>]+>/g, '');
-  ok(/伊予銀行 今治支店 普通 1234567/.test(flatH1), '文字列の振込先まで消している');
+  ok(/伊予銀行 見本支店 普通 1234567/.test(flatH1), '文字列の振込先まで消している');
 });
 
 /* ★⑧ 振込先＝客が一番 使う情報★（司さん 2026-08-16「目立たない」） */
@@ -372,7 +372,7 @@ T('★★振込先は枠で囲って 口座番号を大きく等幅にする（�
      ・箱＝display:table（中身なりの幅）＝★字の右に大きな空きを作らない★
      ・足元は table-layout:auto ＋（内訳）は中身なり＝★残り幅は全部 振込先に回る★
      実測（2026-08-16 Chromium）：
-       ふつう「伊予銀行 今治支店 普通 4160657 ド）ゼロアクト」→ 箱 234px（前は左欄いっぱい約400px）
+       ふつう「伊予銀行 見本支店 普通 1234567 ド）ゼロアクト」→ 箱 234px（前は左欄いっぱい約400px）
        長い  「三菱UFJ信託銀行 みなとみらいランドマークタワー支店 当座 12345678 …」
              → 箱 454px・★1行目は1行のまま★・紙からはみ出さない・A4 1枚のまま */
   const cssB = PAPER.css();
@@ -408,9 +408,9 @@ T('★★振込先は枠で囲って 口座番号を大きく等幅にする（�
   ok(Number(pad[1]) >= 2 && Number(pad[2]) >= 3,
     '★箱の余白が狭い（字が枠に貼り付く）★: ' + pad[0]);
 
-  const noName = bankOf('伊予銀行　今治支店　普通　4160657');
+  const noName = bankOf('伊予銀行　見本支店　普通　1234567');
   ok(!/<br>/.test(noName), '★名義が無いのに改行している★: ' + noName);
-  const own = bankOf('伊予銀行 今治支店 普通 4160657\nカ）ゼロアクト');
+  const own = bankOf('伊予銀行 見本支店 普通 1234567\nカ）ゼロアクト');
   ok(/<br><span class="bank-nm">カ）/.test(own), '★会社が入れた改行を無視している★: ' + own);
   const css = PAPER.css();
   /* ★上の ruleB と 同じ 理由★＝セレクタは 1つで 書いてあるとは 限らない
@@ -1495,7 +1495,7 @@ T('★知らない形を渡されたら1カラムに倒す（黙って壊れな�
 T('★★宛先の下に住所を刷らない（名前と敬称・担当者だけ）★★', () => {
   const h = PAPER.build({ inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-09-30', data: {} },
     tax: S1.tax, org: S1.org,
-    partner: { name: '八木工業 株式会社', keisho: '御中', zip: '794-0000', addr: '愛媛県今治市1-2-3', person: '山田' } }).html;
+    partner: { name: '八木工業 株式会社', keisho: '御中', zip: '100-0000', addr: '東京都架空区見本台1-2-3', person: '山田' } }).html;
   ok(/八木工業 株式会社/.test(h), '宛名が消えている');
   /* ★2026-08-29 直した★（司さん・指示役 ④の残り「敬称の自動判定」）
      ★担当者が居る時は 会社行に 御中を付けない★＝御中 と 様 の併記は ★二重敬称＝間違い★。
@@ -1508,10 +1508,10 @@ T('★★宛先の下に住所を刷らない（名前と敬称・担当者だ�
   const h2 = PAPER.build({ inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-09-30', data: {} },
     tax: S1.tax, org: S1.org, partner: { name: '八木工業 株式会社', keisho: '御中' } });
   ok(/御中/.test(typeof h2 === 'string' ? h2 : (h2.html || '')), '★会社だけなのに 御中が 出ていない★');
-  ok(!/愛媛県今治市1-2-3/.test(h), '★宛先の下に住所が出ている★');
-  ok(!/794-0000/.test(h), '★宛先の下に郵便番号が出ている★');
+  ok(!/東京都架空区見本台1-2-3/.test(h), '★宛先の下に住所が出ている★');
+  ok(!/100-0000/.test(h), '★宛先の下に郵便番号が出ている★');
   /* ★自社の住所は出す★（発行する側の情報＝紙に要る） */
-  ok(/愛媛県今治市4-5-6/.test(h) || /今治市/.test(h.split('party-from')[1] || ''), '自社の住所まで消している');
+  ok(/東京都架空区見本台4-5-6/.test(h) || /架空区/.test(h.split('party-from')[1] || ''), '自社の住所まで消している');
 });
 
 /* ★途中のページには もっと明細が載る★（司さん 2026-08-16
@@ -1613,7 +1613,7 @@ T('★★税込でも税抜でも、列を足した数と 合計行が1円も違
           const b = PAPER.build({
             inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-07-21', tax_mode: taxMode, data: {} },
             tax: t, partner: { name: '八木工業 株式会社', keisho: '御中' },
-            org: { yago: '合同会社ZEROact', bank: '伊予銀行　今治支店　普通　4160657　ド）ゼロアクト' },
+            org: { yago: '合同会社ZEROact', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
             deduct: 1000, deductLines: [{ name: '弁当代', amount: 1000 }],
           });
           pat++;
@@ -1691,7 +1691,7 @@ T('★★表の中は「このページの小計」・締めは「全ページ�
     const t = TAX.compute({ lines, taxMode: 'exclusive', rounding: 'floor' });
     return PAPER.build({ inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-07-21', tax_mode: 'exclusive', data: {} },
       tax: t, partner: { name: '八木工業 株式会社', keisho: '御中' },
-      org: { yago: '合同会社ZEROact', bank: '伊予銀行　今治支店　普通　4160657　ド）ゼロアクト' },
+      org: { yago: '合同会社ZEROact', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
       deduct: 11340, deductLines: [{ name: '弁当代', amount: 11340 }] });
   };
   const sumsRowsOf = (h) => ((/<table class="sums">([\s\S]*?)<\/table>/.exec(h) || [])[1] || '').match(/<tr[\s>]/g) || [];
@@ -1827,7 +1827,7 @@ T('★★「ご請求金額」はいつも紙の頭・複数ページなら最�
     const t = TAX.compute({ lines, taxMode: 'exclusive', rounding: 'floor' });
     return PAPER.build({ inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-07-21', data: {} },
       tax: t, partner: S1.partner,
-      org: Object.assign({}, S1.org, { bank: '伊予銀行 今治支店 普通 1234567 カ）ゼロアクト' }) });
+      org: Object.assign({}, S1.org, { bank: '伊予銀行 見本支店 普通 1234567 カ）ゼロアクト' }) });
   };
   /* 1枚の紙＝頭に1回だけ（2回 出さない） */
   const one = mk(3);

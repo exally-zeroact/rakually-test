@@ -279,7 +279,7 @@ try {
   await dsAkeru();
   for (const [f, v] of [['name', NA], ['kana', 'ｶｸﾃｲ ﾃｽﾄ'], ['birthYmd', '1985-05-15'],
     ['joinYmd', '2025-04-01'], ['seibetsu', 'male'], ['zip', '790-0001'],
-    ['address', '愛媛県松山市1-2-3'], ['kisoNenkin', '1234-567890'], ['base', '260000']]) {
+    ['address', '東京都架空区見本台1-2-3'], ['kisoNenkin', '1234-567890'], ['base', '260000']]) {
     await hiraku(CARD + ' [data-f="' + f + '"]');
     if (!(await utsu(pg, CARD + ' [data-f="' + f + '"]', v))) console.log('       🟡 欄が 無い … ' + f);
   }

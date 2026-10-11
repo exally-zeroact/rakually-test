@@ -78,8 +78,8 @@ async function paper(org, n) {
     inv: { no: '202608-001', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
       lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
     tax, partner: { name: '八木工業株式会社', honor: '御中' },
-    org: Object.assign({ yago: '合同会社ZEROact', addr: '今治市本町7-3-40 00コーポ1号',
-      tel: '090-5716-1946', invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 4160657',
+    org: Object.assign({ yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3',
+      tel: '090-0000-0000', invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567',
       sealDataUrl: SEAL, sealSizeMm: 17 }, org),
     template: TPL.getOrDefault('std1'),
   });
@@ -170,8 +170,8 @@ const head = await (async () => {
     inv: { no: 'A-1', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
       lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
     tax, partner: { name: '八木工業株式会社', honor: '御中' },
-    org: { yago: '合同会社ZEROact', addr: '今治市本町7-3-40 00コーポ1号', tel: '090-5716-1946',
-      invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 4160657', sealDataUrl: SEAL, sealSizeMm: 17 },
+    org: { yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
+      invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567', sealDataUrl: SEAL, sealSizeMm: 17 },
     template: TPL.getOrDefault('std1'),
   });
   await pg2.setContent((typeof bt === 'string') ? bt : bt.html, { waitUntil: 'load' });
@@ -248,13 +248,13 @@ T('★⑨-5 下げた自社の塊が ほかの字と 重なっていない', hea
    （司さん 2026-08-31「インボイスや電話番号がなくても 下で合わせれるんか？」）
    ＝登録番号なし／TELなし／社名だけ／住所が折り返す … どれでも 金額の下と そろう事。 */
 const kake = await (async () => {
-  const FULL = { yago: '合同会社ZEROact', addr: '今治市本町7-3-40 00コーポ1号', tel: '090-5716-1946',
-    invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 4160657' };
+  const FULL = { yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
+    invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567' };
   const cases = [
     ['ぜんぶ在る', {}], ['登録番号なし', { invoiceNo: '' }], ['TELなし', { tel: '' }],
     ['TELも登録番号もなし', { tel: '', invoiceNo: '' }],
     ['社名だけ', { addr: '', tel: '', invoiceNo: '' }],
-    ['住所が長い', { addr: '愛媛県今治市本町七丁目三番四十号 ゼロアクトコーポレーションビル1号室' }],
+    ['住所が長い', { addr: '東京都架空区見本台一丁目二番三号 ミホンコーポレーションビル1号室' }],
   ];
   /* ★印が 明細の表に かからない事★も 同じ回で 見る（司さん 2026-08-31
      「分かったんなら 最初からやれや」＝1行だけの会社で 印が 表に 1.6mm かかっていた） */
@@ -315,7 +315,7 @@ await pg.waitForTimeout(600);
 const ui = await pg.evaluate(async (seal) => {
   const A = window.SeikyuApp, d = document, out = {};
   d.getElementById('app').hidden = false;
-  A._state.org = { yago: '合同会社ZEROact', addr: '今治市本町7-3-40', sealDataUrl: seal, sealSizeMm: 17 };
+  A._state.org = { yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3', sealDataUrl: seal, sealSizeMm: 17 };
   A._go('scr-set');
   A._fillSettings();
   A._bindForTest();

@@ -34,7 +34,7 @@ const mm = (month, c) => PM.furikomiMMDD({ month: month, company: c });
 
 /* 全銀を実際に作って ★ヘッダーの取組日の4文字を 目で読む★（中の値どうしで閉じない） */
 const TR = [{ name: 'ﾔﾏﾀﾞ ﾀﾛｳ', bankNo: '0001', branchNo: '001', yokin: '普通', account: '1234567', amount: 250000 }];
-const COMMITTER = { code: '1234567890', name: 'ｾﾞﾛｱｸﾄ', bankNo: '0001', bankName: 'ｲﾖ', branchNo: '001', branchName: 'ｲﾏﾊﾞﾘ', yokin: '普通', account: '4160657' };
+const COMMITTER = { code: '1234567890', name: 'ｾﾞﾛｱｸﾄ', bankNo: '0001', bankName: 'ｲﾖ', branchNo: '001', branchName: 'ﾐﾎﾝ', yokin: '普通', account: '7654321' };
 const TORIKUMI_AT = 1 + 2 + 1 + 10 + 40;   /* 種別1＋種別コード2＋コード区分1＋委託者コード10＋委託者名40 */
 function torikumiInFile(month, c) {
   const r = Z.build(Object.assign({}, COMMITTER, { torikumiMMDD: mm(month, c) }), TR, {});

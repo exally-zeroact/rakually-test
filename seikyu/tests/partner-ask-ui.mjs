@@ -62,11 +62,11 @@ ok(win.SeikyuApp, 'SeikyuApp が露出していない');
 const sb = createFakeSupa({
   uid: 'u1',
   tables: {
-    pay_org: [{ account_id: 'u1', data: { yago: '株式会社ゼロアクト', invoiceNo: 'T3500003003293' }, updated_at: '2026-08-01T00:00:00Z' }],
+    pay_org: [{ account_id: 'u1', data: { yago: '株式会社ゼロアクト', invoiceNo: 'T9000000000009' }, updated_at: '2026-08-01T00:00:00Z' }],
     /* 「前に出た値」を持つ相手を2社。★よく出る順★が効くか測るため 翌月末を2社に揃える */
     pay_partners: [
-      { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中', addr: '愛媛県今治市1-1', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, askOk: { honor: 1, person: 1, addr: 1, payTerm: 1, gensen: 1 } }, deleted_at: null },
-      { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: 'B工務店', keisho: '御中', addr: '愛媛県今治市2-2', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, askOk: { honor: 1, person: 1, addr: 1, payTerm: 1, gensen: 1 } }, deleted_at: null },
+      { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中', addr: '東京都架空区見本台1-1', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, askOk: { honor: 1, person: 1, addr: 1, payTerm: 1, gensen: 1 } }, deleted_at: null },
+      { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: 'B工務店', keisho: '御中', addr: '東京都架空区見本台2-2', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, askOk: { honor: 1, person: 1, addr: 1, payTerm: 1, gensen: 1 } }, deleted_at: null },
       /* ★これから聞く相手★（名前しか無い＝作った直後の姿） */
       { id: 'pt_n', account_id: 'u1', sort: 2, data: { name: '藤原建設株式会社' }, deleted_at: null },
     ],
@@ -192,12 +192,12 @@ await TA('7. ★住所は よく出る頭を候補で出す（打たせない）
   const chips = [...$('pt-ask-set').querySelectorAll('[data-pask-chip]')];
   snapshotPressables('問6');
   ok(chips.length >= 1, '★候補が出ていない（空欄に打たせている）★');
-  ok(/今治市（2社）/.test(chips[0].textContent), '何社が同じかを出していない：' + chips[0].textContent);
+  ok(/架空区（2社）/.test(chips[0].textContent), '何社が同じかを出していない：' + chips[0].textContent);
   click(chips[0]); await sleep(10);
-  eq($('pask-t').value, '愛媛県今治市', '押しても入力欄に入らない');
-  $('pask-t').value = '愛媛県今治市ほげ1-1';
+  eq($('pask-t').value, '東京都架空区', '押しても入力欄に入らない');
+  $('pask-t').value = '東京都架空区見本台ほげ1-1';
   click($('pt-ask-set').querySelector('[data-pask-ok]')); await sleep(40);
-  eq(ptn().addr, '愛媛県今治市ほげ1-1', '倉庫に書かれていない');
+  eq(ptn().addr, '東京都架空区見本台ほげ1-1', '倉庫に書かれていない');
 });
 
 await TA('8. ★答え終わったら 空欄を残さない（聞く形は「ぜんぶ決まっています」）', async () => {

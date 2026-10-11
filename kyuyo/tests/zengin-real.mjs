@@ -95,8 +95,8 @@ function seedOf(over) {
     c.paydayDay = '25'; c.paydayRel = 'next';
     c.furiCode = '1234567890'; c.furiName = 'ﾄﾞ)ｾﾞﾛｱｸﾄ';
     c.furiBankNo = '0174'; c.furiBankName = 'ｲﾖ';
-    c.furiBranchNo = '001'; c.furiBranchName = 'ｲﾏﾊﾞﾘ';
-    c.furiYokin = '普通'; c.furiAccount = '4160657';
+    c.furiBranchNo = '001'; c.furiBranchName = 'ﾐﾎﾝ';
+    c.furiYokin = '普通'; c.furiAccount = '7654321';
     const e1 = A.defEmp('山田 太郎');
     e1.payType = '月給'; e1.base = '300000'; e1.pref = 'ehime';
     if (e1.shikyu && e1.shikyu[0]) e1.shikyu[0].value = '300000';
@@ -205,9 +205,9 @@ T('★③ ヘッダーの欄を 位置で切って 1文字ずつ読む★', () =
   /* ★取組日は 対象月から★（会社の1個の日付ではない）＝2026-08分 → 支給日 2026-09-25（金） */
   eq(f.取組日, '0925', '★取組日（対象月に追従）★');
   eq(f.仕向銀行番号, '0174'); eq(f.仕向銀行名, 'ｲﾖ' + ' '.repeat(13));
-  eq(f.仕向支店番号, '001'); eq(f.仕向支店名, 'ｲﾏﾊﾞﾘ' + ' '.repeat(15 - 'ｲﾏﾊﾞﾘ'.length));
+  eq(f.仕向支店番号, '001'); eq(f.仕向支店名, 'ﾐﾎﾝ' + ' '.repeat(15 - 'ﾐﾎﾝ'.length));
   eq(f.預金種目, '1', '普通＝1');
-  eq(f.口座番号, '4160657');
+  eq(f.口座番号, '7654321');
   eq(f.ダミー, ' '.repeat(17));
   console.log('     取組日「' + f.取組日 + '」 委託者「' + f.委託者コード + '」 口座「' + f.口座番号 + '」');
 });

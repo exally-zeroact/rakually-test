@@ -40,9 +40,9 @@ const T = (n, f) => {
 const ok = (c, m) => { if (!c) throw new Error(m); };
 const eq = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), m + ' … ' + JSON.stringify(a) + ' ≠ ' + JSON.stringify(b));
 
-const A = '伊予銀行　今治支店　普通　4160657　ド）ゼロアクト';
-const B = '愛媛銀行　今治支店　普通　9570836　ド）ゼロアクト';
-const C = '愛媛信用金庫　今治支店　普通　0423107　ド）ゼロアクト';
+const A = '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト';
+const B = '愛媛銀行　見本支店　普通　2345678　ド）ゼロアクト';
+const C = '愛媛信用金庫　見本支店　普通　3456789　ド）ゼロアクト';
 const D = 'ゆうちょ銀行　一二八店　普通　12345678　ド）ゼロアクト';
 const ORG = { bank: [A, B, C].join('\n') };
 

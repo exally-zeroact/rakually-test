@@ -56,8 +56,8 @@ const built = PAPER.build({
     lines, totals: { grandTotal: tax.grandTotal }, data: {} },
   tax,
   partner: { name: '八木工業株式会社', honor: '御中' },
-  org: { yago: '合同会社Rakunally', addr: '愛媛県今治市○○町1-2-3', tel: '0898-00-0000',
-    invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 1234567' },
+  org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
+    invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567' },
   template: TPL.getOrDefault('std1'),
   deduct: 11340, deductLines: [{ name: '弁当代 矢原', amount: 11340 }],
 });
@@ -122,7 +122,7 @@ T('★② 左揃えの字は 左端が 紙と同じ', () => {
 });
 
 T('★③ 自社の行（会社名・住所・TEL・登録番号）の右端が 互いに 揃っている', () => {
-  const want = ['合同会社Rakunally', '愛媛県今治市', 'TEL 0898', '登録番号 T35'];
+  const want = ['合同会社Rakunally', '東京都架空区見本台', 'TEL 090', '登録番号 T90'];
   const got = want.map((w) => r.placed.filter((p) => p.s.indexOf(w) >= 0)[0]);
   got.forEach((p, i) => ok(p, '★「' + want[i] + '」が 紙に 出ていない★'));
   const rights = got.map((p) => p.right);
@@ -181,7 +181,7 @@ for (const c of CASES) {
     inv: { no: 'A-1', issue_ymd: '2026-10-05', due_ymd: '2026-11-30', kind: c.kind || 'invoice',
       lines: ls, totals: { grandTotal: tx.grandTotal }, data: {} },
     tax: tx, partner: { name: '八木工業株式会社', honor: '御中' },
-    org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293', bank: '伊予銀行 今治支店 普通 1234567' },
+    org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567' },
     template: TPL.getOrDefault(c.tpl),
     deduct: c.deduct || 0, deductLines: c.deduct ? [{ name: '弁当代', amount: c.deduct }] : [],
     docKind: c.receipt ? 'receipt' : (c.docKind || undefined), receipt: c.receipt || undefined,
@@ -233,8 +233,8 @@ const bt3 = PAPER.build({
   inv: { no: 'A-1', issue_ymd: '2026-10-05', due_ymd: '2026-11-30', kind: 'invoice',
     lines: ls3, totals: { grandTotal: tx3.grandTotal }, data: {} },
   tax: tx3, partner: { name: '八木工業株式会社', honor: '御中' },
-  org: { yago: '合同会社Rakunally', addr: '愛媛県今治市', invoiceNo: 'T3500003003293',
-    bank: '伊予銀行 今治支店 普通 1234567', sealDataUrl: sealUrl, sealSizeMm: 18 },
+  org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009',
+    bank: '伊予銀行 見本支店 普通 1234567', sealDataUrl: sealUrl, sealSizeMm: 18 },
   template: TPL.getOrDefault('std1'),
 });
 const h3 = (typeof bt3 === 'string') ? bt3 : (bt3.html || '');

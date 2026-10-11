@@ -283,7 +283,7 @@ await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(600);
 await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(700);
 for (const [f, v] of [['name', NA_FULL], ['kana', 'ﾔﾏﾀﾞ ﾀﾛｳ'], ['birthYmd', '1985-05-15'],
   ['joinYmd', '2026-04-01'], ['seibetsu', 'male'], ['zip', '790-0001'],
-  ['address', '愛媛県松山市1-2-3'], ['jushoKana', 'ｴﾋﾒｹﾝ ﾏﾂﾔﾏｼ 1-2-3'], ['base', '260000']]) {
+  ['address', '東京都架空区見本台1-2-3'], ['jushoKana', 'ｴﾋﾒｹﾝ ﾏﾂﾔﾏｼ 1-2-3'], ['base', '260000']]) {
   if (!(await utsu(pg, CARD + ' [data-f="' + f + '"]', v))) console.log('       🟡 欄が 無い … ' + f);
 }
 /* 社会保険＝「詳しく」→「入社時の 見込み」→ 金額 */

@@ -1433,7 +1433,7 @@ try {
   const BAN = String(Date.now()).slice(-6);
   const NA = SHIKEN_NA('試験' + BAN);
   for (const [f, v] of [['name', NA + Z + '太郎'], ['kana', 'ｼｹﾝ ﾀﾛｳ'], ['birthYmd', '1985-05-15'],
-    ['seibetsu', 'male'], ['zip', '790-0001'], ['address', '愛媛県松山市1-2-3'],
+    ['seibetsu', 'male'], ['zip', '790-0001'], ['address', '東京都架空区見本台1-2-3'],
     ['kisoNenkin', '1234-567890'], ['hokenshaNo', '1']]) {
     if (!(await utsu(pg, CARD + ' [data-f="' + f + '"]', v))) console.log('       🟡 欄が 無い … ' + f);
   }
@@ -1537,7 +1537,7 @@ try {
   const KZ = (f) => CARD + ' [data-kz$=":0:' + f + '"]';
   for (const [f, v] of [['seiKanji', '試験'], ['meiKanji', '一郎'], ['seiKana', 'ｼｹﾝ'], ['meiKana', 'ｲﾁﾛｳ'],
     ['birthYmd', '2015-06-06'], ['seibetsu', 'male'], ['zokugara', '01'],
-    ['zip', '790-0001'], ['jusho', '愛媛県松山市1-2-3']]) {
+    ['zip', '790-0001'], ['jusho', '東京都架空区見本台1-2-3']]) {
     if (!(await utsu(pg, KZ(f), v))) console.log('       🟡 家族の 欄が 無い … ' + f);
   }
 

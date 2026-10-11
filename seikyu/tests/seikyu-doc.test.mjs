@@ -243,14 +243,14 @@ T('★固まる列の一覧が在る（倉庫のトリガと突き合わせる�
 
 T('★発行の写し(snapshot)に、紙に出る物が全部入る', () => {
   const s = D.snapshotOf({
-    partner: { id: 'pt_1', data: { name: '藤原建設株式会社', honor: '御中', addr: '今治市…', invoiceNo: 'T1', code: 'A001' } },
-    org: { data: { yago: '合同会社ZEROact', addr: '今治市…', tel: '090', invoiceNo: 'T3500003003293', bank: '伊予銀行…' } },
+    partner: { id: 'pt_1', data: { name: '藤原建設株式会社', honor: '御中', addr: '東京都架空区見本台…', invoiceNo: 'T1', code: 'A001' } },
+    org: { data: { yago: '合同会社ZEROact', addr: '東京都架空区見本台…', tel: '090', invoiceNo: 'T9000000000009', bank: '伊予銀行…' } },
     tax: { subtotal: 2000, taxTotal: 180, grandTotal: 2180, byRate: [{ pct: 10, base: 1000, tax: 100 }], exempt: { base: 0 }, hasReduced: true },
     templateId: 'std1',
   });
   eq(s.partner.name, '藤原建設株式会社');
   eq(s.partner.honor, '御中');
-  eq(s.org.invoiceNo, 'T3500003003293');
+  eq(s.org.invoiceNo, 'T9000000000009');
   eq(s.totals.grandTotal, 2180);
   eq(s.templateId, 'std1');
   ok(s.byRate.length === 1, '税率ごとの区分が写しに入っていない');
@@ -330,7 +330,7 @@ const goodInv = () => ({
   lines: [{ name: '運転業務委託料', amount: 1100, rate: 10 }],
 });
 const goodPartner = { id: 'pt_1', data: { name: '藤原建設株式会社', code: 'A001' } };
-const goodOrg = { data: { yago: '合同会社ZEROact', invoiceNo: 'T3500003003293' } };
+const goodOrg = { data: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009' } };
 
 T('★そろっていれば発行できる', () => {
   const r = D.validateInvoice({ inv: goodInv(), partner: goodPartner, org: goodOrg });
@@ -344,14 +344,14 @@ T('★お振込先が 空なら 言う（止めないが 黙らない）', () =>
        発行の 検査に 振込先が 1つも 無く ★何も 言わずに 出ていた★。
      ⇒ ★止めない★（現金・手形・相殺など 振込先が 要らない 請求も 在る）
        ★黙らない★（客が どこへ 払えばよいか 分からない 紙に なる）。 */
-  const nashi = { data: { yago: '合同会社ZEROact', invoiceNo: 'T3500003003293' } };
+  const nashi = { data: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009' } };
   const r = D.validateInvoice({ inv: goodInv(), partner: goodPartner, org: nashi });
   ok(r.ok, '★振込先が 無いだけで 止めている★（現金の 請求が 出せなくなる）: ' + JSON.stringify(r.errors));
   ok(r.warnings.some((w) => /振込先/.test(w)),
     '★振込先が 空なのに 黙っている★: ' + JSON.stringify(r.warnings));
   /* ★入れたら 言わない★＝いつも 出る 小言に しない */
-  const ari = { data: { yago: '合同会社ZEROact', invoiceNo: 'T3500003003293',
-    bank: '伊予銀行 今治支店 普通 1234567' } };
+  const ari = { data: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009',
+    bank: '伊予銀行 見本支店 普通 1234567' } };
   const r2 = D.validateInvoice({ inv: goodInv(), partner: goodPartner, org: ari });
   ok(!r2.warnings.some((w) => /振込先/.test(w)),
     '★入れているのに まだ 言っている★: ' + JSON.stringify(r2.warnings));

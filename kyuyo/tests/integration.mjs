@@ -1620,7 +1620,7 @@ T('★資格喪失届＝画面の 配線（退職日の翌日・基礎年金番�
     b2.kana = 'ｻﾄｳ ﾊﾅｺ'; b2.birthYmd = '1990-01-20'; b2.taishokuYmd = '2026-08-31'; b2.pref = 'ehime';
     A.state.employees = [a, b2];
     A.state.company = Object.assign(A.defCompany(), { pref: 'ehime', seiriKigou: '01-ｱｲ', jigyoshoNo: '12345',
-      name: '株式会社テスト', addr: '愛媛県松山市1-2-3', nushi: '健保　良一', zip: '790-0001', tel: '089-123-4567' });
+      name: '株式会社テスト', addr: '東京都架空区見本台1-2-3', nushi: '健保　良一', zip: '790-0001', tel: '089-123-4567' });
     const rows = A.shikakuRows(A.state.employees).filter((x) => x.kind === '喪失');
     eq(rows.length, 2, '喪失の 行が 2件 でない');
     /* ★喪失日＝退職日の 翌日★（原文 項番14） */
@@ -1648,7 +1648,7 @@ T('★資格取得届＝画面の 配線（出せる人だけ CSVに 入れる�
     const a = A.defEmp('山田　太郎');
     a.kana = 'ﾔﾏﾀﾞ ﾀﾛｳ'; a.birthYmd = '1985-05-15'; a.joinYmd = '2026-04-01';
     a.seibetsu = 'male'; a.zip = '790-0001'; a.jushoKana = 'ｴﾋﾒｹﾝ ﾏﾂﾔﾏｼ 1-2-3';
-    a.address = '愛媛県松山市1-2-3'; a.base = '260000'; a.pref = 'ehime';
+    a.address = '東京都架空区見本台1-2-3'; a.base = '260000'; a.pref = 'ehime';
     a.shaho = Object.assign({}, a.shaho, { mode: 'shutoku', mikomi: '260000' });   /* 入社時の 見込み報酬月額 */
     if (a.shikyu && a.shikyu[0]) a.shikyu[0].value = '260000';
     const b = A.defEmp('佐藤　花子');                       /* ★性別も 住所カナも 入れていない人★ */
@@ -1659,7 +1659,7 @@ T('★資格取得届＝画面の 配線（出せる人だけ CSVに 入れる�
     /* ★事業所の 中身は 門（checkHeader）が 見る物を ぜんぶ 入れる★
        （2026-09-05＝画面が 門に 聞くように なったので、材料も 本物と 同じ形に する） */
     A.state.company = Object.assign(A.defCompany(), { pref: 'ehime', seiriKigou: '01-ｱｲ', jigyoshoNo: '12345',
-      name: '株式会社テスト', addr: '愛媛県松山市1-2-3', nushi: '健保　良一', zip: '790-0001', tel: '089-123-4567' });
+      name: '株式会社テスト', addr: '東京都架空区見本台1-2-3', nushi: '健保　良一', zip: '790-0001', tel: '089-123-4567' });
     const rows = A.shikakuRows(A.state.employees).filter((x) => x.kind === '取得');
     eq(rows.length, 2, '取得の 行が 2件 でない');
     /* ★出せる／出せないは 実物の lib が 決める★（画面が 手で 決めない） */
