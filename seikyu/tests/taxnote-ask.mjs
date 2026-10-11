@@ -80,7 +80,7 @@ function paperHas(text) {
   const built = PAPER.build({
     inv: { no: 'A-1', issue_ymd: '2026-09-02', kind: 'invoice', lines, totals: { grandTotal: t.grandTotal }, data: {} },
     tax: t,
-    partner: { name: 'XEMOSミナモトパワーズ株式会社', honor: '御中' },
+    partner: { name: 'XEMOSカゼモトパワーズ株式会社', honor: '御中' },
     org: { yago: '合同会社ZEROact', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
     template: TPL.getOrDefault('std1'),
     theme: { taxNote: String($('s-taxnote').value || '') },

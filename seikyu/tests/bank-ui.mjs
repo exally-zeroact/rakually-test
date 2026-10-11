@@ -62,7 +62,7 @@ const ACC = [
   '愛媛銀行　見本支店　普通　2345678　ド）ゼロアクト',
   '愛媛信用金庫　見本支店　普通　3456789　ド）ゼロアクト',
 ];
-const PARTNER = { id: 'p1', name: 'XEMOSミナモトパワーズ株式会社', data: { honor: '御中', paper: {} } };
+const PARTNER = { id: 'p1', name: 'XEMOSカゼモトパワーズ株式会社', data: { honor: '御中', paper: {} } };
 
 const saved = [];
 S.store = {

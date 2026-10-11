@@ -54,8 +54,8 @@ async function open(width) {
     const ov = document.getElementById('loginOv'); if (ov) ov.remove();   /* ログインの覆いを どける（測る為） */
     const A = window.SeikyuApp, S = A._state;
     S.org = { yago: '合同会社ZEROact', invoiceStyle: {}, bank: acc.join('\n') };
-    S.partners = [{ id: 'p1', name: 'XEMOSミナモトパワーズ株式会社',
-      data: { name: 'XEMOSミナモトパワーズ株式会社', honor: '御中', paper: {} } }];
+    S.partners = [{ id: 'p1', name: 'XEMOSカゼモトパワーズ株式会社',
+      data: { name: 'XEMOSカゼモトパワーズ株式会社', honor: '御中', paper: {} } }];
     S.list = []; S.cur = null;
     A._go('scr-set'); A._fillSettings();
     const sel = document.getElementById('s-partner');

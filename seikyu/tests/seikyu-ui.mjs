@@ -1797,7 +1797,7 @@ async function newInvoiceFor(pid, ymd) {
 }
 
 await TA('13-a. ★実物の形：単価の列が無くても 金額を直に打てる（実物9枚がこの形）', async () => {
-  db.pay_partners.push({ id: 'pt_e', account_id: 'u1', sort: 40, data: { name: 'XEMOSミナモトパワーズ株式会社', keisho: '御中' }, deleted_at: null });
+  db.pay_partners.push({ id: 'pt_e', account_id: 'u1', sort: 40, data: { name: 'XEMOSカゼモトパワーズ株式会社', keisho: '御中' }, deleted_at: null });
   await win.SeikyuApp._loadMasters(); await sleep(30);
   await newInvoiceFor('pt_e', '2026-08-01');
   // ★税率を選ぶ所は 紙に税率の列が無くても 入力には必ず在る★

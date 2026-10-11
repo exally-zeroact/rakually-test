@@ -52,7 +52,7 @@ function paper(n, ded) {
     inv: { no: 'A-1', issue_ymd: '2026-09-02', kind: 'invoice', lines,
       totals: { grandTotal: tax.grandTotal }, data: {} },
     tax,
-    partner: { name: 'XEMOSミナモトパワーズ株式会社', honor: '御中' },
+    partner: { name: 'XEMOSカゼモトパワーズ株式会社', honor: '御中' },
     org: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009',
       bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
     template: TPL.getOrDefault(ded ? 'ded1' : 'std1'),

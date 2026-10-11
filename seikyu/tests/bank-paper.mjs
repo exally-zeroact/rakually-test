@@ -54,7 +54,7 @@ function paperHtml(bankN, rows, ded, tplId, waku) {
     inv: { no: 'A-0001', issue_ymd: '2026-09-02', kind: 'invoice', lines,
       totals: { grandTotal: tax.grandTotal }, data: {} },
     tax,
-    partner: { name: 'XEMOSミナモトパワーズ株式会社', honor: '御中' },
+    partner: { name: 'XEMOSカゼモトパワーズ株式会社', honor: '御中' },
     org: { yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T9000000000009', bank: accounts(bankN).join('\n') },
     template: TPL.getOrDefault(tplId),
