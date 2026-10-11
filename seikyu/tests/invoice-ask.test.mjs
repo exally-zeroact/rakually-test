@@ -257,23 +257,23 @@ T('★⑭ 当てられた時だけ 問いが増える（答えられない欄を
 });
 
 /* ★★相手ごとに 数える★★（司さん 2026-08-29
-     「複数種類の請求書を作成する会社に対しては？ おれの場合でも そのパターンは 八木工業だけやし
+     「複数種類の請求書を作成する会社に対しては？ おれの場合でも そのパターンは 例野工業だけやし
        代行や 空調系は また違うやろ」）
    ★実測で 出た欠陥★＝会社ぜんぶの紙を数えていたので、代行の相手（末日締め）に出す1通に
-     八木工業の「21日〜20日」が 出た。 */
+     例野工業の「21日〜20日」が 出た。 */
 const ivp = (pid, lead) => inv({ partner_id: pid, status: 'issued', data: { lead } });
 const MIXED = [
-  ivp('yagi', '2026/6/21 〜 2026/7/20'), ivp('yagi', '2026/7/21 〜 2026/8/20'), ivp('yagi', '2026/8/21 〜 2026/9/20'),
+  ivp('reno', '2026/6/21 〜 2026/7/20'), ivp('reno', '2026/7/21 〜 2026/8/20'), ivp('reno', '2026/8/21 〜 2026/9/20'),
   ivp('daiko', '2026/8/1 〜 2026/8/31'), ivp('daiko', '2026/9/1 〜 2026/9/30'),
   ivp('kucho', '2026/9/11 〜 2026/10/10'),
 ];
 const forP = (pid) => base({ inv: inv({ partner_id: pid }), issue: '2026-10-25', others: MIXED });
 
 T('★⑯ 相手ごとに 締めが違う会社で、相手ごとの答えを出す（よその型を 混ぜない）', () => {
-  eq(ASK.periodGuess(forP('yagi')).value, '2026/9/21 〜 2026/10/20', '★八木（21〜20）★');
-  eq(ASK.periodGuess(forP('daiko')).value, '2026/9/1 〜 2026/9/30', '★代行（末日締め）に 八木の型が 出ている★');
+  eq(ASK.periodGuess(forP('reno')).value, '2026/9/21 〜 2026/10/20', '★例野（21〜20）★');
+  eq(ASK.periodGuess(forP('daiko')).value, '2026/9/1 〜 2026/9/30', '★代行（末日締め）に 例野の型が 出ている★');
   eq(ASK.periodGuess(forP('kucho')), null, '★1通しか無い相手に 当てている★');
-  console.log('     八木 ' + ASK.periodGuess(forP('yagi')).value
+  console.log('     例野 ' + ASK.periodGuess(forP('reno')).value
     + ' ／ 代行 ' + ASK.periodGuess(forP('daiko')).value + ' ／ 空調（1通だけ）★当てない★');
 });
 

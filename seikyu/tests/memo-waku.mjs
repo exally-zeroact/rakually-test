@@ -114,9 +114,9 @@ T('② 枠15〜20行の どれでも 紙の高さ ≦ A4（黙って 切れな�
    見張りとしては 効いているが、★控除ありの 境界は 🟡未測定★。 */
 T('③ 空振りしていない（' + kazu + '通り 測った）', kazu === 18, '測った通り数 ' + kazu + '（想定 18）');
 
-/* ④ ★備考は 明細の 列★（司さん 2026-09-08 の 実物＝黒田空調）
+/* ④ ★備考は 明細の 列★（司さん 2026-09-08 の 実物＝型見空例）
    実物の 列 … 項目／数量／単位／金額／消費税／★備考★
-   備考に ★現場名★（東予市 川本邸・菊水ホテル…）を 1行ずつ 書いている。
+   備考に ★現場名★（東予市 灰原邸・翠川ホテル…）を 1行ずつ 書いている。
    ★役目は seikyu-cols.js に 前から 在る★（'備考'／'摘要' → memo）＝
    会社が 設定 ▸ 明細の列 で 足せば 出る。★ここでは それを 押して 確かめる★。 */
 const COLS2 = require_(path.join(ROOT, "seikyu/lib/seikyu-cols.js"));
@@ -125,18 +125,18 @@ const specM = COLS2.normalizeSpec({
   widths: { '項目': 200, '数量': 46, '単位': 40, '金額': 90, '消費税': 70, '備考': 160 }, aligns: {},
 });
 const tM = TPL.getOrDefault('std1');
-const linesM = [{ name: 'エアコン洗浄', qty: 1, unit: '台', price: 12000, rate: 10, memo: '東予市　川本邸' },
-  { name: 'エアコン取替', qty: 1, unit: '台', price: 20000, rate: 10, memo: '菊水ホテル' }];
+const linesM = [{ name: 'エアコン洗浄', qty: 1, unit: '台', price: 12000, rate: 10, memo: '東予市　灰原邸' },
+  { name: 'エアコン取替', qty: 1, unit: '台', price: 20000, rate: 10, memo: '翠川ホテル' }];
 const taxM = TAX.compute({ lines: linesM, taxMode: 'exclusive', rounding: 'floor' });
 const htmlM = PAPER.build({
   inv: { no: 'A', issue_ymd: '2026-08-01', kind: 'invoice', lines: linesM,
     totals: { grandTotal: taxM.grandTotal }, data: {} },
-  tax: taxM, partner: { name: '株式会社黒田空調工業', honor: '御中' },
+  tax: taxM, partner: { name: '株式会社型見空例工業', honor: '御中' },
   org: { yago: '合同会社ZEROact', bank: '伊予銀行　見本支店　普通　1234567' },
   template: tM, templateId: 'std1', theme: tM.theme, cols: specM, deduct: 0, deductLines: [],
 }).html;
 T('④ ★備考の 列に 現場名が 出る（消費税の 右隣）',
-  /東予市/.test(htmlM) && /菊水ホテル/.test(htmlM),
+  /東予市/.test(htmlM) && /翠川ホテル/.test(htmlM),
   '★現場名が 紙に 出ていない★（備考の列の 値は line.memo）');
 /* ★見るのは「★空の 枠★が 出ていないか」★（2026-09-10 直した）
    ＝2026-09-10 に、司さんが 頼んだ 時だけ 出せる ように

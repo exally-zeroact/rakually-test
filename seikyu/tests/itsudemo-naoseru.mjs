@@ -79,7 +79,7 @@ const MAE = {
 };
 function reset() {
   S.org = { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', invoiceNo: 'T1234567890123' };
-  S.partners = [{ id: 'p1', sort: 1, data: { name: '八木工業', honor: '御中' } }];
+  S.partners = [{ id: 'p1', sort: 1, data: { name: '例野工業', honor: '御中' } }];
   S.invoices = [JSON.parse(JSON.stringify(MAE))];
   S.list = S.invoices; S.receipts = []; S.fil = 'all'; S.docType = 'invoice';
   S.guessDone = false; S.guess = null;

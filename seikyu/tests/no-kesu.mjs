@@ -45,7 +45,7 @@ function kami(style, id) {
   return PAPER.build({
     inv: { no: NO, issue_ymd: '2026-09-09', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal }, data: {} },
-    tax: t, partner: { name: '八木工業', honor: '御中' },
+    tax: t, partner: { name: '例野工業', honor: '御中' },
     org: { yago: '合同会社Rakunally', bank: '（見本）銀行 ◯◯支店 普通 1234567' },
     template: tp, templateId: id || 'std1', theme: tp.theme, style: style || {},
     cols: COLS.normalizeSpec(tp.cols),

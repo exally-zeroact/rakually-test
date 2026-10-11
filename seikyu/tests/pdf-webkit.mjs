@@ -34,7 +34,7 @@ const ls=[{name:'運転代行 10月分',qty:'1',unit:'式',price:'30000',rate:10
 const tx=X.compute({lines:ls,taxMode:'exclusive',rounding:'floor'});
 const mk=(extra)=>{const bt=PAPER.build(Object.assign({
   inv:{no:'202608-001',issue_ymd:'2026-10-05',due_ymd:'2026-11-30',kind:'invoice',lines:ls,totals:{grandTotal:tx.grandTotal},data:{}},
-  tax:tx,partner:{name:'八木工業株式会社',honor:'御中'},
+  tax:tx,partner:{name:'例野工業株式会社',honor:'御中'},
   org:{yago:'合同会社Rakunally',addr:'東京都架空区見本台',invoiceNo:'T9000000000009',bank:'伊予銀行 見本支店 普通 1234567'},
   template:TPL.getOrDefault('std1')},extra||{}));
   return (typeof bt==='string')?bt:(bt.html||'');};

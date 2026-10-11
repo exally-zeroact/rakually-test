@@ -67,7 +67,7 @@ const $ = (id) => doc.getElementById(id);
 /* ★倉庫は 作り物★＝しまった回数と 中身を 数える */
 const shimatta = [];
 S.org = { yago: '合同会社Rakunally', invoiceNo: 'T1234567890123' };
-S.partners = [{ id: 'pt_a', data: { name: '黒田空調', honor: '御中' } }];
+S.partners = [{ id: 'pt_a', data: { name: '型見空例', honor: '御中' } }];
 S.invoices = []; S.list = []; S.receipts = [];
 S.store = {
   partners: { list: () => Promise.resolve(S.partners) },

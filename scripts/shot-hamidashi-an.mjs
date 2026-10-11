@@ -16,7 +16,7 @@ const req = (f) => import('file://' + ROOT + '/seikyu/lib/' + f).then((m) => m.d
 const PAPER = await req('seikyu-paper.js'), TPL = await req('seikyu-templates.js');
 const TAX = await req('seikyu-tax.js'), COLS = await req('seikyu-cols.js');
 const A4 = 1122.5;
-const GENBA = ['東予市 川本邸', '菊水ホテル', '鳥越ハンカチ'];
+const GENBA = ['東予市 灰原邸', '翠川ホテル', '紫野ハンカチ'];
 const N = 8;   /* ★明細 8行★＝ふつうに 在りうる 数 */
 
 function html(memoAri, waku) {
@@ -29,7 +29,7 @@ function html(memoAri, waku) {
   return PAPER.build({
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal }, data: {} },
-    tax: t, partner: { name: '八木工業', honor: '御中' },
+    tax: t, partner: { name: '例野工業', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: '伊予銀行 見本支店 普通 1234567' },
     template: tp, templateId: 'std1', theme: tp.theme,
@@ -48,7 +48,7 @@ async function toru(na, h, f) {
     const s = document.querySelector('.sheet');
     const t = [...s.querySelectorAll('td,th')].map((e) => (e.textContent || '').trim());
     return { naka: Math.round(s.scrollHeight),
-      genba: t.filter((x) => /川本邸|菊水|鳥越/.test(x)).length,
+      genba: t.filter((x) => /灰原邸|翠川|紫野/.test(x)).length,
       kei: t.some((x) => x === '項目の合計'), gokei: t.some((x) => x === '合計'),
       bank: (s.textContent || '').indexOf('お振込先') >= 0 };
   });

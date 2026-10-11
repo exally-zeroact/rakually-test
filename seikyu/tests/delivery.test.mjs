@@ -44,7 +44,7 @@ function paper(kind) {
     inv: { no: '202608-001', issue_ymd: '2026-08-05', due_ymd: '2026-09-30',
       kind: 'invoice', lines: LINES, totals: { grandTotal: TAX.grandTotal }, data: { memo: 'いつもありがとうございます' } },
     tax: TAX,
-    partner: { name: '八木工業株式会社', honor: '御中' },
+    partner: { name: '例野工業株式会社', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009',
       bank: '伊予銀行 見本支店 普通 1234567 ド)ゼロアクト' },
     template: TPL.getOrDefault('std1'),
@@ -86,7 +86,7 @@ T('★⑤ 日付の札は「納品日」', () => {
 
 T('★⑥ 中身（相手・明細・合計・自社）は 請求書と同じ物が 出ている', () => {
   const t = strip(DELI);
-  ok(/八木工業株式会社/.test(t), 'あて名');
+  ok(/例野工業株式会社/.test(t), 'あて名');
   ok(/運転代行 8月分/.test(t), '明細');
   ok(/待機料/.test(t), '明細2行目');
   ok(/37,400|37400/.test(t), '★合計が 出ていない★');

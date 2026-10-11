@@ -51,7 +51,7 @@ function sampleBook() {
     ['', '', '', '', '', ''],
     ['', '請求書', '', '', '', ''],
     ['', '', '', '', '請求番号', 'A-0001'],
-    ['', '八木工業株式会社', '御中', '', '請求日', '2026/08/05'],
+    ['', '例野工業株式会社', '御中', '', '請求日', '2026/08/05'],
     ['', '', '', '', 'お支払期限', '2026/09/30'],
     ['', '件名', '8月分 運転代行', '', '', ''],
     ['', '', '', '', 'ご請求金額', 33000],
@@ -89,7 +89,7 @@ await T('★② 中身を そのまま 表にできる（人が 目で 確かめ
   ok(g.rows.length >= 10 && g.head.length >= 6,
     '行 ' + g.rows.length + ' 見出し ' + g.head.length + '（左上の空きを 含む）');
   const flat = g.rows.map((r) => r.cells.map((c) => c.text || '').join(' ')).join(' ');
-  ok(/八木工業株式会社/.test(flat), '★中身が 表に 出ていない★');
+  ok(/例野工業株式会社/.test(flat), '★中身が 表に 出ていない★');
 });
 
 await T('★③ どのセルに 何を入れるかを 当てる（見本の値が 入っているセル）', () => {
@@ -116,7 +116,7 @@ await T('★④ 当てられない物は「当てられません」と言える�
 });
 
 await T('★⑤ 値を入れて 出せる（数式は 触らない）', async () => {
-  const vals = { partnerName: '黒田空調工業株式会社', issueYmd: '2026-09-01', no: '202609-001',
+  const vals = { partnerName: '型見空例工業株式会社', issueYmd: '2026-09-01', no: '202609-001',
     subject: '9月分', dueYmd: '2026-10-31', subtotal: 50000, taxTotal: 5000, grandTotal: 55000 };
   /* ★srcInfo を 渡す★＝fill は 元のファイルに マスが在るかを これで 確かめる
      （渡さないと 全部「無い」と見えて 断られる＝2026-08-31 実測で 私が やっていた） */
@@ -126,7 +126,7 @@ await T('★⑤ 値を入れて 出せる（数式は 触らない）', async ()
   ok(out.wrote && out.wrote.length >= 4, '書いたセルが ' + (out.wrote || []).length + '個');
   const back = await B.inspect(out.bytes);
   const flat = (back.cells[Object.keys(back.cells)[0]] || []).map((c) => String(c.text || c.value || '')).join(' ');
-  ok(/黒田空調工業株式会社/.test(flat), '★入れた名前が 入っていない★');
+  ok(/型見空例工業株式会社/.test(flat), '★入れた名前が 入っていない★');
   console.log('     書いたセル ' + out.wrote.length + '個 ／ 入れられなかった ' + (out.skipped || []).length + '個');
 });
 

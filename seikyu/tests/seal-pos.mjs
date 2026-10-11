@@ -77,7 +77,7 @@ async function paper(org, n) {
   const bt = PAPER.build({
     inv: { no: '202608-001', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
       lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
-    tax, partner: { name: '八木工業株式会社', honor: '御中' },
+    tax, partner: { name: '例野工業株式会社', honor: '御中' },
     org: Object.assign({ yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3',
       tel: '090-0000-0000', invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567',
       sealDataUrl: SEAL, sealSizeMm: 17 }, org),
@@ -169,7 +169,7 @@ const head = await (async () => {
   const bt = PAPER.build({
     inv: { no: 'A-1', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
       lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
-    tax, partner: { name: '八木工業株式会社', honor: '御中' },
+    tax, partner: { name: '例野工業株式会社', honor: '御中' },
     org: { yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567', sealDataUrl: SEAL, sealSizeMm: 17 },
     template: TPL.getOrDefault('std1'),
@@ -267,7 +267,7 @@ const kake = await (async () => {
     const bt = PAPER.build({
       inv: { no: 'A-1', issue_ymd: '2026-08-05', due_ymd: '2026-09-30', kind: 'invoice',
         lines: ls, totals: { grandTotal: tax.grandTotal }, data: {} },
-      tax, partner: { name: '八木工業株式会社', honor: '御中' },
+      tax, partner: { name: '例野工業株式会社', honor: '御中' },
       org: Object.assign({}, FULL, { sealDataUrl: SEAL, sealSizeMm: 17 }, ov),
       template: TPL.getOrDefault('std1'),
     });

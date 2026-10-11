@@ -39,7 +39,7 @@ function html(bank) {
   return PAPER.build({
     inv: { no: 'X', issue_ymd: '2026-09-10', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal }, data: {} },
-    tax: t, partner: { name: '黒田空調', honor: '御中' },
+    tax: t, partner: { name: '型見空例', honor: '御中' },
     org: { yago: '合同会社Rakunally', invoiceNo: 'T1234567890123', bank: bank },
     template: tp, templateId: 'std1', theme: tp.theme,
     cols: COLS.normalizeSpec(tp.cols), deduct: 0, deductLines: [],

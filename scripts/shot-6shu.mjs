@@ -18,9 +18,9 @@ const A4 = 1122.5;
 const L = (na, kin, genba) => ({ name: na, qty: '1', unit: '式', price: String(kin),
   amount: String(kin), rate: 10, memo: genba });
 const LINES = [
-  L('エアコン取付工事', 42000, '東予市 川本邸'),
-  L('ダクト補修', 18000, '菊水ホテル'),
-  L('冷媒配管 交換', 35000, '鳥越ハンカチ'),
+  L('エアコン取付工事', 42000, '東予市 灰原邸'),
+  L('ダクト補修', 18000, '翠川ホテル'),
+  L('冷媒配管 交換', 35000, '紫野ハンカチ'),
 ];
 const DED = [{ name: '弁当代', amount: '7310' }, { name: '健康診断代', amount: '10164' }];
 /* ★2口座★＝世の中で「1口座が ふつう・複数も ありうる」なので 両方 見えるように */
@@ -36,7 +36,7 @@ function html(id) {
   return PAPER.build({
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: LINES,
       totals: { grandTotal: t.grandTotal }, data: { deductions: dl } },
-    tax: t, partner: { name: '黒田空調', honor: '御中' },
+    tax: t, partner: { name: '型見空例', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: BANK },
     template: tp, templateId: id, theme: tp.theme,

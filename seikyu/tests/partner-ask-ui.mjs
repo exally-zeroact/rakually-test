@@ -68,7 +68,7 @@ const sb = createFakeSupa({
       { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中', addr: '東京都架空区見本台1-1', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, askOk: { honor: 1, person: 1, addr: 1, payTerm: 1, gensen: 1 } }, deleted_at: null },
       { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: 'B工務店', keisho: '御中', addr: '東京都架空区見本台2-2', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, askOk: { honor: 1, person: 1, addr: 1, payTerm: 1, gensen: 1 } }, deleted_at: null },
       /* ★これから聞く相手★（名前しか無い＝作った直後の姿） */
-      { id: 'pt_n', account_id: 'u1', sort: 2, data: { name: '藤原建設株式会社' }, deleted_at: null },
+      { id: 'pt_n', account_id: 'u1', sort: 2, data: { name: '標様建設株式会社' }, deleted_at: null },
     ],
     pay_invoices: [],
     pay_receipts: [],
@@ -145,7 +145,7 @@ await TA('3. ★答えたら その場で倉庫へ書く（1問ごと保存）�
   eq(!!(d.askOk && d.askOk.honor), true, '「答えた」印が付いていない＝また聞かれる');
   ok(before !== JSON.stringify(d), '倉庫が1文字も変わっていない');
   const t = $('pt-ask-set').textContent;
-  ok(/藤原建設株式会社　御中/.test(t), '★答えた結果を その場で返していない★：' + t.slice(0, 120));
+  ok(/標様建設株式会社　御中/.test(t), '★答えた結果を その場で返していない★：' + t.slice(0, 120));
 });
 
 await TA('4. ★次の問いへ進む（担当者は「出さない」で飛ばせる）', async () => {
@@ -238,8 +238,8 @@ await TA('10. ★聞いた事が 紙に届く（あて名が実際に変わる�
     cols: win.SeikyuCols.normalizeSpec(null),
   });
   const ph = paper.html || '';
-  ok(/藤原建設株式会社/.test(ph), '紙にあて名が出ていない');
-  ok(/藤原建設株式会社　様/.test(ph), '★聞いて直した敬称が 紙に届いていない★');
+  ok(/標様建設株式会社/.test(ph), '紙にあて名が出ていない');
+  ok(/標様建設株式会社　様/.test(ph), '★聞いて直した敬称が 紙に届いていない★');
   /* ★聞いていない物は 紙に出ない（郵便番号・電話・相手の登録番号）★ */
   ok(!/T1234567890123/.test(ph), '相手の登録番号が紙に出ている（聞かない物なのに出す＝食い違う）');
 });

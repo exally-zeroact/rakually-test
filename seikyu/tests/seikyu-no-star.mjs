@@ -75,7 +75,7 @@ const sb = createFakeSupa({
   uid: 'u1',
   tables: {
     pay_org: [{ account_id: 'u1', data: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009' }, updated_at: '2026-08-01T00:00:00Z' }],
-    pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: '八木工業 株式会社', keisho: '御中' }, deleted_at: null }],
+    pay_partners: [{ id: 'pt_a', account_id: 'u1', sort: 0, data: { name: '例野工業 株式会社', keisho: '御中' }, deleted_at: null }],
     pay_invoices: [], pay_receipts: [],
     pay_companies: [{ account_id: 'u1', data: {}, updated_at: '2026-08-01T00:00:00Z' }],
   },

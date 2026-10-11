@@ -44,7 +44,7 @@ const OTHERS = [
   { id: 'p3', data: { name: 'B工務店', keisho: '御中', addr: '東京都架空区見本台2-2', payTerm: { kind: 'nextEom', n: 0 }, gensen: false, code: 'A003' } },
   { id: 'p4', data: { name: '山田 太郎', honor: '様', addr: '東京都見本市3-3', payTerm: { kind: 'eom', n: 0 }, gensen: true, code: 'A004' } },
 ];
-const ME = { id: 'p1', data: { name: '藤原建設株式会社' } };
+const ME = { id: 'p1', data: { name: '標様建設株式会社' } };
 const ALL = OTHERS.concat([ME]);
 const ctx = (over) => Object.assign({
   partner: ME, partners: ALL, invoices: [], terms: DOC.PAY_TERMS, numberFormat: 'ym-seq',
@@ -83,7 +83,7 @@ T('③ ★当てた物には 必ず根拠が付く★（空の根拠を出さな
     ok(q.guess.why && String(q.guess.why).trim().length >= 6, q.key + ' の根拠が空か短い');
     ok(q.guess.value !== undefined && q.guess.value !== null, q.key + ' の当てが無い');
   });
-  const h = ASK.honorGuess('藤原建設株式会社', OTHERS);
+  const h = ASK.honorGuess('標様建設株式会社', OTHERS);
   eq(h.value, '御中', '会社名に株式会社が入るのに御中でない');
   ok(/株式会社/.test(h.why), '根拠に手がかりが書いていない');
   const h2 = ASK.honorGuess('山田 太郎', OTHERS);
@@ -112,9 +112,9 @@ T('④ ★源泉は「この相手への過去の請求」を先に見る★（�
 });
 
 T('⑤ ★答えたら その場で結果を返す★（返す言葉が作られる）', () => {
-  const r = ASK.questions(ctx({ partner: { id: 'p1', data: { name: '藤原建設株式会社', honor: '御中' } } }));
+  const r = ASK.questions(ctx({ partner: { id: 'p1', data: { name: '標様建設株式会社', honor: '御中' } } }));
   const honor = r.list.filter((q) => q.key === 'honor')[0];
-  ok(/藤原建設株式会社　御中/.test(honor.result('御中')), 'あて名を返していない：' + honor.result('御中'));
+  ok(/標様建設株式会社　御中/.test(honor.result('御中')), 'あて名を返していない：' + honor.result('御中'));
   const gen = r.list.filter((q) => q.key === 'gensen')[0];
   ok(/源泉徴収する/.test(gen.result('yes')), '源泉の結果を返していない');
   ok(/引きません/.test(gen.result('no')), '源泉なしの結果を返していない');
@@ -302,7 +302,7 @@ if (process.argv.includes('--self-test')) {
   S('①根拠を空にする', () => {
     const bad = reload('seikyu/lib/seikyu-partner-ask.js',
       "why: '会社名に「' + hit + '」が入っています＝組織あての紙なので「御中」'", "why: ''");
-    const g = bad.honorGuess('藤原建設株式会社', OTHERS);
+    const g = bad.honorGuess('標様建設株式会社', OTHERS);
     ok(g.why && String(g.why).trim().length >= 6, '根拠が空');
   });
   S('②よく出る順をやめて 元の並びのままにする', () => {

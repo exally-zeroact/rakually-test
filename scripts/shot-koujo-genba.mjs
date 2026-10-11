@@ -25,11 +25,11 @@ const COLS_ARI = {
 const L = (na, kin, genba) => ({ name: na, qty: '1', unit: '式', price: String(kin),
   amount: String(kin), rate: 10, memo: genba });
 const LINES = [
-  L('エアコン取付工事', 42000, '東予市 川本邸'),
-  L('ダクト補修', 18000, '菊水ホテル'),
-  L('冷媒配管 交換', 35000, '鳥越ハンカチ'),
-  L('室外機 移設', 12000, '東予市 川本邸'),
-  L('定期点検', 8000, '菊水ホテル'),
+  L('エアコン取付工事', 42000, '東予市 灰原邸'),
+  L('ダクト補修', 18000, '翠川ホテル'),
+  L('冷媒配管 交換', 35000, '紫野ハンカチ'),
+  L('室外機 移設', 12000, '東予市 灰原邸'),
+  L('定期点検', 8000, '翠川ホテル'),
 ];
 const DED = [{ name: '弁当代', amount: '7310' }, { name: '健康診断代', amount: '10164' }];
 
@@ -41,7 +41,7 @@ function html(nLines) {
   return PAPER.build({
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal }, data: { deductions: DED } },
-    tax: t, partner: { name: '黒田空調', honor: '御中' },
+    tax: t, partner: { name: '型見空例', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: '伊予銀行 見本支店 普通 1234567 ド）ラクナリー' },
     template: tp, templateId: 'koujo', theme: tp.theme,
@@ -66,7 +66,7 @@ const m = await pg.evaluate(() => {
     .map((r) => Math.round(r.getBoundingClientRect().height));
   return { naka: Math.round(s.scrollHeight), hd: hd,
     oritatami: oritatami, gyoTakasa: [...new Set(takasa)].sort((a, b) => a - b),
-    genba: t.filter((x) => /川本邸|菊水|鳥越/.test(x)).length,
+    genba: t.filter((x) => /灰原邸|翠川|紫野/.test(x)).length,
     zei: t.filter((x) => x === '4,200' || x === '1,800' || x === '3,500').length,
     ded: t.filter((x) => /弁当代|健康診断代/.test(x)).length };
 });

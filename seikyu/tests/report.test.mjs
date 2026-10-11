@@ -46,7 +46,7 @@ const RC = [
   { invoice_id: 'b', amount: 5000, ymd: '2026-09-02' },
   { invoice_id: 'b', amount: 1000, ymd: '2026-09-03', deleted_at: '2026-09-04' },
 ];
-const PT = [{ id: 'p1', data: { name: '八木工業' } }, { id: 'p2', data: { name: '黒田空調' } }];
+const PT = [{ id: 'p1', data: { name: '例野工業' } }, { id: 'p2', data: { name: '型見空例' } }];
 const S = (o) => REP.summarize(Object.assign({ invoices: INV, receipts: RC, partners: PT, doc: DOC }, o));
 
 console.log('\n[report] 集計（月ごと・取引先ごと）');
@@ -71,10 +71,10 @@ T('★③ 入金は 消した行を数えない（数が黙って狂わない）
 
 T('★④ 取引先ごと・大きい順（誰に いくら残っているかが 分かる）', () => {
   const s = S({ month: '2026-08' });
-  eq(s.rows.map((r) => r.name).join(' '), '八木工業 黒田空調', '並び');
-  eq(s.rows[0].state, 'paid', '八木の状態');
-  eq(s.rows[1].state, 'partial', '黒田の状態');
-  eq(s.rows[1].remain, 6000, '黒田の残り');
+  eq(s.rows.map((r) => r.name).join(' '), '例野工業 型見空例', '並び');
+  eq(s.rows[0].state, 'paid', '例野の状態');
+  eq(s.rows[1].state, 'partial', '型見の状態');
+  eq(s.rows[1].remain, 6000, '型見の残り');
 });
 
 T('★⑤ 入金が読めていない時は null（0円と書かない）', () => {
@@ -150,7 +150,7 @@ if (JSDOM) {
   });
   T('★⑪ 取引先ごとの表が 画面に出ている（実UI）', () => {
     const t = txt('rep-body');
-    ok(/八木工業/.test(t) && /黒田空調/.test(t), '★相手が 出ていない★：' + t.slice(0, 80));
+    ok(/例野工業/.test(t) && /型見空例/.test(t), '★相手が 出ていない★：' + t.slice(0, 80));
     console.log('     ' + t.slice(0, 76));
   });
   T('★⑫ 入金が読めていない時は 画面も「未確認」（0円と書かない）', () => {

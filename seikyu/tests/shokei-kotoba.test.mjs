@@ -44,7 +44,7 @@ function paper(n, opt) {
     org: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
     template: TPL.getOrDefault(opt.ded ? 'ded1' : 'std1'),
     deduct: opt.ded ? 11340 : 0,
-    deductLines: opt.ded ? [{ name: '弁当代 矢原', amount: 11340 }] : [],
+    deductLines: opt.ded ? [{ name: '弁当代 紅林', amount: 11340 }] : [],
   });
   return { html: (typeof built === 'string') ? built : built.html, tax };
 }

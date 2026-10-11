@@ -3,7 +3,7 @@
  * ★なぜ（2026-09-02・実物45枚を 機械で 読んだ）★
  *   ★45枚 全部に 消費税の一言が 在った★（うちの実物・16社）
  *     「消費税は10%と なっております。」35枚 ／「消費税は10%と します。」11枚
- *     （ENEOS 25.3 は 両方 在る＝1枚で 2通りの言い方が 混じる）
+ *     （XEMOS 25.3 は 両方 在る＝1枚で 2通りの言い方が 混じる）
  *   ★紙は 前から 出せた（TH.taxNote）／設定にも 欄が 在った★。
  *   ★足りていなかったのは 1つだけ＝★空の欄に 打たせていた★（司さん 2026-08-28 ④の指摘）
  *   ⇒ ★候補を 札で 出して 押させる★（打ちたい人は そのまま 打てる）。
@@ -80,7 +80,7 @@ function paperHas(text) {
   const built = PAPER.build({
     inv: { no: 'A-1', issue_ymd: '2026-09-02', kind: 'invoice', lines, totals: { grandTotal: t.grandTotal }, data: {} },
     tax: t,
-    partner: { name: 'ENEOSグローブエナジー株式会社', honor: '御中' },
+    partner: { name: 'XEMOSミナモトパワーズ株式会社', honor: '御中' },
     org: { yago: '合同会社ZEROact', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
     template: TPL.getOrDefault('std1'),
     theme: { taxNote: String($('s-taxnote').value || '') },

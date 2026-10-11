@@ -55,11 +55,11 @@ const built = PAPER.build({
   inv: { no: 'A-0001', issue_ymd: '2026-10-05', due_ymd: '2026-11-30', kind: 'invoice',
     lines, totals: { grandTotal: tax.grandTotal }, data: {} },
   tax,
-  partner: { name: '八木工業株式会社', honor: '御中' },
+  partner: { name: '例野工業株式会社', honor: '御中' },
   org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
     invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567' },
   template: TPL.getOrDefault('std1'),
-  deduct: 11340, deductLines: [{ name: '弁当代 矢原', amount: 11340 }],
+  deduct: 11340, deductLines: [{ name: '弁当代 紅林', amount: 11340 }],
 });
 const html = (typeof built === 'string') ? built : (built.html || '');
 
@@ -180,7 +180,7 @@ for (const c of CASES) {
   const bt = PAPER.build({
     inv: { no: 'A-1', issue_ymd: '2026-10-05', due_ymd: '2026-11-30', kind: c.kind || 'invoice',
       lines: ls, totals: { grandTotal: tx.grandTotal }, data: {} },
-    tax: tx, partner: { name: '八木工業株式会社', honor: '御中' },
+    tax: tx, partner: { name: '例野工業株式会社', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009', bank: '伊予銀行 見本支店 普通 1234567' },
     template: TPL.getOrDefault(c.tpl),
     deduct: c.deduct || 0, deductLines: c.deduct ? [{ name: '弁当代', amount: c.deduct }] : [],
@@ -232,7 +232,7 @@ const tx3 = X.compute({ lines: ls3, taxMode: 'exclusive', rounding: 'floor' });
 const bt3 = PAPER.build({
   inv: { no: 'A-1', issue_ymd: '2026-10-05', due_ymd: '2026-11-30', kind: 'invoice',
     lines: ls3, totals: { grandTotal: tx3.grandTotal }, data: {} },
-  tax: tx3, partner: { name: '八木工業株式会社', honor: '御中' },
+  tax: tx3, partner: { name: '例野工業株式会社', honor: '御中' },
   org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台', invoiceNo: 'T9000000000009',
     bank: '伊予銀行 見本支店 普通 1234567', sealDataUrl: sealUrl, sealSizeMm: 18 },
   template: TPL.getOrDefault('std1'),

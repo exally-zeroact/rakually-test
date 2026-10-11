@@ -25,8 +25,8 @@ function html(id, box, kaita) {
   return PAPER.build({
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal },
-      data: kaita ? { memo: '工期 2026/8/1〜8/25\n現場 東予市 川本邸' } : {} },
-    tax: t, partner: { name: '黒田空調', honor: '御中' },
+      data: kaita ? { memo: '工期 2026/8/1〜8/25\n現場 東予市 灰原邸' } : {} },
+    tax: t, partner: { name: '型見空例', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: '伊予銀行 見本支店 普通 1234567 ド）ラクナリー' },
     template: tp, templateId: id, theme: tp.theme, memoBox: box,

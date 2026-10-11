@@ -15,7 +15,7 @@
  * ★ここで見る事★
  *   ① 1枚物の紙で ★「小計」は 1回だけ★（表の中には 出ない）
  *   ② ★数は 消えていない★＝締めの「小計」の額 ＝ 明細の金額を 足した額
- *   ③ 複数ページの紙は ★各ページに「このページの小計」が 出る★（実物 ENEOS 25.12 と 同じ形）
+ *   ③ 複数ページの紙は ★各ページに「このページの小計」が 出る★（実物 XEMOS 25.12 と 同じ形）
  *   ④ 控除ありの紙でも ①が 成り立つ
  *   ⑤ ★空振りしていない★（紙が 出来ている・0通りで 緑にしない）
  *
@@ -52,12 +52,12 @@ function paper(n, ded) {
     inv: { no: 'A-1', issue_ymd: '2026-09-02', kind: 'invoice', lines,
       totals: { grandTotal: tax.grandTotal }, data: {} },
     tax,
-    partner: { name: 'ENEOSグローブエナジー株式会社', honor: '御中' },
+    partner: { name: 'XEMOSミナモトパワーズ株式会社', honor: '御中' },
     org: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009',
       bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
     template: TPL.getOrDefault(ded ? 'ded1' : 'std1'),
     deduct: ded ? 11340 : 0,
-    deductLines: ded ? [{ name: '弁当代 矢原', amount: 11340 }] : [],
+    deductLines: ded ? [{ name: '弁当代 紅林', amount: 11340 }] : [],
   });
   return { html: (typeof built === 'string') ? built : built.html, tax };
 }

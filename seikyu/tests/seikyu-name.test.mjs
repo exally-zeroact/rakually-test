@@ -71,8 +71,8 @@ if (process.argv.includes('--self-test')) {
 console.log('\n[請求書 推奨ファイル名]');
 
 T('★見本どおりの形（日付_相手_種類_金額.拡張子）', () => {
-  eq(N.suggest({ docType: 'invoice', issueYmd: '2026-09-30', partnerName: '藤原建設株式会社', grandTotal: 142660, ext: 'pdf' }),
-    '20260930_藤原建設株式会社_請求書_142660.pdf');
+  eq(N.suggest({ docType: 'invoice', issueYmd: '2026-09-30', partnerName: '標様建設株式会社', grandTotal: 142660, ext: 'pdf' }),
+    '20260930_標様建設株式会社_請求書_142660.pdf');
 });
 
 T('見積書は種類が変わる', () => {
@@ -154,7 +154,7 @@ T('★落とせない種類のファイル名は作らない（file-out.js の M
 
 T('★網羅：日付×相手×金額×拡張子 を全部流して、使えない文字ゼロ・上限内・空欄ゼロ', () => {
   const dates = ['2026-09-30', '', '2026-02-30', '1999-01-01', '2024-02-29'];
-  const names = ['藤原建設株式会社', '', 'A/B', 'あ'.repeat(200), '  ', '株式会社　空白入り'];
+  const names = ['標様建設株式会社', '', 'A/B', 'あ'.repeat(200), '  ', '株式会社　空白入り'];
   const totals = [0, 1, -1, 142660, NaN, undefined, 1.5];
   let n = 0;
   for (const d of dates) for (const nm of names) for (const t of totals) for (const e of N.EXTS) {

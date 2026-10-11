@@ -243,12 +243,12 @@ T('★固まる列の一覧が在る（倉庫のトリガと突き合わせる�
 
 T('★発行の写し(snapshot)に、紙に出る物が全部入る', () => {
   const s = D.snapshotOf({
-    partner: { id: 'pt_1', data: { name: '藤原建設株式会社', honor: '御中', addr: '東京都架空区見本台…', invoiceNo: 'T1', code: 'A001' } },
+    partner: { id: 'pt_1', data: { name: '標様建設株式会社', honor: '御中', addr: '東京都架空区見本台…', invoiceNo: 'T1', code: 'A001' } },
     org: { data: { yago: '合同会社ZEROact', addr: '東京都架空区見本台…', tel: '090', invoiceNo: 'T9000000000009', bank: '伊予銀行…' } },
     tax: { subtotal: 2000, taxTotal: 180, grandTotal: 2180, byRate: [{ pct: 10, base: 1000, tax: 100 }], exempt: { base: 0 }, hasReduced: true },
     templateId: 'std1',
   });
-  eq(s.partner.name, '藤原建設株式会社');
+  eq(s.partner.name, '標様建設株式会社');
   eq(s.partner.honor, '御中');
   eq(s.org.invoiceNo, 'T9000000000009');
   eq(s.totals.grandTotal, 2180);
@@ -259,15 +259,15 @@ T('★発行の写し(snapshot)に、紙に出る物が全部入る', () => {
 
 /* ④ 取引先を消しても名前が出る -------------------------------------- */
 T('★発行済みは写しの名前を出す（取引先を消しても紙と同じ名前が一覧に出る）', () => {
-  const inv = { status: 'issued', partner_id: 'pt_1', snapshot: { partner: { name: '藤原建設株式会社' } } };
-  eq(D.partnerNameOf(inv, {}), '藤原建設株式会社');
+  const inv = { status: 'issued', partner_id: 'pt_1', snapshot: { partner: { name: '標様建設株式会社' } } };
+  eq(D.partnerNameOf(inv, {}), '標様建設株式会社');
   // ★マスタを後から直しても、発行済みの一覧は紙のままであること
-  eq(D.partnerNameOf(inv, { pt_1: { data: { name: '別の名前' } } }), '藤原建設株式会社');
+  eq(D.partnerNameOf(inv, { pt_1: { data: { name: '別の名前' } } }), '標様建設株式会社');
 });
 
 T('★下書きはマスタの名前。マスタから消えていても空欄にしない', () => {
   const draft = { status: 'draft', partner_id: 'pt_1', snapshot: {} };
-  eq(D.partnerNameOf(draft, { pt_1: { data: { name: 'Lounge Chouchou' } } }), 'Lounge Chouchou');
+  eq(D.partnerNameOf(draft, { pt_1: { data: { name: 'Xalqal Alqalqal' } } }), 'Xalqal Alqalqal');
   const name = D.partnerNameOf(draft, {});
   ok(name.length > 0, '空欄になった');
   ok(name.indexOf('消え') >= 0 || name.indexOf('不明') >= 0, '取れなかったと分かる文言でない: ' + name);
@@ -329,7 +329,7 @@ const goodInv = () => ({
   tax_mode: 'inclusive', rounding: 'floor',
   lines: [{ name: '運転業務委託料', amount: 1100, rate: 10 }],
 });
-const goodPartner = { id: 'pt_1', data: { name: '藤原建設株式会社', code: 'A001' } };
+const goodPartner = { id: 'pt_1', data: { name: '標様建設株式会社', code: 'A001' } };
 const goodOrg = { data: { yago: '合同会社ZEROact', invoiceNo: 'T9000000000009' } };
 
 T('★そろっていれば発行できる', () => {
@@ -758,8 +758,8 @@ T('★rawLines を渡さない呼び方も壊れていない（今までの検�
      控除     … 明細の外。★税込の合計から引く＝税額は動かない★ */
 
 /* ★恒等式② 請求額 ＝（税抜＋値引き）＋ 消費税 − 控除★
-   ★1円一致（実物）★ 八木工業：266,000 ＋ 26,600 ＝ 292,600 − 11,340 ＝ 281,260 */
-T('★★八木工業の実物と1円も違わない（控除の箱＝税込から引く・税額は動かない）★★', () => {
+   ★1円一致（実物）★ 例野工業：266,000 ＋ 26,600 ＝ 292,600 − 11,340 ＝ 281,260 */
+T('★★例野工業の実物と1円も違わない（控除の箱＝税込から引く・税額は動かない）★★', () => {
   const TAX = require_(path.join(ROOT, 'seikyu/lib/seikyu-tax.js'));
   const SR = require_(path.join(ROOT, 'kyuyo/lib/shouhizei-ritsu.js'));
   const STD = Math.round(SR.hyojun * 10000) / 100;
@@ -771,7 +771,7 @@ T('★★八木工業の実物と1円も違わない（控除の箱＝税込か�
   eq(t.taxTotal, 26600, '消費税');
   eq(t.grandTotal, 292600, '税込の合計');
 
-  const inv = { data: { deductions: [{ name: '弁当代　矢原', amount: 11340 }] } };
+  const inv = { data: { deductions: [{ name: '弁当代　紅林', amount: 11340 }] } };
   const ded = D.deductTotalOf(inv);
   eq(ded, 11340, '控除の合計');
   eq(D.billedOf(t, null, ded), 281260, '★請求額（実物 281,260）★');
@@ -815,7 +815,7 @@ T('★控除が在る紙は 発行前の検査でも止まる（画面と別々�
 
 /* ★「◯年◯月分」＝請求日の前月★（実物32枚の =TEXT(EDATE(請求日,-1),"yyyy年m月分")） */
 T('★★「◯年◯月分」は請求日の前月（1月→前年12月・うるう年・月末）★★', () => {
-  eq(D.periodLabelOf('2026-08-01'), '2026年7月分', '実物 ENEOS と同じ');
+  eq(D.periodLabelOf('2026-08-01'), '2026年7月分', '実物 XEMOS と同じ');
   eq(D.periodLabelOf('2026-07-31'), '2026年6月分');
   eq(D.periodLabelOf('2026-01-01'), '2025年12月分', '★1月に出す紙が前年12月分になっていない★');
   eq(D.periodLabelOf('2026-01-31'), '2025年12月分');

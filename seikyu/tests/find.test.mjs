@@ -31,11 +31,11 @@ const eq = (a, b, m) => { if (a !== b) throw new Error((m || '') + ' … 期待 
 
 const LIST = [
   { id: '1', no: '202608-001', issue_ymd: '2026-08-05', partner_id: 'p1',
-    totals: { grandTotal: 33000 }, data: { subject: '8月分' }, snapshot: { partner: { name: '八木工業' } } },
+    totals: { grandTotal: 33000 }, data: { subject: '8月分' }, snapshot: { partner: { name: '例野工業' } } },
   { id: '2', no: '202608-002', issue_ymd: '2026-08-20', partner_id: 'p2',
-    totals: { grandTotal: 11000 }, data: { subject: '空調工事' }, snapshot: { partner: { name: '黒田空調工業' } } },
+    totals: { grandTotal: 11000 }, data: { subject: '空調工事' }, snapshot: { partner: { name: '型見空例工業' } } },
   { id: '3', no: '202607-001', issue_ymd: '2026-07-31', partner_id: 'p1',
-    totals: { grandTotal: 5000 }, data: {}, snapshot: { partner: { name: '八木工業' } } },
+    totals: { grandTotal: 5000 }, data: {}, snapshot: { partner: { name: '例野工業' } } },
   { id: '4', no: '', issue_ymd: '', partner_id: 'p3',
     totals: {}, data: { memo: '下書き 金額まだ' }, snapshot: {} },
 ];
@@ -51,8 +51,8 @@ await T('★① 何も入れていなければ 全部（探していない時に
 });
 
 await T('★② 取引先の名前で 探せる', () => {
-  eq(ids({ text: '八木' }), '1,3', '相手で 絞れない');
-  eq(ids({ text: '空調' }), '2', '部分一致で 絞れない');
+  eq(ids({ text: '例野' }), '1,3', '相手で 絞れない');
+  eq(ids({ text: '見空' }), '2', '部分一致で 絞れない');  // ★名前の 中の字・件名「空調工事」と 重ならない字（重なると 件名で 当たって 名前を 見ずに 緑）★
 });
 
 await T('★③ 請求番号・件名・備考でも 探せる（人が覚えている物で 探せる）', () => {
@@ -78,9 +78,9 @@ await T('★⑥ 取引金額の範囲で 探せる（電帳法②）', () => {
 });
 
 await T('★⑦ 2つ以上を 組み合わせて 探せる（電帳法③）', () => {
-  eq(ids({ text: '八木', from: '2026-08-01' }), '1', '相手＋日付');
-  eq(ids({ text: '八木', max: '10000' }), '3', '相手＋金額');
-  eq(ids({ text: '八木 8月分' }), '1', '★言葉を2つ入れると ぜんぶ含む物だけ★');
+  eq(ids({ text: '例野', from: '2026-08-01' }), '1', '相手＋日付');
+  eq(ids({ text: '例野', max: '10000' }), '3', '相手＋金額');
+  eq(ids({ text: '例野 8月分' }), '1', '★言葉を2つ入れると ぜんぶ含む物だけ★');
 });
 
 await T('★⑧ 全角の数字・記号でも 探せる（スマホの入力で よく混ざる）', () => {
@@ -122,7 +122,7 @@ if (JSDOM) {
   doc.getElementById('app').hidden = false;
   const A = win.SeikyuApp, St = A._state;
   St.invoices = LIST.map((v) => Object.assign({ doc_type: 'invoice', status: 'issued' }, v));
-  St.partners = [{ id: 'p1', data: { name: '八木工業' } }, { id: 'p2', data: { name: '黒田空調工業' } }];
+  St.partners = [{ id: 'p1', data: { name: '例野工業' } }, { id: 'p2', data: { name: '型見空例工業' } }];
   St.receipts = []; St.kind = 'invoice'; St.fil = 'all';
   A._bindForTest();
   A._go('scr-list'); A._renderListForTest();
@@ -135,7 +135,7 @@ if (JSDOM) {
 
   await T('★⑫ 相手の名前を打つと 絞られ、何通から何通かを 言う（実UI）', () => {
     const el = doc.getElementById('q-text');
-    el.value = '八木';
+    el.value = '例野';
     el.dispatchEvent(new win.Event('input', { bubbles: true }));
     eq(rows(), 2, '★絞れていない★');
     ok(/4通のうち 2通/.test(txt('q-hint')), '★何通から何通かを 言っていない★：' + txt('q-hint'));
@@ -164,7 +164,7 @@ if (JSDOM) {
 
 if (SELF) {
   console.log('\n★自己確認★ 条件を無視する姿にすると 赤になるか');
-  const all = F.filter(LIST, { text: '八木' }, CTX).length;
+  const all = F.filter(LIST, { text: '例野' }, CTX).length;
   if (all !== 2) { console.log('  NG ★今の姿で すでに ' + all + '件★'); process.exit(1); }
   console.log('  ok  今は 2件＝素通しにすれば 4件になり ②が赤になる');
 }

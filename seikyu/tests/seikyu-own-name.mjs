@@ -138,23 +138,23 @@ await TA('★③ 取引先が0社でも この画面の中だけで相手を作�
 });
 
 await TA('★④ 会社名を1つ答えたら、その場で相手が出来て この請求書の相手になる', async () => {
-  $('pt-new-name').value = '八木工業 株式会社';
+  $('pt-new-name').value = '例野工業 株式会社';
   $('b-pt-new').click();
   await sleep(40);
   const st = win.SeikyuApp._state;
   eq(st.partners.length, 1, '★相手が出来ていない★');
-  eq((st.partners[0].data || {}).name, '八木工業 株式会社', '名前が違う');
+  eq((st.partners[0].data || {}).name, '例野工業 株式会社', '名前が違う');
   eq((st.partners[0].data || {}).honor, '御中', '★敬称が空＝紙の宛名が尻切れになる★');
   ok(st.cur && st.cur.partner_id === st.partners[0].id, '★作ったのに この請求書の相手になっていない★');
   eq($('e-partner').value, st.partners[0].id, '★画面の「だれに」が その相手になっていない★');
   const msg = ($('pt-new-msg').textContent || '');
-  ok(/八木工業/.test(msg), '★何が起きたかを その場で言っていない★ ' + JSON.stringify(msg));
+  ok(/例野工業/.test(msg), '★何が起きたかを その場で言っていない★ ' + JSON.stringify(msg));
   ok($('pt-new').style.display === 'none', '★相手が居るのに 作る口が出たまま★');
 });
 
 await TA('★⑤ 同じ名前の相手を2つ作らない', async () => {
   const before = win.SeikyuApp._state.partners.length;
-  const r = await win.SeikyuApp._state.store.partners.create({ name: '八木工業 株式会社' });
+  const r = await win.SeikyuApp._state.store.partners.create({ name: '例野工業 株式会社' });
   ok(r.ok, '作れなかった: ' + r.reason);
   ok(r.already, '★同じ名前なのに 新しく作った★');
   const list = await win.SeikyuApp._state.store.partners.list();

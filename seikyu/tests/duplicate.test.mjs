@@ -37,7 +37,7 @@ const SRC = {
   tax_mode: 'exclusive', rounding: 'floor',
   lines: [{ name: '運転代行 8月分', qty: '1', unit: '式', price: '30000', rate: 10, extra: { 行き先: '桜井' } }],
   totals: { grandTotal: 33000, taxTotal: 3000 },
-  snapshot: { partner: { name: '八木工業' }, at: '2026-08-05' },
+  snapshot: { partner: { name: '例野工業' }, at: '2026-08-05' },
   template_id: 'koujo',
   data: {
     subject: '8月分', memo: 'いつもありがとうございます', gensen: true,
@@ -122,7 +122,7 @@ if (JSDOM) {
   await new Promise((r) => setTimeout(r, 300));
   doc.getElementById('app').hidden = false;
   const A = win.SeikyuApp, St = A._state;
-  St.partners = [{ id: 'p1', data: { name: '八木工業', honor: '御中' } }];
+  St.partners = [{ id: 'p1', data: { name: '例野工業', honor: '御中' } }];
   St.invoices = [SRC];
   St.receipts = [{ id: 'r1', invoice_id: 'iv1', ymd: '2026-09-01', amount: 33000 }];
   St.store = {

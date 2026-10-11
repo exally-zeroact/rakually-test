@@ -45,7 +45,7 @@ const ch = await borrow('maisuu', 'chromium');
 if (!ch) { console.log('🟡 ★未測定★ playwright を 借りられない（0件＝合格 とは 書かない）'); process.exit(2); }
 
 const L = (i) => ({ name: 'エアコン取付工事 ' + (i + 1), qty: '1', unit: '式',
-  price: '19000', amount: '19000', rate: 10, memo: '東予市 川本邸' });
+  price: '19000', amount: '19000', rate: 10, memo: '東予市 灰原邸' });
 const DED = [{ name: '弁当代', amount: '7310' }, { name: '健康診断代', amount: '10164' }];
 const BANK = 'サンプル銀行 サンプル支店 普通 1234567 カ）サンプル\n'
   + 'テスト銀行 テスト支店 当座 7654321 カ）サンプル';
@@ -59,7 +59,7 @@ function tsukuru(id, n) {
   return PAPER.build({
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal }, data: { deductions: dl } },
-    tax: t, partner: { name: '黒田空調', honor: '御中' },
+    tax: t, partner: { name: '型見空例', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: BANK },
     template: tp, templateId: id, theme: tp.theme,

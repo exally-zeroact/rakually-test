@@ -3,7 +3,7 @@
  * ★なぜ（2026-09-02・実物45枚を 機械で 読んだ）★
  *   実物（OneDrive/ZEROact税理士/2025/25.ZEROact PDF・16社45枚）は
  *   ★相手ごとに 振込先の数が 違う★ … 1行18枚／3行25枚／4行1枚／6行1枚
- *   ★ENEOSは 同じ相手なのに 月で 3→4→6行と 変えている★
+ *   ★XEMOSは 同じ相手なのに 月で 3→4→6行と 変えている★
  *   直す前に 測ったら … ★6口座で 口座番号「4166212」が 丸ごと 消えていた★
  *   `.sheet{overflow:hidden}` なので ★はみ出した字は 黙って 切れる★＝
  *   ★数字は 全部 緑のまま★（[[feedback_numbers_green_but_open_the_picture]]）。
@@ -54,13 +54,13 @@ function paperHtml(bankN, rows, ded, tplId, waku) {
     inv: { no: 'A-0001', issue_ymd: '2026-09-02', kind: 'invoice', lines,
       totals: { grandTotal: tax.grandTotal }, data: {} },
     tax,
-    partner: { name: 'ENEOSグローブエナジー株式会社', honor: '御中' },
+    partner: { name: 'XEMOSミナモトパワーズ株式会社', honor: '御中' },
     org: { yago: '合同会社ZEROact', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T9000000000009', bank: accounts(bankN).join('\n') },
     template: TPL.getOrDefault(tplId),
     paperRows: waku,
     deduct: ded ? 11340 : 0,
-    deductLines: ded ? [{ name: '弁当代 矢原', amount: 11340 }] : [],
+    deductLines: ded ? [{ name: '弁当代 紅林', amount: 11340 }] : [],
   });
   return (typeof built === 'string') ? built : (built.html || '');
 }

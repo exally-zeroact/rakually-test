@@ -56,9 +56,9 @@ const L = (na, kin, genba) => ({ name: na, qty: '1', unit: '式', price: String(
   amount: String(kin), rate: 10, memo: genba });
 /* ★長い 数字と 長い 現場名★＝詰めた時に 危ない物を わざと 使う */
 const LINES = [
-  L('エアコン取付工事', 428000, '東予市 川本邸'),
-  L('冷媒配管 交換', 135000, '鳥越ハンカチ'),
-  L('定期点検', 8000, '菊水ホテル'),
+  L('エアコン取付工事', 428000, '東予市 灰原邸'),
+  L('冷媒配管 交換', 135000, '紫野ハンカチ'),
+  L('定期点検', 8000, '翠川ホテル'),
 ];
 function htmlOf(id) {
   const t = TAX.compute({ lines: LINES, taxMode: 'exclusive', rounding: 'floor' });
@@ -68,7 +68,7 @@ function htmlOf(id) {
   return PAPER.build({
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: LINES,
       totals: { grandTotal: t.grandTotal }, data: { deductions: dl } },
-    tax: t, partner: { name: '黒田空調', honor: '御中' },
+    tax: t, partner: { name: '型見空例', honor: '御中' },
     org: { yago: '合同会社Rakunally', bank: '伊予銀行 見本支店 普通 1234567' },
     template: tp, templateId: id, theme: tp.theme,
     cols: COLS.normalizeSpec(tp.cols),

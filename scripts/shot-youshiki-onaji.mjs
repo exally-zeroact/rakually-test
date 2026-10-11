@@ -32,16 +32,16 @@ const KOUJO = 3000;   /* ★控除を 渡した 時★＝差が 出るなら こ
 
 function html(id) {
   const lines = [
-    { name: '基礎工事', qty: '1', unit: '式', price: '120000', amount: '120000', rate: 10, memo: '東予市 川本邸' },
-    { name: '配管工事', qty: '2', unit: '式', price: '45000', amount: '90000', rate: 10, memo: '菊水ホテル' },
-    { name: '諸経費', qty: '1', unit: '式', price: '18000', amount: '18000', rate: 10, memo: '鳥越ハンカチ' },
+    { name: '基礎工事', qty: '1', unit: '式', price: '120000', amount: '120000', rate: 10, memo: '東予市 灰原邸' },
+    { name: '配管工事', qty: '2', unit: '式', price: '45000', amount: '90000', rate: 10, memo: '翠川ホテル' },
+    { name: '諸経費', qty: '1', unit: '式', price: '18000', amount: '18000', rate: 10, memo: '紫野ハンカチ' },
   ];
   const t = TAX.compute({ lines, taxMode: 'exclusive', rounding: 'floor' });
   const tp = TPL.getOrDefault(id);
   return PAPER.build({
     inv: { no: '202609-001', issue_ymd: '2026-09-13', kind: 'invoice', lines,
       totals: { grandTotal: t.grandTotal }, data: {} },
-    tax: t, partner: { name: '八木工業', honor: '御中' },
+    tax: t, partner: { name: '例野工業', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: '伊予銀行 見本支店 普通 1234567' },
     template: tp, templateId: id, theme: tp.theme,

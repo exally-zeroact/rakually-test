@@ -67,7 +67,7 @@ function paperOf(pid) {
 }
 function reset() {
   S.partners = [
-    { id: 'yagi', data: { name: '八木工業株式会社', honor: '御中' } },
+    { id: 'reno', data: { name: '例野工業株式会社', honor: '御中' } },
     { id: 'daiko', data: { name: '△△代行株式会社', honor: '御中' } },
   ];
   S.list = [];
@@ -77,33 +77,33 @@ function reset() {
 console.log('\n[scope-ui] 相手ごとの上書きを 本物の紙で 確かめる');
 
 reset();
-const BASE_YAGI = paperOf('yagi');
+const BASE_RENO = paperOf('reno');
 const BASE_DAIKO = paperOf('daiko');
 
 T('★① 上書きが 1つも無い時、2人の紙は 会社の既定どおり（今までと同じ）', () => {
-  ok(BASE_YAGI.length > 500 && BASE_DAIKO.length > 500, '紙が作れていない');
+  ok(BASE_RENO.length > 500 && BASE_DAIKO.length > 500, '紙が作れていない');
   /* 相手の名前だけ違う＝作りは 同じ */
-  const strip = (s2) => s2.replace(/八木工業株式会社|△△代行株式会社/g, '（相手）');
-  eq(strip(BASE_YAGI), strip(BASE_DAIKO), '★上書きが無いのに 2人の紙が 違う★');
+  const strip = (s2) => s2.replace(/例野工業株式会社|△△代行株式会社/g, '（相手）');
+  eq(strip(BASE_RENO), strip(BASE_DAIKO), '★上書きが無いのに 2人の紙が 違う★');
   console.log('     2人とも 会社の既定の紙（相手名を除いて 完全に同じ）');
 });
 
-T('★② 八木工業だけ 上書き（摘要の列・行数20・件名を出す）', () => {
+T('★② 例野工業だけ 上書き（摘要の列・行数20・件名を出す）', () => {
   S.partners[0].data.paper = {
     cols: { items: ['#', '品名・内容', '数量', '単位', '単価', '金額', '摘要'] },
     paperRows: 20, subjectOn: true,
   };
-  const y = paperOf('yagi');
+  const y = paperOf('reno');
   ok(/摘要/.test(y), '★相手の列が 紙に出ていない★');
-  ok(!/摘要/.test(BASE_YAGI), '前提が崩れている（既定にも 摘要が在る）');
+  ok(!/摘要/.test(BASE_RENO), '前提が崩れている（既定にも 摘要が在る）');
   ok(/ZZ件名ZZ/.test(y), '★相手の「件名を出す」が 効いていない★');
-  ok(!/ZZ件名ZZ/.test(BASE_YAGI), '前提が崩れている（既定でも 件名が出る）');
-  console.log('     八木の紙 … 摘要の列 ○ ／ 件名 ○');
+  ok(!/ZZ件名ZZ/.test(BASE_RENO), '前提が崩れている（既定でも 件名が出る）');
+  console.log('     例野の紙 … 摘要の列 ○ ／ 件名 ○');
 });
 
 T('★③ ★相手Bの紙は 1文字も 変わっていない★（片方を直して 全部が変わる、を作らない）', () => {
   const d = paperOf('daiko');
-  eq(d, BASE_DAIKO, '★八木を直したら 代行の紙まで 変わった★');
+  eq(d, BASE_DAIKO, '★例野を直したら 代行の紙まで 変わった★');
   console.log('     代行の紙 … ' + d.length + '字（前と 1文字も 同じ）');
 });
 
@@ -142,7 +142,7 @@ const set = (id, v) => {
 
 T('★⑥ 画面の欄で「この相手だけの紙」を 決められる（欄が 実在する）', () => {
   reset();
-  goSet('yagi');
+  goSet('reno');
   ['s-ptpl', 's-prows', 's-psubject', 'b-pcols-own'].forEach((id) => {
     ok(doc.getElementById(id), '★' + id + ' が 画面に 無い＝客は 決められない★');
   });
@@ -154,7 +154,7 @@ T('★⑥ 画面の欄で「この相手だけの紙」を 決められる（欄
 
 T('★⑦ 欄を 選ぶと その場で 相手に 入る（保存を押すまで 何も起きない、にしない）', () => {
   reset();
-  goSet('yagi');
+  goSet('reno');
   set('s-prows', '20');
   set('s-psubject', 'on');
   const pp = win.SeikyuScope.partnerPaper(S.partners[0]);
@@ -162,12 +162,12 @@ T('★⑦ 欄を 選ぶと その場で 相手に 入る（保存を押すまで
   eq(pp.subjectOn, true, '★件名の決めが 入っていない★');
   /* ★相手Bには 入っていない★ */
   eq(win.SeikyuScope.hasOverride(S.partners[1]), false, '★よその相手にまで 入れている★');
-  console.log('     八木だけに 入った（代行は 上書き0）');
+  console.log('     例野だけに 入った（代行は 上書き0）');
 });
 
 T('★⑧ 「この相手だけの列にする」を押すと 会社の今の列を 写して 持つ', () => {
   reset();
-  goSet('yagi');
+  goSet('reno');
   const b = doc.getElementById('b-pcols-own');
   b.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
   const pp = win.SeikyuScope.partnerPaper(S.partners[0]);
@@ -187,14 +187,14 @@ if (process.argv.includes('--self-test')) {
   console.log('\n[--self-test] ★わざと壊すと 赤になるか★');
   T('★自① 上書きを 消したら 会社の既定に 戻る（＝上書きが 効いている証拠）', () => {
     delete S.partners[0].data.paper;
-    const y = paperOf('yagi');
+    const y = paperOf('reno');
     ok(!/摘要/.test(y), '★上書きを 消しても 摘要が 残っている★');
-    eq(y, BASE_YAGI, '★消しても 元に戻らない★');
+    eq(y, BASE_RENO, '★消しても 元に戻らない★');
     console.log('     消したら 元の紙に 戻った');
   });
   T('★自② 相手を 取り違えたら 気づける（別の相手の上書きが 出たら 赤）', () => {
     S.partners[1].data.paper = { cols: { items: ['#', '品名・内容', 'ZZ別の列ZZ'] } };
-    const y = paperOf('yagi');
+    const y = paperOf('reno');
     ok(!/ZZ別の列ZZ/.test(y), '★よその相手の列が 出ている★');
     const d = paperOf('daiko');
     ok(/ZZ別の列ZZ/.test(d), '★その相手の列が 出ていない＝この検査は 空振り★');

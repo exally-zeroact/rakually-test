@@ -13,7 +13,7 @@ const req = (f) => import('file://' + ROOT + '/seikyu/lib/' + f).then((m) => m.d
 const PAPER = await req('seikyu-paper.js'), TPL = await req('seikyu-templates.js');
 const TAX = await req('seikyu-tax.js'), COLS = await req('seikyu-cols.js');
 const A4 = 1122.5;
-const GENBA = ['東予市 川本邸', '菊水ホテル', '鳥越ハンカチ'];
+const GENBA = ['東予市 灰原邸', '翠川ホテル', '紫野ハンカチ'];
 
 function html(id, n) {
   const ln = Array.from({ length: n }, (_, i) => ({
@@ -25,7 +25,7 @@ function html(id, n) {
   return PAPER.build({
     inv: { no: '202609-001', issue_ymd: '2026-09-10', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal }, data: {} },
-    tax: t, partner: { name: '八木工業', honor: '御中' },
+    tax: t, partner: { name: '例野工業', honor: '御中' },
     org: { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
       invoiceNo: 'T1234567890123', bank: '伊予銀行 見本支店 普通 1234567' },
     template: tp, templateId: id, theme: tp.theme,

@@ -90,7 +90,7 @@ function makeSb() {
     tables: {
       pay_org: [{ account_id: 'u1', data: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台4-5-6', tel: '090-0000-0000', invoiceNo: 'T1234567890123' }, updated_at: '2026-08-01T00:00:00Z' }],
       pay_partners: [
-        { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: '藤原建設株式会社', keisho: '御中', addr: '東京都架空区見本台1-2-3', invoiceNo: 'T9876543210987' }, deleted_at: null },
+        { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: '標様建設株式会社', keisho: '御中', addr: '東京都架空区見本台1-2-3', invoiceNo: 'T9876543210987' }, deleted_at: null },
         { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: '株式会社しまなみ', keisho: '様', addr: '東京都架空区見本台1-1' }, deleted_at: null },
       ],
       pay_invoices: [],
@@ -448,7 +448,7 @@ await TA('2. ★発行すると固まる（写しが入り、状態が発行済�
   const row = db.pay_invoices[0];
   eq(row.status, 'issued');
   ok(row.issued_at, '発行時刻が入っていない');
-  eq(row.snapshot.partner.name, '藤原建設株式会社', '写しの宛先');
+  eq(row.snapshot.partner.name, '標様建設株式会社', '写しの宛先');
   eq(row.snapshot.partner.honor, '御中', '写しの敬称（hubのkeishoを読めていない）');
   eq(row.snapshot.org.yago, '株式会社ゼロアクト', '写しの自社');
   eq(row.template_id, 'std1', '様式');
@@ -601,7 +601,7 @@ await TA('3. ★「中身を見る」で紙の下見が出る（アプリの画�
   await sleep(400);
   const src = $('pv').srcdoc || '';
   ok(/請　求　書/.test(src), '紙になっていない');
-  ok(/藤原建設株式会社/.test(src), '宛先が出ていない');
+  ok(/標様建設株式会社/.test(src), '宛先が出ていない');
   ok(!/botnav|appbar|b-issue/.test(src), 'アプリの画面が紙に混ざっている');
   ok($('pv-wrap').style.display !== 'none', '下見の枠が出ていない');
 });
@@ -652,12 +652,12 @@ await TA('3. ★Excelは正しい種類で落ちる（iPhoneで開けない octe
   await sleep(10);
   ok($('fn-ov').classList.contains('open'), 'ファイル名を見せていない');
   ok(/\.xlsx$/.test($('fn-input').value + '.xlsx'), '');
-  $('fn-input').value = '20260930_藤原建設_請求書_346';
+  $('fn-input').value = '20260930_標様建設_請求書_346';
   $('fn-ok').click();
   await sleep(60);
   ok(anchorClicks.length === n0 + 1, '落ちていない');
   const a = anchorClicks[anchorClicks.length - 1];
-  eq(a.download, '20260930_藤原建設_請求書_346.xlsx', '直した名前で落ちていない');
+  eq(a.download, '20260930_標様建設_請求書_346.xlsx', '直した名前で落ちていない');
   eq(a.target, '_blank', '★ホーム画面アプリで戻れなくなる（target=_blank が無い）★');
   const d = delivered[delivered.length - 1];
   eq(d.type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'ファイルの種類');
@@ -786,7 +786,7 @@ await TA('6. ★取引先に請求書用の項目を足しても、ハブが入�
   eq(d.code, 'A001');
   eq(d.person, '山田');
   eq(d.payTerm.kind, 'nextEom');
-  eq(d.name, '藤原建設株式会社', '★ハブが入れた名前が消えた★');
+  eq(d.name, '標様建設株式会社', '★ハブが入れた名前が消えた★');
   eq(d.addr, '東京都架空区見本台1-2-3', '★ハブが入れた住所が消えた★');
   eq(d.invoiceNo, 'T9876543210987', '★ハブが入れた登録番号が消えた★');
   eq(d.keisho, d.honor, '敬称が2つのキーで食い違っている（ハブの画面で化ける）');
@@ -1797,7 +1797,7 @@ async function newInvoiceFor(pid, ymd) {
 }
 
 await TA('13-a. ★実物の形：単価の列が無くても 金額を直に打てる（実物9枚がこの形）', async () => {
-  db.pay_partners.push({ id: 'pt_e', account_id: 'u1', sort: 40, data: { name: 'ENEOSグローブエナジー株式会社', keisho: '御中' }, deleted_at: null });
+  db.pay_partners.push({ id: 'pt_e', account_id: 'u1', sort: 40, data: { name: 'XEMOSミナモトパワーズ株式会社', keisho: '御中' }, deleted_at: null });
   await win.SeikyuApp._loadMasters(); await sleep(30);
   await newInvoiceFor('pt_e', '2026-08-01');
   // ★税率を選ぶ所は 紙に税率の列が無くても 入力には必ず在る★
@@ -1808,7 +1808,7 @@ await TA('13-a. ★実物の形：単価の列が無くても 金額を直に打
   $('b-addline').click(); await sleep(30);
   setLine(1, 'name', 'エアコン取替'); setLine(1, 'qty', '1'); setLine(1, 'unit', '式'); setLine(1, 'amount', '15000');
   await sleep(80);
-  // ★手計算＝実物 ENEOS★ 20,000＋15,000＝35,000 ／ 税3,500 ／ 合計38,500
+  // ★手計算＝実物 XEMOS★ 20,000＋15,000＝35,000 ／ 税3,500 ／ 合計38,500
   const tot = $('tot-box').textContent.replace(/\s+/g, '');
   ok(tot.includes('35,000'), '小計が実物と違う: ' + tot);
   ok(tot.includes('3,500'), '消費税が実物と違う: ' + tot);
@@ -1856,11 +1856,11 @@ await TA('13-c. ★この1通だけ「税込で入れる」に変えられる（
   eq(st.cur.tax_mode, 'exclusive');
 });
 
-let yagiInv = null;
+let renoInv = null;
 
-await TA('13-d. ★★控除の箱＝税込から引く／消費税は動かない（八木 281,260）★★', async () => {
+await TA('13-d. ★★控除の箱＝税込から引く／消費税は動かない（例野 281,260）★★', async () => {
   const st = win.SeikyuApp._state;
-  db.pay_partners.push({ id: 'pt_y', account_id: 'u1', sort: 41, data: { name: '八木工業 株式会社', keisho: '御中' }, deleted_at: null });
+  db.pay_partners.push({ id: 'pt_y', account_id: 'u1', sort: 41, data: { name: '例野工業 株式会社', keisho: '御中' }, deleted_at: null });
   await win.SeikyuApp._loadMasters(); await sleep(30);
   await newInvoiceFor('pt_y', '2026-07-21');
   // ★人工（常傭）＝数量×単価★ 実物は単価を式に直書きしているが、器では ふつうの1行
@@ -1876,7 +1876,7 @@ await TA('13-d. ★★控除の箱＝税込から引く／消費税は動かな�
   $('b-ded-add').click(); await sleep(40);
   const dn = $('ded-list').querySelector('[data-dn="0"]'), da = $('ded-list').querySelector('[data-da="0"]');
   ok(dn && da, '控除の行が出ていない');
-  dn.value = '弁当代　矢原'; dn.dispatchEvent(new win.Event('input'));
+  dn.value = '弁当代　紅林'; dn.dispatchEvent(new win.Event('input'));
   da.value = '11340'; da.dispatchEvent(new win.Event('input'));
   await sleep(100);
   tot = $('tot-box').textContent.replace(/\s+/g, '');
@@ -1886,13 +1886,13 @@ await TA('13-d. ★★控除の箱＝税込から引く／消費税は動かな�
 
   $('b-issue').click(); await sleep(180);
   eq(st.cur.status, 'issued', '発行できていない: ' + $('edit-err').textContent);
-  yagiInv = st.cur.id;
-  const row = db.pay_invoices.find((x) => x.id === yagiInv);
+  renoInv = st.cur.id;
+  const row = db.pay_invoices.find((x) => x.id === renoInv);
   eq(row.totals.gross, 292600, '倉庫の「小計＋消費税」');
   eq(row.totals.deduct, 11340, '倉庫の控除');
   eq(row.totals.grandTotal, 281260, '★倉庫の請求額（＝入金の残りが見る数）★');
   eq(row.totals.taxTotal, 26600, '倉庫の消費税が動いた');
-  eq(row.totals.deductLines[0].name, '弁当代　矢原', '何を引いたかが残っていない');
+  eq(row.totals.deductLines[0].name, '弁当代　紅林', '何を引いたかが残っていない');
 });
 
 await TA('13-e. ★★控除が在る紙でも、全額もらえば「残り」が0になる★★', async () => {
@@ -1905,7 +1905,7 @@ await TA('13-e. ★★控除が在る紙でも、全額もらえば「残り」�
   // 一覧でも「入金済」
   doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(40);
   doc.querySelector('#fil-seg [data-fil="issued"]').click(); await sleep(40);
-  const row = [...$('list-body').querySelectorAll('[data-open]')].find((b) => b.getAttribute('data-open') === yagiInv);
+  const row = [...$('list-body').querySelectorAll('[data-open]')].find((b) => b.getAttribute('data-open') === renoInv);
   const card2 = row && (row.closest('.iv-card') || row);   /* ★字は カードの側★ */
   ok(card2 && /入金済/.test(card2.textContent), '★一覧が未入金のまま★: ' + (card2 && card2.textContent));
 });

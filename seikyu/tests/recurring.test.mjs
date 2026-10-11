@@ -51,7 +51,7 @@ const INV = [
   mk('l', 'p6', '2026-06', 'issued', 'quote'), mk('m', 'p6', '2026-07', 'issued', 'quote'), // 見積だけ
 ];
 const PT = [
-  { id: 'p1', data: { name: '八木工業' } }, { id: 'p2', data: { name: '黒田空調' } },
+  { id: 'p1', data: { name: '例野工業' } }, { id: 'p2', data: { name: '型見空例' } },
   { id: 'p3', data: { name: '一度きり' } }, { id: 'p4', data: { name: 'もう出した' } },
   { id: 'p5', data: { name: 'とびとび' } }, { id: 'p6', data: { name: '見積だけ' } },
 ];
@@ -61,13 +61,13 @@ console.log('\n[recurring] 毎月の請求（今月まだの相手）');
 
 await T('★① 連続2か月 出している相手だけ 出す', () => {
   const d = due();
-  eq(d.map((x) => x.name).join(','), '八木工業', '出た相手: ' + d.map((x) => x.name).join(','));
+  eq(d.map((x) => x.name).join(','), '例野工業', '出た相手: ' + d.map((x) => x.name).join(','));
   eq(d[0].run, 2, '連続の月数');
   console.log('     ' + d[0].name + ' … ' + d[0].lastYm + 'まで ' + d[0].run + 'か月／前回 ' + d[0].lastNo);
 });
 
 await T('★② 今月 下書きが在る相手は 出さない（二重に作らせない）', () => {
-  ok(!due().some((x) => x.name === '黒田空調'), '★下書きが在るのに 出している★');
+  ok(!due().some((x) => x.name === '型見空例'), '★下書きが在るのに 出している★');
 });
 
 await T('★③ もう出した相手・1回きり・とびとびは 出さない', () => {
@@ -84,13 +84,13 @@ await T('★④ 見積は 数に入れない（見積を毎月出しても 請�
 await T('★⑤ 取り消した紙も「今月 在る」に数える（気づいていない ではない）', () => {
   const inv = INV.concat([mk('z', 'p1', '2026-08', 'void')]);
   const d = RC.dueList({ invoices: inv, partners: PT, ym: '2026-08' });
-  ok(!d.some((x) => x.name === '八木工業'), '★一度 作って消した相手に また催促している★');
+  ok(!d.some((x) => x.name === '例野工業'), '★一度 作って消した相手に また催促している★');
 });
 
 await T('★⑥ 月をまたいでも 効く（9月になれば また出る）', () => {
   const inv = INV.concat([mk('n', 'p1', '2026-08')]);
   const d = RC.dueList({ invoices: inv, partners: PT, ym: '2026-09' });
-  ok(d.some((x) => x.name === '八木工業'), '9月に 出ていない');
+  ok(d.some((x) => x.name === '例野工業'), '9月に 出ていない');
 });
 
 await T('★⑦ 年をまたいでも 月の計算が 合う', () => {
@@ -128,7 +128,7 @@ if (JSDOM) {
   const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
   const prev = RC.shift(ym, -1), prev2 = RC.shift(ym, -2);
   St.invoices = [mk('p', 'p1', prev2), mk('q', 'p1', prev)];
-  St.partners = [{ id: 'p1', data: { name: '八木工業', honor: '御中' } }];
+  St.partners = [{ id: 'p1', data: { name: '例野工業', honor: '御中' } }];
   St.receipts = []; St.kind = 'invoice'; St.fil = 'all';
   St.org = { yago: '合同会社Rakunally' };
   St.store = {
@@ -141,7 +141,7 @@ if (JSDOM) {
 
   await T('★⑧ 一覧に「今月まだ」が 出ている（実UI）', () => {
     const t = txt('rec-box');
-    ok(/八木工業/.test(t), '★相手が 出ていない★：' + t.slice(0, 80));
+    ok(/例野工業/.test(t), '★相手が 出ていない★：' + t.slice(0, 80));
     ok(/まだ/.test(t), '★まだ、と 言っていない★');
     ok(doc.querySelector('[data-rec]'), '★押す物が 無い★');
     console.log('     ' + t.slice(0, 90));

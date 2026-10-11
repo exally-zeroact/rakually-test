@@ -18,14 +18,14 @@ async function measure(id, memoAri, rows) {
   const n = PAPER.PAPER_ROWS;
   const ln = Array.from({ length: rows }, (_, i) => ({
     name: '工事代金' + (i + 1), qty: '1', unit: '式', price: '10000', amount: '10000', rate: 10,
-    memo: memoAri ? '東予市 川本邸（' + (i + 1) + '回目）' : '',
+    memo: memoAri ? '東予市 灰原邸（' + (i + 1) + '回目）' : '',
   }));
   const t = TAX.compute({ lines: ln, taxMode: 'exclusive', rounding: 'floor' });
   const tp = TPL.getOrDefault(id);
   const html = PAPER.build({
     inv: { no: 'X-1', issue_ymd: '2026-09-09', kind: 'invoice', lines: ln,
       totals: { grandTotal: t.grandTotal }, data: {} },
-    tax: t, partner: { name: '八木工業', honor: '御中' },
+    tax: t, partner: { name: '例野工業', honor: '御中' },
     org: { yago: '合同会社Rakunally', bank: '（見本）銀行 ◯◯支店 普通 1234567' },
     template: tp, templateId: id, theme: tp.theme,
     cols: COLS.normalizeSpec(tp.cols), deduct: 0, deductLines: [],

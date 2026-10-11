@@ -35,8 +35,8 @@ if (!h || h.ok === false) { console.log('🟡 ★未測定★ 入れなかった
 /* ★取引先が 多い時★を 画面に 積む（倉庫は 触らない＝画面の 中だけ） */
 const tsunda = await pg.evaluate(() => {
   const A = window.SeikyuApp, S = A._state;
-  const NA = ['八木工業', '黒田空調', '藤原建設', '菊水ホテル', '鳥越ハンカチ',
-    '今治タオル', '大西電設', '波方運送'];
+  const NA = ['例野工業', '型見空例', '標様建設', '翠川ホテル', '紫野ハンカチ',
+    '今治タオル', '黄島電設', '碧山運送'];
   const YM = ['2026-09', '2026-08', '2026-07'];
   S.partners = NA.map((n, i) => ({ id: 'p' + i, data: { name: n } }));
   S.invoices = [];

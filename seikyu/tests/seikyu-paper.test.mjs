@@ -56,7 +56,7 @@ function sample(over) {
       data: { subject: '9月分 運転代行ご利用料金', memo: '振込手数料は貴社にてご負担ください' },
     },
     tax,
-    partner: { name: '藤原建設株式会社', keisho: '御中', person: '山田', zip: '100-0000', addr: '東京都架空区見本台1-2-3', invoiceNo: 'T9876543210987' },
+    partner: { name: '標様建設株式会社', keisho: '御中', person: '山田', zip: '100-0000', addr: '東京都架空区見本台1-2-3', invoiceNo: 'T9876543210987' },
     org: { yago: '株式会社ゼロアクト', addr: '東京都架空区見本台4-5-6', tel: '090-0000-0000', invoiceNo: 'T1234567890123', bank: '伊予銀行 見本支店 普通 1234567' },
   }, over || {});
 }
@@ -170,7 +170,7 @@ T('★発行済みは「写しの宛先」で刷る（マスタを直しても�
   });
   const h = PAPER.build({ inv: S1.inv, tax: S1.tax, partner: snap.partner, org: snap.org }).html;
   ok(/写しの名前 株式会社/.test(h), '写しの名前で刷られていない');
-  ok(!/藤原建設/.test(h), 'マスタの名前が混ざっている');
+  ok(!/標様建設/.test(h), 'マスタの名前が混ざっている');
   ok(/写しの自社/.test(h), '写しの自社情報が出ていない');
 });
 
@@ -288,7 +288,7 @@ T('★法定6項目が、列を自由にしても・様式を替えても紙に�
       ok(f.indexOf(PAPER.yen(b.tax).replace(/\s/g, '')) >= 0, id + ' ⑤' + b.pct + '% の消費税額が無い');
     });
     ok(t.byRate.length >= 2, '軽減税率の行が混ざっていない＝この検査が空振り');
-    ok(h.indexOf('藤原建設株式会社') >= 0, id + ' ⑥受け取る側の名称が無い');
+    ok(h.indexOf('標様建設株式会社') >= 0, id + ' ⑥受け取る側の名称が無い');
   }
 });
 
@@ -531,7 +531,7 @@ T('★★複数ページの決まり（何枚のうち何枚目・宛名は全�
     ok(flat.indexOf((i + 1) + ' / ' + many.pages + ' ページ') >= 0,
       '★' + (i + 1) + '枚目に「◯ / ◯ ページ」が無い（抜けに気づけない）★: ' + flat.slice(0, 80));
     // ★どの紙にも 宛名・番号・登録番号★（1枚だけ持って行っても誰宛か分かる）
-    ok(/藤原建設株式会社/.test(flat), (i + 1) + '枚目に宛名が無い');
+    ok(/標様建設株式会社/.test(flat), (i + 1) + '枚目に宛名が無い');
     ok(/202607-001/.test(flat), (i + 1) + '枚目に請求番号が無い');
     ok(/T1234567890123/.test(flat), (i + 1) + '枚目に登録番号が無い');
     const last = (i === sheets.length - 1);
@@ -989,7 +989,7 @@ T('★領収書でも 角印は出る（会社の印は受取書にも押す）'
 /* ── ★控除は紙にも出る★ ────────────────────────────────────────
    ★これを出し忘れると、画面は 281,260 なのに 紙は 292,600 と書く★
    ＝★請求している額と、紙に書いた額が食い違う★（2026-08-15 スクショで実際に見つけた）。
-   ★実物★ 八木工業：266,000 ＋ 26,600 ＝ 292,600 − 弁当代 11,340 ＝ 281,260 */
+   ★実物★ 例野工業：266,000 ＋ 26,600 ＝ 292,600 − 弁当代 11,340 ＝ 281,260 */
 T('★★控除を引いた「請求額」が紙に出る（頭の金額も引いたあと）★★', () => {
   const lines = [{ name: '工事代金', qty: 140, price: 1900, rate: STD }];
   const tax = TAX.compute({ lines, taxMode: 'exclusive', rounding: 'floor' });
@@ -997,7 +997,7 @@ T('★★控除を引いた「請求額」が紙に出る（頭の金額も引�
     inv: { doc_type: 'invoice', no: '202607-001', issue_ymd: '2026-07-21', tax_mode: 'exclusive', rounding: 'floor', data: {} },
     tax,
     deduct: 11340,
-    deductLines: [{ name: '弁当代　矢原', amount: 11340 }],
+    deductLines: [{ name: '弁当代　紅林', amount: 11340 }],
   })).html;
   const flat = h.split('</head>')[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   ok(/¥266,000/.test(flat), '小計が出ていない');
@@ -1041,9 +1041,9 @@ T('★控除で消費税は動かない（税の外で引く）', () => {
 
 /* ── ★項目が少なくても 紙の顔を同じにする★ ────────────────────────
    うちの実物が すでにそうなっている（実測 2026-08-15）:
-     黒田空調 … 入っているのは6行／枠は12〜41行＝★30行★
-     ENEOS   … 入っているのは2行／枠は★同じ30行★
-     八木工業 … 控除の枠は E17:H20＝★4行★（1行しか使っていない）
+     型見空例 … 入っているのは6行／枠は12〜41行＝★30行★
+     XEMOS   … 入っているのは2行／枠は★同じ30行★
+     例野工業 … 控除の枠は E17:H20＝★4行★（1行しか使っていない）
    ★経理の人は「いつも同じ場所」を見る★。動くと毎回 探し直しになる。 */
 function framed(n, over) {
   const lines = Array.from({ length: n }, (_, i) => ({ name: '品目' + (i + 1), qty: 1, unit: '式', amount: 1000, rate: STD }));
@@ -1051,9 +1051,9 @@ function framed(n, over) {
   return PAPER.build(Object.assign({
     inv: { doc_type: 'invoice', no: '202607-001', issue_ymd: '2026-07-21', tax_mode: 'exclusive', rounding: 'floor', data: {} },
     tax,
-    partner: { name: '八木工業 株式会社', keisho: '御中' },
+    partner: { name: '例野工業 株式会社', keisho: '御中' },
     org: { yago: '合同会社ZEROact' },
-    deduct: 11340, deductLines: [{ name: '弁当代　矢原', amount: 11340 }],
+    deduct: 11340, deductLines: [{ name: '弁当代　紅林', amount: 11340 }],
   }, over || {}));
 }
 /* ★差し引きを1件も持たない紙★（既定＝出さない） */
@@ -1141,7 +1141,7 @@ T('★★既定の行数は「A4 1枚に収まると実測した数」から動�
      ★上限が 減るのでは ない★＝出す 空行が 減るだけ（多い時は 今までどおり 2枚目へ）。 */
   eq(PAPER.PAPER_ROWS, 16, '★控除なしの既定を測らずに変えた★');
   eq(PAPER.PAPER_ROWS_DED, 5, '★控除ありの既定を測らずに変えた★');
-  eq(PAPER.DEDUCT_ROWS, 4, '★差し引きの枠（実物 八木＝4行）を変えた★');
+  eq(PAPER.DEDUCT_ROWS, 4, '★差し引きの枠（実物 例野＝4行）を変えた★');
   ok(PAPER.PAPER_ROWS > PAPER.PAPER_ROWS_DED,
     '★差し引きを出す紙の方が 明細を多く載せている（高さが足りなくなる）★');
 });
@@ -1495,8 +1495,8 @@ T('★知らない形を渡されたら1カラムに倒す（黙って壊れな�
 T('★★宛先の下に住所を刷らない（名前と敬称・担当者だけ）★★', () => {
   const h = PAPER.build({ inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-09-30', data: {} },
     tax: S1.tax, org: S1.org,
-    partner: { name: '八木工業 株式会社', keisho: '御中', zip: '100-0000', addr: '東京都架空区見本台1-2-3', person: '山田' } }).html;
-  ok(/八木工業 株式会社/.test(h), '宛名が消えている');
+    partner: { name: '例野工業 株式会社', keisho: '御中', zip: '100-0000', addr: '東京都架空区見本台1-2-3', person: '山田' } }).html;
+  ok(/例野工業 株式会社/.test(h), '宛名が消えている');
   /* ★2026-08-29 直した★（司さん・指示役 ④の残り「敬称の自動判定」）
      ★担当者が居る時は 会社行に 御中を付けない★＝御中 と 様 の併記は ★二重敬称＝間違い★。
      前は ここで「御中が在る事」を 正としていた＝★間違いを 試験で 固定していた★。
@@ -1506,7 +1506,7 @@ T('★★宛先の下に住所を刷らない（名前と敬称・担当者だ�
   ok(/山田　様/.test(h) || /山田\s*様/.test(h), '★担当者に 様が 付いていない★');
   /* ★担当者が居ない時は 会社行に 御中★（片方だけ見て 直したと言わない） */
   const h2 = PAPER.build({ inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-09-30', data: {} },
-    tax: S1.tax, org: S1.org, partner: { name: '八木工業 株式会社', keisho: '御中' } });
+    tax: S1.tax, org: S1.org, partner: { name: '例野工業 株式会社', keisho: '御中' } });
   ok(/御中/.test(typeof h2 === 'string' ? h2 : (h2.html || '')), '★会社だけなのに 御中が 出ていない★');
   ok(!/東京都架空区見本台1-2-3/.test(h), '★宛先の下に住所が出ている★');
   ok(!/100-0000/.test(h), '★宛先の下に郵便番号が出ている★');
@@ -1612,7 +1612,7 @@ T('★★税込でも税抜でも、列を足した数と 合計行が1円も違
           if (!t.ok) continue;
           const b = PAPER.build({
             inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-07-21', tax_mode: taxMode, data: {} },
-            tax: t, partner: { name: '八木工業 株式会社', keisho: '御中' },
+            tax: t, partner: { name: '例野工業 株式会社', keisho: '御中' },
             org: { yago: '合同会社ZEROact', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
             deduct: 1000, deductLines: [{ name: '弁当代', amount: 1000 }],
           });
@@ -1690,7 +1690,7 @@ T('★★表の中は「このページの小計」・締めは「全ページ�
     const lines = Array.from({ length: n }, (_, i) => ({ name: '工事 ' + (i + 1), amount: 9500, rate: STD }));
     const t = TAX.compute({ lines, taxMode: 'exclusive', rounding: 'floor' });
     return PAPER.build({ inv: { doc_type: 'invoice', no: 'X', issue_ymd: '2026-07-21', tax_mode: 'exclusive', data: {} },
-      tax: t, partner: { name: '八木工業 株式会社', keisho: '御中' },
+      tax: t, partner: { name: '例野工業 株式会社', keisho: '御中' },
       org: { yago: '合同会社ZEROact', bank: '伊予銀行　見本支店　普通　1234567　ド）ゼロアクト' },
       deduct: 11340, deductLines: [{ name: '弁当代', amount: 11340 }] });
   };
