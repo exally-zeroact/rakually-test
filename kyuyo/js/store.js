@@ -946,6 +946,42 @@
      ★返り★ { ok, n }。★n は 消した 行数★＝★「消しました」と 言って 消えていない を 作らない★為。
      ★倉庫が 無い（オフライン/未ログイン）★… ★手元の 控えだけ 消して ok:true, souko:false★
        ＝★「次の 同期で 消える」とは 言わない★（★同期は 明細を 消さない★＝嘘に なる）。 */
+  /* ★★明細の 確定だけを 外す（数字は 作り直さない）★★（2026-10-12・司さん「外したとおり確定を外す」）
+     確定を 外した 後に 退職日・入社日を 直して その月に 在籍しなくなった 人の 明細は、毎回の 保存（在籍の 人だけ 送る）では 二度と 送られず、
+     クラウドに confirmed:true が 残って 賃金台帳・年末調整に 入り続けた。⇒ その 行の data.confirmed だけを false に する。
+     ★数字を 作り直さない 訳★＝在籍外の 月で 計算し直すと、confirmed を 見ずに 額を 読む 所（定時決定）に 変な 額が 入る。
+     行が 無ければ 何もしない（外す 確定が 無い）。倉庫で 落ちたら 投げる（明細の 保存と 同じ）。 */
+  Store.unconfirmPayslip = function(ym, employeeId){
+    var id = 'ps_'+ym+'_'+employeeId;
+    if(hasSupa){
+      /* ★開いた 直後の 読み込みを 待つ★（taiketsu 10-12＝savePayslip と 同じ。古い 写しで 判じて 後から 確定し直した 行を 外さない） */
+      var _mae = saveHold ? saveHold.then(function(){ return null; }, function(){ return null; }) : Promise.resolve(null);
+      return _mae.then(function(){ return sb.auth.getUser(); }).then(function(r){ var uid=r.data&&r.data.user&&r.data.user.id;
+        if(!uid){ var _ae=r&&r.error; var _ne=new Error(_ae ? 'つながりません（明細の 確定を 外せません）' : 'ログインしていません（明細の 確定を 外しません）'); _ne.noUser = !_ae || _ae.name==='AuthSessionMissingError'; throw _ne; }
+        return sb.from('pay_payslips').select('id,data,updated_at').eq('id', id).maybeSingle().then(function(g){
+          if(g && g.error) throw new Error((g.error.message)||'明細を 読めません');
+          var row = g && g.data; if(!row) return { ok:true, n:0 };
+          var d = Object.assign({}, row.data||{}); if(d.confirmed === false) return { ok:true, n:0 };
+          d.confirmed = false;
+          /* ★読んだ 時の updated_at で 絞る★（taiketsu 10-12＝読みと 書きの 間に 別の 端末が 書くと、古い 数字で 上書きした）／
+             ★.select('id') で 当たった 行を 数える★（0行でも error は 無い＝「通った」に しない）。0行なら 投げる＝次の 保存で 読み直して やり直す */
+          var _q = sb.from('pay_payslips').update({ data:d, updated_at:new Date().toISOString() }).eq('id', id);
+          if(row.updated_at) _q = _q.eq('updated_at', row.updated_at);
+          return _q.select('id').then(function(u){
+            if(u && u.error) throw new Error((u.error.message)||'明細の 確定を 外せません');
+            if(!(u && u.data && u.data.length)) throw new Error('明細の 確定を 外せません（読んだ 後に 変わりました）');
+            return { ok:true, n:1 };
+          });
+        });
+      });
+    }
+    var arr=psAll(); var i=arr.findIndex(function(x){ return x.id===id; });
+    if(i<0) return Promise.resolve({ ok:true, n:0 });
+    var d=Object.assign({}, arr[i].data||{}); if(d.confirmed===false) return Promise.resolve({ ok:true, n:0 });
+    d.confirmed=false; arr[i]=Object.assign({}, arr[i], { data:d });
+    try{ psWrite(arr); }catch(e){ return Promise.reject(e); }
+    return Promise.resolve({ ok:true, n:1 });
+  };
   Store.deletePayslipsOf = function(employeeId){
     if(!employeeId) return Promise.resolve({ ok:false, n:0, naze:'だれの 分か 分からない' });
     if(hasSupa){

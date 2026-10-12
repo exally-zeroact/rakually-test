@@ -397,12 +397,33 @@ if (!WAZA) {
           A.persistLoad(); await sleep(300);
           T('㉝ 開き直しても 端末に 控えが 残り 取り消しの 帯が 戻る', /確定の 取り消し/.test(obi()), '帯=' + obi() + '／端末=' + win.localStorage.getItem('payslip_hazushi_v1'));
         }
-        /* ㉞ ★外した 後に 退職日を 前に 直して その月に 居ない 人は「自動では 送れない」と 言い分ける★（taiketsu 10-12 C） */
+        /* ㉞ ★外した 後に 退職日を 前に 直して その月に 居ない 人も、外した とおり 確定を 外す★（司さん 10-12「外したとおり確定を外す」）
+           ＝明細の 数字は 作り直さず（在籍外の 月で 計算し直すと 定時決定の 読みに 変な 額が 入る）、倉庫の 行の confirmed だけを false に する（Store.unconfirmPayslip）。
+           通れば 帯が 消える／落ちたら 帯で 言う */
         win.Store.savePayslip = () => Promise.reject(new Error('倉庫で 落ちた'));
         const e32p = A.state.employees.find((x) => x.id === 'e32');
         if (e32p) { e32p.retired = true; e32p.taishokuYmd = '2000-01-31'; }
+        /* ★外した 人だけ★に 効く 事を 見る＝在籍の 人1人と、控えに 無い 在籍外の 確定の 人1人を 並べる（taiketsu 10-12 指摘5） */
+        const e34z = Object.assign(A.defEmp(), { id: 'e34z', name: '在籍の人', pref: '東京都', birthYmd: '1990-01-01', base: 250000 });
+        const e34k = Object.assign(A.defEmp(), { id: 'e34k', name: '控えに無い在籍外', pref: '東京都', birthYmd: '1990-01-01', base: 250000, retired: true, taishokuYmd: '2000-01-31' });
+        A.state.employees.push(e34z, e34k); A.state.confirmed[ym24] = A.state.confirmed[ym24] || {}; A.state.confirmed[ym24].e34k = true;
+        const ucMoto = win.Store.unconfirmPayslip; const ucYobi = [];
+        win.Store.unconfirmPayslip = (ym, id) => { ucYobi.push(ym + '|' + id); return Promise.reject(new Error('倉庫で 落ちた')); };
         A.persistSave(); await sleep(900);
-        T('㉞ その月に 居ない 人が 含まれる 時は 帯で「在籍」を 確かめる 様に 言う', /在籍/.test(obi()), '帯=' + obi());
+        T('㉞ 在籍外の 人は 確定だけを 外しに 行き、落ちたら 帯で 言う', ucYobi.some((x) => /\|e32$/.test(x)) && /確定の 取り消し/.test(obi()), '呼んだ=' + JSON.stringify(ucYobi) + '／帯=' + obi());
+        ucYobi.length = 0; win.Store.unconfirmPayslip = (ym, id) => { ucYobi.push(ym + '|' + id); return Promise.resolve({ ok: true }); };
+        A.persistSave(); await sleep(900);
+        T('㉞ 在籍外の 人の 確定を 外せたら 帯が 消える', ucYobi.some((x) => /\|e32$/.test(x)) && !/確定の 取り消し/.test(obi()), '呼んだ=' + JSON.stringify(ucYobi) + '／帯=' + obi());
+        T('㉞ 確定を 外しに 行くのは 外した 人（e32）だけ（在籍の 人・控えに 無い 確定の 人には 行かない）', ucYobi.length === 1 && /\|e32$/.test(ucYobi[0]), '呼んだ=' + JSON.stringify(ucYobi));
+        /* ㊴ ★先に 退職日を 直してから 月の 確定を 取り消しても、在籍外の 確定の 人を 外す★（taiketsu 10-12 指摘1） */
+        ucYobi.length = 0;
+        win.Store.savePayslip = () => Promise.resolve({});
+        A.state.confirmed[ym24].e34z = true;                                                  /* 在籍の 人も 確定＝「月の 確定を 取り消す」が 出る 形 */
+        A.renderInput(); const um39 = doc.querySelector('[data-undo-month]');
+        if (um39) { um39.click(); await okBtn(); await sleep(1200); }
+        T('㊴ 月の 取り消しで 在籍外の 確定の 人（e34k）も 確定から 外れ、確定だけを 外しに 行く', !!um39 && !(A.state.confirmed[ym24] && A.state.confirmed[ym24].e34k) && ucYobi.some((x) => /\|e34k$/.test(x)), '確定=' + JSON.stringify(A.state.confirmed[ym24]) + '／呼んだ=' + JSON.stringify(ucYobi));
+        win.Store.unconfirmPayslip = ucMoto;
+        A.state.employees = A.state.employees.filter((x) => x.id !== 'e34z' && x.id !== 'e34k');
         if (e32p) { e32p.retired = false; e32p.taishokuYmd = ''; }
         /* ㉟ ★月の 取り消しで 明細が 落ちたら 緑の「確定を取り消しました」を 出さない★（帯と 逆を 言わない） */
         const e35 = Object.assign(A.defEmp(), { id: 'e35', name: '月の人35', pref: '東京都', birthYmd: '1990-01-01', base: 250000 });

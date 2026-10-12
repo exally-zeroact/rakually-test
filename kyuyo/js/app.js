@@ -2177,12 +2177,12 @@
   function _hazushiOchiN(){ _hazushiSoji(); var n=0; for(var k in _hazushi){ if(_hazushi[k]==='ochi'||_hazushi[k]==='fumei') n++; } return n; }
   function _ymJi(ym){ var m=/^(\d{4})-(\d{2})$/.exec(String(ym||'')); return m ? (m[1]+'年'+(+m[2])+'月') : String(ym||''); }
   /* ★月を 名指しする★（taiketsu 10-12）＝送るのは 開いて いる 月だけ。別の 月に 居る 間に「次の 保存で 送り直します」と 言うと 嘘になる */
-  function _hazushiJi(){ var n=0, tsuki=[], inai=0, fumei=0; for(var k in _hazushi){ if(_hazushi[k]!=='ochi' && _hazushi[k]!=='fumei') continue; n++; if(_hazushi[k]==='fumei') fumei++; var p=k.split('|'); var j=_ymJi(p[0]); if(tsuki.indexOf(j)<0) tsuki.push(j);
-      /* ★その月に 在籍して いない 人（退職日を 前に 直した 等）は 明細が 送られない＝自動では 送れない★（taiketsu 10-12 C） */
-      var em=(state.employees||[]).filter(function(e){ return e && e.id===p.slice(1).join('|'); })[0]; if(em && !isActiveInMonth(em, p[0])) inai++; }
+  function _hazushiJi(){ var n=0, tsuki=[], fumei=0; for(var k in _hazushi){ if(_hazushi[k]!=='ochi' && _hazushi[k]!=='fumei') continue; n++; if(_hazushi[k]==='fumei') fumei++; var p=k.split('|'); var j=_ymJi(p[0]); if(tsuki.indexOf(j)<0) tsuki.push(j);
+      /* ★その月に 在籍して いない 人も 自動で 確定だけを 外しに 行く（_hazushiZaisekiGai・司さん 10-12）＝言い分けは 要らない★ */
+      }
     /* ★どの 月に 居ても 通る 1文★＋★閉じないで★（控えは 開き直すと 消える＝閉じると 誰も 送り直さない・taiketsu 10-12） */
     return '⚠ '+n+'名分の '+HAZUSHI_MEJIRUSHI+'（'+tsuki.join('・')+'）を '+(fumei===n ? 'クラウドに 保存できたか 確かめられて いません（賃金台帳・年末調整に まだ 確定のまま 入って いる かも しれません）。' : 'クラウドに 保存できていません（賃金台帳・年末調整には まだ 確定のまま 入っています）。')+'通信が 戻ったら、月を '+tsuki.join('・')+' に して 画面を 1回 押すと 送り直します。それまで この画面を 閉じないでください'
-      +(inai ? '。うち '+inai+'名は その月に 在籍して いない 為 自動では 送れません（入社日・退職日を 確かめて ください）' : ''); }
+      ; }
   /* ★帯は 前の 字を 消さずに 後ろへ 足す★（taiketsu 10-12）＝「閉じないで」（印が 書けない）や「別の端末で 更新」を 上書きすると 前からの 守りが 消える。
      消す 時も 取り消しの 部分だけを 外す。★札でなく 帯★＝月の 取り消しは 後から「Web明細から 下げました」の 札を 出す（札は 1枚を 上書き＝取り合う） */
   var HAZUSHI_KUGIRI='　／　';
@@ -2192,6 +2192,20 @@
     var n=_hazushiOchiN(); var t=n>0 ? (moto ? moto+HAZUSHI_KUGIRI+_hazushiJi() : _hazushiJi()) : moto;
     var st=document.getElementById('save-status');
     if(t){ if(st) st.textContent=t; hozonFuda('ng', t); } else { if(st && (st.textContent||'').indexOf(HAZUSHI_MEJIRUSHI)>=0) st.textContent=''; hozonFuda('ok',''); }
+  }
+  var _zgIchu = {};   /* ★送って いる 途中★（同じ 人を 重ねて 送らない） */
+  var _zgYasumi = {}; /* ★ログインして いない 時は 60秒 休む★（taiketsu 10-12＝保存の たびに 倉庫へ 問い合わせ 続けた） */
+  function _hazushiZaisekiGai(){
+    if(!(window.Store && Store.unconfirmPayslip)) return;
+    for(var k in _hazushi){ (function(k){
+      if(_zgIchu[k]) return; if(_zgYasumi[k] && (Date.now()-_zgYasumi[k]) < 60000) return;
+      var p=k.split('|'), ym=p[0], id=p.slice(1).join('|');
+      var em=(state.employees||[]).filter(function(e){ return e && e.id===id; })[0];
+      if(!em || isActiveInMonth(em, ym)) return;   /* 在籍の 人は 毎回の 保存が 送る */
+      _zgIchu[k]=true;
+      Store.unconfirmPayslip(ym, id).then(function(){ delete _zgIchu[k]; _hazushiTodoita(ym, id); })
+        .catch(function(err){ delete _zgIchu[k]; if(err && err.noUser) _zgYasumi[k]=Date.now(); _hazushiOchita(ym, id, err); });
+    })(k); }
   }
   function _hazushiOchita(ym, id, err){
     if(err && err.noUser) return;                  /* ★ログインして いない 時は 言わない★（saveFailed と 同じ 決め） */
@@ -5940,7 +5954,8 @@
       if(umb){ uiConfirm(UNDO_MONTH_MSG).then(function(ok){
           if(!ok) return;
           var ym=state.month;
-          state.employees.forEach(function(emp){ if(isActiveInMonth(emp,ym)) setConfirm(emp.id,false); });
+          /* ★その月に 確定して いる 人は 在籍外でも 外す★（司さん 10-12「外したとおり確定を外す」・taiketsu＝先に 退職日を 直してから 月を 取り消すと 確定のまま 残った） */
+          state.employees.forEach(function(emp){ if(isActiveInMonth(emp,ym) || (state.confirmed[ym] && state.confirmed[ym][emp.id])) setConfirm(emp.id,false); });
           persistSave(); renderInput();
           /* ★明細の 結果を 待ってから 札を 出す★（taiketsu 10-12＝明細が 落ちても 緑の「確定を取り消しました」が 出て 帯と 逆を 言った） */
           var _hzP = _saigoSlipP;
@@ -6835,6 +6850,8 @@
        ⇒ ★★＝『返り値を 足す』直しは ★`return` の 位置で お金を 壊せます★★
        ⇒ ★だから ★返すのは 一番 下 1か所だけ★★ */
     /* ★その場で 投げたら 古い 約束を 残さない★（taiketsu 10-12【6】＝前の 返らない 約束を 待ち続け、札が 出なかった）。その月の 控えは 落ちた 扱いで 帯 */
+    /* ★在籍外の 人は 確定だけを 外しに 行く★（司さん 10-12「外したとおり確定を外す」）＝saveMonthlyPayslips は 在籍の 人しか 送らない */
+    try{ _hazushiZaisekiGai(); }catch(e){ console.error('★在籍外の 人の 確定を 外しに 行けません★', e); }
     try{ _saigoSlipP = saveMonthlyPayslips(); }catch(e){ _saigoSlipP = null; console.error('★明細の 保存が その場で 転びました★', e);
       var _ymS=state.month, _kae=false; for(var _k in _hazushi){ if(_k.indexOf(_ymS+'|')===0 && _hazushi[_k]==='machi'){ _hazushi[_k]='ochi'; _kae=true; } } if(_kae){ _hazushiKaku(); _hazushiObi(); } }
     /* ★雲が 在れば その 返事／無ければ ★手元に 書けたか★を 返す★ */

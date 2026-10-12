@@ -131,6 +131,12 @@ function makeMock(opts) {
       update: (d) => {
         const eqs = {};
         const applyNow = () => {
+          /* ★明細の 確定だけを 外す 書き（Store.unconfirmPayslip）★＝控えて、`failSlipUpdate` で 落とす（2026-10-12） */
+          if (table === 'pay_payslips') { calls.slipUpdate = calls.slipUpdate || []; calls.slipUpdate.push({ d, eqs: Object.assign({}, eqs) });
+            if (opts.failSlipUpdate) return { data: [], error: { message: 'update失敗' } };
+            /* ★当たった 行を 返す★＝id が 合い、updated_at で 絞って いれば それも 合う 時だけ（`slipUpdateKawatta` で 読んだ 後に 変わった 体） */
+            const sr = opts.slipRow; const ataru = !!(sr && eqs.id === sr.id && (eqs.updated_at === undefined || eqs.updated_at === sr.updated_at) && !opts.slipUpdateKawatta);
+            return { data: ataru ? [{ id: sr.id }] : [], error: null }; }
           if (table !== 'pay_companies') return { data: [], error: null };
           calls.companyUpdate = calls.companyUpdate || [];
           calls.companyUpdate.push(d);
@@ -172,7 +178,10 @@ function makeMock(opts) {
         };
         return b;
       },
-      select: (cols, sopts) => { calls.selects.push({ table, cols, opts: sopts || {} }); return query(table === 'pay_ledger' ? 'ledger' : table === 'pay_companies' ? 'companyData' : cols === 'id' ? 'empIds' : 'emps', cols); },
+      select: (cols, sopts) => { calls.selects.push({ table, cols, opts: sopts || {} });
+        /* ★明細の 行を 1つ 読む（Store.unconfirmPayslip）★＝`slipRow` を 返す（2026-10-12） */
+        if (table === 'pay_payslips' && String(cols).indexOf('id,data') === 0) { const r = { data: opts.slipRow || null, error: opts.failSlipSelect ? { message: '読めない' } : null }; const q2 = { eq: () => q2, maybeSingle: () => Promise.resolve(r) }; return q2; }
+        return query(table === 'pay_ledger' ? 'ledger' : table === 'pay_companies' ? 'companyData' : cols === 'id' ? 'empIds' : 'emps', cols); },
       /* ★★消しも ★棚を 実際に 減らす★／`.select('id')` で ★消えた id を 返す★★★（2026-09-28）
          ★訳★ … `store.js` は `.delete().in('id',rm)★.select('id')★` を 呼びます（指示役1 の ④）
            ⇒ ★前の 偽の 倉庫には `.select` が ★無く★、しかも ★棚も 減らなかった★
@@ -943,6 +952,43 @@ runs.push(T('通信が 落ちて 利用者が 取れない 時は noUser の 印
   let kotae = null;
   await Store.savePayslip('2026-06', 'e1', { name: '山田' }).then((r) => { kotae = 'ok:' + JSON.stringify(r); }, (e) => { kotae = (e && e.noUser) ? 'ことわった(noUser)' : 'ことわった(印なし)'; });
   ok(kotae === 'ことわった(印なし)', '＝' + kotae);
+}));
+
+/* ★Store.unconfirmPayslip＝明細の 確定だけを 外す（数字は 作り直さない）★（2026-10-12・司さん「外したとおり確定を外す」） */
+runs.push(T('unconfirmPayslip: 確定の 行は data.confirmed だけを false に 書き換える（数字は そのまま）', async function () {
+  const mock = makeMock({ slipRow: { id: 'ps_2026-09_e1', data: { confirmed: true, net: 216270, shikyuTotal: 260000 } } });
+  const Store = loadStore(mock);
+  const r = await Store.unconfirmPayslip('2026-09', 'e1');
+  const u = (mock.__calls.slipUpdate || [])[0];
+  ok(r && r.ok === true && r.n === 1, JSON.stringify(r));
+  ok(u && u.d.data.confirmed === false && u.d.data.net === 216270 && u.d.data.shikyuTotal === 260000, '書いた 中身=' + JSON.stringify(u && u.d.data));
+  ok(u && u.eqs.id === 'ps_2026-09_e1', '書いた 行=' + JSON.stringify(u && u.eqs));
+}));
+runs.push(T('unconfirmPayslip: 行が 無い／もう 確定で ない 時は 書かない', async function () {
+  const m1 = makeMock({ slipRow: null }); const S1 = loadStore(m1);
+  const r1 = await S1.unconfirmPayslip('2026-09', 'e1');
+  ok(r1.ok === true && r1.n === 0 && !(m1.__calls.slipUpdate || []).length, '無い 行で 書いた');
+  const m2 = makeMock({ slipRow: { id: 'ps_2026-09_e1', data: { confirmed: false } } }); const S2 = loadStore(m2);
+  const r2 = await S2.unconfirmPayslip('2026-09', 'e1');
+  ok(r2.ok === true && r2.n === 0 && !(m2.__calls.slipUpdate || []).length, 'もう 確定で ない 行を 書いた');
+}));
+runs.push(T('unconfirmPayslip: 読み・書きが 倉庫で 落ちたら 断る／ログインして いなければ noUser の 印付きで 断る', async function () {
+  const kotae = async (opts) => { const S = loadStore(makeMock(opts)); try { await S.unconfirmPayslip('2026-09', 'e1'); return 'ok'; } catch (e) { return e && e.noUser ? 'noUser' : 'ことわった'; } };
+  const row = { id: 'ps_2026-09_e1', data: { confirmed: true } };
+  ok(await kotae({ slipRow: row, failSlipSelect: true }) === 'ことわった', '読みの 失敗');
+  ok(await kotae({ slipRow: row, failSlipUpdate: true }) === 'ことわった', '書きの 失敗');
+  ok(await kotae({ slipRow: row, noUser: true }) === 'noUser', 'ログインして いない');
+  ok(await kotae({ slipRow: row, tsushinKire: true }) === 'ことわった', '通信切れ は noUser に しない');
+}));
+runs.push(T('unconfirmPayslip: 読んだ 時の updated_at で 絞り、0行（読んだ 後に 変わった）なら「通った」に しない', async function () {
+  const row = { id: 'ps_2026-09_e1', data: { confirmed: true, net: 1 }, updated_at: '2026-10-12T00:00:00.000+00:00' };
+  const m = makeMock({ slipRow: row }); const S = loadStore(m);
+  await S.unconfirmPayslip('2026-09', 'e1');
+  const u = (m.__calls.slipUpdate || [])[0];
+  ok(u && u.eqs.updated_at === row.updated_at, '読んだ 時の updated_at で 絞って いない＝' + JSON.stringify(u && u.eqs));
+  const m2 = makeMock({ slipRow: row, slipUpdateKawatta: true }); const S2 = loadStore(m2);
+  let k = null; try { await S2.unconfirmPayslip('2026-09', 'e1'); k = 'ok'; } catch (e) { k = 'ことわった'; }
+  ok(k === 'ことわった', '0行でも 通った に した');
 }));
 
 await Promise.all(runs);
