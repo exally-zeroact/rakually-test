@@ -172,9 +172,12 @@ if (process.argv.includes('--self-test')) {
   const S = (n, f) => { let red = false; try { f(); } catch { red = true; } if (red) { sp++; console.log('  ok  ' + n); } else { sf++; console.log('  NG  ' + n + '（★戻しても赤にならない★）'); } };
   const src = fs.readFileSync(path.join(ROOT, 'kyuyo/js/app.js'), 'utf8');
   S('0を返す書き方に戻す', () => {
-    const bad = src.replace(/\.catch\(function\(err\)\s*\{[\s\S]*?throw err;\s*\}\)/, '.catch(function(){ return 0; })');
-    const at = bad.indexOf('Store.publishMeisai(items)');
-    ok(!/\.catch\(function\(\)\s*\{\s*return\s*0;\s*\}\)/.test(bad.slice(at, at + 900)), 'また0を返している');
+    /* ★書き換えは「給与明細の公開」の 呼び出しの 後ろに 固定★（2026-10-12）＝前は app.js の 最初の `.catch(function(err)` から 遠くの `throw err;` までを
+       丸ごと 書き換えて いた＝前に 別の 受け皿が 足されると 狙いが ずれて「戻しても 赤に ならない」と 出た（偶然 通って いた） */
+    const at0 = src.indexOf('Store.publishMeisai(items, ');
+    ok(at0 >= 0, '給与明細の公開の 呼び出しが 見つからない');
+    const bad = src.slice(0, at0) + src.slice(at0).replace(/\.catch\(function\(err\)\s*\{[\s\S]*?throw err;\s*\}\)/, '.catch(function(){ return 0; })');
+    ok(!/\.catch\(function\(\)\s*\{\s*return\s*0;\s*\}\)/.test(bad.slice(at0, at0 + 900)), 'また0を返している');
   });
   S('知らせの max-width を外す', () => {
     const bad = src.replace('max-width:calc(100vw - 32px);', '');
