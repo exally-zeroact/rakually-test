@@ -2167,6 +2167,7 @@
   function _hazushiYomu(){ try{ var o=JSON.parse(localStorage.getItem(HAZUSHI_KEY)||'null'); if(o && typeof o==='object'){ for(var k in o){ if(o[k]==='ochi') _hazushi[k]='ochi'; else if(o[k]==='machi'||o[k]==='fumei') _hazushi[k]='fumei';   /* ★送る 途中で 閉じた 物＝届いたか 分からない★（taiketsu 10-12【2】） */ } } }catch(e){ console.error('★確定の 取り消しの 控えを 読めません★', e); } }
   /* ★明細の 保存の 約束（最後の 1本）★＝月の 取り消しの 札が 明細の 結果を 待つ 為（taiketsu 10-12） */
   var _saigoSlipP = null;
+  var _saigoZgP = null;   /* ★在籍外の 人の 確定を 外す 約束（最後の 束）★ */
   /* ★名簿を 読む 前は「名簿に 居ない」で 片付けない★＝開いた 直後は 名簿が まだ 無い（片付けると 控えを 全部 消す・試験㉝で 踏んだ） */
   var _hazushiMeiboOk = false;
   /* ★持ち主の 居ない 控えを 片付ける★（taiketsu 10-12）＝人を 消した／もう一度 確定に 戻った 人の 控えは 二度と 送られず、帯が 消えなく なる */
@@ -2195,17 +2196,20 @@
   }
   var _zgIchu = {};   /* ★送って いる 途中★（同じ 人を 重ねて 送らない） */
   var _zgYasumi = {}; /* ★ログインして いない 時は 60秒 休む★（taiketsu 10-12＝保存の たびに 倉庫へ 問い合わせ 続けた） */
+  /* ★約束の 束を 返す★（taiketsu 10-12【A】＝月の 取り消しの 札が これを 待たず、緑の 札の 後に 帯が「保存できていません」と 逆を 言った） */
   function _hazushiZaisekiGai(){
-    if(!(window.Store && Store.unconfirmPayslip)) return;
+    var _ps=[];
+    if(!(window.Store && Store.unconfirmPayslip)) return Promise.resolve();
     for(var k in _hazushi){ (function(k){
       if(_zgIchu[k]) return; if(_zgYasumi[k] && (Date.now()-_zgYasumi[k]) < 60000) return;
       var p=k.split('|'), ym=p[0], id=p.slice(1).join('|');
       var em=(state.employees||[]).filter(function(e){ return e && e.id===id; })[0];
       if(!em || isActiveInMonth(em, ym)) return;   /* 在籍の 人は 毎回の 保存が 送る */
       _zgIchu[k]=true;
-      Store.unconfirmPayslip(ym, id).then(function(){ delete _zgIchu[k]; _hazushiTodoita(ym, id); })
-        .catch(function(err){ delete _zgIchu[k]; if(err && err.noUser) _zgYasumi[k]=Date.now(); _hazushiOchita(ym, id, err); });
+      _ps.push(Store.unconfirmPayslip(ym, id).then(function(){ delete _zgIchu[k]; _hazushiTodoita(ym, id); })
+        .catch(function(err){ delete _zgIchu[k]; if(err && err.noUser) _zgYasumi[k]=Date.now(); _hazushiOchita(ym, id, err); }));
     })(k); }
+    return Promise.all(_ps);
   }
   function _hazushiOchita(ym, id, err){
     if(err && err.noUser) return;                  /* ★ログインして いない 時は 言わない★（saveFailed と 同じ 決め） */
@@ -5958,7 +5962,9 @@
           state.employees.forEach(function(emp){ if(isActiveInMonth(emp,ym) || (state.confirmed[ym] && state.confirmed[ym][emp.id])) setConfirm(emp.id,false); });
           persistSave(); renderInput();
           /* ★明細の 結果を 待ってから 札を 出す★（taiketsu 10-12＝明細が 落ちても 緑の「確定を取り消しました」が 出て 帯と 逆を 言った） */
-          var _hzP = _saigoSlipP;
+          /* ★在籍の 人の 明細と 在籍外の 人の 確定外しの 両方を 待つ★（どちらが 落ちても 帯と 札が 逆を 言わない） */
+          var _yasumu = function(p){ return Promise.resolve(p).then(function(){}, function(){}); };
+          var _hzP = Promise.all([_yasumu(_saigoSlipP), _yasumu(_saigoZgP)]);
           /* ★待ちに 上限★（taiketsu 10-12【5】＝明細が 返らないと 札が 1枚も 出なかった）。過ぎたら「まだ 終わって いません」と 言う（落ちたら 帯が 言う） */
           var _hzMs = (typeof window.__HAZUSHI_MACHI_MS__==='number') ? window.__HAZUSHI_MACHI_MS__ : 15000;
           var _hzIu = function(fudaFn){ var _owari=false; var _tm=setTimeout(function(){ if(_owari) return; _owari=true;
@@ -6851,7 +6857,7 @@
        ⇒ ★だから ★返すのは 一番 下 1か所だけ★★ */
     /* ★その場で 投げたら 古い 約束を 残さない★（taiketsu 10-12【6】＝前の 返らない 約束を 待ち続け、札が 出なかった）。その月の 控えは 落ちた 扱いで 帯 */
     /* ★在籍外の 人は 確定だけを 外しに 行く★（司さん 10-12「外したとおり確定を外す」）＝saveMonthlyPayslips は 在籍の 人しか 送らない */
-    try{ _hazushiZaisekiGai(); }catch(e){ console.error('★在籍外の 人の 確定を 外しに 行けません★', e); }
+    try{ _saigoZgP = _hazushiZaisekiGai(); }catch(e){ _saigoZgP = null; console.error('★在籍外の 人の 確定を 外しに 行けません★', e); }
     try{ _saigoSlipP = saveMonthlyPayslips(); }catch(e){ _saigoSlipP = null; console.error('★明細の 保存が その場で 転びました★', e);
       var _ymS=state.month, _kae=false; for(var _k in _hazushi){ if(_k.indexOf(_ymS+'|')===0 && _hazushi[_k]==='machi'){ _hazushi[_k]='ochi'; _kae=true; } } if(_kae){ _hazushiKaku(); _hazushiObi(); } }
     /* ★雲が 在れば その 返事／無ければ ★手元に 書けたか★を 返す★ */

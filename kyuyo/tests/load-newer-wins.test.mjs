@@ -422,6 +422,15 @@ if (!WAZA) {
         A.renderInput(); const um39 = doc.querySelector('[data-undo-month]');
         if (um39) { um39.click(); await okBtn(); await sleep(1200); }
         T('㊴ 月の 取り消しで 在籍外の 確定の 人（e34k）も 確定から 外れ、確定だけを 外しに 行く', !!um39 && !(A.state.confirmed[ym24] && A.state.confirmed[ym24].e34k) && ucYobi.some((x) => /\|e34k$/.test(x)), '確定=' + JSON.stringify(A.state.confirmed[ym24]) + '／呼んだ=' + JSON.stringify(ucYobi));
+        /* ㊵ ★在籍外の 人の 確定を 外すのが 後から 落ちても、月の 取り消しの 札は 緑に しない★（taiketsu 10-12【A】＝札が その 約束を 待って いなかった） */
+        A.state.confirmed[ym24] = A.state.confirmed[ym24] || {}; A.state.confirmed[ym24].e34z = true; A.state.confirmed[ym24].e34k = true;
+        win.Store.savePayslip = () => new Promise((res) => setTimeout(() => res({}), 30));            /* 在籍の 人の 明細は すぐ 通る */
+        win.Store.unconfirmPayslip = () => new Promise((_r, j) => setTimeout(() => j(new Error('倉庫で 落ちた')), 400));   /* 在籍外の 外しは 後から 落ちる */
+        A.renderInput(); const um40 = doc.querySelector('[data-undo-month]');
+        const tt40 = doc.getElementById('app-toast'); if (tt40) tt40.textContent = '';
+        if (um40) { um40.click(); await okBtn(); await sleep(1500); }
+        const fuda40 = (doc.getElementById('app-toast') || {}).textContent || '';
+        T('㊵ 在籍外の 人の 外しが 後から 落ちたら、札は「確定を取り消しました」と 言わない', !!um40 && !/確定を取り消しました/.test(fuda40) && /保存できて/.test(fuda40), '札=' + fuda40 + '／帯=' + obi());
         win.Store.unconfirmPayslip = ucMoto;
         A.state.employees = A.state.employees.filter((x) => x.id !== 'e34z' && x.id !== 'e34k');
         if (e32p) { e32p.retired = false; e32p.taishokuYmd = ''; }

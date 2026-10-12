@@ -990,6 +990,19 @@ runs.push(T('unconfirmPayslip: 読んだ 時の updated_at で 絞り、0行（�
   let k = null; try { await S2.unconfirmPayslip('2026-09', 'e1'); k = 'ok'; } catch (e) { k = 'ことわった'; }
   ok(k === 'ことわった', '0行でも 通った に した');
 }));
+runs.push(T('unconfirmPayslip: 開いた 直後の 読み込み（saveHold）が 解けるまで 行を 読みに 行かない', async function () {
+  /* ★taiketsu 10-12【B】＝待ちを 消しても どの 試験も 赤に ならなかった★ */
+  const row = { id: 'ps_2026-09_e1', data: { confirmed: true }, updated_at: '2026-10-12T00:00:00.000+00:00' };
+  const m = makeMock({ slipRow: row, loadDelay: 200 }); const S = loadStore(m);
+  const yomi = S.cloudLoadState();                                  /* ★読み込みを 始める＝saveHold が 立つ★ */
+  const uc = S.unconfirmPayslip('2026-09', 'e1');
+  await new Promise((r) => setTimeout(r, 80));                      /* 読み込みは まだ 返らない */
+  const maeYonda = m.__calls.selects.filter((x) => x.table === 'pay_payslips').length;
+  await yomi; await uc;
+  const atoYonda = m.__calls.selects.filter((x) => x.table === 'pay_payslips').length;
+  ok(maeYonda === 0, '読み込みの 前に 明細の 行を 読んだ（' + maeYonda + '回）');
+  ok(atoYonda >= 1, '読み込みの 後も 読んで いない（' + atoYonda + '回）');
+}));
 
 await Promise.all(runs);
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
