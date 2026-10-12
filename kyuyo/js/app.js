@@ -2201,13 +2201,16 @@
     var _ps=[];
     if(!(window.Store && Store.unconfirmPayslip)) return Promise.resolve();
     for(var k in _hazushi){ (function(k){
-      if(_zgIchu[k]) return; if(_zgYasumi[k] && (Date.now()-_zgYasumi[k]) < 60000) return;
+      /* ★送って いる 途中の 人も 束に 入れる★（taiketsu 10-12【C】＝外して いたので、月の 取り消しの 札が 待たずに 緑に なった） */
       var p=k.split('|'), ym=p[0], id=p.slice(1).join('|');
       var em=(state.employees||[]).filter(function(e){ return e && e.id===id; })[0];
-      if(!em || isActiveInMonth(em, ym)) return;   /* 在籍の 人は 毎回の 保存が 送る */
-      _zgIchu[k]=true;
-      _ps.push(Store.unconfirmPayslip(ym, id).then(function(){ delete _zgIchu[k]; _hazushiTodoita(ym, id); })
-        .catch(function(err){ delete _zgIchu[k]; if(err && err.noUser) _zgYasumi[k]=Date.now(); _hazushiOchita(ym, id, err); }));
+      if(!em || isActiveInMonth(em, ym)) return;   /* 在籍の 人は 毎回の 保存が 送る／★名簿に 居ない 人の 古い 約束は 待たない★ */
+      if(_zgIchu[k]){ _ps.push(_zgIchu[k]); return; } if(_zgYasumi[k] && (Date.now()-_zgYasumi[k]) < 60000) return;
+      var _p;
+      try{ _p = Store.unconfirmPayslip(ym, id); }catch(e){ _p = Promise.reject(e); }   /* ★その場で 投げても 途中の 印を 残さない★ */
+      _p = Promise.resolve(_p).then(function(){ delete _zgIchu[k]; _hazushiTodoita(ym, id); })
+        .catch(function(err){ delete _zgIchu[k]; if(err && err.noUser) _zgYasumi[k]=Date.now(); _hazushiOchita(ym, id, err); });
+      _zgIchu[k]=_p; _ps.push(_p);
     })(k); }
     return Promise.all(_ps);
   }

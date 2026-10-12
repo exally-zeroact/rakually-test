@@ -431,6 +431,29 @@ if (!WAZA) {
         if (um40) { um40.click(); await okBtn(); await sleep(1500); }
         const fuda40 = (doc.getElementById('app-toast') || {}).textContent || '';
         T('㊵ 在籍外の 人の 外しが 後から 落ちたら、札は「確定を取り消しました」と 言わない', !!um40 && !/確定を取り消しました/.test(fuda40) && /保存できて/.test(fuda40), '札=' + fuda40 + '／帯=' + obi());
+        /* ㊶ ★月の 取り消しの 前から 送って いる 途中の 在籍外の 人が 後から 落ちても、札は 緑に しない★（taiketsu 10-12【C】＝途中の 人は 待つ 束から 外れて いた） */
+        win.Store.savePayslip = () => Promise.resolve({});
+        A.state.confirmed[ym24] = A.state.confirmed[ym24] || {}; A.state.confirmed[ym24].e34z = true;
+        A.hazushiWasureru && A.hazushiWasureru();
+        A.state.confirmed[ym24].e34k = true; A.setConfirm('e34k', false);                          /* e34k を 外した（在籍外） */
+        win.Store.unconfirmPayslip = () => new Promise((_r, j) => setTimeout(() => j(new Error('倉庫で 落ちた')), 700));
+        A.persistSave();                                                                      /* ふつうの 保存で e34k の 外しを 送り 始める */
+        await sleep(100);
+        A.renderInput(); const um41 = doc.querySelector('[data-undo-month]');
+        const tt41 = doc.getElementById('app-toast'); if (tt41) tt41.textContent = '';
+        if (um41) { um41.click(); await okBtn(); await sleep(1500); }
+        const fuda41 = (doc.getElementById('app-toast') || {}).textContent || '';
+        T('㊶ 取り消しの 前から 送って いる 途中の 人が 後から 落ちても、札は「確定を取り消しました」と 言わない', !!um41 && !/確定を取り消しました/.test(fuda41), '札=' + fuda41 + '／帯=' + obi());
+        /* ㊷ ★在籍外の 人の 外しが 返らない（固まる）時も、上限で「まだ 終わって いません」と 言う★（taiketsu 10-12） */
+        A.state.confirmed[ym24] = A.state.confirmed[ym24] || {}; A.state.confirmed[ym24].e34z = true; A.state.confirmed[ym24].e34k = true;
+        win.Store.unconfirmPayslip = () => new Promise(() => {});
+        win.__HAZUSHI_MACHI_MS__ = 600;
+        A.renderInput(); const um42 = doc.querySelector('[data-undo-month]');
+        const tt42 = doc.getElementById('app-toast'); if (tt42) tt42.textContent = '';
+        if (um42) { um42.click(); await okBtn(); await sleep(1500); }
+        const fuda42 = (doc.getElementById('app-toast') || {}).textContent || '';
+        T('㊷ 在籍外の 外しが 返らなくても 上限で「まだ 終わって いません」と 言う（緑に しない）', !!um42 && /まだ 終わって いません/.test(fuda42) && !/確定を取り消しました/.test(fuda42), '札=' + fuda42);
+        delete win.__HAZUSHI_MACHI_MS__;
         win.Store.unconfirmPayslip = ucMoto;
         A.state.employees = A.state.employees.filter((x) => x.id !== 'e34z' && x.id !== 'e34k');
         if (e32p) { e32p.retired = false; e32p.taishokuYmd = ''; }
