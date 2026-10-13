@@ -909,6 +909,16 @@
          ・居る … 書く（★本物を 落とさない★）
          ・居ない … ★書かない★（＝幻＝孤児を 作らない）
          ・読めていない（cloudLoaded=false）… ★書く★（消す より 安全側・(a) と 同じ 決め方） */
+  /* ★★読めない 間は 明細（pay_payslips）も 書かない★★（2026-10-14・指示役の 決め 1）
+     前は「読めていない＝安全側」として 書いて いた＝★古い 写しが 別の 端末で 確定した 明細を confirmed:false と 古い 額で 上書きし、
+     賃金台帳・年末調整から 黙って 抜けた★（意味と 計算の 食い違い）。打った 物は 端末の 写しに 残り、読めてから 次の 保存で 書く。
+     ★印（yomenai）付きで 投げる★＝画面は 帯（load-failed）で もう 言って いる＝重ねて 騒がない。 */
+  function _yomenaiNara(nani){
+    if(!_yomiOchitaUid) return null;
+    var e = new Error('クラウドを 読み込めて いないので ' + nani + 'を クラウドに 保存していません');
+    e.yomenai = true;
+    return e;
+  }
   Store.savePayslip = function(ym, employeeId, data, kind){
     kind = (kind==='bonus')?'bonus':'monthly';
     var id = (kind==='bonus'?'psb_':'ps_')+ym+'_'+employeeId;
@@ -926,6 +936,7 @@
   };
   function doSavePayslip(id, ym, employeeId, d){
     if(hasSupa){
+      var _ym = _yomenaiNara('明細'); if(_ym) return Promise.reject(_ym);
       /* ★倉庫で 落ちたら 投げる★（2026-10-12・指示役の 別件【1】）＝supabase は 失敗しても 投げず {error} を 返す（throwOnError 既定 false）。
          前は その まま 返し、受け手の .catch(saveFailed) が 1回も 走らず「N名分を 保存できませんでした（台帳・年末調整に 入っていません）」が 出なかった。
          ログインが 切れた 時も 黙って null だった＝同じく 投げる。★確定の 立て方・凍結・計算は 変えない★（決めて 在った 警告を 出すだけ） */
@@ -997,7 +1008,7 @@
     if(hasSupa){
       /* ★開いた 直後の 読み込みを 待つ★（taiketsu 10-12＝savePayslip と 同じ。古い 写しで 判じて 後から 確定し直した 行を 外さない） */
       var _mae = saveHold ? saveHold.then(function(){ return null; }, function(){ return null; }) : Promise.resolve(null);
-      return _mae.then(function(){ return sb.auth.getUser(); }).then(function(r){ var uid=r.data&&r.data.user&&r.data.user.id;
+      return _mae.then(function(){ var _ym = _yomenaiNara('明細の 確定の 外し'); if(_ym) throw _ym; return sb.auth.getUser(); }).then(function(r){ var uid=r.data&&r.data.user&&r.data.user.id;
         if(!uid){ var _ae=r&&r.error; var _ne=new Error(_ae ? 'つながりません（明細の 確定を 外せません）' : 'ログインしていません（明細の 確定を 外しません）'); _ne.noUser = !_ae || _ae.name==='AuthSessionMissingError'; throw _ne; }
         return sb.from('pay_payslips').select('id,data,updated_at').eq('id', id).maybeSingle().then(function(g){
           if(g && g.error) throw new Error((g.error.message)||'明細を 読めません');
@@ -1026,6 +1037,7 @@
   Store.deletePayslipsOf = function(employeeId){
     if(!employeeId) return Promise.resolve({ ok:false, n:0, naze:'だれの 分か 分からない' });
     if(hasSupa){
+      if(_yomiOchitaUid) return Promise.resolve({ ok:false, n:0, naze:'クラウドを 読み込めて いない', yomenai:true });   /* ★読めない 間は 消さない★ */
       return sb.from('pay_payslips').delete().eq('employee_id', employeeId).select('id').then(function(r){
         if(r.error) return { ok:false, n:0, naze:r.error.message };
         return { ok:true, n:(r.data||[]).length, souko:true };

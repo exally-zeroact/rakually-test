@@ -956,6 +956,29 @@ runs.push(T('一度 読めた 後に また 落ちたら 差分削除も 保存�
   ok(r.ok === false && r.reason === 'load-failed', '★2回目が 落ちたのに 書いた★(' + JSON.stringify(r) + ')');
   ok(mock.__calls.deletes.length === 0 && mock.__calls.empUpsert.length === 0, '★2回目が 落ちたのに 書いた★ 人 ' + mock.__calls.empUpsert.length + '／消す ' + mock.__calls.deletes.length);
 }));
+/* ★★読めない 間は 明細も 書かない★★（2026-10-14・指示役の 決め 1）
+   前は「読めていない＝安全側」で 書いた＝古い 写しが 別の 端末で 確定した 明細を confirmed:false と 古い 額で 上書きし 台帳・年調から 抜けた */
+runs.push(T('人の 読みが 落ちた 間は 明細の 保存・確定の 外し・人の 明細の 消しを 倉庫に 書かない（印 yomenai で 断る）', async function () {
+  const o = { companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-14T00:00:00.000Z', serverEmpIds: ['e1'], empReadError: true, slipRow: { id: 'ps_2026-10_e1', data: { confirmed: true }, updated_at: '2026-10-14T00:00:00.000Z' } };
+  const mock = makeMock(o);
+  const Store = loadStore(mock);
+  await Store.cloudLoadState().catch(() => null);
+  let k1 = null;
+  await Store.savePayslip('2026-10', 'e1', { name: '山田', confirmed: false }).then(() => { k1 = 'かいた'; }, (e) => { k1 = (e && e.yomenai) ? 'ことわった(yomenai)' : 'ことわった(印なし)'; });
+  ok(k1 === 'ことわった(yomenai)', '★読めないのに 明細を 書いた／印が 無い★＝' + k1);
+  ok(mock.__calls.slipUpsert.length === 0, '★読めないのに 明細を 書いた★ ' + mock.__calls.slipUpsert.length + '本');
+  let k2 = null;
+  await Store.unconfirmPayslip('2026-10', 'e1').then(() => { k2 = 'はずした'; }, (e) => { k2 = (e && e.yomenai) ? 'ことわった(yomenai)' : 'ことわった(印なし)'; });
+  ok(k2 === 'ことわった(yomenai)', '★読めないのに 確定を 外した★＝' + k2);
+  const d = await Store.deletePayslipsOf('e1');
+  ok(d.ok === false && d.yomenai === true, '★読めないのに 人の 明細を 消しに 行った★(' + JSON.stringify(d) + ')');
+  /* 読めたら 書ける（打った 物は 読めてから 書く） */
+  o.empReadError = false;
+  await Store.cloudLoadState();
+  let k3 = null;
+  await Store.savePayslip('2026-10', 'e1', { name: '山田' }).then(() => { k3 = 'かいた'; }, (e) => { k3 = 'ことわった:' + (e && e.message); });
+  ok(k3 === 'かいた' && mock.__calls.slipUpsert.length === 1, '★読めたのに 明細を 書かない★＝' + k3 + '／' + mock.__calls.slipUpsert.length + '本');
+}));
 runs.push(T('読みが 落ちた 後に 読み直して 読めたら 保存は 今まで 通り 書ける', async function () {
   const o = { companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-14T00:00:00.000Z', serverEmpIds: ['e1'], empReadError: true };
   const mock = makeMock(o);

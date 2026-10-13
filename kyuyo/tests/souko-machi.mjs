@@ -249,6 +249,14 @@ for (const w of [375, 390, 412]) {
     if (otosu && (rq.method() === 'POST' || rq.method() === 'DELETE' || rq.method() === 'PATCH')) kaki.push(rq.method());
     return rt.continue();
   });
+  /* ★明細の 棚も 見る★（2026-10-14・指示役の 決め 1）＝前は 人の 棚しか 数えず、読めない 間も 自動の 保存（auth.js:60）が
+     古い 写しで pay_payslips を 書いて いた（別の 端末で 確定した 明細を confirmed:false と 古い 額で 上書きし得る） */
+  let meisaiKaki = [];
+  await pg.route('**/rest/v1/pay_payslips*', (rt) => {
+    const rq = rt.request();
+    if (otosu && (rq.method() === 'POST' || rq.method() === 'DELETE' || rq.method() === 'PATCH')) meisaiKaki.push(rq.method());
+    return rt.continue();
+  });
   const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-settings"]', { kumo: false });
   if (!h.haitta) { console.log('  🟡 人の 読みだけ 落とす 回 … ★未測定★（入れなかった）'); mihakari++; }
   else {
@@ -259,7 +267,7 @@ for (const w of [375, 390, 412]) {
     const n0 = await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length);
     if (n0 === 0) { console.log('  🟡 人の 読みだけ 落とす 回 … ★未測定★（写しに 人が 居ない＝守る 物が 無い）'); mihakari++; }
     console.log('       先に 読めた 人 … ' + n0 + '人（この 写しを 持った まま 人の 読みだけ 落として 開き直す）');
-    otosu = true; kaki = [];
+    otosu = true; kaki = []; meisaiKaki = [];
     await pg.reload(); await machi(4000);
     await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(400);
     await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(1500);
@@ -271,6 +279,9 @@ for (const w of [375, 390, 412]) {
     T('★③-3 人の 読みだけ 落ちた 間は 人の 一覧を 出さない', em.n === 0, '人の 札 ' + em.n + '枚');
     await machi(2500);
     T('★③-3 人の 読みだけ 落ちた 間は 人の 棚に 1本も 書かない（古い 写しで 書き戻さない・消さない）', kaki.length === 0, '書き ' + kaki.join(','));
+    /* ★空振り に なり得る★（2026-10-14 測った）＝この 試験口座は 今月の 明細が 凍結で、守りを 外しても 書きは 0本だった。
+       守りの 証しは cloud-sync（明細の 書き口 3か所＝保存・確定の 外し・人の 明細の 消し を 読めない 間 断る・外すと 赤）。ここは 他の 書き手が 増えた 日の 網。 */
+    T('★③-3 人の 読みだけ 落ちた 間は 明細の 棚（pay_payslips）にも 1本も 書かない（別の 端末の 確定を 古い 写しで 上書きしない）', meisaiKaki.length === 0, '明細の 書き ' + meisaiKaki.length + '本');
   }
   await pg.close();
 }
