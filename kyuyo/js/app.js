@@ -6001,6 +6001,8 @@
         }); return; }
 
       var cmb=e.target.closest('[data-confirm-month]');
+      /* ★歯止め★（2026-10-14 taiketsu）＝灰色（soukoTomeru）だけで 守らない。賞与・取り消しと 同じ 形 */
+      if(cmb && (soukoMachi()||soukoNG())){ toast('クラウドに つながらないので、今月は まだ 確定していません。「もう一度 読み込む」を 押してください。'); return; }
       /* ★確定＝その場で従業員に公開される。月ごとに取り消す道が無いので、確認を1枚 挟む。
          「取り消せる」と誤解させない＝取り消せないことを、そのまま書く。 */
       if(cmb){ uiConfirm(CONFIRM_MONTH_MSG).then(function(ok){

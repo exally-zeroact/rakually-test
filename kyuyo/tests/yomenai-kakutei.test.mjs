@@ -29,11 +29,19 @@ const T = (n, c, m) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fa
 /* ★わざと 守りを 外す★（ボタンの disabled と 押した 時の 歯止めを 両方 外す） */
 function appJi(ji) {
   if (!WAZA) return ji;
-  const a = ji.replace("if(soukoMachi()||soukoNG()){ toast('クラウドに つながらないので、賞与は まだ 確定していません。", "if(false){ toast('")
-    .replace("if(umb && (soukoMachi()||soukoNG())){", 'if(false){')
-    .replace("var _soukoB = soukoMachi() ? '読み込み中です' : (soukoNG() ? 'クラウドに つながりません' : '');", "var _soukoB = '';")
-    .replace("'+(soukoTomeru?' disabled':'')+'>この月の確定を取り消す'", "'+''+'>この月の確定を取り消す'");
-  if (a === ji) { console.log('★--waza の 置き換えが 0か所＝空振り★'); process.exit(1); }
+  /* ★1つずつ 当たったか 数える★（taiketsu 10-14＝4つの うち 1つ 当たれば 通る 門だった） */
+  const W = [
+    ["if(soukoMachi()||soukoNG()){ toast('クラウドに つながらないので、賞与は まだ 確定していません。", "if(false){ toast('"],
+    ["if(umb && (soukoMachi()||soukoNG())){", 'if(false){'],
+    ["if(cmb && (soukoMachi()||soukoNG())){ toast('クラウドに つながらないので、今月は", "if(false){ toast('"],
+    ["var _soukoB = soukoMachi() ? '読み込み中です' : (soukoNG() ? 'クラウドに つながりません' : '');", "var _soukoB = '';"],
+    ["'+(soukoTomeru?' disabled':'')+'>この月の確定を取り消す'", "'+''+'>この月の確定を取り消す'"],
+  ];
+  let a = ji;
+  W.forEach(([k, v], i) => {
+    if (a.split(k).length !== 2) { console.log('★--waza の 置き換え ' + (i + 1) + ' が 当たらない＝空振り★'); process.exit(1); }
+    a = a.replace(k, v);
+  });
   return a;
 }
 
@@ -83,15 +91,21 @@ for (const souko of ['ng', 'machi']) {
     e1.payType = '月給'; e1.base = '260000'; if (e1.shikyu && e1.shikyu[0]) e1.shikyu[0].value = '260000'; e1.pref = 'ehime';
     A.state.company = A.defCompany(); A.state.company.pref = 'ehime';
     A.state.month = '2026-08'; A.state.employees = [e1];
-    const be = A.bonusEntry(e1); if (be) be.amount = 500000;
+    /* ★源泉が 決まる 人にする★（前月の 給与＝社保を 引いた 後 を 入れる）＝taiketsu 10-14：源泉が 未定だと
+       倉庫に 関係なく ボタンが 灰色に なり、守りを 外しても 緑の まま だった（空振り） */
+    const be = A.bonusEntry(e1); if (be) { be.amount = 500000; be.prevAfter = '230000'; }
     A.state.inputMode = 'bonus';
-    A.state._souko = souko;
     const bnI = doc.querySelector('.bn[data-scr="scr-input"]'); if (bnI) osu(win, bnI);   /* ★入力の 画面を 開いてから 描く★（開いて いないと 賞与の 画面は 描かれない） */
     await sleep(150);
-    if (A.renderInput) A.renderInput();
-    await sleep(200);
+    /* ★前提★＝倉庫が 読めて いる（ok）時は 押せる。押せなければ ここは 何も 測って いない＝未測定 */
+    A.state._souko = 'ok';
+    osu(win, bnI); await sleep(200);   /* ★客の 道と 同じ 描き直し★（soukoRedraw → showScreen → renderInputArea。renderInput は 月次しか 描かない） */
+    const b0 = doc.querySelector('[data-confirm-bonus]');
+    const maeOk = !!b0 && b0.disabled === false;
+    A.state._souko = souko;
+    osu(win, bnI); await sleep(200);
     const b = doc.querySelector('[data-confirm-bonus]');
-    if (!b) { console.log('  🟡 ★賞与の 確定ボタンが 出ない＝未測定★（' + souko + '）'); mihakari++; h.owari(); }
+    if (!b || !maeOk) { console.log('  🟡 ★賞与の 確定ボタンが 出ない／読めて いる 時も 押せない＝未測定★（' + souko + '・前提 ' + (b0 ? (b0.textContent || '').trim() : '無し') + '）'); mihakari++; h.owari(); }
     else {
     const ji = (b.textContent || '').trim();
     T('★' + souko + ' … 賞与の 確定は 押せない（理由は ボタンの 中）', b.disabled === true && /読み込み中|つながりません/.test(ji), '押せる／字「' + ji + '」');
@@ -128,6 +142,18 @@ for (const souko of ['ng', 'machi']) {
     if (y) osu(win, y);
     await sleep(500);
     T('★' + souko + ' … 押されても 確定を 外さない（明細 0本・公開の 取り下げ 0本）', kazu.save === 0 && kazu.unpub === 0 && !!(A.state.confirmed['2026-08'] || {})[e1.id], '明細 ' + kazu.save + '／取り下げ ' + kazu.unpub + '／確定 ' + JSON.stringify(A.state.confirmed['2026-08']));
+    /* ★月の 確定も 灰色だけで 守らない★（2026-10-14 taiketsu 指摘4）＝灰色を 外して 押しても 公開 0本・確定の 札を 出さない */
+    const cm = doc.querySelector('[data-confirm-month]');
+    if (!cm) { console.log('  🟡 ★今月を確定の ボタンが 出ない＝未測定★（' + souko + '）'); mihakari++; }
+    else {
+      const pub0 = kazu.pub;
+      const fuda0 = h.fuda.length;
+      cm.disabled = false; osu(win, cm); await sleep(300);
+      const y2 = [...doc.querySelectorAll('button')].filter((x) => /^(はい|OK|確定)/.test((x.textContent || '').trim()))[0];
+      if (y2) osu(win, y2);
+      await sleep(600);
+      T('★' + souko + ' … 灰色を 外して「今月を確定」を 押しても 公開 0本・確定の 札を 出さない', kazu.pub === pub0 && !h.fuda.slice(fuda0).some((x) => /今月を確定しました/.test(x)), '公開 ' + (kazu.pub - pub0) + '／札 ' + h.fuda.slice(fuda0).join(' ／ '));
+    }
     h.owari();
     }
   }

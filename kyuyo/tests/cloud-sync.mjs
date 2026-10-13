@@ -200,6 +200,13 @@ function makeMock(opts) {
           const res = { error: null, data: kieta.map((id) => ({ id })) };
           return { select: () => Promise.resolve(res), then: (f, r2) => Promise.resolve(res).then(f, r2) };
         },
+        /* ★人の 明細を 消す（deletePayslipsOf の .delete().eq(…).select('id')）★（2026-10-14 taiketsu）＝無いと 守りを 外した 時に
+           「eq is not a function」で 落ちて 赤に なり、★判じでなく 組み立ての 都合で 赤★だった */
+        eq: (col, v) => {
+          calls.deletes.push({ col, v });
+          const res = { error: null, data: [] };
+          return { select: () => Promise.resolve(res), then: (f, r2) => Promise.resolve(res).then(f, r2) };
+        },
       }),
     };
   }
