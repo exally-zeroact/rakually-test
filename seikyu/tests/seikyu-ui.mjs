@@ -1099,6 +1099,33 @@ await TA('7-c. ★一覧が 読めない 時は 赤字でなく 知らせの 箱
   }
 });
 
+await TA('7-d. ★「保存は できています」は 後の 保存が 落ちたら 消える（嘘の 安心を 残さない）', async () => {
+  /* ★2026-10-14 taiketsu（本番前）★＝一覧の 読みだけ 落ちた 後、次の 保存が 落ちても「保存は できています」が 残り、
+     倉庫は 5000・画面は 7000 のまま 客が 閉じ得た */
+  const app = win.SeikyuApp, st = app._state;
+  try {
+    $('b-new').click(); await sleep(20);
+    setVal('e-partner', 'pt_a'); await sleep(20);
+    const tr = $('lines-body').querySelector('tr');
+    tr.querySelector('[data-f="name"]').value = '工事代金'; tr.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+    tr.querySelector('[data-f="amount"]').value = '5000'; tr.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+    await sleep(40);
+    /* ① 保存は 通る・一覧の 読みだけ 落ちる */
+    sb._failNext('pay_invoices', 'select');
+    $('b-save').click(); await sleep(200);
+    ok(/保存は できています/.test($('edit-yomenai').textContent), '前提：保存が 通って 一覧だけ 落ちたら「保存は できています」: ' + $('edit-yomenai').textContent);
+    /* ② 直して 保存そのものが 落ちる */
+    tr.querySelector('[data-f="amount"]').value = '7000'; tr.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+    await sleep(40);
+    sb._failNext('pay_invoices', 'upsert');
+    $('b-save').click(); await sleep(200);
+    ok(!/保存は できています/.test($('edit-yomenai').textContent) && !/保存は できています/.test($('list-yomenai').textContent),
+      '★保存が 落ちたのに「保存は できています」が 残って いる（7000 を 失う）★: ' + $('edit-yomenai').textContent);
+  } finally {
+    await app._loadList(); await sleep(30);
+  }
+});
+
 
 /* ═══ 9. ②-b 源泉徴収 / 繰越 / 非課税 ═══
    ★合格条件（指示役 2026-08-11 追加）★

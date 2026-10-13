@@ -644,7 +644,7 @@
     var ato = S.listAto;
     return na.join('・') + ' を 取って来られませんでした。'
       + (typeof ato === 'string' ? ato : ato ? '保存は できています。' : '')
-      + '一覧が 読めるまで 新しい 発行は 止めて います。下の「もう一度読み込む」を 押してください。';
+      + (S.listReadOk === false ? '一覧が 読めるまで' : '読めるまで') + ' 新しい 発行は 止めて います。下の「もう一度読み込む」を 押してください。';
   }
   /* ★入力の 画面にも 出す★（保存・発行の 後に 落ちた 時、客は 入力の 画面に 居る＝一覧の 箱は 見えない） */
   function drawYomenaiIn(id, tid) {
@@ -654,7 +654,9 @@
     if (S.partnersReadOk === false) na.push('取引先');
     if (S.listReadOk === false) na.push(DOC.docLabel(S.docType) + 'の 一覧');
     var btn = el.querySelector('button');
-    var why = (S.cur && !na.length) ? listWhy(S.cur) : null;
+    /* ★発行済み・取り消し済みの 紙には 発行の 理由を 出さない★（taiketsu 10-14＝「発行できます」と 嘘に なった） */
+    var shitagaki = S.cur && (!S.cur.status || S.cur.status === 'draft');
+    var why = (shitagaki && !na.length) ? listWhy(S.cur) : null;
     if (why === 'shurui' || why === 'yomikomi') {
       /* ★押しても 直らない ボタンは 出さない★（種類違いは 読み直しでは 直らない・taiketsu 10-13） */
       if (btn) btn.style.display = 'none';
@@ -775,7 +777,7 @@
     v.sent_at = at;
     S.store.invoices.markSent(v.id, at).then(function (r) {
       if (!r || !r.ok) { v.sent_at = ''; return; }  /* しまえなければ 印も 戻す（嘘を 残さない） */
-      return loadList({ ato: true });
+      return loadList();   /* ★裏で 付ける 印＝客の 操作で ない★ので「できています」は 言わない（taiketsu 10-14） */
     }).catch(function () { v.sent_at = ''; });
   }
 
@@ -2653,7 +2655,11 @@
     jidoTimer = setTimeout(function () { jidoTimer = null; jidoHozon(true); }, JIDO_MACHI);
   }
 
+  /* ★書く 操作を 始めたら「…できています」の 印を 消す★（2026-10-14 taiketsu 本番前）＝前は 後の 保存が 落ちても
+     「保存は できています」が 残り、倉庫は 5000・画面は 7000 の まま 閉じ得た。通れば loadList が また 立てる */
+  function atoKesu() { if (S.listAto) { S.listAto = false; drawYomenai(); } }
   function saveDraft() {
+    atoKesu();
     var v = collect();
     var t = recalc();
     v.lines = cleanLines(v.lines);
@@ -2723,6 +2729,7 @@
   }
 
   function issue() {
+    atoKesu();
     /* ★押せない時は何もしない（歯止め。見た目＝灰色だけで守らない）★
        ここで断る時の言葉は ★下の元の検査がそのまま出す★。
        ボタンの中の短い理由と、押した後の長い説明を ★別々に書かない★
@@ -2788,6 +2795,7 @@
   }
 
   function voidIt() {
+    atoKesu();
     var v = S.cur;
     if (!DOC.canVoid(v)) return Promise.resolve();
     if (!global.confirm('請求書 ' + (v.no || '') + ' を取り消しますか？\n（中身は残ります。番号は他で使えません）')) return Promise.resolve();
@@ -2795,17 +2803,18 @@
       if (!r.ok) { box('edit-err', '取り消せませんでした（' + r.reason + '）'); return; }
       S.cur.status = 'void';
       box('edit-ok', '取り消しました。');
-      return loadList({ ato: true }).then(function () { fillEdit(); });
+      return loadList({ ato: '取り消しは できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { fillEdit(); });
     });
   }
 
   function removeDraft() {
+    atoKesu();
     var v = S.cur;
     if (!(DOC.canDelete(v) && v.id)) return Promise.resolve();
     if (!global.confirm('この下書きを削除しますか？')) return Promise.resolve();
     return S.store.invoices.removeDraft(v.id).then(function (r) {
       if (!r.ok) { box('edit-err', '削除できませんでした（' + r.reason + '）'); return; }
-      return loadList({ ato: true }).then(function () { goScreen('scr-list'); });
+      return loadList({ ato: '下書きは 消せています（一覧から 消えるのは 読み込めてから です）。' }).then(function () { goScreen('scr-list'); });
     });
   }
 
