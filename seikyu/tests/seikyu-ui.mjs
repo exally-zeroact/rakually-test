@@ -334,7 +334,10 @@ T('2-a. ★出すボタンは1つだけ大きく・ほかは畳む（7個 横並
        「これで」「飛ばす」「なぜ？」「押すと直せます」＝★答える為の物★。
        ここで数えたいのは ★紙を出すボタンが横に並んでいないか★ だけ。
        ★聞く形は 答え終われば 自分で消える★ので 画面に残り続けない。 */
-    && !b.closest('.pask'));
+    && !b.closest('.pask')
+    /* ★読めない 時の 知らせの 中の「もう一度読み込む」も 出す口ではない★（2026-10-13）
+       ＝読み直す 為の 物・読めれば 箱ごと 消える（7-c が 消える事を 見る）。 */
+    && !b.closest('#edit-yomenai'));
   eq(outside.map((b) => b.id).join(','), 'b-issue', '畳みの外にボタンが多い: ' + outside.map((b) => b.id));
   eq(shown($('b-pay-add')), false, '★下書きなのに「入金を記録」が出ている（まだ請求していない）★');
 });
@@ -935,8 +938,14 @@ await TA('7-b. ★自社情報が読めなかった時は、空っぽ扱いに�
   await sleep(50);
   eq(st.org, null, '読めなかったのに空っぽ({})にしている＝紙に「自社情報が未入力」と出る');
   eq(st.orgReadOk, false, '読めたことになっている');
-  ok($('list-err').style.display !== 'none', '読めなかったことを画面で言っていない');
-  ok(/読めません/.test($('list-err').textContent), '文言が「読めなかった」になっていない: ' + $('list-err').textContent);
+  /* ★客の 道と 同じ 順★＝loadMasters の すぐ 後に loadList（attach・読み直す）。
+     前は loadList の 1行目が 自社の 赤字を 消して いた＝この 試験は loadMasters だけ 呼んで 偽の 緑だった（taiketsu 10-13） */
+  await app._loadList();
+  await sleep(30);
+  ok($('list-yomenai').style.display !== 'none', '★読めなかったことを画面で言っていない（一覧の 読みが 消した）★');
+  ok(/自社の 情報/.test($('list-yomenai').textContent), '★何が 読めないかを 言っていない★: ' + $('list-yomenai').textContent);
+  ok(!/fake-failure/.test(doc.body.textContent), '★生の エラーの 文が 画面に 出ている★');
+  ok(/もう一度読み込む/.test($('b-yomikomi').textContent), '★直し方の ボタンが 知らせの 中に 無い★');
 
   // この状態では発行させない（空の自社が写しに固まると、もう直せない紙になる）
   $('b-new').click();
@@ -967,6 +976,127 @@ await TA('7-b. ★自社情報が読めなかった時は、空っぽ扱いに�
   eq(st.orgReadOk, true, '読み直しても直らない');
   ok(st.org && st.org.yago, '自社情報が戻っていない');
   ok(keepOrg !== undefined, '');
+  eq($('list-yomenai').style.display, 'none', '★読めたのに 知らせが 残っている★');
+});
+
+/* ═══ 7-c. ★一覧が 読めない 時★（2026-10-13 司さん「赤字の警告はなんどぼけ」）═══
+   前は 赤字に ブラウザの 生の 文（Load failed）を 出し、直し方は 畳んだ「もっと」の 中だった。
+   しかも 一覧が [] の まま 発行でき、★前回の 繰越が 黙って 消えた 紙★ が 出せた（taiketsu 10-13：60000 が 10000）。 */
+await TA('7-c. ★一覧が 読めない 時は 赤字でなく 知らせの 箱・生の 文を 出さない・発行しない・ボタンで 直る', async () => {
+  const app = win.SeikyuApp, st = app._state;
+  try {
+  doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(10);
+  sb._failNext('pay_invoices', 'select');
+  await app._loadList(); await sleep(30);
+  eq(st.listReadOk, false, '読めなかったのに 読めた 事に なっている');
+  ok($('list-yomenai').style.display !== 'none', '★一覧が 読めないのに 黙っている★');
+  ok(/一覧 を 取って来られませんでした/.test($('list-yomenai').textContent), '★何が 読めないかを 言っていない★: ' + $('list-yomenai').textContent);
+  ok(!/保存は できています/.test($('list-yomenai').textContent), '★書いて いないのに「保存は できています」と 言った★');
+  ok(!/fake-failure/.test(doc.body.textContent), '★生の エラーの 文が 画面に 出ている★');
+  eq($('list-err').style.display, 'none', '★赤字の 箱が まだ 出ている★');
+  ok($('list-yomenai').classList.contains('warn') && !$('list-yomenai').classList.contains('bad'), '★知らせが 赤（.bad）に なっている★');
+  /* 読めない 間は 発行しない（繰越を 数えられない） */
+  $('b-new').click(); await sleep(20);
+  setVal('e-partner', 'pt_a'); await sleep(20);
+  const tr0 = $('lines-body').querySelector('tr');
+  tr0.querySelector('[data-f="name"]').value = '工事代金'; tr0.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+  tr0.querySelector('[data-f="amount"]').value = '10000'; tr0.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+  await sleep(40);
+  eq($('b-issue').disabled, true, '★一覧が 読めないのに「発行する」が 押せる（繰越が 黙って 消える）★');
+  ok(/一覧が読めません/.test($('b-issue').textContent), '★押せない 理由が ボタンの 中に 無い★: ' + $('b-issue').textContent);
+  const n0 = db.pay_invoices.length;
+  $('b-issue').click(); await sleep(60);
+  eq(db.pay_invoices.length, n0, '★一覧が 読めないのに 発行された★');
+  /* 保存の 後の 読み直しが 落ちた 時は「保存は できています」（読めない だけ と 分かる＝発行し直させない） */
+  sb._failNext('pay_invoices', 'select');
+  await app._loadList({ ato: true }); await sleep(30);
+  ok(/保存は できています/.test($('list-yomenai').textContent), '★書けたのに「読めない」だけ 言っている（作り直されて 二重の 請求に なる）★: ' + $('list-yomenai').textContent);
+  /* 知らせの 中の ボタンで 直る */
+  $('b-yomikomi').click(); await sleep(120);
+  eq(st.listReadOk, true, '★「もう一度読み込む」で 直らない★');
+  eq($('list-yomenai').style.display, 'none', '★読めたのに 知らせが 残っている★');
+  ok(!/一覧が読めません/.test($('b-issue').textContent), '★読めたのに 発行が 止まった まま★: ' + $('b-issue').textContent);
+
+  /* ★歯止め★＝灰色の ボタンを 通らずに 発行を 呼んでも 止まる（jsdom では 灰色の click は 何も 走らない＝ボタンだけ 見ると 空振り・taiketsu 10-13） */
+  sb._failNext('pay_invoices', 'select');
+  await app._loadList(); await sleep(30);
+  const n1 = db.pay_invoices.length;
+  await app._issue(); await sleep(60);
+  eq(db.pay_invoices.length, n1, '★一覧が 読めないのに 発行の 中身が 走って 発行された★');
+  ok(/繰越を数えられない/.test($('edit-err').textContent), '★止めた 訳を 言っていない★: ' + $('edit-err').textContent);
+  /* ★入力の 画面にも 知らせが 出る★ */
+  ok($('edit-yomenai').style.display !== 'none' && /もう一度読み込む/.test($('edit-yomenai').textContent), '★入力の 画面に 知らせが 出ていない★');
+
+  /* ★発行の 後に 落ちたら 番号つきで「発行は できています」・もう一度 落ちても 消さない★ */
+  sb._failNext('pay_invoices', 'select');
+  await app._loadList({ ato: '請求書 TEST-1 の 発行は できています（一覧に 出るのは 読み込めてから です）。' }); await sleep(30);
+  ok(/TEST-1 の 発行は できています/.test($('list-yomenai').textContent), '★発行できたのに 番号を 言っていない★: ' + $('list-yomenai').textContent);
+  sb._failNext('pay_invoices', 'select');
+  $('b-yomikomi').click(); await sleep(120);
+  ok(/TEST-1 の 発行は できています/.test($('list-yomenai').textContent), '★「もう一度読み込む」が また 落ちたら「できています」が 消えた★: ' + $('list-yomenai').textContent);
+  $('b-yomikomi').click(); await sleep(120);
+  eq(st.listReadOk, true, '読み直しても 直らない');
+
+  /* ★最後に 呼んだ 1本だけが 書く★＝遅れて 落ちた 古い 読みが、後の 成功を 上書きしない */
+  const moto = st.store.invoices.list;
+  let kai = 0;
+  st.store.invoices.list = function (k) {
+    kai++;
+    if (kai === 1) return new Promise((res, rej) => setTimeout(() => rej(new Error('fake-failure')), 80));
+    return moto.call(this, k);
+  };
+  try {
+    const p1 = app._loadList(), p2 = app._loadList();
+    await Promise.all([p1, p2]); await sleep(120);
+  } finally { st.store.invoices.list = moto; }
+  eq(st.listReadOk, true, '★遅れて 落ちた 古い 読みが 後の 成功を 上書きした★');
+
+  /* ★種類が 違う 一覧では 発行しない★（一覧を 見積書に 切り替えて 入力へ 戻ると 繰越が 黙って 消えた まま 発行できた・taiketsu 10-13） */
+  $('b-new').click(); await sleep(20);
+  setVal('e-partner', 'pt_a'); await sleep(20);
+  const tr1 = $('lines-body').querySelector('tr');
+  tr1.querySelector('[data-f="name"]').value = '工事代金'; tr1.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+  tr1.querySelector('[data-f="amount"]').value = '10000'; tr1.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+  await sleep(40);
+  ok(!/一覧/.test($('b-issue').textContent), '前提：請求書の 一覧が 読めて いる 間は 押せる: ' + $('b-issue').textContent);
+  doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(10);
+  doc.querySelector('#kind-seg [data-kind="quote"]').click(); await sleep(120);
+  doc.querySelector('.bn[data-scr="scr-edit"]').click(); await sleep(60);
+  app._recalcForTest(); await sleep(20);
+  eq($('b-issue').disabled, true, '★一覧が 見積書の まま 請求書を 発行できる（繰越が 黙って 消える）★');
+  ok(/一覧が見積書です/.test($('b-issue').textContent), '★押せない 訳を「読めません」と 嘘を 言う（一覧は 読めて いる）★: ' + $('b-issue').textContent);
+  ok($('edit-yomenai').style.display !== 'none' && /見積書/.test($('edit-yomenai').textContent), '★なぜ 止めたか（一覧が 見積書）を 言っていない★: ' + $('edit-yomenai').textContent);
+  eq($('b-yomikomi2').style.display, 'none', '★押しても 直らない「もう一度読み込む」を 出している（種類違いは 読み直しで 直らない）★');
+  doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(10);
+  doc.querySelector('#kind-seg [data-kind="invoice"]').click(); await sleep(120);
+  doc.querySelector('.bn[data-scr="scr-edit"]').click(); await sleep(60);
+  app._recalcForTest(); await sleep(20);
+  ok(!/一覧/.test($('b-issue').textContent), '★請求書の 一覧に 戻しても 止まった まま★: ' + $('b-issue').textContent);
+  eq($('edit-yomenai').style.display, 'none', '★戻したのに 入力の 画面の 知らせが 残っている★');
+
+  /* ★まだ 1回も 読めて いない（読みが 戻らない）間は 発行しない★（白名簿・taiketsu 10-13 3回目：71000 が 11000） */
+  const moto2 = st.store.invoices.list;
+  const hodoku = [];   /* ★請求書と 見積の 2回 呼ばれる★＝解く 口は 全部 持つ（1つだと 片方が 永遠に 待つ） */
+  st.store.invoices.list = function () { return new Promise((res) => { hodoku.push(res); }); };
+  try {
+    const pend = app._loadList();
+    app._recalcForTest(); await sleep(20);
+    ok(/一覧を読み込み中/.test($('b-issue').textContent), '★読み込み中なのに 発行が 押せる（繰越が 黙って 消える）★: ' + $('b-issue').textContent);
+    const n2 = db.pay_invoices.length;
+    await app._issue(); await sleep(40);
+    eq(db.pay_invoices.length, n2, '★読み込み中に 発行の 中身が 走って 発行された★');
+    ok(/読み込み中/.test($('edit-err').textContent), '★止めた 訳を 言っていない★: ' + $('edit-err').textContent);
+    ok($('edit-yomenai').style.display !== 'none' && /読み込んで います/.test($('edit-yomenai').textContent), '★入力の 画面に 読み込み中と 出ていない★');
+    eq($('b-yomikomi2').style.display, 'none', '★読み込み中に「もう一度読み込む」を 出している★');
+    st.store.invoices.list = moto2;
+    hodoku.forEach((h) => h([]));
+    await pend; await sleep(30);
+  } finally { st.store.invoices.list = moto2; }
+  } finally {
+    /* ★後片付け★＝途中で 落ちても 一覧を 読めた 状態に 戻す（戻さないと 後ろの 試験が 連鎖で 赤に なり 読み違える） */
+    if (st.docType !== 'invoice') { doc.querySelector('#kind-seg [data-kind="invoice"]').click(); await sleep(120); }
+    await app._loadList(); await sleep(30);
+  }
 });
 
 

@@ -571,22 +571,104 @@
     });
   }
 
-  function loadList() {
+  /* ★一覧を 読む★（2026-10-13 司さん「赤字の警告はなんどぼけ」）
+     ・前は 読めないと 赤字で ★ブラウザの 生の 文（Load failed）★ を 出していた。
+       読む 道具（postgrest）は 中で もう 3回 読み直して いる（1・2・4秒）＝ここで 足しても 効かない（taiketsu 10-13）。
+     ⇒ 生の 文は 出さず、★知らせの 箱（list-yomenai）に「もう一度読み込む」★ を 出す（drawYomenai）。
+     ・opts.ato＝保存・発行・取り消し・削除・送った印 の 後＝★書けて いる★ので「保存は できています」を 添える
+       （「読めない」だけを 見た 客が 発行し直して 同じ 相手に 二重に 請求する 道を 塞ぐ）。
+       ★.then(loadList) は 配列が 渡る★ので opts.ato === true の 時だけ 見る。
+     ・★最後に 呼んだ 1本だけが 書く★（読みが 遅れて 種類を 切り替えると 見積の 一覧に 請求書が 入った・taiketsu 10-13）。
+     ・読めない 間は S.listReadOk=false＝★発行しない★（一覧が [] の まま だと 前回の 繰越が 黙って 消える＝60000 が 10000 に なる）。 */
+  var _listNo = 0;
+  function loadList(opts) {
+    var my = ++_listNo;
+    var kind = S.docType;
+    /* ato＝true（保存など）か 字（発行の 番号つき）。★.then(loadList) の 配列は 見ない★ */
+    var ato = (opts && (opts.ato === true || typeof opts.ato === 'string')) ? opts.ato : false;
+    /* ★読み直して いる 間は「読み込み中」★＝発行した ばかりの 1通が 入って いない 古い 一覧で 繰越を 数えない。
+       落ちた 後（false）は そのまま（直し方の ボタンを 消さない）。箱は ここでは 描き直さない（保存の たびに 箱が 一瞬 出ない） */
+    if (S.listReadOk === true) S.listReadOk = null;
     box('list-err', '');
     return Promise.all([
-      S.store.invoices.list(S.docType),
+      S.store.invoices.list(kind),
       S.store.receipts.list(),
       // ★見積の一覧も持つ（請求書に「どの見積から作ったか」を番号で出すため）
-      S.docType === 'quote' ? Promise.resolve(null) : S.store.invoices.list('quote'),
+      kind === 'quote' ? Promise.resolve(null) : S.store.invoices.list('quote'),
     ]).then(function (r) {
+      if (my !== _listNo) return;            // ★後から 呼んだ 読みが 在る＝古い 一覧で 上書きしない★
       S.invoices = r[0] || [];
       S.receipts = r[1];                     // ★null のまま持つ＝「未確認」と「0件」を作り分ける
-      S.quotes = (S.docType === 'quote') ? S.invoices : (r[2] || []);
+      S.quotes = (kind === 'quote') ? S.invoices : (r[2] || []);
+      S.listReadOk = true; S.listAto = false; S.listKind = kind;   /* ★読めた 種類も 持つ★（種類が 違う 一覧では 繰越を 数えられない） */
       drawKind();
       renderList();
+      drawYomenai();
+      if ($('b-issue')) drawIssueButton();
     }).catch(function (e) {
-      box('list-err', '請求書の一覧が読めませんでした（' + ((e && e.message) || 'error') + '）。ネットの状態を確かめて「読み直す」を押してください。');
+      if (my !== _listNo) return;
+      console.error('★一覧を 取って来られませんでした★', e);   /* ★生の 文は 画面に 出さず ここに 残す★ */
+      /* ★「できています」は 読めるまで 持ち越す★（「もう一度読み込む」が また 落ちても 消さない・taiketsu 10-13） */
+      S.listReadOk = false; S.listAto = ato || S.listAto;
+      drawYomenai();
+      if ($('b-issue')) drawIssueButton();
     });
+  }
+  /* ★読めて いない 物の 知らせ★（自社・取引先・一覧）＝1つの 箱に まとめて 言う／★生の 文は 出さない★
+     前は 自社が 読めない 赤字を すぐ 後の loadList の 1行目が 消して いた（客に 一度も 出ない＝taiketsu 10-13）。 */
+  /* ★今の 紙と 同じ 種類の 一覧が 読めて いるか★（繰越は 同じ 種類の 前回から 数える＝seikyu-carry prevOf）
+     一覧で 見積書に 切り替えてから 請求書の 入力へ 戻ると、前は「前回の請求はありません」の まま 発行できた（61000 が 11000・taiketsu 10-13） */
+  /* ★白名簿★＝「読めた・同じ 種類」の 時だけ 通す（taiketsu 10-13 3回目：まだ 1回も 読めて いない 間は 開いて いて、
+     読みが 戻らない まま 発行すると 71000 が 11000 で 固まった）。
+     戻り：null（通す）／'yomikomi'（まだ 読めて いない）／'yomenai'（読めなかった）／'shurui'（種類が 違う） */
+  function listWhy(v) {
+    if (S.listReadOk === false) return 'yomenai';
+    if (S.listReadOk !== true) return 'yomikomi';
+    var k = (v && v.doc_type) || 'invoice';
+    return (S.listKind === k) ? null : 'shurui';
+  }
+  function listOkFor(v) { return !listWhy(v); }
+  function drawYomenai() {
+    ['edit-yomenai'].forEach(function (id) { drawYomenaiIn(id, id + '-t'); });
+    var el = $('list-yomenai'); if (!el) return;
+    var na = [];
+    if (S.orgReadOk === false) na.push('自社の 情報');
+    if (S.partnersReadOk === false) na.push('取引先');
+    if (S.listReadOk === false) na.push(DOC.docLabel(S.docType) + 'の 一覧');
+    if (!na.length) { el.style.display = 'none'; return; }
+    setText('list-yomenai-t', yomenaiBun(na));
+    el.style.display = '';
+  }
+  /* 字は 1か所で 作る（一覧と 入力の 2つの 箱が 同じ 字を 言う） */
+  function yomenaiBun(na) {
+    var ato = S.listAto;
+    return na.join('・') + ' を 取って来られませんでした。'
+      + (typeof ato === 'string' ? ato : ato ? '保存は できています。' : '')
+      + '一覧が 読めるまで 新しい 発行は 止めて います。下の「もう一度読み込む」を 押してください。';
+  }
+  /* ★入力の 画面にも 出す★（保存・発行の 後に 落ちた 時、客は 入力の 画面に 居る＝一覧の 箱は 見えない） */
+  function drawYomenaiIn(id, tid) {
+    var el = $(id); if (!el) return;
+    var na = [];
+    if (S.orgReadOk === false) na.push('自社の 情報');
+    if (S.partnersReadOk === false) na.push('取引先');
+    if (S.listReadOk === false) na.push(DOC.docLabel(S.docType) + 'の 一覧');
+    var btn = el.querySelector('button');
+    var why = (S.cur && !na.length) ? listWhy(S.cur) : null;
+    if (why === 'shurui' || why === 'yomikomi') {
+      /* ★押しても 直らない ボタンは 出さない★（種類違いは 読み直しでは 直らない・taiketsu 10-13） */
+      if (btn) btn.style.display = 'none';
+      el.style.display = '';
+      var kl = DOC.docLabel(S.cur.doc_type || 'invoice');
+      setText(tid, why === 'shurui'
+        ? ('一覧が ' + DOC.docLabel(S.listKind) + ' に なっているので、この ' + kl + ' の 前回の 繰越を 数えられません。一覧で ' + kl + ' に 戻すと 発行できます。')
+        : ('一覧を 読み込んで います。読めるまで 発行は 止めて います（前回の 繰越を 数えるため）。'));
+      return;
+    }
+    if (btn) btn.style.display = '';
+    if (!na.length) { el.style.display = 'none'; return; }
+    setText(tid, yomenaiBun(na));
+    el.style.display = '';
   }
 
   /* ═══ 1通の編集 ═══ */
@@ -693,7 +775,7 @@
     v.sent_at = at;
     S.store.invoices.markSent(v.id, at).then(function (r) {
       if (!r || !r.ok) { v.sent_at = ''; return; }  /* しまえなければ 印も 戻す（嘘を 残さない） */
-      return loadList();
+      return loadList({ ato: true });
     }).catch(function () { v.sent_at = ''; });
   }
 
@@ -2080,6 +2162,7 @@
 
   function recalc() {
     var v = S.cur; if (!v) return null;
+    drawYomenaiIn('edit-yomenai', 'edit-yomenai-t');   /* ★明細が 崩れて 早く 返る 時も 古い 知らせを 残さない★（taiketsu 10-13） */
     var t;
     try { t = currentTax(); }
     catch (e) { box('edit-err', (e && e.message) || '計算できませんでした'); return null; }
@@ -2592,7 +2675,7 @@
       box('edit-ok', (S.cur.status === 'issued' ? '直した内容を 保存しました（番号 ' + (S.cur.no || '') + ' は そのままです）。'
         : S.cur.status === 'void' ? '取り消し済みの 中身を 保存しました。'
           : '下書きを保存しました。'));
-      return loadList().then(function () { fillEdit(); });
+      return loadList({ ato: true }).then(function () { fillEdit(); });
     });
   }
 
@@ -2611,6 +2694,9 @@
     if (!v) return '中身がありません';
     if (locked()) return null;                    // 発行済み＝この操作は「存在しない」＝出さない側
     if (S.orgReadOk === false) return '自社情報が読めません';
+    /* ★繰越を 数えられない＝止める★（司さん 10-04「計算できなければ止めて警告」）＝訳は 3つに 分けて 言う */
+    var lw = listWhy(v);
+    if (lw) return lw === 'shurui' ? '一覧が' + DOC.docLabel(S.listKind) + 'です' : lw === 'yomikomi' ? '一覧を読み込み中' : '一覧が読めません';
     var t;
     try { t = currentTax(); } catch (e) { return '計算できません'; }
     if (!t || !t.ok) return '明細を直してください';
@@ -2627,6 +2713,7 @@
 
   /** 「発行する」の見た目を、押せるか押せないかで塗り直す */
   function drawIssueButton() {
+    drawYomenaiIn('edit-yomenai', 'edit-yomenai-t');   /* ★押せない 訳と 直し方を 入力の 画面にも★（2026-10-13） */
     var b = $('b-issue'); if (!b) return;
     var why = issueBlockReason();
     b.disabled = !!why;
@@ -2646,7 +2733,18 @@
     if (!t || !t.ok) { box('edit-err', '計算が通らないので発行できません。上の赤い印を直してください。'); return Promise.resolve(); }
     // ★自社情報が読めていないまま発行しない（写しに空の自社が固まる＝直せない紙になる）
     if (S.orgReadOk === false) {
-      box('edit-err', '会社の情報が読めていないので発行できません。一覧の「読み直す」を押してから、もう一度お試しください。');
+      box('edit-err', '会社の情報が読めていないので発行できません。一覧の「もう一度読み込む」を押してから、もう一度お試しください。');
+      return Promise.resolve();
+    }
+    /* ★一覧が 読めて いない まま 発行しない★＝前回の 請求が 見えず ★繰越が 黙って 消えた 紙★ が 写しに 固まる（10-13 taiketsu：60000 が 10000） */
+    var lw2 = listWhy(v);
+    if (lw2) {
+      var kl2 = DOC.docLabel(v.doc_type || 'invoice');
+      box('edit-err', lw2 === 'shurui'
+        ? ('一覧が ' + DOC.docLabel(S.listKind) + ' になっているので発行できません（この' + kl2 + 'の前回の繰越を数えられないため）。一覧で ' + kl2 + ' に戻してから、もう一度お試しください。')
+        : lw2 === 'yomikomi'
+          ? (kl2 + 'の一覧を読み込み中なので、まだ発行できません（前回の請求からの繰越を数えるため）。読み込めてから、もう一度お試しください。')
+          : (kl2 + 'の一覧が読めていないので発行できません（前回の請求からの繰越を数えられないため）。一覧の「もう一度読み込む」を押してから、もう一度お試しください。'));
       return Promise.resolve();
     }
     var p = partnerById(v.partner_id);
@@ -2685,7 +2783,7 @@
         + ' 中身は あとからでも 直せます。');
       /* ★次の 一手を その場に 出す★（2026-09-10）＝一覧へ 歩かせない */
       var ai = $('after-issue'); if (ai) ai.style.display = '';
-      return loadList().then(function () { fillEdit(); });
+      return loadList({ ato: DOC.docLabel(v.doc_type || 'invoice') + ' ' + r.no + ' の 発行は できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { fillEdit(); });
     });
   }
 
@@ -2697,7 +2795,7 @@
       if (!r.ok) { box('edit-err', '取り消せませんでした（' + r.reason + '）'); return; }
       S.cur.status = 'void';
       box('edit-ok', '取り消しました。');
-      return loadList().then(function () { fillEdit(); });
+      return loadList({ ato: true }).then(function () { fillEdit(); });
     });
   }
 
@@ -2707,7 +2805,7 @@
     if (!global.confirm('この下書きを削除しますか？')) return Promise.resolve();
     return S.store.invoices.removeDraft(v.id).then(function (r) {
       if (!r.ok) { box('edit-err', '削除できませんでした（' + r.reason + '）'); return; }
-      return loadList().then(function () { goScreen('scr-list'); });
+      return loadList({ ato: true }).then(function () { goScreen('scr-list'); });
     });
   }
 
@@ -4626,6 +4724,10 @@
     $('b-toinv').onclick = function () { return toInvoice(); };
     // ★「読み直す」は共有マスタも取り直す（自社が読めなかった時の直し方がこれ）
     $('b-reload').onclick = function () { return loadMasters().then(loadList); };
+    /* ★読めない 時の 直し方は 知らせの 箱の 中★（畳んだ「もっと」の 中に 探させない） */
+    ['b-yomikomi', 'b-yomikomi2'].forEach(function (id) {
+      if ($(id)) $(id).onclick = function () { return loadMasters().then(function () { return loadList(); }); };
+    });
     /* ★一覧の 取引先の 選び★（2026-09-08） */
     if ($('l-partner')) $('l-partner').onchange = function () { renderList(); };
     /* ★何年何月分★（2026-09-09 司さん）＝取引先と 同じ 1本の 道で 描き直す */
@@ -4979,10 +5081,9 @@
       S.partners = r[1].ok ? (r[1].v || []) : [];
       S.partnersReadOk = r[1].ok;
       if (bad.length) {
-        box('list-err', '会社の情報（自社・取引先）が読めませんでした（'
-          + ((bad[0].e && bad[0].e.message) || 'error') + '）。'
-          + 'このまま発行すると紙に自社情報が出ません。「読み直す」を押してください。');
+        console.error('★自社・取引先を 取って来られませんでした★', bad[0].e);   /* ★生の 文は 画面に 出さず ここに 残す★ */
       }
+      drawYomenai();
       return r;
     });
   }
@@ -4998,6 +5099,8 @@
     /* テスト用: ★相手ごとの紙の設定を 画面から 作る★（口座の札を 押した結果が 入るか を 見る為） */
     _partnerPaperFromForm: function (id) { return partnerPaperFromForm(id); },
     _loadMasters: function () { return loadMasters(true); },   // テストから1回だけ読ませる
+    _loadList: function (o) { return loadList(o); },
+    _issue: function () { return issue(); },                    // テスト用: ボタンの 灰色を 通らずに 発行の 歯止めを 見る           // テスト用: 一覧だけ 読ませる（読めない 時の 知らせを 見る）
     _recalcForTest: function () { return recalc(); },          // テスト用: 数え直しだけ走らせる
     _fillEdit: fillEdit,          // テスト用: 入力の画面を描き直す（★見られない物は 見張れない★）
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える
