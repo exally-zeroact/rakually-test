@@ -3336,18 +3336,26 @@
     var B = bookLib(), saved = bookSaved();
     if (!B || !saved) return null;
     var pi = paperInput(); if (!pi) return null;
+    var vals = bookVals(pi);
+    var bytes = b64ToBytes(saved.b64);
+    return bookFill(B, saved, bytes, vals, name, pi);
+  }
+  /* ★自社 Excel に 入れる 値★（試験から 呼べる 1か所・2026-10-14） */
+  function bookVals(pi) {
     var inv = pi.inv || {}, tax = pi.tax || {}, p = pi.partner || {};
-    var vals = {
+    return {
       partnerName: String(p.name || ''),
       issueYmd: String(inv.issue_ymd || ''),
-      no: String(inv.no || ''),
+      no: PAPER.noDasu(pi) ? String(inv.no || '') : '',   /* ★出さない 時は 自社 Excel にも 書かない★（2026-10-14） */
       subject: String((inv.data && inv.data.subject) || ''),
       dueYmd: String(inv.due_ymd || ''),
       subtotal: Number(tax.subtotal || 0),
       taxTotal: Number(tax.taxTotal || 0),
       grandTotal: Number(tax.grandTotal || 0),
     };
-    var bytes = b64ToBytes(saved.b64);
+  }
+  function bookFill(B, saved, bytes, vals, name, pi) {
+    var inv = pi.inv || {}, tax = pi.tax || {};
     /* ★読み直してから 書く★＝fill は「入れる先のマスが 元のファイルに在るか」を
        ★srcInfo で 確かめてから★ 書く作り。渡さないと ★全部のマスが「無い」と見えて 断られる★
        （2026-08-31 実測：私が null を渡していて 1マスも 書けなかった）。 */
@@ -5109,7 +5117,8 @@
     _partnerPaperFromForm: function (id) { return partnerPaperFromForm(id); },
     _loadMasters: function () { return loadMasters(true); },   // テストから1回だけ読ませる
     _loadList: function (o) { return loadList(o); },
-    _issue: function () { return issue(); },                    // テスト用: ボタンの 灰色を 通らずに 発行の 歯止めを 見る           // テスト用: 一覧だけ 読ませる（読めない 時の 知らせを 見る）
+    _issue: function () { return issue(); },
+    _bookValsForTest: function () { var pi = paperInput(); return pi ? bookVals(pi) : null; },   // テスト用: 自社 Excel に 入れる 値（番号を 出さない 時に 空か）                    // テスト用: ボタンの 灰色を 通らずに 発行の 歯止めを 見る           // テスト用: 一覧だけ 読ませる（読めない 時の 知らせを 見る）
     _recalcForTest: function () { return recalc(); },          // テスト用: 数え直しだけ走らせる
     _fillEdit: fillEdit,          // テスト用: 入力の画面を描き直す（★見られない物は 見張れない★）
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える

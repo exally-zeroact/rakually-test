@@ -85,19 +85,62 @@ T('★①-2 どの様式でも 同じに 効く（片方だけ 直さない）',
 
 T('★③ 番号を 付けるのは 止めない（採番そのものは 生きている）', () => {
   /* ★紙に 書くかどうかだけ★＝1通が 持つ 番号は そのまま
-     （控えと「同じ番号を 二度 使わない」為に 番号そのものは 要る）。 */
-  const r = PAPER.build({
-    inv: { no: NO, issue_ymd: '2026-09-09', kind: 'invoice',
-      lines: [{ name: 'x', qty: '1', unit: '式', price: '1000', amount: '1000', rate: 10 }],
-      totals: { grandTotal: 1100 }, data: {} },
-    tax: TAX.compute({ lines: [{ name: 'x', qty: '1', unit: '式', price: '1000', rate: 10 }],
-      taxMode: 'exclusive', rounding: 'floor' }),
+     （控えと「同じ番号を 二度 使わない」為に 番号そのものは 要る）。
+     ★2026-10-14 書き直した★ 前は「出さない でも <title> に 番号が 残る」を 守って いた。
+       ところが <title> は 印刷で PDF に する 時の ★ファイルの 名前★に なる＝★客の 出口★。
+       指示役の 決め（10-14・司さん「出さんってゆうとんのに出る」）＝★出さない 時は 全部の 出口から 消す★。
+       ⇒ ここで 守るのは ★紙を 作っても 1通が 持つ 番号は 消えない／変わらない★ 事。 */
+  const inv0 = { no: NO, issue_ymd: '2026-09-09', kind: 'invoice',
+    lines: [{ name: 'x', qty: '1', unit: '式', price: '1000', amount: '1000', rate: 10 }],
+    totals: { grandTotal: 1100 }, data: {} };
+  PAPER.build({
+    inv: inv0,
+    tax: TAX.compute({ lines: [{ name: 'x', qty: '1', unit: '式', price: '1000', rate: 10 }], taxMode: 'exclusive', rounding: 'floor' }),
     partner: { name: 'A', honor: '御中' }, org: { yago: 'Z' },
     template: TPL.getOrDefault('std1'), templateId: 'std1',
     theme: TPL.getOrDefault('std1').theme, style: { noOn: false },
     cols: COLS.normalizeSpec(TPL.getOrDefault('std1').cols), deduct: 0, deductLines: [],
   });
-  ok(String(r.html).indexOf(NO) >= 0, '★ファイルの 名前からも 番号が 消えた★（控えが 分からなくなる）');
+  ok(inv0.no === NO, '★紙を 作ったら 1通の 番号が 消えた／変わった★: ' + inv0.no);
+});
+
+/* ═══ ⑦〜⑩ ★「出さない」が 効いて いなかった 出口★（2026-10-14 taiketsu 測った＝司さん「出さんってゆうとんのに出る」） ═══
+   紙の No. だけ 消えて、繰越の「前回 No.」・領収書の 但し書き・<title>（PDF の 名前）・Excel には 出て いた。
+   ★どれも「出す 時は 出る」を 先に 見る★＝空振り 止め。 */
+const PREV = 'PREV-0776';
+function kamiCarry(style) {
+  const ln = [{ name: '工事代金', qty: '1', unit: '式', price: '30000', amount: '30000', rate: 10 }];
+  const t = TAX.compute({ lines: ln, taxMode: 'exclusive', rounding: 'floor' });
+  const tp = TPL.getOrDefault('std1');
+  return {
+    inv: { no: NO, issue_ymd: '2026-09-09', kind: 'invoice', lines: ln, totals: { grandTotal: t.grandTotal }, data: {} },
+    tax: t, partner: { name: '例野工業', honor: '御中' }, org: { yago: '合同会社Rakunally' },
+    template: tp, templateId: 'std1', theme: tp.theme, style: style || {}, cols: COLS.normalizeSpec(tp.cols),
+    deduct: 0, deductLines: [],
+    carry: { state: 'ok', label: '前回からの繰越', prevNo: PREV, prevBilled: 50000, paid: 0, carry: 50000, carryOver: 50000 },
+  };
+}
+const AOA = await req('seikyu-aoa.js');
+const aoaJi = (o) => JSON.stringify(AOA.build(o));
+T('★⑦ 繰越の「前回 No.」も 出さない 時は 消える', () => {
+  ok(naka(PAPER.build(kamiCarry({})).html).indexOf(PREV) >= 0, '前提：出す 時に 前回の 番号が 紙に 無い＝何も 見て いない');
+  ok(naka(PAPER.build(kamiCarry({ noOn: false })).html).indexOf(PREV) < 0, '★出さない のに 繰越の 前回 No. が 紙に 出て いる★');
+});
+T('★⑧ 領収書の 但し書き（請求書 ◯◯ の代金として）も 出さない 時は 番号を 書かない', () => {
+  const rc = (style) => PAPER.build(Object.assign(kamiCarry(style), { carry: null, docKind: 'receipt',
+    receipt: { no: NO + '-1', amount: 33000, paid_ymd: '2026-09-20', note: '' } })).html;
+  ok(naka(rc({})).indexOf('請求書 ' + NO) >= 0, '前提：出す 時に 但し書きに 番号が 無い＝何も 見て いない');
+  ok(naka(rc({ noOn: false })).indexOf(NO) < 0, '★出さない のに 領収書に 番号が 出て いる★');
+});
+T('★⑨ <title>（印刷で PDF に する 時の 名前）にも 出さない', () => {
+  const ti = (h) => (String(h).match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
+  ok(ti(PAPER.build(kamiCarry({})).html).indexOf(NO) >= 0, '前提：出す 時に title に 番号が 無い＝何も 見て いない');
+  ok(ti(PAPER.build(kamiCarry({ noOn: false })).html).indexOf(NO) < 0, '★出さない のに title（PDF の 名前）に 番号★');
+});
+T('★⑩ Excel（No. の 行・繰越の 前回 No.）にも 出さない', () => {
+  ok(aoaJi(kamiCarry({})).indexOf(NO) >= 0 && aoaJi(kamiCarry({})).indexOf(PREV) >= 0, '前提：出す 時に Excel に 番号が 無い＝何も 見て いない');
+  const j = aoaJi(kamiCarry({ noOn: false }));
+  ok(j.indexOf(NO) < 0 && j.indexOf(PREV) < 0, '★出さない のに Excel に 番号★（' + (j.indexOf(NO) >= 0 ? NO : PREV) + '）');
 });
 
 T('★④ 設定の 欄が 在り、読み書きが つながっている', () => {

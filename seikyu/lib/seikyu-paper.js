@@ -180,6 +180,14 @@
     noOn: true,
   };
   function themeOf(t) { return Object.assign({}, THEME, t || {}); }
+  /* ★番号を 出すか＝1か所★（2026-10-14 司さん「出さんってゆうとんのに出る」）
+     紙・Excel・画面が ★同じ 重ね方★（様式の theme → 会社の style → 1通の data.style）で 見る。
+     前は 紙の No. だけ 見て、繰越の「前回 No.」・領収書の 但し書き・<title>（PDF の 名前）・Excel は 見て いなかった。 */
+  function noDasu(o) {
+    o = o || {};
+    var inv = o.inv || {};
+    return themeOf(Object.assign({}, o.theme || {}, o.style || {}, (inv.data && inv.data.style) || {})).noOn !== false;
+  }
 
   var DEFAULT_COLS = {
     items: ['#', '品名・内容', '数量', '単位', '単価', '金額', '消費税'],
@@ -707,7 +715,7 @@
         : go + (isQuote ? ('見積金額' + zk) : ('請求金額' + zk));
     var noLabel = 'No.　';
     var headNo = isReceipt ? String((rc && rc.no) || '') : (inv.no || '');
-    var docTitle = (o.title || (heading.replace(/　/g, '') + (headNo ? ' ' + headNo : '')));
+    var docTitle = (o.title || (heading.replace(/　/g, '') + ((headNo && noDasu(o)) ? ' ' + headNo : '')));   /* ★出さない 時は PDF の 名前にも 書かない★ */
 
     var lines = Array.isArray(tax.lines) ? tax.lines : [];
     var byRate = Array.isArray(tax.byRate) ? tax.byRate : [];
@@ -1137,8 +1145,8 @@
         return '<tr><th>' + r.label + '</th><td>' + v(carry[r.key]) + '</td></tr>';
       }).join('');
       var note = carry.label
-        ? '<div class="carry-n">' + esc(carry.label) + (carry.prevNo ? '（前回 No.　' + esc(carry.prevNo) + '）' : '') + '</div>'
-        : (carry.prevNo ? '<div class="carry-n">前回 No.　' + esc(carry.prevNo) + '</div>' : '');
+        ? '<div class="carry-n">' + esc(carry.label) + ((carry.prevNo && noDasu(o)) ? '（前回 No.　' + esc(carry.prevNo) + '）' : '') + '</div>'
+        : ((carry.prevNo && noDasu(o)) ? '<div class="carry-n">前回 No.　' + esc(carry.prevNo) + '</div>' : '');
       return '<div class="carry"><table class="carry-t"><tbody>' + rows + '</tbody></table>' + note + '</div>';
     }
 
@@ -1294,7 +1302,7 @@
        ★消費税額を区分して書くのは、はっきりしている時だけ★（国税庁 No.7124）
          書けた時は ★印紙の判定でも その分を記載金額から外す★（呼ぶ側が taxSeparate を立てる）。 */
     function receiptBody() {
-      var but = textOf(rc.note) || (inv.no ? ('請求書 ' + inv.no + ' の代金として') : '上記代金として');
+      var but = textOf(rc.note) || ((inv.no && noDasu(o)) ? ('請求書 ' + inv.no + ' の代金として') : '上記代金として');
       var sep = !!rc.taxSeparate && Number(rc.taxTotal) > 0;
       var rows = '';
       if (sep) {
@@ -1886,7 +1894,7 @@
   }
 
   return {
-    build: build, css: css, esc: esc, yen: yen, comma: comma,
+    build: build, css: css, esc: esc, yen: yen, comma: comma, noDasu: noDasu,
     dateStr: dateStr, jpDate: jpDate, honorOf: honorOf, taxLabel: taxLabel,
     paginate: paginate, sealMm: sealMm, sealStyle: sealStyle, sealOverflowMm: sealOverflowMm,
     TEMPLATE_ID: TEMPLATE_ID,

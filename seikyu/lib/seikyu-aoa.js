@@ -62,7 +62,9 @@
 
     push([heading]);
     push([]);
-    push(['No.', inv.no || '（未採番）']);
+    /* ★番号を 出すか は 紙と 同じ 1か所★（PAPER.noDasu・2026-10-14） */
+    var noDasu = !(PAPER && PAPER.noDasu) || PAPER.noDasu(o);
+    if (noDasu) push(['No.', inv.no || '（未採番）']);
     push([(isQuote ? '見積日' : '請求日'), jpDate(inv.issue_ymd) || '（未入力）']);
     if (inv.due_ymd) push(['お支払期限', jpDate(inv.due_ymd)]);
     push([]);
@@ -163,7 +165,7 @@
       });
       if (carry.label) {
         var rn = items.map(function () { return ''; });
-        rn[labCol] = carry.label + (carry.prevNo ? '（前回 No. ' + carry.prevNo + '）' : '');
+        rn[labCol] = carry.label + ((carry.prevNo && noDasu) ? '（前回 No. ' + carry.prevNo + '）' : '');
         push(rn);
       }
     }

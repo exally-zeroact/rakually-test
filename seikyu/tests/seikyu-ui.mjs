@@ -1127,6 +1127,31 @@ await TA('7-d. ★「保存は できています」は 後の 保存が 落ち�
 });
 
 
+await TA('7-e. ★番号を 出さない 設定の 時は 自社 Excel に 入れる 値にも 番号を 書かない（2026-10-14）', async () => {
+  /* 前は 紙の No. だけ 消えて、自社 Excel への 差し込み（bookExcel）には 番号が 入って いた（司さん「出さんってゆうとんのに出る」） */
+  const app = win.SeikyuApp, st = app._state;
+  const mae = st.org && st.org.invoiceStyle;
+  try {
+    $('b-new').click(); await sleep(60);
+    setVal('e-partner', 'pt_a'); await sleep(20);
+    const tr = $('lines-body').querySelector('tr');
+    tr.querySelector('[data-f="name"]').value = '工事代金'; tr.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+    tr.querySelector('[data-f="amount"]').value = '5000'; tr.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+    await sleep(60);
+    const no = String(st.cur && st.cur.no || '');
+    ok(no.length > 0, '前提：番号が 振られて いない＝何も 見て いない');
+    st.org.invoiceStyle = Object.assign({}, mae || {}, { noOn: true });
+    const v1 = app._bookValsForTest();
+    ok(v1 && v1.no === no, '前提：出す 時に 自社 Excel の 値に 番号が 無い: ' + JSON.stringify(v1 && v1.no));
+    st.org.invoiceStyle = Object.assign({}, mae || {}, { noOn: false });
+    const v2 = app._bookValsForTest();
+    ok(v2 && v2.no === '', '★出さない のに 自社 Excel に 番号を 入れる★: ' + JSON.stringify(v2 && v2.no));
+    ok(String(st.cur.no) === no, '★Excel の 値を 作ったら 1通の 番号が 変わった★');
+  } finally {
+    if (st.org) st.org.invoiceStyle = mae;
+  }
+});
+
 /* ═══ 9. ②-b 源泉徴収 / 繰越 / 非課税 ═══
    ★合格条件（指示役 2026-08-11 追加）★
      ・この3つを足しても「前回から当てる」が壊れない
