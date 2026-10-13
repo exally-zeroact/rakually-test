@@ -92,6 +92,8 @@ jobs:
       #   ★この 門は ★言い回しでは なく「落ちた 事を 言って いるか」★で 見る★（直した 日に 黙らない為）。
       - name: ★「今月を確定」の 札が 保存の 失敗を 消さないか (本物のapp.jsを押す・公開40/500/900ms・4通り)
         run: node kyuyo/tests/kakutei-fuda.test.mjs && node kyuyo/tests/kakutei-fuda.test.mjs --self-test
+      - name: ★クラウドに つながらない 間は 賞与の 確定・月の 確定の 取り消しを させない（明細は 書かれない＝逆の 札を 出さない・2026-10-14）
+        run: node kyuyo/tests/yomenai-kakutei.test.mjs && node kyuyo/tests/yomenai-kakutei.test.mjs --waza
       - name: ★運ぶ道具 ship-all の 自己確認 (倉庫の向き先を 運ばない・作りかけを 運ばない・門を 運ぶ・10通り)
         run: node scripts/ship-all.mjs --self-test
       - name: ★配信ガード (href="/…" 等の絶対パス・本番倉庫への誤接続を止める)

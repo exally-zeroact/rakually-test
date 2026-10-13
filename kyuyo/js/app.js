@@ -2276,7 +2276,7 @@
        言うと ログイン画面の 上に「保存できませんでした」が 出る（札 9999 ＞ 入口 400）。store.js が noUser の 印を 付けて 投げる */
     if(err && err.noUser) return;
     /* ★読めない 間は 書かなかった★（2026-10-14）＝帯（load-failed）が もう 言って いる＝重ねて「保存できませんでした」を 出さない */
-    if(err && err.yomenai) return;
+    if(err && err.yomenai){ _saveFailKei++; return; }   /* ★数えは する★（確定の 札の「但し N名分は…」が 黙らない・taiketsu 10-14） */
     _saveFailN++; _saveFailKei++;
     if(_saveFailDamaru > 0){ _saveFailN = 0; clearTimeout(_saveFailT); return; }   /* ★呼ぶ 側が まとめて 言う★ */
     clearTimeout(_saveFailT);
@@ -2642,7 +2642,8 @@
          ★目立たせない★（btn-ghost）＝主役は「確定」。取り消しは 逃げ道。
          ★確定済みかは monthFixedInfo() 1か所から 取る★＝入力画面の 札（下書き／確定済）や
          「Web明細で公開」の 可否と ★同じ物差し★を 使う（食い違わせない）。 */
-      +(monthFixedInfo().fixed?'<button class="btn-ghost" data-undo-month style="padding:9px 14px;font-size:12px;white-space:nowrap">この月の確定を取り消す</button>':'')
+      /* ★つながらない 間は 取り消させない★（2026-10-14 taiketsu）＝取り消しの 明細は 書かれず、Web明細だけ 消え、読めた 後に 倉庫の 確定が union で 戻り得る */
+      +(monthFixedInfo().fixed?'<button class="btn-ghost" data-undo-month style="padding:9px 14px;font-size:12px;white-space:nowrap"'+(soukoTomeru?' disabled':'')+'>この月の確定を取り消す'+(soukoTomeru?'（'+soukoTomeru+'）':'')+'</button>':'')
       /* ★★重い 事は ★アプリの 警告の 作法★で 出す★★（2026-09-25 司さん
            「★ルール通り 警告のときみたいに やれや★」／「★どんなにやっとるか コード確認しろ★」）
          ★コードを 見た★ … この アプリの 警告は ★全部 `.cr-warn`／`.sh-warn` の 箱★
@@ -2938,10 +2939,14 @@
     var _machiNin = state.employees.filter(function(e){ return isActiveInMonth(e,ym); })
       .filter(function(e){ var cc=computeBonus(e); return cc.taxMitei && (bonusEntry(e).amount>0); });
     var _machi = _machiNin.length;
+    /* ★倉庫の 答えが 来るまで／つながらない 間は 賞与も 確定させない★（2026-10-14 taiketsu）
+       前は 月次（soukoTomeru）だけ 止め、賞与は 押せた＝明細は 読めない 間 書かれず（件1）、札は「年調・台帳に反映」と 逆を 言い、
+       読めた 後も 賞与の 行は 二度と 送られなかった（押した 時しか 送らない）。理由は ボタンの 中に 出す。 */
+    var _soukoB = soukoMachi() ? '読み込み中です' : (soukoNG() ? 'クラウドに つながりません' : '');
     var footer = anyBonus
       ? '<div class="card" style="padding:12px;margin-top:6px"><button class="btn-primary" data-confirm-bonus style="width:100%"'
-        +(_machi?' disabled':'')+'>'
-        +(_machi
+        +((_machi||_soukoB)?' disabled':'')+'>'
+        +(_soukoB ? 'この賞与を確定（'+_soukoB+'）' : _machi
           ? 'この賞与を確定（'+_machi+'名の 源泉が 決まっていません）'
           : 'この賞与を確定（年調・台帳に反映）')+'</button>'
         +(_machi
@@ -5452,7 +5457,8 @@
     function bxParse(v, arr){ if(!v)return null; var p=String(v).split(':'); var e=bonusById(p[0]); if(!e)return null; return { en:bonusEntry(e), idx:+p[1], arr:bonusEntry(e)[arr] }; }
     if(inScr){
       inScr.addEventListener('click',function(ev){
-        if(ev.target.closest('[data-confirm-bonus]')){ try{ saveBonusPayslips(); }catch(_){} persistSave();
+        if(ev.target.closest('[data-confirm-bonus]')){ if(soukoMachi()||soukoNG()){ toast('クラウドに つながらないので、賞与は まだ 確定していません。「もう一度 読み込む」を 押してください。'); return; }   /* ★歯止め（灰色だけで 守らない）★ */
+          try{ saveBonusPayslips(); }catch(_){} persistSave();
           publishMeisaiNow(true,{silent:true}).then(function(n){ toast('賞与を確定しました（年調・台帳に反映'+(n?'・従業員のWeb明細に公開）':'）')); },
             /* ★確定は出来たが 公開は出来なかった★を はっきり分けて言う（黙って同じ文にしない） */
             function(){ toast('賞与を確定しました（年調・台帳に反映）。従業員のWeb明細には公開できていません'); }); return; }
@@ -5964,6 +5970,7 @@
          ★倉庫が 消えたか どうかを そのまま 言う★＝「消しました」と 言って 消えていない、を 作らない
          （2026-08-21 に Web明細で 踏んだ型＝約束の 失敗を 黙って 捨てない）。 */
       var umb=e.target.closest('[data-undo-month]');
+      if(umb && (soukoMachi()||soukoNG())){ toast('クラウドに つながらないので、確定は まだ 取り消していません。「もう一度 読み込む」を 押してください。'); return; }   /* ★歯止め★ */
       if(umb){ uiConfirm(UNDO_MONTH_MSG).then(function(ok){
           if(!ok) return;
           var ym=state.month;
