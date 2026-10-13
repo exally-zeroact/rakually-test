@@ -612,6 +612,11 @@
     });
     /* 1つの 箱の 中の 字の 大きさは ★一番 小さい 行に 揃える★ */
     var sc = rows.reduce(function (a, r) { return Math.min(a, Math.max(BANK_SHITA, Math.min(1, bankChijimi(r.t)))); }, 1);
+    /* ★倍率は 10px／9px／8px の どれかに 切り下げる★（7.5pt＝10px）
+       端数の 大きさ（8.67px など）は ubuntu の Chromium が 丸めて 大きく 描き、
+       「名義だけ長い」が 内訳の 枠を 3px 越えた（10-13 CI・実際の 幅が 見積もりの 約1.038倍＝8.67→9px と 同じ 割合＝見立て）。
+       ちょうどの px なら 丸めが 起きない。余りを 24px に 広げる 手は 09-10 の 手本「三菱UFJ銀行…ジャパン」を 割ったので 採らない。 */
+    sc = Math.max(BANK_SHITA, Math.floor(sc * 10 + 1e-9) / 10);
     rows.forEach(function (r) { r.s = sc; });
     return rows;
   }
