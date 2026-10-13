@@ -793,6 +793,11 @@
           throw new Error('口が 確かめられません: ' + lastLoadErr);
         }
         return uid;
+      }, function(e){
+        /* ★口（getUser）が {error} で 返らずに 投げた 時も 同じ★（taiketsu 10-14：受けが 無いと 前の cloudLoaded=true が 残り 差分削除が 通る） */
+        _yomiOchitaUid = '*'; cloudLoaded = false;
+        lastLoadErr = String((e && e.message) || '口が 確かめられない');
+        throw e;
       }).then(function(uid){ if(!uid) return null;
         return Promise.all([
           sb.from('pay_companies').select('data,updated_at').eq('account_id',uid).maybeSingle(),

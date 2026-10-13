@@ -217,6 +217,8 @@ function makeMock(opts) {
         calls.getUser.push(1);
         /* ★`tsushinKire`＝通信が 落ちた 時の 本物の 形★（2026-10-12 taiketsu 実測）＝投げずに user:null と AuthRetryableFetchError を 返す（session は 端末に 残る） */
         if (opts.tsushinKire) return Promise.resolve({ data: { user: null }, error: { name: 'AuthRetryableFetchError', message: 'Failed to fetch' } });
+        /* ★`getUserNageru`＝{error} で 返らずに 投げる 形★（2026-10-14 taiketsu：auth-js は AuthError で ない 物を 投げ直す） */
+        if (opts.getUserNageru) return Promise.reject(new Error('口が 投げた'));
         return Promise.resolve({ data: { user: opts.noUser ? null : { id: 'u1' } } });
       },
     },
@@ -928,6 +930,20 @@ runs.push(T('口（getUser）が 通信で 落ちたら 読み込みは 失敗�
   const r = await Store.cloudSaveState(SNAP);
   ok(r.ok === false && r.reason === 'load-failed', '★読み直す 前に 書いた★(' + JSON.stringify(r) + ')');
   ok(mock.__calls.empUpsert.length === 0 && mock.__calls.deletes.length === 0, '★書いた★ 人 ' + mock.__calls.empUpsert.length + '／消す ' + mock.__calls.deletes.length);
+}));
+runs.push(T('一度 読めた 後に 口（getUser）が 投げたら 差分削除も 保存も 止める（受けが 無いと 前の「読めた」が 残る）', async function () {
+  const o = { companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-14T00:00:00.000Z', serverEmpIds: ['e1', 'eX'] };
+  const mock = makeMock(o);
+  const Store = loadStore(mock);
+  await Store.cloudLoadState();
+  o.getUserNageru = true;
+  let yomi = null;
+  await Store.cloudLoadState().then(() => { yomi = 'ok'; }, () => { yomi = 'ことわった'; });
+  ok(yomi === 'ことわった', '★口が 投げたのに 読めた 事に なった★＝' + yomi);
+  o.getUserNageru = false;   /* 口は 戻ったが まだ 読み直して いない */
+  const r = await Store.cloudSaveState(SNAP);
+  ok(r.ok === false && r.reason === 'load-failed', '★口が 投げた 後に 読み直さず 書いた★(' + JSON.stringify(r) + ')');
+  ok(mock.__calls.deletes.length === 0 && mock.__calls.empUpsert.length === 0, '★書いた★ 人 ' + mock.__calls.empUpsert.length + '／消す ' + mock.__calls.deletes.length);
 }));
 runs.push(T('一度 読めた 後に また 落ちたら 差分削除も 保存も 止める（前の「読めた」を 持ち越さない）', async function () {
   const o = { companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-14T00:00:00.000Z', serverEmpIds: ['e1', 'eX'] };

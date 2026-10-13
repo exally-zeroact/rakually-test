@@ -6837,7 +6837,7 @@
            held-skipped-maboroshi＝幻の 人を 書かなかった）＝★帯に 出すと 嘘の 警告が 全画面に 広がる★ので 名前で 除く。
            ★知らない 理由は 失敗として 出す★（出す 側に 倒す） */
         /* ★読み込みが 落ちた ままなので 書かなかった★（2026-10-14・store.js realSave）＝中の 言葉（load-failed）を 出さない */
-        else if(r&&r.ok===false&&r.reason==='load-failed'){ setS('⚠ クラウドを 読み込めていないので、クラウドには まだ 保存していません。「もう一度 読み込む」を 押してください', 'ng'); }
+        else if(r&&r.ok===false&&r.reason==='load-failed'){ setS('⚠ クラウドを 読み込めていないので、会社と 従業員の 変更は クラウドに まだ 保存していません。「もう一度 読み込む」を 押してください', 'ng'); }
         else if(r&&r.ok===false&&r.reason!=='no-user'&&r.reason!=='held-skipped'&&r.reason!=='held-skipped-maboroshi'){ setS('⚠ クラウド未保存（'+(r.reason||'通信エラー')+'）', 'ng'); }
         else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); }
         /* ★自分の 保存が 会社を 書けたら 基準の 時刻を 進める★（2026-10-12）＝前は 読み込みでしか 進まず、1回でも 届いた 後に 閉じると
