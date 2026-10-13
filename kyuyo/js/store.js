@@ -216,6 +216,8 @@
     var saveHold = null, heldOnce = null;
     // ★読み込みが 失敗した理由は 黙って 捨てない★（保留を 解く時に 覚える＝画面が 聞ける）
     var lastLoadErr = null;
+    /* ★読み込みが 落ちた 口★（2026-10-14）＝落ちた ままの 間は 倉庫へ 書かない（下の realSave）。読めたら 外す。 */
+    var _yomiOchitaUid = null;
     Store.lastLoadError = function(){ return lastLoadErr; };
     Store.setSnapshotFn = function(fn){ Store._snapFn = fn; };
     // ★楽観ロック用: 最後に把握した pay_companies(設定=全置換で最も危険)の updated_at。
@@ -554,7 +556,12 @@
          `Store.hikaeNoKazu` の 口（★`|| now` に 落ちた 回数★）
        ★㉕-2（覆い）の 因は ★まだ 未説明★です★ */
     function realSave(state){
-      return curUid().then(function(uid){ if(!uid) return { ok:false, reason:'no-user' }; var now=new Date().toISOString();
+      return curUid().then(function(uid){ if(!uid) return { ok:false, reason:'no-user' };
+        /* ★読み込みが 落ちた ままの 間は 書かない★（2026-10-14）＝端末の 写しは 古い かも しれない（別の 端末で 消した 人・足した 人を 知らない）。
+           前は「保存は するが 消しは しない」で、古い 写しの 丸ごと upsert が 消した 人を 戻せた。読み直して 読めたら 書ける。
+           ★黙らない★＝ok:false で 返す（帯が 出る）。 */
+        if(_yomiOchitaUid && (_yomiOchitaUid === '*' || _yomiOchitaUid === uid)) return { ok:false, reason:'load-failed' };
+        var now=new Date().toISOString();
         // ★employees以外の全スナップショット項目を保存(確定印/年末調整/賞与/カスタム給テンプレ/onboard等も載せる=端末替えで消えない)
         var settings={}; for(var k in state){ if(Object.prototype.hasOwnProperty.call(state,k) && k!=='employees') settings[k]=state[k]; }
         var emps=(state.employees||[]).map(function(e,i){ return { id:e.id, account_id:uid, sort:i, data:e, updated_at:now }; });
@@ -774,11 +781,35 @@
     Store.isOwnCompanyUA = function(ua){ try{ return _jibunGaOkuttaKa(ua); }catch(e){ return false; } };
 
     Store.cloudLoadState = function(){
-      var p = curUid().then(function(uid){ if(!uid) return null;
+      /* ★口（getUser）が 通信で 落ちた 時も「読めなかった」★（2026-10-14 taiketsu）
+         前は curUid() が null を 返し「ログインして いない＝読む物が 無い」に 倒れ、古い 写しが 帯なしで 出た。
+         ★本当に ログインして いない（error 無し／AuthSessionMissingError）だけ null★＝doSavePayslip と 同じ 見分け。
+         口が 分からないので 印は '*'＝読めるまで どの 口でも 書かない。 */
+      var p = sb.auth.getUser().then(function(gr){
+        var uid = gr && gr.data && gr.data.user && gr.data.user.id;
+        if(!uid && gr && gr.error && String(gr.error.name||'') !== 'AuthSessionMissingError'){
+          _yomiOchitaUid = '*'; cloudLoaded = false;
+          lastLoadErr = String(gr.error.message || '口が 確かめられない');
+          throw new Error('口が 確かめられません: ' + lastLoadErr);
+        }
+        return uid;
+      }).then(function(uid){ if(!uid) return null;
         return Promise.all([
           sb.from('pay_companies').select('data,updated_at').eq('account_id',uid).maybeSingle(),
           fetchAllQ(function(a,b){ return sb.from('pay_employees').select('data,sort',{count:'exact'}).eq('account_id',uid).order('sort',{ascending:true}).range(a,b); })
         ]).then(function(res){
+          /* ★★「読めなかった」を「読めた（0人）」に しない★★（2026-10-14・指示役 (a)）
+             前は res[1].error を 見ずに cloudLoaded=true に して いた＝人の 読みだけ 落ちると「0人を 読めた」で、
+             画面は 端末の 古い 写しの まま、次の 保存が その 写しで 差分削除＝★消した 人が 戻り、別の 端末で 足した 人が 消えた★
+             （テスト線で 4回中 4回・客には 何も 出ない）。
+             ⇒ どちらかが 落ちたら 投げる＝画面は「クラウドに つながりませんでした・もう一度 読み込む」（app.js reloadCloud の ng）。 */
+          var _ochi = (res[0] && res[0].error) || (res[1] && res[1].error);
+          if(_ochi){
+            _yomiOchitaUid = uid; cloudLoaded = false;   /* ★前に 読めて いても 落とす★＝差分削除も 止める（2回目の 失敗で 1回目の 印が 残って いた） */
+            lastLoadErr = (_ochi && _ochi.message) || '読み込み失敗';
+            throw new Error('読み込みが 落ちました: ' + lastLoadErr);
+          }
+          _yomiOchitaUid = null;
           var co=res[0].data && res[0].data.data; var emps=(res[1].data||[]).map(function(r){ return r.data; });
           cloudSynced=true; cloudLoaded=true; // ★読めた★=差分削除を許可(空でも=新規アカウント)=同期済み(空でも=新規アカウントとして差分削除を許可)
           lastCompanyUpdatedAt=(res[0].data && res[0].data.updated_at)||null; // ★競合検知の基準=読込時のクラウドupdated_at
@@ -805,6 +836,11 @@
           if(!co && !emps.length) return null; var s=co||{}; s.employees=emps;
           s._coUA=(res[0].data && res[0].data.updated_at)||null;   /* ★ロード側 newer-wins 用＝クラウドの会社 updated_at を 返りに載せる（追加のみ・既存の読み手は無視＝挙動不変・2026-10-07 棚(d)）★ */
           return s;
+        }, function(e){
+          /* ★投げる 形で 落ちた 時も 同じ★（{error} で 返る 形と 分けない）＝読めない ままの 間は 書かない */
+          _yomiOchitaUid = uid; cloudLoaded = false;
+          lastLoadErr = (e && e.message) || '読み込み失敗';
+          throw e;
         });
       });
       // ★読み込みが 終わる(成功でも 失敗でも)まで 保存を 待たせる★。★必ず 解く★=永久に待たない。

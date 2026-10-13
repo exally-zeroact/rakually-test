@@ -1887,6 +1887,10 @@
     fillCompany();
     renderEmpAsk();
     var host=$('#emp-list'); if(!host) return;
+    /* ★クラウドに つながらない 間は 人の 一覧を 出さない★（2026-10-14・指示役 (a)）
+       前は 人の 読みだけ 落ちても 端末の 古い 写し（別の 端末で 消した 人が 居て 足した 人が 居ない）を 黙って 出して いた。
+       月の 画面（:2656）と 同じ 顔＝「つながりませんでした・もう一度 読み込む」。読み込み中（machi）は 今の まま。 */
+    if(soukoNG()){ host.innerHTML=soukoHTML(); return; }
     // 部署でグループ化（誰も部署無しなら見出し非表示）
     var anyDept=state.employees.some(function(e){return e.dept;});
     // 絞り込み: active=在籍中(非退職&通常) / leave=休暇中 / retired=退職者 / all=全員
@@ -6832,6 +6836,8 @@
         /* ★わざと 書かなかった 物は 失敗では ない★（no-user＝未ログイン／held-skipped＝読み込み後に 古い一覧を 出さなかった／
            held-skipped-maboroshi＝幻の 人を 書かなかった）＝★帯に 出すと 嘘の 警告が 全画面に 広がる★ので 名前で 除く。
            ★知らない 理由は 失敗として 出す★（出す 側に 倒す） */
+        /* ★読み込みが 落ちた ままなので 書かなかった★（2026-10-14・store.js realSave）＝中の 言葉（load-failed）を 出さない */
+        else if(r&&r.ok===false&&r.reason==='load-failed'){ setS('⚠ クラウドを 読み込めていないので、クラウドには まだ 保存していません。「もう一度 読み込む」を 押してください', 'ng'); }
         else if(r&&r.ok===false&&r.reason!=='no-user'&&r.reason!=='held-skipped'&&r.reason!=='held-skipped-maboroshi'){ setS('⚠ クラウド未保存（'+(r.reason||'通信エラー')+'）', 'ng'); }
         else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); }
         /* ★自分の 保存が 会社を 書けたら 基準の 時刻を 進める★（2026-10-12）＝前は 読み込みでしか 進まず、1回でも 届いた 後に 閉じると

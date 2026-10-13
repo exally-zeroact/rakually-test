@@ -44,6 +44,9 @@ function makeMock(opts) {
         : kind === 'empIds' ? serverEmpIds.map(id => ({ id }))
           : (opts.serverEmps || []);
       res = { data, error: null };
+      /* ★`empReadError`／`coReadError`＝人／会社の 読みだけ {error} で 返す★（2026-10-14）＝supabase は 投げずに {error} を 返す形 */
+      if (opts.empReadError && kind !== 'companyData' && kind !== 'empIds') res = { data: null, error: { message: '人の 読み 失敗' } };
+      if (opts.coReadError && kind === 'companyData') res = { data: null, error: { message: '会社の 読み 失敗' } };
     }
     // is/gte/lte もチェーン可能(pay_ledger の .is().gte().lte().order() 用)
     // range: store.js の全件ページング(fetchAllQ)を本物どおりに模擬。配列はrange位置で1000件ずつスライス
@@ -897,6 +900,56 @@ runs.push(T('coUA: 会社は 書けて 人が 転んだ ok:false にも 載る�
   const r = await Store.cloudSaveState(SNAP);
   ok(r.ok === false, '人が 転んだので ok:false(reason=' + r.reason + ')');
   ok(typeof r.coUA === 'string' && r.coUA !== '2026-10-12T00:00:00.000+00:00', 'coUA が 載って 進んでいる(' + r.coUA + ')');
+}));
+/* ★★人の 読みだけ 落ちたら「読めた（0人）」に しない・書かない★★（2026-10-14・指示役 (a)）
+   前は 0人を 読めた 事に して cloudLoaded=true＝古い 写しで 差分削除が 通り、消した 人が 戻り 足した 人が 消えた（テスト線 4/4） */
+for (const [na, o] of [['人の 読み', { empReadError: true }], ['会社の 読み', { coReadError: true }]]) {
+  runs.push(T(na + 'だけ 落ちたら 読み込みは 失敗・保存は 倉庫に 書かない（人も 会社も 差分削除も 0本）', async function () {
+    const mock = makeMock(Object.assign({ companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-14T00:00:00.000Z', serverEmpIds: ['e1', 'eX'] }, o));
+    const Store = loadStore(mock);
+    let yomi = null;
+    await Store.cloudLoadState().then((v) => { yomi = 'ok:' + (v ? (v.employees || []).length + '人' : 'null'); }, () => { yomi = 'ことわった'; });
+    ok(yomi === 'ことわった', '★落ちたのに 読めた 事に なった★＝' + yomi);
+    const r = await Store.cloudSaveState(SNAP);
+    ok(r.ok === false && r.reason === 'load-failed', '★読めない ままの 保存が 断られない★(' + JSON.stringify(r) + ')');
+    ok(mock.__calls.empUpsert.length === 0 && mock.__calls.deletes.length === 0 && mock.__calls.companyUpsert.length === 0,
+      '★読めない ままで 倉庫に 書いた★ 人 ' + mock.__calls.empUpsert.length + '／消す ' + mock.__calls.deletes.length + '／会社 ' + mock.__calls.companyUpsert.length);
+    ok(String(Store.lastLoadError() || '').length > 0, '★落ちた 訳が 残って いない★');
+  }));
+}
+runs.push(T('口（getUser）が 通信で 落ちたら 読み込みは 失敗・その後の 保存も 書かない（「ログインして いない＝空」に しない）', async function () {
+  const o = { companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-14T00:00:00.000Z', serverEmpIds: ['e1', 'eX'], tsushinKire: true };
+  const mock = makeMock(o);
+  const Store = loadStore(mock);
+  let yomi = null;
+  await Store.cloudLoadState().then((v) => { yomi = 'ok:' + JSON.stringify(v); }, () => { yomi = 'ことわった'; });
+  ok(yomi === 'ことわった', '★口が 確かめられないのに 読めた（空）に なった★＝' + yomi);
+  o.tsushinKire = false;   /* 口は 戻ったが まだ 読み直して いない */
+  const r = await Store.cloudSaveState(SNAP);
+  ok(r.ok === false && r.reason === 'load-failed', '★読み直す 前に 書いた★(' + JSON.stringify(r) + ')');
+  ok(mock.__calls.empUpsert.length === 0 && mock.__calls.deletes.length === 0, '★書いた★ 人 ' + mock.__calls.empUpsert.length + '／消す ' + mock.__calls.deletes.length);
+}));
+runs.push(T('一度 読めた 後に また 落ちたら 差分削除も 保存も 止める（前の「読めた」を 持ち越さない）', async function () {
+  const o = { companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-14T00:00:00.000Z', serverEmpIds: ['e1', 'eX'] };
+  const mock = makeMock(o);
+  const Store = loadStore(mock);
+  await Store.cloudLoadState();
+  o.empReadError = true;
+  await Store.cloudLoadState().catch(() => null);
+  const r = await Store.cloudSaveState(SNAP);
+  ok(r.ok === false && r.reason === 'load-failed', '★2回目が 落ちたのに 書いた★(' + JSON.stringify(r) + ')');
+  ok(mock.__calls.deletes.length === 0 && mock.__calls.empUpsert.length === 0, '★2回目が 落ちたのに 書いた★ 人 ' + mock.__calls.empUpsert.length + '／消す ' + mock.__calls.deletes.length);
+}));
+runs.push(T('読みが 落ちた 後に 読み直して 読めたら 保存は 今まで 通り 書ける', async function () {
+  const o = { companyData: { company: { name: 'A' } }, companyUpdatedAt: '2026-10-14T00:00:00.000Z', serverEmpIds: ['e1'], empReadError: true };
+  const mock = makeMock(o);
+  const Store = loadStore(mock);
+  await Store.cloudLoadState().catch(() => null);
+  o.empReadError = false;
+  await Store.cloudLoadState();
+  const r = await Store.cloudSaveState(SNAP);
+  ok(r.reason !== 'load-failed', '★読めたのに まだ 断って いる★(' + JSON.stringify(r) + ')');
+  ok(mock.__calls.empUpsert.length + mock.__calls.companyUpsert.length > 0, '★読めたのに 書いて いない★');
 }));
 runs.push(T('reconcileOnLoad: 基準と クラウドは ms で 比べる（…120Z と …12+00:00 は 同じ）', async function () {
   const Store = loadStore(makeMock({}));

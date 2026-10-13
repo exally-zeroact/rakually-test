@@ -222,6 +222,55 @@ for (const w of [375, 390, 412]) {
       /つながりませんでした/.test(a.ji), '字「' + a.ji.slice(0, 70) + '」');
     T('★③ 失敗の 間も 押せない', a.osenai === true, '札「' + a.fuda + '」');
     T('★③ もう一度 読み込む が 出ている', await pg.$('#b-souko-retry') !== null);
+    /* ★③-2 人の 一覧（設定→従業員）も 古い 写しを 出さない★（2026-10-14・指示役 (a)）
+       前は 月の 画面だけ 守り、人の 一覧は 端末の 古い 写し（別の 端末で 消した 人が 居る）を 黙って 出して いた（テスト線で 4/4） */
+    await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(400);
+    await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(800);
+    const em = await pg.evaluate(() => {
+      const h = document.getElementById('emp-list');
+      return { n: h ? h.querySelectorAll('.mco').length : -1, ji: h ? h.textContent.replace(/\s+/g, ' ') : '' };
+    });
+    T('★③-2 つながらない 間は 人の 一覧を 出さない（古い 写しを 見せない）', em.n === 0, '人の 札 ' + em.n + '枚');
+    T('★③-2 人の 一覧の 所でも 失敗と 言う', /つながりませんでした/.test(em.ji), '字「' + em.ji.slice(0, 70) + '」');
+  }
+  await pg.close();
+}
+
+/* ── ③-3 ★人の 読みだけ 落とす（本物の store を 通す）★（2026-10-14・指示役 (a)）─────
+   ③ は cloudLoadState を 丸ごと 差し替える＝store.js が {error} を どう 受けるかは 通らない（taiketsu 10-14）。
+   ここは ★倉庫への 要求だけ★ を 落とす＝pay_employees の 読み（select=data,…）を 500 に。差分の id 読み（select=id）は 通す。
+   前は「0人を 読めた」で 古い 写しを 出し、打つ前の 自動の 保存が 差分削除まで 通した（テスト線 4/4・消した 人が 戻り 足した 人が 消えた）。 */
+{
+  const pg = await (await b.newContext({ viewport: { width: 390, height: 900 } })).newPage();
+  let kaki = [], otosu = false;
+  await pg.route('**/rest/v1/pay_employees*', (rt) => {
+    const rq = rt.request(), u = decodeURIComponent(rq.url());
+    if (otosu && rq.method() === 'GET' && /select=data/.test(u)) return rt.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"わざと 落とした 人の 読み"}' });
+    if (otosu && (rq.method() === 'POST' || rq.method() === 'DELETE' || rq.method() === 'PATCH')) kaki.push(rq.method());
+    return rt.continue();
+  });
+  const h = await hairu(pg, 'http://localhost:' + PORT + '/kyuyo/index.html', '.bn[data-scr="scr-settings"]', { kumo: false });
+  if (!h.haitta) { console.log('  🟡 人の 読みだけ 落とす 回 … ★未測定★（入れなかった）'); mihakari++; }
+  else {
+    /* ★先に 普通に 読む★＝端末の 写しに 人を 入れる（写しが 0人だと 書く 物が 無く「書かない」が 空振り・10-14 壊して 確かめた） */
+    await machi(4000);
+    await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(400);
+    await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(1500);
+    const n0 = await pg.evaluate(() => document.querySelectorAll('#emp-list .mco').length);
+    if (n0 === 0) { console.log('  🟡 人の 読みだけ 落とす 回 … ★未測定★（写しに 人が 居ない＝守る 物が 無い）'); mihakari++; }
+    console.log('       先に 読めた 人 … ' + n0 + '人（この 写しを 持った まま 人の 読みだけ 落として 開き直す）');
+    otosu = true; kaki = [];
+    await pg.reload(); await machi(4000);
+    await osu(pg, '.bn[data-scr="scr-settings"]'); await machi(400);
+    await osu(pg, '#set-seg .seg-b[data-set="emp"]'); await machi(1500);
+    const em = await pg.evaluate(() => {
+      const hh = document.getElementById('emp-list');
+      return { n: hh ? hh.querySelectorAll('.mco').length : -1, ji: hh ? hh.textContent.replace(/\s+/g, ' ') : '' };
+    });
+    T('★③-3 人の 読みだけ 落ちたら 失敗と 言う（0人を 読めた に しない）', /つながりませんでした/.test(em.ji), '字「' + em.ji.slice(0, 70) + '」');
+    T('★③-3 人の 読みだけ 落ちた 間は 人の 一覧を 出さない', em.n === 0, '人の 札 ' + em.n + '枚');
+    await machi(2500);
+    T('★③-3 人の 読みだけ 落ちた 間は 人の 棚に 1本も 書かない（古い 写しで 書き戻さない・消さない）', kaki.length === 0, '書き ' + kaki.join(','));
   }
   await pg.close();
 }
