@@ -543,6 +543,82 @@
     return [t];
   }
 
+  /* ★1行が 箱に 入らない時の 地の字の 倍率★（2026-10-13 司さん「（内訳）を 右端に 固定してけや」）
+     ・（内訳）を 右に 74mm で 固定したので 振込先の 箱は ★左の 欄いっぱい＝中 402px★（7様式・控除・備考の 有り無しで 同じ・測った）。
+       前の 112mm（09-10）の 箱は 欄より 広く、（内訳）を 右へ 押し出して いた（合計より 21px 右・長い 名義で 紙の 外へ）。
+     ・紙は 字で 作る（ブラウザで 測れない）ので ★字の 数から 見積もる★＝大きめに 出す 側へ 寄せる
+       （全角 1em・半角カナ 0.5em・英大文字 0.8em・ほかの 英数字 0.6em／口座番号は 13pt 等幅 0.66em）＋★12px の 余り★。
+       ★英大文字を 0.6em に すると 少なく 出た★（taiketsu 10-13：英大文字だけの 名義で +20px・GMO… WEBMONEYWORLD支店 で +13px）。
+     ・★口座番号（13pt）は 縮めない★（09-10「収まるなら 口座番号は 目立つように」）。 */
+  var BANK_AKI = 402 - 12;
+  function bankChijimi(line) {
+    var PX = 96 / 72, CHI = 7.5 * PX, BAN = 13 * PX;
+    var ban = 0, ji = 0;
+    String(line).replace(/(\d{5,8})|([\s\S])/g, function (m, num, c) {
+      if (num) ban += num.length * BAN * 0.66;
+      else if (/[\uFF61-\uFF9F]/.test(c)) ji += CHI * 0.5;
+      else if (/[MWmw@%]/.test(c)) ji += CHI;   /* ★幅の 広い 英字★（W 約0.92em・m 約0.85em を 0.8／0.6 と 見て 19〜71px 重なった・taiketsu 10-13 4回目） */
+      else if (/[A-Z]/.test(c)) ji += CHI * 0.8;
+      else if (/[\x20-\x7e]/.test(c)) ji += CHI * 0.6;
+      else ji += CHI;
+      return m;
+    });
+    if (ban + ji <= BANK_AKI) return 1;
+    /* ★数字だけの 長い 行は「入らない」★（前は ji<=0 で 1＝入ると 判じ、折りも 縮めも せず 内訳に 最大 330px 重なった・taiketsu 10-13 4回目） */
+    if (ji <= 0) return 0;
+    return Math.max(0, (BANK_AKI - ban) / ji);
+  }
+  /* ★振込先の 見た目の 行★（紙と 行数の 計算が 同じ物を 見る＝唯一の正）
+     ・入る 行は そのまま（倍率 1）。
+     ・入らない 1口座は ★地の 字を 0.8 まで 縮めて 1行★（09-10 司さん「字を 少し 小さくしても 1行で 収めれないか」）。
+     ・0.8 でも 入らない 時だけ ★最初の 口座番号の 後ろ（名義）を 2行目へ★（09-10「収まるなら」の 外）。それでも 入らない 行は 空白で 折る（bankOru）。
+       ★下限 0.7 で 1行に 押し込むと 内訳に 19〜24px 重なった★（taiketsu 10-13：北海道信用農業協同組合連合会…・7px＝6pt を 割る）。
+     ・★送った 行は bankRows に 数える★（数えないと 紙の 下が 黙って 切れる＝taiketsu 10-13 実測 +13〜72px）。
+     ・1つの 箱の 中の 字の 大きさは ★一番 小さい 行に 揃える★（口座ごとに 大きさが 違う 紙に しない）。
+     ・Excel（seikyu-aoa.js）は bankLines の まま＝字の 大きさの 話は 紙だけ。 */
+  var BANK_SHITA = 0.8;   /* 7.5pt→6pt（印刷物の 下限の 目安）。0.85 だと 09-10 の 手本「青森県信用組合…」（0.848）まで 割れた */
+  function bankHairu(t) { return bankChijimi(t) >= BANK_SHITA - 1e-9; }
+  /* ★0.8 でも 入らない 字を 入る 長さに 折る★（taiketsu 10-13 3回目：番号の 無い 長い 行・全角数字の 番号・
+     銀行名と 支店名だけ 長い・名義だけ 長い で 箱が 内訳に 最大 111px 重なった）。
+     空白（半角・全角）で 折る。空白の 無い 長い 塊は 字の 途中で 折る（結合文字と サロゲートは 割らない）＝★どの 行も 箱に 入る★。
+     ★見積もりは 手元の 字（Yu Gothic）で 測った★＝iPhone（Hiragino）と CI（ubuntu）の 字では 未測定（余り 12px）。 */
+  function bankOru(t) {
+    var out = [], cur = '';
+    (String(t).match(/[^\s\u3000]+[\s\u3000]*/g) || []).forEach(function (tok) {
+      if (bankHairu(cur + tok)) { cur += tok; return; }
+      if (cur.trim()) out.push(cur.trim());
+      cur = '';
+      if (bankHairu(tok)) { cur = tok; return; }
+      /* ★字の 単位で 回す★（UTF-16 の 単位だと 𠮷 などの サロゲートを 半分に 割り、濁点（結合文字）だけの 行頭を 作った・taiketsu 10-13 4回目） */
+      (tok.match(/\p{M}+|\P{M}\p{M}*/gu) || [tok]).forEach(function (ch) {
+        if (bankHairu(cur + ch)) { cur += ch; return; }
+        if (cur.trim()) out.push(cur.trim());
+        cur = ch;
+      });
+    });
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+  }
+  function bankKumi(lines) {
+    var rows = [];
+    (lines || []).forEach(function (line) {
+      line = String(line);
+      if (bankHairu(line)) { rows.push({ t: line }); return; }
+      /* ★名義を 送るのは ★最初の★ 口座番号の 後ろ★（最後の 5〜8桁 だと 名義の 中の 数字で 切れた・taiketsu 10-13） */
+      var m = /\d{5,8}/.exec(line);
+      var ato = m ? line.slice(m.index + m[0].length).trim() : '';
+      var kire = (m && ato) ? [line.slice(0, m.index + m[0].length), ato] : [line];
+      kire.forEach(function (k) { bankOru(k).forEach(function (t) { rows.push({ t: t }); }); });
+    });
+    /* 1つの 箱の 中の 字の 大きさは ★一番 小さい 行に 揃える★ */
+    var sc = rows.reduce(function (a, r) { return Math.min(a, Math.max(BANK_SHITA, Math.min(1, bankChijimi(r.t)))); }, 1);
+    rows.forEach(function (r) { r.s = sc; });
+    return rows;
+  }
+  /* ★振込先が 紙の 上で 何行に なるか★＝紙（build）と 画面の「2枚に なります」が ★同じ 物を 呼ぶ★
+     （taiketsu 10-13：画面は 口座の 数しか 知らず、紙が 2枚に なっても 黙って いた） */
+  function bankRowsOf(org, partner) { return bankKumi(banksFor(org || {}, partner || {}).lines).length; }
+
   /* ★相手ごとに 出す口座を 決める（唯一の正）★（2026-09-02・実物45枚から）
      ・相手が 何も選んでいなければ ★会社の口座 全部★（＝今までと 同じ）
      ・選んでいれば ★その口座だけ★。★並びは 会社の設定の順★（相手が 並べ替えない）
@@ -668,7 +744,7 @@
        ＝入れないと ★6口座で 口座番号が 紙から切れて 黙って 消える★（2026-09-02 実測） */
     var planInput = { paperRows: frameRowsGiven, showDeductResolved: showDeduct,
       rateRows: rateRowsOf(tax), dedLines: deductLines.length, lineCount: lines.length,
-      bankRows: bankPick.lines.length,
+      bankRows: bankRowsOf(g, p),   /* ★名義を 2行目へ 送った 行・折った 行も 数える★（2026-10-13・画面の 案内も 同じ 物を 呼ぶ） */
       /* ★備考の枠も 行数に 効く★（+23px＝明細 1行ぶん）。
          ★ここへ 渡し忘れると 行数の 計算だけ 知らないまま になり、
            「載る」と 言って ★はみ出す★紙が 出る（2026-09-05 実測 1146px）。 */
@@ -1143,9 +1219,12 @@
            ★別々の 口座を くっつける★事では ない。
          ⇒ ★口座は いつも 1つ1行★。bankOneLine は もう 見ない
            （2026-09-10 に 勝手な 割りを やめたので、1口座は もともと 1行に なる）。 */
-      return parts.map(function (line, i) {
-        var t = esc(line).replace(/(\d{5,8})/g, '<span class="bank-no">$1</span>');
-        return (i === 0) ? t : '<span class="bank-nm">' + t + '</span>';
+      /* ★2026-10-13 見た目の 行は bankKumi が 決める★（入らない 1口座は 地の 字を 縮める／それでも 入らなければ 名義を 2行目へ） */
+      return bankKumi(parts).map(function (r, i) {
+        var t = esc(r.t).replace(/(\d{5,8})/g, '<span class="bank-no">$1</span>');
+        var st = r.s < 1 ? ' style="font-size:' + Math.round(r.s * 1000) / 10 + '%"' : '';
+        if (i === 0) return st ? '<span' + st + '>' + t + '</span>' : t;
+        return '<span class="bank-nm"' + st + '>' + t + '</span>';
       }).join('<br>');
     }
     /* ★★足元の「備考の箱」は 消しました★★（2026-09-08）
@@ -1636,15 +1715,23 @@
       'font-size:8.5pt;border:0;padding:' + ROW_PAD + ';line-height:1.35;height:auto;}',
       '.sums .sums-hd td{text-align:right;font-family:inherit;}',
 
-      '.foot{width:100%;border-collapse:collapse;table-layout:auto;margin:0;}',
+      /* ★内訳は 右端に 固定★（司さん 2026-10-12「振込先なかったらかってに左端に移動するし右端に固定してけや」）
+         前は table-layout:auto＋右の 欄 width:1%＝WebKit（iPhone）は 左の 欄が 空だと 右の 欄を 紙の 幅いっぱいに 広げ、表が その 左端へ 寄った
+         （振込先 無し＝表の 右端 421px／有り 880px・Chromium は 寄らない・測った）。しかも 有りの 時は 合計の 右端（859px）より 21px はみ出して いた。
+         ⇒ 幅の 決まった 表に して 右の 欄の 幅を 決め、中の 内訳を 右寄せ＝振込先が 有っても 無くても 合計の 右端に そろう */
+      '.foot{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;}',
       '.foot td{vertical-align:top;padding:0;}',
       /* ★長い銀行名でも1行に収まる幅を左に回す★（司さん 2026-08-16）
          幅を % で固定すると ★長い銀行名が途中で折り返す★。
          ＝★（内訳）は中身なりの幅だけ取り、残りは全部 振込先に回す★（table-layout:auto）。
          紙の中身幅 718px のうち（内訳）は約200px＝★振込先に約500px★使える
-         （「三菱UFJ銀行　丸の内中央支店　当座　1234567」で 224px＝倍以上の余裕）。 */
+         （「三菱UFJ銀行　丸の内中央支店　当座　1234567」で 224px＝倍以上の余裕）。
+         ★2026-10-13 ここは 変わった★＝（内訳）は 74mm 固定（上の .foot の 覚書）・左は 残りの 438px。
+         長い 銀行名は 欄を 広げず 地の 字を 縮める（bankChijimi）。
+         ★padding-right:5mm は 効いて いない★（.foot td{padding:0} が 勝つ・taiketsu 10-13 測った）＝左右の 間は .bd の 左 4mm だけ。 */
       '.foot-l{width:auto;padding-right:5mm;}',
-      '.foot-r{width:1%;white-space:nowrap;}',
+      '.foot-r{width:74mm;white-space:nowrap;}',
+      '.foot-r .bd{width:100%;}',   /* ★外枠は 右の 欄 いっぱい★（border-box＝70mm に すると 中の 表が 余白の 分 はみ出した） */
 
       /* ★小計/消費税/合計＝右下・枠なし・合計の上に線★ */
       '.sums{border-collapse:collapse;font-size:9.5pt;width:100%;margin:0 0 4mm;}',
@@ -1753,7 +1840,11 @@
            使える 幅 … 罫線ありの 紙 455px／控除の 紙 556px
          ⇒ ★112mm（≒423px）★を 最低の 幅に する（418px＋少しの 余裕）。
          ★長い 時は そのまま 伸びる★（width:auto）＝切れない。 */
-      '.note-b.note-bb{width:auto;min-width:112mm;min-height:24px;font-size:7.5pt;white-space:nowrap;}',
+      /* ★2026-10-13 箱は 左の 欄いっぱい（どの 会社でも 同じ 幅＝09-10 の「背景の箱を 既定の 幅に」は そのまま）★
+         前の 112mm は 欄（438px）より 広く、右に 固定した（内訳）に 21px 重なった（絵で 確かめた）。
+         ★長い 1口座は 地の 字を 縮めて 1行に 収める★＝bankChijimi（口座番号の 13pt は 触らない）。 */
+      '.foot-l .note-bank{width:100%;box-sizing:border-box;}',
+      '.note-b.note-bb{width:auto;min-width:0;min-height:24px;font-size:7.5pt;white-space:nowrap;}',
 
       '.note-bank .note-h{color:' + TH.headInk + ';font-weight:700;}',
       /* 口座番号（続いた数字）だけ 大きく等幅＝読み間違いを減らす */
@@ -1796,7 +1887,7 @@
     TEMPLATE_ID: TEMPLATE_ID,
     MID_PAD_MM: MID_PAD_MM,
     /* ★振込先の分け方は紙も Excel も同じ物を呼ぶ★ */
-    bankLines: bankLines, banksFor: banksFor, BANK_ROWS_FREE: BANK_ROWS_FREE,
+    bankLines: bankLines, bankKumi: bankKumi, bankRowsOf: bankRowsOf, banksFor: banksFor, BANK_ROWS_FREE: BANK_ROWS_FREE,
     ROWS_FIRST: ROWS_FIRST, ROWS_REST: ROWS_REST,
     /* ★画面が「2枚になります」を出すために呼ぶ（自前で数えない）★ */
     showDeductOf: showDeductOf, frameRowsOf: frameRowsOf, pagesOf: pagesOf,

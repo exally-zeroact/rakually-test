@@ -395,8 +395,15 @@ T('★★振込先は枠で囲って 口座番号を大きく等幅にする（�
   ok(!/max-width/.test(ruleB('.note-bank') || ''),
     '★箱に max-width があると 長い銀行名で1行目が折れる★: ' + ruleB('.note-bank'));
   ok(/width:auto/.test(ruleB('.foot-l') || ''), '★左の幅を % で固定している（長い銀行名が折れる）★');
-  ok(/width:1%/.test(ruleB('.foot-r') || ''), '★（内訳）が中身なりでない（左に幅が回らない）★');
-  ok(/table-layout:auto/.test(ruleB('.foot') || ''), '足元が fixed のまま（幅を配り直せない）');
+  /* ★2026-10-13 決めが 変わった★（司さん 10-12「振込先なかったらかってに左端に移動するし右端に固定してけや」）
+     前は（内訳）＝中身なり（width:1%）＋ table-layout:auto だった。WebKit は 振込先が 空だと 右の 欄を
+     紙の 幅いっぱいに 広げて（内訳）を 左へ 寄せた。⇒（内訳）は 74mm＝表 70mm＋枠の 左 4mm に 固定・fixed。
+     長い 銀行名は 欄を 広げず ★地の 字を 縮めて 1行★（bankChijimi・位置は uchiwake-migi.mjs が ブラウザで 測る）。 */
+  ok(/width:74mm/.test(ruleB('.foot-r') || ''), '★（内訳）の 欄が 74mm に 固定されて いない（振込先で 動く）★: ' + ruleB('.foot-r'));
+  ok(/table-layout:fixed/.test(ruleB('.foot') || ''), '★足元が fixed でない（WebKit で 内訳が 左へ 寄る）★: ' + ruleB('.foot'));
+  const nagai = bankOf('青森県信用組合　十和田支店　普通　1234567　カ）トウホクソウゴウケンセツコウギョウ');
+  ok(/^<span style="font-size:[\d.]+%">/.test(nagai), '★長い 1口座の 地の 字を 縮めて いない（箱から はみ出す）★: ' + nagai);
+  ok(!/<span style="font-size:/.test(bankOf('見本銀行　見本支店　普通　1234567　ミホン')), '★入る 口座まで 縮めて いる★');
   /* ★塗った箱は 字の周りに余白を取る★（司さん 2026-08-16「余白が無いと逆に見にくい」）
      ★display:table は border-collapse を継承する★＝足元の表（collapse）の中では
      ★padding が丸ごと無視される★（実測：枠と字の間が 1px しか無かった）。 */

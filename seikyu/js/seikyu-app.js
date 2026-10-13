@@ -2198,6 +2198,9 @@
     if (!v || !t || !t.ok) { setText('pages-note', ''); return; }
     /* ★区分（内訳）の数でも 載る行数は変わる★＝紙と同じ数を使う（画面で数え直さない） */
     var pi = { deduct: currentDeduct(), deductLines: DOC.deductionsOf(v), rateRows: PAPER.rateRowsOf(t) };
+    /* ★振込先の 行数も 紙と 同じ 物で 数える★（2026-10-13・長い 口座は 名義が 2行目に なり 明細が 減る） */
+    var op = orgPartnerOf(v);
+    pi.bankRows = PAPER.bankRowsOf(op.org, op.partner);
     var st = settings();
     var own = (v.data && v.data.paperRows);
     var rows = (own === undefined || own === null || own === '')
@@ -2299,10 +2302,8 @@
   }
 
   /* ── 紙・Excel ── */
-  function paperInput() {
-    var v = S.cur;
-    var t = recalc();
-    if (!t || !t.ok) return null;
+  /* ★紙に 渡す 会社と 相手★＝paperInput と「2枚に なります」の 案内が 同じ 物を 使う（2026-10-13・振込先の 行数） */
+  function orgPartnerOf(v) {
     var snap = v.snapshot && v.snapshot.partner ? v.snapshot : null;
     var p = partnerById(v.partner_id);
     var partner = snap ? snap.partner : ((p && p.data) || {});
@@ -2310,6 +2311,13 @@
     // ★下書きの下見では、まだ保存していない角印も出す（押してから保存できる）
     if (!snap && S.org) org = Object.assign({}, S.org, { bank: settings().bank },
       sealPending ? { sealDataUrl: sealPending } : {});
+    return { org: org, partner: partner };
+  }
+  function paperInput() {
+    var v = S.cur;
+    var t = recalc();
+    if (!t || !t.ok) return null;
+    var op = orgPartnerOf(v), partner = op.partner, org = op.org;
     var inv = Object.assign({}, v, { lines: cleanLines(v.lines) });
     /* ★控除も紙へ渡す★
        渡し忘れると ★画面は 281,260 なのに 紙は 292,600★ と書く（実際に起きた）。
@@ -4360,9 +4368,11 @@
         + pick.missing.join(' ／ ') + '';
     }
     why += ' 1つも 選ばないと 全部 出します（紙から 振込先が 消えないように）。';
-    if (n > PAPER.BANK_ROWS_FREE) {
-      why += ' 口座が ' + n + ' なので 明細に使える行が '
-        + (PAPER.maxRowsOf(false, 0, 0, PAPER.BANK_ROWS_FREE) - PAPER.maxRowsOf(false, 0, 0, n))
+    /* ★紙の 上の 行で 数える★（長い 口座は 名義が 2行目に なる＝口座の 数より 行が 多い・2026-10-13） */
+    var gyo = PAPER.bankKumi(pick.lines).length;
+    if (gyo > PAPER.BANK_ROWS_FREE) {
+      why += ' 振込先が 紙の 上で ' + gyo + '行 なので 明細に使える行が '
+        + (PAPER.maxRowsOf(false, 0, 0, PAPER.BANK_ROWS_FREE) - PAPER.maxRowsOf(false, 0, 0, gyo))
         + ' 減ります（紙から 字が 切れないように）。';
     }
     setText('s-pbanks-why', why);

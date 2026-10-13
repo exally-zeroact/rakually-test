@@ -2169,6 +2169,28 @@ await TA('15-c. ★2枚になった時だけ言う／その場から「枠を増
   eq($('pages-note').textContent, '', '★1枚に戻ったのに案内が残っている★');
 });
 
+await TA('15-c2. ★長い 口座で 振込先が 紙の 上で 行を 増やすと 案内も 2枚と 言う（紙と 同じ 数）', async () => {
+  /* ★2026-10-13★ 長い 口座は 名義が 2行目に なり、その分 明細が 減る（bankRowsOf）。
+     画面の 案内が 口座の 数しか 知らないと ★紙は 2枚・画面は 黙る★（taiketsu 10-13 3回目） */
+  const P2 = require_(path.join(ROOT, 'seikyu/lib/seikyu-paper.js'));
+  const NL = String.fromCharCode(10);
+  const NAGAI = [1, 2, 3].map((i) => '北海道信用農業協同組合連合会　本所営業部　普通　123456' + i + '　トクヒ）ニホンコクサイキョウリョクセンターキョウカイ').join(NL);
+  eq(P2.bankRowsOf({ bank: NAGAI }, {}), 6, '★長い 3口座が 紙の 上で 6行に なっていない★');
+  const mae = db.pay_org[0].data.bank;
+  const setBank = async (b) => {
+    doc.querySelector('.bn[data-scr="scr-set"]').click(); await sleep(20);
+    $('s-bank').value = b; $('b-set-save').click(); await sleep(60);
+    doc.querySelector('.bn[data-scr="scr-edit"]').click(); await sleep(40);
+    setLine(0, 'amount', '1001'); await sleep(140);   /* 打ち直して 数え直させる */
+  };
+  eq($('pages-note').textContent, '', '前提：口座が ふつうの 間は 1枚');
+  await setBank(NAGAI);
+  const t = $('pages-note').textContent;
+  ok(t.indexOf('紙は 2 枚') >= 0, '★振込先が 6行で 明細が 減ったのに 画面が 黙っている★: ' + t);
+  await setBank(mae);
+  eq($('pages-note').textContent, '', '★口座を 戻したのに 案内が 残っている★');
+});
+
 await TA('15-d. ★行数は会社ごとに変えられる（畳んだ中に在って・保存されて・紙に効く）', async () => {
   const P2 = require_(path.join(ROOT, 'seikyu/lib/seikyu-paper.js'));
   doc.querySelector('.bn[data-scr="scr-set"]').click(); await sleep(30);
