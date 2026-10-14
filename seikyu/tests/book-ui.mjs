@@ -130,6 +130,19 @@ await T('★⑤ 値を入れて 出せる（数式は 触らない）', async ()
   console.log('     書いたセル ' + out.wrote.length + '個 ／ 入れられなかった ' + (out.skipped || []).length + '個');
 });
 
+await T('★⑤-2 番号を 出さない 時（消す 札）は 見本の 番号が 残らない（2026-10-14）', async () => {
+  /* 前は 番号を '' で 渡し、fill が「空は 書かない」で 飛ばして ★見本の 番号（A-0001・前に 出した 請求書の 番号の 事も）が そのまま 残った★（taiketsu 測った） */
+  const vals = { partnerName: '型見空例工業株式会社', issueYmd: '2026-09-01', no: { kesu: true },
+    subject: '9月分', dueYmd: '2026-10-31', subtotal: 50000, taxTotal: 5000, grandTotal: 55000 };
+  const out = await B.fill(bytes, plan, vals, null, info);
+  ok(out && out.ok, '★書けない★ ' + JSON.stringify(out && out.reason));
+  const back = await B.inspect(out.bytes);
+  const flat = (back.cells[Object.keys(back.cells)[0]] || []).map((c) => String(c.text || c.value || '')).join(' ');
+  ok(!/A-0001/.test(flat), '★出さない のに 見本の 番号（A-0001）が 残って いる★');
+  ok(/型見空例工業株式会社/.test(flat), '★ほかの 欄まで 書けて いない★');
+  ok((out.wrote || []).some((w) => w.key === 'no' && w.kesu === true), '★番号の マスを 消した 事が 書いた 物に 載って いない★');
+});
+
 /* ★画面に 繋がっているか★（19日間 呼ばれていなかったので ここを 見張る） */
 await T('★⑥ 画面から 呼ばれている（作ってあるだけ、を もう作らない）', () => {
   const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');

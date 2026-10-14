@@ -410,6 +410,14 @@
       Object.keys(plan.slots).forEach(function (key) {
         if (!values || values[key] === undefined || values[key] === null || values[key] === '') return;
         var slot = plan.slots[key];
+        /* ★消す 札（{kesu:true}）★（2026-10-14 taiketsu）＝空は「書かない」で 飛ばすので、見本の 値（前に 出した 請求書の 番号 等）が
+           そのまま 残った。番号を 出さない 設定の 時は ★そのマスを 空で 上書き★する。数式の マスは 触らない（上と 同じ 決め）。 */
+        if (values[key] && typeof values[key] === 'object' && values[key].kesu === true) {
+          if (slot.computed) { skipped.push({ key: key, addr: slot.addr, label: labelOf(key), why: 'この紙が自分で計算します（数式）' }); return; }
+          cells[slot.addr] = specOf('');
+          wrote.push({ key: key, addr: slot.addr, value: '', kesu: true });
+          return;
+        }
         /* ★その紙が自分で計算する場所には書かない★
            書いても、Excel が計算し直した瞬間に元の式の答えに戻る＝紙と画面で額が食い違う。
            （2026-08-11：合計が =E15+E16 のテンプレで、ここに書こうとしていた） */

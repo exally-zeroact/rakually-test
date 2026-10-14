@@ -3346,7 +3346,8 @@
     return {
       partnerName: String(p.name || ''),
       issueYmd: String(inv.issue_ymd || ''),
-      no: PAPER.noDasu(pi) ? String(inv.no || '') : '',   /* ★出さない 時は 自社 Excel にも 書かない★（2026-10-14） */
+      /* ★出さない 時は 自社 Excel の 番号の マスを 空で 上書き★（2026-10-14）＝'' だと fill が 飛ばして 見本の 番号が 残った（taiketsu） */
+      no: PAPER.noDasu(pi) ? String(inv.no || '') : { kesu: true },
       subject: String((inv.data && inv.data.subject) || ''),
       dueYmd: String(inv.due_ymd || ''),
       subtotal: Number(tax.subtotal || 0),

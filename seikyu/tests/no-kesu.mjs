@@ -83,26 +83,12 @@ T('★①-2 どの様式でも 同じに 効く（片方だけ 直さない）',
   console.log('     4様式とも 効いた');
 });
 
-T('★③ 番号を 付けるのは 止めない（採番そのものは 生きている）', () => {
-  /* ★紙に 書くかどうかだけ★＝1通が 持つ 番号は そのまま
-     （控えと「同じ番号を 二度 使わない」為に 番号そのものは 要る）。
-     ★2026-10-14 書き直した★ 前は「出さない でも <title> に 番号が 残る」を 守って いた。
-       ところが <title> は 印刷で PDF に する 時の ★ファイルの 名前★に なる＝★客の 出口★。
-       指示役の 決め（10-14・司さん「出さんってゆうとんのに出る」）＝★出さない 時は 全部の 出口から 消す★。
-       ⇒ ここで 守るのは ★紙を 作っても 1通が 持つ 番号は 消えない／変わらない★ 事。 */
-  const inv0 = { no: NO, issue_ymd: '2026-09-09', kind: 'invoice',
-    lines: [{ name: 'x', qty: '1', unit: '式', price: '1000', amount: '1000', rate: 10 }],
-    totals: { grandTotal: 1100 }, data: {} };
-  PAPER.build({
-    inv: inv0,
-    tax: TAX.compute({ lines: [{ name: 'x', qty: '1', unit: '式', price: '1000', rate: 10 }], taxMode: 'exclusive', rounding: 'floor' }),
-    partner: { name: 'A', honor: '御中' }, org: { yago: 'Z' },
-    template: TPL.getOrDefault('std1'), templateId: 'std1',
-    theme: TPL.getOrDefault('std1').theme, style: { noOn: false },
-    cols: COLS.normalizeSpec(TPL.getOrDefault('std1').cols), deduct: 0, deductLines: [],
-  });
-  ok(inv0.no === NO, '★紙を 作ったら 1通の 番号が 消えた／変わった★: ' + inv0.no);
-});
+/* ★③（番号を 付けるのは 止めない）は 2026-10-14 に 消した★
+   ・前の ③ は「出さない でも <title> に 番号が 残る」を 守って いた。<title> は 印刷で PDF に する 時の 名前＝客の 出口なので、
+     今の 決め（出さない 時は 全部の 出口から 消す・指示役 10-14）と ぶつかる＝⑨ が 逆を 守る。
+   ・書き直した「紙を 作っても 1通の 番号は 変わらない」は、紙の 側に 番号を 書き換える 行が 1つも 無く、
+     どう 壊しても 赤に ならない＝★守る 物が 無い 試験★（taiketsu 10-14）。空振りの 緑は 置かない。
+   ・「番号を 振るのは 止めない」は 倉庫の 側（store.issue・usedNos・unique）が 持つ。紙は 書くか どうか だけ。 */
 
 /* ═══ ⑦〜⑩ ★「出さない」が 効いて いなかった 出口★（2026-10-14 taiketsu 測った＝司さん「出さんってゆうとんのに出る」） ═══
    紙の No. だけ 消えて、繰越の「前回 No.」・領収書の 但し書き・<title>（PDF の 名前）・Excel には 出て いた。

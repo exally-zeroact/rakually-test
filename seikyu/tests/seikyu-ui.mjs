@@ -1145,7 +1145,7 @@ await TA('7-e. ★番号を 出さない 設定の 時は 自社 Excel に 入�
     ok(v1 && v1.no === no, '前提：出す 時に 自社 Excel の 値に 番号が 無い: ' + JSON.stringify(v1 && v1.no));
     st.org.invoiceStyle = Object.assign({}, mae || {}, { noOn: false });
     const v2 = app._bookValsForTest();
-    ok(v2 && v2.no === '', '★出さない のに 自社 Excel に 番号を 入れる★: ' + JSON.stringify(v2 && v2.no));
+    ok(v2 && v2.no && v2.no.kesu === true, '★出さない のに 自社 Excel の 番号の マスを 消して いない（見本の 番号が 残る）★: ' + JSON.stringify(v2 && v2.no));
     ok(String(st.cur.no) === no, '★Excel の 値を 作ったら 1通の 番号が 変わった★');
   } finally {
     if (st.org) st.org.invoiceStyle = mae;
