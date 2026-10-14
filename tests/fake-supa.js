@@ -25,6 +25,20 @@ function createFakeSupa(opts) {
   var nowSeq = 0;
   function now() { nowSeq++; return '2026-07-25T00:00:' + ('0' + nowSeq).slice(-2) + '.000Z'; }
 
+  /* ★発行済みの 凍結★（本物＝supabase/schema-seikyu.sql の pay_invoices_freeze と 同じ 3列・2026-10-14）
+     発行済み（status が draft でない）の 行は 種類・番号・発行した時刻を 変えられない。
+     ★これが 無いと 発行済みの 番号を 動かす 試験が 偽の 緑に なる★（taiketsu 10-14） */
+  function koori(t, mae, ato) {
+    if (t !== 'pay_invoices' || !mae || !mae.status || mae.status === 'draft') return null;
+    var cols = ['doc_type', 'no', 'issued_at'];
+    for (var i = 0; i < cols.length; i++) {
+      var c = cols[i];
+      if ((c in ato) && String(ato[c]) !== String(mae[c])) {
+        return { code: '23514', message: '発行済みの請求書は、種類・番号・発行した時刻だけ 変えられません（中身は 直せます）: no=' + mae.no };
+      }
+    }
+    return null;
+  }
   function rowsOf(t) { if (!db[t]) db[t] = []; return db[t]; }
   function keyOf(t) { return pk[t] || 'id'; }
   function sameKey(t, a, b) {
@@ -85,6 +99,7 @@ function createFakeSupa(opts) {
         }
         if (idx >= 0) {
           if (self._op === 'insert') return { data: null, error: { message: 'duplicate key value violates unique constraint' } };
+          var kz = koori(t, rows[idx], row); if (kz) return { data: null, error: kz };
           rows[idx] = Object.assign({}, rows[idx], row);
           written.push(clone(rows[idx]));
         } else { rows.push(row); written.push(clone(row)); }
@@ -98,6 +113,7 @@ function createFakeSupa(opts) {
     });
 
     if (this._op === 'update') {
+      for (var m = 0; m < match.length; m++) { var kz2 = koori(t, match[m], self._payload || {}); if (kz2) return { data: null, error: kz2 }; }
       match.forEach(function (r) { Object.assign(r, clone(self._payload)); });
       return { data: match.map(clone), error: null };
     }

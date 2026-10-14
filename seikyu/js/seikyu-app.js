@@ -2333,6 +2333,9 @@
   function autoNumber() {
     var v = S.cur;
     if (!v || locked()) return Promise.resolve();
+    /* ★発行済みの 番号は 付け直さない★（2026-10-14 taiketsu A1）
+       ＝倉庫が 種類・番号・発行した時刻を 凍らせている。付け直すと 請求日を 直しただけで ★保存が 落ちる★ */
+    if (v.status && v.status !== 'draft') return Promise.resolve();
     if (((v.data && v.data.noMode) || 'auto') !== 'auto') { setText('e-no-hint', '自分で決めた番号も「使用済み」として数えます。同じ番号は 二度 受け付けません。'); return Promise.resolve(); }
     var s = settings();
     var p = partnerById(v.partner_id);

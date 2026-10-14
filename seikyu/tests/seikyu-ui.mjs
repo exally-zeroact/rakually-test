@@ -479,6 +479,22 @@ await TA('2. ★発行済みでも いつでも 直せる／発行するは も�
   ok(/取り消し/.test($('out-sum').textContent), '見出しに「取り消し」が無い: ' + $('out-sum').textContent);
 });
 
+await TA('2-0. ★発行済みの 請求日を 別の月に 直しても 番号は 動かない／保存できる（2026-10-14）', async () => {
+  /* 前は 請求日を 変えると autoNumber が 発行済みにも 新しい 番号を 付け直し、
+     倉庫の 凍結（種類・番号・発行した時刻）に 当たって ★保存が 落ちた★（taiketsu 10-14 A1） */
+  const st = win.SeikyuApp._state;
+  eq(st.cur.status, 'issued', '前の試験で 発行済みに なっていない');
+  setVal('e-issue', '2026-11-05');
+  await sleep(30);
+  eq(st.cur.no, firstNo, '★発行済みの 番号が 付け直された★');
+  $('b-save').click();
+  await sleep(40);
+  const err = ($('edit-err') && $('edit-err').textContent) || '';
+  ok(!/落ち|失敗|変えられません/.test(err), '★保存が 落ちた★ ' + err);
+  eq(db.pay_invoices[0].no, firstNo, '★倉庫の 番号が 変わった★');
+  eq(db.pay_invoices[0].issue_ymd, '2026-11-05', '★請求日が 保存されて いない★');
+});
+
 /* ★取り消し済みでも 触れる★（司さん「一覧から 取り消して 入力画面はいると 何も触れない」） */
 await TA('2-a. ★取り消し済みでも 中身が 触れる', async () => {
   const st = win.SeikyuApp._state;
