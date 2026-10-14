@@ -29,7 +29,7 @@ const require_ = createRequire(path.join(ROOT, 'package.json'));
 let JSDOM;
 try { ({ JSDOM } = await import('jsdom')); }
 catch { console.log('★jsdomが入っていません。この検証は飛ばせません（SKIPを緑と呼ばない）。npm install してください。'); process.exit(1); }
-const { createFakeSupa } = require_(path.join(ROOT, 'tests/fake-supa.js'));
+const { createFakeSupa, KOORI_08_18 } = require_(path.join(ROOT, 'tests/fake-supa.js'));
 
 let pass = 0, fail = 0;
 const T = (n, fn) => { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
@@ -103,6 +103,16 @@ function makeSb() {
   });
 }
 const sb = makeSb();
+/* ★一覧の「修正」で 開く★（客の 道。月・取引先の 絞りを 外してから 押す） */
+const hiraku = (id) => {
+  for (const k of ['l-month', 'l-partner']) { const e = doc.getElementById(k); if (e) e.value = ''; }
+  win.SeikyuApp._state.fil = 'all';
+  win.SeikyuApp._renderListForTest();
+  const b = doc.querySelector('[data-open="' + id + '"]');
+  if (!b) throw new Error('一覧に 修正の ボタンが 無い: ' + id + ' ／ 一覧 ' + JSON.stringify(win.SeikyuApp._state.invoices.map((v) => [v.id, v.status, v.doc_type])) + ' fil=' + win.SeikyuApp._state.fil + ' ボタン ' + doc.querySelectorAll('[data-open]').length);
+  b.click();
+  return b;
+};
 const db = sb._db;
 
 const $ = (id) => doc.getElementById(id);
@@ -493,6 +503,276 @@ await TA('2-0. ★発行済みの 請求日を 別の月に 直しても 番号�
   ok(!/落ち|失敗|変えられません/.test(err), '★保存が 落ちた★ ' + err);
   eq(db.pay_invoices[0].no, firstNo, '★倉庫の 番号が 変わった★');
   eq(db.pay_invoices[0].issue_ymd, '2026-11-05', '★請求日が 保存されて いない★');
+});
+
+await TA('2-0b. ★本物の 倉庫（08-18 版の 12列 凍結）で 発行済みの 自動保存が 落ちたら 字で 言う（2026-10-14）', async () => {
+  /* テスト線の 倉庫の 関数は repo の 3列版 でなく 08-18 版（md5 fb3e5671… を SELECT で 実測）。
+     前は 落ちても 黙り、画面は 直した値・紙と 台帳は 古い値の まま だった（指示役 10-14） */
+  const st = win.SeikyuApp._state;
+  const mae = st.org.invoiceStyle;
+  const maeLines = JSON.stringify(db.pay_invoices[0].lines);
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  sb._koori(KOORI_08_18);
+  try {
+    eq(st.cur.status, 'issued', '前提：発行済みで ない');
+    st.org.invoiceStyle = Object.assign({}, mae || {}, { noOn: true });
+    const inp = $('lines-body').querySelector('[data-f="amount"]');
+    inp.value = String(Number(inp.value || 0) + 1000); inp.dispatchEvent(new win.Event('input'));
+    await sleep(1700);   // 打って 1.5秒 で しまう
+    const err = T('edit-ochita');
+    ok(/保存されていません/.test(err), '★自動の しまいが 落ちたのに 黙っている★ 「' + err + '」');
+    ok(/前の 値/.test(err), '★紙が 古い値の ままだと 言っていない★ ' + err);
+    ok(/「取り消し」にして/.test(err) && /作り直/.test(err), '★取り消して 作り直す 道を 言っていない★ ' + err);
+    ok(!/no=/.test(err), '★倉庫の 字（no=…）が そのまま 出ている★ ' + err);
+    ok(err.indexOf('（番号 ' + firstNo + '）') >= 0, '番号を 出す 紙なのに 倉庫の 番号が 無い ' + err);
+    eq(JSON.stringify(db.pay_invoices[0].lines), maeLines, '前提：偽の 倉庫が 拒んでいない');
+    /* ★描き直し（recalc・fillEdit）でも 消えない★（前は recalc が edit-err を 消した） */
+    win.SeikyuApp._recalcForTest && win.SeikyuApp._recalcForTest();
+    win.SeikyuApp._fillEdit(); await sleep(10);
+    ok(/保存されていません/.test(T('edit-ochita')), '★描き直したら 知らせが 消えた★');
+    /* ★押した 保存が 落ちても「保存しました」を 残さない★ */
+    const ok0 = $('edit-ok'); if (ok0) { ok0.textContent = '直した内容を 保存しました（前の 字）'; ok0.style.display = ''; }
+    $('b-save').click(); await sleep(40);
+    ok(!/保存しました/.test(T('edit-ok')), '★落ちたのに「保存しました」が 残っている★ ' + T('edit-ok'));
+    ok(/保存されていません/.test(T('edit-ochita')), '★押した 保存でも 言っていない★');
+    /* ★番号を 出さない 紙★では 番号を 出さない（③ と 同じ PAPER.noDasu） */
+    st.org.invoiceStyle = Object.assign({}, mae || {}, { noOn: false });
+    $('b-save').click(); await sleep(40);
+    const err2 = T('edit-ochita');
+    ok(err2.indexOf(firstNo) < 0 && !/no=/.test(err2), '★出さない のに 番号が 出ている★ ' + err2);
+  } finally {
+    st.org.invoiceStyle = mae;
+    sb._koori(null);
+  }
+  /* repo の 形（3列）で しまい直すと 知らせは 消える */
+  $('b-save').click(); await sleep(40);
+  eq(T('edit-ochita'), '', '★保存が 通ったのに 知らせが 残っている★');
+  eq(T('list-ochita'), '', '★保存が 通ったのに 一覧の 知らせが 残っている★');
+});
+
+await TA('2-0c. ★返事が 遅れても 落ちた 知らせは 送った 1通に 付く／一覧で 消えない（taiketsu 10-14 指摘1・5）', async () => {
+  const app = win.SeikyuApp, st = app._state;
+  const A = st.cur;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  const orig = st.store.invoices.saveDraft;
+  sb._koori(KOORI_08_18);
+  st.store.invoices.saveDraft = (v) => sleep(150).then(() => orig.call(st.store.invoices, v));
+  try {
+    const inp = $('lines-body').querySelector('[data-f="amount"]');
+    inp.value = String(Number(inp.value || 0) + 7); inp.dispatchEvent(new win.Event('input'));
+    app._go('scr-list');               // 入力から 出る＝その場で しまう（返事は 150ms 後）
+    app._new(); await sleep(20);       // 返事の 前に 新しい 1通を 開く
+    ok(st.cur !== A, '前提：新しい 1通に なっていない');
+    eq(st.dirty, false, '★前の 1通の 直しかけを 新しい 1通へ 持ち越した★');
+    await sleep(300);
+    eq(T('edit-ochita'), '', '★落ちたのは 前の 1通なのに 新しい 1通の 画面に 出た★ ' + T('edit-ochita'));
+    const li = T('list-ochita');
+    ok(/保存されていません/.test(li) && /標様建設株式会社/.test(li), '★一覧に 前の 1通の 知らせが 無い★ ' + li);
+    await app._loadList(); await sleep(10);
+    ok(/保存されていません/.test(T('list-ochita')), '★一覧を 読み直したら 知らせが 消えた（保存は されていない）★');
+  } finally {
+    st.store.invoices.saveDraft = orig;
+    sb._koori(null);
+  }
+  /* 前の 1通に 戻して しまい直す（後の 試験の 為）＝★一覧の「修正」の 道★で 開く */
+  app._go('scr-list'); await app._loadList(); await sleep(10);
+  hiraku(A.id); await sleep(20);
+  ok(/保存されていません/.test(T('edit-ochita')), '★その 1通に 戻ったのに 知らせが 無い★');
+  $('b-save').click(); await sleep(40);
+  eq(T('list-ochita'), '', '★通った後も 一覧に 残る★');
+});
+
+await TA('2-0d. ★取り消し済み・同期で 投げる・返事が 無い 時も 嘘を 言わず 黙らない（taiketsu 10-14 指摘3・7・8）', async () => {
+  const st = win.SeikyuApp._state;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  const orig = st.store.invoices.saveDraft;
+  const row = db.pay_invoices[0], maeSt = row.status, maeCurSt = st.cur.status;
+  sb._koori(KOORI_08_18);
+  try {
+    /* 取り消し済み＝「取り消しにして」と 言わない */
+    row.status = 'void'; st.cur.status = 'void';
+    const inp = $('lines-body').querySelector('[data-f="amount"]');
+    inp.value = String(Number(inp.value || 0) + 3); inp.dispatchEvent(new win.Event('input'));
+    $('b-save').click(); await sleep(40);
+    const v1 = T('edit-ochita');
+    ok(/取り消し済み/.test(v1) && !/「取り消し」にして/.test(v1), '★取り消し済みに「取り消せ」と 言った★ ' + v1);
+    row.status = maeSt; st.cur.status = maeCurSt;
+    /* 押した 保存の 返事が 無い（undefined）・拒まれた（reject） */
+    st.store.invoices.saveDraft = () => Promise.resolve(undefined);
+    $('b-save').click(); await sleep(20);
+    ok(/まだ 保存されていません/.test(T('edit-ochita')), '★返事が 無いのに 黙った★ ' + T('edit-ochita'));
+    st.store.invoices.saveDraft = () => Promise.reject(new Error('net down'));
+    $('b-save').click(); await sleep(20);
+    ok(/net down/.test(T('edit-ochita')), '★拒まれたのに 黙った★ ' + T('edit-ochita'));
+    /* 自動の しまいが 同期で 投げた */
+    st.store.invoices.saveDraft = () => { throw new Error('sync boom'); };
+    inp.value = String(Number(inp.value || 0) + 1); inp.dispatchEvent(new win.Event('input'));
+    await sleep(1700);
+    ok(/sync boom/.test(T('edit-ochita')), '★同期で 投げたのに 黙った★ ' + T('edit-ochita'));
+  } finally {
+    row.status = maeSt; st.cur.status = maeCurSt;
+    st.store.invoices.saveDraft = orig;
+    sb._koori(null);
+  }
+  $('b-save').click(); await sleep(40);
+  eq(T('edit-ochita'), '', '★通った後も 知らせが 残る★');
+});
+
+await TA('2-0e. ★落ちた 後に 一覧から 開き直すと 打った 値の まま／「保存」で 打った 値が 入る（taiketsu 10-14 2回目 指摘1）', async () => {
+  const app = win.SeikyuApp, st = app._state;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  const A = st.cur, aId = A.id;
+  const amt = () => $('lines-body').querySelector('[data-f="amount"]');
+  const mae = Number(db.pay_invoices[0].lines[0].amount);
+  const uchi = String(mae + 500);
+  amt().value = uchi; amt().dispatchEvent(new win.Event('input'));
+  sb._failNext('pay_invoices', 'upsert');          // 通信が 落ちた
+  app._go('scr-list'); await sleep(30);
+  ok(/まだ 保存されていません/.test(T('list-ochita')), '前提：落ちた 知らせが 一覧に 無い');
+  await app._loadList(); await sleep(10);
+  hiraku(aId); await sleep(20);
+  eq(amt().value, uchi, '★開き直したら 打った 値が 消えて 倉庫の 古い値に 戻った★');
+  eq(st.dirty, true, '★打った 値で 開いたのに 直しかけの 印が 無い（出る時に しまわれない）★');
+  ok(/まだ 保存されていません/.test(T('edit-ochita')), '★開き直したら 知らせが 無い★');
+  $('b-save').click(); await sleep(40);
+  eq(String(db.pay_invoices[0].lines[0].amount), uchi, '★「保存」を 押したのに 打った 値が 倉庫に 入っていない★');
+  eq(T('edit-ochita'), '', '★通ったのに 知らせが 残る★');
+  eq(T('list-ochita'), '', '★通ったのに 一覧の 知らせが 残る★');
+});
+
+await TA('2-0f. ★新しい 1通（id 無し）で 落ちても 入力の 画面に 出る／通ったら 消える（taiketsu 10-14 2回目 指摘2・3）', async () => {
+  const app = win.SeikyuApp, st = app._state;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  const A = st.cur;
+  app._new(); await sleep(20);
+  setVal('e-partner', 'pt_a'); await sleep(20);
+  const tr = $('lines-body').querySelector('tr');
+  tr.querySelector('[data-f="name"]').value = '見本の品'; tr.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+  tr.querySelector('[data-f="amount"]').value = '1200'; tr.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+  await sleep(20);
+  const n0 = db.pay_invoices.length;
+  sb._uid(null);                                     // ログインが 切れた
+  try {
+    $('b-save').click(); await sleep(40);
+    ok(/ログインしていません/.test(T('edit-ochita')), '★新しい 1通で 落ちたのに 入力の 画面が 黙っている★ 「' + T('edit-ochita') + '」');
+  } finally { sb._uid('u1'); }
+  $('b-save').click(); await sleep(40);
+  eq(db.pay_invoices.length, n0 + 1, '前提：通っていない');
+  eq(T('edit-ochita'), '', '★通ったのに 入力の 知らせが 残る★');
+  eq(T('list-ochita'), '', '★通ったのに 一覧の 知らせが 残る（id の 無い 鍵が 消えない）★');
+  /* 後の 試験は 倉庫の 通数を 数えるので、作った 下書きは 片付ける */
+  const nid = st.cur.id;
+  for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === nid) db.pay_invoices.splice(i, 1);
+  /* 後の 試験の 為に 元の 1通へ（一覧から 開く 道） */
+  app._go('scr-list'); await app._loadList(); await sleep(10);
+  hiraku(A.id); await sleep(20);
+});
+
+await TA('2-0g. ★返事が 遅れて「通った」時、前の 1通の id を 今の 1通に 付けない／自動で 通れば 知らせが 消える（taiketsu 10-14 2回目 指摘4）', async () => {
+  const app = win.SeikyuApp, st = app._state;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  const A = st.cur, aId = A.id;
+  const orig = st.store.invoices.saveDraft;
+  const amt = () => $('lines-body').querySelector('[data-f="amount"]');
+  /* 自動の しまいが 落ちる → edit-ok を 消す → 次の 自動の しまいが 通れば 知らせが 消える */
+  const ok0 = $('edit-ok'); if (ok0) { ok0.textContent = '直した内容を 保存しました（前の 字）'; ok0.style.display = ''; }
+  sb._failNext('pay_invoices', 'upsert');
+  amt().value = String(Number(amt().value) + 2); amt().dispatchEvent(new win.Event('input'));
+  await sleep(1700);
+  ok(/まだ 保存されていません/.test(T('edit-ochita')), '前提：落ちていない');
+  ok(!/保存しました/.test(T('edit-ok')), '★自動の しまいが 落ちたのに「保存しました」が 残る★');
+  amt().value = String(Number(amt().value) + 1); amt().dispatchEvent(new win.Event('input'));
+  await sleep(1700);
+  eq(T('edit-ochita'), '', '★自動で 通ったのに 知らせが 残る★');
+  /* 返事が 遅れて 通る 間に 新しい 1通を 開く */
+  st.store.invoices.saveDraft = (v) => sleep(150).then(() => orig.call(st.store.invoices, v));
+  try {
+    amt().value = String(Number(amt().value) + 1); amt().dispatchEvent(new win.Event('input'));
+    app._go('scr-list');
+    app._new(); await sleep(300);
+    ok(st.cur !== A, '前提：新しい 1通に なっていない');
+    ok(!st.cur.id, '★前の 1通の id（' + aId + '）が 新しい 1通に 付いた＝次の 保存で 前の 1通を 上書きする★ ' + st.cur.id);
+  } finally { st.store.invoices.saveDraft = orig; }
+  app._go('scr-list'); await app._loadList(); await sleep(10);
+  hiraku(aId); await sleep(20);
+  /* ★新しい 1通の 打ちかけ（相手 未選択＝しまわない）を 持ったまま 一覧から 開いても 直しかけの 印を 持ち越さない★ */
+  app._new(); await sleep(20);
+  const nm = $('lines-body').querySelector('[data-f="name"]');
+  nm.value = '打ちかけ'; nm.dispatchEvent(new win.Event('input'));
+  eq(st.dirty, true, '前提：打ったのに 直しかけの 印が 無い');
+  app._go('scr-list'); await sleep(10);
+  hiraku(aId); await sleep(20);
+  eq(st.dirty, false, '★倉庫に 入っている 1通を 開いたのに 直しかけの 印が 立っている★');
+  /* ★押した 保存の 返事の 前に 別の 1通を 開いても、その 1通に id を 付けない★ */
+  st.store.invoices.saveDraft = (v) => sleep(150).then(() => orig.call(st.store.invoices, v));
+  try {
+    $('b-save').click();
+    app._go('scr-list'); app._new(); await sleep(300);
+    ok(st.cur !== A, '前提：新しい 1通に なっていない');
+    ok(!st.cur.id, '★押した 保存の 返事で 前の 1通の id が 新しい 1通に 付いた★ ' + st.cur.id);
+  } finally { st.store.invoices.saveDraft = orig; }
+  app._go('scr-list'); await app._loadList(); await sleep(10);
+  hiraku(aId); await sleep(20);
+});
+
+await TA('2-0h. ★3列の 凍結で 番号を 変えて 拒まれた 時は「元に 戻す」と 言う（取り消させない・taiketsu 10-14 設計 指摘8）', async () => {
+  const st = win.SeikyuApp._state;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  eq(st.cur.status, 'issued', '前提：発行済みで ない');
+  const no0 = st.cur.no;
+  $('e-no').value = 'X-999';
+  $('b-save').click(); await sleep(40);
+  const m = T('edit-ochita');
+  ok(/番号を 元に 戻して/.test(m), '★番号で 拒まれたのに 戻し方を 言わない★ ' + m);
+  ok(!/「取り消し」にして/.test(m), '★番号を 戻せば 済むのに 取り消させる★ ' + m);
+  ok(m.indexOf('X-999') < 0, '★倉庫に 入っていない 打ちかけの 番号を 出した★ ' + m);
+  $('e-no').value = no0;
+  $('b-save').click(); await sleep(40);
+  eq(T('edit-ochita'), '', '★戻して 通ったのに 知らせが 残る★');
+});
+
+await TA('2-0i. ★番号の 重なりは 押した 保存＝edit-err・自動＝日本語で 知らせる（taiketsu 10-14 3回目 指摘5）', async () => {
+  const st = win.SeikyuApp._state;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  const orig = st.store.invoices.saveDraft;
+  st.store.invoices.saveDraft = () => Promise.resolve({ ok: false, dup: true, reason: 'duplicate key value violates unique constraint', code: '23505' });
+  try {
+    const ok0 = $('edit-ok'); if (ok0) { ok0.textContent = '直した内容を 保存しました（前の 字）'; ok0.style.display = ''; }
+    $('b-save').click(); await sleep(30);
+    ok(!/保存しました/.test(T('edit-ok')), '★重なりで 落ちたのに「保存しました」が 残る★');
+    ok(/既に使われています/.test(T('edit-err')), '★押した 保存の 重なりを edit-err で 言わない★ ' + T('edit-err'));
+    eq(T('edit-ochita'), '', '★押した 保存の 重なりを 知らせの 箱にも 出した（同じ事を 2か所）★');
+    const inp = $('lines-body').querySelector('[data-f="amount"]');
+    inp.value = String(Number(inp.value) + 1); inp.dispatchEvent(new win.Event('input'));
+    await sleep(1700);
+    const m = T('edit-ochita');
+    ok(/既に 使われています/.test(m) && !/duplicate/.test(m), '★自動の 重なりを 日本語で 言わない★ ' + m);
+  } finally { st.store.invoices.saveDraft = orig; }
+  $('b-save').click(); await sleep(40);
+  eq(T('edit-ochita'), '', '★通った後も 残る★');
+});
+
+await TA('2-0j. ★下書きで 落ちた 後に「発行する」が 通れば 知らせは 消える（taiketsu 10-14 3回目 指摘3）', async () => {
+  const app = win.SeikyuApp, st = app._state;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  const A = st.cur;
+  app._new(); await sleep(20);
+  setVal('e-partner', 'pt_a'); await sleep(20);
+  const tr = $('lines-body').querySelector('tr');
+  tr.querySelector('[data-f="name"]').value = '見本の品'; tr.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+  tr.querySelector('[data-f="amount"]').value = '900'; tr.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+  await sleep(20);
+  sb._failNext('pay_invoices', 'upsert');
+  $('b-save').click(); await sleep(40);
+  ok(/まだ 保存されていません/.test(T('edit-ochita')), '前提：落ちていない');
+  $('b-issue').click(); await sleep(60);
+  eq(st.cur.status, 'issued', '前提：発行が 通っていない');
+  eq(T('edit-ochita'), '', '★発行が 通ったのに「まだ 保存されていません」が 残る★');
+  const nid = st.cur.id;
+  app._go('scr-list'); await sleep(30);
+  for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === nid) db.pay_invoices.splice(i, 1);
+  await app._loadList(); await sleep(10);
+  hiraku(A.id); await sleep(20);
 });
 
 /* ★取り消し済みでも 触れる★（司さん「一覧から 取り消して 入力画面はいると 何も触れない」） */

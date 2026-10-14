@@ -11,6 +11,12 @@
 
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 
+/* 発行済みの 凍結の 形（倉庫の pay_invoices_freeze の 写し） */
+var KOORI_REPO = { cols: ['doc_type', 'no', 'issued_at'],
+  message: '発行済みの請求書は、種類・番号・発行した時刻だけ 変えられません（中身は 直せます）' };
+var KOORI_08_18 = { cols: ['doc_type', 'no', 'partner_id', 'issue_ymd', 'due_ymd', 'tax_mode', 'rounding',
+  'lines', 'totals', 'snapshot', 'template_id', 'issued_at'],
+  message: '発行済みの請求書は直せません（取り消して作り直してください）' };
 function createFakeSupa(opts) {
   opts = opts || {};
   var uid = opts.uid || 'u1';
@@ -28,13 +34,25 @@ function createFakeSupa(opts) {
   /* ★発行済みの 凍結★（本物＝supabase/schema-seikyu.sql の pay_invoices_freeze と 同じ 3列・2026-10-14）
      発行済み（status が draft でない）の 行は 種類・番号・発行した時刻を 変えられない。
      ★これが 無いと 発行済みの 番号を 動かす 試験が 偽の 緑に なる★（taiketsu 10-14） */
+  /* ★本物の 倉庫は repo の sql と 違う 事が 在る★（2026-10-14 実測）
+     テスト線の 倉庫の 関数は 08-18 版（93525d5・md5 fb3e5671…）の まま＝12列を 凍らせている。
+     ⇒ 試験は _koori(KOORI_08_18) で 本物の 形に 切り替えて 測れる（既定は repo の 3列）。 */
+  var kooriKata = opts.koori || KOORI_REPO;
+  function sameVal(a, b) {
+    if (a && typeof a === 'object' || b && typeof b === 'object') return JSON.stringify(a) === JSON.stringify(b);
+    return String(a) === String(b);
+  }
   function koori(t, mae, ato) {
     if (t !== 'pay_invoices' || !mae || !mae.status || mae.status === 'draft') return null;
-    var cols = ['doc_type', 'no', 'issued_at'];
+    /* ★状態の 決まり★（08-18 版も repo 版も 同じ）＝発行済みから 戻せる 先は「取り消し」だけ */
+    if (('status' in ato) && ato.status !== mae.status && !(mae.status === 'issued' && ato.status === 'void')) {
+      return { code: '23514', message: '発行済みから戻せる先は「取り消し」だけです: no=' + mae.no + ' (' + mae.status + ' -> ' + ato.status + ')' };
+    }
+    var cols = kooriKata.cols;
     for (var i = 0; i < cols.length; i++) {
       var c = cols[i];
-      if ((c in ato) && String(ato[c]) !== String(mae[c])) {
-        return { code: '23514', message: '発行済みの請求書は、種類・番号・発行した時刻だけ 変えられません（中身は 直せます）: no=' + mae.no };
+      if ((c in ato) && !sameVal(ato[c], mae[c])) {
+        return { code: '23514', message: kooriKata.message + ': no=' + mae.no };
       }
     }
     return null;
@@ -162,9 +180,10 @@ function createFakeSupa(opts) {
     _calls: calls,
     _uid: function (v) { if (v !== undefined) uid = v; return uid; },
     _failNext: function (table, op) { failNext = { table: table, op: op }; },
+    _koori: function (k) { kooriKata = k || KOORI_REPO; },
     _reset: function () { calls.length = 0; }
   };
   return client;
 }
 
-module.exports = { createFakeSupa: createFakeSupa };
+module.exports = { createFakeSupa: createFakeSupa, KOORI_REPO: KOORI_REPO, KOORI_08_18: KOORI_08_18 };

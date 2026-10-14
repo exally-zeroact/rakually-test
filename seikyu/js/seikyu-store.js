@@ -132,8 +132,8 @@
               deleted_at: null, updated_at: nowIso(),
             };
             return Promise.resolve(sb.from('pay_invoices').upsert(row))
-              .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error), dup: isDup(w.error) } : { ok: true, id: id }; })
-              .catch(function (e) { return { ok: false, reason: err(e), dup: isDup(e) }; });
+              .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error), dup: isDup(w.error), code: String(w.error.code || '') } : { ok: true, id: id }; })
+              .catch(function (e) { return { ok: false, reason: err(e), dup: isDup(e), code: String((e && e.code) || '') }; });
           });
         },
         /* ★発行★ 番号・合計・写しを決めて固める。

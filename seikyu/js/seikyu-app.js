@@ -699,6 +699,7 @@
 
   function newInvoice() {
     S.cur = blankInvoice();
+    S.dirty = false;
     // 取引先が1社だけなら選んでおく（白紙を埋めさせない）
     if (S.partners.length === 1) S.cur.partner_id = S.partners[0].id;
     applyPartnerDefaults();
@@ -821,6 +822,10 @@
     for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === id) v = S.invoices[i];
     if (!v) { box('list-err', 'この請求書が見つかりませんでした。「読み直す」を押してください。'); return; }
     S.cur = JSON.parse(JSON.stringify(v));
+    S.dirty = false;                  // ★前の 1通の「直しかけ」を 持ち越さない★（taiketsu 10-14）
+    /* ★保存できなかった 1通は ★打った 値で★ 開く★（倉庫の 古い値で 上書きしない＝打った物を 黙って 捨てない） */
+    var rec = S.ochita && S.ochita[id];
+    if (rec && rec.v) { S.cur = JSON.parse(JSON.stringify(rec.v)); S.dirty = true; }
     if (!S.cur.data) S.cur.data = {};
     if (!Array.isArray(S.cur.lines) || !S.cur.lines.length) S.cur.lines = [blankLine()];
     fillEdit();
@@ -831,6 +836,7 @@
 
   function fillEdit() {
     var v = S.cur; if (!v) return;
+    drawOchita();                     // ★保存できなかった 1通の 知らせは 描き直しでも 消さない★（2026-10-14）
     /* ★書類の 名前は 種類から 取る★（司さん 2026-09-08「出来てないものは全部やれ」で 見つけた）
        ★実測した 姿★＝「＋ 新しい見積書」で 作ったのに 入力画面の 見出しが ★「新しい請求書」★のまま。
        倉庫には ちゃんと doc_type='quote'・番号も 別系列で 入っていた
@@ -2646,11 +2652,99 @@
     try { t = recalc(); } catch (e) { return; }
     v.lines = cleanLines(v.lines);
     v.totals = (t && t.ok) ? totalsOf(t) : {};
+    var okuttaCur = S.cur;
     try {
       S.store.invoices.saveDraft(v).then(function (r) {
-        if (r && r.ok) { if (S.cur) S.cur.id = r.id; S.dirty = false; }
-      }).catch(function () { /* しまえなくても 画面は そのまま（次の 打鍵で また 試す） */ });
-    } catch (e) { /* 同上 */ }
+        if (r && r.ok) { if (S.cur && S.cur === okuttaCur) { S.cur.id = r.id; S.dirty = false; } ochiKesu(okuttaCur); return; }
+        ochita(okuttaCur, r);
+      }).catch(function (e) { ochita(okuttaCur, { ok: false, reason: e && e.message }); });
+    } catch (e) { ochita(okuttaCur, { ok: false, reason: e && e.message }); }
+  }
+  /* ★★しまえなかった事を 黙らない★★（2026-10-14 指示役・taiketsu）
+     ＝倉庫が 発行済みの 直しを 拒むと ★自動の しまいは 黙って 落ち★、画面は 直した値・紙と 台帳は 古い値の まま だった。
+     ★決め★
+       ・字は ★送った 1通（v）★ から 作る＝返事が 遅れて 別の 1通を 開いていても、その 1通に 付けない
+       ・★1通ごとに 覚える（S.ochita[鍵]）★＝鍵は id、まだ id の 無い 新しい 1通は その場の 印（_k）。
+         専用の 箱（edit-ochita・list-ochita）に 出し、recalc・loadList では 消さない
+       ・★打った 値も 一緒に 覚える★＝一覧から 開き直すと ★打った 値の まま★ 開く（倉庫の 古い値で 上書きしない）。
+         ＝「保存」を 押せば ★打った 値で★ もう一度 試す。知らせが 消えるのは ★その 1通の 保存が 通った 時だけ★
+         （前は 開き直すと 古い値に 戻り、何も 直さず「保存」で「保存しました」と 出て 知らせも 消えた・taiketsu 10-14）
+       ・分かれ道は 倉庫の 文言でなく ★errcode 23514 と 送った 1通の 状態★ */
+  function ochiKey(cur) {
+    if (!cur) return '';
+    if (cur.id) return cur.id;
+    if (!cur._k) cur._k = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    return cur._k;
+  }
+  function ochita(cur, r) {
+    cur = cur || {};
+    r = r || {};
+    if (S.cur === cur) box('edit-ok', '');
+    S.ochita = S.ochita || {};
+    S.ochita[ochiKey(cur)] = { bun: hozonOchiBun(cur, r), dare: ochiDare(cur), v: JSON.parse(JSON.stringify(cur)) };
+    drawOchita();
+  }
+  function ochiKesu(cur) {
+    if (!S.ochita) return;
+    var n = 0;
+    [cur && cur._k, cur && cur.id].forEach(function (k) { if (k && S.ochita[k]) { delete S.ochita[k]; n++; } });
+    if (n) drawOchita();
+  }
+  /* どの 1通か（番号は 出さない 紙も 在るので 相手と 請求日で 言う） */
+  function ochiDare(v) {
+    var nm = '';
+    try { nm = partnerName(v) || ''; } catch (e) { nm = ''; }
+    return (nm || '（取引先 未選択）') + '・' + (v.issue_ymd || '日付なし');
+  }
+  function drawOchita() {
+    var o = S.ochita || {};
+    var ed = $('edit-ochita');
+    if (ed) {
+      var mine = S.cur && ((S.cur.id && o[S.cur.id]) || (S.cur._k && o[S.cur._k]));
+      ed.textContent = mine ? mine.bun : '';
+      ed.style.display = mine ? '' : 'none';
+    }
+    var li = $('list-ochita');
+    if (li) {
+      var ks = Object.keys(o);
+      li.textContent = ks.map(function (k) { return '【' + o[k].dare + '】' + o[k].bun; }).join('\n');
+      li.style.whiteSpace = 'pre-line';
+      li.style.display = ks.length ? '' : 'none';
+    }
+  }
+  /* ★番号を 出すか★＝紙と 同じ 重ね方（PAPER.noDasu）。読めない 時は 出さない（漏れない 側） */
+  function noDasuOf(v) {
+    try { return !!PAPER.noDasu({ inv: v, theme: themeOf(v), style: settings().paperStyle }); } catch (e) { return false; }
+  }
+  /* ★保存が 落ちた 時の 字★（自動・押した時 共通の 1か所）
+     ・番号は ★倉庫が 持っている 番号（倉庫の 字の no=）★ を、紙が 番号を 出す 時だけ。打ちかけの 番号は 出さない
+     ・倉庫の 字（no=…）は そのまま 出さない */
+  function hozonOchiBun(v, r) {
+    v = v || {}; r = r || {};
+    var raw = String(r.reason || '');
+    var m = /no=(\S+)/.exec(raw);
+    var kuraNo = m ? m[1] : '';
+    var why = raw.replace(/\s*[:：]\s*no=.*$/, '');
+    var bango = (kuraNo && noDasuOf(v)) ? '（番号 ' + kuraNo + '）' : '';
+    var kori = String(r.code || '') === '23514' && (v.status === 'issued' || v.status === 'void');
+    var mae = '出す紙（PDF・印刷・Excel）と 一覧は、まだ 前の 値の ままです。';
+    if (r.dup) return '直した内容は まだ 保存されていません。この番号は 既に 使われています。別の番号にしてください。';
+    /* ★番号を 変えて 拒まれた★＝取り消しは 要らない（3列の 凍結でも 番号は 変えられない）。元に 戻せば 通る */
+    var kura = null;
+    for (var i = 0; i < (S.invoices || []).length; i++) if (v.id && S.invoices[i].id === v.id) kura = S.invoices[i];
+    if (kori && kura && String(kura.no || '') !== String(v.no || '')) {
+      return '直した内容は 保存されていません' + bango + '。発行した後の 番号は 変えられません。'
+        + mae + '番号を 元に 戻して（「変える」の 後の「自動」でも 戻ります）、もう一度 保存してください。';
+    }
+    if (kori && v.status === 'void') {
+      return '直した内容は 保存されていません' + bango + '。取り消し済みの請求書なので、クラウドが この直しを 受け付けませんでした。'
+        + mae + '直した内容で 出すには、「複製」で 新しく 作り直してください。';
+    }
+    if (kori) {
+      return '直した内容は 保存されていません' + bango + '。発行済みの請求書なので、クラウドが この直しを 受け付けませんでした。'
+        + mae + '直した内容で 出すには、この請求書を「取り消し」にして、新しく 作り直してください。';
+    }
+    return '直した内容は まだ 保存されていません' + bango + '（' + (why || '理由不明') + '）。「保存」を押して もう一度 試してください。';
   }
   /* 打っている 間は 先延ばし、手が 止まったら しまう */
   function jidoYoyaku() {
@@ -2670,13 +2764,16 @@
     if (!v.issue_ymd) { box('edit-err', '請求日を入れてください（下書きでも日付は要ります）。'); return Promise.resolve(); }
     if (!v.no) { box('edit-err', '請求番号が空です。「自動」に戻すか、自分で番号を入れてください。'); return Promise.resolve(); }
     box('edit-err', '');
-    return S.store.invoices.saveDraft(v).then(function (r) {
-      if (!r.ok) {
-        box('edit-err', r.dup
-          ? 'この番号（' + v.no + '）は既に使われています。別の番号にしてください。'
-          : '保存できませんでした（' + r.reason + '）');
+    box('edit-ok', '');               // ★前の「保存しました」を 残さない★（落ちた時に 並んで 出ていた・taiketsu 10-14）
+    var okuttaCur = S.cur;
+    return Promise.resolve().then(function () { return S.store.invoices.saveDraft(v); }).then(function (r) {
+      if (!r || !r.ok) {
+        if (r && r.dup) { box('edit-err', 'この番号（' + v.no + '）は既に使われています。別の番号にしてください。'); return; }
+        ochita(okuttaCur, r);
         return;
       }
+      ochiKesu(okuttaCur);
+      if (S.cur !== okuttaCur) return;   // 返事の 前に 別の 1通を 開いた＝今の 画面には 付けない
       S.cur.id = r.id;
       S.dirty = false;
       /* ★言葉は 状態なりに★（2026-09-09 いつでも直せるように したので
@@ -2685,7 +2782,7 @@
         : S.cur.status === 'void' ? '取り消し済みの 中身を 保存しました。'
           : '下書きを保存しました。'));
       return loadList({ ato: true }).then(function () { fillEdit(); });
-    });
+    }, function (e) { ochita(okuttaCur, { ok: false, reason: e && e.message }); });
   }
 
   /* ═══ ★「発行する」が押せない理由★ ═══
@@ -2786,6 +2883,7 @@
     return S.store.invoices.issue(row, at).then(function (r) {
       if (!r.ok) { box('edit-err', '発行できませんでした（' + r.reason + '）'); return; }
       S.cur.id = r.id; S.cur.no = r.no; S.cur.status = 'issued'; S.cur.issued_at = at;
+      ochiKesu(S.cur);                 // ★発行で 中身も 倉庫に 入った＝「まだ 保存されていません」を 残さない★（taiketsu 10-14）
       S.cur.snapshot = snap; S.cur.totals = row.totals;
       box('edit-ok', '請求書 ' + r.no + ' を発行しました。'
         + (r.bumped ? '（同じ番号が先に使われていたので ' + r.bumped + ' つ進めました）' : '')
