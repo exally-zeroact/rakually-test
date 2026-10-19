@@ -27,7 +27,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # ★試験の口の 合言葉は repo に 置かない★＝secret（tests/_shiken-kuchi.mjs が 読む・無ければ exit 2・決め2 10-11）
     env:
       SHIKEN_KUCHI_PASS: ${{ secrets.SHIKEN_KUCHI_PASS }}
@@ -803,7 +803,7 @@ jobs:
   #     （塊の run: | は「|」として 回って 9段 赤・見張りが 網で 1回も 走らない＝taiketsu 10-11 実測）
   #   ②給与の 試験の job（test）と 分けた＝secret の 置き忘れ等で ここが 赤でも 給与の 約250段は 走る
   kinshi:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -838,7 +838,7 @@ jobs:
   # ★見張りだけを node 24 で 回す★（凍結版と 同じ 訳）
   #   node 24 では 奇数の 長さの toString("utf16le") が「double free」で 落ちた（node 20 は 通る）。見張りは u16le() で 偶数に 揃えて 読む。
   kinshi-node24:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
