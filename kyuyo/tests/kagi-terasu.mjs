@@ -188,6 +188,16 @@ try {
     else { const r1 = await rpc('meisai_verify', { p_token: A.token, p_pw: 'chigau9' }); miru('meisai_verify', youOk, false, (r1.j && r1.j.ok === false)); }
   }
 
+  /* ★meisai_verify＝㋓合言葉なし（null）★（2026-10-19 指示役・odan＝ダイコメで 見つかった 同じ 形）
+     「pw_hash <> crypt(null, pw_hash)」は null に なり「違う」と 判じられず ★合言葉 無しで 端末の 鍵が 出た★（テスト線の 倉庫で 条件の 値を 実測）。
+     ★拒まれ、端末の 鍵（device_token）が 出ない★事を 見る。--waza は null の 代わりに 正しい 合言葉（通る＝穴） */
+  {
+    const you1 = await rpc('meisai_verify', { p_token: A.token, p_pw: AI });
+    const youOk = you1.j && you1.j.ok === true;
+    if (WAZA) { const h = await rpc('meisai_verify', { p_token: A.token, p_pw: AI }); miru('meisai_verify（合言葉なし）', youOk, true, !(h.j && h.j.ok === true)); }
+    else { const r1 = await rpc('meisai_verify', { p_token: A.token, p_pw: null }); miru('meisai_verify（合言葉なし）', youOk, false, (r1.j && r1.j.ok === false && !r1.j.device_token)); }
+  }
+
   /* meisai_set_password＝B(初回コード在り)で 陽＝正しい初回コードで 印が 付く。
      ㋐でたらめ鍵 ㋒初回コードなし ㋓でたらめ初回コード → 合言葉が 付かない。決めた後は 上書き されない。
      --waza は「決めた後に 初回コードなしで 上書き」が 通る＝穴（本来 already_set で 拒む） */
@@ -264,8 +274,8 @@ try {
 
 if (WAZA) {
   console.log('\n★わざと 穴を 開けた ' + wazaKai + '本／赤に なった ' + akaWaza + '本★（★開けた 数＝赤の 数 なら 門は 効く★）');
-  /* ★1本も 開けられなかった（途中で 止まった 等）は 赤★＝「0本開けて0本＝合格」の 偽の 緑を 作らない（想定 9本） */
-  if (wazaKai < 9) { console.log('  ✗ ★開けた 穴が ' + wazaKai + '本＝想定の 9本に 足りない（途中で 止まった？）＝何も 確かめていない★'); process.exit(1); }
+  /* ★1本も 開けられなかった（途中で 止まった 等）は 赤★＝「0本開けて0本＝合格」の 偽の 緑を 作らない（想定 10本＝10-19 に ㋓合言葉なし を 足した） */
+  if (wazaKai < 10) { console.log('  ✗ ★開けた 穴が ' + wazaKai + '本＝想定の 10本に 足りない（途中で 止まった？）＝何も 確かめていない★'); process.exit(1); }
   const ng = (akaWaza !== wazaKai) ? 1 : 0;
   console.log(ng ? '  ✗ ★開けた 数と 赤の 数が 違う＝門に 穴★' : '  ✓ ★開けた 穴は 全部 赤に なった★');
   process.exit(ng ? 1 : 0);
