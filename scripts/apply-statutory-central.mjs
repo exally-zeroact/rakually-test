@@ -22,7 +22,7 @@
  *   node scripts/apply-statutory-central.mjs --write    … 中央の 行を lib に 合わせる
  *   （--ddl と --write は 一緒に 書ける。★どちらも 司さんの 一言が 要る★）
  *
- * 鍵: Supabase Personal Access Token（%TEMP%）。★中身は 画面に 出さない★。
+ * 鍵: Supabase Personal Access Token（~/.supabase-token・無ければ 古い %TEMP%）。★中身は 画面に 出さない★。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -62,6 +62,12 @@ function refFromRepo() {
   return m[1];
 }
 function token() {
+  /* ★鍵の 正の 置き場は ~/.supabase-token★（2026-10-02 %TEMP% の 鍵が 消えて 半日 止まった）＝先に そこを 見る */
+  const home = path.join(os.homedir(), '.supabase-token');
+  if (fs.existsSync(home)) {
+    const t = JSON.parse(fs.readFileSync(home, 'utf8')).token;
+    if (t) return t;
+  }
   const tmp = process.env.TEMP || process.env.TMP || os.tmpdir();
   for (const f of ['nomiya-db-url-prod.json', 'nomiya-db-url.json']) {
     const p = path.join(tmp, f);
@@ -70,9 +76,40 @@ function token() {
       if (t) return t;
     }
   }
-  throw new Error('鍵が 見つかりません（%TEMP%/nomiya-db-url-prod.json）＝司さんに 作り直しを 頼む');
+  throw new Error('鍵が 見つかりません（~/.supabase-token・古い %TEMP%/nomiya-db-url-prod.json も 無い）＝鍵作りは 司さんの 手番');
 }
-const REF = refFromRepo();
+/* ★--kura-root <repo>★（2026-10-20）＝★行は この repo の lib から 作り、当てる 先だけ 別の repo の 向き先★
+   なぜ … 中央の 正は 本番の 倉庫（verify-statutory / pull-statutory が 見る）。テスト線で 直した lib の 行を
+   本番の lib を 写す 前に 中央へ 入れないと、テスト線の CI が「lib ≠ 中央」で 赤に なる。
+   --root は lib も 向き先も 同じ repo から 取る（本番の 古い lib で 作る＝何も 変わらない）ので 足りなかった。
+   ★別の repo を 指す時は 書くのに --honban が 要る★（--root と 同じ こぶ） */
+const KURA_ARG = (() => { const i = process.argv.indexOf('--kura-root'); return i > 0 ? process.argv[i + 1] : ''; })();
+const KURA_ROOT = KURA_ARG ? path.resolve(KURA_ARG) : ROOT;
+if (KURA_ARG && ROOT_ARG) { console.log('★中止★ --root と --kura-root は 一緒に 使わない'); process.exit(1); }
+const REF = (() => {
+  const s = fs.readFileSync(path.join(KURA_ROOT, 'js', 'supa-config.js'), 'utf8');
+  const m = s.match(/https:\/\/([a-z0-9]{16,})\.supabase\.co/);
+  if (!m) throw new Error(KURA_ROOT + '/js/supa-config.js から 向き先を 読めません');
+  return m[1];
+})();
+if (KURA_ARG && path.resolve(KURA_ROOT) !== path.resolve(JIBUN) && (DDL || WRITE) && !HONBAN) {
+  console.log('★中止★ 自分の repo では ない 倉庫へ 書こうとしています（--kura-root ' + KURA_ROOT + '・倉庫 ' + REF + '）。★書くなら --honban★');
+  process.exit(1);
+}
+/* ★書く時の 守り 3つ★（taiketsu 10-20）
+   ①--kura-root は 絶対の 道で 打つ（どこで 走らせたかで 行き先が 変わらない）
+   ②--kura-root で 書く 時は ★--kura-ref <倉庫名>★ を 二重に 打ち、supa-config の 向き先と 違えば 止める
+   ③★--dake kind:year[,kind:year]★＝書いて よい 行を 名指し／★--kitai N★＝書く前の「違う 行」が N 件で なければ 止める */
+const argOf = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] || '' : ''; };
+if (KURA_ARG && !path.isAbsolute(KURA_ARG)) { console.log('★中止★ --kura-root は 絶対の 道で（' + KURA_ARG + '）'); process.exit(1); }
+if (KURA_ARG && (DDL || WRITE) && argOf('--kura-ref') !== REF) {
+  console.log('★中止★ --kura-ref（' + (argOf('--kura-ref') || '無し') + '）が 当てる 先の 倉庫 ' + REF + ' と 違う');
+  process.exit(1);
+}
+const DAKE = argOf('--dake') ? argOf('--dake').split(',').map((x) => x.trim()).filter(Boolean) : null;
+const KITAI = process.argv.includes('--kitai') ? Number(argOf('--kitai')) : null;
+if (WRITE && KURA_ARG && (!DAKE || !Number.isInteger(KITAI))) { console.log('★中止★ --kura-root で 書く 時は --dake と --kitai が 要る'); process.exit(1); }
+if (DDL && KURA_ARG) { console.log('★中止★ --kura-root で --ddl は 当てない（門の 定義は その repo から）'); process.exit(1); }
 if (YOSO && (DDL || WRITE) && !HONBAN) {
   console.log('★中止★ 自分の repo では ない所へ 書こうとしています。');
   console.log('  道具が 住む repo … ' + JIBUN);
@@ -124,7 +161,7 @@ function dq(s) {
 }
 const q1 = (s) => "'" + String(s).split("'").join("''") + "'";
 
-console.log('\n[apply-statutory-central] 倉庫 ' + REF + '（この repo の 向き先）');
+console.log('\n[apply-statutory-central] 倉庫 ' + REF + (KURA_ARG ? '（--kura-root ' + KURA_ROOT + ' の 向き先）／行は ' + ROOT + ' の lib から' : '（この repo の 向き先）'));
 
 /* ── ① [反映]の門（statutory_upsert）─────────────────────── */
 const teigi = await sql("select coalesce((select pg_get_functiondef(p.oid) from pg_proc p"
@@ -183,6 +220,12 @@ if (!WRITE) {
 }
 
 /* ── ③ 書く（★消さない・足すと 直すだけ★）────────────────── */
+const chigauKazu = sagyo.filter((x) => x.jotai !== 'same').length;
+if (KITAI !== null && chigauKazu !== KITAI) { console.log('\n  ★中止★ 違う 行が ' + chigauKazu + '件（--kitai ' + KITAI + '）＝測った 時と 変わった＝1バイトも 書かない'); process.exit(1); }
+if (DAKE) {
+  const soto = sagyo.filter((x) => x.jotai !== 'same' && DAKE.indexOf(x.kind + ':' + x.year) < 0);
+  if (soto.length) { console.log('\n  ★中止★ --dake の 外に 違う 行が 在る（' + soto.map((x) => x.kind + ':' + x.year).join(', ') + '）＝1バイトも 書かない'); process.exit(1); }
+}
 let kaita = 0, mioku = 0;
 for (const s of sagyo) {
   if (s.jotai === 'same') continue;

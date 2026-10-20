@@ -153,6 +153,8 @@ jobs:
         run: node kyuyo/tests/saitei-official.test.mjs
       - name: ★最低賃金を県ごとの発効日で判定 (誤警告ゼロ＋本物の割れを見逃さない)
         run: node kyuyo/tests/saitei-hatsuko.test.mjs
+      - name: ★最賃の確定版（公示）と lib を47県の行ごとに突き合わせる物差しを、壊して赤を見る（ネット無し・確定版の字は fixtures）
+        run: node kyuyo/tests/saitei-koji.test.mjs --waza
       - name: ★法定データの出典・確認日・指紋 (率を変えたら確認日が自己失効する)
         run: node kyuyo/tests/statutory-freshness.test.mjs && node kyuyo/tests/statutory-freshness.test.mjs --self-test
       - name: ★app.jsの道とオペの道が同じ物を作るか (新旧AOA完全一致)
