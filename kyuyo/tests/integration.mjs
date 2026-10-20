@@ -872,36 +872,19 @@ function withRoster(emps, confirmed, fn) {
   finally { st.employees = keepE; st.confirmed = keepC; st.open = keepO; }
 }
 
-T('★確定した月がある人は 削除ボタンが押せない＋理由と「退職」への案内が出る', () => {
+/* ★2026-10-20 改め（司さん「消せんのもいかん」）＝確定が 在る人も 削除を 押せる。押すと「削除した人（法定の保存中）」へ＝行と 確定の 明細は 残る★
+   前は「押せない」を ここで 守っていた（08-09）。今は ★押せる・何が 残るかを 先に 言う・門 3つ・残る 物が 本当に 残る★ を 守る。 */
+T('★確定した月がある人も 削除が押せる＋何が残るか（法律で保存）を先に言う', () => {
   const a = mkEmp('確定あり', 'ehime'), b = mkEmp('確定なし', 'ehime');
   withRoster([a, b], { '2026-07': { [a.id]: true }, '2026-08': { [a.id]: true } }, () => {
     const card = openEmpCard(0);
     const del = card.querySelector('.m-del-emp');
     ok(del, '削除ボタンが無い');
-    eq(del.disabled, true, '★確定があるのに削除が押せてしまう');
-    ok(/削除できません/.test(del.textContent), '★理由がボタンの中に無い: ' + del.textContent);
+    eq(del.disabled, false, '★確定があると押せない（前の形のまま）');
     ok(/2か月分/.test(card.textContent), '★何か月分あるのかが出ていない');
-    ok(/賃金台帳に必要/.test(card.textContent), '理由（台帳に要る）が出ていない');
-    ok(/退職にする/.test(card.textContent), '★「退職」への道が近くに無い');
-    // ★ボタンの文が長いと幅390で折り返す（実測して短くした）＝短いままであること
+    ok(/法律で保存/.test(card.textContent), '★残る事（法律で保存）を先に言っていない');
+    ok(/退職日/.test(card.textContent), '★退職日が要る事を先に言っていない');
     ok(del.textContent.trim().length <= 8, '★削除ボタンの文が長い（折り返す）: ' + del.textContent);
-  });
-});
-
-T('★★押しても消えない（画面が壊れても最後の砦が効く）★★', () => {
-  const a = mkEmp('確定あり', 'ehime'), b = mkEmp('相方', 'ehime');
-  withRoster([a, b], { '2026-07': { [a.id]: true } }, () => {
-    const A = win.__PAYSLIP_TEST;
-    const card = openEmpCard(0);
-    const del = card.querySelector('.m-del-emp');
-    del.disabled = false;                 // ★歯止め(見た目)をわざと外して押す
-    del.click();
-    const ov = win.document.querySelector('.ui-modal-ov');
-    ok(ov, '何も出ずに消えた（＝最後の砦が無い）');
-    ok(/削除できません/.test(ov.textContent), '理由が出ていない: ' + ov.textContent.slice(0, 60));
-    ok(/退職/.test(ov.textContent), '「退職」への案内が無い');
-    [...ov.querySelectorAll('button')].pop().click();
-    eq(A.state.employees.length, 2, '★確定があるのに消えた');
   });
 });
 
@@ -943,6 +926,117 @@ await TA('★確定が1つも無い人は 確認が出て、OKで消える／キ
     eq(A.state.employees.length, 1, '★OKなのに消えていない');
     eq(A.state.employees[0].name, '相方', '違う人が消えた');
   });
+});
+
+/* ★確定が 在る人の 削除の 門 3つ（どれも 止まって 何も 変わらない）★ */
+const kesuOse = async (A) => { openEmpCard(0).querySelector('.m-del-emp').click(); await tick(); return win.document.querySelector('.ui-modal-ov'); };
+const ovToji = async (ov) => { [...ov.querySelectorAll('button')].pop().click(); await tick(); };
+await TA('★確定あり・削除の門＝①退職日が無い ②退職月が最後の確定月より前 ②の2 退職月が未確定 ③退職月が今日の月以降 は止まり、何も変わらない', async () => {
+  const A = win.__PAYSLIP_TEST;
+  const cf = (id) => ({ '2026-07': { [id]: true }, '2026-08': { [id]: true } });
+  const ima = A.todayYm ? A.todayYm() : (new Date().getFullYear() + '-' + ('0' + (new Date().getMonth() + 1)).slice(-2));
+  /* ②'＝taiketsu 3回目：確定は 07・08 だけ・退職日 09-30 で 通ってしまい、9月の 振込から 黙って 落ちた */
+  const KATA = [
+    ['①退職日 無し', '', /退職日を入れて/, null],
+    ['②最後の確定月より前', '2026-07-31', /より前です/, null],
+    ["②'退職月が 未確定（振込から 落ちる形）", '2026-09-30', /確定してから削除/, null],
+    ['③今日の月', ima + '-15', /終わってから/, ima],
+  ];
+  for (const [na, t, ji, tasu] of KATA) {
+    const a = mkEmp('確定あり', 'ehime'), b = mkEmp('相方', 'ehime');
+    a.taishokuYmd = t; if (t) a.retired = true;
+    const c0 = cf(a.id); if (tasu) c0[tasu] = { [a.id]: true };
+    await withRosterA([a, b], c0, async () => {
+      const ov = await kesuOse(A);
+      ok(ov, na + '：何も出ずに進んだ');
+      ok(ji.test(ov.textContent), na + '：止める字が違う: ' + ov.textContent.slice(0, 80));
+      eq(/★/.test(ov.textContent), false, na + '：画面に★');
+      await ovToji(ov);
+      eq(A.state.employees.length, 2, na + '：★人が消えた');
+      eq(!!A.state.employees[0].kesita, false, na + '：★止めたのに 削除した人に なった');
+      eq(Object.keys(A.state.confirmed).length, tasu ? 3 : 2, na + '：★確定が 変わった');
+    });
+  }
+});
+await TA('★確定あり・退職日が過去の月＝OKで「削除した人」へ＝行と確定は残る／どの絞り込みにも出ない／退職者の下に畳まれ「戻す」で戻る', async () => {
+  const A = win.__PAYSLIP_TEST;
+  const a = mkEmp('確定ありの辞めた人', 'ehime'), b = mkEmp('相方', 'ehime');
+  a.taishokuYmd = '2026-08-31'; a.retired = true;
+  const cf = { '2026-07': { [a.id]: true }, '2026-08': { [a.id]: true } };
+  await withRosterA([a, b], cf, async () => {
+    const ov = await kesuOse(A);
+    ok(ov, '確認が出ない');
+    ok(/法律で保存/.test(ov.textContent) && /台帳・源泉徴収票には出ます/.test(ov.textContent), '★残る事を言っていない: ' + ov.textContent.slice(0, 120));
+    ok(/戻せます/.test(ov.textContent), '★戻せる事を言っていない');
+    [...ov.querySelectorAll('button')].find(x => /OK|削除/.test(x.textContent)).click();
+    await tick(); await tick();
+    eq(A.state.employees.length, 2, '★人の行が 消えた（台帳に 要る）');
+    ok(A.state.employees[0].kesita, '★削除した人の 印が 無い');
+    eq(A.state.employees[0].retired, true, '退職のまま で ない');
+    eq(JSON.stringify(A.state.confirmed), JSON.stringify(cf), '★確定が 変わった');
+    for (const f of ['active', 'leave', 'retired', 'all']) {
+      A.state.empFilter = f; A.renderEmpMaster();
+      const nm = [...win.document.querySelectorAll('#emp-list .mco-nm')].map((x) => x.textContent);
+      const card = [...win.document.querySelectorAll('#emp-list .mco[data-i]')].map((x) => x.textContent);
+      eq(card.some((t) => /確定ありの辞めた人/.test(t)), false, '★絞り込み ' + f + ' に カードが 出ている');
+      if (f !== 'retired') eq(nm.some((t) => /確定ありの辞めた人/.test(t)), false, '★絞り込み ' + f + ' に 名前が 出ている');
+    }
+    /* ★絞り込みの 件数にも 数えない★（退職者 0・全員 1＝相方だけ） */
+    const kensu = () => Object.fromEntries([...win.document.querySelectorAll('#emp-list [data-empfilter]')].map((x) => [x.dataset.empfilter, +(x.querySelector('.ef-n') || {}).textContent]));
+    const k1 = kensu();
+    eq(k1.retired, 0, '★退職者の 件数に 削除した人を 数えている');
+    eq(k1.all, 1, '★全員の 件数に 削除した人を 数えている');
+    A.state.empFilter = 'retired'; A.renderEmpMaster();
+    const hd = win.document.querySelector('#emp-list [data-kesita-tgl]');
+    ok(hd && /削除した人/.test(hd.textContent) && /1名/.test(hd.textContent), '★退職者の 下に 畳みが 無い');
+    hd.click(); await tick();
+    const row = win.document.querySelector('#emp-list [data-kesita-i]');
+    ok(row && /確定ありの辞めた人/.test(row.textContent), '★畳みを 開いても 名前が 無い');
+    eq(!!row.querySelector('.m-del-emp'), false, '★畳みの 中に 削除の ボタン（完全に 消す道）が 在る');
+    row.querySelector('[data-kesita-modosu]').click();
+    await tick(); await tick();
+    eq(!!A.state.employees[0].kesita, false, '★戻すで 戻らない');
+    eq(A.state.employees[0].retired, true, '戻すで 退職まで 外れた');
+    A.state.empFilter = 'active';
+  });
+});
+
+/* ★保存が 落ちた 時（taiketsu 3回目＝試験の 中では いつも 手元で 成功して いた＝戻しが 一度も 走って いなかった）★
+   クラウドの 保存を「落ちる」に 差し替え、①印が 戻る ②もう一度 保存する（先に 届いた 印つきを 戻した 中身で 上書き）③客の 字に 中の 言葉を 出さない ④閉じるまで 残る 箱で 言う */
+await TA('★確定あり・削除／戻す の保存が落ちたら 元に戻し・保存し直し・客の言葉で言う', async () => {
+  const A = win.__PAYSLIP_TEST;
+  const keepCS = win.Store.cloudSaveState;
+  let kai = 0, okuru = [];
+  win.Store.cloudSaveState = (snap) => { kai++; okuru.push(JSON.stringify(snap).indexOf('"kesita"') >= 0); return Promise.resolve({ ok: false, reason: 'network' }); };
+  try {
+    const a = mkEmp('落ちる時の人', 'ehime'), b = mkEmp('相方', 'ehime');
+    a.taishokuYmd = '2026-08-31'; a.retired = false;
+    await withRosterA([a, b], { '2026-07': { [a.id]: true }, '2026-08': { [a.id]: true } }, async () => {
+      const ov = await kesuOse(A);
+      [...ov.querySelectorAll('button')].find(x => /OK|削除/.test(x.textContent)).click();
+      for (let n = 0; n < 6; n++) await tick();
+      eq(!!A.state.employees[0].kesita, false, '★保存が 落ちたのに 削除した人の 印が 残った');
+      eq(A.state.employees[0].retired, false, '★保存が 落ちたのに 退職の 印が 戻らない');
+      ok(kai >= 2, '★戻した 後に 保存し直して いない（' + kai + '回）');
+      eq(okuru[okuru.length - 1], false, '★最後に 送った 中身に まだ 削除の 印が 在る');
+      const ov2 = win.document.querySelector('.ui-modal-ov');
+      ok(ov2 && /削除できませんでした/.test(ov2.textContent), '★閉じるまで 残る 箱で 言っていない');
+      eq(/network|conflict|no-user|保存が 落ちました|届いて いません/.test(ov2.textContent), false, '★中の 言葉が 客に 出た: ' + ov2.textContent.slice(0, 100));
+      eq(/★/.test(ov2.textContent), false, '★画面に★');
+      [...ov2.querySelectorAll('button')].pop().click(); await tick();
+      /* 戻す 側 */
+      a.kesita = '2026-10-01'; a.retired = true; kai = 0; okuru = [];
+      A.state.empFilter = 'retired'; A.state.open['__kesita'] = true; A.renderEmpMaster();
+      win.document.querySelector('#emp-list [data-kesita-modosu]').click();
+      for (let n = 0; n < 6; n++) await tick();
+      eq(A.state.employees[0].kesita, '2026-10-01', '★戻すの 保存が 落ちたのに 印が 戻らない');
+      ok(kai >= 2, '★戻すが 落ちた 後に 保存し直して いない');
+      const ov3 = win.document.querySelector('.ui-modal-ov');
+      ok(ov3 && /戻せませんでした/.test(ov3.textContent), '★戻すの 失敗を 箱で 言っていない');
+      [...ov3.querySelectorAll('button')].pop().click(); await tick();
+      A.state.empFilter = 'active';
+    });
+  } finally { if (keepCS) win.Store.cloudSaveState = keepCS; else delete win.Store.cloudSaveState; win.document.querySelectorAll('.ui-modal-ov').forEach((x) => x.remove()); }
 });
 
 T('confirmedMonthsOf: 確定した月だけを数える（他人の月・空を数えない）', () => {

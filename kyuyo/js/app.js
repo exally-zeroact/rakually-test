@@ -1511,7 +1511,8 @@
     var detail=(isContractor
         ? subsec('zaiseki','在籍・勤務',gZaiseki)+contractorPanel+subsec('teate','手当・振込・控除',gTeate)
         : subsec('zaiseki','在籍・勤務',gZaiseki)+subsec('zei','税・住民税',gZei)+subsec('shaho','社会保険',gShaho)+subsec('kazoku','家族（被扶養者）',gKazoku)+subsec('teate','通勤・手当・振込・控除',gTeate))
-      /* ★確定した給与明細がある人は削除できない（2026-08-09）★
+      /* ★2026-10-20 改め＝確定が 在る人の「削除」は kesitaNiSuru（行と 確定の 明細を 残して 一覧から 畳む）。下は 08-09 の 訳（今も 残す 物の 訳）★
+         ★確定した給与明細がある人は削除できない（2026-08-09）★
          削除しても賃金の記録は倉庫に残るが、画面のどこからも取り出せなくなる＝実測済み。
          賃金台帳は労基法108条で保存が要る帳簿なので、★取り出せない＝無いのと同じ★。
          ＝削除は「作り間違いを消す」ためだけに絞る。辞めた人は隣の「退職にする」。 */
@@ -1519,13 +1520,12 @@
         var cm=confirmedMonthsOf(e);
         /* ★ボタンの文は短く（幅390で「退職にする」が2行に折り返した＝実測して直した）。
            月数は下の黄色に書く。 */
-        var delBtn=cm.length
-          ? '<button class="m-del-emp btn-ghost" disabled style="color:#9aa;border-color:#ddd;padding:8px 14px;white-space:nowrap">削除できません</button>'
-          : '<button class="m-del-emp btn-ghost" style="color:#C0392B;border-color:#f3c9c4;padding:8px 14px;white-space:nowrap">この従業員を削除</button>';
+        /* ★2026-10-20＝確定が 在る人も 押せる★（司さん「消せんのもいかん」）＝押すと「削除した人（法定の保存中）」へ。下の 黄色で 何が 残るかを 先に 言う */
+        var delBtn='<button class="m-del-emp btn-ghost" style="color:#C0392B;border-color:#f3c9c4;padding:8px 14px;white-space:nowrap">この従業員を削除</button>';
         return '<div style="display:flex;justify-content:space-between;margin-top:10px">'
           +'<button class="m-retire btn-ghost" style="color:#7A6A2E;border-color:#e6dcb0;padding:8px 14px;white-space:nowrap">'+(e.retired?'復帰させる':'退職にする')+'</button>'
           +delBtn+'</div>'
-          +(cm.length?'<div class="cr-warn" style="margin:8px 0 0">確定した給与明細が<b>'+cm.length+'か月分</b>あるため削除できません（賃金台帳に必要です）。辞めた方は左の「退職にする」を押してください。</div>':'');
+          +(cm.length?'<div class="cr-warn" style="margin:8px 0 0">確定した給与明細が<b>'+cm.length+'か月分</b>あります。削除すると一覧から消えますが、給与明細と賃金台帳は法律で保存するため残ります（退職日を入れてから削除できます）。</div>':'');
       })();
     return '<div class="mco-body">'+basic
       +'<div class="emp-dtgl" data-dtoggle="'+i+'">詳細設定（社保・控除・手当・在籍など）<span class="mco-cv" style="margin-left:auto;transform:'+(dOpen?'rotate(180deg)':'none')+'">▾</span></div>'
@@ -1624,7 +1624,10 @@
   }
   // 表示順(部署グループ+退職表示の順)の従業員index配列
   function empOnLeave(e){ return !!(e&&e.workStatus&&e.workStatus!=='normal'); }
-  function empMatchesFilter(e){ var f=state.empFilter||'active'; if(f==='all')return true; if(f==='retired')return !!e.retired; if(f==='leave')return !e.retired&&empOnLeave(e); return !e.retired&&!empOnLeave(e); }
+  /* ★削除した人（法定の保存中）★（2026-10-20 司さん「消せんのもいかん」）＝確定した明細が 在る人の「削除」。
+     行と 確定の 明細は 残す（賃金台帳＝労基法109条）。一覧の どの 絞り込みにも 出さず、退職者の 下に 畳んで 戻せる。 */
+  function kesitaKa(e){ return !!(e&&e.kesita); }
+  function empMatchesFilter(e){ if(kesitaKa(e)) return false; var f=state.empFilter||'active'; if(f==='all')return true; if(f==='retired')return !!e.retired; if(f==='leave')return !e.retired&&empOnLeave(e); return !e.retired&&!empOnLeave(e); }
   function visibleEmpIdx(){ var arr=[]; var groups={},order=[]; state.employees.forEach(function(e,idx){ if(!empMatchesFilter(e))return; var g=e.dept||'未分類'; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(idx); }); order.forEach(function(g){ groups[g].forEach(function(idx){ arr.push(idx); }); }); return arr; }
   // 従業員を表示順で1つ上(dir=-1)/下(dir=+1)へ。配列の並びを入替=入力/一覧/印刷/Excel 全部に反映・永続(sort:i)
   function moveEmp(i, dir){ var vis=visibleEmpIdx(); var p=vis.indexOf(i); var q=p+dir; if(p<0||q<0||q>=vis.length) return; var a=state.employees, j=vis[q]; var t=a[i]; a[i]=a[j]; a[j]=t; renderEmpMaster(); }
@@ -1897,8 +1900,9 @@
     var filt=state.empFilter||'active';
     var cActive=state.employees.filter(function(e){return !e.retired&&!empOnLeave(e);}).length;
     var cLeave=state.employees.filter(function(e){return !e.retired&&empOnLeave(e);}).length;
-    var cRet=state.employees.filter(function(e){return !!e.retired;}).length;
-    var FILTERS=[['active','在籍中',cActive],['leave','休暇中',cLeave],['retired','退職者',cRet],['all','全員',state.employees.length]];
+    var cRet=state.employees.filter(function(e){return !!e.retired&&!kesitaKa(e);}).length;
+    var kesitaIdx=[]; state.employees.forEach(function(e,i){ if(kesitaKa(e)) kesitaIdx.push(i); });
+    var FILTERS=[['active','在籍中',cActive],['leave','休暇中',cLeave],['retired','退職者',cRet],['all','全員',state.employees.length-kesitaIdx.length]];
     var groups={}; var order=[];
     state.employees.forEach(function(e,i){ if(!empMatchesFilter(e)) return; var g=e.dept||'未分類'; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(i); });
     /* ★都道府県：未選択は黄色（直す場所がここなので、ここに出す）。
@@ -1929,6 +1933,19 @@
           +(op?empCardBody(e,i):'')+'</div>';
       });
     });
+    /* ★削除した人は 退職者の 一番下に 畳む★＝名前と 退職日と「戻す」だけ（カードは 出さない＝中から 完全な 削除を 押せない） */
+    if(filt==='retired' && kesitaIdx.length){
+      var kOp=!!state.open['__kesita'];
+      html+='<div class="grp-hd" data-kesita-tgl="1" style="cursor:pointer">削除した人（法定の保存中）'+kesitaIdx.length+'名 <span class="mco-cv" style="transform:'+(kOp?'rotate(180deg)':'none')+'">▾</span></div>';
+      if(kOp){
+        html+='<p class="hint" style="margin:4px 2px 8px">確定した給与明細と賃金台帳は法律で保存するため残しています（台帳・源泉徴収票には出ます）。「戻す」で退職者の一覧へ戻ります。</p>';
+        kesitaIdx.forEach(function(i){ var e=state.employees[i];
+          html+='<div class="mco mco-retired" data-kesita-i="'+i+'"><div class="mco-hd" style="cursor:default"><span class="mco-nm">'+esc(e.name||'（無名）')+'</span>'
+            +'<span class="mco-sub">退職日 '+esc(e.taishokuYmd||'')+'</span>'
+            +'<button class="btn-ghost" data-kesita-modosu="'+i+'" style="margin-left:auto;padding:6px 12px;white-space:nowrap">戻す</button></div></div>';
+        });
+      }
+    }
     var _sy=window.scrollY; host.innerHTML=html; if(_sy) window.scrollTo(0,_sy); // 全再描画でスクロール位置が飛ぶのを防ぐ(H2)
     filterEmpSearch(); // 検索語があれば再描画後も絞り込みを維持(UX#9)
   }
@@ -5437,7 +5454,9 @@
       /* ★data-fix-sub が 付いていたら 中の 小見出しまで 開く★（2026-09-07）
          ＝カードを 開いただけでは 振込先に 辿り着けない（さらに 詳細設定＋小見出しの 2段 奥）。
          ★開く印は 描く側と 同じ 鍵を 使う★（'D'+id＝詳細設定／'DS'+id+key＝小見出し）。 */
-      if(fe){ var fi=+fe.dataset.fixEmp; var femp=state.employees[fi]; if(femp){ state.open[femp.id]=true;
+      if(fe){ var fi=+fe.dataset.fixEmp; var femp=state.employees[fi];
+        if(femp&&kesitaKa(femp)){ uiAlert('「'+(femp.name||'この従業員')+'」さんは削除した人です。設定の「退職者」→「削除した人」から戻してから直してください。'); return; }
+        if(femp){ state.open[femp.id]=true;
           var fsub=fe.dataset.fixSub; if(fsub){ state.open['D'+femp.id]=true; state.open['DS'+femp.id+fsub]=true; }
           showScreen('scr-settings'); var eb2=$('#set-seg .seg-b[data-set="emp"]'); if(eb2)eb2.click(); renderEmpMaster(); setTimeout(function(){ var c=$('#emp-list .mco[data-i="'+fi+'"]'); if(c)c.scrollIntoView({block:'center'}); },30); } return; } // 警告→該当従業員のマスタを開く(UX#10)
       var gs=e.target.closest('[data-scr]'); if(gs && !gs.classList.contains('bn')){ showScreen(gs.dataset.scr); return; } }); // CTA等 ナビ外の画面遷移
@@ -5492,6 +5511,8 @@
       if(s==='emp'){ renderEmpMaster(); loadEmpProfiles(); } if(s==='design')renderDesign(); });
     // 従業員マスタ：絞り込み(在籍中/休暇中/退職者/全員)
     $('#emp-list').addEventListener('click',function(ev){ var f=ev.target.closest('[data-empfilter]'); if(!f)return; state.empFilter=f.dataset.empfilter; renderEmpMaster(); });
+    /* ★削除した人の 畳みと「戻す」★ */
+    $('#emp-list').addEventListener('click',function(ev){ var kt=ev.target.closest('[data-kesita-tgl]'); if(kt){ state.open['__kesita']=!state.open['__kesita']; renderEmpMaster(); return; } var km=ev.target.closest('[data-kesita-modosu]'); if(km){ kesitaWoModosu(+km.dataset.kesitaModosu); } });
     /* ═══ 会社マスタ7問（聞いて選ばす）の押し込み ═══
        ★1問ごとに保存★＝答えた瞬間に askSave()（途中で閉じても残る）。
        ★値の持ち主は state.company の1か所★＝下の一覧も同じ値を描く。 */
@@ -5682,11 +5703,64 @@
      ★③の 訳★＝消せるのは ★確定した 明細が 1か月も 無い人★だけ＝★未確定しか 消えない★。
        （法で 残す 物＝★確定した★賃金台帳。実測でも 本番の 孤児 9行は ★確定済み 0行★）
      ★消せたか どうかは 倉庫の 返事で 言う★＝★「消しました」と 言って 消えていない を 作らない★。 */
+  /* ★確定した 明細が 在る人の「削除」★（2026-10-20・司さん「消せんのもいかん」・taiketsu 3回）
+     ★消さない 物★＝人の 行（pay_employees）と 確定の 明細＝賃金台帳・源泉徴収票・年度更新に これまで 通り 出る。Web明細も 触らない（今の 退職者と 同じ＝誰が 開けるかは 変えない）。
+     ★門 3つ★（退職日の 欄は 今ある 物＝新しい 日付の 入力を 作らない＝確定済みの 額を 動かす 道を 足さない）
+       ①退職日が 入っている（無ければ 詳細設定へ 案内）
+       ②★退職月の 給与が 確定済み★＝退職月 ∈ 確定した 月 かつ 退職月 ＝ 確定した 最後の 月
+         （taiketsu 3回目＝「最後の 確定月 以降」だけだと 未確定の 退職月が 振込から 黙って 落ちた・206,521円）
+         （退職月より 後に 確定が 在ると、取り消し→確定し直しで 後の 月が 台帳から 落ちる）
+       ③退職月 ＜ 今日の 月（手元の 日付）
+     ★保存が 落ちたら★＝印を 戻して ★もう一度 保存★（OK を 押した 時の 500ms の 保存が 先に 印つきで 届く 事が 在る＝戻した 中身で 上書きする）。
+       客の 字は 中の 言葉（conflict 等）を 出さず、閉じるまで 残る 箱（uiAlert）で 言う。 */
+  function _jimotoHi(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function _kesitaHozon(modosu, na, shippaiJi){
+    return Promise.resolve().then(function(){ return persistSave(); })
+      .catch(function(_e){ return { ok:false, reason:(_e&&_e.message)||'throw' }; })
+      .then(function(h){
+        if(h && h.ok !== false) return true;
+        console.error('★削除した人の 保存が 落ちた＝戻して 保存し直す★', h&&h.reason);
+        modosu(); renderEmpMaster();
+        return Promise.resolve().then(function(){ return persistSave(); })
+          .catch(function(_e){ return { ok:false }; })
+          .then(function(h2){
+            uiAlert(shippaiJi + (h2 && h2.ok !== false ? '' : String.fromCharCode(10) + '戻した内容もクラウドに保存できていません。画面を開き直して、「' + na + '」さんの状態を確かめてください。'));
+            return false;
+          });
+      });
+  }
+  function kesitaNiSuru(i, cmz){
+    var emp=state.employees[i]; if(!emp) return;
+    var na=emp.name||'この従業員';
+    var t=String(emp.taishokuYmd||''); var tym=t.slice(0,7);
+    var saigo=cmz[cmz.length-1];
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(t)){ uiAlert('「'+na+'」さんには確定した給与明細が '+cmz.length+'か月分あります。削除するには、先にカードの「詳細設定 → 在籍・勤務」で退職日を入れてください（給与明細と賃金台帳は法律で保存するため残します）。'); return; }
+    if(tym<saigo){ uiAlert('退職日（'+t+'）が、確定した最後の月（'+saigo+'）より前です。退職日を直してから削除してください。'); return; }
+    if(cmz.indexOf(tym)<0){ uiAlert('退職月（'+tym+'）の給与を確定してから削除できます（確定前に消すと、その月の振込に出なくなるため）。' + String.fromCharCode(10) + '退職月に支払う給与が無い方は、削除せず「退職者」のままにしてください（給与を払っていない月を確定しないでください）。'); return; }
+    if(tym>=todayYm()){ uiAlert('退職月（'+tym+'）が終わってから削除できます。'); return; }
+    uiConfirm('「'+na+'」を一覧から削除します（退職日 '+t+'）。' + String.fromCharCode(10) + '確定した給与明細（'+cmz.length+'か月分）と賃金台帳は法律で保存するため残り、台帳・源泉徴収票には出ます。設定の「退職者」→「削除した人」から戻せます。').then(function(ok){
+      if(!ok) return;
+      var maeRet=!!emp.retired;
+      emp.retired=true; emp.kesita=_jimotoHi();
+      renderEmpMaster();
+      _kesitaHozon(function(){ delete emp.kesita; emp.retired=maeRet; }, na,
+        '「'+na+'」を削除できませんでした（クラウドに保存できませんでした）。元に戻しました。通信を確かめて、もう一度「削除」を押してください。')
+        .then(function(ok2){ if(ok2) toast('「'+na+'」を一覧から削除しました（給与明細と賃金台帳は保存しています）'); });
+    });
+  }
+  function kesitaWoModosu(i){
+    var emp=state.employees[i]; if(!emp||!kesitaKa(emp)) return;
+    var na=emp.name||'この従業員', mae=emp.kesita;
+    delete emp.kesita; renderEmpMaster();
+    _kesitaHozon(function(){ emp.kesita=mae; }, na,
+      '「'+na+'」を戻せませんでした（クラウドに保存できませんでした）。通信を確かめて、もう一度「戻す」を押してください。')
+      .then(function(ok2){ if(ok2) toast('「'+na+'」を退職者の一覧へ戻しました'); });
+  }
   function empKesu(i){
     var emp=state.employees[i]; if(!emp) return;
     if(activeEmps().length<=1&&!emp.retired){ uiAlert('稼働中は最低1名必要です'); return; }
     var cmz=confirmedMonthsOf(emp);
-    if(cmz.length){ uiAlert('この方には確定した給与明細が '+cmz.length+'か月分あります（'+cmz[0]+'〜'+cmz[cmz.length-1]+'）。賃金台帳に必要なので削除できません。辞めた方は「退職にする」を押してください。'); return; }
+    if(cmz.length){ kesitaNiSuru(i, cmz); return; }
     uiConfirm('「'+(emp.name||'この従業員')+'」を削除します。元に戻せません。' + String.fromCharCode(10) + '（給与明細を確定したことがない方だけ削除できます）').then(function(ok){
       if(!ok) return;
       var id=emp.id, na=(emp.name||'従業員');
