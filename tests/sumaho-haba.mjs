@@ -21,7 +21,7 @@
  * ★未測定の 言い方★
  *   playwright が 借りられない機械では ★未測定★（0件＝合格 とは 書かない）
  *
- * 使い方: node tests/sumaho-haba.mjs [--self-test]
+ * 使い方: node tests/sumaho-haba.mjs [--self-test] [--bu=1〜4]（段分けは 下の KAKUNIN）
  */
 import fs from 'node:fs'; import path from 'node:path'; import http from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -42,6 +42,107 @@ export function warete(r, fs2) {
   return (r.width < fs2 * 1.6 - YURUSHI) && (r.height > fs2 * 2.4 + YURUSHI);
 }
 export function hamidashi(scrollWidth, clientWidth) { return scrollWidth - clientWidth; }
+
+/* ★★段を 4つに 分ける（--bu=1〜4）★★（2026-10-20・oseru-ka の 2段分け（10-02）と 同じ 形）
+   ★なぜ★ … 押す前の 網の 1段の 上限は 180秒。この 紙は 単独で 167〜229秒＝★網の 中で 走らせられない★（10-20 に 3回）
+     中身（10-20 手元で 1行ずつ 秒を 付けて 測った）＝①入口4画面×3幅 約68秒／②給与の中 1幅 約30〜55秒（入り直し 込み）×3幅／③入口の中×4幅 約50秒
+     測った 事（10-20・試験の 利用者に 人 153・明細 741枚＝倉庫の data で 約0.3MB＋0.6MB）：
+       給与の タブの 切り替えは 0.1〜0.5秒。1幅ごとに ★新しい 面で 入り直す★（WebKit で 入るまで 14.3秒・
+       うち 画面の 手が 塞がった 合計 3.8秒＝読み込み込み）。
+     ★測っていない 事★＝人数を 減らした時に 秒が 変わるか（比べていない）。人が 溜まる 訳（消した人が 戻る＝給与の 件5）は 別件。
+       ⇒ 人が 溜まり続ければ 各段も 伸びる（見立て）。この 分けは 溜まりを 直す 物では ない。
+   ⇒ ★中身は 1つも 変えず★ 走る 部分を 分ける。手元で 各段を 1回ずつ 測った 秒（10-20）＝段1 93／段2 44／段3 22／段4 65
+     ★段2 は 2幅＝上の内訳（1幅 30〜55秒）から 見積もると 60〜110秒★（混んだ 時の 上の 端・見立て）
+   ★この 分けは 手元の 押す前の 網の 為★＝GitHub の CI では WebKit の 本体が 無く 4段とも 未測定（exit 0）で 抜ける
+     （webkit.yml にも 入っていない＝前からの 穴・別件）。
+   ★ci.yml に 4段が 1回ずつ 載っているかも ★self-test で 見る★（段が 消えると 黙って 見張りの 外に 落ちる為・taiketsu 10-20）
+   ★空振り止め（oseru-ka と 同じ）★
+     ①--bu の 字が 1〜4 以外なら ★止める★／②各段で 見た 通りが 0 なら ★赤★
+     ③確かめは 全部 下の 名簿（KAKUNIN）に ★段の 札付きで★ 載せる。載っていない 確かめを 走らせようと したら ★止める★
+       ＋--self-test で「札の 無い 確かめ 0」「4段 どれも 空で ない」を ブラウザ 無しで 見る
+   ★--bu 無し★ … 今まで どおり 全部 走る（手元で 人が 打つ 形は 変えない） */
+const BU_KAZU = 4;
+export const KAKUNIN = [
+  { na: '①入口の 4画面', bu: 1 },
+  { na: '②給与の中 幅375', bu: 2 },
+  { na: '②給与の中 幅390', bu: 2 },
+  { na: '②給与の中 幅412', bu: 3 },
+  { na: '③入口の中', bu: 4 },
+];
+export function fudaWoMiru(meibo) {
+  const ng = [];
+  const nashi = meibo.filter((k) => !(Number.isInteger(k.bu) && k.bu >= 1 && k.bu <= BU_KAZU));
+  if (nashi.length) ng.push('札の 無い 確かめ ' + nashi.length + '個（' + nashi.map((k) => k.na).join('／') + '）');
+  const na = meibo.map((k) => k.na);
+  if (new Set(na).size !== na.length) ng.push('同じ 名前の 確かめが 2つ 在る');
+  for (let i = 1; i <= BU_KAZU; i++) if (!meibo.some((k) => k.bu === i)) ng.push('空の 段が 在る（段' + i + '）');
+  return ng;
+}
+const BU = (() => {
+  /* ★大文字・ダッシュ1本（--BU=1／-bu=1）も 拾う★＝素通りして 全部 走らせない（taiketsu 10-20） */
+  const a = process.argv.filter((x) => /^-+bu/i.test(x));
+  if (!a.length) return null;
+  const m = a.length === 1 && /^--bu=([1-9])$/.exec(a[0]);
+  if (!m || Number(m[1]) > BU_KAZU) {
+    console.error('★--bu の 字が 違います（' + a.join(' ') + '）＝何も 走らせずに 止めます★（使えるのは --bu=1〜' + BU_KAZU + ' だけ）');
+    process.exit(1);
+  }
+  return Number(m[1]);
+})();
+/* ★ci.yml に 段が 1回ずつ 載っているか★（2026-10-20・taiketsu 2回＝段が 消えても／黙らせても 誰も 止めなかった）
+   ★段（- で 始まる 塊）ごとに 見る★。sumaho-haba.mjs が 出る 段について：
+     ①その段に `if:` か `continue-on-error` が 在れば 赤（走らない・赤を 通す）
+     ②run の 中身（1行でも `run: |` の 塊でも）から 行末の `#` 以降を 捨て、`&&` `||` `;` 改行で 切る
+     ③`||` が 在れば 赤（`|| true` で 赤が 緑に なる）／echo で 始まる 物は 赤（何も 測らない）
+     ④1つの 段に 測る 走り（self-test 以外）が 2つ 以上なら 赤（2段を 1段に まとめると 180秒に また 当たる）
+     ⑤--bu=1〜BU_KAZU が ちょうど 1回ずつ・--bu 無しの 走り 0回・--self-test の 走り ちょうど 1回
+   ★届かない 所★＝self-test を 呼ぶ 行ごと 消されると この 確かめ 自体が 走らない（ci.yml の どの self-test も 同じ・外の 門は 別件） */
+export function ciNoDan(yml) {
+  const ng = [], kazu = {};
+  let selfKai = 0;
+  const L = String(yml).split(/\r?\n/);
+  const dan = [];
+  let cur = null, ind = -1;
+  for (const l of L) {
+    const m = /^(\s*)-\s+\S/.exec(l);
+    if (m && (cur === null || m[1].length <= ind)) { cur = [l]; ind = m[1].length; dan.push(cur); continue; }
+    if (cur && l.trim() && (/^(\s*)/.exec(l)[1].length <= ind)) { cur = null; ind = -1; }
+    if (cur) cur.push(l);
+  }
+  for (const d of dan) {
+    const zen = d.join('\n');
+    if (!/sumaho-haba\.mjs/.test(zen)) continue;
+    const na = (/name:\s*(.*)/.exec(zen) || [, '(名前なし)'])[1].slice(0, 30);
+    if (/^\s*(-\s+)?if:/m.test(zen) || /continue-on-error/.test(zen)) ng.push('段「' + na + '」に if:／continue-on-error が 在る');
+    const i = d.findIndex((l) => /^\s*(-\s+)?run:/.test(l));
+    if (i < 0) { ng.push('段「' + na + '」に run: が 無い'); continue; }
+    const ichi = d[i].replace(/^\s*(-\s+)?run:\s*/, '');
+    const naka = /^[|>][-+]?\s*$/.test(ichi) ? d.slice(i + 1) : [ichi];
+    const kome = naka.map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+    if (/\|\|/.test(kome)) ng.push('段「' + na + '」に || が 在る（赤を 緑に できる）');
+    let hakaru = 0;
+    for (const seg of kome.split(/&&|\|\||;|\n/)) {
+      if (!/sumaho-haba\.mjs/.test(seg)) continue;
+      if (/^\s*echo\b/.test(seg)) { ng.push('段「' + na + '」で echo（走らせていない）'); continue; }
+      if (/--self-test/.test(seg)) { selfKai++; continue; }
+      hakaru++;
+      const m = /--bu=(\d+)/.exec(seg);
+      const k = m ? m[1] : '無し';
+      kazu[k] = (kazu[k] || 0) + 1;
+    }
+    if (hakaru > 1) ng.push('段「' + na + '」に 測る 走りが ' + hakaru + '本（1段に まとめると 180秒に 当たる）');
+  }
+  for (let i = 1; i <= BU_KAZU; i++) if (kazu[String(i)] !== 1) ng.push('--bu=' + i + ' が ' + (kazu[String(i)] || 0) + '回');
+  Object.keys(kazu).filter((k) => k !== '無し' && !(+k >= 1 && +k <= BU_KAZU)).forEach((k) => ng.push('名簿に 無い --bu=' + k));
+  if (kazu['無し']) ng.push('--bu 無しの 走り（全部＝網の 180秒を 越える）が ' + kazu['無し'] + '回');
+  if (selfKai !== 1) ng.push('--self-test の 走りが ' + selfKai + '回');
+  return ng;
+}
+function hashiru(na) {
+  const k = KAKUNIN.find((x) => x.na === na);
+  if (!k) { console.error('★確かめの 名簿（KAKUNIN）に 無い 確かめ「' + na + '」＝段の 札が 無い まま 走らせない★'); process.exit(1); }
+  return BU === null || BU === k.bu;
+}
 
 if (SELF) {
   console.log('\n[sumaho-haba] ★自己確認★（★物差しそのもの★・ブラウザを 使わない）');
@@ -66,8 +167,45 @@ if (SELF) {
     tsushinKa("undefined is not an object (evaluating 'a.b')") === false);
   say('★作りの 落ちは 通信に しない★（is not a function）',
     tsushinKa('x.foo is not a function') === false);
+  /* ★段の 札★（2026-10-20） */
+  const fudaNg = fudaWoMiru(KAKUNIN);
+  say('★段の 札＝札の 無い 確かめ 0・4段 どれも 空で ない★' + (fudaNg.length ? '（' + fudaNg.join('／') + '）' : ''), fudaNg.length === 0);
+  const waza = KAKUNIN.map((k, i) => (i === 0 ? { na: k.na } : k));
+  say('★わざと 札を 1つ 外した 名簿は 捕まる★（' + fudaWoMiru(waza).join('／') + '）', fudaWoMiru(waza).length > 0);
+  const waza2 = KAKUNIN.filter((k) => k.bu !== 4);
+  say('★わざと 段4を 空にした 名簿は 捕まる★（' + fudaWoMiru(waza2).join('／') + '）', fudaWoMiru(waza2).length > 0);
+  /* ★ci.yml に 4段が 1回ずつ★（本物の ci.yml を 読む） */
+  const ymlP = path.join(ROOT, '.github', 'workflows', 'ci.yml');
+  const yml = fs.existsSync(ymlP) ? fs.readFileSync(ymlP, 'utf8') : '';
+  const ciNg = yml ? ciNoDan(yml) : ['ci.yml が 読めない'];
+  say('★ci.yml に --bu=1〜' + BU_KAZU + ' が 1回ずつ・--bu 無しの 走り 0★' + (ciNg.length ? '（' + ciNg.join('／') + '）' : ''), ciNg.length === 0);
+  const yml3 = yml.split(/\r?\n/).filter((l) => l.indexOf('sumaho-haba.mjs --bu=3') < 0).join('\n');
+  say('★わざと 段3を ci.yml から 消した 見本は 捕まる★（' + ciNoDan(yml3).join('／') + '）', ciNoDan(yml3).length > 0);
+  const ymlW = yml.replace('sumaho-haba.mjs --bu=3', 'sumaho-haba.mjs --bu=2');
+  say('★わざと --bu=3 を --bu=2 と 書き間違えた 見本は 捕まる★（' + ciNoDan(ymlW).join('／') + '）', ciNoDan(ymlW).length > 0);
+  const ymlZ = yml.replace('sumaho-haba.mjs --bu=4', 'sumaho-haba.mjs');
+  say('★わざと --bu を 外した（全部 走る）見本は 捕まる★（' + ciNoDan(ymlZ).join('／') + '）', ciNoDan(ymlZ).length > 0);
+  /* ★黙らせる 形★（taiketsu 2回目 10-20 が 素通りを 見せた 10通り）＝本物の ci.yml の 字を 書き換えて 作る */
+  const R4 = 'run: node tests/sumaho-haba.mjs --bu=4', R2 = 'run: node tests/sumaho-haba.mjs --bu=2';
+  const ind4 = (yml.split(/\r?\n/).find((l) => l.indexOf(R4) >= 0) || '').replace(R4, '');
+  const DAMASHI = [
+    ['A 段2と段3を 1行に まとめる', yml.replace(R2, R2 + ' && node tests/sumaho-haba.mjs --bu=3').split(/\r?\n/).filter((l) => l.indexOf('run: node tests/sumaho-haba.mjs --bu=3') < 0).join('\n')],
+    ['B self-test の 呼び出しを 消す', yml.replace('node tests/sumaho-haba.mjs --self-test && ', '')],
+    ['C2 ; で 全部の 走りを 足す', yml.replace(R4, R4 + '; node tests/sumaho-haba.mjs')],
+    ['L2 行末の 注に --bu=4 を 隠す', yml.replace(R4, 'run: node tests/sumaho-haba.mjs  # --bu=4')],
+    ['D || true で 赤を 緑に', yml.replace(R4, R4 + ' || true')],
+    ['J 段4に if: false', yml.replace(R4, R4 + '\n' + ind4 + 'if: false')],
+    ['K 段4に continue-on-error', yml.replace(R4, R4 + '\n' + ind4 + 'continue-on-error: true')],
+    ['N echo で 走らせない', yml.replace(R2, 'run: echo node tests/sumaho-haba.mjs --bu=2')],
+    ['G run: | の 塊で 全部 走らせる', yml.replace(R4, 'run: |\n' + ind4 + '  node tests/sumaho-haba.mjs')],
+    ['E 段の 頭が - run:（名前 無し）で 全部 走らせる', yml.replace(ind4.replace(/  $/, '') + '- name: ★スマホ幅（段4', ind4.replace(/  $/, '') + '- run: node tests/sumaho-haba.mjs\n' + ind4.replace(/  $/, '') + '- name: ★スマホ幅（段4')],
+  ];
+  for (const [na, y] of DAMASHI) {
+    const kawatta = y !== yml, r = ciNoDan(y);
+    say('★' + na + '＝捕まる★' + (kawatta ? '（' + r.slice(0, 2).join('／') + '）' : '（★見本を 作れなかった＝字が 当たらない★）'), kawatta && r.length > 0);
+  }
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★12通り ぜんぶ 思った通り★');
+  console.log('  ★' + (19 + DAMASHI.length) + '通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -143,7 +281,7 @@ const HUB_HABA = [320, 375, 390, 412];
 const NAKA = ['scr-input', 'scr-list', 'scr-print', 'scr-furikomi', 'scr-settings'];
 
 let akai = 0, mihakari = 0, mita = 0, mattaKei = 0;
-for (const g of GAMEN) {
+if (hashiru('①入口の 4画面')) for (const g of GAMEN) {
   for (const w of HABA) {
     const pg = await (await b.newContext({ viewport: { width: w, height: 820 } })).newPage();
     const errs = []; pg.on('pageerror', (e) => errs.push(String(e.message).slice(0, 120)));
@@ -194,6 +332,7 @@ for (const g of GAMEN) {
 
 /* ── ★入ってからの 画面★（給与）──────────────────────────── */
 for (const w of HABA) {
+  if (!hashiru('②給与の中 幅' + w)) continue;
   const pg = await (await b.newContext({ viewport: { width: w, height: 820 } })).newPage();
   const errs = []; pg.on('pageerror', (e) => errs.push(String(e.message).slice(0, 120)));
   /* ★入る手順は tests/_hairu.mjs 1か所★（3本に 写していた／★1回で 諦めて たまに 未測定★だった）
@@ -250,7 +389,7 @@ for (const w of HABA) {
 }
 
 /* ── ★入口(Rakunally)の 中の 画面★ ────────────────────────── */
-for (const w of HUB_HABA) {
+if (hashiru('③入口の中')) for (const w of HUB_HABA) {
   const pg = await (await b.newContext({ viewport: { width: w, height: 820 } })).newPage();
   const errs = []; pg.on('pageerror', (e) => errs.push(String(e.message).slice(0, 120)));
   /* ★入口は ログインしないと 中身の 幅が 0★（2026-09-08 実測＝
@@ -343,8 +482,8 @@ for (const w of HUB_HABA) {
 }
 
 await b.close(); srv.close();
-console.log('\n  見た ' + mita + '通り ／ ★赤 ' + akai + '★ ／ 🟡未測定 ' + mihakari + ' ／ 待った のべ ' + mattaKei + '回');
+console.log('\n  段 ' + (BU === null ? '全部（--bu 無し）' : BU) + ' ／ 見た ' + mita + '通り ／ ★赤 ' + akai + '★ ／ 🟡未測定 ' + mihakari + ' ／ 待った のべ ' + mattaKei + '回');
 console.log('  ★借りたのは 測り方だけ★（daikou-seikyu tests/e2e/paper-width.spec.js・2026-08-10）');
 /* ★見た 通りが 0 は 赤★（決め2 10-11＝全部 未測定で 緑に しない。oseru-ka と 同じ） */
-if (mita === 0) { console.log('  ✗ ★見た 通りが 0＝何も 測って いない★'); akai++; }
+if (mita === 0) { console.log('  ✗ ★見た 通りが 0（段 ' + (BU === null ? '全部' : BU) + '）＝何も 測って いない★'); akai++; }
 process.exit(akai ? 1 : 0);

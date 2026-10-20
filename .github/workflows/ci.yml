@@ -670,8 +670,14 @@ jobs:
         run: node kyuyo/tests/soshitsu-csv.test.mjs && node kyuyo/tests/soshitsu-csv.test.mjs --self-test
       - name: ★資格取得届の電子申請CSV（様式2200700・34項目／マイナンバー無し＝郵便番号・住所カナが必須）
         run: node kyuyo/tests/shutoku-csv.test.mjs && node kyuyo/tests/shutoku-csv.test.mjs --self-test
-      - name: ★スマホ幅で潰れ0・はみ出し0（代行請求の物差しを借用・給与5画面＋請求書＋明細×3幅）
-        run: node tests/sumaho-haba.mjs --self-test && node tests/sumaho-haba.mjs
+      - name: ★スマホ幅で潰れ0・はみ出し0（段1＝入口4画面［給与・請求書・明細・Rakunally］×3幅／代行請求の物差しを借用）
+        run: node tests/sumaho-haba.mjs --self-test && node tests/sumaho-haba.mjs --bu=1
+      - name: ★スマホ幅（段2＝給与の中 幅375・390）／1段だと押す前の網の上限180秒を越えたので4段に分けた（2026-10-20・中身は同じ）
+        run: node tests/sumaho-haba.mjs --bu=2
+      - name: ★スマホ幅（段3＝給与の中 幅412）
+        run: node tests/sumaho-haba.mjs --bu=3
+      - name: ★スマホ幅（段4＝入口の中 ホーム・データ×4幅）
+        run: node tests/sumaho-haba.mjs --bu=4
       - name: ★真ん中を突いて本当に押せるか（段1＝①ログイン前と入った後の5画面・ダイコメの物差しを借用）
         run: node tests/oseru-ka.mjs --self-test && node tests/oseru-ka.mjs --bu=1
       - name: ★出た時に下の物がずれないか（段2＝②Ａ／Ｂ・実測129px）／1段だと押す前の網の上限180秒を越える回が出たので2段に分けた（2026-10-02）
