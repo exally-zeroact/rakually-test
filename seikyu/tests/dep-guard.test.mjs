@@ -70,6 +70,10 @@ const OUTSIDE = [
      ★共有データの画面（js/hub.js）と請求書の両方が呼ぶ★ので seikyu/ の外に置いた
      ＝同じ判定を2か所に書かないため。通信は一切しない。 */
   'lib/toroku-no.js',                  // ★インボイス登録番号の検査（判定の唯一の正）★
+  /* ★2026-10-20 倉庫と話す道具を 外の cdn.jsdelivr.net から 手元へ★
+     ＝外が 遅い日に 画面が 開かなかった（DCL 30秒超を 実測）。中身は npm の物と 1バイトも 違わない
+     （sha256 と 免状は lib/LICENSES-karimono.txt）。 */
+  'lib/supabase-js-2.112.4.min.js',    // 倉庫と話す道具（supabase-js・借り物・MIT）
 ];
 
 /* ★入口から辿れないが 捨てない物の台帳★（＝死にコードの台帳）
@@ -89,6 +93,10 @@ const NOT_WIRED = {
      ★最初から読むと 画面が 重くなる★（2つで 1.3MB）ので わざと 遅らせている。
      ★実在は こちら★ vendor/pdf-lib.min.js ／ vendor/fontkit.umd.min.js（下で 在る事も 見る）。 */
 const GLOBALS_FROM_NET = ['SUPA', 'XLSX', 'PDFLib', 'fontkit'];
+/* ★ブラウザ自身が 作る名前★（どの ファイルも 作らない＝作っている所を 探すと 必ず 0）
+   supabase-js が 中で「この ブラウザに 在るか」を 見ている 2つ（2026-10-20 手元へ 移して 視界に 入った）。
+   ★名前を 1つずつ 書く★＝ここに 無い 名前は 今まで どおり 赤。 */
+const GLOBALS_FROM_BROWSER = ['PublicKeyCredential', 'Worker'];
 
 console.log('\n[請求書 呼ばれる側の見張り]');
 const r = count('seikyu/index.html', ROOT);
@@ -142,6 +150,7 @@ T('★window.○○ で呼んでいる名前を、誰かが必ず作っている
   const src = files.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
   const nai = r.globals.filter((g) => {
     if (GLOBALS_FROM_NET.includes(g)) return false;
+    if (GLOBALS_FROM_BROWSER.includes(g)) return false;
     /* ★作っている形は1つではない★ root.X= / window.X= / self.X= / global.X=
        （UMD の書き方が場所で違う。片方しか見ないと「誰も作っていない」と嘘を言う。
          2026-08-17 実際に FileOut / SeikyuOut / SeikyuStore の3本で嘘を言った） */

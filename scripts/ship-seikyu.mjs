@@ -56,7 +56,11 @@ const GUARDS = ['seikyu', 'tests', 'scripts', '.github', 'package.json', 'tests-
   /* ★webkit.yml が 呼ぶ 記録係★（tools/aka-kiroku.mjs）。
      ★呼ぶ物と 呼ばれる物は 一緒に 運ぶ★＝置いていくと 運び先の CIが
      「Cannot find module」で 赤に なる（2026-08-31 に 同じ型で 実際に 起きた）。 */
-  'tools'];
+  'tools',
+  /* ★借り物の 免状★（2026-10-20 supabase-js を 外の CDN から lib/ へ 移した）。
+     ★HTML から 呼ばれない＝数える道具（dep-count）では 見つからない★のに、
+     supabase-js の 本体には 免状の 注書きが 無い＝置いていくと MIT の「著作権表示を含める」を 欠く。 */
+  'lib/LICENSES-karimono.txt'];
 
 /* ★運び先に無いファイルを見に行く試験は 運ばない★（名前と 見に行った先を 全部 書き残す）
    ＝置いていくと「登録していない試験が在る」で見張りが赤くなり、
@@ -526,6 +530,8 @@ console.log('\n★自己診断★');
     ['vendor/pdf-lib.min.js', 'vendor/fontkit.umd.min.js', 'vendor/fonts/BIZUDPGothic-Regular.ttf']
       .forEach((f) => must(true, fs.existsSync(path.join(tmp, f)),
         '★' + f + ' が 運ばれていない（押しても PDFが 作れない）★'));
+    must(true, fs.existsSync(path.join(tmp, 'lib/LICENSES-karimono.txt')),
+      '★借り物の 免状（lib/LICENSES-karimono.txt）が 運ばれていない★');
     must(false, /給与へ戻る/.test(fs.readFileSync(path.join(tmp, 'js', 'hub.js'), 'utf8')),
       '★運んだ入口の js に 給与の帰り道が 残っている（行き止まり）★');
     must(true, fs.existsSync(path.join(tmp, 'kyuyo/lib/shiharai-chosho.js')),

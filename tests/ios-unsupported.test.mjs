@@ -45,6 +45,22 @@ const EXCEPTIONS = {
       + 'うちが呼ばなければ通らない。★呼ばないことは下の C/D の検査が守る。',
     restoreWhen: 'ライブラリを差し替える時。',
   },
+  /* ★2026-10-20 cdn.jsdelivr.net から lib/ へ移した借り物2本★
+     ＝前は 外から読んでいたので この門の 視界の外だった（中身は 1バイトも 変えていない）。
+     ★外の 遅さで 画面が 開かない（DCL 30秒超を 実測）のを 止めるため 手元に 置いた★。 */
+  'lib/supabase-js-2.112.4.min.js': {
+    rules: ['blob', 'octet'],
+    reason: 'supabase-js 本体（外部ライブラリ・同梱）。倉庫の ファイル置き場に 送る 部品が 中で Blob と octet-stream を 持つ。'
+      + 'うちは その 送る口を 呼んでいない（倉庫の 表と 関数だけ）。',
+    restoreWhen: 'ライブラリを差し替える時／うちが ファイル置き場（storage）を 使い始める時。',
+  },
+  'lib/jspdf-2.5.1.umd.min.js': {
+    rules: ['blob', 'octet'],
+    reason: 'jsPDF 本体（外部ライブラリ・同梱）。PDF を 作る道具なので 中で Blob を 持つのは当然。'
+      + '★PDF は FileOut を 通っていない★＝kyuyo/js/meisai.js と kyuyo/js/app.js が jsPDF の blob を '
+      + 'URL.createObjectURL ＋ window.open で 直に 開き、開けない時は doc.save()（前から 同じ道・この門の D は new Blob( だけを 見る）。',
+    restoreWhen: 'ライブラリを差し替える時。',
+  },
   /* ★lib/xlsx-io.js の例外は 2026-08-17 に消した★
      ＝グリッド(book.html)の書き出し部品なので Rakunally には持って来ていない。
        ★持っていない物の例外を残すと、例外表が腐ったまま緑になる★（この検査自身が実在を見ている）。
