@@ -2977,7 +2977,8 @@
     return S.store.invoices.voidIt(v.id, new Date().toISOString()).then(function (r) {
       if (!r.ok) { box('edit-err', '取り消せませんでした（' + r.reason + '）'); return; }
       v.status = 'void';               // ★送った 1通に 付ける★（返事の 前に 別の 1通を 開いても その 1通を「取り消し済」に しない・taiketsu 10-23）
-      box('edit-ok', '取り消しました。');
+      /* ★どの 1通を 取り消したかを 言う★（一覧から 別の 1通を 取り消すと、入力に 出ている 別の 1通の 上に「取り消しました。」だけが 残り、その 1通を 取り消したと 読めた・taiketsu 10-23） */
+      box('edit-ok', DOC.docLabel(v.doc_type || 'invoice') + ' ' + (v.no || '（未採番）') + ' を取り消しました。');
       return loadList({ ato: '取り消しは できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { if (S.cur === v && S.gamen === v) fillEdit(); });   // ★欄に 出ている 1通の 時だけ 描く★（一覧から 別の 1通を 取り消すと 入金の 打ちかけが 消えた・taiketsu 10-23）
     });
   }

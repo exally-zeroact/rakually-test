@@ -993,6 +993,7 @@ await TA('2-1i. ★直しかけの まま 一覧で 発行済みを「取り消�
     tab.click(); await sleep(20);
     ok(st.cur === st.gamen, '★取り消しの 後に 欄と S.cur が 食い違う★');
     eq($('e-no').value, aNo, '★入力の 欄が 取り消した 1通の 番号（混ぜ物）★');
+    ok(!$('edit-ok').textContent || /I-009/.test($('edit-ok').textContent), '★別の 1通の 上に 番号の 無い「取り消しました。」が 出た: ' + $('edit-ok').textContent);
     const amt = $('lines-body').querySelector('[data-f="amount"]');
     amt.value = '8282'; amt.dispatchEvent(new win.Event('input'));
     await sleep(1700); await kakusu();
