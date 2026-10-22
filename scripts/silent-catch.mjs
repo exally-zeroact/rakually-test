@@ -123,6 +123,7 @@ for (const f of FILES) {
 const EMPTY_OK = {
   /* ── お金・公開に関わるが これでよい物（読んで確かめた） ── */
   qrSvg: 'QRの絵が作れない時。★お金ではない★（リンクは字でも出している）',
+  kesuShiharaibi: '退職月の 給与を 払う日が 読めない時は null。★null なら 削除の 門が 止めて 客に 言う★（kesitaNiSuru・app.js）＝黙って 小さくならない（消させない側に 倒す）。戻す条件＝null でも 消させる 作りに した日。',
   csvMojiYomu: 'UTF-8 でも Shift-JIS でも 読めない 紙。★空を返すと 取込は 「空のCSVです」と 出して 断る★（kintai-csv.js:73／app.js:2215 で 実測）＝★黙って 小さくならない★。戻す条件＝空の 時に 断らずに 進む 作りに した日。',
   getStatutory: '雲につながっていない時。★内蔵の表を使う★という設計（空＝雲に無い、ではない）',
   currentGensen: '税が計算できない時。★0にしない＝null のまま渡す★（紙に「未確認」と出る）／失敗は recalc が画面に言う',

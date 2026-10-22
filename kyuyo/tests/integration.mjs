@@ -958,6 +958,68 @@ await TA('★確定あり・削除の門＝①退職日が無い ②退職月が
     });
   }
 });
+/* ★④ 退職月の 給与を 払う日が まだ 来ていない（翌月払い）＝止まる★（taiketsu 10-23 本番前＝払う前に 消すと その 給与の 振込から 黙って 落ちた）
+   今日に よらない 様に：退職は 先月末・給料日は「翌月 末日」＝払う日は 今月末＝今日は 必ず その日 以前 */
+await TA('★確定あり・削除の門④＝退職月の給与を払う日（翌月払い）がまだなら止まり、振込にも残る', async () => {
+  const A = win.__PAYSLIP_TEST;
+  const ima = A.todayYm ? A.todayYm() : (new Date().getFullYear() + '-' + ('0' + (new Date().getMonth() + 1)).slice(-2));
+  const [yy, mm] = ima.split('-').map(Number);
+  const mae = mm === 1 ? (yy - 1) + '-12' : yy + '-' + ('0' + (mm - 1)).slice(-2);
+  const sue = new Date(Number(mae.slice(0, 4)), Number(mae.slice(5, 7)), 0).getDate();
+  const comp = A.state.company, keepRel = comp.paydayRel, keepDay = comp.paydayDay;
+  comp.paydayRel = 'next'; comp.paydayDay = '末';
+  try {
+    const a = mkEmp('払う前の人', 'ehime'), b = mkEmp('相方', 'ehime');
+    a.taishokuYmd = mae + '-' + sue; a.retired = false;
+    await withRosterA([a, b], { [mae]: { [a.id]: true, [b.id]: true } }, async () => {
+      const ov = await kesuOse(A);
+      ok(ov, '★何も出ずに進んだ');
+      ok(/払う日/.test(ov.textContent) && /過ぎてから/.test(ov.textContent), '★止める字が違う: ' + ov.textContent.slice(0, 80));
+      eq(/★/.test(ov.textContent), false, '画面に★');
+      await ovToji(ov);
+      eq(!!A.state.employees[0].kesita, false, '★払う前なのに 削除した人に なった');
+      eq(A.state.employees[0].retired, false, '★払う前なのに 退職に 変わった（振込から 落ちる）');
+    });
+  } finally { comp.paydayRel = keepRel; comp.paydayDay = keepDay; }
+});
+
+/* ★④の 続き（taiketsu 10-23）：支給日が 読めない／その月だけ 振込日を 後ろへ 決めた／払う日の 当日＝止まる・翌日＝通る★ */
+await TA('★確定あり・削除の門④の続き＝支給日が読めない・その月の振込日が後ろ・払う日の当日 は止まり、払う日の翌日は通る', async () => {
+  const A = win.__PAYSLIP_TEST;
+  const d = new Date(); const p2 = (n) => ('0' + n).slice(-2);
+  const kyo = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  const ima = kyo.slice(0, 7), [yy, mm] = ima.split('-').map(Number);
+  const mae = mm === 1 ? (yy - 1) + '-12' : yy + '-' + p2(mm - 1);
+  const sue = new Date(Number(mae.slice(0, 4)), Number(mae.slice(5, 7)), 0).getDate();
+  const comp = A.state.company, keep = JSON.stringify({ r: comp.paydayRel, d: comp.paydayDay, s: comp.paydayShift, b: comp.furiDateBy });
+  const KATA = [
+    ['支給日が 全角', { paydayRel: 'next', paydayDay: '３０' }, true],
+    ['支給日が 空', { paydayRel: 'next', paydayDay: '' }, true],
+    ['その月だけ 振込日を 後ろへ', { paydayRel: 'next', paydayDay: '1', furiDateBy: { [mae]: (mm === 12 ? (yy + 1) + '-01' : yy + '-' + p2(mm + 1)) + '-05' } }, true],
+    ['払う日の 当日', { paydayRel: 'next', paydayDay: String(d.getDate()), paydayShift: 'prev' }, true],
+  ];
+  if (d.getDate() > 1) KATA.push(['払う日の 翌日（通る）', { paydayRel: 'next', paydayDay: String(d.getDate() - 1), paydayShift: 'prev' }, false]);
+  try {
+    for (const [na, set, tomaru] of KATA) {
+      Object.assign(comp, { paydayShift: 'prev', furiDateBy: {} }, set);
+      const a = mkEmp('払う日の人', 'ehime'), b = mkEmp('相方', 'ehime');
+      a.taishokuYmd = mae + '-' + sue; a.retired = false;
+      await withRosterA([a, b], { [mae]: { [a.id]: true, [b.id]: true } }, async () => {
+        const ov = await kesuOse(A);
+        ok(ov, na + '：何も出ずに進んだ');
+        if (tomaru) {
+          ok(/払う日/.test(ov.textContent) && /過ぎてから/.test(ov.textContent), na + '：★止まらない／字が違う: ' + ov.textContent.slice(0, 80));
+          await ovToji(ov);
+          eq(!!A.state.employees[0].kesita, false, na + '：★払う前なのに 削除した人に なった');
+        } else {
+          ok(/一覧から削除します/.test(ov.textContent), na + '：★払った後なのに 止まった: ' + ov.textContent.slice(0, 80));
+          await ovToji(ov);
+        }
+      });
+    }
+  } finally { const k = JSON.parse(keep); comp.paydayRel = k.r; comp.paydayDay = k.d; comp.paydayShift = k.s; comp.furiDateBy = k.b; }
+});
+
 await TA('★確定あり・退職日が過去の月＝OKで「削除した人」へ＝行と確定は残る／どの絞り込みにも出ない／退職者の下に畳まれ「戻す」で戻る', async () => {
   const A = win.__PAYSLIP_TEST;
   const a = mkEmp('確定ありの辞めた人', 'ehime'), b = mkEmp('相方', 'ehime');

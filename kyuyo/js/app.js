@@ -5729,6 +5729,18 @@
           });
       });
   }
+  /* 退職月の 給与を 払う日（YYYY-MM-DD）＝支給日と 振込日（振込を 作る 道 furiDateOf＝その月だけ 決めた 日も 含む）の 遅い方。
+     ★読めなければ null（消させない側に 倒す）★＝支給日の 欄が 読めない（空・全角・99）時、payDateObj は 25日を 返すので 先に 見る（taiketsu 10-23） */
+  function kesuShiharaibi(ym){
+    try{
+      var ctx={ company: state.company, month: ym, otHist: state._otHist };
+      if(!PM().payDayReadable || !PM().payDayReadable(ctx)) return null;
+      var p=PM().payDateObj(ctx); if(!p) return null;
+      var fz=furiDateOf(ym); if(!fz || !/^\d{4}-\d{2}-\d{2}$/.test(String(fz.ymd||''))) return null;
+      var pd=p.y+'-'+('0'+p.m).slice(-2)+'-'+('0'+p.d).slice(-2);
+      return [pd, fz.ymd].sort().pop();
+    }catch(e){ return null; }
+  }
   function kesitaNiSuru(i, cmz){
     var emp=state.employees[i]; if(!emp) return;
     var na=emp.name||'この従業員';
@@ -5738,6 +5750,10 @@
     if(tym<saigo){ uiAlert('退職日（'+t+'）が、確定した最後の月（'+saigo+'）より前です。退職日を直してから削除してください。'); return; }
     if(cmz.indexOf(tym)<0){ uiAlert('退職月（'+tym+'）の給与を確定してから削除できます（確定前に消すと、その月の振込に出なくなるため）。' + String.fromCharCode(10) + '退職月に支払う給与が無い方は、削除せず「退職者」のままにしてください（給与を払っていない月を確定しないでください）。'); return; }
     if(tym>=todayYm()){ uiAlert('退職月（'+tym+'）が終わってから削除できます。'); return; }
+    /* ★退職月の 給与を 払う日が 過ぎてから★（taiketsu 10-23 本番前＝翌月払いの 会社で 払う日より 前に 消すと、その 給与の 振込から 黙って 落ちた）
+       振込は 今の 名簿から 作る（退職の 人を 外す）＝削除で 退職に 変わると その月の 振込に 出ない。払う日・振込日の 遅い方の 翌日から 消せる。 */
+    var shiharai=kesuShiharaibi(tym);
+    if(!shiharai || _jimotoHi().slice(0,10)<=shiharai){ uiAlert('退職月（'+tym+'）の 給与を 払う日'+(shiharai?'（'+shiharai+'）':'')+'が 過ぎてから 削除できます（払う前に 消すと、その 給与の 振込に 出なくなるため）。'); return; }
     uiConfirm('「'+na+'」を一覧から削除します（退職日 '+t+'）。' + String.fromCharCode(10) + '確定した給与明細（'+cmz.length+'か月分）と賃金台帳は法律で保存するため残り、台帳・源泉徴収票には出ます。設定の「退職者」→「削除した人」から戻せます。').then(function(ok){
       if(!ok) return;
       var maeRet=!!emp.retired;
