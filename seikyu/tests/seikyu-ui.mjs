@@ -626,7 +626,8 @@ await TA('2-0e. ★落ちた 後に 一覧から 開き直すと 打った 値�
   const mae = Number(db.pay_invoices[0].lines[0].amount);
   const uchi = String(mae + 500);
   amt().value = uchi; amt().dispatchEvent(new win.Event('input'));
-  sb._failNext('pay_invoices', 'upsert');          // 通信が 落ちた
+  const origS = st.store.invoices.saveDraft;
+  st.store.invoices.saveDraft = () => Promise.resolve({ ok: false, reason: 'Failed to fetch' });   // 通信が 落ちた（開き直す 時の しまいも 落ちる）
   app._go('scr-list'); await sleep(30);
   ok(/まだ 保存されていません/.test(T('list-ochita')), '前提：落ちた 知らせが 一覧に 無い');
   await app._loadList(); await sleep(10);
@@ -634,6 +635,7 @@ await TA('2-0e. ★落ちた 後に 一覧から 開き直すと 打った 値�
   eq(amt().value, uchi, '★開き直したら 打った 値が 消えて 倉庫の 古い値に 戻った★');
   eq(st.dirty, true, '★打った 値で 開いたのに 直しかけの 印が 無い（出る時に しまわれない）★');
   ok(/まだ 保存されていません/.test(T('edit-ochita')), '★開き直したら 知らせが 無い★');
+  st.store.invoices.saveDraft = origS;            // 通信が 戻った
   $('b-save').click(); await sleep(40);
   eq(String(db.pay_invoices[0].lines[0].amount), uchi, '★「保存」を 押したのに 打った 値が 倉庫に 入っていない★');
   eq(T('edit-ochita'), '', '★通ったのに 知らせが 残る★');
@@ -773,6 +775,408 @@ await TA('2-0j. ★下書きで 落ちた 後に「発行する」が 通れば 
   for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === nid) db.pay_invoices.splice(i, 1);
   await app._loadList(); await sleep(10);
   hiraku(A.id); await sleep(20);
+});
+
+/* ═══ ★別の 1通へ 書かない／消した 下書きが 生き返らない／打った物を 黙って 捨てない★（2026-10-14 taiketsu・HEAD で 再現） ═══
+   前は 一覧の「確認」「消す」が S.cur を 入れ替えた 後も、窓を 隠す・画面を 出る 時の 自動の しまいが
+   ★入力の 欄に 残った 前の 1通の 番号・請求日・件名を 別の 1通の id へ upsert★ した（知らせ 0）。 */
+const betsu = (() => {
+  const app = win.SeikyuApp, st = app._state;
+  const T = (id) => { const e = $(id); return (e && e.style.display !== 'none' && e.textContent) || ''; };
+  const row = (id) => db.pay_invoices.find((r) => r.id === id);
+  const kao = (id) => { const r = row(id); return r ? JSON.stringify([r.no, r.issue_ymd, r.due_ymd, r.data && r.data.subject, r.lines, r.status, r.partner_id]) : '(無い)'; };
+  const ups = (id, from) => sb._calls.slice(from).filter((c) => c.table === 'pay_invoices' && c.op === 'upsert' && c.payload && c.payload.id === id).length;
+  const G = () => ({ id: 'iv_G_betsu', account_id: 'u1', doc_type: 'invoice', no: 'G-001', status: 'draft', partner_id: 'pt_b',
+    issue_ymd: '2026-10-14', due_ymd: '2026-11-30', tax_mode: 'exclusive', rounding: 'floor',
+    lines: [{ name: 'G の品', qty: '1', price: '2000', amount: '2000', rate: '10' }], totals: { grandTotal: 2200 },
+    data: { subject: 'G の件名' }, snapshot: {}, template_id: 'std1', quote_from: '', deleted_at: null, updated_at: '2026-10-14T00:00:00Z' });
+  const ireru = async () => { if (!row('iv_G_betsu')) db.pay_invoices.push(G()); await app._loadList(); await sleep(10); };
+  const nuku = () => { for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === 'iv_G_betsu') db.pay_invoices.splice(i, 1); };
+  const kakusu = async () => { win.dispatchEvent(new win.Event('pagehide')); await sleep(40); };
+  const ichiran = (sel) => {
+    for (const k of ['l-month', 'l-partner']) { const e = doc.getElementById(k); if (e) e.value = ''; }
+    st.fil = 'all'; app._renderListForTest();
+    const b = doc.querySelector(sel); if (!b) throw new Error('一覧に ボタンが 無い: ' + sel); b.click();
+  };
+  return { app, st, T, row, kao, ups, ireru, nuku, kakusu, ichiran };
+})();
+
+await TA('2-1a. ★直しかけ（保存は 落ちる）→ 一覧で 別の 1通を「確認」→ 窓を 隠す＝別の 1通は 1文字も 変わらない／打った 値は 残る（s1）', async () => {
+  const { st, T, kao, ups, ireru, nuku, kakusu, ichiran, app } = betsu;
+  const A = st.cur, aId = A.id;
+  await ireru();
+  const g0 = kao('iv_G_betsu'), c0 = sb._calls.length;
+  const amt = () => $('lines-body').querySelector('[data-f="amount"]');
+  const uchi = String(Number(amt().value) + 40);
+  amt().value = uchi; amt().dispatchEvent(new win.Event('input'));
+  $('e-subject').value = 'A を 直した'; $('e-subject').dispatchEvent(new win.Event('input'));
+  const origS = st.store.invoices.saveDraft;
+  const okutta = [];
+  st.store.invoices.saveDraft = (v) => { okutta.push(v && v.id); return Promise.resolve({ ok: false, reason: 'Failed to fetch' }); };
+  try {
+    app._go('scr-list'); await sleep(20);
+    ichiran('[data-look="iv_G_betsu"]'); await sleep(20);
+    await kakusu();
+    eq(ups('iv_G_betsu', c0), 0, '★別の 1通（G）の id へ 書いた★');
+    eq(okutta.filter((x) => x === 'iv_G_betsu').length, 0, '★別の 1通（G）の id で しまおうと した（落ちて いなければ 書いていた）★');
+    eq(kao('iv_G_betsu'), g0, '★別の 1通（G）の 行が 変わった★');
+    ok(/まだ 保存されていません/.test(T('list-ochita')), '★A の 保存が 落ちたのに 一覧に 知らせが 無い★');
+    $('b-lv-back').click(); await sleep(10);
+  } finally { st.store.invoices.saveDraft = origS; }
+  hiraku(aId); await sleep(20);
+  eq(amt().value, uchi, '★A の 打った 値が 消えた★');
+  $('b-save').click(); await sleep(40);
+  eq(String(betsu.row(aId).lines[0].amount), uchi, '★A の 打った 値が A の 行に 入らない★');
+  eq(betsu.row(aId).data.subject, 'A を 直した', '★A の 件名が A の 行に 入らない★');
+  eq(kao('iv_G_betsu'), g0, '★最後に G の 行が 変わった★');
+  nuku(); await app._loadList();
+});
+
+await TA('2-1b. ★「確認」を 閉じて 入力へ 戻り「保存」＝別の 1通へ 行かない（s2）／返事の 前に「確認」しても 書かない（s3）', async () => {
+  const { st, kao, ups, ireru, nuku, kakusu, ichiran, app } = betsu;
+  const A = st.cur, aId = A.id;
+  await ireru();
+  const g0 = kao('iv_G_betsu'), c0 = sb._calls.length;
+  app._go('scr-list'); await sleep(10);
+  ichiran('[data-look="iv_G_betsu"]'); await sleep(20);
+  $('b-lv-back').click(); await sleep(10);
+  app._go('scr-edit'); await sleep(10);
+  ok(st.cur === A || (st.cur && st.cur.id === aId), '★閉じたのに 入力が A に 戻っていない★ ' + (st.cur && st.cur.id));
+  $('b-save').click(); await sleep(40);
+  eq(ups('iv_G_betsu', c0), 0, '★入力へ 戻った「保存」が G へ 行った★');
+  eq(kao('iv_G_betsu'), g0, '★G の 行が 変わった★');
+  /* s3：保存は 通るが 返事が 遅い 間に「確認」 */
+  const origS = st.store.invoices.saveDraft;
+  st.store.invoices.saveDraft = (v) => sleep(200).then(() => origS.call(st.store.invoices, v));
+  try {
+    const amt = $('lines-body').querySelector('[data-f="amount"]');
+    amt.value = String(Number(amt.value) + 1); amt.dispatchEvent(new win.Event('input'));
+    const c1 = sb._calls.length;
+    app._go('scr-list'); await sleep(5);
+    ichiran('[data-look="iv_G_betsu"]'); await sleep(400);
+    await kakusu();
+    eq(ups('iv_G_betsu', c1), 0, '★返事の 後に G へ 書いた★');
+    eq(kao('iv_G_betsu'), g0, '★G の 行が 変わった★');
+    $('b-lv-back').click(); await sleep(10);
+  } finally { st.store.invoices.saveDraft = origS; }
+  nuku(); await app._loadList();
+  hiraku(aId); await sleep(20);
+});
+
+await TA('2-1c. ★打って すぐ 下書きを 削除＝消した 後に その id で しまわない／生き返らない（s4）', async () => {
+  const { st, ups, ireru, nuku, app } = betsu;
+  const A = st.cur, aId = A.id;
+  await ireru();
+  hiraku('iv_G_betsu'); await sleep(20);
+  eq(st.cur.id, 'iv_G_betsu', '前提：G を 開けていない');
+  const origS = st.store.invoices.saveDraft;
+  st.store.invoices.saveDraft = (v) => sleep(300).then(() => origS.call(st.store.invoices, v));
+  try {
+    const amt = $('lines-body').querySelector('[data-f="amount"]');
+    amt.value = '2500'; amt.dispatchEvent(new win.Event('input'));
+    const c0 = sb._calls.length;
+    await sleep(1560);                 // 1.5秒の しまいが 出た（返事は 300ms 後）＝その 最中に 消す
+    $('b-delete').click(); await sleep(800);
+    const i = sb._calls.slice(c0).findIndex((c) => c.table === 'pay_invoices' && c.op === 'delete');
+    ok(i >= 0, '前提：消していない');
+    eq(ups('iv_G_betsu', c0 + i + 1), 0, '★消した 後に 同じ id で upsert した（生き返る）★');
+    ok(!betsu.row('iv_G_betsu'), '★消した 下書きが 倉庫に 残っている★');
+    /* 消した 後に 入力へ 戻って 打っても 送らない */
+    app._go('scr-edit'); await sleep(10);
+    const amt2 = $('lines-body').querySelector('[data-f="amount"]');
+    amt2.value = '2600'; amt2.dispatchEvent(new win.Event('input'));
+    await betsu.kakusu(); await sleep(400);
+    eq(ups('iv_G_betsu', c0 + i + 1), 0, '★消した 後に 打ったら 同じ id で upsert した（生き返る）★');
+    ok(!betsu.row('iv_G_betsu'), '★消した 下書きが 生き返った★');
+  } finally { st.store.invoices.saveDraft = origS; }
+  nuku(); app._go('scr-list'); await app._loadList();
+  hiraku(aId); await sleep(20);
+});
+
+await TA('2-1d. ★件名だけ 直して 一覧へ＝しまう（s5）／「出来た紙を見る」の 後も 自動で しまう（s7）', async () => {
+  const { st, row, app } = betsu;
+  const aId = st.cur.id;
+  $('e-subject').value = '件名だけ 直した'; $('e-subject').dispatchEvent(new win.Event('input'));
+  app._go('scr-list'); await sleep(40);
+  eq(row(aId).data.subject, '件名だけ 直した', '★件名だけの 直しが しまわれない（窓を 閉じると 消える）★');
+  hiraku(aId); await sleep(20);
+  const amt0 = $('lines-body').querySelector('[data-f="amount"]');
+  amt0.value = '5555'; amt0.dispatchEvent(new win.Event('input'));
+  $('b-after-look').click(); await sleep(20);
+  ok(/5,555/.test($('lv').srcdoc || ''), '★「出来た紙を見る」が 打った 値でなく 前の 値の 紙を 出した★');
+  $('b-lv-back').click(); await sleep(10);
+  const amt = $('lines-body').querySelector('[data-f="amount"]');
+  amt.value = '4444'; amt.dispatchEvent(new win.Event('input'));
+  await sleep(1700);
+  eq(String(row(aId).lines[0].amount), '4444', '★「出来た紙を見る」の 後は 自動で しまわれない★');
+});
+
+await TA('2-1e. ★直しかけの まま 一覧で 別の 下書きを「消す」→ 入力へ 戻って 打つ＝消した 1通へ 書かない（s8）', async () => {
+  const { st, row, ups, ireru, kakusu, ichiran, app } = betsu;
+  const aId = st.cur.id;
+  await ireru();
+  app._go('scr-list'); await sleep(10);
+  const c0 = sb._calls.length;
+  ichiran('[data-kesu="iv_G_betsu"]'); await sleep(60);
+  ok(!row('iv_G_betsu'), '前提：G が 消えていない');
+  app._go('scr-edit'); await sleep(10);
+  eq(st.cur && st.cur.id, aId, '★消した 後の 入力が A に 戻っていない★');
+  const amt = $('lines-body').querySelector('[data-f="amount"]');
+  amt.value = '4445'; amt.dispatchEvent(new win.Event('input'));
+  await kakusu();
+  eq(ups('iv_G_betsu', c0), 0, '★消した G の id で upsert した（生き返る）★');
+  eq(String(row(aId).lines[0].amount), '4445', '★A の 直しが A に 入らない★');
+});
+
+await TA('2-1g. ★欄に 出ていない 1通には 欄を 読まない（自動も 押した 保存も）＝門の 決まり', async () => {
+  const { st, kao, ups, ireru, nuku, kakusu, app } = betsu;
+  const A = st.cur;
+  await ireru();
+  const g0 = kao('iv_G_betsu'), c0 = sb._calls.length;
+  const G = JSON.parse(JSON.stringify(betsu.row('iv_G_betsu')));
+  try {
+    st.cur = G; st.dirty = true;          // 欄は A の まま、S.cur だけ G（どの 道で 入れ替わっても 同じ 形）
+    await kakusu();
+    $('b-save').click(); await sleep(40);
+    eq(ups('iv_G_betsu', c0), 0, '★欄に 出ていない G へ 欄（A の 値）を 書いた★');
+    eq(kao('iv_G_betsu'), g0, '★G の 行が 変わった★');
+    ok(/合っていない/.test($('edit-err').textContent), '★押した 保存を 止めた 訳を 言っていない★');
+  } finally { st.cur = A; st.dirty = false; }
+  nuku(); await app._loadList();
+  hiraku(A.id); await sleep(20);
+});
+
+await TA('2-1h. ★「確認」で 紙が 出せない 1通の 後に 別の 1通を「修正」＝打った物が しまわれる（taiketsu 10-23 X1）', async () => {
+  const { st, row, ichiran, kakusu, app } = betsu;
+  const aId = st.cur.id;
+  const bad = { id: 'iv_BAD_betsu', account_id: 'u1', doc_type: 'invoice', no: 'B-001', status: 'draft', partner_id: 'pt_b',
+    issue_ymd: '2026-10-14', due_ymd: '2026-11-30', tax_mode: 'exclusive', rounding: 'floor',
+    lines: [{ name: 'x', qty: '1', price: 'abc', amount: 'abc', rate: '99' }], totals: {},
+    data: { subject: 'BAD' }, snapshot: {}, template_id: 'std1', quote_from: '', deleted_at: null, updated_at: '2026-10-14T00:00:00Z' };
+  db.pay_invoices.push(bad);
+  try {
+    await app._loadList(); await sleep(10);
+    app._go('scr-list'); await sleep(20);
+    ichiran('[data-look="iv_BAD_betsu"]'); await sleep(20);
+    ok(!$('lv-ov').classList.contains('open'), '前提：紙が 出せない 1通で 窓が 開いた');
+    ichiran('[data-open="' + aId + '"]'); await sleep(20);
+    ok(st.cur === st.gamen, '★「修正」の 後に 欄と S.cur が 食い違う★');
+    const amt = $('lines-body').querySelector('[data-f="amount"]');
+    amt.value = '9191'; amt.dispatchEvent(new win.Event('input'));
+    await sleep(1700); await kakusu();
+    eq(String(row(aId).lines[0].amount), '9191', '★打った物が 黙って しまわれない★');
+  } finally {
+    for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === 'iv_BAD_betsu') db.pay_invoices.splice(i, 1);
+    st.lookMae = null;
+  }
+  app._go('scr-list'); await sleep(40);
+  await app._loadList(); hiraku(aId); await sleep(20);
+});
+
+await TA('2-1i. ★直しかけの まま 一覧で 発行済みを「取り消す」→ 入力へ＝混ぜ物に ならず 打った物は 前の 1通に 入る（taiketsu 10-23 X2）', async () => {
+  const { st, row, ichiran, kakusu, app } = betsu;
+  const aId = st.cur.id, aNo = st.cur.no;
+  const iss = { id: 'iv_ISS_betsu', account_id: 'u1', doc_type: 'invoice', no: 'I-009', status: 'issued', partner_id: 'pt_b',
+    issue_ymd: '2026-10-01', due_ymd: '2026-11-30', tax_mode: 'exclusive', rounding: 'floor',
+    lines: [{ name: 'I の品', qty: '1', price: '3000', amount: '3000', rate: '10' }], totals: { grandTotal: 3300 },
+    data: { subject: 'I の件名' }, snapshot: {}, template_id: 'std1', quote_from: '', deleted_at: null, updated_at: '2026-10-14T00:00:00Z' };
+  db.pay_invoices.push(iss);
+  const oc = win.confirm;
+  try {
+    await app._loadList(); await sleep(10);
+    app._go('scr-list'); await sleep(20);
+    win.confirm = () => true;
+    ichiran('[data-kesu="iv_ISS_betsu"]'); await sleep(80);
+    win.confirm = oc;
+    eq(row('iv_ISS_betsu').status, 'void', '前提：取り消しに なっていない');
+    const tab = [...doc.querySelectorAll('.bn')].find(b => b.getAttribute('data-scr') === 'scr-edit');
+    tab.click(); await sleep(20);
+    ok(st.cur === st.gamen, '★取り消しの 後に 欄と S.cur が 食い違う★');
+    eq($('e-no').value, aNo, '★入力の 欄が 取り消した 1通の 番号（混ぜ物）★');
+    const amt = $('lines-body').querySelector('[data-f="amount"]');
+    amt.value = '8282'; amt.dispatchEvent(new win.Event('input'));
+    await sleep(1700); await kakusu();
+    eq(String(row(aId).lines[0].amount), '8282', '★打った物が 黙って しまわれない★');
+    eq(String(row('iv_ISS_betsu').lines[0].amount), '3000', '★取り消した 1通に 書いた★');
+  } finally {
+    win.confirm = oc;
+    for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === 'iv_ISS_betsu') db.pay_invoices.splice(i, 1);
+  }
+  app._go('scr-list'); await sleep(40);
+  await app._loadList(); hiraku(aId); await sleep(20);
+});
+
+/* ★返事待ちの 間に 別の 1通へ 行く 道★（taiketsu 10-23 の 2回目 S1〜S3） */
+const osoku = (obj, key, ms) => { const o = obj[key]; obj[key] = function () { const a = arguments; return sleep(ms).then(() => o.apply(obj, a)); }; return () => { obj[key] = o; }; };
+const sakuDr = (id, no, name) => ({ id, account_id: 'u1', doc_type: 'invoice', no, status: 'draft', partner_id: 'pt_b',
+  issue_ymd: '2026-10-20', due_ymd: '2026-11-30', tax_mode: 'exclusive', rounding: 'floor',
+  lines: [{ name, qty: '1', price: '5000', amount: '5000', rate: '10' }], totals: {},
+  data: { subject: name }, snapshot: {}, template_id: 'std1', quote_from: '', deleted_at: null, updated_at: '2026-10-14T00:00:00Z' });
+
+for (const [mei, iku] of [['「確認」', 'look'], ['「修正」', 'open']]) {
+  await TA('2-1j. ★発行の 返事の 前に 一覧で 別の 1通を' + mei + '→ 打つ＝発行済みの 明細は 別の 1通で 上書きされない（S1）', async () => {
+    const { st, row, kao, ichiran, kakusu, app, ireru, nuku } = betsu;
+    const back = st.cur.id;
+    await ireru();
+    if (st.kieta) delete st.kieta['iv_G_betsu'];   // 前の 試験で 消した G の 印を 残さない（残ると G へ 1回も 行かず 偽の 緑・taiketsu 10-23 X3）
+    const g0 = kao('iv_G_betsu');
+    db.pay_invoices.push(sakuDr('iv_DR_betsu', 'D-301', 'D の品'));
+    let modosu = null;
+    try {
+      await app._loadList(); await sleep(10);
+      hiraku('iv_DR_betsu'); await sleep(40);
+      modosu = osoku(st.store.invoices, 'issue', 300);
+      $('b-issue').click(); await sleep(5);
+      app._go('scr-list'); await sleep(5);
+      if (iku === 'look') ichiran('[data-look="iv_G_betsu"]'); else hiraku('iv_G_betsu');
+      await sleep(700);
+      modosu(); modosu = null;
+      if (iku === 'look') {
+        $('b-lv-back').click(); await sleep(10);
+        app._go('scr-edit'); await sleep(10);
+        ok(/発行済/.test($('edit-h').textContent), '★閉じた 後も「下書き」の 画面が 残った★');
+        ok($('b-issue').style.display === 'none' || $('b-issue').disabled, '★発行済みなのに「発行する」が 押せる★');
+      } else { app._go('scr-edit'); await sleep(10); }
+      ok(st.cur === st.gamen, '★欄と S.cur が 食い違う★');
+      $('e-subject').value = 'S1 打った'; $('e-subject').dispatchEvent(new win.Event('input'));
+      await sleep(1700); await kakusu(); await sleep(50);
+      const d = row('iv_DR_betsu');
+      eq(d.status, 'issued', '前提：発行に なっていない');
+      eq(d.lines[0].name, 'D の品', '★発行済みの 明細が 別の 1通の 明細で 上書きされた★');
+      ok(row('iv_G_betsu').no !== 'D-301' && row('iv_G_betsu').status !== 'issued', '★別の 1通に 発行の 番号が 付いた★');
+      if (iku === 'open') eq(row('iv_G_betsu').data.subject, 'S1 打った', '★「修正」で 開いた G に 打った 物が G に 入らない★');
+      else eq(row('iv_DR_betsu').data.subject, 'S1 打った', '★確認を 閉じて 戻った D に 打った 物が D に 入らない★');
+    } finally {
+      if (modosu) modosu();
+      for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === 'iv_DR_betsu') db.pay_invoices.splice(i, 1);
+    }
+    nuku(); app._go('scr-list'); await sleep(40); await app._loadList(); hiraku(back); await sleep(20);
+  });
+}
+
+await TA('2-1k. ★開いている 発行済みを 一覧から その 1通 自身で「取り消す」＝入力は「取り消し済」・発行済みの 写しで 書かない（S2）', async () => {
+  const { st, row, ichiran, kakusu, app } = betsu;
+  const back = st.cur.id;
+  const iss = Object.assign(sakuDr('iv_SELF_betsu', 'S-777', 'S の品'), { status: 'issued', totals: { grandTotal: 5500 } });
+  db.pay_invoices.push(iss);
+  const oc = win.confirm;
+  try {
+    await app._loadList(); await sleep(10);
+    hiraku('iv_SELF_betsu'); await sleep(20);
+    $('e-subject').value = 'S 直した'; $('e-subject').dispatchEvent(new win.Event('input'));
+    app._go('scr-list'); await sleep(40);
+    win.confirm = () => true;
+    ichiran('[data-kesu="iv_SELF_betsu"]'); await sleep(100);
+    win.confirm = oc;
+    eq(row('iv_SELF_betsu').status, 'void', '前提：取り消しに なっていない');
+    const tab = [...doc.querySelectorAll('.bn')].find(b => b.getAttribute('data-scr') === 'scr-edit');
+    tab.click(); await sleep(20);
+    eq(st.cur && st.cur.status, 'void', '★入力が「発行済」の 写しに 戻った★');
+    eq($('e-subject').value, 'S 直した', '★取り消したら 打った 値が 黙って 消えた（X1）★');
+    ok(/取り消し済/.test($('edit-h').textContent), '★見出しが 取り消し済に なっていない★');
+    const c0 = sb._calls.length;
+    $('e-subject').value = 'S もっと'; $('e-subject').dispatchEvent(new win.Event('input'));
+    await sleep(1700); await kakusu();
+    const u = sb._calls.slice(c0).filter(c => c.table === 'pay_invoices' && c.op === 'upsert' && c.payload && c.payload.id === 'iv_SELF_betsu');
+    eq(u.filter(c => c.payload.status === 'issued').length, 0, '★取り消した 1通を「発行済」で 書こうとした★');
+  } finally {
+    win.confirm = oc;
+    for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === 'iv_SELF_betsu') db.pay_invoices.splice(i, 1);
+    if (st.ochita) delete st.ochita['iv_SELF_betsu'];
+  }
+  app._go('scr-list'); await sleep(40); await app._loadList(); hiraku(back); await sleep(20);
+});
+
+await TA('2-1m. ★入金の 欄の 打ちかけは「確認」を 閉じても・取り消しを やめても 消えない（taiketsu 10-23 4回目）', async () => {
+  const { st, ichiran, app, ireru, nuku } = betsu;
+  const back = st.cur.id;
+  await ireru();
+  const iss = Object.assign(sakuDr('iv_PAY_betsu', 'P-202', 'P の品'), { status: 'issued', totals: { grandTotal: 5500 } });
+  db.pay_invoices.push(iss);
+  const oc = win.confirm;
+  try {
+    await app._loadList(); await sleep(10);
+    hiraku('iv_PAY_betsu'); await sleep(20);
+    setVal('pay-amt', '888'); await sleep(10);
+    app._go('scr-list'); await sleep(40);
+    ichiran('[data-look="iv_G_betsu"]'); await sleep(40);
+    $('b-lv-back').click(); await sleep(10);
+    app._go('scr-edit'); await sleep(10);
+    eq($('pay-amt').value, '888', '★「確認」を 閉じたら 入金の 打ちかけが 消えた★');
+    app._go('scr-list'); await sleep(40);
+    win.confirm = () => false;
+    ichiran('[data-kesu="iv_PAY_betsu"]'); await sleep(60);
+    win.confirm = oc;
+    app._go('scr-edit'); await sleep(10);
+    eq($('pay-amt').value, '888', '★取り消しを やめたら 入金の 打ちかけが 消えた★');
+    /* 一覧で ★別の★ 発行済みを 取り消しても 消えない（taiketsu 10-23 5回目 PX1） */
+    db.pay_invoices.push(Object.assign(sakuDr('iv_PAY2_betsu', 'P-203', 'P2 の品'), { status: 'issued', totals: { grandTotal: 5500 } }));
+    await app._loadList(); await sleep(10);
+    app._go('scr-list'); await sleep(40);
+    win.confirm = () => true;
+    ichiran('[data-kesu="iv_PAY2_betsu"]'); await sleep(100);
+    win.confirm = oc;
+    eq(betsu.row('iv_PAY2_betsu').status, 'void', '前提：別の 1通が 取り消しに なっていない');
+    app._go('scr-edit'); await sleep(10);
+    ok(st.cur === st.gamen && st.cur.id === 'iv_PAY_betsu', '★別の 1通を 取り消したら 欄と S.cur が 食い違う★');
+    eq($('pay-amt').value, '888', '★別の 1通を 取り消したら 入金の 打ちかけが 消えた★');
+  } finally {
+    win.confirm = oc;
+    for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (/^iv_PAY2?_betsu$/.test(db.pay_invoices[i].id)) db.pay_invoices.splice(i, 1);
+  }
+  nuku(); app._go('scr-list'); await sleep(40); await app._loadList(); hiraku(back); await sleep(20);
+});
+
+await TA('2-1l. ★新しい 請求書の 最初の 保存の 返事の 前に「確認」→ 閉じて 打つ＝1通の まま 打った 値が 入る（S3）', async () => {
+  const { st, ichiran, kakusu, app, ireru, nuku } = betsu;
+  const back = st.cur.id;
+  await ireru();
+  app._go('scr-list'); await sleep(20);
+  $('b-new').click(); await sleep(30);
+  if (!$('e-partner').value) { setVal('e-partner', 'pt_b'); await sleep(10); }
+  const amt = () => $('lines-body').querySelector('[data-f="amount"]');
+  const nm = () => $('lines-body').querySelector('[data-f="name"]');
+  if (nm()) { nm().value = 'S3 の品'; nm().dispatchEvent(new win.Event('input')); }
+  amt().value = '1234'; amt().dispatchEvent(new win.Event('input'));
+  let modosu = osoku(st.store.invoices, 'saveDraft', 300);
+  let mine = [];
+  try {
+    await sleep(1560);
+    app._go('scr-list'); await sleep(5);
+    ichiran('[data-look="iv_G_betsu"]'); await sleep(500);
+    $('b-lv-back').click(); await sleep(10);
+    app._go('scr-edit'); await sleep(10);
+    ok(st.cur === st.gamen, '★欄と S.cur が 食い違う★');
+    ok(st.cur && st.cur.id, '★戻った 1通に id が 付いていない（2通目を 作る）★');
+    amt().value = '1235'; amt().dispatchEvent(new win.Event('input'));
+    await sleep(1700); await kakusu(); await sleep(400);
+    modosu(); modosu = null;
+    mine = db.pay_invoices.filter(r => (r.lines || []).some(l => /^123[45]$/.test(String(l.amount))));
+    eq(mine.length, 1, '★同じ 中身の 下書きが 2通に なった／入らなかった★');
+    eq(String(mine[0].lines[0].amount), '1235', '★打った 値が 入っていない★');
+    ok(!/既に使われています/.test($('edit-err').textContent), '★嘘の「番号が 使われています」が 出た★');
+  } finally {
+    if (modosu) modosu();
+    for (const r of db.pay_invoices.filter(r => (r.lines || []).some(l => /^123[45]$/.test(String(l.amount))))) db.pay_invoices.splice(db.pay_invoices.indexOf(r), 1);
+    if (st.ochita) for (const k of Object.keys(st.ochita)) delete st.ochita[k];
+  }
+  nuku(); app._go('scr-list'); await sleep(40); await app._loadList(); hiraku(back); await sleep(20);
+});
+
+await TA('2-1f. ★打って すぐ「複製」＝前の 1通の 直しは 前の 1通に 入る（s9）', async () => {
+  const { st, row, app } = betsu;
+  const aId = st.cur.id;
+  const n0 = db.pay_invoices.length;
+  const amt = $('lines-body').querySelector('[data-f="amount"]');
+  amt.value = '7777'; amt.dispatchEvent(new win.Event('input'));
+  $('b-copy').click(); await sleep(60);
+  eq(String(row(aId).lines[0].amount), '7777', '★複製の 前の 直しが 前の 1通に 入らない（黙って 捨てた）★');
+  ok(st.cur !== null && st.cur.id !== aId, '前提：複製に なっていない');
+  /* 後の 試験の 為に 片付ける（作られた 写しは 消す） */
+  app._go('scr-list'); await sleep(40);
+  for (let i = db.pay_invoices.length - 1; i >= n0; i--) db.pay_invoices.splice(i, 1);
+  await app._loadList();
+  hiraku(aId); await sleep(20);
 });
 
 /* ★取り消し済みでも 触れる★（司さん「一覧から 取り消して 入力画面はいると 何も触れない」） */
@@ -2088,8 +2492,11 @@ await TA('12-d. ★★見積→請求で 中身をそのまま引き継ぐ（人
   [...$('list-body').querySelectorAll('[data-open]')].find((b) => b.getAttribute('data-open') === quoteRow.id).click();
   await sleep(40);
   const qNo = st.cur.no;
+  /* ★見積→請求の 前に 直した 物は 見積に 入る★（入れ替える 前に しまう・2026-10-14） */
+  setVal('e-due', '2026-12-31');
 
   $('b-toinv').click(); await sleep(150);
+  eq(db.pay_invoices.find((x) => x.id === quoteRow.id).due_ymd, '2026-12-31', '★見積→請求の 前の 直しが 見積に 入らない（黙って 捨てた）★');
   eq(st.cur.doc_type, 'invoice', '★請求書になっていない★');
   eq(st.cur.status, 'draft', 'いきなり発行してしまっている');
   eq(st.cur.quote_from, quoteRow.id, 'どの見積から作ったかを持っていない');

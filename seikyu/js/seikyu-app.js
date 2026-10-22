@@ -98,6 +98,13 @@
   function lookClose() {
     var ov = $('lv-ov'); if (!ov) return;
     ov.classList.remove('open');
+    if (S.lookMae) {
+      var lm = S.lookMae;
+      S.cur = lm.cur; S.dirty = lm.dirty; S.lookMae = null;
+      /* ★窓を 開いている 間に 状態が 変わった 時だけ 描き直す★（発行の 返事が 来ると、閉じた 後も「下書き」の 画面が 残った・taiketsu 10-23）
+         ★変わっていなければ 描かない★＝描き直すと 入金の 欄の 打ちかけが 消え、日付が 今日に 戻った */
+      if (S.cur && S.cur === S.gamen && (S.cur.status !== lm.st || S.cur.id !== lm.id)) fillEdit();
+    }
     try { global.document.body.style.overflow = ''; } catch (e) { /* 端末差 */ }
   }
   function lookOpened() {
@@ -786,11 +793,23 @@
     var v = null;
     for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === id) v = S.invoices[i];
     if (!v) { box('list-err', 'この請求書が見つかりませんでした。「もっと」の中の「読み直す」を押してください。'); return; }
-    S.cur = JSON.parse(JSON.stringify(v));
+    /* ★入力で 直している その 1通なら 入れ替えない★（打った 値の 紙を 見せる・閉じても 打ち続けられる） */
+    var jibun = S.cur && S.cur === S.gamen && S.cur.id === id;
+    if (jibun) { try { collect(); } catch (e) { /* 欄が 読めなくても 紙は 出す */ } }
+    else {
+      /* ★閉じたら 前の 1通に 戻す★（入れ替えた まま 残すと、入力へ 戻った 時の「保存」が 別の 1通へ 行った） */
+      if (!S.lookMae) S.lookMae = { cur: S.cur, dirty: S.dirty, st: S.cur && S.cur.status, id: S.cur && S.cur.id };
+      S.cur = JSON.parse(JSON.stringify(v));
+      S.dirty = false;
+    }
     if (!S.cur.data) S.cur.data = {};
     if (!Array.isArray(S.cur.lines) || !S.cur.lines.length) S.cur.lines = [blankLine()];
     var pi = paperInput();
-    if (!pi) { box('list-err', 'この紙は まだ 中身が 整っていないので 出せません。「修正」から 直してください。'); return; }
+    if (!pi) {
+      /* ★窓を 開かずに 抜ける時も 前の 1通に 戻す★（戻さないと 欄と S.cur が 食い違い、打った物を 黙って しまわない・taiketsu 10-23） */
+      if (S.lookMae) { S.cur = S.lookMae.cur; S.dirty = S.lookMae.dirty; S.lookMae = null; }
+      box('list-err', 'この紙は まだ 中身が 整っていないので 出せません。「修正」から 直してください。'); return;
+    }
     var built = PAPER.build(pi);
     var f = $('lv');
     if (f) { f.onload = fitLook; f.srcdoc = built.html; }
@@ -811,10 +830,33 @@
     var v = null;
     for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === id) v = S.invoices[i];
     if (!v) return Promise.resolve();
+    var mae = { cur: S.cur, dirty: S.dirty };
     S.cur = JSON.parse(JSON.stringify(v));
-    if (DOC.canDelete(v) && v.id) return removeDraft().then(function () { renderList(); });
-    if (DOC.canVoid(v)) return voidIt().then(function () { renderList(); });
-    return Promise.resolve();
+    S.dirty = false;
+    var kopi = S.cur;
+    /* ★終わったら 前の 1通に 戻す★（消した 1通が 前の 1通 なら 戻さない＝空にする） */
+    var modosu = function () {
+      if (mae.cur && mae.cur.id && S.kieta && S.kieta[mae.cur.id]) { S.cur = null; S.dirty = false; return; }
+      /* ★開いている 1通 自身を 取り消した 時は 戻さない★（戻すと「発行済」の 古い 写しに 戻り、打つと 倉庫に 弾かれた・taiketsu 10-23） */
+      /* ★開いている 1通 自身を 取り消した 時は、打った 値は 捨てずに「取り消し済」に する★
+         （古い 写しで 戻すと「発行済」で 書いて 弾かれた／写しへ 替えると 打った 値と 知らせが 黙って 消えた・taiketsu 10-23） */
+      if (mae.cur && mae.cur.id && mae.cur.id === v.id) {
+        if (kopi.status === 'void') {
+          mae.cur.status = 'void';
+          var rec = S.ochita && S.ochita[v.id];
+          if (rec && rec.v) rec.v.status = 'void';
+        }
+        S.cur = mae.cur; S.dirty = mae.dirty;
+        /* 描き直すのは 取り消せた 時か 欄が 写しに なった 時だけ（何も 変わらない 時に 描くと 入金の 打ちかけが 消える） */
+        if (kopi.status === 'void' || S.cur !== S.gamen) fillEdit();
+        return;
+      }
+      S.cur = mae.cur; S.dirty = mae.dirty;
+      /* ★取り消しは 欄を 取り消した 1通で 描き直す★＝戻した 1通で 描き直して 欄と S.cur を 揃える（混ぜ物の 画面を 残さない・taiketsu 10-23） */
+      if (S.cur && S.gamen && S.cur !== S.gamen) fillEdit();
+    };
+    var p = (DOC.canDelete(v) && v.id) ? removeDraft() : DOC.canVoid(v) ? voidIt() : Promise.resolve();
+    return Promise.resolve(p).then(function () { modosu(); renderList(); }, function (e) { modosu(); throw e; });
   }
 
   function openInvoice(id) {
@@ -836,6 +878,8 @@
 
   function fillEdit() {
     var v = S.cur; if (!v) return;
+    S.gamen = v;                      // ★入力の 欄に 今 出ている 1通★（collect は この 1通にしか 読まない・2026-10-14）
+    S.lookMae = null;                 // ★欄を 描き直したら「確認」を 閉じても 前の 1通へ 戻さない★（戻すと 欄と S.cur が 食い違う・taiketsu 10-23）
     drawOchita();                     // ★保存できなかった 1通の 知らせは 描き直しでも 消さない★（2026-10-14）
     /* ★書類の 名前は 種類から 取る★（司さん 2026-09-08「出来てないものは全部やれ」で 見つけた）
        ★実測した 姿★＝「＋ 新しい見積書」で 作ったのに 入力画面の 見出しが ★「新しい請求書」★のまま。
@@ -1485,6 +1529,7 @@
     var q = S.cur;
     var why = toInvBlockReason();
     if (why) { box('edit-err', why); return Promise.resolve(); }
+    maeWoShimau();
     var draft = DOC.convertQuoteToInvoice(q);
     draft.issue_ymd = todayYmd();
     S.docType = 'invoice';
@@ -1511,6 +1556,7 @@
     if (!src || !src.id || !(src.lines || []).length) {
       box('edit-err', 'この紙には 写す中身がありません。'); return Promise.resolve();
     }
+    maeWoShimau();
     var from = src.no || '';
     var draft = DOC.duplicateDoc(src);
     draft.issue_ymd = todayYmd();
@@ -2590,8 +2636,12 @@
   }
 
   /* ── 保存・発行 ── */
+  /* ★★入力の 欄を 読むのは「欄に 出ている 1通」だけ★★（2026-10-14 taiketsu）
+     前は 一覧の「確認」「消す」が S.cur を 入れ替えた 後でも 欄を 読み、
+     ★前の 1通の 番号・請求日・件名を 別の 1通へ 書いていた★（知らせ 0）。 */
   function collect() {
     var v = S.cur;
+    if (!v || v !== S.gamen) return null;
     v.data.subject = $('e-subject').value;
     v.data.memo = $('e-memo').value;
     v.data.gensen = $('e-gensen').checked;
@@ -2653,9 +2703,16 @@
     v.lines = cleanLines(v.lines);
     v.totals = (t && t.ok) ? totalsOf(t) : {};
     var okuttaCur = S.cur;
+    if (v.id && S.kieta && S.kieta[v.id]) return;
     try {
-      S.store.invoices.saveDraft(v).then(function (r) {
-        if (r && r.ok) { if (S.cur && S.cur === okuttaCur) { S.cur.id = r.id; S.dirty = false; } ochiKesu(okuttaCur); return; }
+      S.hozonChu = S.store.invoices.saveDraft(v);
+      S.hozonChu.then(function (r) {
+        if (r && r.ok) {
+          /* ★id は 送った 1通に 付ける★（返事の 前に 別の 1通を 見ても、戻った 時に id が 無いと 同じ番号で 2通目を 作ろうとした・taiketsu 10-23） */
+          if (okuttaCur && !okuttaCur.id) okuttaCur.id = r.id;
+          if (S.cur && S.cur === okuttaCur) S.dirty = false;
+          ochiKesu(okuttaCur); return;
+        }
         ochita(okuttaCur, r);
       }).catch(function (e) { ochita(okuttaCur, { ok: false, reason: e && e.message }); });
     } catch (e) { ochita(okuttaCur, { ok: false, reason: e && e.message }); }
@@ -2681,7 +2738,7 @@
     r = r || {};
     if (S.cur === cur) box('edit-ok', '');
     S.ochita = S.ochita || {};
-    S.ochita[ochiKey(cur)] = { bun: hozonOchiBun(cur, r), dare: ochiDare(cur), v: JSON.parse(JSON.stringify(cur)) };
+    S.ochita[ochiKey(cur)] = { bun: hozonOchiBun(cur, r) + ' この直しは クラウドに 入っていないので、再読み込みすると 消えます。', dare: ochiDare(cur), v: JSON.parse(JSON.stringify(cur)) };
     drawOchita();
   }
   function ochiKesu(cur) {
@@ -2747,6 +2804,14 @@
     return '直した内容は まだ 保存されていません' + bango + '（' + (why || '理由不明') + '）。「保存」を押して もう一度 試してください。';
   }
   /* 打っている 間は 先延ばし、手が 止まったら しまう */
+  /* ★入力の 画面の 上で 1通を 入れ替える 前に（複製・見積→請求）、前の 1通を その 1通の id へ しまう★（打った物を 黙って 捨てない）
+     落ちても 1通ごとの 知らせ（S.ochita）に 打った 値ごと 残る。
+     ★入れ替えは 止めない★＝今の 倉庫（08-18 版の 凍結）では 発行済みの 保存が 必ず 落ちるので、止めると どの 1通も 開けなくなる。
+       凍結を 3列に 流した 後に「落ちたら 入れ替えない」へ 戻すかを もう一度 叩く（指示役 10-14）。 */
+  function maeWoShimau() {
+    if (jidoTimer) { clearTimeout(jidoTimer); jidoTimer = null; }
+    try { jidoHozon(); } catch (e) { /* 落ちても 入れ替えは 進める（知らせは ochita が 出す） */ }
+  }
   function jidoYoyaku() {
     if (jidoTimer) clearTimeout(jidoTimer);
     jidoTimer = setTimeout(function () { jidoTimer = null; jidoHozon(true); }, JIDO_MACHI);
@@ -2758,6 +2823,8 @@
   function saveDraft() {
     atoKesu();
     var v = collect();
+    if (!v) { box('edit-err', '入力の画面と 中身が 合っていないので 保存しませんでした。一覧の「修正」から 開き直してください。'); return Promise.resolve(); }
+    if (v.id && S.kieta && S.kieta[v.id]) { box('edit-err', 'この下書きは 削除しました。'); return Promise.resolve(); }
     var t = recalc();
     v.lines = cleanLines(v.lines);
     v.totals = (t && t.ok) ? totalsOf(t) : {};
@@ -2766,13 +2833,16 @@
     box('edit-err', '');
     box('edit-ok', '');               // ★前の「保存しました」を 残さない★（落ちた時に 並んで 出ていた・taiketsu 10-14）
     var okuttaCur = S.cur;
-    return Promise.resolve().then(function () { return S.store.invoices.saveDraft(v); }).then(function (r) {
+    var pr = Promise.resolve().then(function () { return S.store.invoices.saveDraft(v); });
+    S.hozonChu = pr;
+    return pr.then(function (r) {
       if (!r || !r.ok) {
         if (r && r.dup) { box('edit-err', 'この番号（' + v.no + '）は既に使われています。別の番号にしてください。'); return; }
         ochita(okuttaCur, r);
         return;
       }
       ochiKesu(okuttaCur);
+      if (okuttaCur && !okuttaCur.id) okuttaCur.id = r.id;   // ★id は 送った 1通に 付ける★（taiketsu 10-23）
       if (S.cur !== okuttaCur) return;   // 返事の 前に 別の 1通を 開いた＝今の 画面には 付けない
       S.cur.id = r.id;
       S.dirty = false;
@@ -2836,6 +2906,7 @@
        （同じ状態を2か所で別々に判定すると、必ずどこかで食い違う）。 */
     if (issueBlockReason()) { /* 下の検査が理由を出す */ }
     var v = collect();
+    if (!v) { box('edit-err', '入力の画面と 中身が 合っていないので 発行しませんでした。一覧の「修正」から 開き直してください。'); return Promise.resolve(); }
     var t = recalc();
     if (!t || !t.ok) { box('edit-err', '計算が通らないので発行できません。上の赤い印を直してください。'); return Promise.resolve(); }
     // ★自社情報が読めていないまま発行しない（写しに空の自社が固まる＝直せない紙になる）
@@ -2880,18 +2951,21 @@
       totals: totalsOf(t),
       snapshot: snap, template_id: tplId,
     });
+    /* ★返事の 後は 送った 1通（hakko）に 付ける★（返事の 前に 一覧で 別の 1通を 開くと、その 1通に 発行の 番号が 付き、
+       発行済みの 明細が 別の 1通の 明細で 上書きされた・taiketsu 10-23） */
+    var hakko = S.cur;
     return S.store.invoices.issue(row, at).then(function (r) {
       if (!r.ok) { box('edit-err', '発行できませんでした（' + r.reason + '）'); return; }
-      S.cur.id = r.id; S.cur.no = r.no; S.cur.status = 'issued'; S.cur.issued_at = at;
-      ochiKesu(S.cur);                 // ★発行で 中身も 倉庫に 入った＝「まだ 保存されていません」を 残さない★（taiketsu 10-14）
-      S.cur.snapshot = snap; S.cur.totals = row.totals;
+      hakko.id = r.id; hakko.no = r.no; hakko.status = 'issued'; hakko.issued_at = at;
+      ochiKesu(hakko);                 // ★発行で 中身も 倉庫に 入った＝「まだ 保存されていません」を 残さない★（taiketsu 10-14）
+      hakko.snapshot = snap; hakko.totals = row.totals;
       box('edit-ok', '請求書 ' + r.no + ' を発行しました。'
         + (r.bumped ? '（同じ番号が先に使われていたので ' + r.bumped + ' つ進めました）' : '')
         /* ★固まるのは 番号だけ★（中身は あとからでも 直せる） */
         + ' 中身は あとからでも 直せます。');
       /* ★次の 一手を その場に 出す★（2026-09-10）＝一覧へ 歩かせない */
       var ai = $('after-issue'); if (ai) ai.style.display = '';
-      return loadList({ ato: DOC.docLabel(v.doc_type || 'invoice') + ' ' + r.no + ' の 発行は できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { fillEdit(); });
+      return loadList({ ato: DOC.docLabel(v.doc_type || 'invoice') + ' ' + r.no + ' の 発行は できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { if (S.cur === hakko) fillEdit(); });
     });
   }
 
@@ -2902,9 +2976,9 @@
     if (!global.confirm('請求書 ' + (v.no || '') + ' を取り消しますか？\n（中身は残ります。番号は他で使えません）')) return Promise.resolve();
     return S.store.invoices.voidIt(v.id, new Date().toISOString()).then(function (r) {
       if (!r.ok) { box('edit-err', '取り消せませんでした（' + r.reason + '）'); return; }
-      S.cur.status = 'void';
+      v.status = 'void';               // ★送った 1通に 付ける★（返事の 前に 別の 1通を 開いても その 1通を「取り消し済」に しない・taiketsu 10-23）
       box('edit-ok', '取り消しました。');
-      return loadList({ ato: '取り消しは できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { fillEdit(); });
+      return loadList({ ato: '取り消しは できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { if (S.cur === v && S.gamen === v) fillEdit(); });   // ★欄に 出ている 1通の 時だけ 描く★（一覧から 別の 1通を 取り消すと 入金の 打ちかけが 消えた・taiketsu 10-23）
     });
   }
 
@@ -2913,8 +2987,16 @@
     var v = S.cur;
     if (!(DOC.canDelete(v) && v.id)) return Promise.resolve();
     if (!global.confirm('この下書きを削除しますか？')) return Promise.resolve();
-    return S.store.invoices.removeDraft(v.id).then(function (r) {
-      if (!r.ok) { box('edit-err', '削除できませんでした（' + r.reason + '）'); return; }
+    /* ★消した 下書きが 生き返らない様に★（2026-10-14 taiketsu）
+       前は 打って すぐ 消すと、予約して あった しまいが 消した 後に upsert して 生き返らせた */
+    S.kieta = S.kieta || {};
+    S.kieta[v.id] = true;
+    var chu = S.hozonChu;
+    return Promise.resolve(chu).then(function () { return null; }, function () { return null; }).then(function () {
+      return S.store.invoices.removeDraft(v.id);
+    }).then(function (r) {
+      if (!r.ok) { delete S.kieta[v.id]; box('edit-err', '削除できませんでした（' + r.reason + '）'); return; }
+      ochiKesu(v);
       return loadList({ ato: '下書きは 消せています（一覧から 消えるのは 読み込めてから です）。' }).then(function () { goScreen('scr-list'); });
     });
   }
@@ -4876,6 +4958,7 @@
         return;
       }
       S.cur.partner_id = $('e-partner').value;
+      S.dirty = true; jidoYoyaku();
       S.guessDone = false;          // 相手を変えたら、また前回から当て直す
       applyPartnerDefaults();
       /* ★取引先の既定（源泉の対象か・支払期限）を画面へ戻す★
@@ -4903,6 +4986,7 @@
     };
     $('e-issue').onchange = function () {
       S.cur.issue_ymd = $('e-issue').value;
+      S.dirty = true; jidoYoyaku();
       recalcDue();
       drawLeadHint();          // ★「◯年◯月分」は請求日から作る＝日付を変えたら言い直す
       return autoNumber();
@@ -4917,7 +5001,7 @@
       S.cur.data.term = { kind: $('e-term').value, n: Math.trunc(Number($('e-termn').value) || 0) };
       recalcDue();
     };
-    $('e-due').onchange = function () { S.cur.due_ymd = $('e-due').value; };
+    $('e-due').onchange = function () { S.cur.due_ymd = $('e-due').value; S.dirty = true; jidoYoyaku(); };
     /* ★税の入れ方・円未満の丸め方・紙の様式は「設定」で1回 決める★
        ＝入力の画面では聞かない（打つ前に選ばせない）。
        番号も ふだんは読むだけ。「変える」を押した時だけ自分で決める形にする。 */
@@ -4952,9 +5036,10 @@
       show($('e-no'), true);
       try { $('e-no').focus(); } catch (e) { /* 端末によっては動かないが害はない */ }
     };
-    $('e-no').oninput = function () { S.cur.no = $('e-no').value; setText('e-no-view', S.cur.no || '（自動）'); };
-    $('e-subject').oninput = function () { S.cur.data.subject = $('e-subject').value; };
-    $('e-memo').oninput = function () { S.cur.data.memo = $('e-memo').value; };
+    /* ★見出しの 欄も 直しかけの 印を 立てて しまう★（2026-10-14 taiketsu＝前は 件名・支払期日だけの 直しは 窓を 閉じると 消えた） */
+    $('e-no').oninput = function () { S.cur.no = $('e-no').value; setText('e-no-view', S.cur.no || '（自動）'); S.dirty = true; jidoYoyaku(); };
+    $('e-subject').oninput = function () { S.cur.data.subject = $('e-subject').value; S.dirty = true; jidoYoyaku(); };
+    $('e-memo').oninput = function () { S.cur.data.memo = $('e-memo').value; S.dirty = true; jidoYoyaku(); };
     $('b-addline').onclick = function () {
       S.cur.lines.push(blankLine());
       renderLines(); recalc(); lockInputs();
