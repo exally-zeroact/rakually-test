@@ -23,6 +23,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import v8 from 'node:v8';
+import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..', '..');
@@ -36,7 +38,16 @@ let pass = 0, fail = 0;
 const ok = (v, m) => { if (!v) throw new Error(m || 'false'); };
 const eq = (a, b, m) => { if (a !== b) throw new Error((m ? m + ': ' : '') + 'ほしい ' + b + ' / 出た ' + a); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const T = async (n, f) => { try { await f(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
+/* ★1件ごとに 窓を 閉じる★（2026-10-24 自己診断が 2.7GB まで 膨らみ 別の席の 網を 止めた＝jsdom の 窓を 開けっぱなしだった） */
+const MADO = [];
+/* ★閉じた後に 片付けを 呼ぶ★＝呼ばないと 1.2GB／呼ぶと 0.5GB（2026-10-24 実測）。CI でも 旗なしで 効くように ここで 開ける */
+v8.setFlagsFromString('--expose-gc');
+const GC = (() => { try { return vm.runInNewContext('gc'); } catch { return () => {}; } })();
+const tojiru = () => { while (MADO.length) { try { MADO.pop().close(); } catch { /* 閉じられなくても 次へ */ } } GC(); };
+const T = async (n, f) => {
+  try { await f(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); }
+  finally { tojiru(); }
+};
 
 const FILE = path.join(ROOT, 'seikyu/index.html');
 const TPL = require_(path.join(ROOT, 'seikyu/lib/seikyu-templates.js'));
@@ -52,6 +63,7 @@ async function boot(appSrc, tane) {
     runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/seikyu/index.html',
   });
   const win = dom.window, doc = win.document;
+  MADO.push(win);
   win.fetch = () => Promise.reject(new Error('no net'));
   win.alert = () => {}; win.confirm = () => true; win.scrollTo = () => {}; win.print = () => {};
   win.URL.createObjectURL = () => 'blob:fake';
@@ -359,6 +371,61 @@ async function run(label, appSrc) {
     eq(g.tplId, 'koujo', '★知らせと 違い 前の紙（' + MAE + '）が 使われた★');
     eq(g.cols, colsOfTpl('koujo'), '★控除の紙に 備考の列が 出た★');
   });
+  await T('G5 ★会社＝控除 → 取引先 A だけ ' + MAE + ' → A に 1通 発行 → A を「会社の既定のまま」に 戻す★ → 設定の行と 次の1通が どちらも 控除', async () => {
+    const r = await boot(appSrc, { org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) } });
+    await pickOrg(r, 'koujo');
+    await pickPartner(r, 'pt_a', MAE);
+    /* A に 1通 作って 発行（★客と 同じ道＝入力で 打って 保存 → 発行★） */
+    await tab(r, 'scr-list');
+    r.doc.getElementById('b-new').click();
+    await sleep(300);
+    const ep = r.doc.getElementById('e-partner');
+    ep.value = 'pt_a'; ep.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(250);
+    const row = r.doc.querySelector('#lines-body tr');
+    const setF = (k, v) => { const e = row.querySelector('[data-f="' + k + '"]'); if (!e || e.readOnly) return; e.value = v; e.dispatchEvent(new r.win.Event('input', { bubbles: true })); e.dispatchEvent(new r.win.Event('change', { bubbles: true })); };
+    setF('name', '工事代金'); setF('qty', '1'); setF('unit', '式'); setF('price', '30000'); setF('amount', '30000');
+    await sleep(100);
+    await r.A._saveDraftForTest();
+    await sleep(150);
+    await r.A._issue();
+    await sleep(300);
+    const hakko = r.S.invoices.find((x) => x.partner_id === 'pt_a' && x.status === 'issued');
+    ok(hakko, '前提：A の1通が 発行されていない: ' + (r.doc.getElementById('edit-err').textContent || ''));
+    eq(hakko.template_id, MAE, '前提：発行した紙の様式');
+    await sleep(20);
+    /* A を 会社の既定のまま に 戻して 保存 */
+    await tab(r, 'scr-set');
+    const sel = r.doc.getElementById('s-partner');
+    sel.value = 'pt_a'; sel.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(100);
+    const t = r.doc.getElementById('s-ptpl');
+    t.value = ''; t.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(100);
+    r.doc.getElementById('b-pt-save').click();
+    await sleep(250);
+    const gyo = r.doc.getElementById('s-pt-tpl-now').textContent;
+    eq(gyo, TPL.get('koujo').label, '★設定の「この取引先の紙」が 会社の既定に なっていない★');
+    const g = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(TPL.get(g.tplId).label, gyo, '★設定の行と 紙の様式が 食い違う★');
+    eq(g.cols, colsOfTpl('koujo'), '★控除の紙に 備考の列が 出た★');
+  });
+  await T('G6 ★見積書でも 前回の様式が 効く★（設定を 保存して いない会社・A に ' + MAE + ' の見積を 発行済み）', async () => {
+    const r = await boot(appSrc, { invoices: [Object.assign({}, GENBA_OLD, { id: 'q_old', doc_type: 'quote', no: 'Q-202608-001' })] });
+    await tab(r, 'scr-list');
+    const k = r.doc.querySelector('[data-kind="quote"]');
+    ok(k, '見積書の 切り替えが 無い');
+    k.click();
+    await sleep(300);
+    r.doc.getElementById('b-new').click();
+    await sleep(300);
+    eq(r.S.cur.doc_type, 'quote', '前提：見積書を 作っていない');
+    const ep = r.doc.getElementById('e-partner');
+    ep.value = 'pt_a'; ep.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(250);
+    eq(r.S.cur.template_id, MAE, '★見積書で 前回の様式が 効いていない★');
+    eq(r.doc.getElementById('tpl-strip-v').textContent, TPL.get(MAE).label, '入力の 今の紙');
+  });
   await T('G2 ★様式＝控除・相手だけの列＝' + MAE + '＋現場名（印の無い 古い列）★の相手 → 控除の紙に 備考を 出さない', async () => {
     const r = await boot(appSrc, {
       org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) },
@@ -424,12 +491,21 @@ if (!SELF) {
     ['相手だけの列を 様式を 見ずに 使う（止2）', '    return ptColsTpls(paper).indexOf(tpl) >= 0;', '    return true;'],
     ['時刻の 無い 会社でも 前回の様式を 当てる（止1）', '    if (kaishaEranda && !erandaAt) return null;', ''],
     ['下書きも「前回」に 数える（止A）',
-      "      if (x.status !== 'issued' || (x.doc_type || 'invoice') !== 'invoice') return false;"
-        + String.fromCharCode(10) + "      return !erandaAt || String(x.issued_at || '') > erandaAt;",
-      "      return !erandaAt || String(x.issued_at || x.updated_at || x.issue_ymd || '') > erandaAt;"],
+      "      if (x.status !== 'issued' || (x.doc_type || 'invoice') !== shurui) return false;"
+        + String.fromCharCode(10) + "      return !kijun || String(x.issued_at || '') > kijun;",
+      "      if ((x.doc_type || 'invoice') !== shurui) return false;"
+        + String.fromCharCode(10) + "      return !kijun || String(x.issued_at || x.updated_at || x.issue_ymd || '') > kijun;"],
+    ['種類を 請求書と 決め打ちする（止C）',
+      "(x.doc_type || 'invoice') !== shurui) return false;", "(x.doc_type || 'invoice') !== 'invoice') return false;"],
+    ['相手の 様式を 外した 時刻を 見ない（止B）',
+      '    var kijun = (ptAt > erandaAt) ? ptAt : erandaAt;', '    var kijun = erandaAt;'],
   ];
   let nige = 0, akaKei = 0;
-  for (const [na, mark, kae] of KOWASU) {
+  /* ★--only=N で 1通りだけ 回せる★（メモリを 抑える・1回ごとに node を 終わらせて 戻す） */
+  const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
+  const erabu = only ? KOWASU.filter((_, i) => String(i + 1) === only) : KOWASU;
+  if (only && !erabu.length) { console.log('  ★--only=' + only + ' の 壊し方が 無い（1〜' + KOWASU.length + '）★'); process.exit(2); }
+  for (const [na, mark, kae] of erabu) {
     if (keep.indexOf(mark) < 0) { console.log('  ★壊す場所が見つからない＝この自己診断は古い★ ' + na); process.exit(2); }
     const mae = fail;
     await run('わざと壊した：' + na, keep.replace(mark, kae));
@@ -438,9 +514,9 @@ if (!SELF) {
     console.log('  → ' + na + ' … 赤 ' + aka + '件');
     if (aka < 1) { nige++; console.log('  ✗ ★空振り★ ' + na); }
   }
-  console.log('\n  わざと壊した時に 赤になった数 … ' + akaKei + '件（' + KOWASU.length + '通り それぞれ 1件以上のはず）');
+  console.log('\n  わざと壊した時に 赤になった数 … ' + akaKei + '件（' + erabu.length + '通り それぞれ 1件以上のはず）');
   if (nige) console.log('  ✗ ★空振りです★ 壊しても赤にならない');
   else console.log('  ✓ ★壊したら赤になった＝この試験は本当に見張っています★');
-  console.log('KEKKA {"passed":' + (KOWASU.length - nige) + ',"failed":' + nige + ',"mimiso":0}');
+  console.log('KEKKA {"passed":' + (erabu.length - nige) + ',"failed":' + nige + ',"mimiso":0}');
   process.exit(nige ? 1 : 0);
 }

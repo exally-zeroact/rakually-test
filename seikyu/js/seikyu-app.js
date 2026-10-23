@@ -272,7 +272,9 @@
   /** ★この相手へ 前に 出した紙★（新しい順の 1通目）。無ければ null。 */
   function tplFromRireki(pid) {
     if (!pid) return null;
-    var ima = S.cur ? S.cur.id : null;
+    /* ★今 開いている 1通も 区別しない★（2026-10-24 taiketsu 止B）
+       ＝前は 開いている 1通（S.cur）を 外していたので、★開いている 紙に よって 設定の 行が 変わった★。
+         数えるのは 発行済みだけ＝開いている 下書きは もともと 数えない。同じ 材料なら 同じ 答え。 */
     /* ★会社の設定で 様式を 選んだ 後は、それより 前に 出した紙の 様式を 当てない★
        （2026-10-23 司さん「設定で 項目と金額だけ＋控除 を 選んでいるのに 備考が 入っている」）
        ＝前に genba で 出した 相手だと、今 選んだ 様式より ★前回の 様式が 勝っていた★。
@@ -291,10 +293,19 @@
          その取引先を 会社の既定に 戻す と、★残った 下書きが「前回」として 勝ち★
          設定は「会社の既定」と 出るのに 新しい1通は genba・備考の列 だった。
          下書き・取り消し済み・見積は 出した紙では ない。比べるのは 発行した 時刻（issued_at）。 */
+    /* ★相手の 様式を 付けた・外した 時刻（paper.templateAt）も 同じに 扱う★（2026-10-24 taiketsu 止B）
+       ＝相手だけ genba で 発行 → 相手を「会社の既定のまま」に 戻す と、外した 時刻が どこにも 無く
+         ★その 発行済みが「前回」として 勝ち★ 設定の 行（控除／会社の既定）と 紙（genba）が 食い違った。
+       ⇒ 会社の 時刻と 相手の 時刻の ★新しい方より 後に 発行した 紙だけ★を 前回に 数える。 */
+    var ptAt = String(((SCOPE ? SCOPE.partnerPaper(partnerById(pid)) : {}).templateAt) || '');
+    var kijun = (ptAt > erandaAt) ? ptAt : erandaAt;
+    /* ★種類は 今の 一覧の 種類と 比べる★（2026-10-24 taiketsu 止C）＝見積は 見積の 前回、請求書は 請求書の 前回。
+       （前は 'invoice' と 決め打ちで、見積書の 画面では 前回の 様式が まったく 効かなかった） */
+    var shurui = S.docType || 'invoice';
     var mine = (S.invoices || []).filter(function (x) {
-      if (!(x.partner_id === pid && x.id !== ima && x.template_id && TPL.get(x.template_id))) return false;
-      if (x.status !== 'issued' || (x.doc_type || 'invoice') !== 'invoice') return false;
-      return !erandaAt || String(x.issued_at || '') > erandaAt;
+      if (!(x.partner_id === pid && x.template_id && TPL.get(x.template_id))) return false;
+      if (x.status !== 'issued' || (x.doc_type || 'invoice') !== shurui) return false;
+      return !kijun || String(x.issued_at || '') > kijun;
     }).sort(function (a, b) { return String(b.issue_ymd || '').localeCompare(String(a.issue_ymd || '')); });
     if (!mine.length) return null;
     /* ★名前は 今 選んでいる相手から 取る★（古い1通から 引くと、その相手が 消えている時に
@@ -5168,6 +5179,9 @@
     var out = {};
     var tpl = $('s-ptpl') ? $('s-ptpl').value : '';
     if (tpl && TPL.get(tpl)) out.template = tpl;
+    /* ★様式を 付けた・外した 時刻を 持つ★（2026-10-24 taiketsu 止B）＝それより 前に 発行した 紙は「前回」に 数えない */
+    if ((now.template || '') !== (out.template || '')) out.templateAt = new Date().toISOString();
+    else if (now.templateAt) out.templateAt = now.templateAt;
     var rows = $('s-prows') ? String($('s-prows').value).trim() : '';
     if (rows !== '') {
       var n = Number(rows);
