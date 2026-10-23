@@ -125,8 +125,10 @@ const PROBE = `
 
 /* ★畳んである物を 開いてから測るための指定★（1か所に持つ）
    ★ここに足す物は 見張りが名前で教えてくれる★＝「測れていない … 隠しているのは div.acc-body」
-   （2026-08-27 実測：給与の入力の 非課税の入/切が acc-body の中で 0×0 だった）。 */
-const OPEN_ALL = "<style>.screen{display:block!important}details>*{display:block!important}[hidden]{display:block!important}[style*=\"display:none\"]{display:block!important}.hide{display:block!important}.acc-body{display:block!important}</style>";
+   （2026-08-27 実測：給与の入力の 非課税の入/切が acc-body の中で 0×0 だった）。
+   ★.set-panel★（2026-10-23）＝請求書の 設定を 3つの 切り替えに 分けた（司さん ⑥）。
+     選んでいない 切り替えの 中（年が変わったら1に戻す・繰越 の 入/切）が 0×0 だった。 */
+const OPEN_ALL = "<style>.screen{display:block!important}details>*{display:block!important}[hidden]{display:block!important}[style*=\"display:none\"]{display:block!important}.hide{display:block!important}.acc-body{display:block!important}.set-panel{display:block!important}</style>";
 
 const OUT = fs.mkdtempSync(path.join(os.tmpdir(), 'inputsize-'));
 

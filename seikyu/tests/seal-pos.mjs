@@ -319,6 +319,9 @@ const ui = await pg.evaluate(async (seal) => {
   A._go('scr-set');
   A._fillSettings();
   A._bindForTest();
+  /* ★2026-10-23 設定を 3つに 分けた★（司さん ⑥）＝角印は「自社情報」の 中。
+     お客さんと 同じく その 切り替えを 開いてから 印の 場所を 触る（開かないと 紙の 枠が 0px＝測れない）。 */
+  if (A._showSetSegForTest) A._showSetSegForTest('jisha');
   const box = d.getElementById('seal-pos-box');
   if (box) box.open = true;
   A._sealStageForTest();

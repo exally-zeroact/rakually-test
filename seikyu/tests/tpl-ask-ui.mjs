@@ -170,6 +170,10 @@ async function bootSet(appSrc, tane) {
   ok(tab, '設定のタブが 無い');
   tab.click();
   await sleep(400);
+  /* ★2026-10-23 設定を 3つに 分けた★（司さん ⑥）＝紙の 様式は「テンプレート」の 中。
+     ★お客さんと 同じ道★＝その 切り替えを 押す（押さないと 見本の 枠は 隠れたまま＝形が 0px で 測れない）。 */
+  const seg = r.doc.querySelector('#set-seg [data-setseg="tpl"]');
+  if (seg) { seg.click(); await sleep(100); }
   /* ★2026-09-10 6枚の 絵は 畳みました★（設定の 先頭 1,289px＝1.5画面ぶんを 占めていた）
      ＝今の紙は 1行で 見え、「変える」を 押した時だけ 絵が 出る。
      ★お客さんと 同じ道を 通す★＝ここで その ボタンを 押す。 */

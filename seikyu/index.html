@@ -14,10 +14,10 @@
 <link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png?v=c6856bdb">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- ★字体の CSS は給与と同じ手元の1枚（外の CSS を待って画面が止まっていた・中の訳は kyuyo/css/fonts-google.css の頭） -->
-<link rel="stylesheet" href="../kyuyo/css/fonts-google.css?v=dd958b50">
+<link rel="stylesheet" href="../kyuyo/css/fonts-google.css?v=0">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=dd958b50">
-<link rel="stylesheet" href="css/app.css?v=dd958b50">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=e9ad2c44">
+<link rel="stylesheet" href="css/app.css?v=e9ad2c44">
 </head>
 <body>
 
@@ -463,6 +463,23 @@
 
   <!-- ═══ ③ 設定 ═══ -->
   <section class="screen" id="scr-set">
+    <!-- ★★設定は 3つに 分ける★★（司さん 2026-10-23 ⑥「設定の中身も 代行請求書アプリのように 分かりやすく、
+         会社マスタや 自社情報など ちゃんと 分けろ」）
+         手本＝代行請求書（daikou-seikyu.html）の 設定＝上に 切り替え 3つ（横いっぱい）・中身は 1つずつ。
+         前は ★縦1列に 9枚の 札★＝相手の 事・自分の 会社の 事・紙の 決めが 混ざって 並んでいた。
+           ・取引先     … 相手の 一覧（会社ごとの 札・開いて 直す・足す）＋ この相手だけの紙
+           ・自社情報   … 紙に 刷られる 自分の 会社（表示と 直す 道）・お振込先・角印・自社の Excel
+           ・テンプレート … 紙の 様式・紙の 作りの 質問・行数・列・番号など 紙の 決め
+         ★前に 在った 欄は 1つも 消していない★（置き場所を 分けただけ・id も 動きも 前のまま）。
+         ★見張り★ seikyu/tests/settei-wake-ui.mjs（前の 欄 101個を 数えて 落ち 0）。
+         ★色は Rakunally の 緑のまま★（手本の 青は 持ち込まない）。
+         ★名前は .set-seg★＝皮（css/rakunally-ui.css）の .seg（丸い 札）とは 別の 物。 -->
+    <div class="set-seg" id="set-seg" role="tablist" aria-label="設定の中身">
+      <button class="set-seg-b on" type="button" role="tab" aria-selected="true" data-setseg="torihiki">取引先</button>
+      <button class="set-seg-b" type="button" role="tab" aria-selected="false" data-setseg="jisha">自社情報</button>
+      <button class="set-seg-b" type="button" role="tab" aria-selected="false" data-setseg="tpl">テンプレート</button>
+    </div>
+    <!-- ★紙の下見は 3つ 共通★（取引先の紙・角印・様式・行数・列の どれを 変えても ここが 変わる）＝切り替えの 外に 置く -->
     <!-- ★触るたびに 紙が変わるのを その場で見せる★（司さん 2026-08-31
          「詳細決めたりテンプレ決めるところに 見せてあげて タイムラインで変えて見せな分からんやろが」）
          ＝様式・行数・列・印を いじると ここの紙が すぐ変わる。★本物の紙★（作り物の絵ではない）。 -->
@@ -484,452 +501,486 @@
         <p class="hint" id="set-pv-note">下で 様式・行数・列・印を変えると、この紙が すぐ変わります。</p>
       </div>
     </div>
-    <!-- ★★2026-09-10 いちばん上へ 上げました★★
-         ★実測★ 前は 7枚目・上から ★2,909px＝3.4画面目★＝
-           会社名も 住所も 入れていない人が、先に「紙の様式」「番号の形」
-           「控除の合計の呼び名」を 読まされていた。
-         設定を 開いて まず 見るのは ★自分の会社の 何が 紙に 出るか★。 -->
-    <!-- ★今 紙に刷られる自社の情報を そのまま見せる★（司さん 2026-08-17）
-         前は「別のアプリの画面が本体です」と ★置き場所の説明だけ★ を出していて、
-         ★自分の会社の何が刷られるのか この画面では分からなかった★。
-         ★直すのは1か所★（給与と同じ物を使うので ここでは直さない）＝二重に持たない。 -->
-    <div class="card">
-      <div class="card-h">自社の情報（紙に刷られる物）</div>
-      <div id="org-view"></div>
-      <p class="hint">会社の情報は 1か所にまとめています。直すと 他の紙にも同じように出ます。</p>
-      <div class="btn-row">
-        <!-- ★飛び先は Rakunally の入口の「共有データ＞会社」。会社マスタは1か所だけ（二つ目の編集を作らない）★ -->
-        <a class="btn-ghost" style="text-decoration:none;display:inline-block" href="../index.html#kaisha?back=seikyu">会社の情報を直す</a>
+
+    <!-- ═══ 取引先 ═══ -->
+    <div class="set-panel on" data-setseg="torihiki" id="set-p-torihiki" role="tabpanel">
+      <div class="card">
+        <div class="card-h">取引先</div>
+        <p class="hint">請求書を出す相手の一覧です。押すと開いて、敬称・住所・支払いの約束・この相手だけの紙を決められます。</p>
+        <!-- ★1社ずつ 選ぶ 選び箱は やめた★（司さん 2026-10-23 ⑥＝手本の 会社マスタと 同じ 札の 一覧）
+             ★s-partner は 中で 動く 相手の 印として 残す★（見せない）＝前の 関数は ぜんぶ これを 読む。 -->
+        <select class="finput" id="s-partner" style="display:none" aria-hidden="true" tabindex="-1"></select>
+        <div class="pt-cards" id="pt-cards"></div>
+        <!-- ★取引先を ここでも 足せる★（入力の「＋ 新しい相手を作る」と 同じ 倉庫の 道＝名前 1つだけ聞く） -->
+        <div class="pt-add">
+          <input class="finput" id="pt-add-name" type="text" placeholder="足す会社名（例：見本商事）" aria-label="足す取引先の会社名">
+          <button class="btn-add" type="button" id="b-pt-add">＋ 取引先を追加</button>
+        </div>
+        <div class="ok" id="pt-list-ok" style="display:none"></div>
+        <div class="bad" id="pt-list-err" style="display:none"></div>
+      </div>
+      <!-- ★開いた 札の 中身★＝1組だけ 持ち、開いた 札へ 移す（札の 数だけ 欄を 作らない＝2か所で 別々に 持たない）。
+           閉じている 間は ここで 預かる（見せない）。 -->
+      <div id="pt-park" style="display:none">
+        <div class="pt-editor" id="pt-editor">
+          <!-- ★空欄を並べない★（司さん 2026-08-16「聞いてあげる。埋めさせない。」）
+               前は ★8つの空欄を一度に見せて★ いた。ここを ★1問ずつ★に変えた。
+               ・当てられる物は当てて ★根拠を見せる★（押すと出る）
+               ・前に出た値は ★よく出る順★で候補にする
+               ・★1問 答えるたびに保存★する（まとめて保存を待たせない）
+               ・★別ウィザードは作らない★＝この画面 そのものが対話
+               ・ぜんぶ直したい人のために「ぜんぶ見る」を下に置く（★消していない★）
+               ★郵便番号と電話番号の欄は外した★＝紙にも Excel にも 0箇所（2026-08-18 実測）。
+                 ★倉庫の値は消していない★（すでに入れた人の物はそのまま残る）。 -->
+          <!-- ★この取引先に 今 出る紙★（「ぜんぶ見る」を 開かなくても 見える・2026-10-23） -->
+          <div class="tpl-now" id="s-pt-tpl-row" style="display:none">
+            <span class="tpl-now-k">この取引先の紙</span>
+            <span class="tpl-now-v" id="s-pt-tpl-now">—</span>
+            <button class="mini" type="button" id="b-pt-tpl-open">変える</button>
+          </div>
+          <p class="hint" id="s-pt-tpl-why" style="display:none"></p>
+          <div id="pt-ask-set"></div>
+          <details class="pt-all" id="pt-all">
+            <summary>ぜんぶ見る（聞かれていない物も ここで直せます）</summary>
+            <div class="frow2">
+              <div class="frow">
+                <div class="flabel">敬称</div>
+                <select class="finput" id="s-phonor">
+                  <option>御中</option><option>様</option><option>（なし）</option>
+                </select>
+              </div>
+              <div class="frow">
+                <div class="flabel">担当者</div>
+                <input class="finput" id="s-pperson" type="text" placeholder="例：山田">
+              </div>
+            </div>
+            <div class="frow">
+              <div class="flabel">住所</div>
+              <input class="finput" id="s-paddr" type="text" placeholder="例：東京都架空区見本台1-1">
+              <p class="hint">自社の Excel の様式を使う時だけ 出ます。</p>
+            </div>
+            <!-- ★聞く順からは外したが 画面からは消さない★（指示役 2026-08-18）
+                 ＝入れてある会社が「無くなった」と思う／郵送・電話に使う人が居る。
+                   紙にも Excel にも出ない事は ここに正直に書く。 -->
+            <div class="frow2">
+              <div class="frow">
+                <div class="flabel">郵便番号</div>
+                <!-- ★2026-09-10★ 数字キーパッドでは「-」が 打てない＝ふつうの キーボードに 戻す。 -->
+                <input class="finput" id="s-pzip" type="text" placeholder="例：100-0000">
+              </div>
+              <div class="frow">
+                <div class="flabel">電話番号</div>
+                <!-- ★2026-09-10 逆だった★＝電話なのに フルキーボード。tel なら「-」付きの テンキー。 -->
+                <input class="finput" id="s-ptel" type="tel" placeholder="例：090-0000-0000">
+              </div>
+            </div>
+            <p class="hint">郵便番号と電話番号は 出ません（連絡用の控えです）。</p>
+            <div class="frow2">
+              <div class="frow">
+                <div class="flabel">取引先コード</div>
+                <input class="finput" id="s-pcode" type="text" placeholder="例：A001">
+              </div>
+              <div class="frow">
+                <div class="flabel">いつまでにもらう約束</div>
+                <select class="finput" id="s-pterm"></select>
+                <input class="finput num" id="s-ptermn" type="text" inputmode="numeric" placeholder="日数" style="margin-top:6px;display:none">
+              </div>
+            </div>
+            <div class="frow">
+              <div class="flabel">この相手のインボイス登録番号</div>
+              <input class="finput" id="s-pinvoice" type="text" inputmode="numeric" placeholder="T のあと 13桁">
+              <p class="hint" id="s-pinvoice-hint">紙には出ません。控えとして持っておく欄です。</p>
+            </div>
+            <div class="frow">
+              <label class="check"><input type="checkbox" id="s-pgensen"><span>この取引先は源泉徴収の対象（新しく作る1通に最初から入る）</span></label>
+              <p class="hint">対象かどうかは相手（払う側）が決めます。1通ごとに変える時は、入力の「細かく決める」から。</p>
+            </div>
+            <!-- ★この相手だけの紙★（司さん 2026-08-29
+                 「これは取引先ごとに請求書の様式をちゃんと設定できてる前提やけど その認識で合ってるか？」
+                  ＋「そのパターンは例野工業だけやし代行や空調系はまた違うやろ」）
+                 ★何も選ばなければ 会社の既定のまま＝今までと 1ドットも 変わらない★ -->
+            <div class="frow">
+              <div class="flabel">この相手だけの紙</div>
+              <p class="hint">何も選ばなければ 会社の既定のままです。この相手にだけ 違う紙で出す時に使います。</p>
+              <div class="frow2">
+                <div class="frow">
+                  <div class="flabel">様式</div>
+                  <select class="finput" id="s-ptpl"></select>
+                </div>
+                <div class="frow">
+                  <div class="flabel">明細の行数</div>
+                  <input class="finput num" id="s-prows" type="text" inputmode="numeric" placeholder="空＝会社の既定">
+                </div>
+              </div>
+              <!-- ★この相手に出す口座★（2026-09-02・実物45枚を読んだ＝相手ごとに 1〜6行で 違っていた）
+                   ★空欄を並べない★＝会社の設定に在る口座を そのまま 出して 選ばせるだけ（打たせない）。
+                   何も選ばなければ 全部＝今までと同じ。 -->
+              <div class="frow">
+                <div class="flabel">この相手に出す口座</div>
+                <div id="s-pbanks"></div>
+                <p class="hint" id="s-pbanks-why"></p>
+              </div>
+              <div class="frow">
+                <div class="flabel">件名を紙に出す</div>
+                <select class="finput" id="s-psubject">
+                  <option value="">会社の既定のまま</option>
+                  <option value="on">出す</option>
+                  <option value="off">出さない</option>
+                </select>
+              </div>
+              <div class="frow">
+                <div class="flabel">明細の列</div>
+                <div class="btn-row">
+                  <button class="btn-ghost" type="button" id="b-pcols-own">この相手だけの列にする</button>
+                  <button class="btn-ghost" type="button" id="b-pcols-clear" style="display:none">会社の既定に戻す</button>
+                </div>
+                <p class="hint" id="s-pcols-hint">今は 会社の既定の列です。</p>
+              </div>
+            </div>
+            <!-- ★取引先を足すのは この画面の「＋ 取引先を追加」と 入力の画面（だれに）★＝ここから外のアプリへ出さない -->
+            <div class="btn-row">
+              <button class="btn-primary" type="button" id="b-pt-save">この取引先を保存</button>
+            </div>
+          </details>
+          <div class="ok" id="pt-ok" style="display:none"></div>
+          <div class="bad" id="pt-err" style="display:none"></div>
+        </div>
       </div>
     </div>
 
-    <!-- ★★2026-09-10 6枚の 絵を 畳みました★★
-         ★実測★ この札だけで 縦 ★1,289px（1.5画面ぶん）★＝設定の 先頭を 丸ごと 占めていた
-           （A4の 絵 2列×3行。様式は 6つ）。ふだん 触らない 物が いちばん 上に 大きく 在った。
-         ⇒ ★今の 紙を 1行で 見せて、「変える」を 押した時だけ 6枚の 絵を 出す★。
-           ★見本は 入力画面の tpl-strip と 同じ 形★（新しい 部品を 作っていない）。 -->
-    <div class="card" id="s-tpl-card">
-      <div class="card-h">紙の様式</div>
-      <div class="tpl-now">
-        <span class="tpl-now-k">今の紙</span>
-        <span class="tpl-now-v" id="s-tpl-now">—</span>
-        <button class="mini" type="button" id="b-tpl-open" aria-expanded="false" aria-controls="s-tpl-box">変える</button>
-      </div>
-      <div id="s-tpl-box" style="display:none">
-        <p class="hint">紙の見た目だけが変わります（金額は1円も変わりません）。</p>
-        <div class="seg" id="s-tpl"></div>
-        <!-- ★同じ事を2回 言わない★ 「見た目だけ・金額は変わらない」は
-             下の s-tpl-note が選んだ様式の説明と一緒に出している（2026-08-15 スクショで重複を発見）。 -->
-        <p class="hint" id="s-tpl-note"></p>
-      </div>
-      <!-- ★会社の既定と 取引先ごとの紙の 関係を 言う★（2026-10-23） -->
-      <p class="hint" id="s-tpl-pt"></p>
-    </div>
-
-    <!-- ★既定で正しく動く物は 出しっぱなしにしない★（司さん 2026-08-16 ⑥）
-         ・紙の行数 … 既定は ★A4 1枚に収まる数を実測して★ 入れてある＝ふだん触らない
-                      （2枚になった時だけ 入力の画面から「枠を増やす」で ここへ飛べる）
-         ・明細の列 … ★列を足したい会社だけ★ が触る
-         ★畳むだけで 消さない★（押せば出る）。★開いた時に見える設定を減らす★のが狙い。 -->
-    <!-- ★紙の作りを ここで1問ずつ聞く★（司さん 2026-08-16／指示役の順番 ⑤⑥）
-         ★聞く前に 数える★＝もう作った請求書を数えて
-           「この列、◯通で1度も使っていません。消しますか？」
-           「明細はいちばん多い月で◯行。枠は◯行で足ります。」
-         ★材料が足りない時（3通未満）は 何も出ない★／答え終われば 自分で消える。
-         ★下の「詳しい設定」と 同じ値の 2つの見え方★（別ウィザードを作らない）。 -->
-    <div class="card" id="paper-ask-card" style="display:none">
-      <div class="card-h">紙の作りで 決められる事が あります</div>
-      <div id="paper-ask"></div>
-    </div>
-
-    <details class="card more" id="set-more">
-      <summary class="more-s">詳しい設定（紙の行数・明細の列）</summary>
-
-      <div class="sub-h">紙の行数</div>
-      <p class="hint">明細が少ない月でも、枠の分だけ空の行を残して刷ります。</p>
-      <div class="frow2">
-        <div class="frow">
-          <div class="flabel">明細の枠（行）</div>
-          <input class="finput" id="s-rows" type="number" min="0" max="60" step="1" inputmode="numeric" placeholder="既定">
-        </div>
-        <!-- ★控除の枠は 控除を出す様式の時だけ★（司さん 2026-09-05
-             「今 控除ないやつ 選んどんのに 控除があるし」）
-             ＝控除を 出さない様式を 選んでいる間は 出さない（消しはしない＝控除を使い出したら 戻る） -->
-        <div class="frow" id="s-dedrows-row">
-          <div class="flabel">控除の枠（行）</div>
-          <input class="finput" id="s-dedrows" type="number" min="0" max="30" step="1" inputmode="numeric" placeholder="既定">
-        </div>
-      </div>
-      <p class="hint" id="s-rows-note"></p>
-
-      <div class="sub-h">明細の列</div>
-      <p class="hint">請求書に並べる列は、会社ごとに自由に決められます。足す・消す・並べ替える・幅を変える・揃えを変える。知らない名前の列（例：行き先・距離・担当者）も足せます。</p>
-      <div id="col-list"></div>
-      <div class="btn-row">
-        <input class="finput" id="col-new" type="text" placeholder="例：行き先" style="flex:1 1 150px">
-        <button class="btn-ghost" type="button" id="b-col-add">＋ 列を足す</button>
-        <button class="btn-ghost" type="button" id="b-col-reset">様式の既定に戻す</button>
-        <!-- ★様式を変えた時に 自分で決めていた列を 黙って 捨てない★（2026-09-05） -->
-        <button class="btn-ghost" type="button" id="b-col-undo" style="display:none">前の列に戻す</button>
-      </div>
-      <p class="why" id="col-why"></p>
-      <div class="ok" id="col-ok" style="display:none"></div>
-      <div class="bad" id="col-err" style="display:none"></div>
-    </details>
-
-    <div class="card">
-      <div class="card-h">請求書の決まり</div>
-      <!-- ★請求番号を 紙に 出すか★（司さん 2026-09-09「請求番号を除ける設定がない」）
-           ★2026-09-10 ここへ 上げた★＝前は「紙の書き方（言い方と並び）」の
-           ★畳んだ 引き出しの 中★に 在り、司さんが 探して 見つけられなかった。
-           ★司さん「番号の形の 上に しろよ」★＝出すか どうかが 先、形は その次。
-           ★既定は 出す★＝今 出ている物を 黙って 消さない。
-           ★番号を 付けるのは 止めない★＝紙に 書くかどうかだけ
-             （同じ番号を 二度 使わない為に 番号そのものは 要る）。 -->
-      <div class="frow">
-        <div class="flabel">請求番号を紙に出す<span class="hint2">紙の右上「No.」</span></div>
-        <select class="finput" id="s-no">
-          <option value="">出す（既定）</option>
-          <option value="off">出さない</option>
-        </select>
-      </div>
-      <div class="frow">
-        <div class="flabel">番号の形</div>
-        <select class="finput" id="s-format"></select>
-        <p class="hint" id="s-format-hint"></p>
-      </div>
-      <div class="frow">
-        <label class="flabel" style="display:block">
-          <input type="checkbox" id="s-reset"> 年（または年月）が変わったら 1 に戻す
-        </label>
-        <p class="hint">戻さない場合は、年をまたいでも通し番号が続きます。どちらでも 同じ番号を 二度 出すことはありません。</p>
-      </div>
-      <div class="frow2">
-        <div class="frow">
-          <div class="flabel">税の入れ方（既定）</div>
-          <select class="finput" id="s-taxmode">
-            <option value="exclusive">外税</option>
-            <option value="inclusive">内税</option>
-          </select>
-        </div>
-        <div class="frow">
-          <div class="flabel">円未満の丸め方（既定）</div>
-          <select class="finput" id="s-round"></select>
-        </div>
-      </div>
-      <p class="hint">決めるのは 丸め方だけです（税率ごとの合計は 国の定めどおり）。</p>
-      <div class="frow">
-        <label class="check"><input type="checkbox" id="s-carry"><span>紙に「繰越」を出す（前回請求額・入金額・繰越額）</span></label>
-        <p class="hint" id="s-carry-hint">毎月まとめて払われる相手に使います。入金が読めない時は、0と書かず「未確認」と出します。</p>
-      </div>
-      <div class="frow">
-        <label class="check"><input type="checkbox" id="s-voidpay" checked><span>取り消した請求書に残っている入金を、同じ取引先のほかの請求書に充てる</span></label>
-        <p class="hint">入れると、返金を記録するまで相手から預かっている額として数えます（取り消して出し直しても二重に請求しません）。切ると、取り消した請求書の入金は無かったものとして数えます。一覧の入金の状態と繰越の両方に効きます。切の時、取り消した請求書の入金を返金した記録がある取引先は、どの返金か分からないので「未確認」にして発行を止めます。</p>
-      </div>
-      <!-- ★お振込先は 1口座＝銀行名・支店・種類・口座番号・名義に 分けて 打つ★
-           （司さん 2026-09-10「銀行口座の 入れ方を ★分けて いれさせろ★／
-             銀行名、支店、口座番号、名前」）
-           ★倉庫の 形も 紙も 変えない★＝つないで 1口座＝1行で しまう。
-           前の 一言（司さん 2026-09-10）
-           「振込先を 今の 設定からだと ★どこで 改行など 分からん★から ちゃんとして
-             それと ★2個 表示する時用で 追加ボタンで また 入力する★ようにしろ」）
-           ★前は 1つの 大きな 欄★で、どこで 行が 分かれるか 打つ人に 分からなかった。
-           ⇒ 1口座 1行の 欄を 並べ、「＋ 口座を 足す」で 増やす。
-             ★倉庫の 形は 変えない★＝つないで 改行1つで しまう（bankLines が そのまま 読む）。 -->
-      <div class="frow">
-        <div class="flabel">お振込先（紙に出ます）<span class="hint2">1つの口座＝紙の1行</span></div>
-        <div id="s-bank-list"></div>
+    <!-- ═══ 自社情報 ═══ -->
+    <div class="set-panel" data-setseg="jisha" id="set-p-jisha" role="tabpanel">
+      <!-- ★★2026-09-10 いちばん上へ 上げました★★
+           ★実測★ 前は 7枚目・上から ★2,909px＝3.4画面目★＝
+             会社名も 住所も 入れていない人が、先に「紙の様式」「番号の形」
+             「控除の合計の呼び名」を 読まされていた。
+           設定を 開いて まず 見るのは ★自分の会社の 何が 紙に 出るか★。 -->
+      <!-- ★今 紙に刷られる自社の情報を そのまま見せる★（司さん 2026-08-17）
+           前は「別のアプリの画面が本体です」と ★置き場所の説明だけ★ を出していて、
+           ★自分の会社の何が刷られるのか この画面では分からなかった★。
+           ★直すのは1か所★（給与と同じ物を使うので ここでは直さない）＝二重に持たない。 -->
+      <div class="card">
+        <div class="card-h">自社の情報（紙に刷られる物）</div>
+        <div id="org-view"></div>
+        <p class="hint">会社の情報は 1か所にまとめています。直すと 他の紙にも同じように出ます。</p>
         <div class="btn-row">
-          <button class="btn-ghost" type="button" id="b-bank-add">＋ 口座を足す</button>
+          <!-- ★飛び先は Rakunally の入口の「共有データ＞会社」。会社マスタは1か所だけ（二つ目の編集を作らない）★ -->
+          <a class="btn-ghost" style="text-decoration:none;display:inline-block" href="../index.html#kaisha?back=seikyu">会社の情報を直す</a>
         </div>
-        <p class="hint">1つの口座が そのまま 紙の1行に なります（勝手に 折り返しません）。</p>
-        <!-- ★倉庫へ しまう 形★＝画面から 組み立てる（人は 触らない） -->
-        <input id="s-bank" type="hidden">
       </div>
 
-      <!-- ★紙の書き方（会社ごとに選べる）★（指示役 2026-08-28「カスタム性があるようにしろや」）
-           ★焼き付けてよいのは 法律だけ★＝ここは 全部 見た目と言い方の話。
-           ★何も選ばなければ 様式の既定★ が効く（今までどおり）。
-           既定と その根拠は docs/CUSTOM_10_2026-08-28.md に1行ずつ書いてあります。 -->
-      <details id="s-style-box">
-        <summary class="sub-h">紙の書き方（言い方と並び）</summary>
-        <p class="hint">ここで変えるのは <b>言い方と並びだけ</b>です。相手に合わせて選べます。</p>
-        <!-- ★★2026-09-10 ここを 7つ → 2つに しました★★
-             司さん「ごちゃごちゃするから ユーザーが 設定で ★詳細いじるのは 少しにしろよ★
-               シンプルで 分かりやすい アプリにしろ」／「分かりにくいって おれは 思ってしまう」
-             ★外した 5つと その訳★（どれも 紙の 金額は 1円も 変わりません）
-               ・金額の ¥ 記号        … 見た目だけ。実物で 割れていない
-               ・見出しの「（税込）」  … 税込かどうかは ★事実★。好みで 消す物では ない
-               ・件名を紙に出す        … ★取引先ごとの 設定と 二重★（相手側が 勝つ）
-               ・控除の見出し          … 様式（seikyu-templates.js）が すでに 持っている
-               ・控除の合計の呼び名    … ★半分しか 効いていなかった★
-                   ＝締めの 引き算行は「控除」直書きで この設定を 見ず、
-                     「締めの並び」を B に した時だけ 見る。
-                     ★押しても 効いたり 効かなかったり する物を 画面に 残さない★
-             ★残した 2つ★
-               ・締めの並び    … 実物が A型4通／B型7通に ★本当に 割れている★
-               ・消費税の一言  … 実物45枚とも 在る（札を 押すだけで 入る） -->
+      <!-- ★お振込先は 自分の 会社の 事★＝自社情報へ（前は「請求書の決まり」の 中・2026-10-23 ⑥）
+           ★保存の 道は 前と 同じ★（saveSettings 1本＝番号・税・口座を まとめて しまう）。 -->
+      <div class="card" id="s-bank-card">
+        <div class="card-h">お振込先</div>
+        <!-- ★お振込先は 1口座＝銀行名・支店・種類・口座番号・名義に 分けて 打つ★
+             （司さん 2026-09-10「銀行口座の 入れ方を ★分けて いれさせろ★／
+               銀行名、支店、口座番号、名前」）
+             ★倉庫の 形も 紙も 変えない★＝つないで 1口座＝1行で しまう。
+             前の 一言（司さん 2026-09-10）
+             「振込先を 今の 設定からだと ★どこで 改行など 分からん★から ちゃんとして
+               それと ★2個 表示する時用で 追加ボタンで また 入力する★ようにしろ」）
+             ★前は 1つの 大きな 欄★で、どこで 行が 分かれるか 打つ人に 分からなかった。
+             ⇒ 1口座 1行の 欄を 並べ、「＋ 口座を 足す」で 増やす。
+               ★倉庫の 形は 変えない★＝つないで 改行1つで しまう（bankLines が そのまま 読む）。 -->
         <div class="frow">
-          <div class="flabel">締めの並び</div>
-          <select class="finput" id="s-sumsorder">
-            <option value="">小計 → 消費税 → 合計（既定）</option>
-            <option value="B">消費税 → 小計（税込）</option>
-          </select>
+          <div class="flabel">お振込先（紙に出ます）<span class="hint2">1つの口座＝紙の1行</span></div>
+          <div id="s-bank-list"></div>
+          <div class="btn-row">
+            <button class="btn-ghost" type="button" id="b-bank-add">＋ 口座を足す</button>
+          </div>
+          <p class="hint">1つの口座が そのまま 紙の1行に なります（勝手に 折り返しません）。</p>
+          <!-- ★倉庫へ しまう 形★＝画面から 組み立てる（人は 触らない） -->
+          <input id="s-bank" type="hidden">
         </div>
-        <div class="frow">
-          <div class="flabel">消費税の一言<span class="hint2">空なら 出しません</span></div>
-          <!-- ★法定の率を 説明文に直書きしない★＝見本の文は lib の率から作る（js が入れる）
-               ★聞いてあげる。埋めさせない★＝札を 押すだけで 入る（打ちたい人は 下の欄に 打てる）。
-               実物45枚（16社）は ★45枚とも この一言が 在った★（となっております35／とします11）。 -->
-          <div id="s-taxnote-ask" class="pask-chips"></div>
-          <input class="finput" id="s-taxnote">
+        <div class="btn-row">
+          <button class="btn-primary" type="button" id="b-bank-save">保存</button>
         </div>
-      </details>
+        <div class="ok" id="bank-ok" style="display:none"></div>
+        <div class="bad" id="bank-err" style="display:none"></div>
+      </div>
 
-      <div class="btn-row">
-        <button class="btn-primary" type="button" id="b-set-save">保存</button>
-      </div>
-      <div class="ok" id="set-ok" style="display:none"></div>
-      <div class="bad" id="set-err" style="display:none"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-h">取引先</div>
-      <!-- ★空欄を並べない★（司さん 2026-08-16「聞いてあげる。埋めさせない。」）
-           前は ★8つの空欄を一度に見せて★ いた。ここを ★1問ずつ★に変えた。
-           ・当てられる物は当てて ★根拠を見せる★（押すと出る）
-           ・前に出た値は ★よく出る順★で候補にする
-           ・★1問 答えるたびに保存★する（まとめて保存を待たせない）
-           ・★別ウィザードは作らない★＝この画面 そのものが対話
-           ・ぜんぶ直したい人のために「ぜんぶ見る」を下に置く（★消していない★）
-           ★郵便番号と電話番号の欄は外した★＝紙にも Excel にも 0箇所（2026-08-18 実測）。
-             ★倉庫の値は消していない★（すでに入れた人の物はそのまま残る）。 -->
-      <div class="frow">
-        <div class="flabel">だれの事を決めますか</div>
-        <select class="finput" id="s-partner"></select>
-      </div>
-      <!-- ★この取引先に 今 出る紙★（「ぜんぶ見る」を 開かなくても 見える・2026-10-23） -->
-      <div class="tpl-now" id="s-pt-tpl-row" style="display:none">
-        <span class="tpl-now-k">この取引先の紙</span>
-        <span class="tpl-now-v" id="s-pt-tpl-now">—</span>
-        <button class="mini" type="button" id="b-pt-tpl-open">変える</button>
-      </div>
-      <p class="hint" id="s-pt-tpl-why" style="display:none"></p>
-      <div id="pt-ask-set"></div>
-      <details class="pt-all" id="pt-all">
-        <summary>ぜんぶ見る（聞かれていない物も ここで直せます）</summary>
+      <div class="card">
+        <div class="card-h">角印（会社の印）</div>
+        <p class="hint">紙の自社名の下に、薄く重ねて刷ります。PNG か JPEG の画像を選んでください（背景が透けている PNG がいちばんきれいです）。</p>
+        <!-- ★★撮り方の 説明★★（司さん 2026-09-10
+               「なら 説明書きしとけ／★影がないように★と ★明るさや色の調整を できるだけ★ しとけって
+                 大きさは どんな大きさでも 大丈夫なんやろ？」）
+             ★なぜ 人に 頼むのか★＝白抜きは「白い所を 透かす」やり方（しきい 230）なので、
+               ★影が 混ざると そこが 抜けない★。実測（2026-09-10）
+                 影なし … 紙の 消し残し 0.1%
+                 右半分だけ 影 … ★45.1%★ ／ 斜めに 暗い … ★75.9%★ ／ ぼんやり 影 … ★48.5%★
+               ＝影の 所が ★灰色の 四角のまま★ 社名に かぶさる。
+             ★大きさは 本当に 何でもよい★＝実測 13MB(12M画素)→38KB ／ 53MB(48M画素)→32KB ／
+               26MB(24M画素)→35KB。どれも 断られない（上限は 置いていない）。 -->
+        <ul class="seal-tips">
+          <li><b>影が入らないように</b>撮ってください（真上から・明るい所で）。影の所は 背景が 抜けず、灰色のまま残ります。</li>
+          <li><b>明るさや色は できるだけ整えてから</b>入れてください（こちらでは 濃さを変えません）。</li>
+          <li><b>大きさは どんな大きさでも大丈夫です。</b>スマホの写真そのままで かまいません（こちらで 小さくします）。</li>
+        </ul>
+        <div class="seal-row">
+          <img class="seal-pv" id="seal-pv" alt="角印の下見" style="display:none">
+          <span class="hint" id="seal-none">まだ入れていません（印を押さずに刷ります）。</span>
+        </div>
         <div class="frow2">
           <div class="frow">
-            <div class="flabel">敬称</div>
-            <select class="finput" id="s-phonor">
-              <option>御中</option><option>様</option><option>（なし）</option>
-            </select>
+            <div class="flabel">大きさ（mm）</div>
+            <input class="finput num" id="seal-mm" type="text" inputmode="numeric" placeholder="20">
           </div>
+          <!-- ★★ブラウザの ボタンを そのまま 出さない★★（司さん 2026-09-10
+                 「★なんで いきなり 英語 入れるんど★」）
+               ＝<input type="file"> は ★ブラウザが 用意した ボタンと 字★を 出す。
+                 私の 手元（Chromium）では 「Choose File / No file chosen」と ★英語★だった。
+                 字は ブラウザ任せ＝★こちらで 日本語に できない★。
+               ⇒ ★給与（kyuyo/index.html）と 同じ形★＝入れ物は 隠して
+                 ★自分の ボタン★から 呼ぶ（そこは ぜんぶ 日本語）。
+               ★選んだ ファイルの 名前も 自分で 出す★（ブラウザの
+                 「No file chosen」を 見せない）。 -->
           <div class="frow">
-            <div class="flabel">担当者</div>
-            <input class="finput" id="s-pperson" type="text" placeholder="例：山田">
+            <div class="flabel">画像を選ぶ</div>
+            <div class="btn-row">
+              <button class="btn-ghost" type="button" id="b-seal-pick">写真・画像を選ぶ</button>
+              <span class="hint" id="seal-fname">選んでいません</span>
+            </div>
+            <input class="file-kakusu" id="seal-file" type="file" accept="image/png,image/jpeg">
           </div>
         </div>
-        <div class="frow">
-          <div class="flabel">住所</div>
-          <input class="finput" id="s-paddr" type="text" placeholder="例：東京都架空区見本台1-1">
-          <p class="hint">自社の Excel の様式を使う時だけ 出ます。</p>
-        </div>
-        <!-- ★聞く順からは外したが 画面からは消さない★（指示役 2026-08-18）
-             ＝入れてある会社が「無くなった」と思う／郵送・電話に使う人が居る。
-               紙にも Excel にも出ない事は ここに正直に書く。 -->
-        <div class="frow2">
-          <div class="frow">
-            <div class="flabel">郵便番号</div>
-            <!-- ★2026-09-10★ 数字キーパッドでは「-」が 打てない＝ふつうの キーボードに 戻す。 -->
-            <input class="finput" id="s-pzip" type="text" placeholder="例：100-0000">
+        <!-- ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」）
+             既定は 社名に重ねる＝角印の作法。★ふだんは 触らない物なので 畳んでおく★。
+             重ねたくない会社は 左に置ける。そこから 横・縦に mm でずらせる（＋は 右／下）。 -->
+        <details class="more" id="seal-pos-box">
+          <summary class="more-s">印の場所を 決める（紙の上を つまんで動かす）</summary>
+          <p class="hint">紙の絵の中で 印を つまんで（指でも マウスでも）動かせます。押した所に 置く事もできます。</p>
+          <div class="seal-stage" id="seal-stage">
+            <iframe class="seal-paper" id="seal-paper" title="紙の下見" tabindex="-1"></iframe>
+            <img class="seal-drag" id="seal-drag" alt="" draggable="false">
           </div>
-          <div class="frow">
-            <div class="flabel">電話番号</div>
-            <!-- ★2026-09-10 逆だった★＝電話なのに フルキーボード。tel なら「-」付きの テンキー。 -->
-            <input class="finput" id="s-ptel" type="tel" placeholder="例：090-0000-0000">
-          </div>
-        </div>
-        <p class="hint">郵便番号と電話番号は 出ません（連絡用の控えです）。</p>
-        <div class="frow2">
-          <div class="frow">
-            <div class="flabel">取引先コード</div>
-            <input class="finput" id="s-pcode" type="text" placeholder="例：A001">
-          </div>
-          <div class="frow">
-            <div class="flabel">いつまでにもらう約束</div>
-            <select class="finput" id="s-pterm"></select>
-            <input class="finput num" id="s-ptermn" type="text" inputmode="numeric" placeholder="日数" style="margin-top:6px;display:none">
-          </div>
-        </div>
-        <div class="frow">
-          <div class="flabel">この相手のインボイス登録番号</div>
-          <input class="finput" id="s-pinvoice" type="text" inputmode="numeric" placeholder="T のあと 13桁">
-          <p class="hint" id="s-pinvoice-hint">紙には出ません。控えとして持っておく欄です。</p>
-        </div>
-        <div class="frow">
-          <label class="check"><input type="checkbox" id="s-pgensen"><span>この取引先は源泉徴収の対象（新しく作る1通に最初から入る）</span></label>
-          <p class="hint">対象かどうかは相手（払う側）が決めます。1通ごとに変える時は、入力の「細かく決める」から。</p>
-        </div>
-        <!-- ★この相手だけの紙★（司さん 2026-08-29
-             「これは取引先ごとに請求書の様式をちゃんと設定できてる前提やけど その認識で合ってるか？」
-              ＋「そのパターンは例野工業だけやし代行や空調系はまた違うやろ」）
-             ★何も選ばなければ 会社の既定のまま＝今までと 1ドットも 変わらない★ -->
-        <div class="frow">
-          <div class="flabel">この相手だけの紙</div>
-          <p class="hint">何も選ばなければ 会社の既定のままです。この相手にだけ 違う紙で出す時に使います。</p>
           <div class="frow2">
             <div class="frow">
-              <div class="flabel">様式</div>
-              <select class="finput" id="s-ptpl"></select>
+              <div class="flabel">紙の左から（mm）</div>
+              <input class="finput num" id="seal-x" type="text" inputmode="decimal" placeholder="自動">
             </div>
             <div class="frow">
-              <div class="flabel">明細の行数</div>
-              <input class="finput num" id="s-prows" type="text" inputmode="numeric" placeholder="空＝会社の既定">
+              <div class="flabel">紙の上から（mm）</div>
+              <input class="finput num" id="seal-y" type="text" inputmode="decimal" placeholder="自動">
             </div>
           </div>
-          <!-- ★この相手に出す口座★（2026-09-02・実物45枚を読んだ＝相手ごとに 1〜6行で 違っていた）
-               ★空欄を並べない★＝会社の設定に在る口座を そのまま 出して 選ばせるだけ（打たせない）。
-               何も選ばなければ 全部＝今までと同じ。 -->
-          <div class="frow">
-            <div class="flabel">この相手に出す口座</div>
-            <div id="s-pbanks"></div>
-            <p class="hint" id="s-pbanks-why"></p>
-          </div>
-          <div class="frow">
-            <div class="flabel">件名を紙に出す</div>
-            <select class="finput" id="s-psubject">
-              <option value="">会社の既定のまま</option>
-              <option value="on">出す</option>
-              <option value="off">出さない</option>
-            </select>
-          </div>
-          <div class="frow">
-            <div class="flabel">明細の列</div>
-            <div class="btn-row">
-              <button class="btn-ghost" type="button" id="b-pcols-own">この相手だけの列にする</button>
-              <button class="btn-ghost" type="button" id="b-pcols-clear" style="display:none">会社の既定に戻す</button>
-            </div>
-            <p class="hint" id="s-pcols-hint">今は 会社の既定の列です。</p>
-          </div>
-        </div>
-        <!-- ★取引先を足すのは 入力の画面（だれに）で出来る★＝ここから外のアプリへ出さない -->
-        <div class="btn-row">
-          <button class="btn-primary" type="button" id="b-pt-save">この取引先を保存</button>
-        </div>
-      </details>
-      <div class="ok" id="pt-ok" style="display:none"></div>
-      <div class="bad" id="pt-err" style="display:none"></div>
-    </div>
-
-
-    <div class="card">
-      <div class="card-h">自社の請求書（Excel）を使う</div>
-      <p class="hint">いつも使っている Excel の請求書を そのまま使えます。
-        読み込むと、どのセルに 何を入れるかを 当てて 見せます。合っていれば「この形で使う」を押してください。
-        使うのは Excelに書き出す時です（紙・PDFは これまで通り）。</p>
-      <!-- ★ここも 同じ★＝ブラウザの 英語の ボタンを 出さない（司さん 2026-09-10）。
-           ★作る道が 2本 在る時は 両方 直す★＝判子だけ 直すと ここに 英語が 残る。 -->
-      <div class="frow">
-        <div class="flabel">Excel を選ぶ（.xlsx）</div>
-        <div class="btn-row">
-          <button class="btn-ghost" type="button" id="b-book-pick">Excel ファイルを選ぶ</button>
-          <span class="hint" id="book-fname">選んでいません</span>
-        </div>
-        <input class="file-kakusu" id="book-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-      </div>
-      <div id="book-info"></div>
-      <div id="book-slots"></div>
-      <div class="btn-row" id="book-acts" style="display:none">
-        <button class="btn-primary" type="button" id="b-book-use">この形で使う</button>
-        <button class="btn-ghost" type="button" id="b-book-clear">やめる（Rakunallyの紙に戻す）</button>
-      </div>
-      <div class="ok" id="book-ok" style="display:none"></div>
-      <div class="bad" id="book-err" style="display:none"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-h">角印（会社の印）</div>
-      <p class="hint">紙の自社名の下に、薄く重ねて刷ります。PNG か JPEG の画像を選んでください（背景が透けている PNG がいちばんきれいです）。</p>
-      <!-- ★★撮り方の 説明★★（司さん 2026-09-10
-             「なら 説明書きしとけ／★影がないように★と ★明るさや色の調整を できるだけ★ しとけって
-               大きさは どんな大きさでも 大丈夫なんやろ？」）
-           ★なぜ 人に 頼むのか★＝白抜きは「白い所を 透かす」やり方（しきい 230）なので、
-             ★影が 混ざると そこが 抜けない★。実測（2026-09-10）
-               影なし … 紙の 消し残し 0.1%
-               右半分だけ 影 … ★45.1%★ ／ 斜めに 暗い … ★75.9%★ ／ ぼんやり 影 … ★48.5%★
-             ＝影の 所が ★灰色の 四角のまま★ 社名に かぶさる。
-           ★大きさは 本当に 何でもよい★＝実測 13MB(12M画素)→38KB ／ 53MB(48M画素)→32KB ／
-             26MB(24M画素)→35KB。どれも 断られない（上限は 置いていない）。 -->
-      <ul class="seal-tips">
-        <li><b>影が入らないように</b>撮ってください（真上から・明るい所で）。影の所は 背景が 抜けず、灰色のまま残ります。</li>
-        <li><b>明るさや色は できるだけ整えてから</b>入れてください（こちらでは 濃さを変えません）。</li>
-        <li><b>大きさは どんな大きさでも大丈夫です。</b>スマホの写真そのままで かまいません（こちらで 小さくします）。</li>
-      </ul>
-      <div class="seal-row">
-        <img class="seal-pv" id="seal-pv" alt="角印の下見" style="display:none">
-        <span class="hint" id="seal-none">まだ入れていません（印を押さずに刷ります）。</span>
-      </div>
-      <div class="frow2">
-        <div class="frow">
-          <div class="flabel">大きさ（mm）</div>
-          <input class="finput num" id="seal-mm" type="text" inputmode="numeric" placeholder="20">
-        </div>
-        <!-- ★★ブラウザの ボタンを そのまま 出さない★★（司さん 2026-09-10
-               「★なんで いきなり 英語 入れるんど★」）
-             ＝<input type="file"> は ★ブラウザが 用意した ボタンと 字★を 出す。
-               私の 手元（Chromium）では 「Choose File / No file chosen」と ★英語★だった。
-               字は ブラウザ任せ＝★こちらで 日本語に できない★。
-             ⇒ ★給与（kyuyo/index.html）と 同じ形★＝入れ物は 隠して
-               ★自分の ボタン★から 呼ぶ（そこは ぜんぶ 日本語）。
-             ★選んだ ファイルの 名前も 自分で 出す★（ブラウザの
-               「No file chosen」を 見せない）。 -->
-        <div class="frow">
-          <div class="flabel">画像を選ぶ</div>
           <div class="btn-row">
-            <button class="btn-ghost" type="button" id="b-seal-pick">写真・画像を選ぶ</button>
-            <span class="hint" id="seal-fname">選んでいません</span>
+            <button class="btn-ghost" type="button" id="b-seal-home">いつもの場所に戻す</button>
           </div>
-          <input class="file-kakusu" id="seal-file" type="file" accept="image/png,image/jpeg">
+          <p class="hint" id="seal-pos-why"></p>
+        </details>
+        <div class="btn-row">
+          <button class="btn-primary" type="button" id="b-seal-save">保存</button>
+          <button class="bdel" type="button" id="b-seal-clear">印を消す</button>
         </div>
+        <p class="why" id="seal-why"></p>
+        <div class="ok" id="seal-ok" style="display:none"></div>
+        <div class="bad" id="seal-err" style="display:none"></div>
       </div>
-      <!-- ★印の場所★（司さん 2026-08-30「ハンコの位置は変えれるようにしてる？」）
-           既定は 社名に重ねる＝角印の作法。★ふだんは 触らない物なので 畳んでおく★。
-           重ねたくない会社は 左に置ける。そこから 横・縦に mm でずらせる（＋は 右／下）。 -->
-      <details class="more" id="seal-pos-box">
-        <summary class="more-s">印の場所を 決める（紙の上を つまんで動かす）</summary>
-        <p class="hint">紙の絵の中で 印を つまんで（指でも マウスでも）動かせます。押した所に 置く事もできます。</p>
-        <div class="seal-stage" id="seal-stage">
-          <iframe class="seal-paper" id="seal-paper" title="紙の下見" tabindex="-1"></iframe>
-          <img class="seal-drag" id="seal-drag" alt="" draggable="false">
+
+      <div class="card">
+        <div class="card-h">自社の請求書（Excel）を使う</div>
+        <p class="hint">いつも使っている Excel の請求書を そのまま使えます。
+          読み込むと、どのセルに 何を入れるかを 当てて 見せます。合っていれば「この形で使う」を押してください。
+          使うのは Excelに書き出す時です（紙・PDFは これまで通り）。</p>
+        <!-- ★ここも 同じ★＝ブラウザの 英語の ボタンを 出さない（司さん 2026-09-10）。
+             ★作る道が 2本 在る時は 両方 直す★＝判子だけ 直すと ここに 英語が 残る。 -->
+        <div class="frow">
+          <div class="flabel">Excel を選ぶ（.xlsx）</div>
+          <div class="btn-row">
+            <button class="btn-ghost" type="button" id="b-book-pick">Excel ファイルを選ぶ</button>
+            <span class="hint" id="book-fname">選んでいません</span>
+          </div>
+          <input class="file-kakusu" id="book-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        </div>
+        <div id="book-info"></div>
+        <div id="book-slots"></div>
+        <div class="btn-row" id="book-acts" style="display:none">
+          <button class="btn-primary" type="button" id="b-book-use">この形で使う</button>
+          <button class="btn-ghost" type="button" id="b-book-clear">やめる（Rakunallyの紙に戻す）</button>
+        </div>
+        <div class="ok" id="book-ok" style="display:none"></div>
+        <div class="bad" id="book-err" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- ═══ テンプレート（紙の 決め）═══ -->
+    <div class="set-panel" data-setseg="tpl" id="set-p-tpl" role="tabpanel">
+      <!-- ★★2026-09-10 6枚の 絵を 畳みました★★
+           ★実測★ この札だけで 縦 ★1,289px（1.5画面ぶん）★＝設定の 先頭を 丸ごと 占めていた
+             （A4の 絵 2列×3行。様式は 6つ）。ふだん 触らない 物が いちばん 上に 大きく 在った。
+           ⇒ ★今の 紙を 1行で 見せて、「変える」を 押した時だけ 6枚の 絵を 出す★。
+             ★見本は 入力画面の tpl-strip と 同じ 形★（新しい 部品を 作っていない）。 -->
+      <div class="card" id="s-tpl-card">
+        <div class="card-h">紙の様式</div>
+        <div class="tpl-now">
+          <span class="tpl-now-k">今の紙</span>
+          <span class="tpl-now-v" id="s-tpl-now">—</span>
+          <button class="mini" type="button" id="b-tpl-open" aria-expanded="false" aria-controls="s-tpl-box">変える</button>
+        </div>
+        <div id="s-tpl-box" style="display:none">
+          <p class="hint">紙の見た目だけが変わります（金額は1円も変わりません）。</p>
+          <div class="seg" id="s-tpl"></div>
+          <!-- ★同じ事を2回 言わない★ 「見た目だけ・金額は変わらない」は
+               下の s-tpl-note が選んだ様式の説明と一緒に出している（2026-08-15 スクショで重複を発見）。 -->
+          <p class="hint" id="s-tpl-note"></p>
+        </div>
+        <!-- ★会社の既定と 取引先ごとの紙の 関係を 言う★（2026-10-23） -->
+        <p class="hint" id="s-tpl-pt"></p>
+      </div>
+
+      <!-- ★既定で正しく動く物は 出しっぱなしにしない★（司さん 2026-08-16 ⑥）
+           ・紙の行数 … 既定は ★A4 1枚に収まる数を実測して★ 入れてある＝ふだん触らない
+                        （2枚になった時だけ 入力の画面から「枠を増やす」で ここへ飛べる）
+           ・明細の列 … ★列を足したい会社だけ★ が触る
+           ★畳むだけで 消さない★（押せば出る）。★開いた時に見える設定を減らす★のが狙い。 -->
+      <!-- ★紙の作りを ここで1問ずつ聞く★（司さん 2026-08-16／指示役の順番 ⑤⑥）
+           ★聞く前に 数える★＝もう作った請求書を数えて
+             「この列、◯通で1度も使っていません。消しますか？」
+             「明細はいちばん多い月で◯行。枠は◯行で足ります。」
+           ★材料が足りない時（3通未満）は 何も出ない★／答え終われば 自分で消える。
+           ★下の「詳しい設定」と 同じ値の 2つの見え方★（別ウィザードを作らない）。 -->
+      <div class="card" id="paper-ask-card" style="display:none">
+        <div class="card-h">紙の作りで 決められる事が あります</div>
+        <div id="paper-ask"></div>
+      </div>
+
+      <details class="card more" id="set-more">
+        <summary class="more-s">詳しい設定（紙の行数・明細の列）</summary>
+
+        <div class="sub-h">紙の行数</div>
+        <p class="hint">明細が少ない月でも、枠の分だけ空の行を残して刷ります。</p>
+        <div class="frow2">
+          <div class="frow">
+            <div class="flabel">明細の枠（行）</div>
+            <input class="finput" id="s-rows" type="number" min="0" max="60" step="1" inputmode="numeric" placeholder="既定">
+          </div>
+          <!-- ★控除の枠は 控除を出す様式の時だけ★（司さん 2026-09-05
+               「今 控除ないやつ 選んどんのに 控除があるし」）
+               ＝控除を 出さない様式を 選んでいる間は 出さない（消しはしない＝控除を使い出したら 戻る） -->
+          <div class="frow" id="s-dedrows-row">
+            <div class="flabel">控除の枠（行）</div>
+            <input class="finput" id="s-dedrows" type="number" min="0" max="30" step="1" inputmode="numeric" placeholder="既定">
+          </div>
+        </div>
+        <p class="hint" id="s-rows-note"></p>
+
+        <div class="sub-h">明細の列</div>
+        <p class="hint">請求書に並べる列は、会社ごとに自由に決められます。足す・消す・並べ替える・幅を変える・揃えを変える。知らない名前の列（例：行き先・距離・担当者）も足せます。</p>
+        <div id="col-list"></div>
+        <div class="btn-row">
+          <input class="finput" id="col-new" type="text" placeholder="例：行き先" style="flex:1 1 150px">
+          <button class="btn-ghost" type="button" id="b-col-add">＋ 列を足す</button>
+          <button class="btn-ghost" type="button" id="b-col-reset">様式の既定に戻す</button>
+          <!-- ★様式を変えた時に 自分で決めていた列を 黙って 捨てない★（2026-09-05） -->
+          <button class="btn-ghost" type="button" id="b-col-undo" style="display:none">前の列に戻す</button>
+        </div>
+        <p class="why" id="col-why"></p>
+        <div class="ok" id="col-ok" style="display:none"></div>
+        <div class="bad" id="col-err" style="display:none"></div>
+      </details>
+
+      <div class="card">
+        <div class="card-h">請求書の決まり</div>
+        <!-- ★請求番号を 紙に 出すか★（司さん 2026-09-09「請求番号を除ける設定がない」）
+             ★2026-09-10 ここへ 上げた★＝前は「紙の書き方（言い方と並び）」の
+             ★畳んだ 引き出しの 中★に 在り、司さんが 探して 見つけられなかった。
+             ★司さん「番号の形の 上に しろよ」★＝出すか どうかが 先、形は その次。
+             ★既定は 出す★＝今 出ている物を 黙って 消さない。
+             ★番号を 付けるのは 止めない★＝紙に 書くかどうかだけ
+               （同じ番号を 二度 使わない為に 番号そのものは 要る）。 -->
+        <div class="frow">
+          <div class="flabel">請求番号を紙に出す<span class="hint2">紙の右上「No.」</span></div>
+          <select class="finput" id="s-no">
+            <option value="">出す（既定）</option>
+            <option value="off">出さない</option>
+          </select>
+        </div>
+        <div class="frow">
+          <div class="flabel">番号の形</div>
+          <select class="finput" id="s-format"></select>
+          <p class="hint" id="s-format-hint"></p>
+        </div>
+        <div class="frow">
+          <label class="flabel" style="display:block">
+            <input type="checkbox" id="s-reset"> 年（または年月）が変わったら 1 に戻す
+          </label>
+          <p class="hint">戻さない場合は、年をまたいでも通し番号が続きます。どちらでも 同じ番号を 二度 出すことはありません。</p>
         </div>
         <div class="frow2">
           <div class="frow">
-            <div class="flabel">紙の左から（mm）</div>
-            <input class="finput num" id="seal-x" type="text" inputmode="decimal" placeholder="自動">
+            <div class="flabel">税の入れ方（既定）</div>
+            <select class="finput" id="s-taxmode">
+              <option value="exclusive">外税</option>
+              <option value="inclusive">内税</option>
+            </select>
           </div>
           <div class="frow">
-            <div class="flabel">紙の上から（mm）</div>
-            <input class="finput num" id="seal-y" type="text" inputmode="decimal" placeholder="自動">
+            <div class="flabel">円未満の丸め方（既定）</div>
+            <select class="finput" id="s-round"></select>
           </div>
         </div>
-        <div class="btn-row">
-          <button class="btn-ghost" type="button" id="b-seal-home">いつもの場所に戻す</button>
+        <p class="hint">決めるのは 丸め方だけです（税率ごとの合計は 国の定めどおり）。</p>
+        <div class="frow">
+          <label class="check"><input type="checkbox" id="s-carry"><span>紙に「繰越」を出す（前回請求額・入金額・繰越額）</span></label>
+          <p class="hint" id="s-carry-hint">毎月まとめて払われる相手に使います。入金が読めない時は、0と書かず「未確認」と出します。</p>
         </div>
-        <p class="hint" id="seal-pos-why"></p>
-      </details>
-      <div class="btn-row">
-        <button class="btn-primary" type="button" id="b-seal-save">保存</button>
-        <button class="bdel" type="button" id="b-seal-clear">印を消す</button>
+        <div class="frow">
+          <label class="check"><input type="checkbox" id="s-voidpay" checked><span>取り消した請求書に残っている入金を、同じ取引先のほかの請求書に充てる</span></label>
+          <p class="hint">入れると、返金を記録するまで相手から預かっている額として数えます（取り消して出し直しても二重に請求しません）。切ると、取り消した請求書の入金は無かったものとして数えます。一覧の入金の状態と繰越の両方に効きます。切の時、取り消した請求書の入金を返金した記録がある取引先は、どの返金か分からないので「未確認」にして発行を止めます。</p>
+        </div>
+
+        <!-- ★紙の書き方（会社ごとに選べる）★（指示役 2026-08-28「カスタム性があるようにしろや」）
+             ★焼き付けてよいのは 法律だけ★＝ここは 全部 見た目と言い方の話。
+             ★何も選ばなければ 様式の既定★ が効く（今までどおり）。
+             既定と その根拠は docs/CUSTOM_10_2026-08-28.md に1行ずつ書いてあります。 -->
+        <details id="s-style-box">
+          <summary class="sub-h">紙の書き方（言い方と並び）</summary>
+          <p class="hint">ここで変えるのは <b>言い方と並びだけ</b>です。相手に合わせて選べます。</p>
+          <!-- ★★2026-09-10 ここを 7つ → 2つに しました★★
+               司さん「ごちゃごちゃするから ユーザーが 設定で ★詳細いじるのは 少しにしろよ★
+                 シンプルで 分かりやすい アプリにしろ」／「分かりにくいって おれは 思ってしまう」
+               ★外した 5つと その訳★（どれも 紙の 金額は 1円も 変わりません）
+                 ・金額の ¥ 記号        … 見た目だけ。実物で 割れていない
+                 ・見出しの「（税込）」  … 税込かどうかは ★事実★。好みで 消す物では ない
+                 ・件名を紙に出す        … ★取引先ごとの 設定と 二重★（相手側が 勝つ）
+                 ・控除の見出し          … 様式（seikyu-templates.js）が すでに 持っている
+                 ・控除の合計の呼び名    … ★半分しか 効いていなかった★
+                     ＝締めの 引き算行は「控除」直書きで この設定を 見ず、
+                       「締めの並び」を B に した時だけ 見る。
+                       ★押しても 効いたり 効かなかったり する物を 画面に 残さない★
+               ★残した 2つ★
+                 ・締めの並び    … 実物が A型4通／B型7通に ★本当に 割れている★
+                 ・消費税の一言  … 実物45枚とも 在る（札を 押すだけで 入る） -->
+          <div class="frow">
+            <div class="flabel">締めの並び</div>
+            <select class="finput" id="s-sumsorder">
+              <option value="">小計 → 消費税 → 合計（既定）</option>
+              <option value="B">消費税 → 小計（税込）</option>
+            </select>
+          </div>
+          <div class="frow">
+            <div class="flabel">消費税の一言<span class="hint2">空なら 出しません</span></div>
+            <!-- ★法定の率を 説明文に直書きしない★＝見本の文は lib の率から作る（js が入れる）
+                 ★聞いてあげる。埋めさせない★＝札を 押すだけで 入る（打ちたい人は 下の欄に 打てる）。
+                 実物45枚（16社）は ★45枚とも この一言が 在った★（となっております35／とします11）。 -->
+            <div id="s-taxnote-ask" class="pask-chips"></div>
+            <input class="finput" id="s-taxnote">
+          </div>
+        </details>
+
+        <div class="btn-row">
+          <button class="btn-primary" type="button" id="b-set-save">保存</button>
+        </div>
+        <div class="ok" id="set-ok" style="display:none"></div>
+        <div class="bad" id="set-err" style="display:none"></div>
       </div>
-      <p class="why" id="seal-why"></p>
-      <div class="ok" id="seal-ok" style="display:none"></div>
-      <div class="bad" id="seal-err" style="display:none"></div>
     </div>
 
     <!-- ★ログイン中の人とログアウトは「設定」の中★（給与と同じ置き場所。
          頭に出すと、狭い端末で 屋号やメールが見出しを押し出す） -->
-    <div class="card">
+    <div class="card" id="set-login">
       <div class="card-h">ログイン</div>
       <p class="note">ログイン中: <span class="who" id="who"></span></p>
       <div class="btn-row">
@@ -1019,62 +1070,62 @@
 
 </div>
 
-<script src="../lib/supabase-js-2.112.4.min.js?v=dd958b50"></script>
-<script src="../js/supa-config.js?v=dd958b50"></script>
-<script src="../lib/xlsx.full.min.js?v=dd958b50"></script>
-<script src="../js/file-out.js?v=dd958b50"></script>
-<script src="../js/suite-data.js?v=dd958b50"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=dd958b50"></script>
+<script src="../lib/supabase-js-2.112.4.min.js?v=e9ad2c44"></script>
+<script src="../js/supa-config.js?v=e9ad2c44"></script>
+<script src="../lib/xlsx.full.min.js?v=e9ad2c44"></script>
+<script src="../js/file-out.js?v=e9ad2c44"></script>
+<script src="../js/suite-data.js?v=e9ad2c44"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=e9ad2c44"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=dd958b50"></script>
-<script src="lib/seikyu-tax.js?v=dd958b50"></script>
-<script src="lib/seikyu-gensen.js?v=dd958b50"></script>
-<script src="lib/seikyu-carry.js?v=dd958b50"></script>
-<script src="lib/seikyu-cols.js?v=dd958b50"></script>
-<script src="lib/seikyu-templates.js?v=dd958b50"></script>
-<script src="../lib/toroku-no.js?v=dd958b50"></script>
-<script src="lib/seikyu-doc.js?v=dd958b50"></script>
-<script src="lib/seikyu-partner-ask.js?v=dd958b50"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-tax.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-gensen.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-carry.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-cols.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-templates.js?v=e9ad2c44"></script>
+<script src="../lib/toroku-no.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-doc.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-partner-ask.js?v=e9ad2c44"></script>
 <!-- ★字体を 軽くする（使う字だけ 形を 残す）★（司さん 2026-09-05「重すぎるやろが」）
      ★seikyu-pdf.js より 先に 読む★＝後だと 1通目だけ 丸ごとの 重い紙が 出る -->
-<script src="../lib/font-slim.js?v=dd958b50"></script>
-<script src="lib/seikyu-pdf.js?v=dd958b50"></script>
+<script src="../lib/font-slim.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-pdf.js?v=e9ad2c44"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=dd958b50"></script>
-<script src="lib/seikyu-seal.js?v=dd958b50"></script>
+<script src="../js/hanko.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-seal.js?v=e9ad2c44"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=dd958b50"></script>
+<script src="lib/seikyu-report.js?v=e9ad2c44"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=dd958b50"></script>
+<script src="lib/seikyu-items.js?v=e9ad2c44"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=dd958b50"></script>
+<script src="lib/seikyu-recurring.js?v=e9ad2c44"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=dd958b50"></script>
+<script src="lib/seikyu-find.js?v=e9ad2c44"></script>
 <!-- ★自社のExcelを そのまま使う★（読む・当てる・書く）
      ＝2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★（司さん 2026-08-31） -->
-<script src="../lib/zip-surgeon.js?v=dd958b50"></script>
-<script src="../lib/xlsx-edit.js?v=dd958b50"></script>
-<script src="lib/seikyu-book.js?v=dd958b50"></script>
-<script src="lib/seikyu-scope.js?v=dd958b50"></script>
-<script src="../lib/kikan.js?v=dd958b50"></script>
-<script src="lib/seikyu-invoice-ask.js?v=dd958b50"></script>
-<script src="lib/seikyu-paper-ask.js?v=dd958b50"></script>
-<script src="lib/seikyu-name.js?v=dd958b50"></script>
-<script src="lib/seikyu-paper.js?v=dd958b50"></script>
-<script src="lib/seikyu-aoa.js?v=dd958b50"></script>
-<script src="js/seikyu-store.js?v=dd958b50"></script>
-<script src="js/seikyu-out.js?v=dd958b50"></script>
-<script src="js/seikyu-app.js?v=dd958b50"></script>
-<script src="../js/rakunally-login.js?v=dd958b50"></script>
-<script src="js/auth.js?v=dd958b50"></script>
+<script src="../lib/zip-surgeon.js?v=e9ad2c44"></script>
+<script src="../lib/xlsx-edit.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-book.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-scope.js?v=e9ad2c44"></script>
+<script src="../lib/kikan.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-invoice-ask.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-paper-ask.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-name.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-paper.js?v=e9ad2c44"></script>
+<script src="lib/seikyu-aoa.js?v=e9ad2c44"></script>
+<script src="js/seikyu-store.js?v=e9ad2c44"></script>
+<script src="js/seikyu-out.js?v=e9ad2c44"></script>
+<script src="js/seikyu-app.js?v=e9ad2c44"></script>
+<script src="../js/rakunally-login.js?v=e9ad2c44"></script>
+<script src="js/auth.js?v=e9ad2c44"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=dd958b50"></script>
+<script src="../js/env-badge.js?v=e9ad2c44"></script>
 </body>
 </html>

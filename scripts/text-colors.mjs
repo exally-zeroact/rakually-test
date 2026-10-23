@@ -190,6 +190,12 @@ const SCREENS = [
   { name: '請求書', file: 'seikyu/index.html', boot: seikyuBoot, after: seikyuAfter, expect: ['#tot-box .tot-r'] },
   { name: '請求書 ▸ 設定', file: 'seikyu/index.html', boot: seikyuBoot,
     after: async (win, doc) => { await seikyuAfter(win); goTo('[data-scr="scr-set"]')(win, doc); }, expect: ['.sub-h'] },
+  /* ★2026-10-23 請求書の 設定を 3つの 切り替えに 分けた★（司さん ⑥）＝選んでいない 切り替えの 中は 見えない＝数えられない。
+     ★残り 2つも 押して 数える★（前は 1画面で 全部 見えていた 字を 数え落とさない）。 */
+  { name: '請求書 ▸ 設定 ▸ 自社情報', file: 'seikyu/index.html', boot: seikyuBoot,
+    after: async (win, doc) => { await seikyuAfter(win); goTo('[data-scr="scr-set"]')(win, doc); goTo('#set-seg [data-setseg="jisha"]')(win, doc); }, expect: ['#set-p-jisha.on #org-view'] },
+  { name: '請求書 ▸ 設定 ▸ テンプレート', file: 'seikyu/index.html', boot: seikyuBoot,
+    after: async (win, doc) => { await seikyuAfter(win); goTo('[data-scr="scr-set"]')(win, doc); goTo('#set-seg [data-setseg="tpl"]')(win, doc); }, expect: ['#set-p-tpl.on .sub-h'] },
 ];
 
 /* ── ① アプリを本当に動かして、描き終わった姿を返す ─────────────── */
@@ -331,6 +337,8 @@ const NOW = {
   '管理': 0,
   '請求書': 0,
   '請求書 ▸ 設定': 0,
+  '請求書 ▸ 設定 ▸ 自社情報': 0,
+  '請求書 ▸ 設定 ▸ テンプレート': 0,
 };
 
 /* 薄い黒でも 例外でもない物だけ残す */
@@ -399,7 +407,8 @@ if (!selfTest) {
     ['kyuyo/meisai.html', /(\.nw-q\{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '年末調整の質問文（JSが描く字）', 'Web明細 ▸ 年末調整'],
     ['kyuyo/admin.html', /(\.bar small\{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '管理の小さい説明', '管理'],
     ['css/rakunally-ui.css', /(\.hint \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '皮の注意書き（請求書が読む）', '請求書'],
-    ['seikyu/css/app.css', /(\.sub-h \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '請求書の中見出し', '請求書 ▸ 設定'],
+    /* ★中見出し（.sub-h）は 設定の「テンプレート」の 中★（2026-10-23 設定を 3つに 分けた）＝そこで 捕まえる */
+    ['seikyu/css/app.css', /(\.sub-h \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '請求書の中見出し', '請求書 ▸ 設定 ▸ テンプレート'],
     ['seikyu/css/app.css', /(\.no-v \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '請求番号（開いている画面の中）', '請求書'],
     ['seikyu/css/app.css', /(\.tot-g \{[^}]*?color:\s*)#[0-9A-Fa-f]{6}/, '締めの合計金額（JSが描く字）', '請求書'],
   ];

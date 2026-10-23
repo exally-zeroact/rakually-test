@@ -592,6 +592,12 @@ jobs:
         run: node scripts/text-colors.mjs --self-test
       - name: ★取引先7問 実UI (本物の画面を動かして 押す物の一覧を出してから全部 押す)
         run: node seikyu/tests/partner-ask-ui.mjs
+      # ★設定を 3つに 分ける★（司さん 2026-10-23 ⑥「代行請求書アプリのように 分かりやすく ちゃんと 分けろ」）
+      #   取引先／自社情報／テンプレート の 切り替え・前の 欄 101個の 落ち0・取引先は 札・形は Chrome 390px
+      - name: ★設定の 3つの 切り替え 実UI (前の欄101個 落ち0・取引先は札で開閉・足す・形はChrome)
+        run: node seikyu/tests/settei-wake-ui.mjs
+      - name: ★設定の 3つの 切り替え (わざと壊して赤になるかの自己確認・3通り)
+        run: node seikyu/tests/settei-wake-ui.mjs --self-test
       # ★1つのステップで 給与と請求書を混ぜない★（指示役 2026-08-26 の運びで実際に詰まった）
       #   混ざっていると ★本番へ運ぶ時に「在る物と無い物が混ざったステップ」になって止まる★。
       #   ship-seikyu.mjs は ★勝手に直さず 赤にする★ 作りなので、元の側で分けておく。

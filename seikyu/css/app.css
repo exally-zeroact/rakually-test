@@ -469,6 +469,52 @@
 .pt-all > summary { cursor: pointer; font-size: 14px; color: #2E7D54; font-weight: 700; padding: 4px 0; }
 .hint.bad-t { color: #C0392B; }
 
+/* ═══ ★設定を 3つに 分ける★（司さん 2026-10-23 ⑥「代行請求書アプリのように 分かりやすく ちゃんと 分けろ」）
+   手本＝代行請求書の .seg（横いっぱいに 3つ並ぶ 切り替え）。★色は Rakunally の 緑★（手本の 青は 持ち込まない）。
+   ★顔は 台帳（tests/button-uniform.test.mjs）に 在る 物だけ★
+     選ばれている … 塗り #3D9E72・字 白・枠 #3D9E72 1px ／ 選ばれていない … 白地・字 #6E6E6E・枠 #C8ECD8 1px（★選ぶ帯★）
+     ＝給与の 設定の 切り替え（kyuyo/css/app.css の .seg）と 同じ 顔。角丸は 押す物の 12px。
+     帯の 地は ★皮に 在る #F0FAF4★（給与の 帯の 地は 皮に 無い 色＝partner-ask.test ⑩ が 止める）。
+   ★名前は .set-seg★＝皮の .seg（丸い 札・#s-tpl 等）と ぶつけない。 */
+.set-seg { display: flex; gap: 4px; background: #F0FAF4; border-radius: 12px; padding: 3px; margin: 0 0 14px; }
+.set-seg-b {
+  flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 4px;
+  border: 1px solid #C8ECD8; border-radius: 12px; background: #FFFFFF; color: #6E6E6E;
+  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.set-seg-b.on { background: #3D9E72; border-color: #3D9E72; color: #FFFFFF; }
+.set-panel { display: none; }
+.set-panel.on { display: block; }
+
+/* ── ★取引先は 会社ごとの 札★（手本＝代行請求書の 会社マスタ .master-co）──────────
+   閉じた 札＝名前と 一言だけ。押すと 開いて 中で 直す（★中の 欄は 1組★を 開いた 札へ 移す）。
+   ★見出しは button に しない★（台帳に 無い 顔に なる）＝字の 帯を 押す（role="button"・Enter でも 開く）。 */
+.pt-cards { margin: 4px 0 8px; }
+.pt-co {
+  position: relative; overflow: hidden; margin-bottom: 10px;
+  background: #FFFFFF; border: 1px solid #C8ECD8; border-radius: 12px;
+}
+.pt-co-hd {
+  display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px 12px;
+  background: #F0FAF4; cursor: pointer;
+}
+.pt-co-hd:focus-visible { outline: 2px solid #2E7D54; outline-offset: -2px; }
+.pt-co-name {
+  flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 700; color: #333333;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pt-co-sub {
+  flex: 0 1 auto; min-width: 0; max-width: 45%; font-size: 12px; color: #555555;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pt-co-caret { flex: 0 0 auto; font-size: 14px; color: #2E7D54; transition: transform .2s; }
+.pt-co.open .pt-co-caret { transform: rotate(180deg); }
+.pt-co-body { display: none; padding: 2px 12px 12px; border-top: 1px solid #E8F6EE; }
+.pt-co.open .pt-co-body { display: block; }
+/* 足す 口＝欄の 下に 点線の「＋ 取引先を追加」（行を足す・控除を足す と 同じ 顔） */
+.pt-add { margin-top: 4px; }
+.pt-add .finput { width: 100%; }
+
 /* ★見出しの横の 小さい注記★（2026-09-02 実測＝この class に CSS が 1行も 無く、
    ★「消費税の一言空なら 出しません」と 字が くっついて 出ていた★・2か所とも）。
    ★色は :root の変数か 決めた薄い黒★／★字は 12px★（他の注記と 同じ形）。 */

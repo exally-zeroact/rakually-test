@@ -3417,6 +3417,7 @@
   function openRowsSetting() {
     fillSettings();
     goScreen('scr-set');
+    showSetSeg('tpl');   /* ★行数は「テンプレート」の 中★（2026-10-23 ⑥ 設定を 3つに 分けた） */
     var box = $('set-more');
     if (box) box.open = true;
     var el = $('s-rows');
@@ -5024,12 +5025,11 @@
     rowsHint();
     settingsHint();
 
-    fillSelect($('s-partner'), [{ v: '', t: '（選んでください）' }].concat(S.partners.map(function (p) {
-      return { v: p.id, t: (p.data && p.data.name) || '(名称未設定)' };
-    })), '');
+    fillPtSelect('');
     fillSelect($('s-pterm'), DOC.PAY_TERMS.map(function (t) { return { v: t.key, t: t.label }; }), 'none');
     fillPartnerForm('');
     renderPtAsk();
+    renderPtCards();   /* ★取引先は 会社ごとの 札★（2026-10-23 ⑥）＝開き直したら 全部 閉じた 姿から（前の 選び箱と 同じ） */
 
     // 様式と列（★会社の既定★。作りかけの1通ではなく、これから作る物に効く）
     drawSetTpl(s.template);
@@ -5554,6 +5554,7 @@
     }
     /* ★同じ値を2か所で別々に持たない★＝「ぜんぶ見る」も同時に描き直す */
     if ($('s-partner')) fillPartnerForm($('s-partner').value);
+    ptHeads();   /* ★札の 一言も 同じ 値から★（答えた 敬称・紙が 閉じた 札にも すぐ 出る） */
   }
 
   /** ★1問ごとに保存★（倉庫へ書けなければ 画面の値も戻す＝嘘の成功を出さない） */
@@ -5795,7 +5796,7 @@
     }).map(function (p) {
       return ((p.data && p.data.name) || '(名称未設定)') + '＝「' + TPL.getOrDefault(SCOPE.partnerPaper(p).template).label + '」';
     });
-    setText('s-tpl-pt', 'ここは 会社の既定です。取引先ごとに 別の紙にも できます（下の「取引先」で 相手を選ぶ）。'
+    setText('s-tpl-pt', 'ここは 会社の既定です。取引先ごとに 別の紙にも できます（上の「取引先」で 相手の札を 開く）。'
       + (betsu.length ? ' 今 別の紙の取引先：' + betsu.join('／') : ' 今は どの取引先も 会社の既定の紙です。'));
   }
   /** この相手だけの列を 作る（★会社の今の列を 写してから 直す★＝白紙から作らせない） */
@@ -5851,6 +5852,141 @@
       's-ptpl', 's-prows', 's-psubject'].forEach(function (x) { if ($(x)) $(x).disabled = !on; });
     ['b-pcols-own', 'b-pcols-clear'].forEach(function (x) { if ($(x)) $(x).disabled = !on; });
     $('b-pt-save').disabled = !on;
+  }
+
+  /* ═══ ★設定を 3つに 分ける★（司さん 2026-10-23 ⑥「設定の中身も 代行請求書アプリのように 分かりやすく、
+         会社マスタや 自社情報など ちゃんと 分けろ」）══════════════════════════════
+     手本＝代行請求書の showSettingsSeg（上に 切り替え 3つ・中身は 1つずつ・既定は 相手の 一覧）。
+     ★中の 関数は 1つも 変えていない★＝置き場所を 分けただけ（欄の id も 前のまま）。 */
+  var SET_SEGS = ['torihiki', 'jisha', 'tpl'];
+  function showSetSeg(seg) {
+    if (SET_SEGS.indexOf(seg) < 0) seg = 'torihiki';
+    S.setSeg = seg;
+    Array.prototype.forEach.call(document.querySelectorAll('#scr-set .set-panel'), function (p) {
+      p.classList.toggle('on', p.getAttribute('data-setseg') === seg);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#set-seg .set-seg-b'), function (b) {
+      var on = b.getAttribute('data-setseg') === seg;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+
+  /* ═══ ★取引先は 会社ごとの 札★（司さん 2026-10-23 ⑥・手本＝代行請求書の 会社マスタ）══════════
+     ★前★ 選び箱（s-partner）で 1社ずつ 選んでいた＝★何社 在るか・誰が 居るかが 画面に 出ない★。
+     ★今★ 札を 並べ、押すと 開いて 中で 直す。もう一度 押すと 閉じる（開くのは 1枚だけ）。
+     ★中の 欄は 1組だけ★（#pt-editor）を 開いた 札へ 移す＝札の 数だけ 欄を 作らない
+       （同じ 値を 2か所で 別々に 持たない・前の 関数は そのまま 動く）。
+     ★s-partner は 中で 動く 相手の 印として 残す★（見せない）＝前の 関数は ぜんぶ これを 読む。 */
+  /** 生きている（消していない）取引先だけ */
+  function ptLive(id) {
+    for (var i = 0; i < S.partners.length; i++) if (S.partners[i].id === id) return S.partners[i];
+    return null;
+  }
+  function fillPtSelect(v) {
+    fillSelect($('s-partner'), [{ v: '', t: '（選んでください）' }].concat(S.partners.map(function (p) {
+      return { v: p.id, t: (p.data && p.data.name) || '(名称未設定)' };
+    })), v || '');
+  }
+  /** 閉じた 札の 一言（敬称・この相手だけの紙）＝★決めた 事だけ★ 出す（空なら 何も 出さない） */
+  function ptSub(p) {
+    var d = (p && p.data) || {};
+    var bits = [];
+    var h = d.honor || d.keisho || '';
+    if (h && h !== '（なし）') bits.push(h);
+    var pp = SCOPE.partnerPaper(p);
+    if (pp.template && TPL.get(pp.template)) bits.push(TPL.getOrDefault(pp.template).label);
+    return bits.join('・');
+  }
+  /** 中の 欄を 預かり所へ 戻す（札を 描き直す 前に＝欄ごと 消さない） */
+  function ptPark() {
+    var ed = $('pt-editor'), park = $('pt-park');
+    if (ed && park && ed.parentNode !== park) park.appendChild(ed);
+  }
+  function renderPtCards() {
+    var host = $('pt-cards'); if (!host) return;
+    ptPark();
+    if (!S.partners.length) {
+      host.innerHTML = '<p class="hint">取引先は まだ ありません。下に 会社名を 入れて 足してください。</p>';
+      return;
+    }
+    host.innerHTML = S.partners.map(function (p) {
+      var nm = (p.data && p.data.name) || '(名称未設定)';
+      return '<div class="pt-co" data-pt="' + esc(p.id) + '">'
+        + '<div class="pt-co-hd" role="button" tabindex="0" aria-expanded="false" data-pt-open="' + esc(p.id) + '">'
+        + '<span class="pt-co-name">' + esc(nm) + '</span>'
+        + '<span class="pt-co-sub">' + esc(ptSub(p)) + '</span>'
+        + '<span class="pt-co-caret" aria-hidden="true">▾</span></div>'
+        + '<div class="pt-co-body"></div>'
+        + '</div>';
+    }).join('');
+    ptCardsSync();
+  }
+  /** 開いている 札を s-partner に 合わせる（中の 欄を 移す） */
+  function ptCardsSync() {
+    var host = $('pt-cards'); if (!host) return;
+    var cur = ($('s-partner') && $('s-partner').value) || '';
+    var ed = $('pt-editor');
+    var moved = false;
+    Array.prototype.forEach.call(host.querySelectorAll('.pt-co'), function (c) {
+      var on = !!cur && c.getAttribute('data-pt') === cur;
+      c.classList.toggle('open', on);
+      var hd = c.querySelector('.pt-co-hd');
+      if (hd) hd.setAttribute('aria-expanded', on ? 'true' : 'false');
+      if (on && ed) {
+        var body = c.querySelector('.pt-co-body');
+        if (body && ed.parentNode !== body) body.insertBefore(ed, body.firstChild);
+        moved = true;
+      }
+    });
+    if (!moved) ptPark();
+  }
+  /** 札の 一言だけ 書き直す（★欄は 動かさない★＝打っている 最中に 欄が 消えない） */
+  function ptHeads() {
+    var host = $('pt-cards'); if (!host) return;
+    Array.prototype.forEach.call(host.querySelectorAll('.pt-co'), function (c) {
+      var p = ptLive(c.getAttribute('data-pt')); if (!p) return;
+      var sb2 = c.querySelector('.pt-co-sub'); if (sb2) sb2.textContent = ptSub(p);
+    });
+  }
+  /** この 相手の 札を 開く（'' で 全部 閉じる）。★前の 選び箱を 選んだのと 同じ 道★ */
+  function ptOpen(id) {
+    if (id && !ptLive(id)) id = '';
+    var sel = $('s-partner');
+    var mae = (sel && sel.value) || '';
+    if (sel) sel.value = id || '';
+    /* ★別の 相手へ 移ったら 前の 相手の「保存しました」を 残さない★ */
+    if (mae !== (id || '')) { box('pt-ok', ''); box('pt-err', ''); }
+    fillPartnerForm(id || '');
+    renderPtAsk();
+    ptCardsSync();
+  }
+  function ptToggle(id) {
+    var cur = ($('s-partner') && $('s-partner').value) || '';
+    ptOpen(cur === id ? '' : id);
+  }
+  /** ★取引先を 足す★＝名前 1つだけ 聞く（入力の「＋ 新しい相手を作る」と 同じ 倉庫の 道）。
+   *  ★同じ名前の 相手は 2つ 作らない★（倉庫の create が 在る 相手を 返す）＝その 札を 開く。 */
+  function ptAdd() {
+    var inp = $('pt-add-name');
+    var name = String((inp && inp.value) || '').trim();
+    box('pt-list-ok', ''); box('pt-list-err', '');
+    if (!name) { box('pt-list-err', '会社名を入れてください。'); return Promise.resolve(); }
+    return S.store.partners.create({ name: name }).then(function (r) {
+      if (!r || !r.ok) { box('pt-list-err', '足せませんでした（' + ((r && r.reason) || '理由不明') + '）。もう一度 押してください。'); return; }
+      return S.store.partners.list().then(function (list) {
+        S.partners = list;
+        if (inp) inp.value = '';
+        fillPtSelect('');
+        renderPtCards();
+        ptOpen(r.id);
+        box('pt-list-ok', r.already
+          ? '「' + name + '」は もう在ったので、その相手を開きました。'
+          : '「' + name + '」を足しました。開いた札の中で 1問ずつ聞きます。');
+      });
+    }).catch(function (e) {
+      box('pt-list-err', '足せませんでした（' + ((e && e.message) || '理由不明') + '）。もう一度 押してください。');
+    });
   }
 
   /** ★打った その場で 形を見る★（通信しない・国税庁のサイトは叩かない） */
@@ -6189,6 +6325,7 @@
            札を 描いているのは fillSettings（下のタブの 押し方と 同じ）。 */
       fillSettings();
       goScreen('scr-set');
+      showSetSeg('tpl');   /* ★様式は「テンプレート」の 中★（2026-10-23 ⑥ 設定を 3つに 分けた） */
       global.setTimeout(function () {
         var c = $('s-tpl-card'); if (!c) return;
         /* ★無い物を 呼ばない★＝転がす手が 無い所（試験の 仮の画面・古い端末）では
@@ -6205,12 +6342,9 @@
       var pid = S.cur && S.cur.partner_id;
       fillSettings();
       goScreen('scr-set');
-      var sel = $('s-partner');
-      if (sel && pid && partnerById(pid)) {
-        sel.value = pid;
-        fillPartnerForm(pid);
-        renderPtAsk();
-      }
+      /* ★取引先は「取引先」の 切り替えの 中の 札★（2026-10-23 ⑥ 設定を 3つに 分けた）＝その 相手の 札を 開く */
+      showSetSeg('torihiki');
+      if (pid && ptLive(pid)) ptOpen(pid);
       ptTplHiraku();
     };
     if ($('b-pt-tpl-open')) $('b-pt-tpl-open').onclick = function () { ptTplHiraku(); };
@@ -6388,7 +6522,29 @@
     $('s-rows').oninput = rowsHint;
     $('s-dedrows').oninput = rowsHint;
     $('s-reset').onchange = settingsHint;
-    $('s-partner').onchange = function () { fillPartnerForm($('s-partner').value); renderPtAsk(); };
+    /* ★選び箱は 見せない★（2026-10-23 ⑥）が、中で 動く 相手の 印＝選んだら その 札を 開く */
+    $('s-partner').onchange = function () { ptOpen($('s-partner').value); };
+    /* ★設定の 切り替え 3つ★（取引先／自社情報／テンプレート） */
+    Array.prototype.forEach.call(document.querySelectorAll('#set-seg .set-seg-b'), function (b) {
+      b.onclick = function () { showSetSeg(b.getAttribute('data-setseg')); };
+    });
+    /* ★取引先の 札★＝押すと 開く／閉じる（キーボードは Enter・空白）。何度 配線しても 1つ（onclick で 持つ） */
+    if ($('pt-cards')) {
+      $('pt-cards').onclick = function (ev) {
+        var t = ev.target;
+        var hd = t && t.closest && t.closest('[data-pt-open]');
+        if (hd) ptToggle(hd.getAttribute('data-pt-open'));
+      };
+      $('pt-cards').onkeydown = function (ev) {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        var hd = ev.target && ev.target.closest && ev.target.closest('[data-pt-open]');
+        if (!hd || ev.target !== hd) return;     /* ★中の 欄で 打つ Enter は 拾わない★ */
+        ev.preventDefault();
+        ptToggle(hd.getAttribute('data-pt-open'));
+      };
+    }
+    if ($('b-pt-add')) $('b-pt-add').onclick = function () { return ptAdd(); };
+    if ($('pt-add-name')) $('pt-add-name').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); ptAdd(); } };
     $('s-pinvoice').oninput = ptInvoiceHint;
     bindPtAsk();
     $('s-pterm').onchange = function () {
@@ -6420,6 +6576,16 @@
       if (el && el.focus) el.focus();
     };
     $('b-set-save').onclick = function () { return saveSettings(); };
+    /* ★お振込先は 自社情報へ 移した★（2026-10-23 ⑥）＝しまう 道は 前と 同じ saveSettings 1本。
+       知らせは ★押した 所（お振込先の 札）に 出す★（隣の 切り替えの 箱に 書いても 読めない）。 */
+    if ($('b-bank-save')) $('b-bank-save').onclick = function () {
+      box('bank-ok', ''); box('bank-err', '');
+      return saveSettings().then(function () {
+        var e = $('set-err'), o = $('set-ok');
+        box('bank-err', (e && e.style.display !== 'none') ? e.textContent : '');
+        box('bank-ok', (o && o.style.display !== 'none') ? o.textContent : '');
+      });
+    };
     $('b-pt-save').onclick = function () { return savePartner(); };
     $('b-pt-new').onclick = function () { return newPartner(); };
     /* Enter でも作れる（打ってから ボタンを探させない） */
@@ -6513,6 +6679,8 @@
     _go: goScreen,
     _new: newInvoice,
     _fillSettings: fillSettings,
+    _showSetSegForTest: function (k) { return showSetSeg(k); },   // テスト用: 設定の 切り替え（取引先／自社情報／テンプレート）
+    _openRowsForTest: function () { return openRowsSetting(); },  // テスト用: 入力の「枠を増やす」と 同じ 道
     /* ★倉庫の 字を 入れ替えて 描き直す道★＝設定を 開き直したのと 同じ（見張り用） */
     _drawBankRowsForTest: function (n) { return drawBankRows(n); },
     /* テスト用: ★相手ごとの紙の設定を 画面から 作る★（口座の札を 押した結果が 入るか を 見る為） */
