@@ -6112,72 +6112,81 @@
   }
   /** ★取引先を 足す★＝名前 1つだけ 聞く（入力の「＋ 新しい相手を作る」と 同じ 倉庫の 道）。
    *  ★同じ名前の 相手は 2つ 作らない★（倉庫の create が 在る 相手を 返す）＝その 札を 開く。 */
-  var PT_ADD_KIGEN = 20000;   /* ★倉庫が 返らない 時の 期限★（確かめ中の 印を 立てたままに しない） */
-  function ptAdd() {
-    var inp = $('pt-add-name');
-    var name = String((inp && inp.value) || '').trim();
-    box('pt-list-ok', ''); box('pt-list-err', '');
-    if (!name) { box('pt-list-err', '会社名を入れてください。'); return Promise.resolve(); }
-    /* ★確かめている 間に もう一度 押しても 2回 訊かない★（手本 KAISHA_KIKU_CHU と 同じ） */
-    if (S.ptAddChu) { box('pt-list-err', '取引先の 記録を 確かめています。少し 待ってから もう一度 押してください。'); return Promise.resolve(); }
+  var PT_ADD_KIGEN = 20000;   /* ★倉庫が 返らない 時の 期限★（訳を 出す・印は 本体が 返るまで 下ろさない） */
+  /** ★同じ 名前の 取引先を どうするか 決めて 書く★＝1か所（設定の「＋ 取引先を追加」と 入力の「この相手を作る」）
+   *  （司さん 10-16 の 決め＝前に 消した 同じ 名前に 記録が 残っていれば 混ぜるかを 訊く・手本 mazeruKaKiku）
+   *  ・★毎回 倉庫から 読み直す★（生きている 取引先・消した 取引先・残っている 請求書）＝画面の 控えに 頼らない
+   *  ・どれか 読めなければ ★作らない★
+   *  ・★期限（PT_ADD_KIGEN）が 来たら 訳だけ 出す★。確かめ中の 印は ★本体が 返るまで 下ろさない★
+   *    （下ろすと「もう一度」で 2本 走り、同じ 名前が 2行 出来る・taiketsu 10-23 4回目 止1）。
+   *    期限の 後に 返った 時は ★確かめも 作りも 戻しも しない★（書く 直前でも 見る）。
+   *  waza: { err(字), create(betsu) → 書けたら true, revive(前の相手) → 書けたら true } */
+  function ptNayose(name, waza) {
+    if (S.ptAddChu) { waza.err('取引先の 記録を 確かめています。少し 待ってから もう一度 押してください。'); return Promise.resolve(); }
     var DAME = '取引先を 足しませんでした（今は 前に 消した 取引先の 記録を 確かめられません）。少し 待ってから もう一度 押してください。';
     S.ptAddChu = true;
-    var owari = false, tid = null;
-    /* ★毎回 倉庫から 読み直して 判じる★（taiketsu 10-23 3回目 止1）
-       画面の 控え（S.partners・S.gonePartners）は ★別の 端末で 消された 後★や ★この 画面で 消した 直後（読み直しが 返る前）★に 古い。
-       控えで「生きている」と 判じると 倉庫の create が 新しい 同じ 名前を 作り、混ぜるか 訊かれず 前の 請求書・繰越が 続かない。
-       ⇒ 生きている 取引先（partners.list）と 消した 取引先（gone）を ★両方 読み直し★、どちらか 読めなければ 足さない。
-       ★残っている 請求書・入金も 倉庫から 数える★（ptKiroku・止A）。 */
+    var kireta = false;
+    var tid = global.setTimeout(function () {
+      kireta = true;
+      waza.err('取引先の 記録の 確かめが 返ってきません（' + Math.round(PT_ADD_KIGEN / 1000) + '秒）。'
+        + '返ってくるまで 待ってください（このまま 作りも 戻しも しません）。');
+    }, PT_ADD_KIGEN);
+    var osoi = function () { waza.err('確かめが 遅れたので、取引先は 作りも 戻しも しませんでした。もう一度 押してください。'); };
     var hontai = Promise.all([
       S.store.partners.list(),
       Promise.resolve(S.store.partners.gone ? S.store.partners.gone() : null),
     ]).then(function (r) {
-      if (owari) return;               /* ★期限を 過ぎて「返ってきません」と 言った 後は 何も しない★（後から 黙って 作らない） */
+      if (kireta) return osoi();
       var live = r[0], gone = r[1];
-      if (!Array.isArray(live) || !Array.isArray(gone)) { box('pt-list-err', DAME); return; }
+      if (!Array.isArray(live) || !Array.isArray(gone)) { waza.err(DAME); return; }
       /* 読めた 物で 控えも 直す（以後の 画面も 正しく） */
       S.partners = live;
       gone.forEach(function (x) { if (x && x.id) S.gonePartners[x.id] = x; });
       S.goneReadOk = true;
       var onaji = function (x) { return String(((x && x.data && x.data.name) || '')).trim() === name; };
       /* ★生きている 同じ 名前★は 倉庫の create が その 相手を 返す（2つ 作らない）＝訊かない */
-      if (live.some(onaji)) return ptCreate(name, null);
+      if (live.some(onaji)) return waza.create(false);
       var cand = gone.filter(onaji);
-      if (!cand.length) return ptCreate(name, null);
+      if (!cand.length) return waza.create(false);
       return ptKiroku(cand).then(function (mae) {
-        if (!mae) { box('pt-list-err', DAME); return; }
+        if (kireta) return osoi();
+        if (!mae) { waza.err(DAME); return; }
         if (mae.tsu > 0) {
           var mazeru = global.confirm('「' + name + '」の 名前で 前に 消した 取引先の 記録が 残っています（'
             + '請求書 ' + mae.tsu + '通' + (mae.nyukin ? '・入金 ' + mae.nyukin + '件' : '') + '）。\n'
             + 'この 取引先に 混ぜますか？ 混ぜると、前の 請求書・入金・繰越が この 取引先に 続きます。\n'
             + '混ぜないと、新しい 取引先として 作ります（前の 請求書は 前の まま 残り、繰越は 引き継ぎません）。');
-          if (mazeru) return ptRevive(mae.p, name);
-          return ptCreate(name, '「' + name + '」を 新しい 取引先として 足しました（前の 請求書は 前の まま・繰越は 引き継ぎません）。');
+          if (kireta) return osoi();               /* ★書く 直前でも 見る★ */
+          return mazeru ? waza.revive(mae.p) : waza.create(true);
         }
-        return ptCreate(name, null);
+        return waza.create(false);
       });
-    }, function () { box('pt-list-err', DAME); });
-    /* ★倉庫が 返らない 時★＝期限で 印を 下ろし 訳を 出す（押し直せる） */
-    var kigen = new Promise(function (res) {
-      tid = global.setTimeout(function () {
-        if (owari) return;
-        owari = true;
-        S.ptAddChu = false;
-        box('pt-list-err', '取引先の 記録の 確かめが 返ってきません（' + Math.round(PT_ADD_KIGEN / 1000) + '秒）。電波の 良い 所で もう一度 押してください。');
-        res();
-      }, PT_ADD_KIGEN);
-    });
-    var shime = hontai.then(function () {
-      if (tid) global.clearTimeout(tid);
-      owari = true; S.ptAddChu = false;
+    }, function () { waza.err(DAME); });
+    return hontai.then(function (kaketa) {
+      global.clearTimeout(tid);
+      S.ptAddChu = false;
+      if (kaketa === true && kireta) waza.err('');     /* 遅れたが 書けた＝「返ってきません」を 残さない */
     }, function (e) {
-      if (tid) global.clearTimeout(tid);
-      owari = true; S.ptAddChu = false;
-      box('pt-list-err', '足せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
+      global.clearTimeout(tid);
+      S.ptAddChu = false;
+      waza.err('足せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
     });
-    return Promise.race([shime, kigen]);
   }
-  /** ★残っている 記録を 倉庫から 数える★（請求書は 種類を 問わず 倉庫の 請求書を 読む・入金も）。
+  function ptAdd() {
+    var inp = $('pt-add-name');
+    var name = String((inp && inp.value) || '').trim();
+    box('pt-list-ok', ''); box('pt-list-err', '');
+    if (!name) { box('pt-list-err', '会社名を入れてください。'); return Promise.resolve(); }
+    return ptNayose(name, {
+      err: function (m) { box('pt-list-err', m); },
+      create: function (betsu) {
+        return ptCreate(name, betsu ? '「' + name + '」を 新しい 取引先として 足しました（前の 請求書は 前の まま・繰越は 引き継ぎません）。' : null);
+      },
+      revive: function (g) { return ptRevive(g, name); },
+    });
+  }
+  /** ★残っている 記録を 倉庫から 数える★（★請求書だけを 数える★＝繰越・お金が 続くのは 請求書だけ。見積は 数えない。
+   *  今 画面が 見積書の 一覧でも 倉庫の 請求書を 読む・入金も）。
    *  読めなければ null（＝確かめられない＝足さない）。いちばん 記録の 多い 相手を 返す。 */
   function ptKiroku(cand) {
     return Promise.all([
@@ -6210,6 +6219,7 @@
         ptOpen(g.id);
         try { drawListPartners(); } catch (e) { /* 一覧が 無い 画面でも 止めない */ }
         box('pt-list-ok', '「' + name + '」を 前の 取引先に 戻しました（前の 請求書・入金・繰越が 続きます）。');
+        return true;
       });
     }).catch(function (e) {
       box('pt-list-err', '戻せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
@@ -6229,6 +6239,7 @@
         box('pt-list-ok', r.already
           ? '「' + name + '」は もう在ったので、その相手を開きました。'
           : (okMsg || ('「' + name + '」を足しました。開いた札の中で 1問ずつ聞きます。')));
+        return true;
       });
     }).catch(function (e) {
       box('pt-list-err', '足せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
@@ -6298,24 +6309,45 @@
   function newPartner() {
     var name = String($('pt-new-name').value || '').trim();
     show($('pt-new-msg'), false);
-    if (!name) { box('pt-new-msg', '会社名を入れてください。'); show($('pt-new-msg'), true); return Promise.resolve(); }
-    return S.store.partners.create({ name: name }).then(function (r) {
-      if (!r.ok) { setText('pt-new-msg', '作れませんでした（' + r.reason + '）'); show($('pt-new-msg'), true); return; }
+    var say = function (m) { setText('pt-new-msg', m); show($('pt-new-msg'), !!m); };
+    if (!name) { say('会社名を入れてください。'); return Promise.resolve(); }
+    /* ★設定の「＋ 取引先を追加」と 同じ 判じ★（taiketsu 10-23 4回目 止2・司さん 10-16 の 決めを 入力の 道にも）
+       ＝倉庫を 読み直す → 生きている 同じ 名前なら それを 選ぶ／前に 消した 同じ 名前に 請求書が 残れば 混ぜるかを 訊く／
+         読めなければ 作らない。★混ぜる＝前の 相手を 戻して この 請求書の 相手に する★（前の 請求書・繰越が 続く）。 */
+    var tsukau = function (id, ji) {
       return S.store.partners.list().then(function (list) {
         S.partners = list;
         $('pt-new-name').value = '';
         S.ptNewOpen = false;              // 作れたら 欄は閉じる（空欄を残さない）
         /* ★作った相手を そのまま使う★＝選びで 変えた 時と 同じ 道（aiteWoKaeta）を 通す（taiketsu S1・もう在った 相手でも） */
-        if (S.cur && S.cur.partner_id !== r.id) aiteWoKaeta(r.id);
+        if (S.cur && S.cur.partner_id !== id) aiteWoKaeta(id);
         var ok = ($('edit-ok') && $('edit-ok').style.display !== 'none') ? $('edit-ok').textContent : '';
         fillEdit();                       /* 選びに 新しい 相手を 並べる */
         recalc();
         if (ok) box('edit-ok', ok);       /* 外した・当てた 知らせは 残す */
-        setText('pt-new-msg', r.already
-          ? '「' + name + '」は もう在ったので、その相手を選びました。'
-          : '「' + name + '」を作って、この請求書の相手にしました。あとは下で 1問ずつ聞きます。');
-        show($('pt-new-msg'), true);
+        say(ji);
+        return true;
       });
+    };
+    return ptNayose(name, {
+      err: say,
+      create: function (betsu) {
+        return S.store.partners.create({ name: name }).then(function (r) {
+          if (!r || !r.ok) { say('作れませんでした（' + ptWhy(r && r.reason) + '）。もう一度 押してください。'); return; }
+          return tsukau(r.id, r.already
+            ? '「' + name + '」は もう在ったので、その相手を選びました。'
+            : betsu
+              ? '「' + name + '」を 新しい 取引先として 作り、この請求書の相手にしました（前の 請求書は 前の まま・繰越は 引き継ぎません）。'
+              : '「' + name + '」を作って、この請求書の相手にしました。あとは下で 1問ずつ聞きます。');
+        }).catch(function (e) { say('作れませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。'); });
+      },
+      revive: function (g) {
+        return S.store.partners.revive(g.id).then(function (r) {
+          if (!r || !r.ok) { say('戻せませんでした（' + ptWhy(r && r.reason) + '）。もう一度 押してください。'); return; }
+          delete S.gonePartners[g.id];
+          return tsukau(g.id, '「' + name + '」を 前の 取引先に 戻して、この請求書の相手にしました（前の 請求書・入金・繰越が 続きます）。');
+        }).catch(function (e) { say('戻せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。'); });
+      },
     });
   }
 
@@ -6939,6 +6971,7 @@
     _fillSettings: fillSettings,
     _showSetSegForTest: function (k) { return showSetSeg(k); },   // テスト用: 設定の 切り替え（取引先／自社情報／テンプレート）
     _openRowsForTest: function () { return openRowsSetting(); },  // テスト用: 入力の「枠を増やす」と 同じ 道
+    _ptAddKigenForTest: function (ms) { PT_ADD_KIGEN = ms; },     // テスト用: 取引先を 足す 確かめの 期限を 縮める
     /* ★倉庫の 字を 入れ替えて 描き直す道★＝設定を 開き直したのと 同じ（見張り用） */
     _drawBankRowsForTest: function (n) { return drawBankRows(n); },
     /* テスト用: ★相手ごとの紙の設定を 画面から 作る★（口座の札を 押した結果が 入るか を 見る為） */

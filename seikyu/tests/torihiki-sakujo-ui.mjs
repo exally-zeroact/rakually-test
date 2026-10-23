@@ -22,6 +22,8 @@
  *   ⑭⑮⑯ 混ぜるかを 訊く 所を 通り抜けない（見積書の 一覧の 時・消した 相手が 読めない 時・読み直し中）… taiketsu 10-23 止A
  *   ⑰ 消した 相手は「毎月の請求（今月まだ）」に 出ない                                           … taiketsu 10-23 止B
  *   ⑱⑲⑳ 画面の 控えに 頼らない（別の 端末で 消された 後・消した 直後の 読み直し前・一覧が 読めない 時）… taiketsu 10-23 3回目
+ *   ㉑㉒ 期限（20秒）の 後に 遅れて 返っても 確かめも 作りも 戻しも しない                      … taiketsu 10-23 4回目 止1
+ *   ㉓㉔㉕ 入力の 画面の「この相手を作る」も 同じ 判じ（混ぜるか 訊く・読めなければ 作らない）   … taiketsu 10-23 4回目 止2
  *
  * 使い方: node seikyu/tests/torihiki-sakujo-ui.mjs [--self-test]
  */
@@ -37,12 +39,14 @@ let JSDOM;
 try { ({ JSDOM } = require_('jsdom')); }
 catch { console.log('★jsdom が要ります（npm install）。飛ばせません（SKIPを緑と呼ばない）。'); process.exit(1); }
 
-const SELF = process.argv.includes('--self-test');
+const SELF = process.argv.some((a) => a === '--self-test' || a.startsWith('--self-test='));
 let pass = 0, fail = 0;
 const ok = (v, m) => { if (!v) throw new Error(m || 'false'); };
 const eq = (a, b, m) => { if (a !== b) throw new Error((m ? m + ': ' : '') + 'ほしい ' + JSON.stringify(b) + ' / 出た ' + JSON.stringify(a)); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const FILE = path.join(ROOT, 'seikyu/index.html');
+const AKETA = [];
+function tojiru() { while (AKETA.length) { const w = AKETA.pop(); try { w.close(); } catch (e) { /* 閉じられなくても 進む */ } } }
 
 async function boot(o) {
   o = o || {};
@@ -51,6 +55,7 @@ async function boot(o) {
     runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/seikyu/index.html',
   });
   const win = dom.window, doc = win.document;
+  AKETA.push(win);                 /* ★1本ごとに 閉じる★（開けっぱなしで 3GB まで 膨らんだ・2026-10-24） */
   const errs = [];
   win.addEventListener('error', (e) => errs.push('window.error: ' + (e.message || e)));
   win.fetch = () => Promise.reject(new Error('no net'));
@@ -137,7 +142,10 @@ async function run(label, o) {
   console.log('\n[' + label + '] ★押す物の一覧（先に書く）★');
   console.log('  ① 削除が2つの道 ② いいえ＝何も消えない ③ はい＝remove・札が消える ④ 左スワイプ'
     + ' ⑤ 出した請求書は残り名前が正しい ⑥ 読み直しても・紙も ⑦ 新しい請求書の相手に出ない ⑧ 書けない時は消したと言わない');
-  const T = async (n, f) => { try { await f(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } };
+  const T = async (n, f) => {
+    try { await f(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); }
+    tojiru();
+  };
   const bootI = () => boot(Object.assign({ invoices: clone(INVOICES) }, o));
 
   await T('① 札に「削除」が 2つの 道で 在る（スワイプの 赤／開いた 中の「取引先を削除」）', async () => {
@@ -491,6 +499,93 @@ async function run(label, o) {
     /* もう一度 押せる（確かめ中の 印が 残っていない） */
     eq(r.win.SeikyuApp._state.ptAddChu, false, '確かめ中の 印が 立ったまま');
   });
+
+  /* ═══ taiketsu 2026-10-23 4回目（止1＝期限の 後に 作らない・止2＝入力の 画面の 道）═══ */
+  const osoku = (fn, ms) => function () { const a = arguments, self = this; return new Promise((res) => setTimeout(res, ms)).then(() => fn.apply(self, a)); };
+
+  await T('㉑ K1 期限が 切れた 後に 遅れて 返っても 確かめも 戻しも しない', async () => {
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: goneA() }, o));
+    await openSet(r);
+    const A = r.win.SeikyuApp;
+    ok(typeof A._ptAddKigenForTest === 'function', '期限を 縮める 口が 無い');
+    A._ptAddKigenForTest(80);
+    const st = A._state.store;
+    st.invoices.list = osoku(st.invoices.list, 300);           /* 残りの 数えが 遅い */
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    r.doc.getElementById('pt-add-name').value = 'A株式会社';
+    r.doc.getElementById('b-pt-add').click();
+    await sleep(150);
+    ok(/返ってきません/.test(r.doc.getElementById('pt-list-err').textContent), '期限の 訳が 出ない: ' + r.doc.getElementById('pt-list-err').textContent);
+    await sleep(500);
+    eq(asked.length, 0, '★期限の 後に 確かめが 出た★');
+    ok(tadashii(r).every((x) => x.id !== 'pt_a' || x.deleted_at), '★期限の 後に 戻した★');
+    eq(tadashii(r).length, 1, '★期限の 後に 作った★');
+    eq(A._state.ptAddChu, false, '返った 後も 印が 立ったまま');
+  });
+
+  await T('㉒ K2 書き込みが 遅い 時に 期限の 後 もう一度 押しても 同じ 名前は 1行', async () => {
+    const r = await bootI(); await openSet(r);
+    const A = r.win.SeikyuApp;
+    A._ptAddKigenForTest(80);
+    const st = A._state.store;
+    const create0 = st.partners.create;
+    st.partners.create = osoku(create0, 300);
+    r.win.confirm = () => true;
+    r.doc.getElementById('pt-add-name').value = 'C商事';
+    r.doc.getElementById('b-pt-add').click();
+    await sleep(150);                                           /* 期限は 過ぎた・書き込みは まだ */
+    r.doc.getElementById('pt-add-name').value = 'C商事';
+    r.doc.getElementById('b-pt-add').click();                   /* 「もう一度」に 従う */
+    await sleep(700);
+    const n = r.sb._db.pay_partners.filter((x) => (x.data || {}).name === 'C商事').length;
+    ok(n <= 1, '★同じ 名前が 倉庫に ' + n + '行★');
+    st.partners.create = create0;
+    if (n === 0) { r.doc.getElementById('pt-add-name').value = 'C商事'; r.doc.getElementById('b-pt-add').click(); await sleep(400); }
+    eq(r.sb._db.pay_partners.filter((x) => (x.data || {}).name === 'C商事').length, 1, '最後に 1行に ならない');
+  });
+
+  /* ── 入力の 画面の「この相手を作る」（newPartner）も 同じ 判じ ── */
+  async function nyuuryokuDeTsukuru(r, nm) {
+    r.doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(100);
+    r.doc.getElementById('b-new').click(); await sleep(300);
+    r.doc.getElementById('pt-new-name').value = nm;
+    r.doc.getElementById('b-pt-new').click();
+    await sleep(500);
+    return (r.doc.getElementById('pt-new-msg') || {}).textContent || '';
+  }
+  await T('㉓ 入力の 画面で 前に 消した 同じ 名前を 作る＝混ぜるかを 訊く・「混ぜる」で 前の 相手を 戻して この 請求書の 相手に', async () => {
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: goneA() }, o));
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    const msg = await nyuuryokuDeTsukuru(r, 'A株式会社');
+    eq(asked.length, 1, '★入力の 画面で 訊かずに 作った★');
+    ok(/請求書 2通/.test(asked[0]), '数え: ' + asked[0]);
+    const rows = tadashii(r);
+    eq(rows.length, 1, '★新しい 同じ 名前を 作った★');
+    eq(rows[0].deleted_at, null, '戻っていない');
+    eq(r.win.SeikyuApp._state.cur.partner_id, 'pt_a', '入力中の 請求書の 相手が 戻した 相手で ない');
+    ok(/前の 取引先に 戻して/.test(msg), '字: ' + msg);
+  });
+
+  await T('㉔ 入力の 画面で「混ぜない」＝新しい 相手を この 請求書の 相手に（繰越は 引き継がないと 言う）', async () => {
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: goneA() }, o));
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return false; };
+    const msg = await nyuuryokuDeTsukuru(r, 'A株式会社');
+    eq(asked.length, 1, '★訊いていない★');
+    const rows = tadashii(r);
+    eq(rows.length, 2, '新しい 相手が 無い');
+    const nw = rows.find((x) => x.id !== 'pt_a');
+    eq(r.win.SeikyuApp._state.cur.partner_id, nw.id, '入力中の 請求書の 相手');
+    ok(rows.find((x) => x.id === 'pt_a').deleted_at, '★混ぜないのに 戻した★');
+    ok(/引き継ぎません/.test(msg), '字: ' + msg);
+  });
+
+  await T('㉕ 入力の 画面で 倉庫が 読めない 時は 作らない（訳を 言う）', async () => {
+    const r = await bootI();
+    r.win.SeikyuApp._state.store.partners.list = () => Promise.reject(new Error('no-user'));
+    const msg = await nyuuryokuDeTsukuru(r, 'C商事');
+    eq(r.sb._db.pay_partners.filter((x) => (x.data || {}).name === 'C商事').length, 0, '★確かめられないのに 作った★');
+    ok(/確かめられません/.test(msg), '字: ' + msg);
+  });
 }
 
 if (!SELF) {
@@ -509,17 +604,22 @@ if (!SELF) {
     ['生きている 相手を 画面の 控えで 判じる', { app: app.replace('      S.store.partners.list(),' + String.fromCharCode(10) + '      Promise.resolve(S.store.partners.gone', '      Promise.resolve(S.partners),' + String.fromCharCode(10) + '      Promise.resolve(S.store.partners.gone') }],
     ['残りの 請求書を 画面の 一覧で 数える', { app: app.replace("      S.store.invoices.list('invoice'),", '      Promise.resolve(S.invoices),') }],
     ['毎月の請求に 消した 相手を 出す', { app: app.replace('.filter(function (d) { return !!ptLive(d.partnerId); });', ';') }],
+    ['期限の 後でも 書く（owari を 見ない）', { app: app.split('if (kireta) return osoi();').join('') }],
+    ['入力の 画面で 判じを 通さない', { app: app.replace('    return ptNayose(name, {' + String.fromCharCode(10) + '      err: say,', '    return (function (w) { return w.create(false); })({' + String.fromCharCode(10) + '      err: say,') }],
     ['倉庫で 消えたかを 確かめない（seikyu-store）', { store: store.replace("if (!q || !q.data || !q.data.deleted_at) return { ok: false, reason: '倉庫で 消えた事を 確かめられませんでした' };", '') }],
   ];
+  /* ★--self-test=3 のように 番号で 1通りだけ 回せる★（別の 席の 空きを 食わない為） */
+  const hitotsu = (process.argv.find((a) => /^--self-test=\d+$/.test(a)) || '').split('=')[1];
+  const erabu = hitotsu ? [cases[Number(hitotsu) - 1]].filter(Boolean) : cases;
   let red = 0;
-  for (const [nm, oo] of cases) {
+  for (const [nm, oo] of erabu) {
     const p0 = pass, f0 = fail;
     await run('壊す: ' + nm, oo);
     if (fail > f0) red++;
     pass = p0; fail = f0;
   }
-  console.log('\n壊した ' + cases.length + '通り のうち 赤 ' + red);
-  process.exit(red === cases.length ? 0 : 1);
+  console.log('\n壊した ' + erabu.length + '通り のうち 赤 ' + red + (hitotsu ? '（' + hitotsu + '番目だけ）' : ''));
+  process.exit(red === erabu.length && erabu.length ? 0 : 1);
 }
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
