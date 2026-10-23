@@ -179,6 +179,27 @@ if (JSDOM) {
     ok(doc.getElementById('rep-sum').style.display === 'none', '★見積でも 売上の集計が 出ている★');
     St.kind = 'invoice'; draw();
   });
+  /* ★2026-10-24 taiketsu★ 一覧から ★お客さんと 同じ 道★（下の タブ →「集計」の 切り替え）で 行き、
+     ★試験が 欄を 足さずに★ 画面の 本物の 欄に 集計の 表が 出るかを 見る。 */
+  T('★⑭ 一覧の 下の タブ「請求/集計」→「集計」で 表が 出る（偽の 欄を 足さない）', () => {
+    A._bindForTest();
+    A._go('scr-list'); A._renderListForTest();
+    eq(doc.querySelectorAll('#bk-rep-body').length, 1, '集計の 表の 欄が 画面に 1つで ない');
+    const body = doc.getElementById('bk-rep-body');
+    ok(doc.getElementById('scr-bill').contains(body), '★集計の 欄が「請求/集計」の 画面の 中に 無い★');
+    body.innerHTML = '';
+    const tab = doc.querySelector('.bn[data-scr="scr-bill"]');
+    ok(tab, '★下の タブに「請求/集計」が 無い★');
+    tab.click();
+    ok(doc.getElementById('scr-bill').classList.contains('active'), '★タブを 押しても 画面が 開かない★');
+    const seg = doc.querySelector('#scr-bill [data-bseg="report"]');
+    ok(seg, '★「集計」の 切り替えが 無い★');
+    seg.click();
+    const t = txt('bk-rep-body'), s = txt('bk-rep-sum');
+    ok(/例野工業/.test(t) && /型見空例/.test(t), '★タブから 行っても 集計の 表が 出ない★：' + t.slice(0, 80));
+    ok(/44,000/.test(s + ' ' + t), '★8月の請求 44,000 が 出ていない★：' + s);
+    console.log('     ' + s.slice(0, 70));
+  });
 } else {
   console.log('  ※ jsdom が無いので 実UIの4本は 走っていません（★0件ではありません★）');
 }

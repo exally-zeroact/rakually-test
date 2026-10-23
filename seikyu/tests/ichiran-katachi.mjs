@@ -18,6 +18,14 @@
  *   ⑤ 下書きで 金額が 無い時は その 行に「金額まだ N行」（0円と 見せない）
  *   ⑥ 確認・修正・削除が 押せて 働く（削除は 倉庫から 消える）
  *   ⑦ 一覧の 頭に 集計の 選び（月の select・集計の 1行）が 無い
+ *   ⑪ ★合計は 発行済みの 請求書だけ★（2026-10-24 taiketsu が 止めた＝実測で 下書き 1,100・取り消し 99,999 が 混ざった）
+ *      材料は ★実際に 保存される 形★＝品名だけの 下書き（grandTotal 0）・一部だけ 金額の 下書き（1,100）・
+ *      取り消し（99,999）・見積（77,777）。字で「発行済み N件の合計」・入れなかった物も 字で 言う。
+ *      発行済みが 0通の 絞り（下書き・取り消し）では 合計を 出さない。
+ *   ⑫ 同じ 名前の 取引先が 2件 在る時、会社の 選択肢で 見分けが 付く
+ *   ⑬ 「もっと」の 見出しに 中に 無い「集計」を 書かない
+ * --self-test ＝ ★本物の seikyu-app.js を わざと 壊して 動かし、上の 見張りが 赤に なるかを 見る★
+ *   （字が 在るかを 数えるだけ では ない＝壊しても 緑の 見張りを 置かない・taiketsu 10-24）
  * 見る物（本物の Chrome・390px と 320px）:
  *   ⑧ 会社名が 左・金額が ★右端★（行の 右の 端と 2px 以内）・同じ 高さ・名前が 長くても 金額は 1行で 右端
  *   ⑨ 会社と 期間の 2つが ★横に 並ぶ★・件数が 左／合計が 右端
@@ -54,20 +62,26 @@ const PARTNERS = [
   { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: NAGAI, keisho: '御中' }, deleted_at: null },
   /* ★請求書が 1通も 無い 会社★＝これが 選択肢に 出るか（請求書から 拾うだけ だと 出ない） */
   { id: 'pt_c', account_id: 'u1', sort: 2, data: { name: '翠川ホテル', keisho: '御中' }, deleted_at: null },
+  /* ★同じ 名前の 2件目★（支店など）＝選択肢で 見分けが 付くか */
+  { id: 'pt_d', account_id: 'u1', sort: 3, data: { name: '例野工業', keisho: '御中', addr: '大阪府架空市見本町1-1' }, deleted_at: null },
 ];
 const line = (kin) => ({ name: '工事代金', qty: '1', unit: '式', price: kin == null ? '' : String(kin),
   amount: kin == null ? '' : String(kin), rate: 10, memo: '' });
-const iv = (id, no, pid, ymd, kin, st) => ({
-  id, account_id: 'u1', doc_type: 'invoice', no, partner_id: pid, issue_ymd: ymd, due_ymd: null,
+/* ★実際に 保存される 形★（taiketsu 10-24 実測）＝品名だけの 下書きも grandTotal は 0 で 保存される。
+   kin が 配列なら 行ごとの 金額（null は 金額の 空いた 行）。 */
+const iv = (id, no, pid, ymd, kin, st, dt) => ({
+  id, account_id: 'u1', doc_type: dt || 'invoice', no, partner_id: pid, issue_ymd: ymd, due_ymd: null,
   status: st || 'issued', tax_mode: 'exclusive', rounding: 'floor',
-  lines: kin == null ? [line(null), line(null)] : [line(kin)],
-  totals: kin == null ? {} : { grandTotal: Math.floor(kin * 1.1) },
+  lines: Array.isArray(kin) ? kin.map(line) : kin == null ? [line(null), line(null)] : [line(kin)],
+  totals: { grandTotal: Math.floor((Array.isArray(kin) ? kin.reduce((a, x) => a + (x || 0), 0) : (kin || 0)) * 1.1) },
   snapshot: {}, data: {}, template_id: 'std1', quote_from: null,
   issued_at: st === 'draft' ? null : ymd + 'T00:00:00Z', sent_at: ymd + 'T01:00:00Z', voided_at: null,
   updated_at: ymd + 'T00:00:00Z', deleted_at: null,
 });
 const INVOICES = [
-  iv('v_d', null, 'pt_a', '2026-09-20', null, 'draft'),           // 下書き・金額まだ 2行
+  iv('v_d', null, 'pt_a', '2026-09-20', null, 'draft'),           // 下書き・品名だけ＝金額まだ 2行・grandTotal 0
+  iv('v_dp', null, 'pt_b', '2026-09-21', [1000, null], 'draft'),  // 下書き・一部だけ 金額＝金額まだ 1行・grandTotal 1,100
+  iv('v_v', '202609-009', 'pt_a', '2026-09-07', 90909, 'void'),   // 取り消し 99,999
   iv('v_a9', '202609-001', 'pt_a', '2026-09-05', 50000),          // 55,000
   iv('v_b9', '202609-002', 'pt_b', '2026-09-06', 1234567),        // 1,358,023
   iv('v_a8', '202608-001', 'pt_a', '2026-08-05', 20000),          // 22,000
@@ -194,14 +208,88 @@ async function measure(doc, width) {
 
 console.log('\n[ichiran-katachi] 一覧の 形を 代行請求の 一覧に 寄せる' + (SELF ? '（自分ためし）' : ''));
 
+/* ═══ ★見張りの 中身★（本物でも 壊した物でも 同じ 物を 使う＝2つの 見張りを 作らない） ═══ */
+const tx = (e) => ((e && e.textContent) || '').replace(/\s+/g, ' ').trim();
+const MI = {
+  sum(win, doc) {            // ⑪ 合計は 発行済みだけ（既定の 絞り と すべて）
+    const S = win.SeikyuApp._state;
+    const t = () => tx(doc.getElementById('list-sum'));
+    S.fil = 'live'; win.SeikyuApp._renderListForTest();
+    ok(/発行済み 4件の合計 1,468,023 円/.test(t()), '★既定の 絞りの 合計に 下書き・取り消しが 混ざった★ ' + t());
+    ok(/下書き 2件/.test(t()), '★下書きを 入れていない事を 言っていない★ ' + t());
+    S.fil = 'all'; win.SeikyuApp._renderListForTest();
+    ok(/発行済み 4件の合計 1,468,023 円/.test(t()), '★「すべて」の 合計に 取り消し 99,999 が 混ざった★ ' + t());
+    ok(/取り消し 1件/.test(t()), '★取り消しを 入れていない事を 言っていない★ ' + t());
+  },
+  sumNone(win, doc) {        // ⑪ 発行済みが 0通の 絞りでは 合計を 出さない
+    const S = win.SeikyuApp._state;
+    const t = () => tx(doc.getElementById('list-sum'));
+    try {
+      S.fil = 'draft'; win.SeikyuApp._renderListForTest();
+      ok(!/合計 [\d,]+ 円/.test(t()) && /発行済みの請求書はありません/.test(t()), '★下書きだけ なのに 合計を 出している★ ' + t());
+      S.fil = 'void'; win.SeikyuApp._renderListForTest();
+      ok(!/合計 [\d,]+ 円/.test(t()), '★取り消し だけ なのに 合計を 出している★ ' + t());
+    } finally { S.fil = 'all'; win.SeikyuApp._renderListForTest(); }
+  },
+  quote(win, doc) {          // ⑪ 見積は 合計に 入れない
+    const S = win.SeikyuApp._state, keep = S.invoices;
+    try {
+      S.invoices = keep.concat([iv('v_q', 'Q-1', 'pt_a', '2026-09-08', 70707, 'issued', 'quote')]);
+      S.fil = 'all'; win.SeikyuApp._renderListForTest();
+      const t = tx(doc.getElementById('list-sum'));
+      ok(/発行済み 4件の合計 1,468,023 円/.test(t) && /見積 1件/.test(t), '★見積が 合計に 混ざった★ ' + t);
+    } finally { S.invoices = keep; win.SeikyuApp._renderListForTest(); }
+  },
+  master(win, doc) {         // ② 会社は 登録から
+    const sel = [...doc.querySelectorAll('#scr-list .filterbar select')][0];
+    ok(sel, '会社の select が 無い');
+    ok([...sel.options].some((o) => o.textContent === '翠川ホテル'), '★請求書の 無い 登録の 会社が 選べない★');
+  },
+  dup(win, doc) {            // ⑫ 同じ 名前を 見分ける
+    const sel = [...doc.querySelectorAll('#scr-list .filterbar select')][0];
+    const t = [...sel.options].map((o) => o.textContent);
+    ok(new Set(t).size === t.length, '★同じ 字の 選択肢が 2つ 在る＝見分けが 付かない★ ' + t.join(' / '));
+    ok(t.some((x) => /例野工業（大阪府架空市見本町1-1）/.test(x)), '★2件目に 住所を 添えていない★ ' + t.join(' / '));
+  },
+  line(win, doc) {           // ④ 会社名の 行の 右端が 金額
+    const c = doc.querySelector('#list-body [data-look="v_b9"]');
+    const card = c && c.closest('.iv-card'), ln = card && card.querySelector('.iv-line');
+    ok(ln && ln.lastElementChild && ln.lastElementChild.classList.contains('iv-amt'), '★会社名の 行の 右端に 金額が 無い★');
+    eq(tx(ln.lastElementChild), '1,358,023 円', '右端の 金額');
+  },
+  mada(win, doc) {           // ⑤ 下書きの 会社名の 行に 金額まだ
+    const c = doc.querySelector('#list-body [data-look="v_d"]').closest('.iv-card');
+    ok(/金額まだ 2行/.test(tx(c.querySelector('.iv-line'))), '★品名だけの 下書きに「金額まだ」が 無い★ ' + tx(c));
+    const c2 = doc.querySelector('#list-body [data-look="v_dp"]').closest('.iv-card');
+    ok(/金額まだ 1行/.test(tx(c2.querySelector('.iv-line'))), '★一部だけの 下書きに「金額まだ」が 無い★ ' + tx(c2));
+  },
+};
+
 if (SELF) {
-  /* ★自分ためし★＝わざと 壊す所が 本当に コードに 在るかを 先に 数える（壊れていない物で 見張りを 疑わない） */
-  const kowasu = [
-    ['会社の 選択肢を 登録から 作らない', "(S.partners || []).forEach(function (p) {"],
-    ['会社名の 行に 金額を 並べない', "'<div class=\"iv-line\">'"],
+  /* ★わざと 壊す★＝本物の seikyu-app.js の 1か所を 書き換えて 動かし、受け持ちの 見張りが ★赤に なる★事を 見る */
+  const KOWASU = [
+    ['合計に 下書きと 取り消しを 混ぜる（前の 形）', 'var st = DOC.statusOf(v);', "var st = 'issued';", 'sum'],
+    ['合計に 取り消しだけ 混ぜる', "if (st !== 'issued') { voided++; return; }", '', 'sum'],
+    ['下書きだけの 絞りでも 合計を 出す', "+ '<span class=\"ls-v\">' + (sumOf.n", "+ '<span class=\"ls-v\">' + (true", 'sumNone'],
+    ['見積を 合計に 混ぜる', "if ((v.doc_type || 'invoice') !== 'invoice') { quote++; return; }", '', 'quote'],
+    ['会社を 請求書からだけ 拾う（前の 形）', "(S.partners || []).forEach(function (p) {\n      if (!p || !p.id || mita[p.id]) return;",
+      "([]).forEach(function (p) {\n      if (!p || !p.id || mita[p.id]) return;", 'master'],
+    ['同じ 名前を 見分けない', 'if (kazu[x.nm] < 2) return;', 'return;', 'dup'],
+    ['金額を 会社名の 行の 外へ 出す', "'</span>' + migi + '</div>'", "'</span></div>' + migi", 'line'],
+    ['「金額まだ」を 数えない', 'waiting = DOC.rowIssuesOf(v.lines || []).noAmount.length;', 'waiting = 0;', 'mada'],
   ];
-  kowasu.forEach(([na, a]) => ok(APP.split(a).length === 2, '★壊す所が 1つ 見つからない★ ' + na + ' … ' + a));
-  console.log('     壊す所 ' + kowasu.length + '箇所（本当に コードに 在る事を 見た）');
+  console.log('     わざと 壊す ' + KOWASU.length + '通り（壊した 本物を 動かす）');
+  for (const [na, from, to, mi] of KOWASU) {
+    await T('★自 ' + na + ' → ' + mi + ' が 赤に なる', async () => {
+      ok(APP.split(from).length === 2, '★壊す所が 1つ 見つからない★ ' + from);
+      const r = await boot(APP.replace(from, to));
+      r.win.SeikyuApp._state.fil = 'all'; r.win.SeikyuApp._renderListForTest();
+      let aka = '';
+      try { MI[mi](r.win, r.doc); } catch (e) { aka = e.message; }
+      ok(aka, '★壊したのに 緑のまま＝この 見張りは 空振り★');
+      console.log('       赤: ' + aka.slice(0, 70));
+    });
+  }
 }
 
 const { win, doc, sb, errs } = await boot();
@@ -214,7 +302,7 @@ const S = win.SeikyuApp._state;
 S.fil = 'all';
 win.SeikyuApp._renderListForTest();
 
-await T('★前提 一覧に 5通 出ている（空振りしていない）', async () => {
+await T('★前提 一覧に ' + INVOICES.length + '通 出ている（空振りしていない）', async () => {
   eq(cards().length, INVOICES.length, '出ている カード');
 });
 
@@ -235,8 +323,9 @@ const coSel = () => list().querySelectorAll('.filterbar select')[0];
 const moSel = () => list().querySelectorAll('.filterbar select')[1];
 
 await T('★② 会社の 選択肢は 登録の 会社から（請求書が 無い 会社も・登録の 順）', async () => {
-  const names = [...coSel().options].slice(1).map((o) => o.textContent);
-  eq(names.join(' / '), PARTNERS.map((p) => p.data.name).join(' / '), '★登録の 会社と 並びが 違う★');
+  const names = [...coSel().options].slice(1).map((o) => o.value);
+  eq(names.join(' / '), PARTNERS.map((p) => p.id).join(' / '), '★登録の 会社と 並びが 違う★');
+  MI.master(win, doc);
   const mo = [...moSel().options].slice(1).map((o) => o.value);
   eq(mo.join(','), '2026-09,2026-08', '★期間の 選択肢が 在る月・新しい順で ない★');
   console.log('     会社: ' + [...coSel().options].map((o) => o.textContent).join(' / '));
@@ -244,23 +333,40 @@ await T('★② 会社の 選択肢は 登録の 会社から（請求書が 無
 
 await T('★③ 選ぶと 一覧と「N件・合計」が 変わる（会社・期間・両方）', async () => {
   const sum = () => txt($('list-sum'));
-  ok(/^5件/.test(sum()), '全部の 時の 件数: ' + sum());
-  ok(/合計 1,468,023 円/.test(sum()), '全部の 時の 合計: ' + sum());
+  ok(/^7件/.test(sum()), '全部の 時の 件数: ' + sum());
+  ok(/発行済み 4件の合計 1,468,023 円/.test(sum()), '全部の 時の 合計: ' + sum());
   kaeru(coSel(), 'pt_b');
-  eq(cards().length, 2, '★会社で 絞れていない★');
-  ok(/^2件（絞り込み中）/.test(sum()) && /合計 1,391,023 円/.test(sum()), '★会社で 絞った 件数・合計★ ' + sum());
+  eq(cards().length, 3, '★会社で 絞れていない★');
+  ok(/^3件（絞り込み中）/.test(sum()) && /発行済み 2件の合計 1,391,023 円/.test(sum()), '★会社で 絞った 件数・合計★ ' + sum());
   kaeru(moSel(), '2026-08');
   eq(cards().length, 1, '★会社と 期間の 両方で 絞れていない★');
-  ok(/^1件/.test(sum()) && /合計 33,000 円/.test(sum()), '★両方で 絞った 件数・合計★ ' + sum());
+  ok(/^1件/.test(sum()) && /発行済み 1件の合計 33,000 円/.test(sum()), '★両方で 絞った 件数・合計★ ' + sum());
   kaeru(coSel(), '');
   eq(cards().length, 2, '★期間だけで 絞れていない★');
   ok(/合計 55,000 円/.test(sum()), '★8月の 合計★ ' + sum());
   kaeru(coSel(), 'pt_c');
   eq(cards().length, 0, '請求書の 無い 会社で 0通に ならない');
-  ok(/^0件/.test(sum()), '★0件と 言っていない★ ' + sum());
+  ok(/^0件/.test(sum()) && /発行済みの請求書はありません/.test(sum()), '★0件と 言っていない★ ' + sum());
   kaeru(coSel(), ''); kaeru(moSel(), '');
-  eq(cards().length, 5, '★戻していない★');
+  eq(cards().length, INVOICES.length, '★戻していない★');
   console.log('     ' + sum());
+});
+
+await T('★⑪ 合計は 発行済みだけ（下書き 0・1,100／取り消し 99,999／見積 を 足さない）', async () => {
+  MI.sum(win, doc); MI.sumNone(win, doc); MI.quote(win, doc);
+  S.fil = 'all'; win.SeikyuApp._renderListForTest();
+  console.log('     ' + txt($('list-sum')));
+});
+
+await T('★⑫ 同じ 名前の 取引先が 2件 在る時 見分けが 付く', async () => {
+  MI.dup(win, doc);
+  console.log('     ' + [...coSel().options].map((o) => o.textContent).join(' / '));
+});
+
+await T('★⑬ 「もっと」の 見出しに 中に 無い「集計」を 書かない', async () => {
+  const sm = doc.querySelector('#list-more > summary');
+  ok(sm, '「もっと」が 無い');
+  ok(!/集計/.test(tx(sm)), '★中に 無い「集計」を 見出しが 約束している★ ' + tx(sm));
 });
 
 await T('★④ カードの 1行に 会社名と 金額（同じ 行の 中）', async () => {
@@ -270,6 +376,7 @@ await T('★④ カードの 1行に 会社名と 金額（同じ 行の 中）'
   ok(ln, '★会社名と 金額の 行（.iv-line）が 無い★');
   eq(txt(ln.querySelector('.iv-name')), NAGAI, '★行の 左が 会社名で ない★');
   eq(txt(ln.querySelector('.iv-amt')), '1,358,023 円', '★行の 右が 金額で ない★');
+  MI.line(win, doc);
   eq(ln.children[ln.children.length - 1], ln.querySelector('.iv-amt'), '★金額が 行の 最後（右端）に 無い★');
 });
 
@@ -281,6 +388,7 @@ await T('★⑤ 下書きで 金額が 無い時は 会社名の 行に「金額
   ok(/金額まだ 2行/.test(txt(ln)), '★会社名の 行に「金額まだ」が 無い★ ' + txt(ln));
   ok(/例野工業/.test(txt(ln)), '★下書きの 行に 会社名が 無い★');
   ok(!/0 円/.test(txt(c)), '★0円と 出ている★');
+  MI.mada(win, doc);
 });
 
 await T('★⑦ 一覧の 頭に 集計の 選び（月の select・集計の 1行）が 無い', async () => {

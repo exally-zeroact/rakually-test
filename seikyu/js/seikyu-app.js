@@ -541,6 +541,25 @@
      ★billList / billYm は 残す★＝一覧の 月の しぼり込みが 使っている
        （★月の 読み方は 1本★＝2か所で 別々に 切らない）。 */
 
+  /** ★一覧の 合計★＝発行済みの 請求書だけ（下書き・取り消し・見積は 足さない）。
+   *  soto＝合計に 入れなかった 物を 字で（「下書き 2件・取り消し 1件」）＝黙って 減らさない。 */
+  function listSumOf(rows) {
+    var n = 0, kei = 0, yomenai = 0, draft = 0, voided = 0, quote = 0;
+    (rows || []).forEach(function (v) {
+      if ((v.doc_type || 'invoice') !== 'invoice') { quote++; return; }
+      var st = DOC.statusOf(v);
+      if (st === 'draft') { draft++; return; }
+      if (st !== 'issued') { voided++; return; }
+      var g = v.totals && v.totals.grandTotal;
+      if (typeof g === 'number') { n++; kei += g; } else yomenai++;
+    });
+    var soto = [];
+    if (draft) soto.push('下書き ' + draft + '件');
+    if (voided) soto.push('取り消し ' + voided + '件');
+    if (quote) soto.push('見積 ' + quote + '件');
+    return { n: n, kei: kei, yomenai: yomenai, soto: soto.join('・') };
+  }
+
   function renderList() {
     renderRecurring();
     /* ★2026-10-23 一覧の 頭の「ぜんぶ」の 集計は 外した★（司さん 赤丸）
@@ -574,17 +593,21 @@
     /* ★何件に 絞ったか・いくらか を 必ず出す★（代行請求の #listSum と 同じ）
        ＝「消えた」と 思わせない。★絞り込み中★と 書くのは 実際に 絞っている時だけ。 */
     var shibotta = !!((lp && lp.value) || (lm && lm.value));
-    var kei = 0, yomeru = 0;
-    rows.forEach(function (v) {
-      var g = v.totals && v.totals.grandTotal;
-      if (typeof g === 'number') { kei += g; yomeru++; }
-    });
-    /* ★2026-10-23★ 代行請求の .list-sum と 同じ＝「N件」が 左・「合計」が 右端 */
+    /* ★★合計は「発行済みの 請求書」だけ★★（2026-10-24 taiketsu が 止めた＝実測）
+       前は 金額が 数で 入っていれば 何でも 足していた＝★下書き（品名だけは 0・一部だけ金額は 1,100 等）
+       と 取り消した 1通（99,999）が 合計に 混ざり★、「金額まだ」の カードが 在るのに 注記も 出なかった。
+       ★決め★＝足すのは 発行済み（取り消し・下書き・見積を 除く）だけ・字で「発行済み N件の合計」と 言う。
+         ★下書きは 1通も 足さない★ので「金額まだ」（rowIssuesOf＝下書きだけを 見る）と 合計の 判定は ずれない。
+         発行済みが 0通の 絞りでは 合計を 出さずに その事を 字で 言う。お金の 計算（grandTotal）は 触らない。 */
+    var sumOf = listSumOf(rows);
     var sumEl = $('list-sum');
     if (sumEl) sumEl.innerHTML = '<span class="ls-n">' + rows.length + '件'
       + (shibotta ? '（絞り込み中）' : '') + '</span>'
-      + '<span class="ls-v">合計 ' + yen(kei) + ' 円'
-      + (yomeru < rows.length ? '<span class="ls-k">（金額が 入っている ' + yomeru + '件ぶん）</span>' : '')
+      + '<span class="ls-v">' + (sumOf.n
+        ? '発行済み ' + sumOf.n + '件の合計 ' + yen(sumOf.kei) + ' 円'
+          + (sumOf.yomenai ? '<span class="ls-k">（金額が 読めない ' + sumOf.yomenai + '件は 入れていません）</span>' : '')
+        : '発行済みの請求書はありません')
+      + (sumOf.soto ? '<span class="ls-k">（' + sumOf.soto + 'は 合計に 入れていません）</span>' : '')
       + '</span>';
     if (!rows.length) {
       host.innerHTML = '<div class="card"><div class="empty">'
@@ -845,7 +868,20 @@
     (S.partners || []).forEach(function (p) {
       if (!p || !p.id || mita[p.id]) return;
       mita[p.id] = 1;
-      list.push({ id: p.id, nm: (p.data && p.data.name) || '（名前なし）' });
+      list.push({ id: p.id, nm: (p.data && p.data.name) || '（名前なし）', d: p.data || {} });
+    });
+    /* ★同じ 名前の 取引先が 2件 在る時は 見分けが 付く 字を 添える★（2026-10-24 taiketsu）
+       ＝住所 → 番号 → 電話 の 順に 在る物。どれも 無ければ 登録の 何番目か。 */
+    var kazu = {};
+    list.forEach(function (x) { kazu[x.nm] = (kazu[x.nm] || 0) + 1; });
+    var jun = {};
+    list.forEach(function (x) {
+      if (kazu[x.nm] < 2) return;
+      jun[x.nm] = (jun[x.nm] || 0) + 1;
+      var d = x.d || {};
+      var soe = String(d.addr || '').trim() || (d.code ? '番号 ' + String(d.code).trim() : '')
+        || String(d.tel || '').trim() || ('登録 ' + jun[x.nm] + '件目');
+      x.nm = x.nm + '（' + soe + '）';
     });
     (S.invoices || []).forEach(function (v) {
       if (!v.partner_id || mita[v.partner_id]) return;
