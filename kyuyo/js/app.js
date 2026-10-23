@@ -37,8 +37,13 @@
   }
 
   var num=function(v){ return PM().num(v); }; // 数値化は lib/payroll-monthly.js へ移設(単一定義)
-  var yen=function(n){return '¥'+Math.round(n).toLocaleString('ja-JP');};
-  var fmtN=function(v){var n=num(v);return n?n.toLocaleString('ja-JP'):(v===0||v==='0'?'0':'');};
+  /* ★数の 字の 整え方を 1個 作って 使い回す★（2026-10-23 司さん「150人で重くなるのが問題」）
+     ＝toLocaleString は 呼ぶ たびに 整え方を 作り直す＝158人の 入力タブで yen だけ 0.44秒（電話の 遅さ・実測）。
+     出す 字は 同じ（NaN・-0・±Infinity・1e21 を 含む 20,008個で 違い 0＝taiketsu 実測）。 */
+  var _JPN=(typeof Intl!=='undefined'&&Intl.NumberFormat)?new Intl.NumberFormat('ja-JP'):null;
+  var _jp=function(n){ return _JPN?_JPN.format(n):n.toLocaleString('ja-JP'); };
+  var yen=function(n){return '¥'+_jp(Math.round(n));};
+  var fmtN=function(v){var n=num(v);return n?_jp(n):(v===0||v==='0'?'0':'');};
   function activeEmps(){ return state.employees.filter(function(e){return !e.retired;}); } // 稼働中(退職を除く)
   var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
   var attr=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};

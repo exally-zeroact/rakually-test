@@ -664,6 +664,8 @@ jobs:
         run: node kyuyo/tests/furikomi-keisanochi.test.mjs && node kyuyo/tests/furikomi-keisanochi.test.mjs --waza
       - name: ★確定した 給与は 退職・削除の 人でも 振込に 入る（ボタンで 退職・退職日あり・削除）／確定していない 退職の 人・賞与は 入れない（jsdom）／わざと 確定を 見ないと 赤
         run: node kyuyo/tests/furikomi-taishoku.test.mjs && node kyuyo/tests/furikomi-taishoku.test.mjs --waza
+      - name: ★数の 字の 整え方を 使い回しても 字は 同じ（yen・fmtN）／わざと 違う 整え方を 混ぜると 赤
+        run: node kyuyo/tests/yen-onaji.test.mjs && node kyuyo/tests/yen-onaji.test.mjs --waza
       - name: ★労災の札が 率入力で その場で変わる（開き直さず・jsdom）／わざと札更新を外すと赤
         run: node kyuyo/tests/rousai-fuda-live.test.mjs && node kyuyo/tests/rousai-fuda-live.test.mjs --waza
       - name: ★年金機構の検査をこちらで再現（公式の項目表 csv225/csv221・出す前の門）
