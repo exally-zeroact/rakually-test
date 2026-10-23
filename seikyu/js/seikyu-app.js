@@ -185,13 +185,32 @@
     if (v.id && v.status && v.status !== 'draft') {
       return COLS.normalizeSpec(TPL.getOrDefault(v.template_id).cols);
     }
+    /* ★★列は その紙の 様式に 合わせる★★（2026-10-23 司さん（客の実画面）
+         「設定で『項目と金額だけ＋控除』を選んでいるのに 一覧から確認したら 備考が入っている」）
+       ★直す前の作り★ … 下書きを 作った時に 会社の列を data.cols へ 写し、それを いちばん先に 見ていた。
+         そのあと 設定で 様式を 変えると 様式（template_id）は tplSync で 変わるのに
+         ★列だけ 作った時の 様式の まま★（genba の 6列）＝紙は「控除の様式なのに 備考の列」。
+         取引先ごとの様式・前回の様式でも 同じで、★会社の列(s.cols)は 会社の様式の 列★なのに
+         別の様式の 紙にも 当てていた。
+       ⇒ ★列は「どの様式の為の列か」を 持たせ、今の様式と 合う時だけ 使う★
+         ① その1通の列（data.cols）… data.colsTpl が 今の様式と 同じ時だけ
+         ② この相手だけの列（設定 ▸ 取引先 で 作った物＝人が 決めた）
+         ③ 会社の列（設定 ▸ 明細の列）… 会社の様式と 今の様式が 同じ時だけ
+         ④ 今の様式の 列
+       ★発行済みは 上で 写しのまま 返している★（出した紙は 変えない）。お金は 列と 関係ない。 */
+    var tpl = v.template_id || templateForPartner(v.partner_id);
     var own = v.data && v.data.cols;
-    if (own && Array.isArray(own.items) && own.items.length) return COLS.normalizeSpec(own);
+    if (own && Array.isArray(own.items) && own.items.length
+      && colsAuMono(v.data.colsTpl, tpl)) return COLS.normalizeSpec(own);
     /* ★この相手だけの列★（会社の既定より 強い・無ければ 素通り＝今までどおり） */
     var pc = SCOPE && SCOPE.partnerPaper(partnerById(v.partner_id)).cols;
     if (pc && Array.isArray(pc.items) && pc.items.length) return COLS.normalizeSpec(pc);
-    if (s.cols) return COLS.normalizeSpec(s.cols);
-    return COLS.normalizeSpec(TPL.getOrDefault(v.template_id || s.template).cols);
+    if (s.cols && colsAuMono(s.template, tpl)) return COLS.normalizeSpec(s.cols);
+    return COLS.normalizeSpec(TPL.getOrDefault(tpl).cols);
+  }
+  /** ★その列が 今の様式の 為の物か★（違う様式の 列を 紙に 当てない＝tpl-kiku-ui が 見張る） */
+  function colsAuMono(colsTpl, tpl) {
+    return !!colsTpl && colsTpl === tpl;
   }
   /** ★この相手の 紙の行数★（無ければ 会社の既定）。空欄と 0 は 別物 */
   function rowsForPartner(pid, orgRows) {
@@ -227,8 +246,14 @@
   function tplFromRireki(pid) {
     if (!pid) return null;
     var ima = S.cur ? S.cur.id : null;
+    /* ★会社の設定で 様式を 選んだ 後は、それより 前に 出した紙の 様式を 当てない★
+       （2026-10-23 司さん「設定で 項目と金額だけ＋控除 を 選んでいるのに 備考が 入っている」）
+       ＝前に genba で 出した 相手だと、今 選んだ 様式より ★前回の 様式が 勝っていた★。
+       ★人が 今 選んだ物が いちばん 新しい 意思★。相手ごとに 変えたい時は 設定 ▸ 取引先 の「紙の様式」。 */
+    var erandaAt = String(((S.org || {}).invoiceTemplateAt) || '');
     var mine = (S.invoices || []).filter(function (x) {
-      return x.partner_id === pid && x.id !== ima && x.template_id && TPL.get(x.template_id);
+      if (!(x.partner_id === pid && x.id !== ima && x.template_id && TPL.get(x.template_id))) return false;
+      return !erandaAt || String(x.issued_at || x.updated_at || x.issue_ymd || '') > erandaAt;
     }).sort(function (a, b) { return String(b.issue_ymd || '').localeCompare(String(a.issue_ymd || '')); });
     if (!mine.length) return null;
     /* ★名前は 今 選んでいる相手から 取る★（古い1通から 引くと、その相手が 消えている時に
@@ -695,6 +720,8 @@
       data: {
         subject: '', memo: '', noMode: 'auto', term: { kind: 'none', n: 0 },
         cols: COLS.normalizeSpec(s.cols || TPL.getOrDefault(s.template).cols),
+        /* ★この列は どの様式の 為の物か★（様式が 変わったら この列は 使わない＝colsOf） */
+        colsTpl: s.template || TEMPLATE_ID,
       },
       template_id: s.template || TEMPLATE_ID, quote_from: '',
     };
@@ -1238,6 +1265,7 @@
     var jibunDe = !!(mae && JSON.stringify([mae.items, mae.widths, mae.aligns])
       !== JSON.stringify([maeKitei.items, maeKitei.widths, maeKitei.aligns]));
     if (!mae || !jibunDe) v.data.cols = COLS.normalizeSpec(TPL.getOrDefault(id).cols);
+    v.data.colsTpl = id;              /* ★人が 選んだ 様式の 列＝この様式で 使う★ */
     /* ★1問ごと保存★（下書きだけ。発行済みは触らない） */
     /* 日付と番号がそろっている下書きだけ その場で保存する
        （そろう前に保存を呼ぶと「請求日を入れてください」の赤が出る＝まだ聞いていない事で怒らない） */
@@ -1449,7 +1477,8 @@
     var hiki = [];
     if (g.term && g.term.kind && g.term.kind !== 'none') hiki.push('支払期限');
     if (g.subject && jido.indexOf('subject') >= 0) hiki.push('件名');
-    if (g.templateId) hiki.push('紙の様式');
+    /* ★紙の様式は 設定が 決める（tplSync）★＝前回と 同じに なった時だけ「引き継いだ」と 言う */
+    if (g.templateId && g.templateId === v.template_id) hiki.push('紙の様式');
     if (wantGensen) hiki.push('源泉徴収');
     /* ★税・端数を 会社の 既定と 違う 物に した 時も 言う★（taiketsu 止2＝黙って 税込みに しない） */
     if (jido.indexOf('tax') >= 0 && v.tax_mode !== settings().taxMode) hiki.push('金額の入れ方（' + (v.tax_mode === 'inclusive' ? '税込み' : '税抜き') + '）');
@@ -1700,7 +1729,13 @@
     drawKind();
     S.cur = Object.assign(blankInvoice({ docType: 'invoice' }), draft);
     S.cur.data = Object.assign({}, draft.data || {});
-    if (!S.cur.data.cols) S.cur.data.cols = COLS.normalizeSpec(settings().cols || TPL.getOrDefault(settings().template).cols);
+    if (!S.cur.data.cols) {
+      S.cur.data.cols = COLS.normalizeSpec(settings().cols || TPL.getOrDefault(settings().template).cols);
+      S.cur.data.colsTpl = settings().template;
+    } else if (!S.cur.data.colsTpl) {
+      /* ★見積の列は 見積の様式の 為の物★（様式が 同じなら そのまま 持っていく） */
+      S.cur.data.colsTpl = q.template_id || settings().template;
+    }
     S.guessDone = true;              // ★見積から当てたので「前回と同じで作りますか？」は出さない
     S.dirty = true;
     return loadList().then(function () {
@@ -1728,6 +1763,8 @@
     drawKind();
     S.cur = Object.assign(blankInvoice({ docType: draft.doc_type }), draft);
     S.cur.data = Object.assign({}, draft.data || {});
+    /* ★写した列は 元の紙の 様式の 為の物★（様式が 同じなら 同じ列で 出る） */
+    if (S.cur.data.cols && !S.cur.data.colsTpl) S.cur.data.colsTpl = src.template_id || settings().template;
     S.guessDone = true;               // 中身は もう写してある＝「前回と同じで作りますか」は出さない
     S.dirty = true;
     return loadList().then(function () {
@@ -3259,7 +3296,10 @@
     // 編集できるのは下書きだけ。発行済みは写しの並びを見せるだけ。
     var v = S.cur;
     if (!setNow && v && !locked()) {
-      if (!v.data.cols) v.data.cols = COLS.normalizeSpec(colsOf(v));
+      if (!v.data.cols || !colsAuMono(v.data.colsTpl, v.template_id || templateForPartner(v.partner_id))) {
+        v.data.cols = COLS.normalizeSpec(colsOf(v));
+        v.data.colsTpl = v.template_id || templateForPartner(v.partner_id);
+      }
       return v.data.cols;
     }
     var s = settings();
@@ -4195,11 +4235,19 @@
     renderTplSeg('s-tpl', 's-tpl-note', id, function (pick) {
       if (!S.org) S.org = {};
       var mae = settings();
-      if (pick === mae.template) return;                 /* 同じ物を 押した＝何も しない */
+      /* 同じ物を 押した＝列は 何も しない。★ただ「今 これを 選んだ」は 覚える★
+         （前に 別の様式で 出した 相手にも、今 選んだ 様式を 効かせる＝tplFromRireki） */
+      if (pick === mae.template) {
+        S.org.invoiceTemplate = pick;
+        S.org.invoiceTemplateAt = new Date().toISOString();
+        box('col-ok', '「' + TPL.getOrDefault(pick).label + '」で 出します（前に 別の紙で 出した 相手にも この紙を 使います）。');
+        return;
+      }
       var maeCols = mae.cols ? COLS.normalizeSpec(mae.cols) : null;
       var chigau = !!(maeCols && !onajiCols(maeCols, TPL.getOrDefault(mae.template).cols));
       S.org.invoiceTemplate = pick;
       S.org.invoiceCols = COLS.normalizeSpec(TPL.getOrDefault(pick).cols);
+      S.org.invoiceTemplateAt = new Date().toISOString();   /* ★選んだ時＝これより 前の紙の 様式は 当てない★ */
       colsUndo = chigau ? { tpl: mae.template, cols: maeCols } : null;
       drawSetTpl(pick);
       renderColEditor();
@@ -4222,6 +4270,7 @@
     if (!S.org) S.org = {};
     S.org.invoiceTemplate = colsUndo.tpl;
     S.org.invoiceCols = COLS.normalizeSpec(colsUndo.cols);
+    S.org.invoiceTemplateAt = new Date().toISOString();
     colsUndo = null;
     drawSetTpl(S.org.invoiceTemplate);
     renderColEditor();
@@ -4797,8 +4846,19 @@
         var pp = partnerById($('s-partner') && $('s-partner').value);
         if (!pp) return;
         pp.data = pp.data || {};
+        var maeTpl = SCOPE.partnerPaper(pp).template || settings().template;
         pp.data.paper = partnerPaperFromForm(pp.id);
+        /* ★様式を 選び直したら この相手だけの列も その様式の 列にする★（2026-10-23）
+           ＝会社の「紙の様式」と 同じ 決まり（drawSetTpl）。前は 相手の列が 前の様式の まま 残り、
+             ★控除の様式を 選んでも 備考の列が 出た★。 */
+        var imaTpl = pp.data.paper.template || settings().template;
+        var kaeta = (id === 's-ptpl' && imaTpl !== maeTpl && pp.data.paper.cols);
+        if (kaeta) pp.data.paper.cols = COLS.normalizeSpec(TPL.getOrDefault(imaTpl).cols);
         fillPartnerPaper(pp);
+        if (kaeta) {
+          setText('s-pcols-hint', 'この相手だけの列も「' + TPL.getOrDefault(imaTpl).label + '」の 列に 変えました（'
+            + pp.data.paper.cols.items.length + '本）。下の「明細の列」で 直せます。');
+        }
         renderColEditor();
       };
       el.addEventListener('change', run);
@@ -4942,6 +5002,7 @@
       invoicePaperRows: rowsSetting($('s-rows').value),
       invoiceDeductRows: rowsSetting($('s-dedrows').value),
       invoiceTemplate: settings().template,
+      invoiceTemplateAt: (S.org && S.org.invoiceTemplateAt) || null,
       invoiceCols: COLS.normalizeSpec((S.org && S.org.invoiceCols) || TPL.getOrDefault(settings().template).cols),
       /* ★選ばなかった物は 持たない★＝様式の既定が効く（空の値を保存して 既定を上書きしない） */
       invoiceStyle: (function () {
