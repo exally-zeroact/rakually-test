@@ -374,12 +374,28 @@
     return DOC.partnerNameOf(inv, byId);
   }
 
+  /* ═══ ★その1通で 払ってもらう額★（司さんの 決め「揃えろ」2026-10-24）═══
+     紙の「ご請求金額」＝DOC.payableOf(tax, carry, gensen, deduct)（seikyu-paper.js 1051/1084）。
+     一覧の 金額・一覧の 頭の 合計・入金の 状態・集計・集計の Excel・請求/集計の 合計は ★この 1つ★から 出す。
+       ・控除 … 引いた 後（倉庫の totals.grandTotal が もう 控除の 後）
+       ・源泉 … 引いた 後（相手は 源泉を 引いて 払う＝入金の 比べも この 額）。紙と 同じ currentGensen を 通す
+       ・繰越 … ★足さない★（前の 月の 残り＝前の 月で 数えている。足すと 二重に 数える）
+     ★倉庫の 値は 書き換えない★（読む 時に 数えるだけ）。控除・源泉・繰越の 無い 1通は 今までと 1円も 変わらない。
+     読めない 時は null（0円と 言わない）。 */
+  function gakuOf(v) {
+    var g = v && v.totals && v.totals.grandTotal;
+    if (typeof g !== 'number' || !Number.isFinite(g)) return null;
+    var keep = S.cur, gs = null;
+    try { S.cur = v; gs = currentGensen(); } catch (e) { gs = null; } finally { S.cur = keep; }
+    return DOC.payableOf({ grandTotal: g }, null, gs, null);
+  }
+
   /* ═══ 一覧 ═══ */
   /** その1通の入金の状態。★数え方は seikyu-doc.js が唯一の正（画面で数え直さない）★
    *  S.receipts が null＝読めていない → paymentStateOf が 'unknown' を返す（0にしない）。 */
   function payStateOf(inv) {
     return DOC.paymentStateOf(
-      { id: inv.id, grand_total: (inv.totals && inv.totals.grandTotal) || 0 },
+      { id: inv.id, grand_total: gakuOf(inv) || 0 },   /* ★払ってもらう 額と 比べる★（源泉の 紙で「一部入金」と 言い続けない） */
       S.receipts === null ? null : S.receipts);
   }
   function payLabel(inv) {
@@ -428,7 +444,7 @@
   function reportOf(month, kind, list) {
     var REP = global.SeikyuReport;
     if (!REP) return null;
-    return REP.summarize({ invoices: list || S.invoices || [], receipts: S.receipts,
+    return REP.summarize({ amountOf: gakuOf, invoices: list || S.invoices || [], receipts: S.receipts,
       partners: S.partners || [], month: month, kind: kind || S.kind || 'invoice', doc: DOC });
   }
   function ymLabel(m) { return m ? (m.slice(0, 4) + '年' + Number(m.slice(5, 7)) + '月') : ''; }
@@ -498,6 +514,7 @@
       + '</tbody><tfoot><tr><td>合計（' + s2.rows.length + '社・' + t.count + '件）</td>'
       + num(t.total) + num(t.paid) + num(t.remain, true) + '</tr></tfoot></table>'
       + '<p class="hint">金額は 円（税込）。' + esc(lb) + 'に 発行した請求書だけを 数えています（下書きと 取り消した紙は 数えません）。</p>'
+      + repNote(src.list, repMonth || '')
       + (unk ? '<p class="hint">入金が読めていないので、入金と残りは出していません（0円ではありません）。</p>' : '');
   }
 
@@ -506,6 +523,23 @@
    *  ・金額は 数のまま（相手の Excel で 足し算できる）・桁区切りは 書式で 付ける
    *  ・★入金が 読めていない時は 作らない★（手本と 同じ＝入金0・全部未入金 の 表を 出さない）
    *  ・落とすのは 今の Excel の 出し口（SeikyuOut.excel）1本 */
+  /** ★紙の「ご請求金額」と 違って 見える 訳を 字で 言う★（繰越・源泉・控除）＝数は gakuOf 1本 */
+  function repNote(list, month) {
+    var kuri = 0, gen = 0, ko = 0;
+    list.forEach(function (v) {
+      if (!v || (v.doc_type || 'invoice') !== 'invoice' || v.status !== 'issued') return;
+      if (month && billYm(v) !== month) return;
+      var c = v.snapshot && v.snapshot.carry;
+      if (c && c.state !== 'first' && Number(c.carry)) kuri++;
+      if (v.snapshot && v.snapshot.gensen) gen++;
+      if (v.totals && Number(v.totals.deduct)) ko++;
+    });
+    var t = [];
+    if (kuri) t.push(kuri + '通は 紙の「ご請求金額」に 前回からの 繰越が 入っています。ここでは その1通の 分だけを 数えています（繰越分は 前の月で 数えています）');
+    if (gen) t.push(gen + '通は 源泉徴収を 引いた 額（相手が 払う 額）で 数えています');
+    if (ko) t.push(ko + '通は 控除を 引いた 額で 数えています');
+    return t.length ? '<p class="hint" id="bk-rep-note">' + esc(t.join('。') + '。') + '</p>' : '';
+  }
   function repExcelSheet() {
     var month = repMonth || '';
     var src = billSrc();
@@ -698,7 +732,7 @@
     show(none, !rows.length);
     ['b-bk-pdf', 'b-bk-print', 'b-bk-xlsx'].forEach(function (id) { var b = $(id); if (b) b.disabled = !rows.length; });
     var kei = 0, yomeru = 0;
-    rows.forEach(function (v) { var g = v.totals && v.totals.grandTotal; if (typeof g === 'number') { kei += g; yomeru++; } });
+    rows.forEach(function (v) { var g = gakuOf(v); if (typeof g === 'number') { kei += g; yomeru++; } });
     /* ★金額の 読めない 1通を 黙って 抜かない★（一覧の 件数行と 同じ 注記） */
     setText('bk-count', rows.length ? (ymLabel(billPick.ym) + '・' + dare + '　' + rows.length + '通（発行済み）'
       + '　合計 ' + yen(kei) + ' 円' + (yomeru < rows.length ? '（金額が 入っている ' + yomeru + '通ぶん）' : '')) : '');
@@ -957,7 +991,7 @@
       var st = DOC.statusOf(v);
       if (st === 'draft') { draft++; return; }
       if (st !== 'issued') { voided++; return; }
-      var g = v.totals && v.totals.grandTotal;
+      var g = gakuOf(v);
       if (typeof g === 'number') { n++; kei += g; } else yomenai++;
     });
     var soto = [];
@@ -1026,7 +1060,7 @@
       var tag = v.status === 'issued' ? '<span class="tag tag-on">発行済</span>'
         : v.status === 'void' ? '<span class="tag tag-mute">取り消し</span>'
           : '<span class="tag tag-off">下書き</span>';
-      var g = (v.totals && v.totals.grandTotal);
+      var g = gakuOf(v);           /* ★紙の ご請求金額（繰越の 前）と 同じ 額★ */
       /* ★「まだ金額を入れていない下書き」を 0円と 見せない★（司さん 2026-08-30
          「項目だけ入れて金額入れずに保存もしとける？」＝★出来る★。だが 一覧では
           ★0円★と出ていて ★入れ忘れと 本当の0円が 見分けられなかった★）。

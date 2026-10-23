@@ -19,7 +19,7 @@
  *
  * 公開API（window.SeikyuReport）:
  *   .monthsOf(invoices)                     … 請求日の年月（新しい順・重複なし）
- *   .summarize({invoices, receipts, partners, month, kind})
+ *   .summarize({invoices, receipts, partners, month, kind, amountOf})  … amountOf(v)＝1通の 額（画面は 紙の ご請求金額から 繰越を 除いた 額を 渡す・無ければ grandTotal）
  *   .MONTH_ALL                              … 「ぜんぶ」を表す印
  */
 (function (global) {
@@ -70,7 +70,9 @@
       unpaidCount: receipts === null ? null : 0 };
 
     target.forEach(function (v) {
-      var total = num(v.totals && v.totals.grandTotal);
+      /* ★1通の 額は 画面が 渡す amountOf（紙の ご請求金額から 繰越を 除いた 額＝控除・源泉の 後）★
+         渡されなければ 今まで どおり totals.grandTotal（控除の 後）。 */
+      var total = num(o.amountOf ? o.amountOf(v) : (v.totals && v.totals.grandTotal));
       var st = DOC.paymentStateOf({ id: v.id, grand_total: total }, receipts);
       var pid = v.partner_id || '';
       var name = (byId[pid] && byId[pid].data && byId[pid].data.name)
