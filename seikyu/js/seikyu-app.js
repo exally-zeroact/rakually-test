@@ -1213,16 +1213,39 @@
     var t = TPL.getOrDefault(cur);
     setText('tpl-strip-v', t.label);
     show(strip, true);
-    /* ★どこで そう決まったのかを 言う★（同じ状態を 2か所で 別々に 判定しない） */
-    var pt = SCOPE && SCOPE.partnerPaper(partnerById(v.partner_id)).template;
-    var g = ro ? null : tplFromRireki(v.partner_id);
-    var kara = ro ? '発行済み＝出した時の 紙のまま（設定を変えても 動きません）'
-      : (pt && TPL.get(pt)) ? 'この取引先は 設定で この紙に してあります'
-        : (g && g.id === cur) ? (g.na + ' には 前回 この紙で 出しています（' + (g.ymd || '日付なし') + '）')
-          : '会社の 既定（設定の「紙の様式」）です';
+    /* ★どこで そう決まったのかを 言う★（同じ状態を 2か所で 別々に 判定しない＝tplKara 1つ） */
+    var kara = ro ? '発行済み＝出した時の 紙のまま（設定を変えても 動きません）' : tplKara(v.partner_id).kara;
     setText('tpl-strip-why', kara + '。項目（列）も 設定で 足す・消す・並べ替えが できます。');
     show(why, true);
     var ch = $('b-tpl-change'); if (ch) show(ch, !ro);
+    /* ★取引先ごとに 紙を 変えられる事を ここで 見せる★（2026-10-23 司さん
+         「会社ごとに 請求書の様式の変えも ちゃんとできるか 分かりにくい」）
+       ＝前は「設定で変える」が 会社の既定へ 行くだけで、取引先ごとの 決め所（設定 ▸ 取引先 の
+         「ぜんぶ見る」の中）は ★入力からは 見えなかった★。相手が 決まっている時だけ 出す。 */
+    var pb = $('b-tpl-pt');
+    if (pb) {
+      var pOk = !ro && !!partnerById(v.partner_id);
+      show(pb, pOk);
+      if (pOk) {
+        var pt0 = SCOPE.partnerPaper(partnerById(v.partner_id)).template;
+        pb.textContent = (pt0 && TPL.get(pt0)) ? 'この取引先の紙を変える' : 'この取引先だけ 別の紙にする';
+      }
+    }
+  }
+
+  /** ★この相手に 今 出る紙と、どこで そう決まったか★（入力と 設定 ▸ 取引先 の 両方が これを 見る） */
+  function tplKara(pid) {
+    var cur = templateForPartner(pid);
+    var p = partnerById(pid);
+    var na = (p && p.data && p.data.name) || 'この取引先';
+    var kaisha = TPL.getOrDefault(settings().template).label;
+    var pt = SCOPE && SCOPE.partnerPaper(p).template;
+    var g = tplFromRireki(pid);
+    var kara = (pt && TPL.get(pt))
+      ? (na + ' は 設定 ▸ 取引先 で この紙に してあります（会社の既定は「' + kaisha + '」）')
+      : (g && g.id === cur) ? (na + ' には 前回 この紙で 出しています（' + (g.ymd || '日付なし') + '）')
+        : '会社の 既定（設定の「紙の様式」）です。取引先ごとに 別の紙にも できます';
+    return { id: cur, label: TPL.getOrDefault(cur).label, kara: kara, own: !!(pt && TPL.get(pt)) };
   }
 
   /** ★その1通に 効く 様式★＝取引先の決め → 会社の既定（設定が 唯一の正） */
@@ -3258,6 +3281,7 @@
       if (noteId) setText(noteId, '');            /* 説明は 札の中に 書いてある＝2回 言わない */
       /* ★今の紙を 1行で★（2026-09-10＝6枚の 絵は 畳んだ 中） */
       setText('s-tpl-now', TPL.getOrDefault(current).label);
+      drawTplPtList();
       return;
     }
     host.innerHTML = TPL.list().map(function (t) {
@@ -4940,6 +4964,33 @@
       ? ('この相手だけの列です（' + pp.cols.items.length + '本）。下の「明細の列」で 直せます。')
       : '今は 会社の既定の列です。');
     renderPartnerBanks(p);
+    drawPtTplNow(p);
+  }
+  /** ★この取引先に 今 出る紙を 1行で★（「ぜんぶ見る」を 開かなくても 見える所に 出す）
+   *  （2026-10-23 司さん「会社ごとに 請求書の様式の変えも ちゃんとできるか 分かりにくい」）
+   *  ＝前は 取引先の 紙の様式が「ぜんぶ見る」の 畳みの 中に だけ 在り、
+   *    ★今 どの紙で 出るのか★は どこにも 出ていなかった。 */
+  function drawPtTplNow(p) {
+    drawTplPtList();                      /* 会社の「紙の様式」の 一覧も 合わせる */
+    var row = $('s-pt-tpl-row'); if (!row) return;
+    if (!p) { show(row, false); show($('s-pt-tpl-why'), false); return; }
+    var k = tplKara(p.id);
+    setText('s-pt-tpl-now', k.label);
+    show(row, true);
+    setText('s-pt-tpl-why', k.kara + '。');
+    show($('s-pt-tpl-why'), true);
+  }
+  /** ★会社の「紙の様式」に 取引先ごとの 紙も 並べる★（どこで 変えられるか・今 だれが 別の紙か） */
+  function drawTplPtList() {
+    var el = $('s-tpl-pt'); if (!el) return;
+    var betsu = (S.partners || []).filter(function (p) {
+      var t = SCOPE.partnerPaper(p).template;
+      return t && TPL.get(t);
+    }).map(function (p) {
+      return ((p.data && p.data.name) || '(名称未設定)') + '＝「' + TPL.getOrDefault(SCOPE.partnerPaper(p).template).label + '」';
+    });
+    setText('s-tpl-pt', 'ここは 会社の既定です。取引先ごとに 別の紙にも できます（下の「取引先」で 相手を選ぶ）。'
+      + (betsu.length ? ' 今 別の紙の取引先：' + betsu.join('／') : ' 今は どの取引先も 会社の既定の紙です。'));
   }
   /** この相手だけの列を 作る（★会社の今の列を 写してから 直す★＝白紙から作らせない） */
   function partnerColsOwn(on) {
@@ -4955,6 +5006,17 @@
     }
     fillPartnerPaper(p);
     renderColEditor();
+  }
+
+  /** ★取引先の「様式」の 欄を 開いて 見せる★（「ぜんぶ見る」の 畳みを 開ける） */
+  function ptTplHiraku() {
+    var d = $('pt-all'); if (d) d.open = true;
+    var t = $('s-ptpl'); if (!t) return;
+    global.setTimeout(function () {
+      if (typeof t.scrollIntoView !== 'function') return;
+      try { t.scrollIntoView({ block: 'center' }); } catch (e) { try { t.scrollIntoView(); } catch (e2) { /* 着いている */ } }
+      try { t.focus(); } catch (e3) { /* 端末差 */ }
+    }, 60);
   }
 
   function fillPartnerForm(id) {
@@ -5319,6 +5381,22 @@
         try { c.scrollIntoView({ block: 'start' }); } catch (e) { try { c.scrollIntoView(); } catch (e2) { /* 転がせなくても 着いている */ } }
       }, 60);
     };
+    /* ★[この取引先だけ 別の紙にする]＝設定 ▸ 取引先 の その相手の「様式」へ 連れて行く★（2026-10-23）
+       ★作りかけの 1通は 消さない★（[設定で変える] と 同じ＝続きから 戻れる） */
+    var tplPt = $('b-tpl-pt');
+    if (tplPt) tplPt.onclick = function () {
+      var pid = S.cur && S.cur.partner_id;
+      fillSettings();
+      goScreen('scr-set');
+      var sel = $('s-partner');
+      if (sel && pid && partnerById(pid)) {
+        sel.value = pid;
+        fillPartnerForm(pid);
+        renderPtAsk();
+      }
+      ptTplHiraku();
+    };
+    if ($('b-pt-tpl-open')) $('b-pt-tpl-open').onclick = function () { ptTplHiraku(); };
     $('b-no-edit').onclick = function () {
       var open = $('e-no').style.display !== 'none';
       if (open) {

@@ -246,6 +246,10 @@
       <button class="mini" type="button" id="b-tpl-change">設定で変える</button>
     </div>
     <p class="hint" id="tpl-strip-why" style="display:none"></p>
+    <!-- ★取引先ごとに 紙を 変えられる事を 入力でも 見せる★（2026-10-23 司さん
+         「会社ごとに 請求書の様式の変えも ちゃんとできるか 分かりにくい」）
+         ＝決め所は 前から 設定 ▸ 取引先 に 在る（新しい仕組みは 作っていない）。そこへ 連れて行くだけ。 -->
+    <div class="btn-row"><button class="mini" type="button" id="b-tpl-pt" style="display:none">この取引先だけ 別の紙にする</button></div>
 
     <!-- ★★「前回と同じで作りますか？」の 箱は 消しました★★（2026-09-09 司さん
          「前回と同じで作りますか？は いらない」）
@@ -528,6 +532,8 @@
              下の s-tpl-note が選んだ様式の説明と一緒に出している（2026-08-15 スクショで重複を発見）。 -->
         <p class="hint" id="s-tpl-note"></p>
       </div>
+      <!-- ★会社の既定と 取引先ごとの紙の 関係を 言う★（2026-10-23） -->
+      <p class="hint" id="s-tpl-pt"></p>
     </div>
 
     <!-- ★既定で正しく動く物は 出しっぱなしにしない★（司さん 2026-08-16 ⑥）
@@ -708,6 +714,13 @@
         <div class="flabel">だれの事を決めますか</div>
         <select class="finput" id="s-partner"></select>
       </div>
+      <!-- ★この取引先に 今 出る紙★（「ぜんぶ見る」を 開かなくても 見える・2026-10-23） -->
+      <div class="tpl-now" id="s-pt-tpl-row" style="display:none">
+        <span class="tpl-now-k">この取引先の紙</span>
+        <span class="tpl-now-v" id="s-pt-tpl-now">—</span>
+        <button class="mini" type="button" id="b-pt-tpl-open">変える</button>
+      </div>
+      <p class="hint" id="s-pt-tpl-why" style="display:none"></p>
       <div id="pt-ask-set"></div>
       <details class="pt-all" id="pt-all">
         <summary>ぜんぶ見る（聞かれていない物も ここで直せます）</summary>

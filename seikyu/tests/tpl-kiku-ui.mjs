@@ -249,6 +249,55 @@ async function run(label, appSrc) {
     eq(cols, colsOfTpl(MAE), '★出した紙の 列が 後から 変わった★');
   });
 
+  /* ═══ F. ★取引先ごとに 紙を 変えられる事が 画面で 分かるか★（司さん 2026-10-23
+         「会社ごとに 請求書の様式の変えも ちゃんとできるか 分かりにくい」）═══ */
+  const NAIBU = new RegExp('\\b(' + Object.keys(TPL.TEMPLATES).join('|') + ')\\b');
+  const vis = (el) => !!el && el.style.display !== 'none';
+  await T('F1 入力：相手を選ぶと「この取引先だけ 別の紙にする」が出る → 押すと 設定 ▸ 取引先 のその相手の「様式」が 開く', async () => {
+    const r = await boot(appSrc, { org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) } });
+    await tab(r, 'scr-edit');
+    const ep = r.doc.getElementById('e-partner');
+    ep.value = 'pt_a'; ep.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(250);
+    const b = r.doc.getElementById('b-tpl-pt');
+    ok(vis(b), '★入力に 取引先ごとの紙へ 行く ボタンが 無い★');
+    ok(/この取引先だけ/.test(b.textContent), 'ボタンの字: ' + b.textContent);
+    const why = r.doc.getElementById('tpl-strip-why').textContent || '';
+    ok(/取引先ごとに/.test(why), '★取引先ごとに 変えられると 言っていない★: ' + why);
+    b.click();
+    await sleep(250);
+    ok(r.doc.getElementById('scr-set').classList.contains('active'), '★設定へ 行っていない★');
+    eq(r.doc.getElementById('s-partner').value, 'pt_a', '★その相手が 選ばれていない★');
+    ok(r.doc.getElementById('pt-all').open, '★「様式」の 欄が 畳みの中に 隠れたまま★');
+    ok(vis(r.doc.getElementById('s-pt-tpl-row')), '★この取引先の紙が 1行で 出ていない★');
+    eq(r.doc.getElementById('s-pt-tpl-now').textContent, TPL.get(MAE).label, 'この取引先の紙');
+    eq(r.S.cur.partner_id, 'pt_a', '★行ったら 作りかけの相手が 消えた★');
+  });
+  await T('F2 取引先 A を「' + TPL.get('koujo').label + '」にすると 設定と入力の両方で 今の紙と 決まった所が 分かる', async () => {
+    const r = await boot(appSrc, { org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) } });
+    await pickPartner(r, 'pt_a', 'koujo');
+    eq(r.doc.getElementById('s-pt-tpl-now').textContent, TPL.get('koujo').label, '★設定の「この取引先の紙」が 変わらない★');
+    const pwhy = r.doc.getElementById('s-pt-tpl-why').textContent || '';
+    ok(/設定 ▸ 取引先/.test(pwhy) && pwhy.indexOf(TPL.get(MAE).label) >= 0, '★どこで決まったか／会社の既定を 言っていない★: ' + pwhy);
+    const list = r.doc.getElementById('s-tpl-pt').textContent || '';
+    ok(list.indexOf('A株式会社') >= 0 && list.indexOf(TPL.get('koujo').label) >= 0,
+      '★会社の「紙の様式」に 別の紙の取引先が 出ていない★: ' + list);
+    ok(list.indexOf('B株式会社') < 0, '★会社の既定のままの相手まで 並べている★: ' + list);
+    await tab(r, 'scr-list');
+    r.doc.getElementById('b-new').click();
+    await sleep(300);
+    const ep = r.doc.getElementById('e-partner');
+    ep.value = 'pt_a'; ep.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(250);
+    eq(r.doc.getElementById('tpl-strip-v').textContent, TPL.get('koujo').label, '★入力の 今の紙が 相手の紙に なっていない★');
+    const why = r.doc.getElementById('tpl-strip-why').textContent || '';
+    ok(/A株式会社 は 設定 ▸ 取引先/.test(why), '★入力で どこで決まったか 言っていない★: ' + why);
+    eq(r.doc.getElementById('b-tpl-pt').textContent, 'この取引先の紙を変える', 'ボタンの字');
+    [why, pwhy, list, r.doc.getElementById('s-pt-tpl-now').textContent].forEach((x) => {
+      ok(!NAIBU.test(x), '★内部の名前が 客の字に 出ている★: ' + x);
+    });
+  });
+
   await T('E  ★お金は 様式で 1円も 変わらない★（A1 の 合計が 全様式で 同じ）', async () => {
     const vals = IDS.map((x) => grands[x]);
     ok(vals.every((v) => Number.isFinite(v) && v > 0), '合計が 取れていない: ' + JSON.stringify(grands));
