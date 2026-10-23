@@ -4821,6 +4821,34 @@
      ＝★同じ道を 使う★（人の 絞り方と 口座の 見方は 月次と 同じ／金額と 対象月だけ 差し替える）。
      ★新しい 仕組みを 作らない★＝ready の 決め方も 全銀の 組み立ても そのまま。 */
   function furiMode(){ return (state.printMode==='bonus') ? 'bonus' : 'monthly'; }
+  /* ★退職の 印（retired）が 在る 人を 振込に どう 扱うか★（2026-10-23 司さん「退職の 人が 振込から 黙って 落ちるのは 直さなダメ」・taiketsu 4回）
+     'ireru'＝入れる／'tomeru'＝名指しで 止める（ファイルを 作らない）／'hazusu'＝入れない／null＝退職の 印が 無い（今まで 通り）
+     ・在籍の 期間（入社日〜退職日）の 外 … 入れない（zaiseki.js が 読めない 時も 退職日の 後は 入れない）
+     ・退職日が 在る 人 … 在籍の 人と 同じく 確定に 関係なく 入れる（入力・印刷・明細と 揃う）
+         但し「退職にする」を 押した 月の 後なのに 退職日が 先の まま … どちらが 本当か 決められない＝名指しで 止める
+     ・「退職にする」だけ（退職日 無し）… 確認の 字が「給与計算・印刷の 対象から 外れます」＝その月を 確定した 時だけ・押した 月まで 入れる
+     ・賞与 … 確定が 無いので 決めない＝金額が 入っていれば 名指しで 止める（入れるかは 司さんに 訊く） */
+  function taishokuKubun(e, ym, bonus){
+    if(!e || !e.retired) return null;
+    if(!isActiveInMonth(Object.assign({},e,{retired:false}),ym)) return 'hazusu';
+    var t7=String(e.taishokuYmd||'').slice(0,7), r7=String(e.retiredYmd||'').slice(0,7);
+    /* ★削除した 人は「退職にする」の 古い 月を 見ない★＝削除の 門が 退職日・退職月の 確定・払う日を 確かめて 通している。
+       前に 押して「復帰させる」で 戻した 月が 残ると、作り直しの 振込が 止まり、一覧にも 居ないので 直せなかった（taiketsu 10-23） */
+    if(e.kesita) r7='';
+    if(t7 && ym>t7) return 'hazusu';
+    /* 「退職にする」だけ（退職日 無し）＝確認の 字の 通り 給与計算の 対象の 外。賞与も 外す（賞与の 入力にも 札が 出ない＝残った 金額を 消せない・taiketsu 10-23） */
+    if(!t7){ if(bonus) return 'hazusu'; if(r7 && ym>r7) return 'hazusu'; }
+    else {
+      if(bonus){ var b=state.bonus&&state.bonus.byEmp&&state.bonus.byEmp[e.id]; return (b && num(b.amount)>0) ? 'tomeru' : 'hazusu'; }
+      return (r7 && ym>r7) ? 'tomeru' : 'ireru';
+    }
+    return (state.confirmed && state.confirmed[ym] && state.confirmed[ym][e.id]) ? 'ireru' : 'hazusu';
+  }
+  function taishokuTomeruHito(mode){
+    mode = mode || furiMode();
+    var bonus=(mode==='bonus'), ym=bonus?bonusYmOf():state.month;
+    return state.employees.filter(function(e){ return taishokuKubun(e,ym,bonus)==='tomeru'; });
+  }
   function buildTransfers(mode){
     mode = mode || furiMode();
     var bonus = (mode==='bonus');
@@ -4832,7 +4860,7 @@
          「退職にする」は 退職日を 入れないので 在籍の 判定（isActiveInMonth）でも 先に 落ちる＝確定を 先に 見る。
          ★賞与は 今の まま★（賞与には 確定が 無く、残った 金額だけで 払うと 払わない 人に 払う＝司さんに 訊く）。 */
       /* ★越えるのは 退職の 印だけ★＝在籍の 期間（入社日〜退職日・ボタンで 退職に した 月）の 外の 確定は 今まで 通り 入れない（taiketsu 10-23＝期間の 外の 確定で 満額が 出た） */
-      if(!bonus && e.retired && state.confirmed && state.confirmed[ym] && state.confirmed[ym][e.id] && isActiveInMonth(Object.assign({},e,{retired:false}),ym) && !(e.retiredYmd && !e.taishokuYmd && ym>e.retiredYmd)) return true;
+      var tk=taishokuKubun(e,ym,bonus); if(tk==='ireru') return true; if(tk) return false;
       if(!isActiveInMonth(e,ym) || e.retired) return false;
       /* ★賞与は「賞与を もらう人」だけ★（金額が 入っていない人は 振込に 出さない） */
       return bonus ? (num(bonusEntry(e).amount)>0) : true;
@@ -5001,6 +5029,7 @@
     var c=state.company, tr=buildTransfers();
     var ready=tr.filter(function(t){return t.ready;}), notReady=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi;});
     var keisanOchi=tr.filter(function(t){return t.keisanOchi;});   /* ★計算が転んだ人＝黙って落とさない（⑧a）★ */
+    var taiTomeru=taishokuTomeruHito();   /* ★退職の 扱いが 決められない 人＝名指しで 出す★ */
     function fi(k,ph,extra){ return '<input class="finput" data-fc="'+k+'" value="'+attr(c[k])+'" placeholder="'+ph+'" '+(extra||'')+'>'; }
     /* ★銀行との 契約を 聞く★（2026-09-03 指示役の裁定＝甲’）
        全銀の 種別コードは ★21：総合振込／11：給与振込／12：賞与振込★（一次情報・PDF 2本で 確認）。
@@ -5054,6 +5083,11 @@
       }
       /* ★計算が 転んだ人を 名指しで 出す（黙って ファイルから 落とさない・⑧a）★
          ＝compute/computeBonus が 転ぶと 金額0＝ファイルの amount>0 絞りで 消える＝未払いの まま 銀行へ、を 防ぐ。 */
+      if(taiTomeru.length){
+        var ttn=taiTomeru.map(function(e){ return esc(e.name||'（名前なし）'); });
+        var ttwho=ttn.length<=3?ttn.join('・'):(ttn.slice(0,3).join('・')+'ほか'+(ttn.length-3)+'名');
+        listHTML+='<div class="cr-warn" style="margin:8px 0 0;color:#C0392B">⚠ <b>'+ttwho+'</b> は 退職の 扱いが 決められないので 振込に 入れていません（'+(furiMode()==='bonus'?'退職した 人の 賞与を 振込に 入れるかは 確かめ中です。金額を 空に すると 賞与支払届・年末調整・賃金台帳からも 外れます。払わない 時だけ 空に':'「退職にする」を 押した 月と 退職日が 合いません。退職日が 正しければ 退職日の 月を 開いて「復帰させる」→「退職にする」を 押し直す、間違いなら 退職日を 直す')+'と 作れます）</div>';
+      }
       if(keisanOchi.length){
         var konm=keisanOchi.map(function(t){ return esc(t.emp.name); });
         var kowho=konm.length<=3?konm.join('・'):(konm.slice(0,3).join('・')+'ほか'+(konm.length-3)+'名');
@@ -5114,6 +5148,18 @@
      keisanOchi が 居なければ そのまま onOk を 呼ぶ。 */
   function furiKeisanOchiKaku(mode, onOk){
     var ko=buildTransfers(mode).filter(function(t){ return t.keisanOchi; });
+    /* ★退職の 人で 入れるか 決められない 人が 居たら 作らない★（名指し・黙って 落とさない／黙って 払わない） */
+    var tt=taishokuTomeruHito(mode);
+    if(tt.length){
+      var tn=tt.map(function(e){ return e.name||'（名前なし）'; });
+      var twho=tn.length<=3?tn.join('・'):(tn.slice(0,3).join('・')+'ほか'+(tn.length-3)+'名');
+      uiAlert(twho+' は 退職の 扱いが 決められないので、この 振込ファイルは 作りません。\n\n'
+        +((mode||furiMode())==='bonus'
+          ? '退職した 人に 賞与の 金額が 入っています。退職した 人の 賞与を 振込に 入れるかは 確かめ中の ため、この 振込ファイルは 作りません。\n金額を 空に すると、その人は 賞与の 振込だけで なく 賞与支払届・年末調整・賃金台帳からも 外れます。払わない 時だけ 空に してください。'
+          : '「退職にする」を 押した 月と 退職日が 合いません（退職日の 方が 後の 月です）。退職日が 正しければ、退職日の 月を 開いて「復帰させる」を 押し、もう一度「退職にする」を 押してください。退職日が 間違いなら 退職日を 直してください。'),
+        '退職の 人を 確かめてください');
+      return;
+    }
     if(!ko.length){ onOk(); return; }
     var nm=ko.map(function(t){ return t.emp.name||'（名前なし）'; });
     var who=nm.length<=3?nm.join('・'):(nm.slice(0,3).join('・')+'ほか'+(nm.length-3)+'名');
@@ -6787,7 +6833,7 @@
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       applyCloudState:applyCloudState, persistSaveDebounced:persistSaveDebounced, persistSave:persistSave, persistLoad:persistLoad, hazushiWasureru:function(){ for(var k in _hazushi) delete _hazushi[k]; },   /* ★棚(d) ロード側 newer-wins の 統合試験用（本物を呼ぶ・真似ない）／persistSave＝枠超クラウド退避の歯 quota-cloud-fallback.mjs 用（test-only露出・判定/金額は不変）★ */
-      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku,
+      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku, taishokuKubun:taishokuKubun, taishokuTomeruHito:taishokuTomeruHito,
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, saveBonusPayslips:saveBonusPayslips, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
          kyuyo/tests/shoyo-kami-hizuke.test.mjs */
