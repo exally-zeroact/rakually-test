@@ -707,6 +707,13 @@
   function newInvoice() {
     S.cur = blankInvoice();
     S.dirty = false;
+    /* ★前の 1通の「当てた」印・札・知らせを 白紙に 持ち越さない★（2026-10-23 司さん
+       「新しい請求書を入力から作る時に、前の取引先の中身が反映されてる時がある」）
+       ＝前は 印が 残って 同じ 相手の 2通目に 前回が 当たらず、白紙の 上に「前回（No.…）と 同じで 用意しました」が 残った */
+    S.guessDone = false; S.guess = null; S.guessApplied = null;
+    S.jido = { cur: S.cur, vals: {} };          /* ★この 1通に 自動で 入れた 値★（相手を 変えたら 外す） */
+    ['tag-subject', 'tag-term', 'tag-gensen'].forEach(function (id) { show($(id), false); });
+    box('edit-ok', ''); box('edit-err', ''); box('edit-warn', '');
     // 取引先が1社だけなら選んでおく（白紙を埋めさせない）
     if (S.partners.length === 1) S.cur.partner_id = S.partners[0].id;
     applyPartnerDefaults();
@@ -1226,9 +1233,75 @@
      ⇒ うちも 問いを やめる。ただし ★黙っては やらない★＝
        何を 引き継いだかを ★1行 言う★（決まり「黙って いじらない」を 破らない）。
      ★明細の 中身は 引き継がない★（毎月 違う）＝前と 同じ。 */
+  /* ★★相手から 自動で 入れた 値を 覚えて、相手を 変えたら 外す★★（2026-10-23 司さん
+       「新しい請求書を入力から作る時に、前の取引先の中身が反映されてる時がある」）
+     ★実測（本物の 画面を jsdom で 押した）★
+       ・A社を 選ぶ → 前回の 件名・備考・明細・控除・支払期限・源泉・税の 入れ方が 入る
+         → ★B社に 選び直す★と、B社に 前回が 無ければ ★A社の 物が 全部 残った★。
+         B社に 前回が 在っても ★A社の 明細と 控除が 残り★ B社の 明細は 入らなかった
+         （「まだ 何も 打っていない 時だけ 入れる」が A社から 入れた 行を「打った 行」と 見た）。
+       ・A社を 選んで 1.5秒で 自動で しまわれ id が 付くと、その後の 選び直しは ★何も 外さず 当て直しも しない★。
+     ★決め★
+       ・前回から 当てるのは ★同じ 相手の 時だけ★＝相手を 変えたら、前の 相手から 入れた 値は 外す
+       ・★外すのは 入れた 値の まま の 物だけ★＝人が 直した 物（打った 件名・打ち直した 明細）は 消さない
+       ・覚えるのは ★新しく 作った 下書き★だけ（一覧から 開いた 1通・発行済みは 人の 物＝触らない）
+       ・お金の 計算は 触らない＝外した 後の 値は「最初から その相手を 選んだ 1通」と 同じ */
+  function jidoNoCur(v) {
+    return !!(v && S.jido && S.jido.cur === v && DOC.statusOf(v) === 'draft');
+  }
+  function jidoKata(v, k) {
+    var d = v.data || {};
+    if (k === 'subject') return String(d.subject || '');
+    if (k === 'memo') return String(d.memo || '');
+    if (k === 'term') return [(d.term && d.term.kind) || 'none', Number((d.term && d.term.n) || 0)];
+    if (k === 'due') return String(v.due_ymd || '');
+    if (k === 'gensen') return !!d.gensen;
+    if (k === 'tax') return String(v.tax_mode || '');
+    if (k === 'round') return String(v.rounding || '');
+    if (k === 'lines') return (v.lines || []).map(function (l) {
+      l = l || {};
+      return [String(l.name || ''), String(l.qty || ''), String(l.unit || ''), String(l.price || ''),
+        String(l.amount || ''), String(l.rate == null ? '' : l.rate), !!l.nontax, String(l.memo || '')];
+    });
+    if (k === 'ded') return (d.deductions || []).map(function (x) {
+      return [String((x && x.name) || ''), String((x && x.amount) == null ? '' : x.amount)];
+    });
+    return null;
+  }
+  function jidoOboe(v, keys) {
+    if (!v) return;
+    if (!S.jido || S.jido.cur !== v) {
+      if (v.id) return;               /* 一覧から 開いた 1通は 覚えない（人の 物） */
+      S.jido = { cur: v, vals: {} };
+    }
+    keys.forEach(function (k) { S.jido.vals[k] = JSON.stringify(jidoKata(v, k)); });
+  }
+  /** 前の 相手から 入れた まま の 値を 外す。戻り＝外した 物の 名前（言う為） */
+  function jidoHazusu(v) {
+    if (!jidoNoCur(v)) return [];
+    var j = S.jido.vals, d = v.data = v.data || {}, s = settings(), out = [];
+    var mama = function (k) { return Object.prototype.hasOwnProperty.call(j, k) && j[k] === JSON.stringify(jidoKata(v, k)); };
+    if (mama('subject') && d.subject) { d.subject = ''; out.push('件名'); }
+    if (mama('memo') && d.memo) { d.memo = ''; out.push('備考'); }
+    var gyo = (v.lines || []).filter(function (l) { return l && (String(l.name || '').trim() || String(l.amount || '').trim() || String(l.price || '').trim()); }).length;
+    if (mama('lines') && gyo) { v.lines = [blankLine()]; out.push('明細 ' + gyo + '行'); }
+    if (mama('ded') && (d.deductions || []).length) { out.push('控除 ' + d.deductions.length + '行'); d.deductions = []; }
+    if (mama('term') && d.term && d.term.kind && d.term.kind !== 'none') {
+      if (mama('due')) v.due_ymd = '';
+      d.term = { kind: 'none', n: 0 }; out.push('支払期限');
+    }
+    if (mama('gensen') && d.gensen) { d.gensen = false; out.push('源泉徴収'); }
+    if (mama('tax')) v.tax_mode = s.taxMode;
+    if (mama('round')) v.rounding = s.rounding;
+    S.jido = { cur: v, vals: {} };
+    return out;
+  }
+
   function renderGuess() {
     var v = S.cur;
-    if (!v || locked() || v.id || S.guessDone) return;
+    /* ★id が 付いても 新しく 作った 下書きなら 当て直す★（相手を 選んで 1.5秒で 自動で しまわれ id が 付く。
+       前は その後に 相手を 選び直すと 何も 当てず 前の 相手の 中身が 残った・2026-10-23） */
+    if (!v || locked() || (v.id && !jidoNoCur(v)) || S.guessDone) return;
     if (!v.partner_id) return;
     var g = guessFrom(prevOf(v.partner_id));
     S.guess = g;
@@ -1241,10 +1314,12 @@
     var g = S.guess, v = S.cur;
     if (!g || !v) return;
     v.data.term = { kind: (g.term && g.term.kind) || 'none', n: (g.term && g.term.n) || 0 };
-    v.data.subject = g.subject;
-    v.data.memo = g.memo;
-    if (g.taxMode) v.tax_mode = g.taxMode;
-    if (g.rounding) v.rounding = g.rounding;
+    /* ★打った 件名・備考は 上書きしない★（自動で 入れた 物は 相手を 変えた時に もう 外してある・2026-10-23） */
+    var jido = ['term', 'gensen'];
+    if (!String(v.data.subject || '').trim()) { v.data.subject = g.subject; jido.push('subject'); }
+    if (!String(v.data.memo || '').trim()) { v.data.memo = g.memo; jido.push('memo'); }
+    if (g.taxMode) { v.tax_mode = g.taxMode; jido.push('tax'); }
+    if (g.rounding) { v.rounding = g.rounding; jido.push('round'); }
     if (g.templateId) v.template_id = g.templateId;
     /* ★列は 引き継がない★（2026-09-09）
        ＝「はい」を 押していた頃は「前回と 同じ列で」で よかったが、
@@ -1276,9 +1351,13 @@
       });
       hikiD = v.data.deductions.length;
     }
-    S.guessApplied = { subject: !!g.subject, term: !!(g.term && g.term.kind !== 'none'), gensen: !!g.gensen };
+    S.guessApplied = { subject: !!g.subject && jido.indexOf('subject') >= 0, term: !!(g.term && g.term.kind !== 'none'), gensen: !!g.gensen };
     S.guessDone = true;
     recalcDue();
+    if (hikiL) jido.push('lines');
+    if (hikiD) jido.push('ded');
+    jido.push('due');
+    jidoOboe(v, jido);                /* ★この 相手から 入れた 物を 覚える★（相手を 変えたら 外す） */
     fillEdit();
     show($('tag-subject'), !!S.guessApplied.subject);
     show($('tag-term'), !!S.guessApplied.term);
@@ -1287,7 +1366,7 @@
        ＝★聞くのは やめる。言うのは やめない★）。 */
     var hiki = [];
     if (g.term && g.term.kind && g.term.kind !== 'none') hiki.push('支払期限');
-    if (g.subject) hiki.push('件名');
+    if (g.subject && jido.indexOf('subject') >= 0) hiki.push('件名');
     if (g.templateId) hiki.push('紙の様式');
     if (wantGensen) hiki.push('源泉徴収');
     if (hikiL) hiki.push('明細 ' + hikiL + '行');
@@ -2436,9 +2515,11 @@
     if (t && t.kind) {
       v.data.term = { kind: t.kind, n: t.n || 0 };
       recalcDue();
+      jidoOboe(v, ['term', 'due']);   /* ★相手の 既定から 入れた＝相手を 変えたら 外す★（2026-10-23） */
     }
     // ★源泉の対象かは相手が決める＝取引先の既定を入れておく（打つ前に聞かない）
-    if (!v.id) v.data.gensen = partnerGensen(v.partner_id);
+    /* ★自動で しまわれて id が 付いた 新しい 下書きも 同じ★（前は 前の 相手の 源泉が 残った・2026-10-23） */
+    if (!v.id || jidoNoCur(v)) { v.data.gensen = partnerGensen(v.partner_id); jidoOboe(v, ['gensen']); }
   }
 
   /* ── 紙・Excel ── */
@@ -4961,6 +5042,16 @@
       S.cur.partner_id = $('e-partner').value;
       S.dirty = true; jidoYoyaku();
       S.guessDone = false;          // 相手を変えたら、また前回から当て直す
+      /* ★前の 相手から 自動で 入れた まま の 値は 外す★（2026-10-23 司さん「前の取引先の中身が反映されてる時がある」）
+         ＝外さないと B社の 1通に A社の 件名・明細・控除が 残る。打った 物は 残す（jidoHazusu の 註） */
+      var hazushita = jidoHazusu(S.cur);
+      if (hazushita.length) {
+        $('e-subject').value = (S.cur.data && S.cur.data.subject) || '';
+        $('e-memo').value = (S.cur.data && S.cur.data.memo) || '';
+        if ($('e-taxmode')) $('e-taxmode').value = (S.cur.tax_mode === 'inclusive') ? 'inclusive' : 'exclusive';
+        ['tag-subject', 'tag-term', 'tag-gensen'].forEach(function (id) { show($(id), false); });
+      }
+      box('edit-ok', '');           /* ★前の 相手の「前回（No.…）と 同じで 用意しました」を 残さない★ */
       applyPartnerDefaults();
       /* ★取引先の既定（源泉の対象か・支払期限）を画面へ戻す★
          ここを忘れると、中では源泉ありなのにチェックが外れて見える＝
@@ -4980,6 +5071,11 @@
       recalc();
       drawGensenHint();
       renderGuess();
+      if (hazushita.length) {
+        /* ★黙って 外さない★＝何を 外したかを 言う（当てた 知らせが 在れば その 前に 並べる） */
+        var ateta = ($('edit-ok') && $('edit-ok').style.display !== 'none') ? $('edit-ok').textContent : '';
+        box('edit-ok', '前の 相手から 入れていた ' + hazushita.join('・') + ' は 外しました。' + (ateta ? '\n' + ateta : ''));
+      }
       /* ★相手を変えたら 聞く形も描き直す★
          （実UIの押し込みで見つけた：変えても聞かれない＝設定へ行かせていた） */
       renderPtAsk();
