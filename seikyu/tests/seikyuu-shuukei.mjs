@@ -111,7 +111,7 @@ async function measureShape(doc, W = 390) {
 /* ★絵を 撮る★（--shot <置き場の頭>）＝390px 幅で 画面を そのまま 撮る（自分の目で 見る為） */
 /* ★Chrome の --screenshot は 窓を 390px まで 細く できない★（約500px で 止まり 右が 切れた絵に なった）
    ⇒ 撮るのは playwright の chromium（幅 390 の 窓を 本当に 作れる）。借り方は scripts/_borrow-playwright.mjs 1か所。 */
-async function shoot(doc, file) {
+async function shoot(doc, file, W = 390) {
   const { borrow, launch } = await import('../../scripts/_borrow-playwright.mjs');
   const ch = await borrow('seikyuu-shuukei', 'chromium');
   const { OUT, d, FIT } = await pageForChrome(doc, 's');
@@ -122,11 +122,11 @@ async function shoot(doc, file) {
   fs.writeFileSync(page, html.slice(0, cut) + tail + html.slice(cut), 'utf8');
   const b = await launch('seikyuu-shuukei', ch, undefined, 'chromium');
   try {
-    const pg = await b.newPage({ viewport: { width: 390, height: 1400 } });
+    const pg = await b.newPage({ viewport: { width: W, height: 1400 } });
     await pg.goto(pathToFileURL(page).href, { waitUntil: 'load' });
     await pg.waitForTimeout(400);
     const sw = await pg.evaluate(() => document.documentElement.scrollWidth);
-    ok(sw <= 390, '★撮った 画面が 横に はみ出している★ ' + sw);
+    ok(sw <= W, '★撮った 画面が 横に はみ出している★ ' + sw);
     await pg.screenshot({ path: file });
   } finally { await b.close(); }
   ok(fs.existsSync(file), '絵が 出来ていない: ' + file);
@@ -441,11 +441,12 @@ async function run(label, appSrc) {
     ok(j.acts.every((a) => Math.abs(a[2] - j.acts[0][2]) <= 1), '★3つが 横1列に 並んでいない★ 上端 ' + j.acts.map((a) => a[2]).join('/'));
     j.acts.forEach((a, i) => ok(a[3] <= 0 && a[4] <= 0, '★' + (i + 1) + '個目の ボタンの 字が 切れている★ 横' + a[3] + ' 縦' + a[4]));
     j.acts.forEach((a, i) => ok(a[5] <= W, '★' + (i + 1) + '個目の ボタンが はみ出した★ 右端 ' + a[5]));
-    ok(j.scrW > 300, '★画面が 出ていない★ 幅 ' + j.scrW);
+    /* ★幅は 画面の 幅から 本文の 余白（左右 16px×2）を 引いた 物★＝決め打ちの 300 では 320px の 時（288）に 嘘の 赤に なった */
+    ok(j.scrW >= W - 32 - 1, '★画面が 出ていない★ 幅 ' + j.scrW);
     eq(j.papers.length, 4, '★紙が 4枚 出ていない★');
-    j.papers.forEach((p, i) => ok(p[0] > 250 && p[1] > 300, '★' + (i + 1) + '枚目の 紙の 大きさ★ ' + p.join('×')));
+    j.papers.forEach((p, i) => ok(p[0] > W - 80 && p[1] > 300, '★' + (i + 1) + '枚目の 紙の 大きさ★ ' + p.join('×')));
     j.acts.forEach((a, i) => ok(a[1] >= 44 && a[1] < 80, '★' + (i + 1) + '個目の ボタンの 高さ★ ' + a.slice(0, 2).join('×')));
-    ok(j.sw <= 390, '★横に はみ出した★ 幅 ' + j.sw);
+    ok(j.sw <= W, '★横に はみ出した★ 幅 ' + j.sw);   /* ★決め打ちの 390 では 320px の はみ出しを 見逃す★ */
     ok(!j.over.length, '★はみ出した 物★ ' + j.over.join(' / '));
     console.log('     幅 ' + j.sw + 'px ／ 紙 ' + j.papers.map((p) => p.join('×')).join(' ') + ' ／ ボタン ' + j.acts.map((a) => a.slice(0, 2).join('×')).join(' '));
   });
@@ -484,6 +485,7 @@ async function run(label, appSrc) {
     ok(!$('fn-ov').classList.contains('open') && !rec.excel.length, '★入金が 読めないのに 作った★');
     ok(/入金が 読めていない/.test(txt('bk-rep-err')), '★作らない 訳を 言っていない★: ' + txt('bk-rep-err'));
     S.receipts = keep; A._go('scr-bill');
+    ok(!txt('bk-rep-err') || $('bk-rep-err').style.display === 'none', '★読めるように なったのに 古い「読めていない」が 残っている★: ' + txt('bk-rep-err'));
     doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(30);
   });
 
@@ -496,12 +498,14 @@ async function run(label, appSrc) {
     doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(30);
     await kaeru('bk-partner', '');
     await shoot(doc, SHOT + '-zensha.png');
+    await shoot(doc, SHOT + '-zensha-320.png', 320);
     await kaeru('bk-partner', 'p1');
     await shoot(doc, SHOT + '-1sha.png');
     await kaeru('bk-partner', '');
     doc.querySelector('#scr-bill [data-bseg="report"]').click(); await sleep(30);
     await shoot(doc, SHOT + '-shuukei.png');
-    console.log('     絵 … ' + SHOT + '-{zensha,1sha,shuukei}.png');
+    await shoot(doc, SHOT + '-shuukei-320.png', 320);
+    console.log('     絵 … ' + SHOT + '-{zensha,zensha-320,1sha,shuukei,shuukei-320}.png');
   }
 }
 

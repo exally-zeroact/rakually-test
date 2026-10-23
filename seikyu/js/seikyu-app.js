@@ -453,6 +453,8 @@
     var unk = (s2.totals.paid === null);
     /* ★「この月の集計だけExcelに」は 表が 在る時だけ★（手本 renderReport の repActions と 同じ） */
     show($('bk-rep-acts'), !!s2.seen);
+    /* ★読めるように なったら「入金が 読めていない」の 古い 知らせを 残さない★（絵で 見つけた・2026-10-23） */
+    if (!unk) box('bk-rep-err', '');
     if (!s2.seen) {
       sumEl.innerHTML = '';
       body.innerHTML = '<div class="empty">' + (months.length ? esc(lb) + 'に 発行した請求書は ありません。' : 'まだ 発行した請求書が ありません。')
