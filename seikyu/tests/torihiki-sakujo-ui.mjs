@@ -21,6 +21,7 @@
  *   ⑪⑫⑬ 前に 消した 同じ名前で 足す＝混ぜるかを 訊く（手本 mazeruKaKiku）
  *   ⑭⑮⑯ 混ぜるかを 訊く 所を 通り抜けない（見積書の 一覧の 時・消した 相手が 読めない 時・読み直し中）… taiketsu 10-23 止A
  *   ⑰ 消した 相手は「毎月の請求（今月まだ）」に 出ない                                           … taiketsu 10-23 止B
+ *   ⑱⑲⑳ 画面の 控えに 頼らない（別の 端末で 消された 後・消した 直後の 読み直し前・一覧が 読めない 時）… taiketsu 10-23 3回目
  *
  * 使い方: node seikyu/tests/torihiki-sakujo-ui.mjs [--self-test]
  */
@@ -448,6 +449,48 @@ async function run(label, o) {
     ok(names.includes('B工務店'), '生きている 相手が 出ない（試験の 形が 違う）: ' + names.join(','));
     ok(!names.includes('A株式会社'), '★消した 相手が「今月まだ」に 出ている★: ' + names.join(','));
   });
+
+  /* ═══ taiketsu 2026-10-23 3回目（止1＝画面の 控えに 頼らない）═══ */
+  await T('⑱ 別の 端末で 消された 後に 同じ 名前を 足す＝倉庫を 読み直して 混ぜるかを 訊く（控えでは まだ 生きている）', async () => {
+    const r = await bootI(); await openSet(r);
+    /* 画面を 開いた 後に ★倉庫だけで★ 消す（別の 端末・別の タブ） */
+    r.sb._db.pay_partners.find((x) => x.id === 'pt_a').deleted_at = '2026-10-23T09:00:00Z';
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    await addName(r, 'A株式会社');
+    eq(asked.length, 1, '★控えを 信じて 訊かずに 通った★');
+    ok(/請求書 2通/.test(asked[0]), '数え: ' + asked[0]);
+    const rows = tadashii(r);
+    eq(rows.length, 1, '★新しい A を 作った★ ' + rows.map((x) => x.id + ':' + x.deleted_at).join(','));
+    eq(rows[0].id, 'pt_a', '戻した 相手');
+    eq(rows[0].deleted_at, null, '戻っていない');
+  });
+
+  await T('⑲ この 画面で 消した 直後（一覧の 読み直しが 返る 前）に 同じ 名前を 足しても 訊く', async () => {
+    const r = await bootI(); await openSet(r);
+    r.win.confirm = () => true;
+    await kesuA(r);
+    /* 読み直しが まだ 返っていない 姿＝控えには A が 生きていて、消した 控えにも 無い */
+    const S = r.win.SeikyuApp._state;
+    S.partners = [{ id: 'pt_a', sort: 0, data: { name: 'A株式会社', keisho: '御中', honor: '御中' } }].concat(S.partners);
+    S.gonePartners = {};
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return false; };
+    await addName(r, 'A株式会社');
+    eq(asked.length, 1, '★控えを 信じて 訊かずに 通った★');
+    const rows = tadashii(r);
+    eq(rows.length, 2, '「混ぜない」なのに 新しい 相手が 無い');
+    ok(rows.find((x) => x.id === 'pt_a').deleted_at, '★混ぜないのに 戻した★');
+  });
+
+  await T('⑳ 生きている 取引先の 一覧が 倉庫から 読めない 時は 足さない（「確かめられません」）', async () => {
+    const r = await bootI(); await openSet(r);
+    r.win.SeikyuApp._state.store.partners.list = () => Promise.reject(new Error('つながりません'));
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    await addName(r, 'C商事');
+    eq(r.sb._db.pay_partners.filter((x) => (x.data || {}).name === 'C商事').length, 0, '★確かめられないのに 足した★');
+    ok(/確かめられません/.test(r.doc.getElementById('pt-list-err').textContent), '訳: ' + r.doc.getElementById('pt-list-err').textContent);
+    /* もう一度 押せる（確かめ中の 印が 残っていない） */
+    eq(r.win.SeikyuApp._state.ptAddChu, false, '確かめ中の 印が 立ったまま');
+  });
 }
 
 if (!SELF) {
@@ -462,7 +505,9 @@ if (!SELF) {
     ['下書きの 相手を 黙って 外す', { app: app.replace('function ptGoneOpt(v) {', 'function ptGoneOpt(v) { return null;') }],
     ['消した 相手で 発行させる', { app: app.split('var p = ptLive(v.partner_id);').join('var p = partnerById(v.partner_id);').split('partner: ptLive(v.partner_id),').join('partner: partnerById(v.partner_id),') }],
     ['同じ 名前で 訊かない', { app: app.replace('if (mae.tsu > 0) {', 'if (false) {') }],
-    ['消した 相手を 読めないのを「無し」扱い', { app: app.replace("if (!Array.isArray(rows)) { S.goneReadOk = false; return; }", "if (!Array.isArray(rows)) { S.goneReadOk = true; return; }") }],
+    ['消した 相手を 読めないのを「無し」扱い', { app: app.replace('var live = r[0], gone = r[1];', 'var live = r[0], gone = r[1] || [];') }],
+    ['生きている 相手を 画面の 控えで 判じる', { app: app.replace('      S.store.partners.list(),' + String.fromCharCode(10) + '      Promise.resolve(S.store.partners.gone', '      Promise.resolve(S.partners),' + String.fromCharCode(10) + '      Promise.resolve(S.store.partners.gone') }],
+    ['残りの 請求書を 画面の 一覧で 数える', { app: app.replace("      S.store.invoices.list('invoice'),", '      Promise.resolve(S.invoices),') }],
     ['毎月の請求に 消した 相手を 出す', { app: app.replace('.filter(function (d) { return !!ptLive(d.partnerId); });', ';') }],
     ['倉庫で 消えたかを 確かめない（seikyu-store）', { store: store.replace("if (!q || !q.data || !q.data.deleted_at) return { ok: false, reason: '倉庫で 消えた事を 確かめられませんでした' };", '') }],
   ];

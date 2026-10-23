@@ -6112,6 +6112,7 @@
   }
   /** ★取引先を 足す★＝名前 1つだけ 聞く（入力の「＋ 新しい相手を作る」と 同じ 倉庫の 道）。
    *  ★同じ名前の 相手は 2つ 作らない★（倉庫の create が 在る 相手を 返す）＝その 札を 開く。 */
+  var PT_ADD_KIGEN = 20000;   /* ★倉庫が 返らない 時の 期限★（確かめ中の 印を 立てたままに しない） */
   function ptAdd() {
     var inp = $('pt-add-name');
     var name = String((inp && inp.value) || '').trim();
@@ -6119,20 +6120,29 @@
     if (!name) { box('pt-list-err', '会社名を入れてください。'); return Promise.resolve(); }
     /* ★確かめている 間に もう一度 押しても 2回 訊かない★（手本 KAISHA_KIKU_CHU と 同じ） */
     if (S.ptAddChu) { box('pt-list-err', '取引先の 記録を 確かめています。少し 待ってから もう一度 押してください。'); return Promise.resolve(); }
-    /* ★前に 消した 同じ 名前の 取引先が 在れば 混ぜるかを 訊く★（手本＝代行請求書の mazeruKaKiku・司さん 10-16 の 決め）
-       ★生きている 同じ 名前★は 倉庫の create が その 相手を 返す（2つ 作らない）＝ここでは 訊かない。 */
-    var ike = S.partners.some(function (x) { return String(((x.data || {}).name) || '').trim() === name; });
-    if (ike) return ptCreate(name, null);
     var DAME = '取引先を 足しませんでした（今は 前に 消した 取引先の 記録を 確かめられません）。少し 待ってから もう一度 押してください。';
     S.ptAddChu = true;
-    /* ★通り抜けない★（taiketsu 10-23 止A）
-       ・消した 取引先を 読めていない（読みが 落ちた・まだ 読んでいる）＝★「無し」と 見なさない★＝足さない
-       ・残っている 請求書は ★画面の 一覧に 頼らず 倉庫から 請求書を 読んで 数える★
-         （一覧が 見積書の 時・読み直し中でも 正しく 数える）。読めなければ 足さない。 */
-    return ptGoneReady().then(function (okGone) {
-      if (!okGone) { box('pt-list-err', DAME); return; }
-      var cand = Object.keys(S.gonePartners || {}).map(function (k) { return S.gonePartners[k]; })
-        .filter(function (g) { return String(((g.data || {}).name) || '').trim() === name; });
+    var owari = false, tid = null;
+    /* ★毎回 倉庫から 読み直して 判じる★（taiketsu 10-23 3回目 止1）
+       画面の 控え（S.partners・S.gonePartners）は ★別の 端末で 消された 後★や ★この 画面で 消した 直後（読み直しが 返る前）★に 古い。
+       控えで「生きている」と 判じると 倉庫の create が 新しい 同じ 名前を 作り、混ぜるか 訊かれず 前の 請求書・繰越が 続かない。
+       ⇒ 生きている 取引先（partners.list）と 消した 取引先（gone）を ★両方 読み直し★、どちらか 読めなければ 足さない。
+       ★残っている 請求書・入金も 倉庫から 数える★（ptKiroku・止A）。 */
+    var hontai = Promise.all([
+      S.store.partners.list(),
+      Promise.resolve(S.store.partners.gone ? S.store.partners.gone() : null),
+    ]).then(function (r) {
+      if (owari) return;               /* ★期限を 過ぎて「返ってきません」と 言った 後は 何も しない★（後から 黙って 作らない） */
+      var live = r[0], gone = r[1];
+      if (!Array.isArray(live) || !Array.isArray(gone)) { box('pt-list-err', DAME); return; }
+      /* 読めた 物で 控えも 直す（以後の 画面も 正しく） */
+      S.partners = live;
+      gone.forEach(function (x) { if (x && x.id) S.gonePartners[x.id] = x; });
+      S.goneReadOk = true;
+      var onaji = function (x) { return String(((x && x.data && x.data.name) || '')).trim() === name; };
+      /* ★生きている 同じ 名前★は 倉庫の create が その 相手を 返す（2つ 作らない）＝訊かない */
+      if (live.some(onaji)) return ptCreate(name, null);
+      var cand = gone.filter(onaji);
       if (!cand.length) return ptCreate(name, null);
       return ptKiroku(cand).then(function (mae) {
         if (!mae) { box('pt-list-err', DAME); return; }
@@ -6146,15 +6156,26 @@
         }
         return ptCreate(name, null);
       });
-    }).then(function () { S.ptAddChu = false; }, function (e) {
-      S.ptAddChu = false;
+    }, function () { box('pt-list-err', DAME); });
+    /* ★倉庫が 返らない 時★＝期限で 印を 下ろし 訳を 出す（押し直せる） */
+    var kigen = new Promise(function (res) {
+      tid = global.setTimeout(function () {
+        if (owari) return;
+        owari = true;
+        S.ptAddChu = false;
+        box('pt-list-err', '取引先の 記録の 確かめが 返ってきません（' + Math.round(PT_ADD_KIGEN / 1000) + '秒）。電波の 良い 所で もう一度 押してください。');
+        res();
+      }, PT_ADD_KIGEN);
+    });
+    var shime = hontai.then(function () {
+      if (tid) global.clearTimeout(tid);
+      owari = true; S.ptAddChu = false;
+    }, function (e) {
+      if (tid) global.clearTimeout(tid);
+      owari = true; S.ptAddChu = false;
       box('pt-list-err', '足せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
     });
-  }
-  /** 消した 取引先を 読めているか（読めていなければ もう一度 読む）。読めた 時だけ true */
-  function ptGoneReady() {
-    if (S.goneReadOk === true) return Promise.resolve(true);
-    return ptGoneLoad().then(function () { return S.goneReadOk === true; });
+    return Promise.race([shime, kigen]);
   }
   /** ★残っている 記録を 倉庫から 数える★（請求書は 種類を 問わず 倉庫の 請求書を 読む・入金も）。
    *  読めなければ null（＝確かめられない＝足さない）。いちばん 記録の 多い 相手を 返す。 */
