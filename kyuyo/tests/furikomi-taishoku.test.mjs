@@ -8,7 +8,7 @@
  *   ・「退職にする」だけ（退職日 無し）＝その月を 確定した 時だけ・押した 月まで 入る
  *   ・在籍の 期間の 外の 確定＝入らない（見えない 確定で 満額を 出さない）
  *   ・「退職にする」の 月の 後なのに 退職日が 先＝決められない＝名指しで 止めて 振込ファイルを 作らない
- *   ・賞与＝退職日の 在る 人に 金額が 入っていたら 名指しで 止める（払うかは 司さんに 訊く）／「退職にする」だけの 人は 賞与から 外す
+ *   ・賞与＝退職日の 在る 人は 支給日に 在籍して いれば 入れる／支給日より 前に 辞めた 人・日付が 読めない 人に 金額が 入っていたら 名指しで 止める（司さんの 決め 2026-10-23 案3）／「退職にする」だけの 人は 賞与から 外す
  *   ・削除した 人は「退職にする」の 古い 月を 見ない（作り直しの 振込を 止めない）
  *   ・止めの 字は 本当に 外れる 直し方だけ（「復帰させる」→「退職にする」・空に すると 届からも 外れる）
  *   倉庫も 共有口も 触らない＝決定的。
@@ -136,22 +136,62 @@ for (const kakutei of [false, true]) {
   }
 }
 
-/* ── ⑤ 賞与＝退職の 人に 金額が 入っていたら 名指しで 止める（払うかは 司さんに 訊く） ── */
+/* ── ⑤ 賞与＝退職日の 在る 人は 支給日に 在籍して いれば 入れる／前に 辞めた 人は 名指しで 止める
+       （司さんの 決め 2026-10-23 案3。前は「金額が 入っていれば 一律 止める（司さんに 訊く）」） ── */
 A.state.month = '2026-07';
-A.state.employees = [mk('ZAISEKI'), mk('TAI', { retired: true, taishokuYmd: '2026-07-31' }), mk('TAI0', { retired: true, taishokuYmd: '2026-07-31' })];
-A.state.confirmed = { '2026-07': { ZAISEKI: true, TAI: true, TAI0: true } };
-A.state.bonus = { payYm: '2026-07', payDay: '10', byEmp: { ZAISEKI: { amount: '100000' }, TAI: { amount: '100000' }, TAI0: { amount: '' } } };
-let bo = null;
-try { bo = A.buildTransfers('bonus'); } catch (e) { bo = e; }
+const goBonus = (payDay) => {
+  A.state.employees = [mk('ZAISEKI'),
+    mk('MAE', { retired: true, taishokuYmd: '2026-07-05' }),    /* 支給日 07-10 の 前に 辞めた */
+    mk('TOU', { retired: true, taishokuYmd: '2026-07-10' }),    /* 支給日 当日に 辞めた＝在籍 */
+    mk('ATO', { retired: true, taishokuYmd: '2026-07-31' }),    /* 支給日の 後に 辞めた＝在籍 */
+    mk('TAI0', { retired: true, taishokuYmd: '2026-07-31' })];  /* 金額 無し */
+  A.state.confirmed = { '2026-07': { ZAISEKI: true, MAE: true, TOU: true, ATO: true, TAI0: true } };
+  A.state.bonus = { payYm: '2026-07', payDay: payDay, byEmp: { ZAISEKI: { amount: '100000' }, MAE: { amount: '100000' }, TOU: { amount: '100000' }, ATO: { amount: '100000' }, TAI0: { amount: '' } } };
+  try { return A.buildTransfers('bonus'); } catch (e) { return e; }
+};
+let bo = goBonus('2026-07-10');
 if (Array.isArray(bo)) {
   T('賞与の 振込に 在籍の 人が 居る（金額が 入っている＝空振りしない）', bo.some((t) => t.emp.id === 'ZAISEKI'), '一覧 ' + ids(bo));
-  T('★賞与＝退職の 人は 振込に 入らない★', !bo.some((t) => ['TAI', 'TAI0'].includes(t.emp.id)), '一覧 ' + ids(bo));
+  T('★賞与＝支給日より 前に 辞めた 人・金額の 無い 人は 振込に 入らない★', !bo.some((t) => ['MAE', 'TAI0'].includes(t.emp.id)), '一覧 ' + ids(bo));
   if (!WAZA) {
-    T('★賞与＝金額の 入った 退職の 人は 名指しで 止める（金額の 無い 人は 止めない）★', tomeru('bonus') === 'TAI', tomeru('bonus'));
+    T('★賞与＝支給日 当日・後に 辞めた 人は 在籍の 人と 同じく 振込に 入る（金額も 同じ）★',
+      ['TOU', 'ATO'].every((id) => { const t = bo.find((x) => x.emp.id === id); const z = bo.find((x) => x.emp.id === 'ZAISEKI'); return t && z && t.amount === z.amount && t.amount > 0 && t.ready; }), '一覧 ' + ids(bo));
+    T('★賞与＝支給日より 前に 辞めた 人だけ 名指しで 止める（当日・後・金額の 無い 人は 止めない）★', tomeru('bonus') === 'MAE', tomeru('bonus'));
     T('★賞与＝止める 人が 居ると 振込ファイルを 作らない★', dasuKa('bonus') === false);
-    T('★賞与の 止めの 字が「空に すると 賞与支払届からも 外れる」を 言う★', /賞与支払届/.test(saigoJi) && /空に/.test(saigoJi), saigoJi.slice(0, 160));
+    T('★賞与の 止めの 字が「支給日より 前に 退職」と「空に すると 賞与支払届からも 外れる」を 言う★', /支給日より 前に 退職/.test(saigoJi) && /賞与支払届/.test(saigoJi) && /空に/.test(saigoJi), saigoJi.slice(0, 160));
   }
 } else T('賞与の 振込が 作れる', false, String(bo && bo.message));
+/* 支給日が 年-月-日 で 読めない 時は 退職日の 在る 人は 全員 止める（黙って 払わない） */
+bo = goBonus('10');
+if (Array.isArray(bo)) {
+  T('★賞与＝支給日が 読めない 時は 退職日の 在る 人を 振込に 入れない★', !bo.some((t) => ['MAE', 'TOU', 'ATO', 'TAI0'].includes(t.emp.id)), '一覧 ' + ids(bo));
+  if (!WAZA) T('★賞与＝支給日が 読めない 時は 金額の 入った 退職の 人を 全員 名指しで 止める★', tomeru('bonus') === 'ATO,MAE,TOU', tomeru('bonus'));
+} else T('賞与の 振込が 作れる（支給日 読めず）', false, String(bo && bo.message));
+/* 支給日が 支給月と 違う 月（夏の 支給日が 残ったまま 冬を 作る）＝読めても 違う 回の 日付＝止める（taiketsu 10-23 止め2） */
+A.state.month = '2026-12';
+A.state.employees = [mk('ZAISEKI'), mk('FUYU', { retired: true, taishokuYmd: '2026-12-05' })];
+A.state.confirmed = {};
+A.state.bonus = { payYm: '2026-12', payDay: '2026-07-10', byEmp: { ZAISEKI: { amount: '100000' }, FUYU: { amount: '100000' } } };
+bo = (() => { try { return A.buildTransfers('bonus'); } catch (e) { return e; } })();
+if (Array.isArray(bo)) {
+  T('★賞与＝支給日が 支給月と 違う 月の 時は 退職日の 在る 人を 振込に 入れない★', !bo.some((t) => t.emp.id === 'FUYU'), '一覧 ' + ids(bo));
+  if (!WAZA) T('★賞与＝支給日が 支給月と 違う 月の 時は 名指しで 止める★', tomeru('bonus') === 'FUYU', tomeru('bonus'));
+} else T('賞与の 振込が 作れる（支給日の 月が 違う）', false, String(bo && bo.message));
+/* 退職日を 入れたが「退職にする」を 押していない 人にも 案3が 効く（taiketsu 10-23 止め1） */
+A.state.month = '2026-07';
+A.state.employees = [mk('ZAISEKI'), mk('NMAE', { taishokuYmd: '2026-07-05' }), mk('NTOU', { taishokuYmd: '2026-07-10' }), mk('NATO', { taishokuYmd: '2026-07-31' })];
+A.state.confirmed = {};
+A.state.bonus = { payYm: '2026-07', payDay: '2026-07-10', byEmp: { ZAISEKI: { amount: '100000' }, NMAE: { amount: '100000' }, NTOU: { amount: '100000' }, NATO: { amount: '100000' } } };
+bo = (() => { try { return A.buildTransfers('bonus'); } catch (e) { return e; } })();
+if (Array.isArray(bo)) {
+  if (!WAZA) {
+    T('★賞与＝「退職にする」を 押していない 人も 支給日より 前に 辞めたら 振込に 入らない★', !bo.some((t) => t.emp.id === 'NMAE'), '一覧 ' + ids(bo));
+    T('★賞与＝「退職にする」を 押していない 人も 支給日 当日・後なら 入る★', ['NTOU', 'NATO', 'ZAISEKI'].every((id) => bo.some((t) => t.emp.id === id)), '一覧 ' + ids(bo));
+    T('★賞与＝「退職にする」を 押していない 人も 支給日より 前に 辞めたら 名指しで 止める★', tomeru('bonus') === 'NMAE', tomeru('bonus'));
+  }
+} else T('賞与の 振込が 作れる（退職日だけ）', false, String(bo && bo.message));
+/* 月次は 今の まま（退職日だけの 人は 在籍の 判定で 決まる・止めない） */
+if (!WAZA) T('★月次＝「退職にする」を 押していない 人は 退職の 止めに 入らない（今の まま）★', tomeru('monthly') === '', tomeru('monthly'));
 
 /* ── ⑥ 「退職にする」だけの 人に 前の 賞与の 金額が 残っていても、冬の 賞与ファイルは 作れる（taiketsu 10-23 止め1） ── */
 A.state.month = '2026-12';

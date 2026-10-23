@@ -4884,9 +4884,13 @@
      ・退職日が 在る 人 … 在籍の 人と 同じく 確定に 関係なく 入れる（入力・印刷・明細と 揃う）
          但し「退職にする」を 押した 月の 後なのに 退職日が 先の まま … どちらが 本当か 決められない＝名指しで 止める
      ・「退職にする」だけ（退職日 無し）… 確認の 字が「給与計算・印刷の 対象から 外れます」＝その月を 確定した 時だけ・押した 月まで 入れる
-     ・賞与 … 確定が 無いので 決めない＝金額が 入っていれば 名指しで 止める（入れるかは 司さんに 訊く） */
+     ・賞与（退職日が 在る 人に 金額）… ★司さんの 決め 2026-10-23「案3」★＝賞与の 支給日に 在籍して いれば（退職日 ≧ 支給日）在籍の 人と 同じく 入れる／
+         支給日より 前に 辞めた 人は 名指しで 止める／支給日 か 退職日が 年-月-日 で 読めない 時も 止める（黙って 払わない） */
   function taishokuKubun(e, ym, bonus){
-    if(!e || !e.retired) return null;
+    if(!e) return null;
+    /* ★賞与は「退職にする」を 押していなくても 退職日が 支給月に 在れば 同じく 支給日で 決める★（taiketsu 10-23 止め1）
+       退職日は 従業員の 欄で ボタンと 別に 入れられる＝案3は「退職日の 在る 人」の 決め。月次は 今の まま。 */
+    if(!e.retired && !(bonus && String(e.taishokuYmd||'').slice(0,7)===ym)) return null;
     if(!isActiveInMonth(Object.assign({},e,{retired:false}),ym)) return 'hazusu';
     var t7=String(e.taishokuYmd||'').slice(0,7), r7=String(e.retiredYmd||'').slice(0,7);
     /* ★削除した 人は「退職にする」の 古い 月を 見ない★＝削除の 門が 退職日・退職月の 確定・払う日を 確かめて 通している。
@@ -4896,7 +4900,15 @@
     /* 「退職にする」だけ（退職日 無し）＝確認の 字の 通り 給与計算の 対象の 外。賞与も 外す（賞与の 入力にも 札が 出ない＝残った 金額を 消せない・taiketsu 10-23） */
     if(!t7){ if(bonus) return 'hazusu'; if(r7 && ym>r7) return 'hazusu'; }
     else {
-      if(bonus){ var b=state.bonus&&state.bonus.byEmp&&state.bonus.byEmp[e.id]; return (b && num(b.amount)>0) ? 'tomeru' : 'hazusu'; }
+      if(bonus){
+        var b=state.bonus&&state.bonus.byEmp&&state.bonus.byEmp[e.id];
+        if(!(b && num(b.amount)>0)) return 'hazusu';
+        var pd=String((state.bonus&&state.bonus.payDay)||'').trim(), td=String(e.taishokuYmd||'').trim(), YMD=/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+        if(!YMD.test(pd) || !YMD.test(td)) return 'tomeru';
+        /* 支給日が 支給月と 違う 月＝前の 回の 日付が 残っている＝その 日付で 払うと 違う（taiketsu 10-23 止め2） */
+        if(pd.slice(0,7)!==ym) return 'tomeru';
+        return (td>=pd) ? 'ireru' : 'tomeru';
+      }
       return (r7 && ym>r7) ? 'tomeru' : 'ireru';
     }
     return (state.confirmed && state.confirmed[ym] && state.confirmed[ym][e.id]) ? 'ireru' : 'hazusu';
@@ -4915,7 +4927,7 @@
          ＝前は 退職の 印（retired）で 外していたので、払う日より 前に「退職にする」を 押すと・削除した 人を 払う日の 後に
            作り直すと、★確定した 給与が 振込から 黙って 落ちた★。確定＝その月に 払う 給与が 在る。
          「退職にする」は 退職日を 入れないので 在籍の 判定（isActiveInMonth）でも 先に 落ちる＝確定を 先に 見る。
-         ★賞与は 今の まま★（賞与には 確定が 無く、残った 金額だけで 払うと 払わない 人に 払う＝司さんに 訊く）。 */
+         ★賞与★＝確定が 無いので 支給日で 決める（司さんの 決め 2026-10-23 案3・taishokuKubun の 賞与の 枝）。 */
       /* ★越えるのは 退職の 印だけ★＝在籍の 期間（入社日〜退職日・ボタンで 退職に した 月）の 外の 確定は 今まで 通り 入れない（taiketsu 10-23＝期間の 外の 確定で 満額が 出た） */
       var tk=taishokuKubun(e,ym,bonus); if(tk==='ireru') return true; if(tk) return false;
       if(!isActiveInMonth(e,ym) || e.retired) return false;
@@ -5123,7 +5135,7 @@
     if(taiTomeru.length){
       var ttn=taiTomeru.map(function(e){ return esc(e.name||'（名前なし）'); });
       var ttwho=ttn.length<=3?ttn.join('・'):(ttn.slice(0,3).join('・')+'ほか'+(ttn.length-3)+'名');
-      listHTML+='<div class="cr-warn" style="margin:0 0 8px;color:#C0392B">⚠ <b>'+ttwho+'</b> は 退職の 扱いが 決められないので 振込に 入れていません（'+(furiMode()==='bonus'?'退職した 人の 賞与を 振込に 入れるかは 確かめ中です。金額を 空に すると 振込と 賞与支払届から 外れます（「賞与を確定」の 前なら 年末調整・賃金台帳からも）。払わない 時だけ 空に すれば':'「退職にする」を 押した 月と 退職日が 合いません。退職日が 正しければ 退職日の 月を 開いて「復帰させる」→「退職にする」を 押し直す、間違いなら 退職日を 直せば')+' 作れます）</div>';
+      listHTML+='<div class="cr-warn" style="margin:0 0 8px;color:#C0392B">⚠ <b>'+ttwho+'</b> は 退職の 扱いが 決められないので 振込に 入れていません（'+(furiMode()==='bonus'?'賞与の 支給日より 前に 退職した 人（または 支給日・退職日が 年-月-日 で 読めない／支給日が 支給月と 違う 月）に 賞与の 金額が 入っています。支給日に 在籍して いれば 振込に 入ります。日付を 直すか、払わない 時は 金額を 空に すると 振込と 賞与支払届から 外れます（「賞与を確定」の 前なら 年末調整・賃金台帳からも）。そうすれば':'「退職にする」を 押した 月と 退職日が 合いません。退職日が 正しければ 退職日の 月を 開いて「復帰させる」→「退職にする」を 押し直す、間違いなら 退職日を 直せば')+' 作れます）</div>';
     }
     if(!tr.length){ listHTML+='<p class="hint" style="margin:0">'
       +(taiTomeru.length ? 'ほかに 振込に 入る 人は いません。' : (furiMode()==='bonus' ? '賞与の金額を入れた人がいません（「入力 ▸ 賞与」で入れてください）。' : '対象月に在籍する従業員がいません。'))
@@ -5213,7 +5225,7 @@
       var twho=tn.length<=3?tn.join('・'):(tn.slice(0,3).join('・')+'ほか'+(tn.length-3)+'名');
       uiAlert(twho+' は 退職の 扱いが 決められないので、この 振込ファイルは 作りません。\n\n'
         +((mode||furiMode())==='bonus'
-          ? '退職した 人に 賞与の 金額が 入っています。退職した 人の 賞与を 振込に 入れるかは 確かめ中の ため、この 振込ファイルは 作りません。\n金額を 空に すると、その人は 賞与の 振込と 賞与支払届から 外れます（「賞与を確定」の 前なら 年末調整・賃金台帳からも 外れます）。払わない 時だけ 空に してください。'
+          ? '賞与の 支給日より 前に 退職した 人に 賞与の 金額が 入っています（支給日 か 退職日が 年-月-日 で 読めない 時・支給日が 支給月と 違う 月の 時も 同じ）。支給日に 在籍して いない 人の 賞与は 振込に 入れないので、この 振込ファイルは 作りません。\n日付が 間違いなら 賞与の 支給日 か 退職日を 直してください（支給日に 在籍して いれば 振込に 入ります）。\n払わない 時は 金額を 空に すると、その人は 賞与の 振込と 賞与支払届から 外れます（「賞与を確定」の 前なら 年末調整・賃金台帳からも 外れます）。'
           : '「退職にする」を 押した 月と 退職日が 合いません（退職日の 方が 後の 月です）。退職日が 正しければ、退職日の 月を 開いて「復帰させる」を 押し、もう一度「退職にする」を 押してください。退職日が 間違いなら 退職日を 直してください。'),
         '退職の 人を 確かめてください');
       return;
