@@ -883,6 +883,15 @@
 
   function locked() { return S.cur && !DOC.canEdit(S.cur); }
 
+  /* ★今の 1通は 保存か 発行を 終えて、その後 何も 打っていないか★（2026-10-23）
+     ＝下の「入力」を 押した時に 白紙で 開く 条件。打ちかけ・しまえなかった 1通は 続きを 出す（失わない） */
+  function owattaNoMama() {
+    var v = S.cur;
+    if (!v || !S.owatta || S.owatta !== v || S.dirty) return false;
+    if (S.ochita && ((v.id && S.ochita[v.id]) || (v._k && S.ochita[v._k]))) return false;
+    return true;
+  }
+
   function fillEdit() {
     var v = S.cur; if (!v) return;
     S.gamen = v;                      // ★入力の 欄に 今 出ている 1通★（collect は この 1通にしか 読まない・2026-10-14）
@@ -2927,6 +2936,7 @@
       if (S.cur !== okuttaCur) return;   // 返事の 前に 別の 1通を 開いた＝今の 画面には 付けない
       S.cur.id = r.id;
       S.dirty = false;
+      S.owatta = S.cur;                /* ★人が 保存を 終えた 1通★（次の「入力」は 白紙・owattaNoMama） */
       /* ★言葉は 状態なりに★（2026-09-09 いつでも直せるように したので
          発行済みを 直した時に「下書きを保存しました」と 出ると 嘘に なる）。 */
       box('edit-ok', (S.cur.status === 'issued' ? '直した内容を 保存しました（番号 ' + (S.cur.no || '') + ' は そのままです）。'
@@ -3040,6 +3050,9 @@
       hakko.id = r.id; hakko.no = r.no; hakko.status = 'issued'; hakko.issued_at = at;
       ochiKesu(hakko);                 // ★発行で 中身も 倉庫に 入った＝「まだ 保存されていません」を 残さない★（taiketsu 10-14）
       hakko.snapshot = snap; hakko.totals = row.totals;
+      /* ★発行を 終えた 1通★（中身は 発行で 全部 倉庫に 入った＝次の「入力」は 白紙・owattaNoMama） */
+      S.owatta = hakko;
+      if (S.cur === hakko) S.dirty = false;
       box('edit-ok', '請求書 ' + r.no + ' を発行しました。'
         + (r.bumped ? '（同じ番号が先に使われていたので ' + r.bumped + ' つ進めました）' : '')
         /* ★固まるのは 番号だけ★（中身は あとからでも 直せる） */
@@ -4967,7 +4980,11 @@
     Array.prototype.forEach.call(document.querySelectorAll('.bn'), function (b) {
       b.onclick = function () {
         var t = b.getAttribute('data-scr');
-        if (t === 'scr-edit' && !S.cur) { newInvoice(); return; }
+        /* ★保存・発行を 終えた 1通の 後の「入力」は 新しい 白紙★（2026-10-23 司さん
+           「新しい請求書を入力から作る時に、前の取引先の中身が反映されてる」）
+           ＝前は 終えた 1通が そのまま 出て、相手を 変えて 打つと ★その 1通が 書き換わった★。
+           ★打ちかけ（修正で 開いて まだ 保存も 発行も していない）は 続きを 出す★＝打った 物を 失わない */
+        if (t === 'scr-edit' && (!S.cur || owattaNoMama())) { newInvoice(); return; }
         if (t === 'scr-set') fillSettings();
         /* ★設定を変えて戻ってきた時、古い案内を残さない★
            （紙の行数を20行にしたのに「紙は2枚になります」と言ったまま＝

@@ -134,6 +134,16 @@ function soakUp(where) {
 }
 
 /* ── 画面を一通り 開いて回る（畳みも 発行後に出る箱も） ── */
+/* ★発行した 1通へ 戻る★（2026-10-23 決め＝保存・発行を 終えた 後の 下の「入力」は 新しい 白紙。
+   入金の 箱が 出ている 1通を 見るには 一覧の「修正」から 開く＝お客さんと 同じ道） */
+let hakkoId = null;
+function hakkoNiModoru() {
+  if (win.SeikyuApp._state.cur && win.SeikyuApp._state.cur.id === hakkoId) { doc.querySelector('.bn[data-scr="scr-edit"]').click(); return; }
+  doc.querySelector('.bn[data-scr="scr-list"]').click();
+  const b = doc.querySelector('[data-open="' + hakkoId + '"]');
+  if (!b) throw new Error('★一覧に 発行した 1通の「修正」が 無い★ id=' + hakkoId);
+  b.click();
+}
 async function walk() {
   // 一覧（請求書／見積書 の両方）
   doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(20); soakUp('一覧');
@@ -172,6 +182,7 @@ async function walk() {
 
   // 発行 → 入金の箱・出来る事の畳み
   $('b-issue').click(); await sleep(120);
+  hakkoId = win.SeikyuApp._state.cur && win.SeikyuApp._state.cur.id;   /* 発行した 1通（自己確認で 一覧の「修正」から 戻る為） */
   for (const d of doc.querySelectorAll('#scr-edit details')) d.open = true;
   await sleep(20); soakUp('入力(発行済み)');
   setVal('pay-ymd', '2026-08-31'); setVal('pay-amt', '1000'); await sleep(20);
@@ -197,7 +208,7 @@ if (process.argv.includes('--self-test')) {
   });
 
   S('★画面に ★ を1つ戻すと 見つかる（見つからなければ この見張りは空振り）', () => {
-    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    hakkoNiModoru();
     const el = $('ded-why');
     if (!el) throw new Error('戻す先の文が無い');
     el.textContent = '★ここが大事★';
@@ -210,6 +221,7 @@ if (process.argv.includes('--self-test')) {
   S('★placeholder の中の印も見つける（本文だけ見ていたら見落とす）', () => {
     /* ★今 見えている欄で試す★（畳んで隠れている欄で試すと、
        見落としても「隠れているから0件」で緑になる＝自己確認が空振りになる） */
+    hakkoNiModoru();
     const el = $('pay-memo');
     if (!el || win.getComputedStyle($('pay-card')).display === 'none') throw new Error('見えている欄が無い（発行まで進んでいない）');
     const keep = el.getAttribute('placeholder');
@@ -247,7 +259,7 @@ if (process.argv.includes('--self-test')) {
   S('★親の「直の字」の印も見つける（子要素を持つ親を飛ばすと見落とす）', () => {
     /* ★load-bearing★＝葉だけ見る(旧 if(children.length)continue)に戻すと この歯は赤になる。
        ★を親の直の字にだけ置き、子<b>はマーク無し＝葉経由では拾えない＝直字走査でしか通らない。 */
-    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    hakkoNiModoru();
     const host = $('pay-card');
     if (!host || win.getComputedStyle(host).display === 'none') throw new Error('見えている箱が無い（発行まで進んでいない）');
     const p = doc.createElement('p');
@@ -263,7 +275,7 @@ if (process.argv.includes('--self-test')) {
   });
 
   S('★alt の中の印も見つける（本文・属性を 葉だけで見ていたら見落とす）', () => {
-    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    hakkoNiModoru();
     const host = $('pay-card');
     if (!host || win.getComputedStyle(host).display === 'none') throw new Error('見えている箱が無い');
     const img = doc.createElement('img');
@@ -278,7 +290,7 @@ if (process.argv.includes('--self-test')) {
   });
 
   S('★value（ボタン表示等）の中の印も見つける', () => {
-    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    hakkoNiModoru();
     const host = $('pay-card');
     if (!host || win.getComputedStyle(host).display === 'none') throw new Error('見えている箱が無い');
     const btn = doc.createElement('input');

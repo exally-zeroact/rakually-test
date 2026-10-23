@@ -266,6 +266,63 @@ MICHI.push(['★⑨ 一覧から A社の 下書きを「修正」で 開いた �
   aNashi(x, '修正の 後の B社の 1通');
 }]);
 
+/* ★下の「入力」タブの 道★（2026-10-23 指示役の 決め）
+   ＝保存か 発行を 終えた 後の「入力」は 新しい 白紙。修正で 開いて まだ 終えていない 1通は 続き。
+   ★書き換わらない事は 倉庫（kura）への 書き込みで 見る★（画面の 字だけで 閉じない） */
+const tabu = async (t, scr) => t.osu('.bn[data-scr="' + scr + '"]');
+async function bTeUtsu(t) {
+  /* 白紙で B社を 選び 1行 打って 自動で しまわれるのを 待つ */
+  await t.erabu('pB');
+  const na = t.doc.querySelector('#lines-body tr [data-f="name"]');
+  ok(na, '★明細の 品名の 欄が 無い★');
+  t.utsu(na, 'B社の品');
+  const kin = t.doc.querySelector('#lines-body tr [data-f="price"]') || t.doc.querySelector('#lines-body tr [data-f="amount"]');
+  t.utsu(kin, '3000');
+  await nemuru(1800);
+}
+for (const [ban, owari] of [['⑩', '保存'], ['⑪', '発行']]) {
+  MICHI.push(['★' + ban + ' ' + owari + 'の 後に 一覧 → 下の「入力」＝新しい 白紙／B社で 打っても A社の 1通は 書き換わらない（倉庫で 見る）', async () => {
+    const t = await tateru(); t.A._new(); await t.erabu('pA');
+    if (owari === '保存') await t.A._saveDraftForTest(); else await t.A._issue();
+    const aId = t.S.cur.id;
+    ok(aId, '★空振り★ ' + owari + 'できていない');
+    const aMae = JSON.stringify(t.kura.find((x) => x.id === aId));
+    await tabu(t, 'scr-list'); await tabu(t, 'scr-edit');
+    const x = t.naka();
+    eq(t.$('edit-h').textContent, '新しい請求書', '★' + owari + 'を 終えた 1通が そのまま 出た★');
+    ok(!t.S.cur.id && !t.S.cur.partner_id, '★白紙で ない★ id=' + t.S.cur.id + ' 相手=' + t.S.cur.partner_id);
+    aNashi(x, owari + 'の 後の 入力');
+    await bTeUtsu(t);
+    const aAto = t.kura.find((x2) => x2.id === aId);
+    eq(JSON.stringify(aAto), aMae, '★A社の 1通が 倉庫で 書き換わった★');
+    const b = t.kura.find((x2) => x2.partner_id === 'pB');
+    ok(b && b.id !== aId, '★B社の 1通が 別に しまわれていない★');
+  }]);
+}
+MICHI.push(['★⑫ 修正で 開いて 打ちかけ（まだ 保存も 発行も していない）→ 一覧・設定 → 下の「入力」＝その 1通の 続き', async () => {
+  const t = await tateru();
+  t.kura.push({ id: 'dA', no: 'A-002', status: 'draft', doc_type: 'invoice', partner_id: 'pA', issue_ymd: '2026-10-20',
+    lines: [line('A下書きの行', 100)], data: { subject: 'A下書きの件名', memo: '' }, totals: {} });
+  await t.A._loadList();
+  await t.osu('[data-open="dA"]');
+  t.utsu(t.$('e-subject'), '打ちかけの件名');
+  await tabu(t, 'scr-list'); await tabu(t, 'scr-edit');
+  eq(t.S.cur.id, 'dA', '★打ちかけの 1通が 白紙に 替わった★');
+  eq(t.$('e-subject').value, '打ちかけの件名', '★打ちかけが 消えた★');
+  await tabu(t, 'scr-set'); await tabu(t, 'scr-edit');
+  eq(t.S.cur.id, 'dA', '★設定から 戻ると 白紙に 替わった★');
+  eq(t.$('e-subject').value, '打ちかけの件名', '★設定から 戻ると 打ちかけが 消えた★');
+}]);
+MICHI.push(['★⑬ 発行済みを 修正で 開いて 直しかけ → 一覧 → 下の「入力」＝続き（発行済みも 後から 直せる決まりの まま）', async () => {
+  const t = await tateru();
+  await t.osu('[data-open="vA0"]');
+  eq(t.S.cur.status, 'issued', '★空振り★ 発行済みが 開けていない');
+  t.utsu(t.$('e-memo'), '発行後の直しかけ');
+  await tabu(t, 'scr-list'); await tabu(t, 'scr-edit');
+  eq(t.S.cur.id, 'vA0', '★発行済みの 直しかけが 白紙に 替わった★');
+  eq(t.$('e-memo').value, '発行後の直しかけ', '★直しかけが 消えた★');
+}]);
+
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
 } else {
@@ -278,6 +335,10 @@ if (!SELF) {
     ['新しく 作る時に 当ての 印・札を 戻すのを やめる', '    S.guessDone = false; S.guess = null; S.guessApplied = null;', '', '★⑧'],
     ['新しく 作る時に 前の 知らせを 消すのを やめる', "    box('edit-ok', ''); box('edit-err', ''); box('edit-warn', '');", '', '★⑦'],
     ['id の 付いた 新しい 下書きに 当て直さない', '    if (!v || locked() || (v.id && !jidoNoCur(v)) || S.guessDone) return;', '    if (!v || locked() || v.id || S.guessDone) return;', '★④'],
+    ['保存・発行の 後の「入力」を 白紙に しない', "        if (t === 'scr-edit' && (!S.cur || owattaNoMama())) { newInvoice(); return; }", "        if (t === 'scr-edit' && !S.cur) { newInvoice(); return; }", '★⑩'],
+    ['保存を 終えた 印を 付けない', '      S.owatta = S.cur;', '', '★⑩'],
+    ['発行を 終えた 印を 付けない', '      S.owatta = hakko;', '', '★⑪'],
+    ['打ちかけでも 白紙に する', '    if (!v || !S.owatta || S.owatta !== v || S.dirty) return false;', '    if (!v) return false;', '★⑫'],
     ['当てる時に 打った 件名を 上書きする', "    if (!String(v.data.subject || '').trim()) { v.data.subject = g.subject; jido.push('subject'); }", "    { v.data.subject = g.subject; jido.push('subject'); }", '★⑤'],
   ];
   for (const [na, a, b, michi] of kowasu) {
