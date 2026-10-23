@@ -93,6 +93,11 @@ async function tateru(o) {
     { id: 'pE', sort: 4, data: { name: 'E設備', honor: '御中' } },
   ];
   if (o && o.hitori) S.partners = [S.partners[0]];
+  /* 会社が 足した 列「現場」（taiketsu 止3） */
+  if (o && o.cols) S.org.invoiceCols = { items: ['#', '品名・内容', '数量', '単位', '単価', '金額', '消費税', '現場'] };
+  /* ★返事が 遅い 倉庫★＝★送った 時点で 写し★、返事だけ 遅らせる（後で 写すと 待つ間に 打った 字まで 入って 偽の 緑・taiketsu 止1） */
+  const osoi = (o && o.osoi) || 0;
+  const matsu = (x) => (osoi ? new Promise((r) => setTimeout(() => r(x), osoi)) : Promise.resolve(x));
   const kura = [JSON.parse(JSON.stringify(MAE_A)), JSON.parse(JSON.stringify(MAE_C)), JSON.parse(JSON.stringify(MAE_E))];
   let n = 0;
   const shimau = (v) => {
@@ -116,8 +121,8 @@ async function tateru(o) {
     invoices: {
       list: (k) => Promise.resolve(k === 'quote' ? [] : JSON.parse(JSON.stringify(kura))),
       usedNos: () => Promise.resolve(kura.map((x) => x.no)),
-      saveDraft: (v) => Promise.resolve({ ok: true, id: shimau(v).id }),
-      issue: (row) => { const c = shimau(Object.assign({}, row, { status: 'issued' })); return Promise.resolve({ ok: true, id: c.id, no: c.no }); },
+      saveDraft: (v) => { const c = shimau(v); return matsu({ ok: true, id: c.id }); },
+      issue: (row) => { const c = shimau(Object.assign({}, row, { status: 'issued' })); return matsu({ ok: true, id: c.id, no: c.no }); },
       removeDraft: () => Promise.resolve({ ok: true }),
       markSent: () => Promise.resolve({ ok: true }),
     },
@@ -372,22 +377,20 @@ MICHI.push(['★⑮ A社 → その場で 作る（もう在る B商店＝r.alre
   eq(x.gensen, sugu.pB.gensen, '源泉'); eq(x.tax, sugu.pB.tax, '税の 入れ方'); eq(x.due, sugu.pB.due, '期日');
   eq(x.goukei, sugu.pB.goukei, '★合計が 最初から B社と 違う★');
 }]);
-MICHI.push(['★⑯ 税込みだけ 前回から 入った 相手（E社）→ 1行 打つ → B社（S2/S3）＝税は 戻り 画面も 戻り 言う・合計は 最初から B社で 打った 1通と 同じ', async () => {
-  const utsu1 = async (t) => {
-    const na = t.doc.querySelector('#lines-body tr [data-f="name"]'); t.utsu(na, '打った品');
-    const kin = t.doc.querySelector('#lines-body tr [data-f="price"]') || t.doc.querySelector('#lines-body tr [data-f="amount"]');
-    t.utsu(kin, '60000'); await nemuru(20);
-  };
+MICHI.push(['★⑯ 税込みだけ 前回から 入った 相手（E社）→ 60000 を 打つ → B社（指示役の 決め）＝打った 行が 残るので 税込みの まま・合計は 60000 の まま・欄も そろい そう 言う', async () => {
   const t = await tateru(); t.A._new(); await t.erabu('pE');
   eq(t.S.cur.tax_mode, 'inclusive', '★空振り★ E社の 前回の 税込みが 入っていない');
-  await utsu1(t);
+  const na = t.doc.querySelector('#lines-body tr [data-f="name"]'); t.utsu(na, '打った品'); t.utsu(t.doc.querySelector('#lines-body tr [data-f="qty"]'), '1');
+  const kin = t.doc.querySelector('#lines-body tr [data-f="price"]') || t.doc.querySelector('#lines-body tr [data-f="amount"]');
+  t.utsu(kin, '60000'); await nemuru(20);
+  const mae = t.naka().goukei;
+  eq(mae, 60000, '★空振り★ 税込みで 60000 に なっていない');
   await t.erabu('pB');
   const x = t.naka();
-  eq(x.tax, 'exclusive', '★中の 税の 入れ方が 戻っていない★');
+  eq(x.tax, 'inclusive', '★打った 金額の 意味（税込み）を 変えた★');
   eq(t.$('e-taxmode').value, x.tax, '★画面の 税の 入れ方が 中と 違う★（中は ' + x.tax + '）');
-  ok(/金額の入れ方/.test(x.okBun), '★税の 入れ方を 戻したと 言っていない★: ' + x.okBun);
-  const b = await hajimeKara('pB', utsu1);
-  eq(x.goukei, b.goukei, '★合計が 最初から B社で 打った 1通と 違う★');
+  eq(x.goukei, 60000, '★打った 60000 の 合計が 変わった★');
+  ok(/打った 明細が 残っているので/.test(x.okBun) && /税込み/.test(x.okBun), '★そのままに した事を 言っていない★: ' + x.okBun);
 }]);
 MICHI.push(['★⑰ A社 → 請求日を 変える（期日が 動く）→ B社（S4）＝期日も 外れる', async () => {
   const t = await tateru(); t.A._new(); await t.erabu('pA');
@@ -437,6 +440,51 @@ MICHI.push(['★⑳ 保存の 後に 打って 自動で しまわれた → 一
   eq(t.$('e-subject').value, '保存の後に直した件名', '★直した 件名が 消えた★');
 }]);
 
+/* ★taiketsu の 2回目の 止める 3件（2026-10-23）★ */
+MICHI.push(['★㉑ 税込みの A社 → 税込みの E社（会社の 既定は 税抜き）（止2）＝字・中身・欄が そろう／A社 → B社 は 税抜きに した と 言う', async () => {
+  const t = await tateru(); t.A._new(); await t.erabu('pA'); await t.erabu('pE');
+  const x = t.naka();
+  eq(x.tax, 'inclusive', '★中の 税の 入れ方が E社の 前回と 違う★');
+  eq(t.$('e-taxmode').value, 'inclusive', '★画面の 税の 欄が 中と 違う★');
+  ok(!/税抜き/.test(x.okBun), '★「税抜きに 戻す」と 書いて 中は 税込み★: ' + x.okBun);
+  ok(/税込み/.test(x.okBun), '★当て直しで 税込みに した事を 言っていない★: ' + x.okBun);
+  const e = await hajimeKara('pE');
+  eq(x.goukei, e.goukei, '★合計が 最初から E社の 1通と 違う★');
+  const t2 = await tateru(); t2.A._new(); await t2.erabu('pA'); await t2.erabu('pB');
+  const y = t2.naka();
+  eq(y.tax, 'exclusive', 'B社＝会社の 既定'); eq(t2.$('e-taxmode').value, 'exclusive', '★B社の 画面の 税の 欄★');
+  ok(/税抜き/.test(y.okBun), '★税抜きに した事を 言っていない★: ' + y.okBun);
+}]);
+MICHI.push(['★㉒ A社 → 会社の 列「現場」だけ 打った 行は B社に 変えても 残る（止3）', async () => {
+  const t = await tateru({ cols: true }); t.A._new(); await t.erabu('pA');
+  const ge = t.doc.querySelector('#lines-body tr [data-x="現場"]');
+  ok(ge, '★空振り★ 会社の 列「現場」の 欄が 無い');
+  t.utsu(ge, '東予市 灰原邸'); await nemuru(20);
+  eq(((t.S.cur.lines[0] || {}).extra || {})['現場'], '東予市 灰原邸', '★空振り★ 現場に 打てていない');
+  await t.erabu('pB');
+  const x = t.naka();
+  eq(x.lines.join('|'), 'A社の工事', '★現場を 打った 行が 外れた（または 触っていない 行が 残った）★');
+  eq(((t.S.cur.lines[0] || {}).extra || {})['現場'], '東予市 灰原邸', '★打った 現場が 消えた★');
+}]);
+for (const [ban, owari] of [['㉓', '保存'], ['㉔', '発行']]) {
+  MICHI.push(['★' + ban + ' ' + owari + 'の 返事を 待つ 間に 打った 字は 消えない（止1）＝倉庫にも 画面にも 残る', async () => {
+    const t = await tateru({ osoi: 300 }); t.A._new(); await t.erabu('pA');
+    await nemuru(20);
+    const p = owari === '保存' ? t.A._saveDraftForTest() : t.A._issue();
+    await nemuru(40);
+    t.utsu(t.$('e-memo'), '返事待ちに打った備考');
+    await p;
+    await nemuru(1900);                   /* 自動の しまい（1.5秒）を 待つ */
+    const id = t.S.cur.id;
+    ok(id, '★空振り★ ' + owari + 'できていない');
+    const kuraNo = t.kura.find((x) => x.id === id);
+    eq(kuraNo && kuraNo.data && kuraNo.data.memo, '返事待ちに打った備考', '★返事待ちに 打った 字が 倉庫に 入っていない★');
+    await tabu(t, 'scr-list'); await tabu(t, 'scr-edit');
+    eq(t.S.cur.id, id, '★打った 字の ある 1通が 白紙に 替わった★');
+    eq(t.$('e-memo').value, '返事待ちに打った備考', '★打った 字が 画面から 消えた★');
+  }]);
+}
+
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
 } else {
@@ -455,8 +503,13 @@ if (!SELF) {
     ['打ちかけでも 白紙に する', '  function owattaNoMama() {\n    var v = S.cur;\n', '  function owattaNoMama() {\n    var v = S.cur; if (v) return true;\n', '★⑫'],
     ['その場で 作った 相手は 書き換える だけ（S1）', '        if (S.cur && S.cur.partner_id !== r.id) aiteWoKaeta(r.id);', '        if (S.cur) S.cur.partner_id = r.id;', '★⑭'],
     ['もう在った 相手でも 書き換える だけ（S1）', '        if (S.cur && S.cur.partner_id !== r.id) aiteWoKaeta(r.id);', '        if (S.cur) S.cur.partner_id = r.id;', '★⑮'],
-    ['税の 欄を 外した 時だけ 描き直す（S2）', "    if ($('e-taxmode')) $('e-taxmode').value = (S.cur.tax_mode === 'inclusive') ? 'inclusive' : 'exclusive';\n    if (hazushita.length) [", "    if (hazushita.length) [", '★⑯'],
-    ['税を 戻しても 言わない（S3）', "      out.push('金額の入れ方（' + (s.taxMode === 'inclusive' ? '税込み' : '税抜き') + 'に 戻す）');", '', '★⑯'],
+    ['税の 欄を 描き直さない（S2）', "    if ($('e-taxmode')) $('e-taxmode').value = (S.cur.tax_mode === 'inclusive') ? 'inclusive' : 'exclusive';\n    if (zeiBun && !hazushita.length) {", "    if (zeiBun && !hazushita.length) {", '★㉑'],
+    ['税を 変えても 言わない（S3）', "      if (hz.taxMae && S.cur.tax_mode !== hz.taxMae) zeiBun += '金額の入れ方を ' + zeiNa(S.cur.tax_mode) + ' に しました。';", '', '★㉑'],
+    ['当て直しで 入れた 税を 言わない（止2）', "    if (jido.indexOf('tax') >= 0 && v.tax_mode !== settings().taxMode) hiki.push(", "    if (false) hiki.push(", '★㉑'],
+    ['打った 行が 残っても 税を 戻す（決め）', '    if (nokoriLines.length && (zei || hasu)) {', '    if (false) {', '★⑯'],
+    ['会社の 列を 比べない（止3）', "String(l.memo || ''), exKata]);", "String(l.memo || '')]);", '★㉒'],
+    ['保存の 返事で 待つ間の 字を 見ない（止1）', '      if (nakamiKata(S.cur) === okuttaKata) {', '      if (true) {', '★㉓'],
+    ['発行の 返事で 待つ間の 字を 見ない（止1）', '      var onaji = nakamiKata(hakko) === hakkoKata;', '      var onaji = true;', '★㉔'],
     ['動いた 期日を 外さない（S4）', "      if (mama('due') || String(v.due_ymd || '') === String(DOC.dueDateFrom(v.issue_ymd, d.term) || '')) v.due_ymd = '';", "      if (mama('due')) v.due_ymd = '';", '★⑰'],
     ['触っていない 行も 外さない（S5）', '      var i = mi.indexOf(jidoGyo(l));', '      var i = -1;', '★⑱'],
     ['選び直しで 次の 相手の 前回を 足さない（S5）', '    var tasu = !!S.oiToki;', '    var tasu = false;', '★⑱'],
