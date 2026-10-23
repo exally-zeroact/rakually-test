@@ -188,6 +188,41 @@ if (!WAZA) {
   T('★その 会社の 7月の 振込ファイルは 作れる★', dasuKa('monthly') === true);
 }
 
+/* ── ⑨ 止める 人しか 居ない 時も、画面・全銀・Excel の 3つが 名指しする（taiketsu 10-23 本番前 止め1＝「対象がありません」で 黙っていた） ── */
+if (!WAZA) T('★振込の 画面と 2つの ボタンを 試験から 呼べる（呼べないのに 飛ばして 緑に しない）★', !!(A.renderFuri && A.downloadZengin && A.downloadFuriExcel));
+if (!WAZA && A.renderFuri && A.downloadZengin && A.downloadFuriExcel) {
+  const naCheck = (na, fn) => {
+    for (const ov of [...doc.querySelectorAll('.ui-modal-ov')]) ov.remove();
+    try { fn(); } catch (e) { /* 呼べなかった＝下で 赤 */ }
+    const ji = [...doc.querySelectorAll('.ui-modal-ov')].map((o) => o.textContent).join(' ');
+    for (const ov of [...doc.querySelectorAll('.ui-modal-ov')]) ov.remove();
+    return ji;
+  };
+  /* 賞与＝退職の 人だけに 金額 */
+  A.state.printMode = 'bonus';
+  A.state.month = '2026-07';
+  A.state.employees = [mk('TAI', { retired: true, taishokuYmd: '2026-07-31', name: '試し 退職の人' })];
+  A.state.confirmed = { '2026-07': { TAI: true } };
+  A.state.bonus = { payYm: '2026-07', payDay: '10', byEmp: { TAI: { amount: '100000' } } };
+  A.renderFuri();
+  const gamen = (doc.querySelector('#furi-box') || {}).textContent || '';
+  T('★賞与・止める 人だけ＝画面が 名指しする（「金額を 入れた 人が いません」と 言わない）★', /試し 退職の人/.test(gamen) && !/金額を入れた人がいません/.test(gamen), gamen.slice(0, 120));
+  const jz = naCheck('全銀', () => A.downloadZengin());
+  T('★賞与・止める 人だけ＝全銀の ボタンが 名指しする★', /試し 退職の人/.test(jz), jz.slice(0, 100));
+  const jx = naCheck('Excel', () => A.downloadFuriExcel());
+  T('★賞与・止める 人だけ＝Excel の ボタンが 名指しする★', /試し 退職の人/.test(jx), jx.slice(0, 100));
+  /* 月次＝食い違いの 1人だけ */
+  A.state.printMode = '';
+  A.state.month = '2026-11';
+  A.state.employees = [mk('MUJUN', { retired: true, retiredYmd: '2026-10', taishokuYmd: '2026-12-31', name: '試し 食い違い' })];
+  A.state.confirmed = {};
+  A.renderFuri();
+  const gamen2 = (doc.querySelector('#furi-box') || {}).textContent || '';
+  T('★月次・止める 人だけ＝画面が 名指しする（「在籍する 従業員が いません」と 言わない）★', /試し 食い違い/.test(gamen2) && !/在籍する従業員がいません/.test(gamen2), gamen2.slice(0, 120));
+  const jz2 = naCheck('全銀', () => A.downloadZengin());
+  T('★月次・止める 人だけ＝全銀の ボタンが 名指しする（「振込対象がありません」で 止めない）★', /試し 食い違い/.test(jz2), jz2.slice(0, 100));
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');
 process.exit(fail ? 1 : 0);

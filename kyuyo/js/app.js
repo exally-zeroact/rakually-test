@@ -5062,8 +5062,14 @@
        （★どの お金を 送るのか 読んだ人に 分からない★）。 */
     var listHTML='<div class="sec-lb">振込対象（'
       +esc(furiMode()==='bonus' ? (bonusYmOf()+'・賞与の 差引支給額') : (state.month+'・差引支給額'))+'）</div>';
+    /* ★退職の 扱いが 決められない 人は 一覧が 空でも 名指しで 出す★（止める 人しか 居ない 時に「金額を 入れた 人が いません」と 事実と 違う 事を 言っていた・taiketsu 10-23） */
+    if(taiTomeru.length){
+      var ttn=taiTomeru.map(function(e){ return esc(e.name||'（名前なし）'); });
+      var ttwho=ttn.length<=3?ttn.join('・'):(ttn.slice(0,3).join('・')+'ほか'+(ttn.length-3)+'名');
+      listHTML+='<div class="cr-warn" style="margin:0 0 8px;color:#C0392B">⚠ <b>'+ttwho+'</b> は 退職の 扱いが 決められないので 振込に 入れていません（'+(furiMode()==='bonus'?'退職した 人の 賞与を 振込に 入れるかは 確かめ中です。金額を 空に すると 振込と 賞与支払届から 外れます（「賞与を確定」の 前なら 年末調整・賃金台帳からも）。払わない 時だけ 空に すれば':'「退職にする」を 押した 月と 退職日が 合いません。退職日が 正しければ 退職日の 月を 開いて「復帰させる」→「退職にする」を 押し直す、間違いなら 退職日を 直せば')+' 作れます）</div>';
+    }
     if(!tr.length){ listHTML+='<p class="hint" style="margin:0">'
-      +(furiMode()==='bonus' ? '賞与の金額を入れた人がいません（「入力 ▸ 賞与」で入れてください）。' : '対象月に在籍する従業員がいません。')
+      +(taiTomeru.length ? 'ほかに 振込に 入る 人は いません。' : (furiMode()==='bonus' ? '賞与の金額を入れた人がいません（「入力 ▸ 賞与」で入れてください）。' : '対象月に在籍する従業員がいません。'))
       +'</p>'; }
     else {
       listHTML+='<div style="font-size:12.5px">'+ready.map(function(t){ return '<div class="dl"><span>'+esc(t.emp.name)+'（'+esc(t.bankName||'')+' '+esc(t.branchName||'')+' '+esc(t.account||'')+'）</span><span class="v">'+yen(t.amount)+'</span></div>'; }).join('')+'</div>';
@@ -5083,11 +5089,6 @@
       }
       /* ★計算が 転んだ人を 名指しで 出す（黙って ファイルから 落とさない・⑧a）★
          ＝compute/computeBonus が 転ぶと 金額0＝ファイルの amount>0 絞りで 消える＝未払いの まま 銀行へ、を 防ぐ。 */
-      if(taiTomeru.length){
-        var ttn=taiTomeru.map(function(e){ return esc(e.name||'（名前なし）'); });
-        var ttwho=ttn.length<=3?ttn.join('・'):(ttn.slice(0,3).join('・')+'ほか'+(ttn.length-3)+'名');
-        listHTML+='<div class="cr-warn" style="margin:8px 0 0;color:#C0392B">⚠ <b>'+ttwho+'</b> は 退職の 扱いが 決められないので 振込に 入れていません（'+(furiMode()==='bonus'?'退職した 人の 賞与を 振込に 入れるかは 確かめ中です。金額を 空に すると 賞与支払届・年末調整・賃金台帳からも 外れます。払わない 時だけ 空に':'「退職にする」を 押した 月と 退職日が 合いません。退職日が 正しければ 退職日の 月を 開いて「復帰させる」→「退職にする」を 押し直す、間違いなら 退職日を 直す')+'と 作れます）</div>';
-      }
       if(keisanOchi.length){
         var konm=keisanOchi.map(function(t){ return esc(t.emp.name); });
         var kowho=konm.length<=3?konm.join('・'):(konm.slice(0,3).join('・')+'ほか'+(konm.length-3)+'名');
@@ -5155,7 +5156,7 @@
       var twho=tn.length<=3?tn.join('・'):(tn.slice(0,3).join('・')+'ほか'+(tn.length-3)+'名');
       uiAlert(twho+' は 退職の 扱いが 決められないので、この 振込ファイルは 作りません。\n\n'
         +((mode||furiMode())==='bonus'
-          ? '退職した 人に 賞与の 金額が 入っています。退職した 人の 賞与を 振込に 入れるかは 確かめ中の ため、この 振込ファイルは 作りません。\n金額を 空に すると、その人は 賞与の 振込だけで なく 賞与支払届・年末調整・賃金台帳からも 外れます。払わない 時だけ 空に してください。'
+          ? '退職した 人に 賞与の 金額が 入っています。退職した 人の 賞与を 振込に 入れるかは 確かめ中の ため、この 振込ファイルは 作りません。\n金額を 空に すると、その人は 賞与の 振込と 賞与支払届から 外れます（「賞与を確定」の 前なら 年末調整・賃金台帳からも 外れます）。払わない 時だけ 空に してください。'
           : '「退職にする」を 押した 月と 退職日が 合いません（退職日の 方が 後の 月です）。退職日が 正しければ、退職日の 月を 開いて「復帰させる」を 押し、もう一度「退職にする」を 押してください。退職日が 間違いなら 退職日を 直してください。'),
         '退職の 人を 確かめてください');
       return;
@@ -5172,6 +5173,8 @@
     /* ★取組日は その月から出す★（2026-08-27）＝会社の1個の日付を使わない。
        ★出せない時は 1バイトも作らない★（前は 空→0000 が黙って銀行へ行っていた）。 */
     var mode=furiMode();
+    /* ★退職の 扱いが 決められない 人の 止めを 一番 先に★（止める 人しか 居ない 時に「振込対象がありません」や 指定日の 字で 名指しが 届かなかった・taiketsu 10-23） */
+    if(taishokuTomeruHito(mode).length){ furiKeisanOchiKaku(mode, function(){}); return; }
     var d=furiMMDDFor(mode);
     if(!/^\d{4}$/.test(d)){
       uiAlert('この月の振込指定日を決められないので、全銀ファイルは作れません。\n'
@@ -5196,6 +5199,7 @@
   function downloadFuriExcel(){
     if(typeof PayslipXlsx==='undefined'||!PayslipXlsx.downloadSheets){ uiAlert('Excelモジュールが読み込まれていません'); return; }
     var tr=buildTransfers().filter(function(t){return t.amount>0;});
+    if(taishokuTomeruHito().length){ furiKeisanOchiKaku(furiMode(), function(){}); return; }   /* ★名指しの 止めを 空の 確かめより 先に★（全銀と 同じ） */
     if(!tr.length){ uiAlert('対象がありません。'); return; }
     var dasu=function(){
       var aoa=[['氏名','受取人名(ｶﾅ)','銀行名','銀行コード','支店名','支店コード','科目','口座番号','差引支給額']];
@@ -6833,7 +6837,7 @@
   try{ if(typeof navigator!=='undefined' && /jsdom/i.test(navigator.userAgent||'')){
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       applyCloudState:applyCloudState, persistSaveDebounced:persistSaveDebounced, persistSave:persistSave, persistLoad:persistLoad, hazushiWasureru:function(){ for(var k in _hazushi) delete _hazushi[k]; },   /* ★棚(d) ロード側 newer-wins の 統合試験用（本物を呼ぶ・真似ない）／persistSave＝枠超クラウド退避の歯 quota-cloud-fallback.mjs 用（test-only露出・判定/金額は不変）★ */
-      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku, taishokuKubun:taishokuKubun, taishokuTomeruHito:taishokuTomeruHito,
+      compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku, taishokuKubun:taishokuKubun, taishokuTomeruHito:taishokuTomeruHito, renderFuri:renderFuri, downloadZengin:downloadZengin, downloadFuriExcel:downloadFuriExcel,
       saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, saveBonusPayslips:saveBonusPayslips, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
          kyuyo/tests/shoyo-kami-hizuke.test.mjs */
