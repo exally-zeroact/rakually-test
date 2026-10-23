@@ -298,6 +298,73 @@ async function run(label, appSrc) {
     });
   });
 
+  /* ═══ G. taiketsu 2026-10-24 止1〜3 ═══ */
+  const GENBA_OLD = {
+    id: 'iv_old', account_id: 'u1', doc_type: 'invoice', no: '202608-001', partner_id: 'pt_a',
+    issue_ymd: '2026-08-18', due_ymd: null, status: 'issued', tax_mode: 'exclusive', rounding: 'floor',
+    lines: [{ name: '前の工事', qty: '1', unit: '式', price: '10000', amount: '10000', rate: 10 }],
+    totals: { grandTotal: 11000 }, snapshot: { cols: COLS.normalizeSpec(TPL.get(MAE).cols) },
+    data: {}, template_id: MAE, quote_from: null,
+    issued_at: '2026-08-18T00:00:00Z', sent_at: null, voided_at: null, updated_at: '2026-08-18T00:00:00Z',
+  };
+  const GENBA_PLUS = ['項目', '数量', '単位', '金額', '消費税', '備考', '現場名'];
+  await T('G1 ★選んだ時刻の 無い 会社★（控除を 保存済み）が 前に ' + MAE + ' で出した相手に 新しい1通 → 控除の列', async () => {
+    const r = await boot(appSrc, {
+      org: { invoiceTemplate: 'koujo', invoiceCols: COLS.normalizeSpec(TPL.get('koujo').cols) },
+      invoices: [GENBA_OLD],
+    });
+    const g = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g.cols, colsOfTpl('koujo'), '★前回の様式が 会社の保存した様式に 勝った★');
+    eq(g.tplId, 'koujo', '1通の様式');
+  });
+  await T('G1b 会社が 1度も 様式を 保存して いない時は 前回の様式（' + MAE + '）を 当てる（今までの当て方）', async () => {
+    const r = await boot(appSrc, { invoices: [GENBA_OLD] });
+    const g = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g.tplId, MAE, '前回の様式');
+    eq(g.cols, colsOfTpl(MAE), '前回の様式の列');
+  });
+  await T('G2 ★様式＝控除・相手だけの列＝' + MAE + '＋現場名（印の無い 古い列）★の相手 → 控除の紙に 備考を 出さない', async () => {
+    const r = await boot(appSrc, {
+      org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) },
+      ptA: { paper: { template: 'koujo', cols: COLS.normalizeSpec({ items: GENBA_PLUS }) } },
+    });
+    const g = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g.cols, colsOfTpl('koujo'), '★相手の列が 様式を 見ずに 使われた★');
+  });
+  await T('G2b 同じ古い列の相手でも 様式が ' + MAE + ' なら 手で作った列（現場名つき）で 出る', async () => {
+    const r = await boot(appSrc, {
+      org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) },
+      ptA: { paper: { cols: COLS.normalizeSpec({ items: GENBA_PLUS }) } },
+    });
+    const g = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g.cols, GENBA_PLUS.join('|'), '★手で作った 相手の列が 使われない★');
+  });
+  await T('G3 ★相手の列に 現場名を足す → 控除に 変える → ' + MAE + ' に 戻すと 現場名が 残る★（選び直しで 列を 消さない）', async () => {
+    const r = await boot(appSrc, { org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) } });
+    await tab(r, 'scr-set');
+    const sel = r.doc.getElementById('s-partner');
+    sel.value = 'pt_a'; sel.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(100);
+    r.doc.getElementById('b-pcols-own').click();
+    await sleep(100);
+    r.doc.getElementById('col-new').value = '現場名';
+    r.doc.getElementById('b-col-add').click();
+    await sleep(100);
+    const pa = () => r.S.partners.find((p) => p.id === 'pt_a').data.paper || {};
+    eq((pa().cols || { items: [] }).items.join('|'), GENBA_PLUS.join('|'), '前提：相手の列に 現場名が 入っていない');
+    r.doc.getElementById('b-pt-save').click();
+    await sleep(250);
+    await pickPartner(r, 'pt_a', 'koujo');
+    eq((pa().cols || { items: [] }).items.join('|'), GENBA_PLUS.join('|'), '★様式を 選び直したら 相手の列が 上書きされた★');
+    const hint = r.doc.getElementById('s-pcols-hint').textContent || '';
+    ok(/使わず/.test(hint) && /消してはいません/.test(hint), '★知らせが 中身と 合っていない★: ' + hint);
+    const g = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g.cols, colsOfTpl('koujo'), '★控除の紙に 相手の列（備考・現場名）が 出た★');
+    await pickPartner(r, 'pt_a', MAE);
+    const g2 = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g2.cols, GENBA_PLUS.join('|'), '★元の様式に 戻したのに 手で作った列が 帰ってこない★');
+  });
+
   await T('E  ★お金は 様式で 1円も 変わらない★（A1 の 合計が 全様式で 同じ）', async () => {
     const vals = IDS.map((x) => grands[x]);
     ok(vals.every((v) => Number.isFinite(v) && v > 0), '合計が 取れていない: ' + JSON.stringify(grands));
@@ -315,15 +382,25 @@ if (!SELF) {
   /* ★直した所を 直す前の姿に 戻す★＝この見張りが 本当に 赤を 出せるかを見る */
   console.log('\n★自己診断★ … 列を 様式に 合わせる所を 外して 赤が 出るかを見る');
   const keep = fs.readFileSync(APP, 'utf8');
-  /* ★壊す形＝直す前の 作り★：下書きに 写した列・会社の列を ★様式を 見ずに★ 使う */
-  const mark = '    return !!colsTpl && colsTpl === tpl;';
-  if (keep.indexOf(mark) < 0) { console.log('  ★壊す場所が見つからない＝この自己診断は古い★'); process.exit(2); }
-  await run('列を 様式に 合わせない seikyu-app.js（わざと壊した）', keep.replace(mark, '    return true;'));
-  const want = 2;
-  const nige = Math.max(0, want - fail);
-  console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（' + want + '件以上のはず）');
+  /* ★壊す形＝直す前の 作り★（1つずつ 壊して、それぞれ 赤が 出るかを 見る） */
+  const KOWASU = [
+    ['下書きに 写した列・会社の列を 様式を 見ずに 使う', '    return !!colsTpl && colsTpl === tpl;', '    return true;'],
+    ['相手だけの列を 様式を 見ずに 使う（止2）', '    return ptColsTpls(paper).indexOf(tpl) >= 0;', '    return true;'],
+    ['時刻の 無い 会社でも 前回の様式を 当てる（止1）', '    if (kaishaEranda && !erandaAt) return null;', ''],
+  ];
+  let nige = 0, akaKei = 0;
+  for (const [na, mark, kae] of KOWASU) {
+    if (keep.indexOf(mark) < 0) { console.log('  ★壊す場所が見つからない＝この自己診断は古い★ ' + na); process.exit(2); }
+    const mae = fail;
+    await run('わざと壊した：' + na, keep.replace(mark, kae));
+    const aka = fail - mae;
+    akaKei += aka;
+    console.log('  → ' + na + ' … 赤 ' + aka + '件');
+    if (aka < 1) { nige++; console.log('  ✗ ★空振り★ ' + na); }
+  }
+  console.log('\n  わざと壊した時に 赤になった数 … ' + akaKei + '件（' + KOWASU.length + '通り それぞれ 1件以上のはず）');
   if (nige) console.log('  ✗ ★空振りです★ 壊しても赤にならない');
   else console.log('  ✓ ★壊したら赤になった＝この試験は本当に見張っています★');
-  console.log('KEKKA {"passed":' + fail + ',"failed":' + nige + ',"mimiso":0}');
+  console.log('KEKKA {"passed":' + (KOWASU.length - nige) + ',"failed":' + nige + ',"mimiso":0}');
   process.exit(nige ? 1 : 0);
 }

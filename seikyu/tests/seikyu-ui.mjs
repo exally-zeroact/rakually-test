@@ -1871,7 +1871,8 @@ T('9-a. ★非課税と対象外は別物＝選び所に両方ある（新しい
   ok(opts.includes('非課税'), '「非課税」が無い: ' + opts.join('/'));
   ok(opts.includes('対象外'), '「対象外」が無い: ' + opts.join('/'));
   // ★増えたのは選択肢だけ＝行に入力は1つも増えていない（列の数は前の検査で変わり得るので数えない）
-  const cols = win.SeikyuApp._state.cur.data.cols;
+  /* ★紙の列は colsOf が その場で 決める★（2026-10-24 から 新しい1通に 列を 写さない）＝同じ物を 聞く */
+  const cols = win.SeikyuApp._colsForTest();
   const C = require_(path.join(ROOT, 'seikyu/lib/seikyu-cols.js'));
   /* ＋並べ替えの列 ＋消す列（どちらも「打つ所」ではない）
      ＋★紙に税率の列が無い時だけ、入力にだけ税率を出す★

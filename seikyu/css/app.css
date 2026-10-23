@@ -483,7 +483,7 @@
 .tpl-shot iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: hidden; pointer-events: none; }
 .tpl-nm { font-size: 13px; font-weight: 700; color: #333333; }
 .tpl-note { font-size: 12px; color: #555555; line-height: 1.7; }
-.tpl-strip { display: flex; align-items: center; gap: 10px; }
+.tpl-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 /* ★ボタンの字を 途中で 折らない★（2026-09-05 絵を 開いて 見つけた＝「設定で変え／る」）
    ＝押す物の 字が 割れると ★別のボタンに 見える★。名前の方を 折り返させる。 */
 .tpl-strip .mini { white-space: nowrap; flex: 0 0 auto; }
