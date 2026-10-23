@@ -451,6 +451,8 @@
     var s2 = reportOf(repMonth || '', 'invoice');
     var lb = repMonth ? ymLabel(repMonth) : 'ぜんぶ';
     var unk = (s2.totals.paid === null);
+    /* ★「この月の集計だけExcelに」は 表が 在る時だけ★（手本 renderReport の repActions と 同じ） */
+    show($('bk-rep-acts'), !!s2.seen);
     if (!s2.seen) {
       sumEl.innerHTML = '';
       body.innerHTML = '<div class="empty">' + (months.length ? esc(lb) + 'に 発行した請求書は ありません。' : 'まだ 発行した請求書が ありません。')
@@ -482,6 +484,40 @@
       + num(t.total) + num(t.paid) + num(t.remain, true) + '</tr></tfoot></table>'
       + '<p class="hint">金額は 円（税込）。' + esc(lb) + 'に 発行した請求書だけを 数えています（下書きと 取り消した紙は 数えません）。</p>'
       + (unk ? '<p class="hint">入金が読めていないので、入金と残りは出していません（0円ではありません）。</p>' : '');
+  }
+
+  /** ★この月の集計だけ Excel に★（手本 exportReport＝daikou-seikyu.html:12680）
+   *  ・中身は ★画面の 表と 同じ REP.summarize の 数★を そのまま 並べるだけ（足し直さない）
+   *  ・金額は 数のまま（相手の Excel で 足し算できる）・桁区切りは 書式で 付ける
+   *  ・★入金が 読めていない時は 作らない★（手本と 同じ＝入金0・全部未入金 の 表を 出さない）
+   *  ・落とすのは 今の Excel の 出し口（SeikyuOut.excel）1本 */
+  function repExcelSheet() {
+    var month = repMonth || '';
+    var s2 = reportOf(month, 'invoice');
+    if (!s2 || !s2.seen) return { why: 'この月に 発行した請求書が ありません。' };
+    if (s2.totals.paid === null) return { why: '入金が 読めていないので、集計の Excel は 作りません（入金0円の 表を 出さない為）。「もっと」の中の「読み直す」を 押してから もう一度 お試しください。' };
+    var lb = month ? ymLabel(month) : 'ぜんぶ';
+    var aoa = [['月', '取引先', '件数', '請求額', '入金額', '残額', '状態']];
+    s2.rows.forEach(function (r) {
+      aoa.push([lb, r.name, r.count, r.total, r.paid, r.remain, DOC.PAY_STATE_LABEL[r.state] || '']);
+    });
+    var t = s2.totals;
+    aoa.push(['合計', s2.rows.length + '社', t.count, t.total, t.paid, t.remain, '']);
+    var numFmt = [];
+    for (var r = 1; r < aoa.length; r++) [3, 4, 5].forEach(function (c) { numFmt.push({ r: r, c: c, z: AOA.YEN_FMT }); });
+    return { sheet: { aoa: aoa, numFmt: numFmt, name: '月次集計',
+      cols: [{ wch: 10 }, { wch: 28 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }] },
+      name: '月次集計_' + (month || 'ぜんぶ') + '.xlsx' };
+  }
+  function repExcel() {
+    box('bk-rep-ok', ''); box('bk-rep-err', '');
+    var x = repExcelSheet();
+    if (!x.sheet) { box('bk-rep-err', x.why); return; }
+    askNameWith(x.name, 'xlsx', function (n) {
+      OUT.excel(x.sheet, n)
+        .then(function () { box('bk-rep-ok', n + ' を保存しました。'); })
+        .catch(function (e) { box('bk-rep-err', 'Excelが出せませんでした（' + ((e && e.message) || 'error') + '）'); });
+    });
   }
 
   /* ═══ ★請求 / 集計 の「請求書」の側★（2026-10-23）═══
@@ -5905,8 +5941,9 @@
       b.onclick = function () { billSegShow(b.getAttribute('data-bseg')); };
     });
     if ($('bk-rep-month')) $('bk-rep-month').onchange = function () {
-      repMonth = $('bk-rep-month').value; renderReport();
+      repMonth = $('bk-rep-month').value; box('bk-rep-ok', ''); box('bk-rep-err', ''); renderReport();
     };
+    if ($('b-bk-rep-xlsx')) $('b-bk-rep-xlsx').onclick = function () { repExcel(); };
     if ($('bk-month')) $('bk-month').onchange = function () {
       billPick.ym = $('bk-month').value; box('bk-ok', ''); box('bk-err', ''); renderBill();
     };

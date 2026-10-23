@@ -709,11 +709,17 @@
 .bk-panel { display: none; }
 .bk-panel.on { display: block; }
 
-/* 3つの ボタン＝本命（PDF）を 1行に、印刷と Excel を 下に 半分ずつ（390px で 字が 切れない） */
-.bk-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 10px; }
-.bk-acts > button { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; }
-.bk-acts > .btn-primary { flex-basis: 100%; }
+/* 3つの ボタン＝★横1列★（手本 .invoice-actions 571-576＝flex:1 で 3等分・btn-sm の 小さい字）。
+   ★字は 切らない★＝320px でも 決めた所（<wbr>）で 2行に 折る（keep-all＝漢字の 途中で 割らない） */
+.bk-acts { display: flex; flex-wrap: nowrap; gap: 8px; margin: 2px 0 10px; }
+.bk-acts > button {
+  flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 1.35; padding: 8px 4px;
+  white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
+}
+.bk-acts1 { margin: 12px 0 0; }
+.bk-acts1 > button { width: 100%; }
 #scr-bill .warn, #scr-bill .ok, #scr-bill .bad { margin-bottom: 8px; }
+#bk-rep-ok, #bk-rep-err { margin-top: 8px; }
 
 /* 紙＝1通 1枚の 札（番号・相手・日付の 1行 ＋ 紙の 実物） */
 .bk-paper .pv-wrap { margin-top: 6px; }

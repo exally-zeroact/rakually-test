@@ -372,7 +372,7 @@ jobs:
         run: node seikyu/tests/report.test.mjs --self-test
       # ★請求 / 集計★（司さん 2026-10-23「請求／集計のページを作って、代行請求書と全く同じ作りでやって」）
       #   手本＝Exally-test/daikou-seikyu.html #scr-billing。紙・PDF・Excel・集計の 数え方は 今の物を そのまま 使う。
-      - name: ★請求/集計 タブ・切り替え・月と全社・発行済みだけの紙・PDF/印刷/Excel・集計の数・390pxではみ出さない
+      - name: ★請求/集計 タブ・切り替え・月と全社・発行済みだけの紙・PDF/印刷/Excel(横1列)・集計の数とExcel・390/320pxではみ出さない
         run: node seikyu/tests/seikyuu-shuukei.mjs
       - name: ★同 下書きも紙に出す姿に戻したら赤になるか
         run: node seikyu/tests/seikyuu-shuukei.mjs --self-test

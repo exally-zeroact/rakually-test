@@ -956,10 +956,11 @@
           <select class="finput" id="bk-month" aria-label="何年何月分"></select>
           <select class="finput" id="bk-partner" aria-label="取引先"></select>
         </div>
+        <!-- ★3つは 横1列★（手本 .invoice-actions 3403-3413＝PDF だけ 塗り・他は 枠）。狭い端末では 字を 決めた所（<wbr>）で 2行に 折る -->
         <div class="bk-acts">
-          <button class="btn-primary" type="button" id="b-bk-pdf">PDFで保存 / 送る</button>
+          <button class="btn-primary" type="button" id="b-bk-pdf">PDFで保存 /<wbr> 送る</button>
           <button class="btn-ghost" type="button" id="b-bk-print">印刷</button>
-          <button class="btn-ghost" type="button" id="b-bk-xlsx">Excelに書き出し</button>
+          <button class="btn-ghost" type="button" id="b-bk-xlsx">Excelに<wbr>書き出し</button>
         </div>
         <!-- ★無い時は 何が 無いかを 字で 出す★（ボタンは 押せなくする＝黙って 何も起きない を 作らない） -->
         <div class="warn" id="bk-none" style="display:none"></div>
@@ -978,6 +979,12 @@
         </div>
         <div class="bk-sum" id="bk-rep-sum"></div>
         <div id="bk-rep-body"></div>
+        <!-- ★手本の「この月の集計だけExcelに」★（daikou-seikyu.html 3452-3456 exportReport）＝表と 同じ 数を そのまま 書く -->
+        <div class="bk-acts1" id="bk-rep-acts" style="display:none">
+          <button class="btn-ghost" type="button" id="b-bk-rep-xlsx">この月の集計だけExcelに</button>
+        </div>
+        <div class="ok" id="bk-rep-ok" style="display:none"></div>
+        <div class="bad" id="bk-rep-err" style="display:none"></div>
       </div>
     </div>
   </section>

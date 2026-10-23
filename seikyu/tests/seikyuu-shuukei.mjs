@@ -76,18 +76,18 @@ async function pageForChrome(doc, tag) {
     + 'f.style.transform="scale("+k+")";w.style.height=Math.ceil(ph*k)+"px";});}';
   return { OUT, d, FIT };
 }
-async function measureShape(doc) {
+async function measureShape(doc, W = 390) {
   const CHROME = findChrome();
   if (!CHROME) throw new Error('★ブラウザが 見つかりません＝形を 測れません（0と言わない）★');
   const { execFileSync } = await import('node:child_process');
-  const { OUT, d, FIT } = await pageForChrome(doc, 'm');
+  const { OUT, d, FIT } = await pageForChrome(doc, 'm' + W);
   const PROBE = FIT + 'fitAll();'
     + 'var vw=window.innerWidth,over=[];'
     + '[].forEach.call(document.querySelectorAll("#scr-bill *"),function(e){var r=e.getBoundingClientRect();'
     + 'if(r.width>0&&(r.right>vw+0.5||r.left<-0.5))over.push((e.id||e.className||e.tagName)+" "+Math.round(r.left)+"-"+Math.round(r.right));});'
     + 'var sc=document.getElementById("scr-bill").getBoundingClientRect();'
     + 'var papers=[].map.call(document.querySelectorAll("#bk-papers .pv-wrap"),function(w){var r=w.getBoundingClientRect();return [Math.round(r.width),Math.round(r.height)];});'
-    + 'var acts=[].map.call(document.querySelectorAll(".bk-acts button"),function(b){var r=b.getBoundingClientRect();return [Math.round(r.width),Math.round(r.height)];});'
+    + 'var acts=[].map.call(document.querySelectorAll(".bk-acts button"),function(b){var r=b.getBoundingClientRect();return [Math.round(r.width),Math.round(r.height),Math.round(r.top),b.scrollWidth-b.clientWidth,b.scrollHeight-b.clientHeight,Math.round(r.right)];});'
     + 'return {vw:vw,sw:document.documentElement.scrollWidth,over:over.slice(0,8),scrW:Math.round(sc.width),papers:papers,acts:acts};';
   const tail = '<script>window.addEventListener("load",function(){setTimeout(function(){var r;try{r=JSON.stringify((function(){'
     + PROBE + '})());}catch(e){r=JSON.stringify({error:String(e)});}parent.postMessage(r,"*");},300);});</scr' + 'ipt>';
@@ -97,7 +97,7 @@ async function measureShape(doc) {
   const host = path.join(OUT, 'h.html');
   fs.writeFileSync(host, '<!doctype html><html><head><meta charset="utf-8">'
     + '<style>html,body{margin:0}iframe{border:0;display:block}</style></head><body>'
-    + '<iframe width="390" height="844" src="p.html"></iframe>'
+    + '<iframe width="' + W + '" height="844" src="p.html"></iframe>'
     + '<script>window.addEventListener("message",function(e){document.title=e.data;});</scr' + 'ipt></body></html>', 'utf8');
   const out = execFileSync(CHROME, ['--headless', '--disable-gpu', '--hide-scrollbars',
     '--window-size=1200,1000', '--virtual-time-budget=6000', '--dump-dom', pathToFileURL(host).href],
@@ -434,16 +434,57 @@ async function run(label, appSrc) {
     doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(30);
   });
 
-  await T('⑬ 390px で 横に はみ出さない（本物の Chrome・全社の紙を 出した 姿）', async () => {
-    const j = await measureShape(doc);
-    eq(j.vw, 390, '測った 幅');
+  for (const W of [390, 320]) await T('⑬ ' + W + 'px で 横に はみ出さない・3つの ボタンが 横1列で 字が 切れない（本物の Chrome・全社の紙を 出した 姿）', async () => {
+    const j = await measureShape(doc, W);
+    eq(j.vw, W, '測った 幅');
+    eq(j.acts.length, 3, 'ボタンの 数');
+    ok(j.acts.every((a) => Math.abs(a[2] - j.acts[0][2]) <= 1), '★3つが 横1列に 並んでいない★ 上端 ' + j.acts.map((a) => a[2]).join('/'));
+    j.acts.forEach((a, i) => ok(a[3] <= 0 && a[4] <= 0, '★' + (i + 1) + '個目の ボタンの 字が 切れている★ 横' + a[3] + ' 縦' + a[4]));
+    j.acts.forEach((a, i) => ok(a[5] <= W, '★' + (i + 1) + '個目の ボタンが はみ出した★ 右端 ' + a[5]));
     ok(j.scrW > 300, '★画面が 出ていない★ 幅 ' + j.scrW);
     eq(j.papers.length, 4, '★紙が 4枚 出ていない★');
     j.papers.forEach((p, i) => ok(p[0] > 250 && p[1] > 300, '★' + (i + 1) + '枚目の 紙の 大きさ★ ' + p.join('×')));
-    j.acts.forEach((a, i) => ok(a[1] >= 44 && a[1] < 70, '★' + (i + 1) + '個目の ボタンの 高さ★ ' + a.join('×')));
+    j.acts.forEach((a, i) => ok(a[1] >= 44 && a[1] < 80, '★' + (i + 1) + '個目の ボタンの 高さ★ ' + a.slice(0, 2).join('×')));
     ok(j.sw <= 390, '★横に はみ出した★ 幅 ' + j.sw);
     ok(!j.over.length, '★はみ出した 物★ ' + j.over.join(' / '));
-    console.log('     幅 ' + j.sw + 'px ／ 紙 ' + j.papers.map((p) => p.join('×')).join(' ') + ' ／ ボタン ' + j.acts.map((a) => a.join('×')).join(' '));
+    console.log('     幅 ' + j.sw + 'px ／ 紙 ' + j.papers.map((p) => p.join('×')).join(' ') + ' ／ ボタン ' + j.acts.map((a) => a.slice(0, 2).join('×')).join(' '));
+  });
+
+  await T('⑮ 3つの ボタンは 1つの 列（PDF だけ 塗り・印刷／Excel は 枠）／説明の 字は 月・会社の 選びの 上', async () => {
+    const row = doc.querySelector('#scr-bill .bk-acts');
+    const bs = [...row.children];
+    eq(bs.map((b) => b.id).join(','), 'b-bk-pdf,b-bk-print,b-bk-xlsx', '★1つの 列に 3つ★');
+    eq(bs.map((b) => b.className).join(','), 'btn-primary,btn-ghost,btn-ghost', '★塗り／枠★');
+    const card = row.parentElement, kids = [...card.children];
+    const hint = card.querySelector('.hint'), pick = card.querySelector('.bill-pick');
+    ok(kids.indexOf(hint) >= 0 && kids.indexOf(hint) < kids.indexOf(pick) && kids.indexOf(pick) < kids.indexOf(row), '★説明→選び→ボタン の 順で ない★');
+  });
+
+  await T('⑯ 集計の「この月の集計だけExcelに」＝表と 同じ 数を 今の Excel の 出し口で（入金が 読めない時は 作らない）', async () => {
+    doc.querySelector('#scr-bill [data-bseg="report"]').click(); await sleep(30);
+    await kaeru('bk-rep-month', '2026-10');
+    ok($('bk-rep-acts').style.display !== 'none', '★ボタンが 出ていない★');
+    eq($('b-bk-rep-xlsx').textContent.trim(), 'この月の集計だけExcelに', 'ボタンの 字');
+    rec.excel.length = 0;
+    $('b-bk-rep-xlsx').click(); await sleep(30);
+    ok($('fn-ov').classList.contains('open'), '★名前を 先に 見せていない★');
+    eq($('fn-input').value, '月次集計_2026-10', '名前');
+    $('fn-ok').click(); await sleep(60);
+    eq(rec.excel.length, 1, '★今の Excel の 出し口を 通っていない★');
+    const aoa = rec.excel[0].sheet.aoa;
+    const s = REP.summarize({ invoices: S.invoices, receipts: S.receipts, partners: S.partners, month: '2026-10', kind: 'invoice', doc: win.SeikyuDoc });
+    eq(aoa.length, s.rows.length + 2, '行の 数（見出し＋取引先＋合計）');
+    s.rows.forEach((r, i) => eq(JSON.stringify(aoa[i + 1].slice(1, 6)), JSON.stringify([r.name, r.count, r.total, r.paid, r.remain]), '★' + r.name + ' の 数★'));
+    eq(JSON.stringify(aoa[aoa.length - 1].slice(2, 6)), JSON.stringify([s.totals.count, s.totals.total, s.totals.paid, s.totals.remain]), '★合計の 行★');
+    ok(aoa.slice(1).every((x) => typeof x[3] === 'number'), '★金額が 字に なっている（足し算できない）★');
+    console.log('     ' + rec.excel[0].name + ' ／ ' + aoa.length + '行');
+    const keep = S.receipts; S.receipts = null; A._go('scr-bill'); doc.querySelector('#scr-bill [data-bseg="report"]').click(); await sleep(30);
+    rec.excel.length = 0;
+    $('b-bk-rep-xlsx').click(); await sleep(30);
+    ok(!$('fn-ov').classList.contains('open') && !rec.excel.length, '★入金が 読めないのに 作った★');
+    ok(/入金が 読めていない/.test(txt('bk-rep-err')), '★作らない 訳を 言っていない★: ' + txt('bk-rep-err'));
+    S.receipts = keep; A._go('scr-bill');
+    doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(30);
   });
 
   await T('⑭ 押して 回っても JS が 1つも 落ちない', async () => {
