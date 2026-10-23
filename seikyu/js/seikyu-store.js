@@ -299,6 +299,29 @@
             return suite.partners.upsert({ id: id, sort: cur.sort, data: data });
           });
         },
+        /* ★取引先を 消す★（司さん 2026-10-23 ⑤「取引先を削除できるようにしろ」）
+           ＝共有層（js/suite-data.js の partners.remove）を ★呼ぶだけ★＝行は 消さず deleted_at を 立てる（論理削除）。
+           ★出した請求書・下書きは 1通も 触らない★（pay_invoices は そのまま＝partner_id も 写しも 残る）。 */
+        remove: function (id) {
+          if (!suite || !suite.partners || typeof suite.partners.remove !== 'function') {
+            return Promise.resolve({ ok: false, reason: '共有データ層がありません' });
+          }
+          if (!id) return Promise.resolve({ ok: false, reason: 'この取引先が見つかりません' });
+          return Promise.resolve(suite.partners.remove(id)).then(function (r) {
+            return (r && r.ok) ? { ok: true } : { ok: false, reason: (r && r.reason) || '保存できませんでした' };
+          }).catch(function (e) { return { ok: false, reason: err(e) }; });
+        },
+        /* ★消した 取引先の 名前★（読むだけ）＝消した 相手の 下書きが 一覧・紙で
+           「（消えた取引先）」「（取引先が未選択）」に ならない為。共有層の list は 消した 物を 返さないので ここで 読む。
+           ★読めない時は 空★（前と 同じ 出方に 戻るだけ＝止めない）。行は 自分の 物だけ（倉庫の RLS）。 */
+        gone: function () {
+          return fetchAllQ(function (a, b) {
+            return sb.from('pay_partners').select('id,data,deleted_at', { count: 'exact' }).order('id', { ascending: true }).range(a, b);
+          }).then(function (r) {
+            if (!r || r.error) return [];
+            return (r.data || []).filter(function (x) { return x && x.deleted_at; });
+          }).catch(function () { return []; });
+        },
       },
     };
     return api;

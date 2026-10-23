@@ -170,8 +170,15 @@ await TA('1. ★3画面ぜんぶのボタンを1つ残らず押しても、JSが
     ok(el.innerHTML.length > 400, scr + ' の中身が薄い(' + el.innerHTML.length + ')');
     for (const b of [...el.querySelectorAll('button'), ...doc.querySelectorAll('.bn')]) {
       if (b.disabled) { pressed.push((b.id || b.textContent.trim()) + '(押せない)'); continue; }
+      /* ★取引先の「削除」は 確かめで「いいえ」★（2026-10-23 ⑤ 取引先を 消せるように した）
+         ＝「はい」で 押すと 取引先が 本当に 消え、この後の 試験（発行・一覧）の 前提が 崩れる。
+         押して JS が 落ちないかは ここで 見る／消す 中身は seikyu/tests/torihiki-sakujo-ui.mjs が 見る。 */
+      const ptDel = b.hasAttribute('data-pt-del');
+      const oc0 = win.confirm;
+      if (ptDel) win.confirm = () => false;
       b.click();
       await sleep(6);
+      if (ptDel) win.confirm = oc0;
       pressed.push(b.id || b.getAttribute('data-fil') || b.getAttribute('data-tm') || b.getAttribute('data-nm') || b.textContent.trim());
     }
     // 押した拍子に別の画面へ行っていたら戻す

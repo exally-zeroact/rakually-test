@@ -511,6 +511,17 @@
 .pt-co.open .pt-co-caret { transform: rotate(180deg); }
 .pt-co-body { display: none; padding: 2px 12px 12px; border-top: 1px solid #E8F6EE; }
 .pt-co.open .pt-co-body { display: block; }
+/* ── ★取引先を 消す★（司さん 2026-10-23 ⑤・手本＝代行請求書の .swipe-action / .swipe-content）──
+   閉じた 札を 左へ 払うと 右に「削除」。★顔は 台帳の 消す（赤）★＝白地・字 #C0392B・枠 #F0D5D0
+   （手本の 塗りの 赤は 台帳に 無い 顔＝持ち込まない）。払っていない 時は 札の 下に 隠れている。 */
+.pt-co .swipe-action {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 86px;
+  display: flex; align-items: stretch; justify-content: center; padding: 4px;
+}
+.pt-co .swipe-del { width: 100%; min-height: 40px; border-radius: 12px; font-size: 14px; }
+.pt-co .swipe-content { position: relative; background: #FFFFFF; transition: transform .2s ease; touch-action: pan-y; }
+.pt-co .swipe-content.swiping { transition: none; }
+.pt-del-row { margin-top: 14px; padding-top: 10px; border-top: 1px solid #E8F6EE; }
 /* 足す 口＝欄の 下に 点線の「＋ 取引先を追加」（行を足す・控除を足す と 同じ 顔） */
 .pt-add { margin-top: 4px; }
 .pt-add .finput { width: 100%; }

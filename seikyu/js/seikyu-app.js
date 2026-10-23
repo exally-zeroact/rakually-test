@@ -38,6 +38,8 @@
        ★領収書はここに入らない★＝doc_type ではなく、入金1行から出す紙。 */
     docType: 'invoice',
     dirty: false,
+    /* ★消した 取引先★（id → 行）＝名前を 引く 為だけ（新しい 請求書の 相手には 出さない・2026-10-23 ⑤） */
+    gonePartners: {},
   };
 
   function $(id) { return document.getElementById(id); }
@@ -368,12 +370,17 @@
   }
 
   /* ═══ 取引先 ═══ */
+  /* ★消した 取引先も 名前は 引ける★（2026-10-23 ⑤）＝消した 相手の 下書き・前に 出した 紙が
+     「（消えた取引先）」「（取引先が未選択）」の 嘘の 字に ならない。
+     ★選べる 相手（S.partners）には 入れない★＝新しい 請求書の 相手・設定の 札には 出ない。 */
   function partnerById(id) {
     for (var i = 0; i < S.partners.length; i++) if (S.partners[i].id === id) return S.partners[i];
+    if (id && S.gonePartners && S.gonePartners[id]) return S.gonePartners[id];
     return null;
   }
   function partnerName(inv) {
     var byId = {};
+    Object.keys(S.gonePartners || {}).forEach(function (k) { byId[k] = S.gonePartners[k]; });
     S.partners.forEach(function (p) { byId[p.id] = p; });
     return DOC.partnerNameOf(inv, byId);
   }
@@ -1726,7 +1733,7 @@
        2社目からは ★外のアプリへ行くしかなかった★＝司さんの決定と食い違う。 */
     fillSelect($('e-partner'), [{ v: '', t: '（選んでください）' }].concat(S.partners.map(function (p) {
       return { v: p.id, t: (p.data && p.data.name) || '(名称未設定)' };
-    })), v.partner_id || '');
+    })).concat(ptGoneOpt(v) ? [ptGoneOpt(v)] : []), v.partner_id || '');
     /* ★注意書きは「今 困っている時」だけ出す（いつも出ていると読まれない）
        ★外のアプリへ行かせない★（司さん 2026-08-17）
          前は「Exally のハブで追加してください」＝★1通も出さないうちに 外へ出していた★。
@@ -5148,7 +5155,8 @@
 
   function ptAskPartner(where) {
     var id = (where === 'set') ? ($('s-partner') && $('s-partner').value) : (S.cur && S.cur.partner_id);
-    return partnerById(id);
+    /* ★消した 取引先には 聞かない★（2026-10-23 ⑤）＝答えても しまう 先が 無い（倉庫の 行は 消してある） */
+    return ptLive(id);
   }
   function ptQs(p) {
     return PTASK.questions({
@@ -5912,15 +5920,133 @@
     }
     host.innerHTML = S.partners.map(function (p) {
       var nm = (p.data && p.data.name) || '(名称未設定)';
+      /* ★消すは 2つの 道★（手本＝代行請求書の 会社マスタ）
+         ・閉じた 札を 左へ 払う → 右に 赤い「削除」
+         ・開いた 中の 一番下「取引先を削除」
+         ★顔は 台帳の「消す（赤）」★（.bdel）＝塗りの 赤は 台帳に 無い。 */
       return '<div class="pt-co" data-pt="' + esc(p.id) + '">'
+        + '<div class="swipe-action"><button class="bdel swipe-del" type="button" tabindex="-1" data-pt-del="' + esc(p.id) + '">削除</button></div>'
+        + '<div class="swipe-content">'
         + '<div class="pt-co-hd" role="button" tabindex="0" aria-expanded="false" data-pt-open="' + esc(p.id) + '">'
         + '<span class="pt-co-name">' + esc(nm) + '</span>'
         + '<span class="pt-co-sub">' + esc(ptSub(p)) + '</span>'
         + '<span class="pt-co-caret" aria-hidden="true">▾</span></div>'
-        + '<div class="pt-co-body"></div>'
-        + '</div>';
+        + '<div class="pt-co-body">'
+        + '<div class="btn-row pt-del-row"><button class="bdel" type="button" data-pt-del="' + esc(p.id) + '">取引先を削除</button></div>'
+        + '</div>'
+        + '</div></div>';
     }).join('');
     ptCardsSync();
+    ptSwipe();
+  }
+
+  /* ═══ ★取引先を 消す★（司さん 2026-10-23 ⑤「取引先を削除できるようにしろ」）══════════════
+     手本＝代行請求書の deleteCompany＝確かめ → 論理削除（deleted_at）→ 描き直し → 「削除しました」。
+     ★出した 請求書・下書きは 残る★（倉庫の 請求書は 1通も 触らない）。名前は S.gonePartners から 引く。
+     ★書けなかったら 消したと 言わない★（札も 残す）。 */
+  function ptDelete(id) {
+    var p = ptLive(id); if (!p) return Promise.resolve();
+    var nm = (p.data && p.data.name) || '(名称未設定)';
+    if (!global.confirm(nm + ' を取引先から削除します。よろしいですか？（出した請求書は残ります）')) return Promise.resolve();
+    box('pt-list-ok', ''); box('pt-list-err', '');
+    return S.store.partners.remove(id).then(function (r) {
+      if (!r || !r.ok) {
+        box('pt-list-err', '削除できませんでした（' + ((r && r.reason) || '理由不明') + '）。もう一度 押してください。');
+        return;
+      }
+      S.gonePartners[id] = p;
+      var mae = ($('s-partner') && $('s-partner').value) || '';
+      return S.store.partners.list().then(function (list) {
+        S.partners = list;
+      }, function () {
+        S.partners = S.partners.filter(function (x) { return x.id !== id; });
+      }).then(function () {
+        fillPtSelect(mae === id ? '' : mae);
+        renderPtCards();
+        ptOpen(mae === id ? '' : mae);
+        box('pt-list-ok', '「' + nm + '」を取引先から削除しました（出した請求書は残ります）。');
+      });
+    }).catch(function (e) {
+      box('pt-list-err', '削除できませんでした（' + ((e && e.message) || '理由不明') + '）。もう一度 押してください。');
+    });
+  }
+  /** 消した 取引先の 名前を 倉庫から 読む（読めなければ 何も しない） */
+  function ptGoneLoad() {
+    var st = S.store && S.store.partners;
+    if (!st || typeof st.gone !== 'function') return Promise.resolve();
+    return Promise.resolve(st.gone()).then(function (rows) {
+      (rows || []).forEach(function (x) { if (x && x.id) S.gonePartners[x.id] = x; });
+    }).catch(function () { /* 読めなくても 止めない */ });
+  }
+  /** ★この 1通の 相手が 消した 取引先なら★ 選び肢に「（削除済み）」で 1つだけ 足す
+   *  ＝黙って「（選んでください）」に 見せない（相手は 外れていない）。新しい 請求書には 出ない。 */
+  function ptGoneOpt(v) {
+    var id = v && v.partner_id;
+    if (!id || ptLive(id)) return null;
+    var g = S.gonePartners && S.gonePartners[id];
+    if (!g) return null;
+    return { v: id, t: ((g.data && g.data.name) || '(名称未設定)') + '（取引先から削除済み）' };
+  }
+  /* ★左へ 払うと 赤い 削除★（手本＝代行請求書の attachSwipeHandlers・iOS の メールと 同じ 動き）
+     ・開いて 直している 札は 払っても 動かない（打つ 邪魔を しない）
+     ・欄・ボタンの 上から 払っても 動かない
+     ・払って 開いている 時に 押す＝閉じるだけ（開かない・消さない）
+     ・1枚 払うと 他の 払った 札は 閉じる */
+  var PT_SW_OPEN = -86, PT_SW_TH = -42;
+  function ptSwipe() {
+    Array.prototype.forEach.call(document.querySelectorAll('#pt-cards .swipe-content'), function (content) {
+      if (content._sw) return;
+      content._sw = true;
+      var sx = 0, sy = 0, dx = 0, dragging = false, decided = false, horiz = false;
+      function opened() { return content.classList.contains('swipe-open'); }
+      function setX(x) { content.style.transform = 'translateX(' + x + 'px)'; }
+      function closeOthers() {
+        Array.prototype.forEach.call(document.querySelectorAll('#pt-cards .swipe-content.swipe-open'), function (c) {
+          if (c !== content) { c.classList.remove('swipe-open'); c.style.transform = 'translateX(0px)'; }
+        });
+      }
+      content.addEventListener('touchstart', function (e) {
+        dragging = false;
+        if (!e.touches || e.touches.length !== 1) return;
+        var co = content.closest('.pt-co');
+        if (co && co.classList.contains('open')) return;
+        if (e.target && e.target.closest && e.target.closest('input,select,textarea,button')) return;
+        sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+        dx = opened() ? PT_SW_OPEN : 0;
+        dragging = true; decided = false; horiz = false;
+        content.classList.add('swiping');
+      }, { passive: true });
+      content.addEventListener('touchmove', function (e) {
+        if (!dragging || !e.touches || !e.touches.length) return;
+        var ddx = e.touches[0].clientX - sx, ddy = e.touches[0].clientY - sy;
+        if (!decided && (Math.abs(ddx) > 8 || Math.abs(ddy) > 8)) {
+          decided = true;
+          horiz = Math.abs(ddx) > Math.abs(ddy);
+          if (horiz) closeOthers();
+        }
+        if (decided && horiz) {
+          if (e.cancelable) e.preventDefault();
+          var base = opened() ? PT_SW_OPEN : 0;
+          dx = Math.max(PT_SW_OPEN, Math.min(0, base + ddx));
+          setX(dx);
+        }
+      }, { passive: false });
+      function end() {
+        if (!dragging) return;
+        dragging = false;
+        content.classList.remove('swiping');
+        if (!horiz) return;
+        if (dx < PT_SW_TH) { content.classList.add('swipe-open'); setX(PT_SW_OPEN); }
+        else { content.classList.remove('swipe-open'); setX(0); }
+      }
+      content.addEventListener('touchend', end);
+      content.addEventListener('touchcancel', end);
+      content.addEventListener('click', function (e) {
+        if (!opened()) return;
+        e.stopPropagation(); e.preventDefault();
+        content.classList.remove('swipe-open'); setX(0);
+      });
+    });
   }
   /** 開いている 札を s-partner に 合わせる（中の 欄を 移す） */
   function ptCardsSync() {
@@ -6532,6 +6658,9 @@
     if ($('pt-cards')) {
       $('pt-cards').onclick = function (ev) {
         var t = ev.target;
+        /* ★消す★（払って 出た 赤／開いた 中の「取引先を削除」）＝どちらも 同じ 確かめを 通す */
+        var del = t && t.closest && t.closest('[data-pt-del]');
+        if (del) { ptDelete(del.getAttribute('data-pt-del')); return; }
         var hd = t && t.closest && t.closest('[data-pt-open]');
         if (hd) ptToggle(hd.getAttribute('data-pt-open'));
       };
@@ -6637,7 +6766,8 @@
     S.store = global.SeikyuStore.create({ client: sb, suite: S.suite });
     hydrateShouhizei(sb);
     bind();
-    return loadMasters().then(function () { return loadList(); }).then(function () {
+    /* ★消した 取引先の 名前も 読む★（2026-10-23 ⑤）＝読めなくても 止めない（前の 出方に 戻るだけ） */
+    return loadMasters().then(function () { return ptGoneLoad(); }).then(function () { return loadList(); }).then(function () {
       /* ★開いた所が「入力」なので、白紙の1通をここで作っておく★
          これが無いと、初めて開いた人の画面は
          請求日も明細の行も取引先も空のまま＝どこも押せない（2026-08-11 実機で発生）。
