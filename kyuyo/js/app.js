@@ -4826,6 +4826,13 @@
     var bonus = (mode==='bonus');
     var ym = bonus ? bonusYmOf() : state.month;
     return state.employees.filter(function(e){
+      /* ★その月の 給与を 確定した 人は、退職でも 削除でも 必ず 振込に 入れる★（2026-10-23 司さん「直さなダメ」）
+         ＝前は 退職の 印（retired）で 外していたので、払う日より 前に「退職にする」を 押すと・削除した 人を 払う日の 後に
+           作り直すと、★確定した 給与が 振込から 黙って 落ちた★。確定＝その月に 払う 給与が 在る。
+         「退職にする」は 退職日を 入れないので 在籍の 判定（isActiveInMonth）でも 先に 落ちる＝確定を 先に 見る。
+         ★賞与は 今の まま★（賞与には 確定が 無く、残った 金額だけで 払うと 払わない 人に 払う＝司さんに 訊く）。 */
+      /* ★越えるのは 退職の 印だけ★＝在籍の 期間（入社日〜退職日・ボタンで 退職に した 月）の 外の 確定は 今まで 通り 入れない（taiketsu 10-23＝期間の 外の 確定で 満額が 出た） */
+      if(!bonus && e.retired && state.confirmed && state.confirmed[ym] && state.confirmed[ym][e.id] && isActiveInMonth(Object.assign({},e,{retired:false}),ym) && !(e.retiredYmd && !e.taishokuYmd && ym>e.retiredYmd)) return true;
       if(!isActiveInMonth(e,ym) || e.retired) return false;
       /* ★賞与は「賞与を もらう人」だけ★（金額が 入っていない人は 振込に 出さない） */
       return bonus ? (num(bonusEntry(e).amount)>0) : true;
