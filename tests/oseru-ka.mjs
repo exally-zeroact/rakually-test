@@ -379,6 +379,17 @@ for (const osoi of [false, true]) {
     const o2 = await osu(pg, '.bn[data-scr="scr-input"]');
     if (!o2.oseta) { console.log('  ✗ ' + nabe + ' 幅' + w + ' … ★入力タブが 押せない★（' + o2.kai + '回 試した・覆いの 閉じ残り ' + o2.nokori + '）'); akai++; atarazuKei.push(nabe + ' 幅' + w + ' … 入力タブが 押せない'); await pg.close(); continue; }
     await new Promise((r) => setTimeout(r, 400));
+    /* ★「前」を 測る 前に 画面が 静まるのを 待つ★（2026-10-23）
+       ★実測★＝機械が 混んでいる 時（押す前の 網・他の 席の 試験と 重なる）は 400ms では まだ
+       「最低賃金 は未収」の 帯（50px）などが 生えて いる 途中で、★倉庫の 答えと 関係 無い 動き★を 数えた
+       （網で 6回 赤・単独で 回すと 毎回 緑）。倉庫の 答えは ★止めた まま★ 待つので、見たい 動きは 今まで 通り 捕まえる。
+       押す物の 位置が 300ms ごとに 3回 同じに なるまで（最大 6秒）。 */
+    { let prev = null, same = 0; const t0 = Date.now();
+      while (Date.now() - t0 < 6000) {
+        await new Promise((r) => setTimeout(r, 300));
+        const cur = JSON.stringify(await pg.evaluate(ICHI));
+        if (cur === prev) { if (++same >= 2) break; } else { same = 0; prev = cur; }
+      } }
     /* ★動いた 時に「何が 生えたか」を その場で 控える★（2026-09-05）
        ★実測★＝1回だけ 15px 動いたが、控えが 位置だけ だったので ★誰のせいか 分からなかった★。
        ⇒★入力画面の 上（お知らせの 帯）を 名前と 高さで 控える★（推し量らない） */
