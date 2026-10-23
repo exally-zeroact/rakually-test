@@ -317,11 +317,47 @@ async function run(label, appSrc) {
     eq(g.cols, colsOfTpl('koujo'), '★前回の様式が 会社の保存した様式に 勝った★');
     eq(g.tplId, 'koujo', '1通の様式');
   });
-  await T('G1b 会社が 1度も 様式を 保存して いない時は 前回の様式（' + MAE + '）を 当てる（今までの当て方）', async () => {
+  await T('G1b 設定を 1度も 保存して いない 会社は 前回の様式（' + MAE + '）を 当てる（今までの当て方）', async () => {
     const r = await boot(appSrc, { invoices: [GENBA_OLD] });
     const g = await makeAndLook(r, 'pt_a', { fresh: true });
     eq(g.tplId, MAE, '前回の様式');
     eq(g.cols, colsOfTpl(MAE), '前回の様式の列');
+  });
+  await T('G4 ★控除を 選ぶ → 取引先 A だけ ' + MAE + ' で 下書きを 保存 → A を 会社の既定に 戻す★ → 新しい1通は 控除の列（下書きは「前回」に 数えない）', async () => {
+    const r = await boot(appSrc, { org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) } });
+    await pickOrg(r, 'koujo');
+    const okuri = r.doc.getElementById('col-ok').textContent || '';
+    await pickPartner(r, 'pt_a', MAE);
+    const g0 = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g0.tplId, MAE, '前提：A の下書きが ' + MAE + ' で しまわれていない');
+    /* A を 会社の既定に 戻す（様式の欄を 空に） */
+    await tab(r, 'scr-set');
+    const sel = r.doc.getElementById('s-partner');
+    sel.value = 'pt_a'; sel.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(100);
+    const t = r.doc.getElementById('s-ptpl');
+    t.value = ''; t.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(100);
+    r.doc.getElementById('b-pt-save').click();
+    await sleep(250);
+    ok(!(r.S.partners.find((p) => p.id === 'pt_a').data.paper || {}).template, '前提：A の様式が 外れていない');
+    eq(r.doc.getElementById('s-pt-tpl-now').textContent, TPL.get('koujo').label, '★設定の「この取引先の紙」が 会社の既定に なっていない★');
+    const g = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g.tplId, 'koujo', '★残った下書きが「前回」として 勝った★');
+    eq(g.cols, colsOfTpl('koujo'), '★控除の紙に 備考の列が 出た★');
+  });
+  await T('G4b 同じ様式（控除）を もう1度 押すと「前に 別の紙で 出した 相手にも この紙を 使います」→ 言った通り 前に ' + MAE + ' で 出し・下書きも 残る 相手でも 控除', async () => {
+    const r = await boot(appSrc, {
+      org: { invoiceTemplate: 'koujo', invoiceCols: COLS.normalizeSpec(TPL.get('koujo').cols) },
+      invoices: [GENBA_OLD, Object.assign({}, GENBA_OLD, { id: 'iv_draft', no: '202610-009', status: 'draft',
+        issued_at: null, issue_ymd: '2026-10-20', updated_at: '2099-01-01T00:00:00Z' })],
+    });
+    await pickOrg(r, 'koujo');
+    const okuri = r.doc.getElementById('col-ok').textContent || '';
+    ok(/前に 別の紙で 出した 相手にも この紙を 使います/.test(okuri), '知らせ: ' + okuri);
+    const g = await makeAndLook(r, 'pt_a', { fresh: true });
+    eq(g.tplId, 'koujo', '★知らせと 違い 前の紙（' + MAE + '）が 使われた★');
+    eq(g.cols, colsOfTpl('koujo'), '★控除の紙に 備考の列が 出た★');
   });
   await T('G2 ★様式＝控除・相手だけの列＝' + MAE + '＋現場名（印の無い 古い列）★の相手 → 控除の紙に 備考を 出さない', async () => {
     const r = await boot(appSrc, {
@@ -387,6 +423,10 @@ if (!SELF) {
     ['下書きに 写した列・会社の列を 様式を 見ずに 使う', '    return !!colsTpl && colsTpl === tpl;', '    return true;'],
     ['相手だけの列を 様式を 見ずに 使う（止2）', '    return ptColsTpls(paper).indexOf(tpl) >= 0;', '    return true;'],
     ['時刻の 無い 会社でも 前回の様式を 当てる（止1）', '    if (kaishaEranda && !erandaAt) return null;', ''],
+    ['下書きも「前回」に 数える（止A）',
+      "      if (x.status !== 'issued' || (x.doc_type || 'invoice') !== 'invoice') return false;"
+        + String.fromCharCode(10) + "      return !erandaAt || String(x.issued_at || '') > erandaAt;",
+      "      return !erandaAt || String(x.issued_at || x.updated_at || x.issue_ymd || '') > erandaAt;"],
   ];
   let nige = 0, akaKei = 0;
   for (const [na, mark, kae] of KOWASU) {

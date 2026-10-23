@@ -282,12 +282,19 @@
     /* ★会社が 様式を 保存して いれば、選んだ 時刻が 無くても 会社の 様式が 勝つ★（2026-10-24 taiketsu 止1）
        ＝時刻を 持つ前に 控除の様式を 保存した 客が、前に genba で 出した 相手に 作ると
          ★前回の genba が 勝って 備考の列が 出た★。前回が 勝つのは「選んだ 時刻より 後に 出した紙」だけ。
-       ★会社が 1度も 様式を 保存して いない 時だけ★ 前回を 当てる（今までの 当て方を 残す）。 */
+       ★設定を 1度も 保存して いない 会社だけ★ 前回を 当てる（今までの 当て方を 残す）。
+       （設定の 保存は 何を 保存しても 様式を 書く＝保存した 会社は「様式を 選んだ」と 同じに 扱う） */
     var kaishaEranda = !!(org0.invoiceTemplate && TPL.get(org0.invoiceTemplate));
     if (kaishaEranda && !erandaAt) return null;
+    /* ★「前回」に 数えるのは ★発行した 請求書★ だけ★（2026-10-24 taiketsu 止A）
+       ＝下書きは 保存した 日時で 比べていたので、取引先だけ genba に して 下書きを 保存 →
+         その取引先を 会社の既定に 戻す と、★残った 下書きが「前回」として 勝ち★
+         設定は「会社の既定」と 出るのに 新しい1通は genba・備考の列 だった。
+         下書き・取り消し済み・見積は 出した紙では ない。比べるのは 発行した 時刻（issued_at）。 */
     var mine = (S.invoices || []).filter(function (x) {
       if (!(x.partner_id === pid && x.id !== ima && x.template_id && TPL.get(x.template_id))) return false;
-      return !erandaAt || String(x.issued_at || x.updated_at || x.issue_ymd || '') > erandaAt;
+      if (x.status !== 'issued' || (x.doc_type || 'invoice') !== 'invoice') return false;
+      return !erandaAt || String(x.issued_at || '') > erandaAt;
     }).sort(function (a, b) { return String(b.issue_ymd || '').localeCompare(String(a.issue_ymd || '')); });
     if (!mine.length) return null;
     /* ★名前は 今 選んでいる相手から 取る★（古い1通から 引くと、その相手が 消えている時に
