@@ -112,8 +112,9 @@ const hirou = () => pg.evaluate(() => {
   return out;
 });
 
-/* ★2026-09-10 「請求/集計」を 外した★（一覧の 一部だった＝司さんの 判じ） */
-const GAMEN = [['設定', 'scr-set'], ['入力', 'scr-edit'], ['一覧', 'scr-list']];
+/* ★2026-09-10 「請求/集計」を 外した★（一覧の 一部だった＝司さんの 判じ）
+   ★2026-10-23 戻した★（司さん「請求／集計のページを作って、代行請求書と全く同じ作りでやって」）＝4画面とも 見る */
+const GAMEN = [['設定', 'scr-set'], ['入力', 'scr-edit'], ['一覧', 'scr-list'], ['請求/集計', 'scr-bill']];
 const mita = [];
 for (const [na, sel] of GAMEN) {
   await pg.click('.bn[data-scr="' + sel + '"]');

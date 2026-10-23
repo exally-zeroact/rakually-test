@@ -688,3 +688,61 @@
 /* ★見出しの横の 小さい注記★（2026-09-02 実測＝この class に CSS が 1行も 無く、
    ★「消費税の一言空なら 出しません」と 字が くっついて 出ていた★・2か所とも）。 */
 .hint2 { margin-left: 8px; font-size: 12px; font-weight: 400; color: #333333; }
+
+/* ── ★請求 / 集計★（2026-10-23 司さん「請求／集計のページを作って、代行請求書と全く同じ作りでやって」）
+   手本＝Exally-test/daikou-seikyu.html の .seg / .seg-btn（1458-1490）・.pay-summary（1177-1204）・.rep-table（1411-1455）
+   ★形は 手本の まま・色は Rakunally の 緑★（手本の 青は 持ち込まない）。
+   ★押す物の 顔は 台帳の 中だけ★（tests/button-uniform.test.mjs）
+     ＝選ばれている＝塗り #3D9E72・字 白（本命と 同じ 緑＝2つの 緑を 作らない）
+       選ばれていない＝背景なし・字 #6E6E6E（下の帯と 同じ 考え）・角丸 12px
+   ★共有の皮（css/rakunally-ui.css）の .seg / .seg-b は 丸い札＝別の物★なので 名前を 分けた（bk-）。 */
+.bk-seg {
+  display: flex; gap: 0; background: #F0FAF4; border: 1.5px solid #C8ECD8;
+  border-radius: 14px; padding: 3px; margin: 0 0 14px;
+}
+.bk-seg-b {
+  flex: 1 1 0; min-width: 0; border: none; background: none; border-radius: 12px;
+  padding: 10px 8px; min-height: 44px; font-family: inherit; font-size: 13px; font-weight: 700;
+  color: #6E6E6E; cursor: pointer; white-space: nowrap;
+}
+.bk-seg-b.on { background: #3D9E72; color: #FFFFFF; box-shadow: 0 2px 6px rgba(61,158,114,.28); }
+.bk-panel { display: none; }
+.bk-panel.on { display: block; }
+
+/* 3つの ボタン＝本命（PDF）を 1行に、印刷と Excel を 下に 半分ずつ（390px で 字が 切れない） */
+.bk-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 10px; }
+.bk-acts > button { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; }
+.bk-acts > .btn-primary { flex-basis: 100%; }
+#scr-bill .warn, #scr-bill .ok, #scr-bill .bad { margin-bottom: 8px; }
+
+/* 紙＝1通 1枚の 札（番号・相手・日付の 1行 ＋ 紙の 実物） */
+.bk-paper .pv-wrap { margin-top: 6px; }
+.bk-pname { font-size: 13px; font-weight: 700; color: #333333; overflow-wrap: anywhere; }
+.bk-pdate { font-size: 12px; font-weight: 400; color: #6E6E6E; margin-left: 8px; white-space: nowrap; }
+
+/* 集計＝上の 3つの 枠（請求／入金／残額） */
+.bk-sum { display: flex; gap: 8px; margin: 0 0 12px; }
+.bk-sum-c {
+  flex: 1 1 0; min-width: 0; background: #F0FAF4; border: 1.5px solid #D4EAE0;
+  border-radius: 12px; padding: 9px 6px; text-align: center;
+}
+.bk-sum-l { display: block; font-size: 11px; font-weight: 700; color: #6E6E6E; }
+.bk-sum-v {
+  display: block; font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px; font-weight: 500;
+  color: #333333; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bk-sum-c.rem .bk-sum-v { color: #C0392B; }
+/* 集計＝取引先ごとの 表（取引先｜請求｜入金｜残り）＋ 合計 */
+.bk-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bk-tbl th {
+  font-size: 11px; font-weight: 700; color: #6E6E6E; padding: 6px 4px;
+  border-bottom: 1.5px solid #C8ECD8; text-align: right; white-space: nowrap;
+}
+.bk-tbl th:first-child { text-align: left; }
+.bk-tbl td { padding: 9px 4px; border-bottom: 1px solid #E8F6EE; vertical-align: middle; color: #333333; }
+.bk-co { font-size: 12px; font-weight: 700; }
+.bk-co .tag { display: inline-block; margin: 0 6px 2px 0; }
+.bk-co-n { overflow-wrap: anywhere; }
+.bk-n { font-family: 'DM Mono', ui-monospace, monospace; text-align: right; white-space: nowrap; }
+.bk-rem { color: #C0392B; }
+.bk-tbl tfoot td { border-top: 1.5px solid #C8ECD8; border-bottom: none; font-weight: 700; padding-top: 10px; }

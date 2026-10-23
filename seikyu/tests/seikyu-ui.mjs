@@ -408,15 +408,23 @@ T('2-a. ★タブの順と動詞を給与にそろえた（設定→入力→一
        ・分ける 理由（選ぶだけで 紙が 出る）は 確認を かぶせに して 無くなった
      ★集計は 消していない★＝一覧の 頭に 出しっぱなしに した（前は 引き出し2枚の 下）。
      ★給与と 同じ 3つ★（設定・入力・一覧）。 */
-  eq(tabs.join(' '), 'scr-set:設定 scr-edit:入力 scr-list:一覧',
+  /* ★★2026-10-23 「請求/集計」を 4つ目に 戻した★★（司さん「請求／集計のページを作って、
+       代行請求書と全く同じ作りでやって」）＝中身が 変わったので 守る物も 変えた。
+     ★設定→入力→一覧 の 順と「入力」の 言葉は 今までどおり★（給与と 同じ 頭3つ）。
+     ★集計の 置き場は 一覧の 頭 → 請求/集計 の 画面★（計算は 同じ REP.summarize 1本）。 */
+  eq(tabs.join(' '), 'scr-set:設定 scr-edit:入力 scr-list:一覧 scr-bill:請求/集計',
     'タブの順か言葉が違う');
   /* ★★2026-10-23 一覧の 頭の 集計は 外した★★（司さん スマホの 赤丸）
      ＝一覧の 頭は 代行請求と 同じ「会社」「期間」の 2つ＋「N件・合計」の 1行だけ。
      集計は 別の「請求／集計」の 画面へ 移る（renderReport と seikyu-report.js は 残す）。
      ★見る事を 入れ替えた★＝「一覧の 中に 集計の 欄が 無い」／「引き出しの 中にも 戻していない」。
-     集計が 描けるかは report.test.mjs ⑩〜⑬ が renderReport を 直に 走らせて 見る。 */
+     集計が 描けるかは report.test.mjs ⑩〜⑬ と seikyuu-shuukei.mjs が 請求/集計の 画面で 見る。 */
   const li = doc.getElementById('scr-list');
   ok(!li.querySelector('#rep-sum') && !li.querySelector('#rep-month'), '★一覧の 頭に 集計が 残っている★');
+  /* ★集計が 消えていない★＝請求/集計 の 画面で 見える（引き出しの 中に 戻さない） */
+  const bill = doc.getElementById('scr-bill');
+  ok(bill && bill.contains(doc.getElementById('bk-rep-sum')), '★集計が 無くなっている★');
+  ok(bill && bill.contains(doc.getElementById('bk-rep-month')), '★集計する月を 選べない★');
   ok(!doc.getElementById('rep-box'), '★集計が また 引き出しの 中に 入っている★');
   ok(!/作る/.test([...doc.querySelectorAll('.bn')].map((b) => b.textContent).join('')), 'タブに「作る」が残っている（給与は「入力」）');
   // 開いた時に出ているのは入力（初めての人がそのまま1通 出せる）

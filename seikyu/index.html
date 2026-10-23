@@ -934,12 +934,62 @@
     </div>
   </section>
 
+  <!-- ═══ ④ 請求 / 集計（★代行請求書と 同じ作り★） ═══
+       司さん 2026-10-23「請求／集計のページを作って、代行請求書と全く同じ作りでやって」
+       手本＝Exally-test/daikou-seikyu.html の #scr-billing（3381-3458）
+         ・上に「請求書｜集計」の 切り替え（横いっぱい）
+         ・請求書＝月と 取引先（先頭「全社」）を 選ぶ → 3つの ボタン → その下に 紙の 実物
+         ・集計＝月を 選ぶ → 上に 請求／入金／残額 の 3つの 枠 → 取引先ごとの 表 → 合計（N社・M件）
+       ★新しい 紙の作りは 作らない★＝紙は 一覧の「確認」と 同じ PAPER.build・PDF は 同じ SeikyuPdf.build。
+       ★出すのは 発行した 請求書だけ★（下書き・取り消し・見積は 出さない＝集計の 数え方と 同じ）。
+       ★集計は この 画面 1か所だけ★（一覧の 頭の 集計 rep-sum／rep-month／rep-body は 外した＝2か所で 同じ数を 出さない）。 -->
+  <section class="screen" id="scr-bill">
+    <div class="bk-seg" role="tablist" aria-label="請求書か 集計かを 選ぶ">
+      <button class="bk-seg-b on" type="button" role="tab" data-bseg="invoice">請求書</button>
+      <button class="bk-seg-b" type="button" role="tab" data-bseg="report">集計</button>
+    </div>
+
+    <div class="bk-panel on" data-bseg="invoice">
+      <div class="card">
+        <p class="hint">月と取引先を選ぶと、発行した請求書の紙が下に出ます。そのまま PDF・印刷・Excel にできます（下書きは出しません）。</p>
+        <div class="bill-pick">
+          <select class="finput" id="bk-month" aria-label="何年何月分"></select>
+          <select class="finput" id="bk-partner" aria-label="取引先"></select>
+        </div>
+        <div class="bk-acts">
+          <button class="btn-primary" type="button" id="b-bk-pdf">PDFで保存 / 送る</button>
+          <button class="btn-ghost" type="button" id="b-bk-print">印刷</button>
+          <button class="btn-ghost" type="button" id="b-bk-xlsx">Excelに書き出し</button>
+        </div>
+        <!-- ★無い時は 何が 無いかを 字で 出す★（ボタンは 押せなくする＝黙って 何も起きない を 作らない） -->
+        <div class="warn" id="bk-none" style="display:none"></div>
+        <div class="ok" id="bk-ok" style="display:none"></div>
+        <div class="bad" id="bk-err" style="display:none"></div>
+        <p class="hint" id="bk-count"></p>
+      </div>
+      <div id="bk-papers"></div>
+    </div>
+
+    <div class="bk-panel" data-bseg="report">
+      <div class="card">
+        <p class="hint">選んだ月の「どの取引先に いくら請求／入金／残り」を 一覧で 確かめられます。</p>
+        <div class="bill-pick">
+          <select class="finput" id="bk-rep-month" aria-label="集計する月"></select>
+        </div>
+        <div class="bk-sum" id="bk-rep-sum"></div>
+        <div id="bk-rep-body"></div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <nav class="botnav">
   <button class="bn" type="button" data-scr="scr-set"><span class="bn-i">⚙</span><span class="bn-l">設定</span></button>
   <button class="bn on" type="button" data-scr="scr-edit"><span class="bn-i">✎</span><span class="bn-l">入力</span></button>
   <button class="bn" type="button" data-scr="scr-list"><span class="bn-i">▤</span><span class="bn-l">一覧</span></button>
+  <!-- ★2026-10-23 戻した★（司さん「請求／集計のページを作って、代行請求書と全く同じ作りでやって」） -->
+  <button class="bn" type="button" data-scr="scr-bill"><span class="bn-i">🧾</span><span class="bn-l">請求/集計</span></button>
 </nav>
 
 <!-- ★落とす前に「中身から作った名前」を出して直させる（司さんの決まり）★ -->

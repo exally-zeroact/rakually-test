@@ -139,44 +139,42 @@ if (JSDOM) {
   doc.getElementById('app').hidden = false;
   const A = win.SeikyuApp, St = A._state;
   St.invoices = INV; St.receipts = RC; St.partners = PT; St.kind = 'invoice'; St.fil = 'all';
-  /* ★2026-10-23 集計は 一覧の 頭から 外した★（司さん 赤丸＝集計は 別の「請求／集計」の 画面へ 移る）
-     ＝一覧を 描いても 集計は 描かれない。★renderReport そのものは 残っている★ので、
-       集計の 3つの 欄（rep-sum・rep-month・rep-body）が ★まだ どこにも 無い時だけ★ 試験の 中で 置いて、
-       renderReport を 直に 走らせて 見る（新しい 画面が 欄を 持ったら その 欄を 使う）。 */
-  if (!doc.getElementById('rep-sum')) {
-    const host = doc.createElement('div');
-    host.innerHTML = '<div class="rep-sum" id="rep-sum"></div><div class="fil-row">'
-      + '<select class="finput" id="rep-month"></select></div><div id="rep-body"></div>';
-    doc.body.appendChild(host);
-  }
-  const draw = () => { A._renderListForTest(); A._renderReportForTest(); };
-  A._go('scr-list'); draw();
+  /* ★2026-10-23 集計は「請求/集計」の 画面 1か所だけ★（司さん「代行請求書と全く同じ作りでやって」＋赤丸）
+     ＝一覧の 頭からは 外した（① 一覧の 席）。★計算は 同じ REP.summarize★なので 見る数は 変えていない
+       （見る 箱が 新しい 画面の bk-rep-* に なっただけ）。描くのは 画面に 入った時＝お客さんと 同じ 道（goScreen）。 */
+  const draw = () => { A._renderListForTest(); A._go('scr-bill'); };
+  A._go('scr-list'); A._renderListForTest();
   T('★⑨-b 一覧の 頭には 集計を 出さない（集計は 別の 画面へ 移った）', () => {
     const li = doc.getElementById('scr-list');
-    ok(!li.querySelector('#rep-sum') && !li.querySelector('#rep-month'), '★一覧に 集計が 残っている★');
+    ok(!li.querySelector('#rep-sum') && !li.querySelector('#rep-month') && !li.querySelector('[id^="bk-rep-"]'), '★一覧に 集計が 残っている★');
   });
+  draw();
   const txt = (id) => ((doc.getElementById(id) || {}).textContent || '').replace(/\s+/g, ' ').trim();
 
   T('★⑩ 画面の1行に 請求・入金・残りが 出ている（実UI）', () => {
-    const t = txt('rep-sum');
-    ok(/請求/.test(t) && /入金/.test(t) && /残り/.test(t), '★出ていない★：' + t);
+    const t = txt('bk-rep-sum') + ' ' + txt('bk-rep-body');
+    ok(/請求/.test(t) && /入金/.test(t) && /残/.test(t), '★出ていない★：' + t);
     ok(/44,000/.test(t), '★8月の請求 44,000 が 出ていない★：' + t);
     console.log('     ' + t);
   });
   T('★⑪ 取引先ごとの表が 画面に出ている（実UI）', () => {
-    const t = txt('rep-body');
+    const t = txt('bk-rep-body');
     ok(/例野工業/.test(t) && /型見空例/.test(t), '★相手が 出ていない★：' + t.slice(0, 80));
     console.log('     ' + t.slice(0, 76));
   });
   T('★⑫ 入金が読めていない時は 画面も「未確認」（0円と書かない）', () => {
     St.receipts = null; draw();
-    const t = txt('rep-sum');
+    const t = txt('bk-rep-sum');
     ok(/未確認/.test(t), '★0円と書いている★：' + t);
     St.receipts = RC;
   });
-  T('★⑬ 見積を見ている時は 集計を出さない（見積は 請求ではない）', () => {
+  /* ★2026-10-23★ 集計は「請求/集計」の 画面＝★いつも 請求書だけ★を 数える。
+     前は 一覧で 見積を 見ている時に 箱を 隠していた（一覧の 頭に 在った から）。
+     守る事は 同じ＝★見積を 売上に 混ぜない★（見積を 見ていても 数は 請求書の 44,000 のまま） */
+  T('★⑬ 一覧で見積を見ていても 集計に 見積を 混ぜない（見積は 請求ではない）', () => {
     St.kind = 'quote'; draw();
-    ok(doc.getElementById('rep-sum').style.display === 'none', '★見積でも 売上の集計が 出ている★');
+    const t = txt('bk-rep-sum');
+    ok(/44,000/.test(t) && !/77,777/.test(t + txt('bk-rep-body')), '★見積が 売上に 混ざった★：' + t);
     St.kind = 'invoice'; draw();
   });
   /* ★2026-10-24 taiketsu★ 一覧から ★お客さんと 同じ 道★（下の タブ →「集計」の 切り替え）で 行き、
