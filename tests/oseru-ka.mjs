@@ -90,6 +90,14 @@ export function atari(btnIsHit, btnContainsHit) { return !!(btnIsHit || btnConta
 
 /* ★ずれ★ … 1px でも 動いたら ずれ（ダイコメ実測 42px） */
 export function zure(maeTop, atoTop) { return Math.round(atoTop - maeTop); }
+/* ★★保存の 帯が 出入りした 分の 持ち上げ だけを 除く★★（2026-10-24）
+   ★実測★ … 網で 揺れた 回は 保存が「⚠ 別の端末で更新されました（クラウド未保存）」に 替わり（試験の 口は CI・他の 席と 同じ＝本当に ぶつかる）、
+     下に 保存の 帯（#save-alert・fixed）が 出て「今月を確定」の 帯（sticky・bottom:calc(--bn-h + --sa-h)）が ★--sa-h の 分だけ 持ち上がった★＝作りの 通り。
+   ⇒ 除くのは ★その 帯の 中の 物が ちょうど −Δ（Δ＝--sa-h の 増え）動いた★ 分だけ。帯の 外の 動き・Δ と 違う 動きは 今まで 通り 赤（taiketsu 10-24）。 */
+export function obiNoAgeWoNozoku(ugoita, mae, ato, delta, obiNoKagi) {
+  if (!delta) return ugoita.slice();
+  return ugoita.filter((k) => !(obiNoKagi.indexOf(k) >= 0 && zure(mae[k], ato[k]) === -delta));
+}
 
 if (SELF) {
   console.log('\n[oseru-ka] ★自己確認★（★物差しそのもの★・ブラウザを 使わない）');
@@ -108,13 +116,20 @@ if (SELF) {
   say('ずれ … 動いていない', zure(502, 502) === 0);
   say('★ずれ … ダイコメ実測 42px★', zure(502, 544) === 42);
   say('ずれ … 上に 動いたら 負の数', zure(502, 460) === -42);
+  /* ★保存の 帯の 持ち上げ だけを 除く★（帯の 中で ちょうど −Δ だけ）＝広げすぎて 本当の 崩れを 黙らせない */
+  const M = { obi: 700, soto: 300 }, A1 = { obi: 667, soto: 300 }, A3 = { obi: 685, soto: 300 };
+  say('★帯が 33px 出て 帯の 中の 物が ちょうど 33px 上がった★ … 除く（動いた 物 0）', obiNoAgeWoNozoku(['obi'], M, A1, 33, ['obi']).length === 0);
+  say('★帯が 出ない（Δ=0）★ … 除かない（赤の まま）', obiNoAgeWoNozoku(['obi'], M, A1, 0, ['obi']).length === 1);
+  say('★帯の 外の 物の 動き★ … 帯が 出ても 除かない', obiNoAgeWoNozoku(['obi', 'soto'], M, Object.assign({}, A1, { soto: 285 }), 33, ['obi']).join() === 'soto');
+  say('★帯の 中でも Δ と 違う 動き（15px）★ … 除かない', obiNoAgeWoNozoku(['obi'], M, A3, 33, ['obi']).length === 1);
+  say('★帯の 外の 物が たまたま −Δ 動いた★ … 除かない', obiNoAgeWoNozoku(['soto'], { soto: 300 }, { soto: 267 }, 33, ['obi']).length === 1);
   /* ★段の 札★（ブラウザ 無し）＝今の 名簿に 穴が 無い／★わざと 札を 1つ 外した 名簿は 捕まる★ */
   const fudaNg = fudaWoMiru(KAKUNIN);
   say('★段の 札★ 確かめ ' + KAKUNIN.length + '個に 札が 在り 段1＋段2＝全部（重なり 0・抜け 0）' + (fudaNg.length ? '（' + fudaNg.join('／') + '）' : ''), fudaNg.length === 0);
   const waza = KAKUNIN.map((x, j) => (j === 0 ? { na: x.na } : x));
   say('★わざと 札を 1つ 外した 名簿は 捕まる★（' + fudaWoMiru(waza).join('／') + '）', fudaWoMiru(waza).length > 0);
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★14通り ぜんぶ 思った通り★');
+  console.log('  ★19通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -400,11 +415,24 @@ for (const osoi of [false, true]) {
         var r=el.getBoundingClientRect();
         if(!r.height) return;
         o.push({ nm:(el.tagName.toLowerCase()+(el.id?'#'+el.id:'')+(typeof el.className==='string'&&el.className?'.'+el.className.trim().replace(/\s+/g,'.'):'')).slice(0,36),
-          h:Math.round(r.height), ji:(el.textContent||'').replace(/\s+/g,' ').trim().slice(0,24) });
+          h:Math.round(r.height), ji:(el.textContent||'').replace(/\s+/g,' ').trim().slice(0,80) });
         if(o.length>=6) return;
       });
       return o;
     })()`;
+    /* ★保存の 帯の 高さ（--sa-h）と「今月を確定」の 帯（--sa-h で 持ち上がる 物）の 中の 押す物を 控える★ */
+    const OBI = `(function(){
+      function nm(e){return (e.tagName.toLowerCase()+(e.id?'#'+e.id:'')
+        +(e.className&&typeof e.className==='string'?'.'+e.className.trim().replace(/\\s+/g,'.'):'')).slice(0,40);}
+      var sa=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sa-h'))||0;
+      var kagi=[];
+      [].forEach.call(document.querySelectorAll('[style*="--sa-h"]'),function(bar){
+        [].forEach.call(bar.querySelectorAll('button,a[href],summary,[role="button"],input[type="submit"],input[type="button"]'),function(el){
+          kagi.push(nm(el)+'|'+(el.textContent||'').trim().replace(/\\s+/g,' ').slice(0,16)); });
+      });
+      return { sa:Math.round(sa), kagi:kagi };
+    })()`;
+    const obi1 = await pg.evaluate(OBI).catch(() => ({ sa: 0, kagi: [] }));
     const ue1 = await pg.evaluate(UE);
     const mae = await pg.evaluate(ICHI);                       /* 開いた 直後 */
     const maeFuda = await pg.evaluate(() => !!document.querySelector('[data-ledger-import]'));
@@ -413,11 +441,15 @@ for (const osoi of [false, true]) {
     const atoFuda = await pg.evaluate(() => !!document.querySelector('[data-ledger-import]'));
     const ato = await pg.evaluate(ICHI);
     const ue2 = await pg.evaluate(UE);
+    const obi2 = await pg.evaluate(OBI).catch(() => ({ sa: 0, kagi: [] }));
     await pg.close();
     mita++;
     /* ★Ａは 札が 出ていないと 測った事に ならない★（出ない＝生えてくる 心配も 無い＝未測定） */
     if (!osoi && !maeFuda) { console.log('  🟡 ' + nabe + ' 幅' + w + ' … ★未測定★（札が 出なかった）'); mihakari++; continue; }
-    const ugoita = Object.keys(mae).filter((k) => ato[k] !== undefined && zure(mae[k], ato[k]) !== 0);
+    const ugoita0 = Object.keys(mae).filter((k) => ato[k] !== undefined && zure(mae[k], ato[k]) !== 0);
+    const saDelta = (obi2.sa || 0) - (obi1.sa || 0);
+    const ugoita = obiNoAgeWoNozoku(ugoita0, mae, ato, saDelta, obi1.kagi.filter((k) => obi2.kagi.indexOf(k) >= 0));
+    if (ugoita0.length !== ugoita.length) console.log('  （' + nabe + ' 幅' + w + ' … 保存の 帯が ' + saDelta + 'px 出入りし「今月を確定」の 帯の ' + (ugoita0.length - ugoita.length) + '個が その 分だけ 動いた＝作りの 通り＝除いた）');
     const saidai = ugoita.length ? Math.max.apply(null, ugoita.map((k) => Math.abs(zure(mae[k], ato[k])))) : 0;
     const fuda = maeFuda ? '開いた時から 札が 在る' : (atoFuda ? '★あとから 札が 生えた★' : '札は 次に 描く時に 出る');
     if (ugoita.length) {
