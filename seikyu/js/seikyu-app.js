@@ -372,7 +372,9 @@
   /* ═══ 取引先 ═══ */
   /* ★消した 取引先も 名前は 引ける★（2026-10-23 ⑤）＝消した 相手の 下書き・前に 出した 紙が
      「（消えた取引先）」「（取引先が未選択）」の 嘘の 字に ならない。
-     ★選べる 相手（S.partners）には 入れない★＝新しい 請求書の 相手・設定の 札には 出ない。 */
+     ★選べる 相手（S.partners）には 入れない★＝新しい 請求書の 相手・設定の 札には 出ない。
+     ★使い分け★（taiketsu 10-23 止1）＝ここは ★名前と 紙の 見た目を 引く 用★。
+       発行（issue・issueBlockReason）と 設定（札・質問）は ★生きている 相手だけ★の ptLive を 使う。 */
   function partnerById(id) {
     for (var i = 0; i < S.partners.length; i++) if (S.partners[i].id === id) return S.partners[i];
     if (id && S.gonePartners && S.gonePartners[id]) return S.gonePartners[id];
@@ -3938,7 +3940,9 @@
       inv: Object.assign({}, v, { lines: cleanLines(v.lines) }),
       /* ★打たれたそのままの行も渡す★＝品名だけ空の行を「黙って捨てる」のをやめる */
       rawLines: v.lines,
-      partner: partnerById(v.partner_id),
+      /* ★発行は 生きている 相手だけ★（taiketsu 10-23 止1）＝partnerById は 消した 相手の 名前も 返す（一覧・紙の 名前用）。
+         消した 相手の 下書きは 前と 同じく「取引先がマスタに見つかりません」で 止める（番号も 使わない）。 */
+      partner: ptLive(v.partner_id),
       org: { data: S.org || {} },
     });
     if (chk.ok) return null;
@@ -3986,7 +3990,8 @@
     /* ★止めて 警告★（司さん 10-25）＝取り消した 紙の 入金と 返金が 両方 ある 取引先は、繰越を 数えられないので 発行しない */
     var cw = currentCarry();
     if (cw && cw.voidWarn) { box('edit-err', cw.why); return Promise.resolve(); }
-    var p = partnerById(v.partner_id);
+    /* ★発行は 生きている 相手だけ★（taiketsu 10-23 止1・上の issueBlockReason と 同じ 判じ） */
+    var p = ptLive(v.partner_id);
     var chk = DOC.validateInvoice({ inv: Object.assign({}, v, { lines: cleanLines(v.lines) }), rawLines: v.lines, partner: p, org: { data: S.org || {} } });
     if (!chk.ok) { box('edit-err', chk.errors.join('\n')); box('edit-warn', ''); return Promise.resolve(); }
     box('edit-warn', chk.warnings.join('\n'));
@@ -5944,6 +5949,15 @@
      手本＝代行請求書の deleteCompany＝確かめ → 論理削除（deleted_at）→ 描き直し → 「削除しました」。
      ★出した 請求書・下書きは 残る★（倉庫の 請求書は 1通も 触らない）。名前は S.gonePartners から 引く。
      ★書けなかったら 消したと 言わない★（札も 残す）。 */
+  /** 倉庫の 断りの 訳を 客の 言葉に（中の 名前を そのまま 見せない・taiketsu 10-23 d） */
+  function ptWhy(reason) {
+    var r = String(reason || '');
+    if (!r) return '理由不明';
+    if (r === 'no-user') return 'ログインが 切れています。入り直してから もう一度';
+    if (/row-level security|permission|JWT|401|403/i.test(r)) return 'この 取引先を 直す 許しが ありません';
+    if (/fetch|network|Failed to|timeout/i.test(r)) return 'つながりません。電波の 良い 所で';
+    return r;
+  }
   function ptDelete(id) {
     var p = ptLive(id); if (!p) return Promise.resolve();
     var nm = (p.data && p.data.name) || '(名称未設定)';
@@ -5951,7 +5965,7 @@
     box('pt-list-ok', ''); box('pt-list-err', '');
     return S.store.partners.remove(id).then(function (r) {
       if (!r || !r.ok) {
-        box('pt-list-err', '削除できませんでした（' + ((r && r.reason) || '理由不明') + '）。もう一度 押してください。');
+        box('pt-list-err', '削除できませんでした（' + ptWhy(r && r.reason) + '）。もう一度 押してください。');
         return;
       }
       S.gonePartners[id] = p;
@@ -6098,8 +6112,61 @@
     var name = String((inp && inp.value) || '').trim();
     box('pt-list-ok', ''); box('pt-list-err', '');
     if (!name) { box('pt-list-err', '会社名を入れてください。'); return Promise.resolve(); }
+    /* ★前に 消した 同じ 名前の 取引先が 在れば 混ぜるかを 訊く★（手本＝代行請求書の mazeruKaKiku・司さん 10-16 の 決め）
+       ★生きている 同じ 名前★は 倉庫の create が その 相手を 返す（2つ 作らない）＝ここでは 訊かない。 */
+    var ike = S.partners.some(function (x) { return String(((x.data || {}).name) || '').trim() === name; });
+    var mae = ike ? null : ptGoneSameName(name);
+    if (mae && !mae.yometa) {
+      box('pt-list-err', '取引先を 足しませんでした（前に 消した 同じ 名前の 記録を 数えられませんでした）。一覧を 読み直してから もう一度 押してください。');
+      return Promise.resolve();
+    }
+    if (mae && mae.tsu > 0) {
+      var mazeru = global.confirm('「' + name + '」の 名前で 前に 消した 取引先の 記録が 残っています（'
+        + '請求書 ' + mae.tsu + '通' + (mae.nyukin ? '・入金 ' + mae.nyukin + '件' : '') + '）。\n'
+        + 'この 取引先に 混ぜますか？ 混ぜると、前の 請求書・入金・繰越が この 取引先に 続きます。\n'
+        + '混ぜないと、新しい 取引先として 作ります（前の 請求書は 前の まま 残り、繰越は 引き継ぎません）。');
+      if (mazeru) return ptRevive(mae.p, name);
+      return ptCreate(name, '「' + name + '」を 新しい 取引先として 足しました（前の 請求書は 前の まま・繰越は 引き継ぎません）。');
+    }
+    return ptCreate(name, null);
+  }
+  /** 前に 消した 同じ 名前の 取引先と、その 相手に 残っている 記録の 数（一覧が 読めていなければ yometa:false） */
+  function ptGoneSameName(name) {
+    var cand = Object.keys(S.gonePartners || {}).map(function (k) { return S.gonePartners[k]; })
+      .filter(function (g) { return String(((g.data || {}).name) || '').trim() === name; });
+    if (!cand.length) return null;
+    if (S.listReadOk === false) return { yometa: false };
+    var best = null;
+    cand.forEach(function (g) {
+      var mine = (S.invoices || []).concat(S.quotes || []).filter(function (v) { return v.partner_id === g.id; });
+      var ids = {}; mine.forEach(function (v) { ids[v.id] = 1; });
+      var nyukin = (S.receipts || []).filter(function (x) { return ids[x.invoice_id]; }).length;
+      var e = { yometa: true, p: g, tsu: mine.length, nyukin: nyukin };
+      if (!best || e.tsu > best.tsu) best = e;
+    });
+    return best;
+  }
+  /** ★混ぜる＝前の 相手を 戻す★（同じ id＝前の 請求書・入金・繰越が 続く） */
+  function ptRevive(g, name) {
+    return S.store.partners.revive(g.id).then(function (r) {
+      if (!r || !r.ok) { box('pt-list-err', '戻せませんでした（' + ptWhy(r && r.reason) + '）。もう一度 押してください。'); return; }
+      delete S.gonePartners[g.id];
+      return S.store.partners.list().then(function (list) {
+        S.partners = list;
+        var inp = $('pt-add-name'); if (inp) inp.value = '';
+        fillPtSelect('');
+        renderPtCards();
+        ptOpen(g.id);
+        box('pt-list-ok', '「' + name + '」を 前の 取引先に 戻しました（前の 請求書・入金・繰越が 続きます）。');
+      });
+    }).catch(function (e) {
+      box('pt-list-err', '戻せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
+    });
+  }
+  function ptCreate(name, okMsg) {
+    var inp = $('pt-add-name');
     return S.store.partners.create({ name: name }).then(function (r) {
-      if (!r || !r.ok) { box('pt-list-err', '足せませんでした（' + ((r && r.reason) || '理由不明') + '）。もう一度 押してください。'); return; }
+      if (!r || !r.ok) { box('pt-list-err', '足せませんでした（' + ptWhy(r && r.reason) + '）。もう一度 押してください。'); return; }
       return S.store.partners.list().then(function (list) {
         S.partners = list;
         if (inp) inp.value = '';
@@ -6108,10 +6175,10 @@
         ptOpen(r.id);
         box('pt-list-ok', r.already
           ? '「' + name + '」は もう在ったので、その相手を開きました。'
-          : '「' + name + '」を足しました。開いた札の中で 1問ずつ聞きます。');
+          : (okMsg || ('「' + name + '」を足しました。開いた札の中で 1問ずつ聞きます。')));
       });
     }).catch(function (e) {
-      box('pt-list-err', '足せませんでした（' + ((e && e.message) || '理由不明') + '）。もう一度 押してください。');
+      box('pt-list-err', '足せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
     });
   }
 

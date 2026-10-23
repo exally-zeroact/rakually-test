@@ -16,6 +16,9 @@
  *   ⑥ 開き直しても（倉庫から 読み直しても）名前が 正しい・下書きの 紙にも 正しい 名前
  *   ⑦ 新しい請求書の 相手の 選び肢に 消した 相手が 出ない（下書きを 開いた時は「削除済み」と 正直に 出す）
  *   ⑧ 倉庫に 書けなかった時は 消したと 言わない（札も 残す）
+ *   ⑨ 消した 相手の 下書きは 発行できない（訳が 出る）               … taiketsu 10-23 止1
+ *   ⑩ 倉庫で 1行も 書けていない時も「削除しました」と 言わない     … taiketsu 10-23 止2
+ *   ⑪⑫⑬ 前に 消した 同じ名前で 足す＝混ぜるかを 訊く（手本 mazeruKaKiku）
  *
  * 使い方: node seikyu/tests/torihiki-sakujo-ui.mjs [--self-test]
  */
@@ -279,6 +282,101 @@ async function run(label, o) {
     ok(/削除できませんでした/.test(r.doc.getElementById('pt-list-err').textContent), '書けなかったと 言わない');
     ok(!/削除しました/.test(r.doc.getElementById('pt-list-ok').textContent), '★嘘の 成功★');
   });
+
+  /* ═══ taiketsu 2026-10-23 の 叩き（止1・止2・手本どおり）═══ */
+  await T('⑨ ★消した 相手の 下書きは 発行できない★（訳が 出る・番号も 使わない）', async () => {
+    const parts = [
+      { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中', honor: '御中' }, deleted_at: '2026-10-22T00:00:00Z' },
+      { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: 'B工務店', keisho: '様', honor: '様' }, deleted_at: null },
+    ];
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: parts }, o));
+    r.doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(150);
+    const op = [...r.doc.querySelectorAll('#list-body [data-open]')].find((b) => b.getAttribute('data-open') === 'iv_shita');
+    ok(op, '下書きの 修正が 無い');
+    op.click(); await sleep(300);
+    const b = r.doc.getElementById('b-issue');
+    ok(b && b.disabled, '★消した 相手の 下書きの「発行する」が 押せる★');
+    ok(/取引先/.test(b.textContent + ' ' + (b.title || '')), '押せない 訳に 取引先の 事が 無い: ' + b.textContent);
+    await r.win.SeikyuApp._issue(); await sleep(200);
+    const row = r.sb._db.pay_invoices.find((x) => x.id === 'iv_shita');
+    eq(row.status, 'draft', '★消した 相手の 下書きが 発行された★');
+    ok(/取引先がマスタに見つかりません/.test(r.doc.getElementById('edit-err').textContent), '発行を 断る 訳が 出ていない: ' + r.doc.getElementById('edit-err').textContent);
+    /* 名前は 正しいまま（嘘の 字に しない） */
+    ok(/A株式会社/.test(r.doc.getElementById('e-partner').selectedOptions[0].textContent), '名前が 消えた');
+  });
+
+  await T('⑩ ★倉庫で 1行も 書けていないのに「削除しました」と 言わない★（共有層は ok を 返す 形）', async () => {
+    const r = await bootI(); await openSet(r);
+    r.win.confirm = () => true;
+    /* 共有層の update().eq() が ★0行でも エラー無し★で 返る 形を 作る（RLS で 見えない 行・別の 端末で 先に 消えた 等） */
+    const from0 = r.sb.from;
+    r.sb.from = function (t) {
+      const q = from0.call(this, t);
+      if (t === 'pay_partners') q.update = () => ({ eq: () => Promise.resolve({ data: [], error: null }) });
+      return q;
+    };
+    await kesuA(r);
+    eq(r.sb._db.pay_partners.find((x) => x.id === 'pt_a').deleted_at, null, '試験の 形が 違う（本当に 書けてしまった）');
+    ok(cardOf(r.doc, 'A株式会社'), '★書けていないのに 札が 消えた★');
+    ok(/削除できませんでした/.test(r.doc.getElementById('pt-list-err').textContent), '★書けていないのに 黙っている★');
+    ok(!/削除しました/.test(r.doc.getElementById('pt-list-ok').textContent), '★嘘の「削除しました」★');
+  });
+
+  const goneA = () => [
+    { id: 'pt_a', account_id: 'u1', sort: 0, data: { name: 'A株式会社', keisho: '御中', honor: '御中', addr: '東京都架空区見本台1-1' }, deleted_at: '2026-10-22T00:00:00Z' },
+    { id: 'pt_b', account_id: 'u1', sort: 1, data: { name: 'B工務店', keisho: '様', honor: '様' }, deleted_at: null },
+  ];
+  async function addName(r, nm) {
+    r.doc.getElementById('pt-add-name').value = nm;
+    r.doc.getElementById('b-pt-add').click();
+    await sleep(400);
+  }
+
+  await T('⑪ ★前に 消した 同じ名前で 足す＝混ぜるかを 訊く★「混ぜる」＝前の 相手を 戻す（同じ id・請求書が 続く）', async () => {
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: goneA() }, o));
+    await openSet(r);
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    await addName(r, 'A株式会社');
+    eq(asked.length, 1, '★混ぜるかを 訊いていない★');
+    ok(/A株式会社/.test(asked[0]) && /請求書 2通/.test(asked[0]) && /混ぜますか/.test(asked[0]), '訊く 字: ' + asked[0]);
+    const rows = r.sb._db.pay_partners.filter((x) => (x.data || {}).name === 'A株式会社');
+    eq(rows.length, 1, '★同じ名前の 行が 2つに なった（戻さずに 作った）★');
+    eq(rows[0].id, 'pt_a', '戻した 相手の id');
+    eq(rows[0].deleted_at, null, '★消した 印が 残っている★');
+    eq(rows[0].data.addr, '東京都架空区見本台1-1', '前の 中身が 消えた');
+    const c = cardOf(r.doc, 'A株式会社');
+    ok(c && c.classList.contains('open'), '戻した 札が 開いていない');
+    ok(/戻しました/.test(r.doc.getElementById('pt-list-ok').textContent), '戻したと 言わない: ' + r.doc.getElementById('pt-list-ok').textContent);
+    /* 新しい 請求書の 相手に また 出る（同じ id＝前の 請求書と 続く） */
+    r.doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(150);
+    r.doc.getElementById('b-new').click(); await sleep(300);
+    ok([...r.doc.querySelectorAll('#e-partner option')].some((x) => x.value === 'pt_a'), '戻した 相手が 選べない');
+  });
+
+  await T('⑫ ★「混ぜない」＝新しい 取引先★（前の 請求書は 前の 相手の まま・繰越は 引き継がないと 字で 言う）', async () => {
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: goneA() }, o));
+    await openSet(r);
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return false; };
+    await addName(r, 'A株式会社');
+    eq(asked.length, 1, '★混ぜるかを 訊いていない★');
+    ok(/引き継ぎません/.test(asked[0]), '混ぜない時の 事を 訊く前に 言っていない: ' + asked[0]);
+    const rows = r.sb._db.pay_partners.filter((x) => (x.data || {}).name === 'A株式会社');
+    eq(rows.length, 2, '新しい 相手が 作られていない');
+    const nw = rows.find((x) => x.id !== 'pt_a');
+    eq(nw.deleted_at == null, true, '新しい 相手が 消えている');
+    ok(rows.find((x) => x.id === 'pt_a').deleted_at, '★混ぜないのに 前の 相手を 戻した★');
+    ok(r.sb._db.pay_invoices.every((v) => v.partner_id === 'pt_a'), '★前の 請求書の 相手が 書き換わった★');
+    ok(/引き継ぎません/.test(r.doc.getElementById('pt-list-ok').textContent), '新しく 作った 時に 繰越の 事を 言わない: ' + r.doc.getElementById('pt-list-ok').textContent);
+  });
+
+  await T('⑬ 前の 記録が 無い 同じ名前（請求書 0通）は 訊かずに 作る', async () => {
+    const r = await boot(Object.assign({ invoices: [], partners: goneA() }, o));
+    await openSet(r);
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    await addName(r, 'A株式会社');
+    eq(asked.length, 0, '残っている 物が 無いのに 訊いた');
+    ok(cardOf(r.doc, 'A株式会社'), '作れていない');
+  });
 }
 
 if (!SELF) {
@@ -290,6 +388,8 @@ if (!SELF) {
     ['確かめを 飛ばす', { app: app.replace("if (!global.confirm(nm + ' を取引先から削除します", "if (false && !global.confirm(nm + ' を取引先から削除します") }],
     ['消した 名前を 覚えない', { app: app.replace('function partnerById(id) {', 'function partnerById(id) { S.gonePartners = {};') }],
     ['下書きの 相手を 黙って 外す', { app: app.replace('function ptGoneOpt(v) {', 'function ptGoneOpt(v) { return null;') }],
+    ['消した 相手で 発行させる', { app: app.split('var p = ptLive(v.partner_id);').join('var p = partnerById(v.partner_id);').split('partner: ptLive(v.partner_id),').join('partner: partnerById(v.partner_id),') }],
+    ['同じ 名前で 訊かない', { app: app.replace('if (mae && mae.tsu > 0) {', 'if (false) {') }],
   ];
   let red = 0;
   for (const [nm, oo] of cases) {
