@@ -71,6 +71,13 @@ const MAE_F = {
   lines: [], data: {}, totals: {},
 };
 
+/* G社＝前回も 税込み・明細 1行（止1＝税が 同じなら 今まで通り 足す） */
+const MAE_G = {
+  id: 'vG0', no: 'G-001', status: 'issued', doc_type: 'invoice', partner_id: 'pG',
+  issue_ymd: '2026-09-30', tax_mode: 'inclusive', rounding: 'floor',
+  lines: [line('G社の品', 3300)], data: {}, totals: {},
+};
+
 let APP_KAE = null;   /* 自分ためしで 壊した 本文（ふだんは null＝本物を 読む） */
 /* ★1つの 道ごとに 画面を 1から 立てる★（前の 道の 状態を 持ち越さない） */
 async function tateru(o) {
@@ -99,6 +106,7 @@ async function tateru(o) {
     { id: 'pC', sort: 3, data: { name: 'C建設', honor: '御中' } },
     { id: 'pE', sort: 4, data: { name: 'E設備', honor: '御中' } },
     { id: 'pF', sort: 5, data: { name: 'F電気', honor: '御中' } },
+    { id: 'pG', sort: 6, data: { name: 'G工務', honor: '御中' } },
   ];
   if (o && o.hitori) S.partners = [S.partners[0]];
   /* 会社が 足した 列「現場」（taiketsu 止3） */
@@ -106,7 +114,7 @@ async function tateru(o) {
   /* ★返事が 遅い 倉庫★＝★送った 時点で 写し★、返事だけ 遅らせる（後で 写すと 待つ間に 打った 字まで 入って 偽の 緑・taiketsu 止1） */
   const osoi = (o && o.osoi) || 0;
   const matsu = (x) => (osoi ? new Promise((r) => setTimeout(() => r(x), osoi)) : Promise.resolve(x));
-  const kura = [JSON.parse(JSON.stringify(MAE_A)), JSON.parse(JSON.stringify(MAE_C)), JSON.parse(JSON.stringify(MAE_E)), JSON.parse(JSON.stringify(MAE_F))];
+  const kura = [JSON.parse(JSON.stringify(MAE_A)), JSON.parse(JSON.stringify(MAE_C)), JSON.parse(JSON.stringify(MAE_E)), JSON.parse(JSON.stringify(MAE_F)), JSON.parse(JSON.stringify(MAE_G))];
   let n = 0;
   const shimau = (v) => {
     const c = JSON.parse(JSON.stringify(v)); if (!c.id) c.id = 'new' + (++n);
@@ -421,13 +429,15 @@ MICHI.push(['★⑱ A社 → 1行の 単価を 直す → C社（S5）＝触っ�
   t.utsu(kin, '43000'); await nemuru(20);
   await t.erabu('pC');
   const x = t.naka();
-  eq(x.lines.join('|'), 'A社の工事|C社の品', '★行が 違う★（直した 1行と C社の 前回だけの はず）');
+  eq(x.lines.join('|'), 'A社の工事', '★行が 違う★（直した 1行だけの はず＝C社の 前回は 税の 入れ方が 違うので 足さない・止1）');
   ok(x.prices.indexOf('43000') >= 0, '★直した 行が 消えた★');
   eq(x.ded.length, 0, '★A社の 控除が 残った★');
-  ok(/明細 1行/.test(x.okBun) && /残しています/.test(x.okBun), '★外した・残した 行を 言っていない★: ' + x.okBun);
+  ok(/明細 1行/.test(x.okBun) && /残しています/.test(x.okBun) && /足していません/.test(x.okBun), '★外した・残した・足さなかった 行を 言っていない★: ' + x.okBun);
   /* 比べる 相手＝最初から C社を 選び、残った 1行と ★同じ 行★ を 足した 1通（行の 中身は そのまま 写す） */
   const nokori = JSON.parse(JSON.stringify(t.S.cur.lines.find((l) => l.name === 'A社の工事')));
-  const c = await hajimeKara('pC', async (t2) => { t2.S.cur.lines.push(nokori); await nemuru(10); });
+  /* ★打った 行が 残る＝税の 入れ方は A社の 税込みの まま（指示役の 決め）＝比べる 相手も 税込みに する */
+  eq(x.tax, 'inclusive', '★打った 行が 残るのに 税の 入れ方を 変えた★');
+  const c = await hajimeKara('pB', async (t2) => { t2.utsu(t2.$('e-taxmode'), 'inclusive'); await nemuru(10); t2.S.cur.lines = [nokori]; await nemuru(10); });
   eq(x.goukei, c.goukei, '★合計が 最初から C社で 同じ 行を 打った 1通と 違う★');
 }]);
 MICHI.push(['★⑲ A社 → ×で 1行 消す → B社（S5）＝残りの A社の 行も 外れる', async () => {
@@ -527,6 +537,19 @@ MICHI.push(['★㉖ 保存の 返事を 待つ 間に 番号を 打っても 白
   eq(t.S.cur.id, id, '★番号を 打った 1通が 白紙に 替わった★');
   eq(t.$('e-no').value, 'TE-999', '★打った 番号が 消えた★');
 }]);
+MICHI.push(['★㉗ E社（税込み）で 60000 を 打つ → C社（前回 税抜き）＝前回の 税を 当てず 60000 の まま・言う', async () => {
+  const t = await tateru(); t.A._new(); await t.erabu('pE');
+  await utsuGyo(t, '打った品', 60000);
+  eq(t.naka().goukei, 60000, '★空振り★ 税込みで 60000 に なっていない');
+  await t.erabu('pC');
+  const x = t.naka();
+  eq(x.tax, 'inclusive', '★前回の 税抜きを 当てて 打った 金額の 意味を 変えた★');
+  eq(t.$('e-taxmode').value, 'inclusive', '★画面の 税の 欄が 中と 違う★');
+  ok(x.prices.indexOf('60000') >= 0, '★打った 行が 消えた★');
+  ok(/そのままに/.test(x.okBun) && /税込み/.test(x.okBun), '★当てなかった事を 言っていない★: ' + x.okBun);
+  /* 合計＝打った 60000（税込み）の まま（打ち始めて いたので C社の 前回の 明細は 入れない＝今までの 決め） */
+  eq(x.goukei, 60000, '★打った 60000 の 合計が 変わった★');
+}]);
 MICHI.push(['★㉘ 打った 行を 全部 ×で 消したら「打った 明細が 残っているので…」は 消える（任意4）', async () => {
   const t = await tateru(); t.A._new(); await t.erabu('pE');
   await utsuGyo(t, '打った品', 60000);
@@ -547,6 +570,32 @@ MICHI.push(['★㉚ 端数が 切り上げの F社 → B社＝「切り捨て �
   const x = t.naka();
   eq(x.round, 'floor', '端数は 会社の 既定');
   ok(/切り捨て/.test(x.okBun) && !/この相手の 物/.test(x.okBun), '★端数の 字が 中身と 合わない★: ' + x.okBun);
+}]);
+
+/* ★止めて 警告★（taiketsu 2026-10-23 止1）＝打った 行の 税と 前回の 税が 違う 時は 前回の 明細を 足さない */
+const naoshite50000 = async (t) => {
+  const tr = t.doc.querySelector('#lines-body tr');
+  t.utsu(tr.querySelector('[data-f="price"]'), '50000');
+  const am = tr.querySelector('[data-f="amount"]'); if (am) t.utsu(am, '50000');
+  await nemuru(20);
+};
+MICHI.push(['★㉛ A社（税込み）の 1行を 50000 に 直す → C社（前回 税抜き）＝C社の 前回は 足さず 言う・合計は 50,000 円', async () => {
+  const t = await tateru(); t.A._new(); await t.erabu('pA');
+  await naoshite50000(t);
+  await t.erabu('pC');
+  const x = t.naka();
+  eq(x.lines.join('|'), 'A社の工事', '★税の 入れ方が 違う 前回の 明細を 足した★');
+  eq(x.tax, 'inclusive', '打った 行の 税の まま');
+  eq(x.goukei, 50000, '★合計（円）が 打った 50,000 と 違う★');
+  ok(/C建設の 前回の 明細は 金額の入れ方が 違う（税抜き）ので 足していません/.test(x.okBun), '★足さなかった事を 言っていない★: ' + x.okBun);
+}]);
+MICHI.push(['★㉜ A社（税込み）の 1行を 50000 に 直す → G社（前回も 税込み）＝今まで通り G社の 前回を 足す', async () => {
+  const t = await tateru(); t.A._new(); await t.erabu('pA');
+  await naoshite50000(t);
+  await t.erabu('pG');
+  const x = t.naka();
+  eq(x.lines.join('|'), 'A社の工事|G社の品', '★税が 同じなのに 前回の 明細を 足していない★');
+  eq(x.goukei, 53300, '★合計（円）が 50,000＋3,300 と 違う★');
 }]);
 
 if (!SELF) {
@@ -572,6 +621,8 @@ if (!SELF) {
     ['当て直しで 入れた 税を 言わない（止2）', "    if (jido.indexOf('tax') >= 0 && v.tax_mode !== settings().taxMode) { hiki.push(", "    if (false) { hiki.push(", '★㉑'],
     ['自動の 保存の 返事で 待つ間の 字を 見ない（止A）', '            if (hozonKata(S.cur) === okuttaKata) S.dirty = false;', '            if (true) S.dirty = false;', '★㉕'],
     ['保存の 比べに 番号を 入れない（任意1）', '  function hozonKata(v) { return JSON.stringify([v.no, nakamiKata(v)]); }', '  function hozonKata(v) { return nakamiKata(v); }', '★㉖'],
+    ['打った 行が 在っても 前回の 税を 当てる（決め）', '    if (!uttaGyo) {', '    if (true) {', '★㉗'],
+    ['税が 違っても 前回の 明細を 足す（止1）', '    var tasu = !!S.oiToki && !zeiChigau;', '    var tasu = !!S.oiToki;', '★㉛'],
     ['行を 全部 消しても 知らせを 残す（任意4）', '        if (!S.cur.lines.some(gyoAru) && okEl', '        if (false && okEl', '★㉘'],
     ['税込みを 2回 言う（任意4）', '    if (S.zeiItta) {', '    if (false) {', '★㉙'],
     ['端数の 字を 中身と 合わせない（任意4）', "zeiBun += '消費税の 端数の 扱いを ' + marumeNa(S.cur.rounding) + ' に しました。';", "zeiBun += '消費税の 端数の 扱いを この相手の 物に しました。';", '★㉚'],
@@ -581,7 +632,7 @@ if (!SELF) {
     ['発行の 返事で 待つ間の 字を 見ない（止1）', '      var onaji = nakamiKata(hakko) === hakkoKata;', '      var onaji = true;', '★㉔'],
     ['動いた 期日を 外さない（S4）', "      if (mama('due') || String(v.due_ymd || '') === String(DOC.dueDateFrom(v.issue_ymd, d.term) || '')) v.due_ymd = '';", "      if (mama('due')) v.due_ymd = '';", '★⑰'],
     ['触っていない 行も 外さない（S5）', '      var i = mi.indexOf(jidoGyo(l));', '      var i = -1;', '★⑱'],
-    ['選び直しで 次の 相手の 前回を 足さない（S5）', '    var tasu = !!S.oiToki;', '    var tasu = false;', '★⑱'],
+    ['選び直しで 次の 相手の 前回を 足さない（S5）', '    var tasu = !!S.oiToki && !zeiChigau;', '    var tasu = false;', '★㉜'],
     ['保存の 後に 打っても 白紙に する（S6）', '    if (S.owattaKata !== owattaKata(v)) return false;', '', '★⑳'],
     ['当てる時に 打った 件名を 上書きする', "    if (!String(v.data.subject || '').trim()) { v.data.subject = g.subject; jido.push('subject'); }", "    { v.data.subject = g.subject; jido.push('subject'); }", '★⑤'],
   ];

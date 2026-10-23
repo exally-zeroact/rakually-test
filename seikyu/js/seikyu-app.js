@@ -2237,8 +2237,23 @@
     var jido = ['term', 'gensen'];
     if (!String(v.data.subject || '').trim()) { v.data.subject = g.subject; jido.push('subject'); }
     if (!String(v.data.memo || '').trim()) { v.data.memo = g.memo; jido.push('memo'); }
-    if (g.taxMode) { v.tax_mode = g.taxMode; jido.push('tax'); }
-    if (g.rounding) { v.rounding = g.rounding; jido.push('round'); }
+    /* ★打った・直した 明細が 在る 時は 前回の 税の 入れ方・端数を 当てない★（指示役の 決め 2026-10-23）
+       ＝打った 金額の 意味（税込みで 打った 60000）を 変えない。当てなかった 事は 知らせで 言う */
+    var uttaGyo = Array.isArray(v.lines) && v.lines.some(gyoAru);
+    var zeiTome = '', zeiChigau = false;
+    if (!uttaGyo) {
+      if (g.taxMode) { v.tax_mode = g.taxMode; jido.push('tax'); }
+      if (g.rounding) { v.rounding = g.rounding; jido.push('round'); }
+    } else {
+      var tomeTax = !!(g.taxMode && g.taxMode !== v.tax_mode), tomeRound = !!(g.rounding && g.rounding !== v.rounding);
+      if (tomeTax || tomeRound) {
+        zeiChigau = true;
+        zeiTome = '打った 明細が 在るので、' + [tomeTax ? '金額の入れ方（' + zeiNa(v.tax_mode) + '）' : '',
+          tomeRound ? '端数の 扱い（' + marumeNa(v.rounding) + '）' : ''].filter(Boolean).join('と ')
+          + ' は 前回（' + [tomeTax ? zeiNa(g.taxMode) : '', tomeRound ? marumeNa(g.rounding) : ''].filter(Boolean).join('・')
+          + '）に 合わせず そのままに しました。';
+      }
+    }
     if (g.templateId) v.template_id = g.templateId;
     /* ★列は 引き継がない★（2026-09-09）
        ＝「はい」を 押していた頃は「前回と 同じ列で」で よかったが、
@@ -2262,7 +2277,14 @@
     var hikiL = 0, hikiD = 0;
     /* ★相手を 選び直して 前の 相手の 行を 外した 時は、残った（直した）行の 後ろに この相手の 前回を 足す★
        （taiketsu S5＝前は 1行でも 残ると この相手の 明細が 入らなかった）。ふだんは 打ち始めていたら 入れない */
-    var tasu = !!S.oiToki;
+    /* ★止めて 警告★（taiketsu 2026-10-23 止1＝打った 行の 税で 前回の 行を 読むと 足した 行の 金額の 意味が 変わる
+       （A社 税込み 50000 → C社 前回 税抜き 5000 を 足すと 合計 51,700 が 47,000）。
+       ⇒ 打った 行が 残り、前回と 税の 入れ方（か 端数）が 違う 時は 前回の 明細・控除を 足さず、そう 言う。同じなら 今まで通り 足す */
+    var tasu = !!S.oiToki && !zeiChigau;
+    if (S.oiToki && zeiChigau && ((g.lines && g.lines.length) || (g.deductions && g.deductions.length))) {
+      var pNm = ((partnerById(v.partner_id) || {}).data || {}).name || 'この相手';
+      zeiTome += pNm + 'の 前回の 明細は 金額の入れ方が 違う（' + (tomeTax ? zeiNa(g.taxMode) : marumeNa(g.rounding)) + '）ので 足していません。';
+    }
     var ireL = [], ireD = [];
     if ((kara || tasu) && g.lines && g.lines.length) {
       ireL = g.lines.map(function (l) { return Object.assign(blankLine(), l); });
@@ -2297,12 +2319,14 @@
     /* ★税・端数を 会社の 既定と 違う 物に した 時も 言う★（taiketsu 止2＝黙って 税込みに しない） */
     if (jido.indexOf('tax') >= 0 && v.tax_mode !== settings().taxMode) { hiki.push('金額の入れ方（' + zeiNa(v.tax_mode) + '）'); S.zeiItta = true; }
     if (jido.indexOf('round') >= 0 && v.rounding !== settings().rounding) { hiki.push('消費税の 端数の 扱い（' + marumeNa(v.rounding) + '）'); S.zeiItta = true; }
+    if (zeiTome) S.zeiItta = true;
     if (hikiL) hiki.push('明細 ' + hikiL + '行');
     if (hikiD) hiki.push('控除 ' + hikiD + '行');
     box('edit-ok', (g.no ? '前回（No.' + g.no + '）と 同じで 用意しました' : '前回と 同じで 用意しました')
       + (hiki.length ? '＝' + hiki.join('・') : '')
       + (hikiL ? '。金額を 確かめてください（要らない行は × で 消せます）。'
-        : '。明細を 打てば 出せます（直したい所は「細かく決める」から）。'));
+        : '。明細を 打てば 出せます（直したい所は「細かく決める」から）。')
+      + (zeiTome ? '\n' + zeiTome : ''));
   }
 
   /* ★いつでも 触れる★（2026-09-09 司さん「代行請求書のように いつでも編集できるように」
