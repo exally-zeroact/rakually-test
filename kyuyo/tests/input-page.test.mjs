@@ -107,6 +107,41 @@ T('④ 従業員番号で 探せる', fuda().length === 1 && fuda()[0] === 87, '
 const q3 = host().querySelector('[data-inputq]');
 q3.value = '居ない人'; q3.dispatchEvent(new win.Event('input', { bubbles: true })); await sleep(350);
 T('④ 当たらない 時は「当たる人はいません」と 言う', fuda().length === 0 && /当たる人はいません/.test(host().textContent));
+
+/* ⑧ カナ・全角半角（taiketsu S2）… 41番の 人に カナ「ヤマダ タロウ」 */
+A.state.employees[40].kana = 'ヤマダ タロウ';
+const utsu = async (ji) => { const x = host().querySelector('[data-inputq]'); x.value = ji; x.dispatchEvent(new win.Event('input', { bubbles: true })); await sleep(350); };
+await utsu('やまだ');
+T('⑧ ひらがなで 打っても カタカナの カナに 当たる', fuda().length === 1 && fuda()[0] === 40, '出た ' + fuda().join(','));
+await utsu('ﾔﾏﾀﾞ');
+T('⑧ 半角カナでも 当たる', fuda().length === 1 && fuda()[0] === 40, '出た ' + fuda().join(','));
+await utsu('１０８８');
+T('⑧ 全角の 数字でも 従業員番号に 当たる', fuda().length === 1 && fuda()[0] === 87, '出た ' + fuda().join(','));
+
+/* ⑨ 日本語の 変換中は 描き直さない（taiketsu S1）… 欄が 作り直されると 打っている 字が 壊れる */
+await utsu('');
+const qa = host().querySelector('[data-inputq]');
+qa.dispatchEvent(new win.CompositionEvent('compositionstart', { bubbles: true }));
+qa.value = 'やま'; qa.dispatchEvent(new win.InputEvent('input', { bubbles: true, isComposing: true })); await sleep(350);
+T('⑨ 変換中は 欄が 作り直されない（同じ 欄の まま・まだ 絞らない）', qa.isConnected && host().querySelector('[data-inputq]') === qa && fuda().length === 50, '同じ欄 ' + qa.isConnected + '／札 ' + fuda().length);
+qa.dispatchEvent(new win.CompositionEvent('compositionend', { bubbles: true, data: 'やま' })); await sleep(350);
+T('⑨ 変換が 決まったら 絞る（カナ ヤマダ の 1人）', fuda().length === 1 && fuda()[0] === 40, '出た ' + fuda().join(','));
+/* ⑨ 決めた 直後（250ms 以内）に 次の 変換を 始めたら、待ちの 描き直しも 止まる */
+const qb = host().querySelector('[data-inputq]');
+qb.dispatchEvent(new win.CompositionEvent('compositionend', { bubbles: true, data: 'やま' })); await sleep(100);
+qb.dispatchEvent(new win.CompositionEvent('compositionstart', { bubbles: true })); await sleep(350);
+T('⑨ 決めた 直後に 次の 変換を 始めたら 欄は 作り直されない', qb.isConnected && host().querySelector('[data-inputq]') === qb);
+qb.dispatchEvent(new win.CompositionEvent('compositionend', { bubbles: true, data: 'やま' })); await sleep(350);
+
+/* ⑩ 表で 探して 当たらない 時（taiketsu S3）… 「全員確認済み」と 言わない */
+A.state.inputView = 'table'; A.state._inputQ = '居ない人'; A.state._inputPage = 0; A.renderInput();
+T('⑩ 表で 当たらない 時は「当たる人はいません」・「全員確認済み」とは 言わない', /当たる人はいません/.test(host().textContent) && !/全員確認済み/.test(host().textContent), host().textContent.slice(-120));
+A.state.inputView = 'card';
+/* ⑪ 「要確認だけ」で 確認済みの 人を 探した 時は「当たる要確認の人はいません」（居ないとは 言わない） */
+A.setConfirm('E005', true);
+A.state._reviewOnly = true; A.state._inputQ = '試し005'; A.state._inputPage = 0; A.renderInput();
+T('⑪ 要確認だけの 時に 確認済みの 人を 探すと「当たる要確認の人はいません」', fuda().length === 0 && /当たる要確認の人はいません/.test(host().textContent), '札 ' + fuda().length + ' ' + host().textContent.slice(-80));
+A.setConfirm('E005', false); A.state._reviewOnly = false;
 A.state._inputQ = ''; A.state._inputPage = 0;
 
 /* ⑥ 表 */

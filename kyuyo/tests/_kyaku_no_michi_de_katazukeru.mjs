@@ -283,6 +283,19 @@ export async function katazukeru(pg, opt) {
     michi.push('①札 ' + ban0 + '番目から 名前を 読んだ … 「' + (na2 || '★読めない★') + '」');
   }
   if (osu) { await osu(pg, '.bn[data-scr="scr-input"]'); await machi(900); }
+  /* ★★入力の 画面は 1ページ 50名（2026-10-23 150人で 重い 件）★★＝試験口が 120人を 超えると その人は 2ページ目 以降に 居て
+     ★「確認済」が 見つからず 置き土産に なる★（taiketsu S4）⇒ ★先に 探す 欄へ 名前を 打つ★（客と 同じ 道）。
+     月を 変えても 探した 字は 残る（state._inputQ）。最後に 欄を 空に 戻す。 */
+  const sagasu = async (ji) => {
+    const q = await pg.$('#input-list [data-inputq]');
+    if (!q) { if (ji) michi.push('①探す 欄が 無い（50名 以下か 読み込み中）＝1ページ目だけ 見る'); return false; }
+    const utta = await q.fill(ji, { timeout: 4000 }).then(() => true).catch(() => false);
+    await machi(700);
+    if (!utta) michi.push('①★探す 欄に「' + ji + '」を 打てなかった★');
+    return utta;
+  };
+  const sagashita = na2 ? await sagasu(na2) : false;
+  if (sagashita) michi.push('①入力の 画面の 探す 欄に「' + na2 + '」を 打った（1ページ 50名の 外に 居ても 見える 様に）');
   const tsuki = (opt && opt.tsuki && opt.tsuki.length) ? opt.tsuki : [null];
   for (const ym of tsuki) {
     if (ym) {
@@ -433,6 +446,7 @@ export async function katazukeru(pg, opt) {
     michi.push(y.osita ? '①確認を 押した【本物の click】（' + y.ji + '）' : '①確認が 出なかった');
     await machi(1400);
   }
+  if (sagashita) await sagasu('');
 
   /* ── ②③従業員マスタで 削除（本物の click） ─────────────── */
   if (osu) {

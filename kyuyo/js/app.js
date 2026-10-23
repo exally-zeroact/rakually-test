@@ -2591,9 +2591,10 @@
       var soi=kinIdx(e,/出勤/); if(soi>=0 && (e.kintai[soi].value===''||e.kintai[soi].value==null)) e.kintai[soi].value=String(sche);
     });
   }
-  /* 名前・カナ・従業員番号の どれかに 字が 入っていれば 当たり（空白・全角半角の 違いは 見ない） */
+  /* 名前・カナ・従業員番号の どれかに 字が 入っていれば 当たり（空白・全角半角・カタカナ／ひらがなの 違いは 見ない）
+     ★2026-10-23 taiketsu S2★ 前は「たろう」「ﾀﾛｳ」「１０８８」で 当たらなかった＝NFKC で 全角半角を 揃え、カタカナは ひらがなへ。 */
   function inputQAtaru(e,q){
-    var nz=function(x){ return String(x||'').replace(/[\s\u3000]/g,'').toLowerCase(); };
+    var nz=function(x){ var t=String(x||'').normalize('NFKC'); return t.replace(/[\s　]/g,'').toLowerCase().replace(/[ァ-ヶ]/g,function(c){ return String.fromCharCode(c.charCodeAt(0)-0x60); }); };
     var qq=nz(q); if(!qq) return true;
     return nz(e.name).indexOf(qq)>=0 || nz(e.kana).indexOf(qq)>=0 || nz(e.furiKana).indexOf(qq)>=0 || nz(e.no).indexOf(qq)>=0;
   }
@@ -2773,7 +2774,7 @@
         +'<button class="btn-primary ec-btn" data-goto-empmaster>＋ 従業員を追加する</button></div>';
       return;
     }
-    var emptyMsg=!cards ? '<p class="hint" style="text-align:center;padding:18px 0">'+(inputQ?'「'+esc(inputQ)+'」に当たる人はいません。':(reviewOnly?'要確認の人はいません（全員確認済み）。':''))+'</p>' : '';
+    var emptyMsg=!cards ? '<p class="hint" style="text-align:center;padding:18px 0">'+(inputQ?'「'+esc(inputQ)+'」に当たる'+(reviewOnly?'要確認の':'')+'人はいません。':(reviewOnly?'要確認の人はいません（全員確認済み）。':''))+'</p>' : '';
     host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+pagerHTML+cards+emptyMsg+pagerFootHTML(miseru.length,page,pageN)+confirmBtn;
   }
   // 表でまとめて入力(全従業員1画面・弥生の弱点/Exallyモデル)。列は既存と同じdata属性を再利用=同じハンドラで書ける。
@@ -2817,7 +2818,9 @@
         +'<td class="tnet"><span class="tnet-v">'+yen(r.net)+'</span></td><td class="tdiff">'+diffBadge(e,r)+'</td>'
         +'<td class="tconf">'+conf+'</td></tr>';
     }).join('');
-    if(!rows) return '<p class="hint" style="text-align:center;padding:18px 0">要確認の人はいません（全員確認済み）。</p>';
+    /* ★2026-10-23 taiketsu S3★ 探して 当たらない 時に「全員確認済み」と 出ていた＝札の 画面と 同じ 字に 揃えた */
+    var tq=String(state._inputQ||'').trim();
+    if(!rows) return '<p class="hint" style="text-align:center;padding:18px 0">'+(tq?'「'+esc(tq)+'」に当たる'+(reviewOnly?'要確認の':'')+'人はいません。':(reviewOnly?'要確認の人はいません（全員確認済み）。':''))+'</p>';
     return '<div class="in-table-wrap"><table class="in-table"><thead><tr>'
       +'<th class="tnm">氏名</th><th>出勤</th><th>欠勤</th><th>有給</th><th>労働<small>時:分</small></th><th>残業</th><th>深夜</th><th>休日</th><th>歩合/売上</th><th class="tnet">手取り</th><th>前月比</th><th>確認</th>'
       +'</tr></thead><tbody>'+rows+'</tbody></table></div>'
@@ -6254,12 +6257,20 @@
       if(e.target.classList.contains('m-del')&&e.target.closest('#input-list')){ var card=e.target.closest('.acc'); var ci=+card.dataset.i; var g=e.target.dataset.g, ri=+e.target.dataset.ri; state.employees[ci][g].splice(ri,1); renderInput(); return; }
     });
     /* 探す 欄＝打ち終わって 少し 待ってから 描き直し、欄に 戻る（打っている 最中に 欄が 消えない 様に） */
+    /* ★2026-10-23 taiketsu S1★ 日本語の 変換中（isComposing）に 描き直すと 欄が 作り直され 打っている 字が 壊れる
+       ＝変換中は 描かず、変換が 決まった 時（compositionend）に 描く。待つ 間に 変換が 始まった 時も 描かない。 */
     var _iqT=null;
+    function iqKaku(t){
+      state._inputQ=t.value; state._inputPage=0;
+      if(_iqT) clearTimeout(_iqT);
+      _iqT=setTimeout(function(){ _iqT=null; var a=$('#input-list [data-inputq]'); if(a && a._henkan) return; renderInput(); var q=$('#input-list [data-inputq]'); if(q){ try{ q.focus(); var L=q.value.length; q.setSelectionRange(L,L); }catch(_){ } } },250);
+    }
+    il.addEventListener('compositionstart',function(e){ if(e.target.dataset && e.target.dataset.inputq!=null) e.target._henkan=true; });
+    il.addEventListener('compositionend',function(e){ if(e.target.dataset==null || e.target.dataset.inputq==null) return; e.target._henkan=false; iqKaku(e.target); });
     il.addEventListener('input',function(e){
       if(e.target.dataset==null || e.target.dataset.inputq==null) return;
-      state._inputQ=e.target.value; state._inputPage=0;
-      if(_iqT) clearTimeout(_iqT);
-      _iqT=setTimeout(function(){ _iqT=null; renderInput(); var q=$('#input-list [data-inputq]'); if(q){ try{ q.focus(); var L=q.value.length; q.setSelectionRange(L,L); }catch(_){ } } },250);
+      if(e.isComposing || e.target._henkan) return;
+      iqKaku(e.target);
     });
     il.addEventListener('input',function(e){ var card=e.target.closest('.acc,.trow'); if(!card)return; var ci=+card.dataset.i; var emp=state.employees[ci];
       var dl=e.target.closest('[data-dl]'); if(dl){ var dpp=String(dl.dataset.dl).split(':'); if(emp.dailyEntries&&emp.dailyEntries[+dpp[1]]){ var f2=dpp[2]; emp.dailyEntries[+dpp[1]][f2]=(f2==='amount')?e.target.value.replace(/[^0-9]/g,''):e.target.value; } return; } // 日別入力(再描画せずフォーカス維持)
