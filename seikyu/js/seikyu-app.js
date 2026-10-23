@@ -3787,13 +3787,16 @@
          知らせも 出さない（人が 押していないので「保存しました」は 余計）。 */
     var t = null;
     try { t = recalc(); } catch (e) { return; }
-    v.lines = cleanLines(v.lines);
+    /* ★画面の 行は 詰めない★（2026-10-23 taiketsu 止2＝ここで S.cur.lines から 空行を 抜くと、画面は 描き直さないので
+       行の 番号（data-i）が ずれ、空行に 打つと 次の 行が 黙って 消え／3行目に 打つと TypeError で しまえなかった）。
+       ⇒ ★送る 物だけ 詰めた 写し★にする（打っている 欄の カーソルも 奪わない） */
     v.totals = (t && t.ok) ? totalsOf(t) : {};
+    var okuru = Object.assign({}, v, { lines: cleanLines(v.lines) });
     var okuttaCur = S.cur;
     var okuttaKata = hozonKata(v);    /* ★送った 時の 中身★（返事を 待つ 間に 打った 字を 見分ける・taiketsu 止A） */
     if (v.id && S.kieta && S.kieta[v.id]) return;
     try {
-      S.hozonChu = S.store.invoices.saveDraft(v);
+      S.hozonChu = S.store.invoices.saveDraft(okuru);
       S.hozonChu.then(function (r) {
         if (r && r.ok) {
           /* ★id は 送った 1通に 付ける★（返事の 前に 別の 1通を 見ても、戻った 時に id が 無いと 同じ番号で 2通目を 作ろうとした・taiketsu 10-23） */
@@ -3919,7 +3922,10 @@
     if (!v) { box('edit-err', '入力の画面と 中身が 合っていないので 保存しませんでした。一覧の「修正」から 開き直してください。'); return Promise.resolve(); }
     if (v.id && S.kieta && S.kieta[v.id]) { box('edit-err', 'この下書きは 削除しました。'); return Promise.resolve(); }
     var t = recalc();
+    var motoGyo = (v.lines || []).length;
     v.lines = cleanLines(v.lines);
+    /* ★詰めたら その場で 描き直す★（行の 番号を 中身と 合わせる・taiketsu 止2）＝押したのは「保存」なので 打っている 欄は 無い */
+    if (v.lines.length !== motoGyo) renderLines();
     v.totals = (t && t.ok) ? totalsOf(t) : {};
     if (!v.issue_ymd) { box('edit-err', '請求日を入れてください（下書きでも日付は要ります）。'); return Promise.resolve(); }
     if (!v.no) { box('edit-err', '請求番号が空です。「自動」に戻すか、自分で番号を入れてください。'); return Promise.resolve(); }

@@ -598,6 +598,52 @@ MICHI.push(['★㉜ A社（税込み）の 1行を 50000 に 直す → G社（�
   eq(x.goukei, 53300, '★合計（円）が 50,000＋3,300 と 違う★');
 }]);
 
+/* ★自動の 保存で 画面の 行を 詰めない★（taiketsu 2026-10-23 止2・2026-09-11 からの 穴） */
+const gyoUtsu = async (t, i, na, kin) => {
+  const tr = t.doc.querySelectorAll('#lines-body tr')[i];
+  ok(tr, '★' + (i + 1) + '行目が 無い★');
+  if (na !== null) t.utsu(tr.querySelector('[data-f="name"]'), na);
+  t.utsu(tr.querySelector('[data-f="qty"]'), '1');
+  t.utsu(tr.querySelector('[data-f="price"]'), String(kin));
+  const am = tr.querySelector('[data-f="amount"]'); if (am) t.utsu(am, String(kin));
+  await nemuru(20);
+};
+const sanGyo = async () => {
+  /* [R0 1000 / 空行 / R2 2000] を 打って 自動の 保存を 通す */
+  const t = await tateru(); t.A._new(); await t.erabu('pB');
+  await gyoUtsu(t, 0, 'R0', 1000);
+  await t.osu('#b-addline'); await t.osu('#b-addline');
+  await gyoUtsu(t, 2, 'R2', 2000);
+  await nemuru(1800);
+  ok(t.kura.some((x) => x.partner_id === 'pB'), '★空振り★ 自動の 保存が 出ていない');
+  return t;
+};
+const sorou = (t, kitai, goukei) => {
+  const gamen = [...t.doc.querySelectorAll('#lines-body [data-f="name"]')].map((i) => i.value).filter(Boolean).join('|');
+  const naka = t.S.cur.lines.map((l) => l.name).filter(Boolean).join('|');
+  const b = t.kura.find((x) => x.partner_id === 'pB');
+  const kura = (b.lines || []).map((l) => l.name).filter(Boolean).join('|');
+  eq(gamen, kitai, '★画面の 行★'); eq(naka, kitai, '★中の 行（画面と 違う）★'); eq(kura, kitai, '★倉庫の 行★');
+  eq(t.naka().goukei, goukei, '★合計（円）★');
+};
+MICHI.push(['★㉝ 自動の 保存の 後に 空行（2行目）に 打つ＝3行目が 消えず 画面・中・倉庫・合計が 合う（止2）', async () => {
+  const t = await sanGyo();
+  await gyoUtsu(t, 1, 'R1', 500);
+  await nemuru(1800);
+  sorou(t, 'R0|R1|R2', 3850);
+}]);
+MICHI.push(['★㉞ 自動の 保存の 後に 3行目の 単価に 打つ＝落ちずに しまわれ 画面・中・倉庫・合計が 合う（止2）', async () => {
+  const t = await sanGyo();
+  const errs = [];
+  t.win.addEventListener('error', (e) => errs.push(String(e.message || e.error)));
+  try { await gyoUtsu(t, 2, null, 3000); } catch (e) { errs.push(String(e && e.message)); }
+  await nemuru(1800);
+  eq(errs.join(' / '), '', '★打った 時に 落ちた★');
+  sorou(t, 'R0|R2', 4400);
+  const b = t.kura.find((x) => x.partner_id === 'pB');
+  eq(String((b.lines.find((l) => l.name === 'R2') || {}).price), '3000', '★3行目の 単価が 倉庫に 入っていない★');
+}]);
+
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
 } else {
@@ -623,6 +669,8 @@ if (!SELF) {
     ['保存の 比べに 番号を 入れない（任意1）', '  function hozonKata(v) { return JSON.stringify([v.no, nakamiKata(v)]); }', '  function hozonKata(v) { return nakamiKata(v); }', '★㉖'],
     ['打った 行が 在っても 前回の 税を 当てる（決め）', '    if (!uttaGyo) {', '    if (true) {', '★㉗'],
     ['税が 違っても 前回の 明細を 足す（止1）', '    var tasu = !!S.oiToki && !zeiChigau;', '    var tasu = !!S.oiToki;', '★㉛'],
+    ['自動の 保存で 画面の 行を 詰める（止2）', '    var okuru = Object.assign({}, v, { lines: cleanLines(v.lines) });', '    v.lines = cleanLines(v.lines); var okuru = v;', '★㉝'],
+    ['自動の 保存で 画面の 行を 詰める（止2・3行目）', '    var okuru = Object.assign({}, v, { lines: cleanLines(v.lines) });', '    v.lines = cleanLines(v.lines); var okuru = v;', '★㉞'],
     ['行を 全部 消しても 知らせを 残す（任意4）', '        if (!S.cur.lines.some(gyoAru) && okEl', '        if (false && okEl', '★㉘'],
     ['税込みを 2回 言う（任意4）', '    if (S.zeiItta) {', '    if (false) {', '★㉙'],
     ['端数の 字を 中身と 合わせない（任意4）', "zeiBun += '消費税の 端数の 扱いを ' + marumeNa(S.cur.rounding) + ' に しました。';", "zeiBun += '消費税の 端数の 扱いを この相手の 物に しました。';", '★㉚'],
