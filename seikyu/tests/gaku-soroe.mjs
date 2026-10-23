@@ -167,6 +167,22 @@ async function run(label, appSrc) {
     const a = S.invoices.find((v) => v.id === 'a');
     eq(harau(a), a.totals.grandTotal, 'A');
   });
+  /* ★次の 1通の 繰越★（司さん 10-24「法律的に最適解で」）＝前回の 残りは 相手が 実際に 払う 額（源泉の 後）で 数える。
+     源泉所得税は 払う側が 差し引いて 国へ 納める（所得税法 204条・212条）＝差し引いた 分は 払い残りでは ない。 */
+  await T('⑤ 源泉の 相手が 払う額どおり 払った 次の 1通に「繰越」が 載らない／源泉の 無い 相手は 今まで どおり', async () => {
+    S.org = Object.assign({}, S.org, { invoiceCarry: true });
+    const tsugi = (pid, gensen) => ({ id: 'n' + pid, no: '', status: 'draft', doc_type: 'invoice', partner_id: pid, issue_ymd: '2026-11-05',
+      tax_mode: 'exclusive', rounding: 'floor', lines: [line('工事代金', 10000)], data: gensen ? { gensen: true } : {} });
+    const atama = (v) => { S.cur = JSON.parse(JSON.stringify(v)); const h = A._paperHtml(); S.cur = null;
+      return { head: num((/<td class="grand-v">([^<]*)<\/td>/.exec(h) || [])[1]), h }; };
+    const c = atama(tsugi('pC', true));
+    eq(c.head, 11000, '★源泉の 相手（払う額 99,790 を 全部 払った）の 次の 紙に 繰越 10,210 が 載った★');
+    const a = atama(tsugi('pA', false));
+    eq(a.head, 22000, '★源泉の 無い 相手（未入金 11,000）の 繰越が 今までと 違う★');
+    const b = atama(tsugi('pB', false));
+    eq(b.head, 11000, '★控除の 相手（払う額 20,000 を 全部 払った）の 次の 紙に 繰越が 載った★');
+    console.log('     次の 紙の 頭 … 源泉の 相手 ' + c.head + ' ／ 未入金の 相手 ' + a.head + ' ／ 控除の 相手 ' + b.head);
+  });
 }
 
 if (!SELF) {

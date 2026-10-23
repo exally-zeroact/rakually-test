@@ -73,6 +73,7 @@
    *   prev     … prevOf の返り（無ければ null）
    *   receipts … 入金の一覧。★読めなかった時は null を渡す（[] と区別する）★
    *   thisTotal… 今回の請求の合計
+   *   prevTotalOf(prev)… 前回の 額（省けば grandTotal）＝画面は 相手が 実際に 払う 額（源泉の 後）を 渡す
    * 返り = { state, prevNo, prevTotal, paid, carry, thisTotal, grandTotal, label }
    */
   function compute(o) {
@@ -86,7 +87,12 @@
         thisTotal: thisTotal, grandTotal: thisTotal, label: STATE_LABEL.first,
       };
     }
-    var prevTotal = totalOf(prev);
+    /* ★前回の 額は 呼ぶ側が 渡せる（prevTotalOf）★（司さん 10-24「法律的に最適解で」）
+       ＝相手が 実際に 払う 額（源泉を 引いた 後）。源泉所得税は 払う側が 差し引いて 国へ 納める
+         （所得税法 204条・212条）ので、差し引いた 分は 払い残りでは なく 清算済み。
+       渡されなければ 今まで どおり grandTotal（源泉の 無い 1通は 1円も 変わらない）。 */
+    var prevTotal = o.prevTotalOf ? o.prevTotalOf(prev) : totalOf(prev);
+    if (prevTotal === null || prevTotal === undefined || !Number.isFinite(Number(prevTotal))) prevTotal = totalOf(prev);
 
     if (o.receipts == null) {
       // ★読めなかった＝数を作らない（0にしない）

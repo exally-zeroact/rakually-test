@@ -2861,7 +2861,10 @@
     var prev = CARRY.prevOf(S.invoices, v);
     /* ★入金が読めていない時は null のまま渡す（0にしない＝紙に「未確認」と出る）★
        S.receipts が唯一の正：null＝読めていない／[]＝読めた上で0件。作り分けを2か所に持たない。 */
-    return CARRY.compute({ thisTotal: t.grandTotal, prev: prev, receipts: S.receipts });
+    /* ★前回の 残りは 相手が 実際に 払う 額（gakuOf＝源泉の 後）で 数える★（司さん 10-24「法律的に最適解で」）
+       ＝源泉の 分は 相手が 国へ 納める（所得税法 204条・212条）＝払い残りでは ない。
+       ★発行済みの 紙は snapshot の 繰越の まま★（上の fromSnapshot で 返る＝書き換えない） */
+    return CARRY.compute({ thisTotal: t.grandTotal, prev: prev, receipts: S.receipts, prevTotalOf: gakuOf });
   }
 
   /** 「◯年◯月分」の説明。★空なら 請求日の前月から自動で入る事を言う★ */
