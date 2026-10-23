@@ -10,15 +10,17 @@
  * 見る物:
  *   ① 設定の 上に 切り替えが 3つ（取引先／自社情報／テンプレート）・最初は 取引先
  *   ② 押すと 中身が 替わる（1つだけ 出る・押した 札が 光る）
- *   ③ ★前に 在った 欄が 1つも 落ちていない★（9e3bf01 の 設定の id 101個を 数える・落ち 0）
+ *   ③ ★前に 在った 欄が 1つも 落ちていない★（9e3bf01 の 設定の id 101個＋⑧ の 5個＝106個を 数える・落ち 0）
  *   ④ どの 欄が どの 切り替えに 在るか（割り振りの 表と 同じ）・ログインは 一番下
  *   ⑤ 取引先は ★会社ごとの 札★で 並ぶ（1社ずつ 選ぶ 選び箱は 見せない）・押すと 開いて 閉じる
  *   ⑥ 開いた 札の 中で 前と 同じ 欄が 直せて「この取引先を保存」で 倉庫へ 入る
  *   ⑦ 取引先を 足せる（名前 1つで・足した 札が 開く）
  *   ⑧ 入力の「枠を増やす」「設定で変える」から 来た時は テンプレートが 開く
  *   ⑨ 形（Chrome 390px）＝切り替え 3つが 1行に 横いっぱい・はみ出さない
+ *   ⑩ お振込先の「保存」が 落ちたら「保存しました」を 出さない（taiketsu 10-23 止3）
  *
- * 使い方: node seikyu/tests/settei-wake-ui.mjs [--self-test]
+ * 使い方: node seikyu/tests/settei-wake-ui.mjs [--self-test] [--jsdom-only]
+ *   --jsdom-only … ブラウザを 使わない（⑨ は ★未測定★と 言って 数えない・緑とは 呼ばない）
  *   --self-test … わざと 壊した seikyu-app.js / index.html で 赤に なるかを 見る
  */
 import fs from 'node:fs';
@@ -34,13 +36,15 @@ try { ({ JSDOM } = require_('jsdom')); }
 catch { console.log('★jsdom が要ります（npm install）。飛ばせません（SKIPを緑と呼ばない）。'); process.exit(1); }
 
 const SELF = process.argv.includes('--self-test');
+const JSDOM_ONLY = process.argv.includes('--jsdom-only');
+let mimei = 0;
 let pass = 0, fail = 0;
 const ok = (v, m) => { if (!v) throw new Error(m || 'false'); };
 const eq = (a, b, m) => { if (a !== b) throw new Error((m ? m + ': ' : '') + 'ほしい ' + JSON.stringify(b) + ' / 出た ' + JSON.stringify(a)); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const FILE = path.join(ROOT, 'seikyu/index.html');
 
-/* ★前（9e3bf01）の 設定に 在った id ぜんぶ★（101個・機械で 拾って 写した）
+/* ★前（9e3bf01）の 設定に 在った id ぜんぶ★（101個・機械で 拾って 写した）＋⑧ の 5個＝106個
    ★どれか 1つでも 無くなったら 赤★＝分ける時に 欄を 落とさない */
 const MAE_IDS = ['set-pv-card', 'set-pv-toggle', 'set-pv-body', 'set-paper', 'set-pv-note', 'org-view', 's-tpl-card',
   's-tpl-now', 'b-tpl-open', 's-tpl-box', 's-tpl', 's-tpl-note', 'paper-ask-card', 'paper-ask', 'set-more', 's-rows',
@@ -53,7 +57,9 @@ const MAE_IDS = ['set-pv-card', 'set-pv-toggle', 'set-pv-body', 'set-paper', 'se
   'b-book-pick', 'book-fname', 'book-file', 'book-info', 'book-slots', 'book-acts', 'b-book-use', 'b-book-clear',
   'book-ok', 'book-err', 'seal-pv', 'seal-none', 'seal-mm', 'b-seal-pick', 'seal-fname', 'seal-file', 'seal-pos-box',
   'seal-stage', 'seal-paper', 'seal-drag', 'seal-x', 'seal-y', 'b-seal-home', 'seal-pos-why', 'b-seal-save',
-  'b-seal-clear', 'seal-why', 'seal-ok', 'seal-err', 'who', 'b-logout'];
+  'b-seal-clear', 'seal-why', 'seal-ok', 'seal-err', 'who', 'b-logout',
+  /* ★2026-10-23 ⑧ で 足された 5つ★（この取引先の紙・会社の既定と 別の紙の 一覧）＝106個 */
+  's-tpl-pt', 's-pt-tpl-row', 's-pt-tpl-now', 'b-pt-tpl-open', 's-pt-tpl-why'];
 
 /* ★割り振りの 表★（返事の 表と 同じ。ここが 正） */
 const WARI = {
@@ -218,11 +224,11 @@ async function run(label, o) {
     ok(r.errs.length === 0, '★画面で 例外★ ' + r.errs.join(' / '));
   });
 
-  await T('③ ★前に 在った 欄が 1つも 落ちていない★（101個 数える）', async () => {
+  await T('③ ★前に 在った 欄が 1つも 落ちていない★（106個 数える）', async () => {
     const r = await boot(o); await openSet(r);
     const set = r.doc.getElementById('scr-set');
     const ochi = MAE_IDS.filter((id) => { const el = r.doc.getElementById(id); return !el || !set.contains(el); });
-    eq(MAE_IDS.length, 101, '★数える 物が 101個 無い＝拾えていない★');
+    eq(MAE_IDS.length, 106, '★数える 物が 106個 無い＝拾えていない★');
     eq(ochi.length, 0, '★設定から 落ちた 欄★ ' + ochi.join(' / '));
     /* ★落ちていない＝どこかに 見える 道が 在る★（切り替えの 中か、上の 下見か、一番下の ログイン） */
     const mayoi = MAE_IDS.filter((id) => {
@@ -339,7 +345,23 @@ async function run(label, o) {
     ok(r.doc.getElementById('set-more').open, '詳しい設定が 開いていない');
   });
 
+  await T('⑩ ★お振込先の「保存」が 失敗したら「保存しました」を 出さない★（taiketsu 10-23 止3）', async () => {
+    const r = await boot(o); await openSet(r);
+    r.doc.querySelector('#set-seg [data-setseg="jisha"]').click(); await sleep(30);
+    r.doc.getElementById('b-bank-save').click(); await sleep(300);
+    ok(/保存しました/.test(r.doc.getElementById('bank-ok').textContent), '1回目（通る）で 保存しましたと 言わない');
+    const st = r.win.SeikyuApp._state.store;
+    st.org.save = () => Promise.resolve({ ok: false, reason: 'つながりません' });
+    r.doc.getElementById('b-bank-save').click(); await sleep(300);
+    const okEl = r.doc.getElementById('bank-ok'), errEl = r.doc.getElementById('bank-err');
+    ok(/保存できませんでした/.test(errEl.textContent) && errEl.style.display !== 'none', '★落ちたと 言わない★');
+    ok(okEl.style.display === 'none' && !/保存しました/.test(okEl.textContent), '★落ちたのに「保存しました」が 同時に 出ている★');
+    const setOk = r.doc.getElementById('set-ok');
+    ok(setOk.style.display === 'none', '★テンプレートの 箱にも 古い「保存しました」が 残る★');
+  });
+
   await T('⑨ 形（Chrome 390px）＝切り替え 3つが 1行に 横いっぱい・字が 切れない・横に はみ出さない', async () => {
+    if (JSDOM_ONLY) { mimei++; console.log('     ★未測定★（--jsdom-only＝ブラウザを 使っていない）'); return; }
     const r = await boot(o); await openSet(r);
     const j = await measureShape(r.doc);
     ok(j.seg && j.bs.length === 3, '切り替えが 測れていない');
@@ -380,5 +402,6 @@ if (!SELF) {
   console.log('\n壊した ' + cases.length + '通り のうち 赤 ' + red);
   process.exit(red === cases.length ? 0 : 1);
 }
+if (mimei) { pass -= mimei; console.log('\n★未測定 ' + mimei + '本（ブラウザ）★＝緑ではない'); }
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

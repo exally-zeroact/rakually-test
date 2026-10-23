@@ -6226,7 +6226,10 @@
     var errs = DOC.validateNumbering({ format: patch.numbering.invoice.format, resetYearly: patch.numbering.invoice.resetYearly, partnerCode: 'A001' });
     var cerrs = COLS.validate(patch.invoiceCols.items);
     if (cerrs.length) errs = errs.concat(cerrs);
-    if (errs.length) { box('set-err', errs.join(' ')); box('set-ok', ''); return Promise.resolve(); }
+    /* ★押した 時に 前の 知らせを 両方 消す★（taiketsu 10-23 止3＝前の「保存しました。」が 残ったまま 落ちると、
+       成功と 失敗が 同時に 出ていた） */
+    box('set-ok', '');
+    if (errs.length) { box('set-err', errs.join(' ')); return Promise.resolve(); }
     box('set-err', '');
     return S.store.org.save(patch).then(function (r) {
       if (!r.ok) { box('set-err', '保存できませんでした（' + r.reason + '）'); return; }
@@ -6778,8 +6781,13 @@
       box('bank-ok', ''); box('bank-err', '');
       return saveSettings().then(function () {
         var e = $('set-err'), o = $('set-ok');
-        box('bank-err', (e && e.style.display !== 'none') ? e.textContent : '');
-        box('bank-ok', (o && o.style.display !== 'none') ? o.textContent : '');
+        var bad = !!(e && e.style.display !== 'none' && e.textContent);
+        /* ★落ちた 時は 成功の 字を 出さない★（taiketsu 10-23 止3） */
+        box('bank-err', bad ? e.textContent : '');
+        box('bank-ok', (!bad && o && o.style.display !== 'none') ? o.textContent : '');
+      }, function (er) {
+        box('bank-err', '保存できませんでした（' + ((er && er.message) || '理由不明') + '）');
+        box('bank-ok', '');
       });
     };
     $('b-pt-save').onclick = function () { return savePartner(); };
