@@ -19,6 +19,8 @@
  *   ⑨ 消した 相手の 下書きは 発行できない（訳が 出る）               … taiketsu 10-23 止1
  *   ⑩ 倉庫で 1行も 書けていない時も「削除しました」と 言わない     … taiketsu 10-23 止2
  *   ⑪⑫⑬ 前に 消した 同じ名前で 足す＝混ぜるかを 訊く（手本 mazeruKaKiku）
+ *   ⑭⑮⑯ 混ぜるかを 訊く 所を 通り抜けない（見積書の 一覧の 時・消した 相手が 読めない 時・読み直し中）… taiketsu 10-23 止A
+ *   ⑰ 消した 相手は「毎月の請求（今月まだ）」に 出ない                                           … taiketsu 10-23 止B
  *
  * 使い方: node seikyu/tests/torihiki-sakujo-ui.mjs [--self-test]
  */
@@ -77,11 +79,13 @@ async function boot(o) {
     const p = path.resolve(path.dirname(FILE), s);
     if (!fs.existsSync(p)) continue;
     const el = doc.createElement('script');
-    el.textContent = (base === 'seikyu-app.js' && o.app) ? o.app : fs.readFileSync(p, 'utf8');
+    el.textContent = (base === 'seikyu-app.js' && o.app) ? o.app
+      : (base === 'seikyu-store.js' && o.store) ? o.store : fs.readFileSync(p, 'utf8');
     doc.body.appendChild(el);
   }
   await sleep(300);
   ok(win.SeikyuApp, 'seikyu-app.js が動いていない');
+  if (o.patchSb) o.patchSb(sb);     /* ★倉庫の 落ち方を 作る★（試験の 場面ごと） */
   await win.SeikyuApp.attach(sb);
   await sleep(300);
   return { win, doc, sb, errs };
@@ -377,6 +381,73 @@ async function run(label, o) {
     eq(asked.length, 0, '残っている 物が 無いのに 訊いた');
     ok(cardOf(r.doc, 'A株式会社'), '作れていない');
   });
+
+  /* ═══ taiketsu 2026-10-23 2回目（止A・止B）═══ */
+  const tadashii = (r) => r.sb._db.pay_partners.filter((x) => (x.data || {}).name === 'A株式会社');
+  await T('⑭ 止A① 一覧を「見積書」に 切り替えてから 足しても 混ぜるかを 訊く（請求書を 数える）', async () => {
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: goneA() }, o));
+    const q = r.doc.querySelector('#kind-seg [data-kind="quote"]');
+    ok(q, '見積書の 切り替えが 無い');
+    q.click(); await sleep(300);
+    await openSet(r);
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    await addName(r, 'A株式会社');
+    eq(asked.length, 1, '★見積書の 一覧の 時に 訊かずに 通った★');
+    ok(/請求書 2通/.test(asked[0]), '数えた 請求書の 数: ' + asked[0]);
+    eq(tadashii(r).length, 1, '★新しい 相手を 作った★');
+  });
+
+  await T('⑮ 止A② 消した 取引先が 読めなかった時は 足さない（「今は 確かめられません」）', async () => {
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: goneA(), patchSb: (sb) => {
+      const from0 = sb.from;
+      sb.from = function (t) {
+        const qq = from0.call(this, t);
+        if (t === 'pay_partners') {
+          const sel0 = qq.select;
+          qq.select = function (cols, oo) {
+            const x = sel0.call(this, cols, oo);
+            if (cols === 'id,data,deleted_at') x._run = () => ({ data: null, error: { message: 'つながりません' } });
+            return x;
+          };
+        }
+        return qq;
+      };
+    } }, o));
+    await openSet(r);
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    await addName(r, 'A株式会社');
+    eq(tadashii(r).length, 1, '★消した 相手が 読めないのに 新しい 相手を 作った★');
+    ok(/確かめられません/.test(r.doc.getElementById('pt-list-err').textContent), '足さなかった 訳を 言わない: ' + r.doc.getElementById('pt-list-err').textContent);
+  });
+
+  await T('⑯ 止A③ 一覧を 読み直している 途中（まだ 読めていない）でも 訊かずに 作らない', async () => {
+    const r = await boot(Object.assign({ invoices: clone(INVOICES), partners: goneA() }, o));
+    await openSet(r);
+    const S = r.win.SeikyuApp._state;
+    S.listReadOk = null; S.invoices = []; S.quotes = [];
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    await addName(r, 'A株式会社');
+    const rows = tadashii(r);
+    ok(!(rows.length === 2 && asked.length === 0), '★読めていないのに 訊かずに 新しい 相手を 作った★');
+    ok(asked.length === 1 ? /請求書 2通/.test(asked[0]) : /確かめられません/.test(r.doc.getElementById('pt-list-err').textContent),
+      '訊くなら 正しい 数で／止めるなら 訳を: ' + (asked[0] || r.doc.getElementById('pt-list-err').textContent));
+  });
+
+  await T('⑰ 止B 消した 取引先は「毎月の請求（今月まだの相手）」に 出ない', async () => {
+    const d = new Date();
+    const ym = (k) => { const x = new Date(d.getFullYear(), d.getMonth() - k, 5); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-05'; };
+    const iv = (id, pid, ymd, nm) => ({ id, account_id: 'u1', doc_type: 'invoice', status: 'issued', no: id, partner_id: pid,
+      issue_ymd: ymd, due_ymd: '', tax_mode: 'exclusive', rounding: 'floor', lines: LINES,
+      totals: { grandTotal: 33000, taxTotal: 3000 }, snapshot: { partner: { name: nm }, org: {} }, data: {}, template_id: 'std1',
+      deleted_at: null, updated_at: ymd + 'T00:00:00Z' });
+    const invs = [iv('a1', 'pt_a', ym(2), 'A株式会社'), iv('a2', 'pt_a', ym(1), 'A株式会社'),
+      iv('b1', 'pt_b', ym(2), 'B工務店'), iv('b2', 'pt_b', ym(1), 'B工務店')];
+    const r = await boot(Object.assign({ invoices: invs, partners: goneA() }, o));
+    r.doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(200);
+    const names = [...r.doc.querySelectorAll('#rec-box .rec-n')].map((x) => x.firstChild.textContent.trim());
+    ok(names.includes('B工務店'), '生きている 相手が 出ない（試験の 形が 違う）: ' + names.join(','));
+    ok(!names.includes('A株式会社'), '★消した 相手が「今月まだ」に 出ている★: ' + names.join(','));
+  });
 }
 
 if (!SELF) {
@@ -384,12 +455,16 @@ if (!SELF) {
 } else {
   /* ★わざと 壊して 赤に なるかを 見る★ */
   const app = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-app.js'), 'utf8');
+  const store = fs.readFileSync(path.join(ROOT, 'seikyu/js/seikyu-store.js'), 'utf8');
   const cases = [
     ['確かめを 飛ばす', { app: app.replace("if (!global.confirm(nm + ' を取引先から削除します", "if (false && !global.confirm(nm + ' を取引先から削除します") }],
     ['消した 名前を 覚えない', { app: app.replace('function partnerById(id) {', 'function partnerById(id) { S.gonePartners = {};') }],
     ['下書きの 相手を 黙って 外す', { app: app.replace('function ptGoneOpt(v) {', 'function ptGoneOpt(v) { return null;') }],
     ['消した 相手で 発行させる', { app: app.split('var p = ptLive(v.partner_id);').join('var p = partnerById(v.partner_id);').split('partner: ptLive(v.partner_id),').join('partner: partnerById(v.partner_id),') }],
-    ['同じ 名前で 訊かない', { app: app.replace('if (mae && mae.tsu > 0) {', 'if (false) {') }],
+    ['同じ 名前で 訊かない', { app: app.replace('if (mae.tsu > 0) {', 'if (false) {') }],
+    ['消した 相手を 読めないのを「無し」扱い', { app: app.replace("if (!Array.isArray(rows)) { S.goneReadOk = false; return; }", "if (!Array.isArray(rows)) { S.goneReadOk = true; return; }") }],
+    ['毎月の請求に 消した 相手を 出す', { app: app.replace('.filter(function (d) { return !!ptLive(d.partnerId); });', ';') }],
+    ['倉庫で 消えたかを 確かめない（seikyu-store）', { store: store.replace("if (!q || !q.data || !q.data.deleted_at) return { ok: false, reason: '倉庫で 消えた事を 確かめられませんでした' };", '') }],
   ];
   let red = 0;
   for (const [nm, oo] of cases) {

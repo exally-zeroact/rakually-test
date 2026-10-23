@@ -1152,7 +1152,9 @@
     var isInv = (S.kind || 'invoice') === 'invoice';
     if (!RC || !isInv) { host.innerHTML = ''; return; }
     var due = RC.dueList({ invoices: S.invoices || [], partners: S.partners || [],
-      ym: RC.ymOf(todayYmd()) });
+      ym: RC.ymOf(todayYmd()) })
+      /* ★消した 取引先は 出さない★（taiketsu 10-23 止B＝押すと 消した 相手の 下書きが 出来て 発行は 出来ない） */
+      .filter(function (d) { return !!ptLive(d.partnerId); });
     if (!due.length) { host.innerHTML = ''; return; }
     var ym = RC.ymOf(todayYmd());
     var lb = ym.slice(0, 4) + '年' + Number(ym.slice(5, 7)) + '月';
@@ -5981,7 +5983,7 @@
         box('pt-list-ok', '「' + nm + '」を取引先から削除しました（出した請求書は残ります）。');
       });
     }).catch(function (e) {
-      box('pt-list-err', '削除できませんでした（' + ((e && e.message) || '理由不明') + '）。もう一度 押してください。');
+      box('pt-list-err', '削除できませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
     });
   }
   /** 消した 取引先の 名前を 倉庫から 読む（読めなければ 何も しない） */
@@ -5989,8 +5991,11 @@
     var st = S.store && S.store.partners;
     if (!st || typeof st.gone !== 'function') return Promise.resolve();
     return Promise.resolve(st.gone()).then(function (rows) {
-      (rows || []).forEach(function (x) { if (x && x.id) S.gonePartners[x.id] = x; });
-    }).catch(function () { /* 読めなくても 止めない */ });
+      /* ★読めなかった（null）と 0件（[]）を 作り分ける★（taiketsu 10-23 止A②＝落ちて「無し」扱いに しない） */
+      if (!Array.isArray(rows)) { S.goneReadOk = false; return; }
+      rows.forEach(function (x) { if (x && x.id) S.gonePartners[x.id] = x; });
+      S.goneReadOk = true;
+    }).catch(function () { S.goneReadOk = false; /* 画面は 止めない（足す 時に 止める） */ });
   }
   /** ★この 1通の 相手が 消した 取引先なら★ 選び肢に「（削除済み）」で 1つだけ 足す
    *  ＝黙って「（選んでください）」に 見せない（相手は 外れていない）。新しい 請求書には 出ない。 */
@@ -6112,39 +6117,64 @@
     var name = String((inp && inp.value) || '').trim();
     box('pt-list-ok', ''); box('pt-list-err', '');
     if (!name) { box('pt-list-err', '会社名を入れてください。'); return Promise.resolve(); }
+    /* ★確かめている 間に もう一度 押しても 2回 訊かない★（手本 KAISHA_KIKU_CHU と 同じ） */
+    if (S.ptAddChu) { box('pt-list-err', '取引先の 記録を 確かめています。少し 待ってから もう一度 押してください。'); return Promise.resolve(); }
     /* ★前に 消した 同じ 名前の 取引先が 在れば 混ぜるかを 訊く★（手本＝代行請求書の mazeruKaKiku・司さん 10-16 の 決め）
        ★生きている 同じ 名前★は 倉庫の create が その 相手を 返す（2つ 作らない）＝ここでは 訊かない。 */
     var ike = S.partners.some(function (x) { return String(((x.data || {}).name) || '').trim() === name; });
-    var mae = ike ? null : ptGoneSameName(name);
-    if (mae && !mae.yometa) {
-      box('pt-list-err', '取引先を 足しませんでした（前に 消した 同じ 名前の 記録を 数えられませんでした）。一覧を 読み直してから もう一度 押してください。');
-      return Promise.resolve();
-    }
-    if (mae && mae.tsu > 0) {
-      var mazeru = global.confirm('「' + name + '」の 名前で 前に 消した 取引先の 記録が 残っています（'
-        + '請求書 ' + mae.tsu + '通' + (mae.nyukin ? '・入金 ' + mae.nyukin + '件' : '') + '）。\n'
-        + 'この 取引先に 混ぜますか？ 混ぜると、前の 請求書・入金・繰越が この 取引先に 続きます。\n'
-        + '混ぜないと、新しい 取引先として 作ります（前の 請求書は 前の まま 残り、繰越は 引き継ぎません）。');
-      if (mazeru) return ptRevive(mae.p, name);
-      return ptCreate(name, '「' + name + '」を 新しい 取引先として 足しました（前の 請求書は 前の まま・繰越は 引き継ぎません）。');
-    }
-    return ptCreate(name, null);
-  }
-  /** 前に 消した 同じ 名前の 取引先と、その 相手に 残っている 記録の 数（一覧が 読めていなければ yometa:false） */
-  function ptGoneSameName(name) {
-    var cand = Object.keys(S.gonePartners || {}).map(function (k) { return S.gonePartners[k]; })
-      .filter(function (g) { return String(((g.data || {}).name) || '').trim() === name; });
-    if (!cand.length) return null;
-    if (S.listReadOk === false) return { yometa: false };
-    var best = null;
-    cand.forEach(function (g) {
-      var mine = (S.invoices || []).concat(S.quotes || []).filter(function (v) { return v.partner_id === g.id; });
-      var ids = {}; mine.forEach(function (v) { ids[v.id] = 1; });
-      var nyukin = (S.receipts || []).filter(function (x) { return ids[x.invoice_id]; }).length;
-      var e = { yometa: true, p: g, tsu: mine.length, nyukin: nyukin };
-      if (!best || e.tsu > best.tsu) best = e;
+    if (ike) return ptCreate(name, null);
+    var DAME = '取引先を 足しませんでした（今は 前に 消した 取引先の 記録を 確かめられません）。少し 待ってから もう一度 押してください。';
+    S.ptAddChu = true;
+    /* ★通り抜けない★（taiketsu 10-23 止A）
+       ・消した 取引先を 読めていない（読みが 落ちた・まだ 読んでいる）＝★「無し」と 見なさない★＝足さない
+       ・残っている 請求書は ★画面の 一覧に 頼らず 倉庫から 請求書を 読んで 数える★
+         （一覧が 見積書の 時・読み直し中でも 正しく 数える）。読めなければ 足さない。 */
+    return ptGoneReady().then(function (okGone) {
+      if (!okGone) { box('pt-list-err', DAME); return; }
+      var cand = Object.keys(S.gonePartners || {}).map(function (k) { return S.gonePartners[k]; })
+        .filter(function (g) { return String(((g.data || {}).name) || '').trim() === name; });
+      if (!cand.length) return ptCreate(name, null);
+      return ptKiroku(cand).then(function (mae) {
+        if (!mae) { box('pt-list-err', DAME); return; }
+        if (mae.tsu > 0) {
+          var mazeru = global.confirm('「' + name + '」の 名前で 前に 消した 取引先の 記録が 残っています（'
+            + '請求書 ' + mae.tsu + '通' + (mae.nyukin ? '・入金 ' + mae.nyukin + '件' : '') + '）。\n'
+            + 'この 取引先に 混ぜますか？ 混ぜると、前の 請求書・入金・繰越が この 取引先に 続きます。\n'
+            + '混ぜないと、新しい 取引先として 作ります（前の 請求書は 前の まま 残り、繰越は 引き継ぎません）。');
+          if (mazeru) return ptRevive(mae.p, name);
+          return ptCreate(name, '「' + name + '」を 新しい 取引先として 足しました（前の 請求書は 前の まま・繰越は 引き継ぎません）。');
+        }
+        return ptCreate(name, null);
+      });
+    }).then(function () { S.ptAddChu = false; }, function (e) {
+      S.ptAddChu = false;
+      box('pt-list-err', '足せませんでした（' + ptWhy(e && e.message) + '）。もう一度 押してください。');
     });
-    return best;
+  }
+  /** 消した 取引先を 読めているか（読めていなければ もう一度 読む）。読めた 時だけ true */
+  function ptGoneReady() {
+    if (S.goneReadOk === true) return Promise.resolve(true);
+    return ptGoneLoad().then(function () { return S.goneReadOk === true; });
+  }
+  /** ★残っている 記録を 倉庫から 数える★（請求書は 種類を 問わず 倉庫の 請求書を 読む・入金も）。
+   *  読めなければ null（＝確かめられない＝足さない）。いちばん 記録の 多い 相手を 返す。 */
+  function ptKiroku(cand) {
+    return Promise.all([
+      S.store.invoices.list('invoice'),
+      Promise.resolve(S.store.receipts.list()).catch(function () { return null; }),
+    ]).then(function (r) {
+      var invs = r[0] || [];
+      var recs = Array.isArray(r[1]) ? r[1] : [];
+      var best = null;
+      cand.forEach(function (g) {
+        var mine = invs.filter(function (v) { return v.partner_id === g.id; });
+        var ids = {}; mine.forEach(function (v) { ids[v.id] = 1; });
+        var nyukin = recs.filter(function (x) { return ids[x.invoice_id]; }).length;
+        var e = { p: g, tsu: mine.length, nyukin: nyukin };
+        if (!best || e.tsu > best.tsu) best = e;
+      });
+      return best;
+    }, function () { return null; });
   }
   /** ★混ぜる＝前の 相手を 戻す★（同じ id＝前の 請求書・入金・繰越が 続く） */
   function ptRevive(g, name) {
@@ -6157,6 +6187,7 @@
         fillPtSelect('');
         renderPtCards();
         ptOpen(g.id);
+        try { drawListPartners(); } catch (e) { /* 一覧が 無い 画面でも 止めない */ }
         box('pt-list-ok', '「' + name + '」を 前の 取引先に 戻しました（前の 請求書・入金・繰越が 続きます）。');
       });
     }).catch(function (e) {
@@ -6173,6 +6204,7 @@
         fillPtSelect('');
         renderPtCards();
         ptOpen(r.id);
+        try { drawListPartners(); } catch (e) { /* 一覧が 無い 画面でも 止めない */ }
         box('pt-list-ok', r.already
           ? '「' + name + '」は もう在ったので、その相手を開きました。'
           : (okMsg || ('「' + name + '」を足しました。開いた札の中で 1問ずつ聞きます。')));
@@ -6232,7 +6264,7 @@
     if (errs.length) { box('set-err', errs.join(' ')); return Promise.resolve(); }
     box('set-err', '');
     return S.store.org.save(patch).then(function (r) {
-      if (!r.ok) { box('set-err', '保存できませんでした（' + r.reason + '）'); return; }
+      if (!r.ok) { box('set-err', '保存できませんでした（' + ptWhy(r.reason) + '）'); return; }
       S.org = r.data;
       box('set-ok', '保存しました。');
     });
@@ -6786,7 +6818,7 @@
         box('bank-err', bad ? e.textContent : '');
         box('bank-ok', (!bad && o && o.style.display !== 'none') ? o.textContent : '');
       }, function (er) {
-        box('bank-err', '保存できませんでした（' + ((er && er.message) || '理由不明') + '）');
+        box('bank-err', '保存できませんでした（' + ptWhy(er && er.message) + '）');
         box('bank-ok', '');
       });
     };
