@@ -102,8 +102,8 @@ if (SELF) {
     ['いつでも 直せるのを やめる', lib, 'function canEdit() { return true; }'],
     ['発行するを いつも 出す', app, "var mada = DOC.statusOf(v) === 'draft';"],
     ['保存で 状態を 落とす', store, "status: (['draft', 'issued', 'void'].indexOf(inv.status) >= 0) ? inv.status : 'draft',"],
-    ['前の 明細を 入れない', app, 'v.lines = g.lines.map(function (l) { return Object.assign(blankLine(), l); });'],
-    ['前の 控除を 入れない', app, 'v.data.deductions = g.deductions.map(function (x) {'],
+    ['前の 明細を 入れない', app, 'ireL = g.lines.map(function (l) { return Object.assign(blankLine(), l); });'],
+    ['前の 控除を 入れない', app, 'ireD = g.deductions.map(function (x) {'],
   ];
   kowasu.forEach(([na, src, a]) => ok(src.split(a).length === 2,
     '★壊す所が 1つ 見つからない★ ' + na + ' … ' + a));

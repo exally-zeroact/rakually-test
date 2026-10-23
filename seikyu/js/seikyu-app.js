@@ -885,9 +885,19 @@
 
   /* ★今の 1通は 保存か 発行を 終えて、その後 何も 打っていないか★（2026-10-23）
      ＝下の「入力」を 押した時に 白紙で 開く 条件。打ちかけ・しまえなかった 1通は 続きを 出す（失わない） */
+  function owattaKata(v) {
+    return JSON.stringify([v.partner_id, v.issue_ymd, v.due_ymd, v.no, v.tax_mode, v.rounding, v.status,
+      cleanLines(v.lines || []), ['subject', 'memo', 'term', 'gensen', 'deductions', 'lead'].map(function (k) {
+        return (v.data || {})[k];
+      })]);
+  }
+  function owattaOboe(v) { S.owatta = v; S.owattaKata = v ? owattaKata(v) : null; }
   function owattaNoMama() {
     var v = S.cur;
     if (!v || !S.owatta || S.owatta !== v || S.dirty) return false;
+    /* ★終えた 後に 1文字でも 触ったら 続き★（taiketsu S6＝保存の 後に 打つと 1.5秒の 自動しまいで dirty が 戻り、
+       一覧→入力 で 直している 途中の 1通が 消えた ように 見えた）＝終えた 時の 中身と 比べる */
+    if (S.owattaKata !== owattaKata(v)) return false;
     if (S.ochita && ((v.id && S.ochita[v.id]) || (v._k && S.ochita[v._k]))) return false;
     return true;
   }
@@ -1267,43 +1277,86 @@
     if (k === 'gensen') return !!d.gensen;
     if (k === 'tax') return String(v.tax_mode || '');
     if (k === 'round') return String(v.rounding || '');
-    if (k === 'lines') return (v.lines || []).map(function (l) {
-      l = l || {};
-      return [String(l.name || ''), String(l.qty || ''), String(l.unit || ''), String(l.price || ''),
-        String(l.amount || ''), String(l.rate == null ? '' : l.rate), !!l.nontax, String(l.memo || '')];
-    });
-    if (k === 'ded') return (d.deductions || []).map(function (x) {
-      return [String((x && x.name) || ''), String((x && x.amount) == null ? '' : x.amount)];
-    });
     return null;
   }
-  function jidoOboe(v, keys) {
-    if (!v) return;
-    if (!S.jido || S.jido.cur !== v) {
-      if (v.id) return;               /* 一覧から 開いた 1通は 覚えない（人の 物） */
-      S.jido = { cur: v, vals: {} };
-    }
-    keys.forEach(function (k) { S.jido.vals[k] = JSON.stringify(jidoKata(v, k)); });
+  /* ★明細・控除は ★1行ずつ★ 覚える★（taiketsu S5 2026-10-23）
+     ＝前は 全部の 行を まとめて 比べたので、1行でも 触る（×で 消す・単価を 直す）と
+       触っていない A社の 行まで 全部 残った。★入れた まま の 行だけ 外す★（直した 行は 残す） */
+  function jidoGyo(l) {
+    l = l || {};
+    return JSON.stringify([String(l.name || ''), String(l.qty || ''), String(l.unit || ''), String(l.price || ''),
+      String(l.amount || ''), String(l.rate == null ? '' : l.rate), !!l.nontax, String(l.memo || '')]);
   }
-  /** 前の 相手から 入れた まま の 値を 外す。戻り＝外した 物の 名前（言う為） */
+  function jidoKoujo(x) {
+    return JSON.stringify([String((x && x.name) || ''), String((x && x.amount) == null ? '' : x.amount)]);
+  }
+  function gyoAru(l) {
+    return !!(l && (String(l.name || '').trim() || String(l.amount || '').trim() || String(l.price || '').trim()));
+  }
+  function jidoBasho(v) {
+    if (!v) return null;
+    if (!S.jido || S.jido.cur !== v) {
+      if (v.id) return null;          /* 一覧から 開いた 1通は 覚えない（人の 物） */
+      S.jido = { cur: v, vals: {}, lines: [], ded: [] };
+    }
+    if (!S.jido.lines) S.jido.lines = [];
+    if (!S.jido.ded) S.jido.ded = [];
+    return S.jido;
+  }
+  function jidoOboe(v, keys) {
+    var j = jidoBasho(v); if (!j) return;
+    keys.forEach(function (k) { j.vals[k] = JSON.stringify(jidoKata(v, k)); });
+  }
+  /** 入れた 行を 覚える（★足した 行だけ★） */
+  function jidoGyoOboe(v, lines, deds) {
+    var j = jidoBasho(v); if (!j) return;
+    (lines || []).forEach(function (l) { j.lines.push(jidoGyo(l)); });
+    (deds || []).forEach(function (x) { j.ded.push(jidoKoujo(x)); });
+  }
+  /** 前の 相手から 入れた まま の 値を 外す。
+   *  戻り＝{ out: 外した 物の 名前, nokoriL/nokoriD: 残した（打った・直した）行の 数 }（言う為） */
   function jidoHazusu(v) {
-    if (!jidoNoCur(v)) return [];
-    var j = S.jido.vals, d = v.data = v.data || {}, s = settings(), out = [];
+    var kekka = { out: [], nokoriL: 0, nokoriD: 0 };
+    if (!jidoNoCur(v)) return kekka;
+    var j = S.jido.vals, d = v.data = v.data || {}, s = settings(), out = kekka.out;
     var mama = function (k) { return Object.prototype.hasOwnProperty.call(j, k) && j[k] === JSON.stringify(jidoKata(v, k)); };
     if (mama('subject') && d.subject) { d.subject = ''; out.push('件名'); }
     if (mama('memo') && d.memo) { d.memo = ''; out.push('備考'); }
-    var gyo = (v.lines || []).filter(function (l) { return l && (String(l.name || '').trim() || String(l.amount || '').trim() || String(l.price || '').trim()); }).length;
-    if (mama('lines') && gyo) { v.lines = [blankLine()]; out.push('明細 ' + gyo + '行'); }
-    if (mama('ded') && (d.deductions || []).length) { out.push('控除 ' + d.deductions.length + '行'); d.deductions = []; }
+    /* 明細＝入れた まま の 行だけ 外す */
+    var mi = (S.jido.lines || []).slice(), hazuL = 0;
+    var nokoriLines = (v.lines || []).filter(function (l) {
+      if (!gyoAru(l)) return false;
+      var i = mi.indexOf(jidoGyo(l));
+      if (i >= 0) { mi.splice(i, 1); hazuL++; return false; }
+      return true;
+    });
+    if (hazuL) {
+      v.lines = nokoriLines.length ? nokoriLines : [blankLine()];
+      out.push('明細 ' + hazuL + '行');
+      kekka.nokoriL = nokoriLines.length;
+    }
+    var md = (S.jido.ded || []).slice(), hazuD = 0;
+    var nokoriDed = (d.deductions || []).filter(function (x) {
+      var i = md.indexOf(jidoKoujo(x));
+      if (i >= 0) { md.splice(i, 1); hazuD++; return false; }
+      return true;
+    });
+    if (hazuD) { d.deductions = nokoriDed; out.push('控除 ' + hazuD + '行'); kekka.nokoriD = nokoriDed.length; }
     if (mama('term') && d.term && d.term.kind && d.term.kind !== 'none') {
-      if (mama('due')) v.due_ymd = '';
+      /* ★期日は 支払期限から 自動で 出た 物なら 一緒に 外す★（taiketsu S4＝請求日を 変えると 期日が 動き、
+         覚えた 値と 違って 期日だけ A社の まま 残った）。手で 打った 期日は 残す */
+      if (mama('due') || String(v.due_ymd || '') === String(DOC.dueDateFrom(v.issue_ymd, d.term) || '')) v.due_ymd = '';
       d.term = { kind: 'none', n: 0 }; out.push('支払期限');
     }
     if (mama('gensen') && d.gensen) { d.gensen = false; out.push('源泉徴収'); }
-    if (mama('tax')) v.tax_mode = s.taxMode;
-    if (mama('round')) v.rounding = s.rounding;
-    S.jido = { cur: v, vals: {} };
-    return out;
+    /* ★税の 入れ方・端数も 戻したら 言う★（taiketsu S2/S3＝黙って 戻すと 合計が 変わって 見える） */
+    if (mama('tax') && v.tax_mode !== s.taxMode) {
+      v.tax_mode = s.taxMode;
+      out.push('金額の入れ方（' + (s.taxMode === 'inclusive' ? '税込み' : '税抜き') + 'に 戻す）');
+    }
+    if (mama('round') && v.rounding !== s.rounding) { v.rounding = s.rounding; out.push('消費税の 端数の 扱い'); }
+    S.jido = { cur: v, vals: {}, lines: mi, ded: md };
+    return kekka;
   }
 
   function renderGuess() {
@@ -1350,23 +1403,28 @@
         && !String((l && l.price) || '').trim();
     });
     var hikiL = 0, hikiD = 0;
-    if (kara && g.lines && g.lines.length) {
-      v.lines = g.lines.map(function (l) { return Object.assign(blankLine(), l); });
-      hikiL = v.lines.length;
+    /* ★相手を 選び直して 前の 相手の 行を 外した 時は、残った（直した）行の 後ろに この相手の 前回を 足す★
+       （taiketsu S5＝前は 1行でも 残ると この相手の 明細が 入らなかった）。ふだんは 打ち始めていたら 入れない */
+    var tasu = !!S.oiToki;
+    var ireL = [], ireD = [];
+    if ((kara || tasu) && g.lines && g.lines.length) {
+      ireL = g.lines.map(function (l) { return Object.assign(blankLine(), l); });
+      v.lines = kara ? ireL : v.lines.filter(gyoAru).concat(ireL);
+      hikiL = ireL.length;
     }
-    if (kara && g.deductions && g.deductions.length && !(v.data.deductions || []).length) {
-      v.data.deductions = g.deductions.map(function (x) {
+    if ((kara || tasu) && g.deductions && g.deductions.length && (tasu || !(v.data.deductions || []).length)) {
+      ireD = g.deductions.map(function (x) {
         return { name: String((x && x.name) || ''), amount: (x && x.amount) };
       });
-      hikiD = v.data.deductions.length;
+      v.data.deductions = (v.data.deductions || []).concat(ireD);
+      hikiD = ireD.length;
     }
     S.guessApplied = { subject: !!g.subject && jido.indexOf('subject') >= 0, term: !!(g.term && g.term.kind !== 'none'), gensen: !!g.gensen };
     S.guessDone = true;
     recalcDue();
-    if (hikiL) jido.push('lines');
-    if (hikiD) jido.push('ded');
     jido.push('due');
-    jidoOboe(v, jido);                /* ★この 相手から 入れた 物を 覚える★（相手を 変えたら 外す） */
+    jidoOboe(v, jido);
+    jidoGyoOboe(v, ireL, ireD);                /* ★この 相手から 入れた 物を 覚える★（相手を 変えたら 外す） */
     fillEdit();
     show($('tag-subject'), !!S.guessApplied.subject);
     show($('tag-term'), !!S.guessApplied.term);
@@ -2936,7 +2994,7 @@
       if (S.cur !== okuttaCur) return;   // 返事の 前に 別の 1通を 開いた＝今の 画面には 付けない
       S.cur.id = r.id;
       S.dirty = false;
-      S.owatta = S.cur;                /* ★人が 保存を 終えた 1通★（次の「入力」は 白紙・owattaNoMama） */
+      owattaOboe(S.cur);               /* ★人が 保存を 終えた 1通★（次の「入力」は 白紙・owattaNoMama） */
       /* ★言葉は 状態なりに★（2026-09-09 いつでも直せるように したので
          発行済みを 直した時に「下書きを保存しました」と 出ると 嘘に なる）。 */
       box('edit-ok', (S.cur.status === 'issued' ? '直した内容を 保存しました（番号 ' + (S.cur.no || '') + ' は そのままです）。'
@@ -3051,7 +3109,7 @@
       ochiKesu(hakko);                 // ★発行で 中身も 倉庫に 入った＝「まだ 保存されていません」を 残さない★（taiketsu 10-14）
       hakko.snapshot = snap; hakko.totals = row.totals;
       /* ★発行を 終えた 1通★（中身は 発行で 全部 倉庫に 入った＝次の「入力」は 白紙・owattaNoMama） */
-      S.owatta = hakko;
+      owattaOboe(hakko);
       if (S.cur === hakko) S.dirty = false;
       box('edit-ok', '請求書 ' + r.no + ' を発行しました。'
         + (r.bumped ? '（同じ番号が先に使われていたので ' + r.bumped + ' つ進めました）' : '')
@@ -4897,11 +4955,14 @@
       if (!r.ok) { setText('pt-new-msg', '作れませんでした（' + r.reason + '）'); show($('pt-new-msg'), true); return; }
       return S.store.partners.list().then(function (list) {
         S.partners = list;
-        if (S.cur) S.cur.partner_id = r.id;          // ★作った相手を そのまま使う★
         $('pt-new-name').value = '';
         S.ptNewOpen = false;              // 作れたら 欄は閉じる（空欄を残さない）
-        fillEdit();
+        /* ★作った相手を そのまま使う★＝選びで 変えた 時と 同じ 道（aiteWoKaeta）を 通す（taiketsu S1・もう在った 相手でも） */
+        if (S.cur && S.cur.partner_id !== r.id) aiteWoKaeta(r.id);
+        var ok = ($('edit-ok') && $('edit-ok').style.display !== 'none') ? $('edit-ok').textContent : '';
+        fillEdit();                       /* 選びに 新しい 相手を 並べる */
         recalc();
+        if (ok) box('edit-ok', ok);       /* 外した・当てた 知らせは 残す */
         setText('pt-new-msg', r.already
           ? '「' + name + '」は もう在ったので、その相手を選びました。'
           : '「' + name + '」を作って、この請求書の相手にしました。あとは下で 1問ずつ聞きます。');
@@ -4973,6 +5034,59 @@
       box('pt-ok', '保存しました。' + (chk.level === 'digit' ? '（' + chk.msg + '）' : ''));
       return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); });
     });
+  }
+
+  /* ★相手を 変えた 時の 道は 1本★（taiketsu S1 2026-10-23＝その場で 相手を 作る 道は partner_id を 書き換えて
+     描き直す だけで、前の 相手の 明細・控除・件名・源泉・税・期限と「前回（No.…）と同じ」が 新しい 相手に 残った）
+     ＝選びで 変えても その場で 作っても ★ここを 通す★ */
+  function aiteWoKaeta(pid) {
+    S.cur.partner_id = pid;
+    S.dirty = true; jidoYoyaku();
+    S.guessDone = false;          // 相手を変えたら、また前回から当て直す
+    /* ★前の 相手から 自動で 入れた まま の 値は 外す★（2026-10-23 司さん「前の取引先の中身が反映されてる時がある」）
+       ＝外さないと B社の 1通に A社の 件名・明細・控除が 残る。打った 物は 残す（jidoHazusu の 註） */
+    var hz = jidoHazusu(S.cur), hazushita = hz.out;
+    S.oiToki = !!hazushita.length;  /* 前の 相手の 物を 外した＝残った 行の 後ろに この相手の 前回を 足してよい */
+    /* ★画面は いつも 中身で 描き直す★（taiketsu S2＝外す物が 無い 時に 税の 欄だけ 前の まま 残った） */
+    $('e-subject').value = (S.cur.data && S.cur.data.subject) || '';
+    $('e-memo').value = (S.cur.data && S.cur.data.memo) || '';
+    if ($('e-taxmode')) $('e-taxmode').value = (S.cur.tax_mode === 'inclusive') ? 'inclusive' : 'exclusive';
+    if (hazushita.length) ['tag-subject', 'tag-term', 'tag-gensen'].forEach(function (id) { show($(id), false); });
+    box('edit-ok', '');           /* ★前の 相手の「前回（No.…）と 同じで 用意しました」を 残さない★ */
+    applyPartnerDefaults();
+    /* ★取引先の既定（源泉の対象か・支払期限）を画面へ戻す★
+       ここを忘れると、中では源泉ありなのにチェックが外れて見える＝
+       人が「入れ直す」ために1回 余計に押すことになる（2026-08-11 検査で発生）。 */
+    $('e-gensen').checked = !!(S.cur.data && S.cur.data.gensen);
+    var term = (S.cur.data && S.cur.data.term) || { kind: 'none', n: 0 };
+    $('e-term').value = term.kind || 'none';
+    $('e-termn').value = term.n || '';
+    show($('e-termn'), term.kind === 'days' || term.kind === 'nextDay');
+    $('e-due').value = S.cur.due_ymd || '';
+    /* ★相手を変えたら 紙も 変わりうる★（取引先ごとに 様式を 設定で 決められる＝2026-09-05）
+       ★ここを 呼ばないと 1行に 出る名前と 実際に 出る紙が 食い違う★ */
+    tplSync();
+    renderTplAsk();
+    renderLines();
+    renderDeductions();
+    recalc();
+    drawGensenHint();
+    renderGuess();
+    S.oiToki = false;
+    if (hazushita.length) {
+      /* ★黙って 外さない★＝何を 外したかを 言う（当てた 知らせが 在れば その 前に 並べる） */
+      var ateta = ($('edit-ok') && $('edit-ok').style.display !== 'none') ? $('edit-ok').textContent : '';
+      var nokori = [];
+      if (hz.nokoriL) nokori.push('明細 ' + hz.nokoriL + '行');
+      if (hz.nokoriD) nokori.push('控除 ' + hz.nokoriD + '行');
+      box('edit-ok', '前の 相手から 入れていた ' + hazushita.join('・') + ' は 外しました。'
+        + (nokori.length ? '（打った・直した ' + nokori.join('・') + ' は 残しています。要らなければ × で 消せます）' : '')
+        + (ateta ? '\n' + ateta : ''));
+    }
+    /* ★相手を変えたら 聞く形も描き直す★
+       （実UIの押し込みで見つけた：変えても聞かれない＝設定へ行かせていた） */
+    renderPtAsk();
+    return autoNumber();
   }
 
   /* ═══ 配線 ═══ */
@@ -5056,47 +5170,7 @@
         var nm = $('pt-new-name'); if (nm) nm.focus();
         return;
       }
-      S.cur.partner_id = $('e-partner').value;
-      S.dirty = true; jidoYoyaku();
-      S.guessDone = false;          // 相手を変えたら、また前回から当て直す
-      /* ★前の 相手から 自動で 入れた まま の 値は 外す★（2026-10-23 司さん「前の取引先の中身が反映されてる時がある」）
-         ＝外さないと B社の 1通に A社の 件名・明細・控除が 残る。打った 物は 残す（jidoHazusu の 註） */
-      var hazushita = jidoHazusu(S.cur);
-      if (hazushita.length) {
-        $('e-subject').value = (S.cur.data && S.cur.data.subject) || '';
-        $('e-memo').value = (S.cur.data && S.cur.data.memo) || '';
-        if ($('e-taxmode')) $('e-taxmode').value = (S.cur.tax_mode === 'inclusive') ? 'inclusive' : 'exclusive';
-        ['tag-subject', 'tag-term', 'tag-gensen'].forEach(function (id) { show($(id), false); });
-      }
-      box('edit-ok', '');           /* ★前の 相手の「前回（No.…）と 同じで 用意しました」を 残さない★ */
-      applyPartnerDefaults();
-      /* ★取引先の既定（源泉の対象か・支払期限）を画面へ戻す★
-         ここを忘れると、中では源泉ありなのにチェックが外れて見える＝
-         人が「入れ直す」ために1回 余計に押すことになる（2026-08-11 検査で発生）。 */
-      $('e-gensen').checked = !!(S.cur.data && S.cur.data.gensen);
-      var term = (S.cur.data && S.cur.data.term) || { kind: 'none', n: 0 };
-      $('e-term').value = term.kind || 'none';
-      $('e-termn').value = term.n || '';
-      show($('e-termn'), term.kind === 'days' || term.kind === 'nextDay');
-      $('e-due').value = S.cur.due_ymd || '';
-      /* ★相手を変えたら 紙も 変わりうる★（取引先ごとに 様式を 設定で 決められる＝2026-09-05）
-         ★ここを 呼ばないと 1行に 出る名前と 実際に 出る紙が 食い違う★ */
-      tplSync();
-      renderTplAsk();
-      renderLines();
-      renderDeductions();
-      recalc();
-      drawGensenHint();
-      renderGuess();
-      if (hazushita.length) {
-        /* ★黙って 外さない★＝何を 外したかを 言う（当てた 知らせが 在れば その 前に 並べる） */
-        var ateta = ($('edit-ok') && $('edit-ok').style.display !== 'none') ? $('edit-ok').textContent : '';
-        box('edit-ok', '前の 相手から 入れていた ' + hazushita.join('・') + ' は 外しました。' + (ateta ? '\n' + ateta : ''));
-      }
-      /* ★相手を変えたら 聞く形も描き直す★
-         （実UIの押し込みで見つけた：変えても聞かれない＝設定へ行かせていた） */
-      renderPtAsk();
-      return autoNumber();
+      return aiteWoKaeta($('e-partner').value);
     };
     $('e-issue').onchange = function () {
       S.cur.issue_ymd = $('e-issue').value;
