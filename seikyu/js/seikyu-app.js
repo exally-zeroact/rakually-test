@@ -1707,6 +1707,8 @@
       })]);
   }
   function owattaKata(v) { return JSON.stringify([v.no, v.status, nakamiKata(v)]); }
+  /* ★保存の 比べ★＝番号も 入れる（返事待ちに 番号を 打っても 見分ける）。発行は 番号が 進むので nakamiKata だけ */
+  function hozonKata(v) { return JSON.stringify([v.no, nakamiKata(v)]); }
   function owattaOboe(v) { S.owatta = v; S.owattaKata = v ? owattaKata(v) : null; }
   function owattaNoMama() {
     var v = S.cur;
@@ -2105,6 +2107,8 @@
        ・★外すのは 入れた 値の まま の 物だけ★＝人が 直した 物（打った 件名・打ち直した 明細）は 消さない
        ・覚えるのは ★新しく 作った 下書き★だけ（一覧から 開いた 1通・発行済みは 人の 物＝触らない）
        ・お金の 計算は 触らない＝外した 後の 値は「最初から その相手を 選んだ 1通」と 同じ */
+  function zeiNa(m) { return m === 'inclusive' ? '税込み' : '税抜き'; }
+  function marumeNa(r) { return r === 'ceil' ? '切り上げ' : r === 'round' ? '四捨五入' : '切り捨て'; }
   function jidoNoCur(v) {
     return !!(v && S.jido && S.jido.cur === v && DOC.statusOf(v) === 'draft');
   }
@@ -2291,8 +2295,8 @@
     if (g.templateId && g.templateId === v.template_id) hiki.push('紙の様式');
     if (wantGensen) hiki.push('源泉徴収');
     /* ★税・端数を 会社の 既定と 違う 物に した 時も 言う★（taiketsu 止2＝黙って 税込みに しない） */
-    if (jido.indexOf('tax') >= 0 && v.tax_mode !== settings().taxMode) hiki.push('金額の入れ方（' + (v.tax_mode === 'inclusive' ? '税込み' : '税抜き') + '）');
-    if (jido.indexOf('round') >= 0 && v.rounding !== settings().rounding) hiki.push('消費税の 端数の 扱い');
+    if (jido.indexOf('tax') >= 0 && v.tax_mode !== settings().taxMode) { hiki.push('金額の入れ方（' + zeiNa(v.tax_mode) + '）'); S.zeiItta = true; }
+    if (jido.indexOf('round') >= 0 && v.rounding !== settings().rounding) { hiki.push('消費税の 端数の 扱い（' + marumeNa(v.rounding) + '）'); S.zeiItta = true; }
     if (hikiL) hiki.push('明細 ' + hikiL + '行');
     if (hikiD) hiki.push('控除 ' + hikiD + '行');
     box('edit-ok', (g.no ? '前回（No.' + g.no + '）と 同じで 用意しました' : '前回と 同じで 用意しました')
@@ -3036,6 +3040,9 @@
         var i = +b.getAttribute('data-del');
         S.cur.lines.splice(i, 1);
         if (!S.cur.lines.length) S.cur.lines.push(blankLine());
+        /* ★打った 行が 無くなったら「打った 明細が 在る／残っているので…」の 知らせは 嘘に なる★＝消す（任意4） */
+        var okEl = $('edit-ok');
+        if (!S.cur.lines.some(gyoAru) && okEl && /打った 明細が (在る|残っている)ので/.test(okEl.textContent || '')) box('edit-ok', '');
         S.dirty = true;
         jidoYoyaku();
         renderLines(); recalc(); lockInputs();
@@ -3759,6 +3766,7 @@
     v.lines = cleanLines(v.lines);
     v.totals = (t && t.ok) ? totalsOf(t) : {};
     var okuttaCur = S.cur;
+    var okuttaKata = hozonKata(v);    /* ★送った 時の 中身★（返事を 待つ 間に 打った 字を 見分ける・taiketsu 止A） */
     if (v.id && S.kieta && S.kieta[v.id]) return;
     try {
       S.hozonChu = S.store.invoices.saveDraft(v);
@@ -3766,7 +3774,12 @@
         if (r && r.ok) {
           /* ★id は 送った 1通に 付ける★（返事の 前に 別の 1通を 見ても、戻った 時に id が 無いと 同じ番号で 2通目を 作ろうとした・taiketsu 10-23） */
           if (okuttaCur && !okuttaCur.id) okuttaCur.id = r.id;
-          if (S.cur && S.cur === okuttaCur) S.dirty = false;
+          /* ★返事を 待つ 間に 打った 字は まだ 倉庫に 無い★（taiketsu 止A）＝送った 時と 同じ 中身の 時だけ 印を 落とす。
+             違えば 印を 残して 次の 自動の しまいに 任せる */
+          if (S.cur && S.cur === okuttaCur) {
+            if (hozonKata(S.cur) === okuttaKata) S.dirty = false;
+            else jidoYoyaku();
+          }
           ochiKesu(okuttaCur); return;
         }
         ochita(okuttaCur, r);
@@ -3889,7 +3902,7 @@
     box('edit-err', '');
     box('edit-ok', '');               // ★前の「保存しました」を 残さない★（落ちた時に 並んで 出ていた・taiketsu 10-14）
     var okuttaCur = S.cur;
-    var okuttaKata = nakamiKata(v);   /* ★送った 時の 中身★（返事を 待つ 間に 打った 字を 見分ける・taiketsu 止1） */
+    var okuttaKata = hozonKata(v);    /* ★送った 時の 中身★（返事を 待つ 間に 打った 字を 見分ける・taiketsu 止1） */
     var pr = Promise.resolve().then(function () { return S.store.invoices.saveDraft(v); });
     S.hozonChu = pr;
     return pr.then(function (r) {
@@ -3904,7 +3917,7 @@
       S.cur.id = r.id;
       /* ★返事を 待つ 間に 打った 字は まだ 倉庫に 無い★（taiketsu 止1）＝送った 時と 同じ 中身の 時だけ
          「しまえた」に して 終えた 印を 付ける。違えば 打ちかけの まま（自動の しまいに 任せる） */
-      if (nakamiKata(S.cur) === okuttaKata) {
+      if (hozonKata(S.cur) === okuttaKata) {
         S.dirty = false;
         owattaOboe(S.cur);             /* ★人が 保存を 終えた 1通★（次の「入力」は 白紙・owattaNoMama） */
       } else { S.dirty = true; jidoYoyaku(); }
@@ -6475,17 +6488,20 @@
     renderDeductions();
     recalc();
     drawGensenHint();
+    S.zeiItta = false;
     renderGuess();
     S.oiToki = false;
     /* ★税・端数は 当て直しが 終わった 後の 値と 比べて 言う★（taiketsu 止2＝「税抜きに 戻す」と 書いた 直後に
        次の 相手の 前回が 税込みを 黙って 入れ、字と 中身と 欄が 逆に なった） */
     var zeiBun = '';
-    var zeiNa = function (m) { return m === 'inclusive' ? '税込み' : '税抜き'; };
-    if (hz.zeiNokoshi && S.cur.tax_mode === hz.taxMae && S.cur.rounding === hz.roundMae) {
-      zeiBun = '打った 明細が 残っているので、金額の入れ方（' + zeiNa(S.cur.tax_mode) + '）と 端数の 扱いは そのままに しました。';
+    /* ★当て直しの 知らせが もう 税・端数を 言った 時は 言わない★（2回 言わない・任意4） */
+    if (S.zeiItta) {
+      zeiBun = '';
+    } else if (hz.zeiNokoshi && S.cur.tax_mode === hz.taxMae && S.cur.rounding === hz.roundMae) {
+      zeiBun = '打った 明細が 残っているので、金額の入れ方（' + zeiNa(S.cur.tax_mode) + '）と 端数の 扱い（' + marumeNa(S.cur.rounding) + '）は そのままに しました。';
     } else {
       if (hz.taxMae && S.cur.tax_mode !== hz.taxMae) zeiBun += '金額の入れ方を ' + zeiNa(S.cur.tax_mode) + ' に しました。';
-      if (hz.roundMae && S.cur.rounding !== hz.roundMae) zeiBun += '消費税の 端数の 扱いを この相手の 物に しました。';
+      if (hz.roundMae && S.cur.rounding !== hz.roundMae) zeiBun += '消費税の 端数の 扱いを ' + marumeNa(S.cur.rounding) + ' に しました。';
     }
     if ($('e-taxmode')) $('e-taxmode').value = (S.cur.tax_mode === 'inclusive') ? 'inclusive' : 'exclusive';
     if (zeiBun && !hazushita.length) {
