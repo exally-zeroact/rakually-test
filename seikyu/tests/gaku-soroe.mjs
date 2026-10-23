@@ -55,9 +55,9 @@ function tane() {
   ];
   /* ★ちょうど 払う 額を 入れる★（源泉の 紙は 源泉を 引いた 額が 振り込まれる） */
   const receipts = [
-    { invoice_id: 'b', amount: 20000, ymd: '2026-10-31' },
-    { invoice_id: 'c', amount: 99790, ymd: '2026-10-31' },
-    { invoice_id: 'd', amount: 33000, ymd: '2026-10-31' },
+    { id: 'rb', invoice_id: 'b', amount: 20000, ymd: '2026-10-31' },
+    { id: 'rc', invoice_id: 'c', amount: 99790, ymd: '2026-10-31' },
+    { id: 'rd', invoice_id: 'd', amount: 33000, ymd: '2026-10-31' },
   ];
   return { partners, invoices, receipts };
 }
@@ -182,6 +182,26 @@ async function run(label, appSrc) {
     const b = atama(tsugi('pB', false));
     eq(b.head, 11000, '★控除の 相手（払う額 20,000 を 全部 払った）の 次の 紙に 繰越が 載った★');
     console.log('     次の 紙の 頭 … 源泉の 相手 ' + c.head + ' ／ 未入金の 相手 ' + a.head + ' ／ 控除の 相手 ' + b.head);
+  });
+
+  /* ★領収書★（司さん 10-24「法律的に最適解で」）＝「全額受領」は 相手が 実際に 払う 額で 判じる。
+     領収の 額は 実際に 受け取った 額・源泉の ある 1通は「源泉徴収税額 X円 差引」を 添える。 */
+  await T('⑥ 源泉の 1通で 払う額を 全部 受け取ると「全額受領」（税の 内訳が 出る）・領収の 額は 受け取った 額・源泉の 注記', async () => {
+    let got = '';
+    win.SeikyuPdf.build = (h) => { got = String(h); return Promise.resolve(new Uint8Array([1])); };
+    win.SeikyuOut.pdfOpen = () => Promise.resolve({});
+    A._go('scr-list'); A._renderListForTest();
+    doc.querySelector('#list-body [data-open="c"]').click(); await sleep(80);
+    const b = doc.querySelector('[data-rcsend="rc"]');
+    ok(b, '領収書の ボタンが 無い');
+    b.click(); await sleep(30); $('fn-ok').click(); await sleep(80);
+    ok(got.length > 500, '★領収書の 紙が 作られていない★ ' + txt($('pay-err')));
+    eq(num((/<td class="grand-v">([^<]*)<\/td>/.exec(got) || [])[1]), 99790, '★領収の 額が 受け取った 額で ない★');
+    ok(/<th>消費税額等<\/th>/.test(got), '★払う額を 全部 受け取ったのに「全額」に ならない（税の 内訳が 出ない）★');
+    ok(/源泉徴収税額 10,210円 差引/.test(got.replace(/<[^>]+>/g, '')), '★源泉の 注記が 無い★');
+    const zei = num((/<th>税抜金額<\/th><td>([^<]*)<\/td>/.exec(got) || [])[1]);
+    eq(zei, 100000, '★税抜金額が 違う★');
+    console.log('     領収書 … 領収 99,790・税抜 ' + zei + '・源泉徴収税額 10,210円 差引');
   });
 }
 

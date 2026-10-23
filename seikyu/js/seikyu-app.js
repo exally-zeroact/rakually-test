@@ -2375,15 +2375,21 @@
     /* ★消費税額を区分して書けるのは「請求の全額を受け取った時」だけ★
        一部だけの紙で按分すると、★紙に嘘の消費税額が載る★（国税庁 No.7124 は
        「区分して記載されている」時の扱いなので、書けない物を書かない）。 */
-    var total = (v.totals && Number(v.totals.grandTotal)) || 0;
+    /* ★「全額」は 相手が 実際に 払う 額（gakuOf＝源泉の 後）で 判じる★（司さん 10-24「法律的に最適解で」）
+       ＝源泉の ある 1通は 源泉を 引いた 額が 振り込まれる（源泉は 払う側が 国へ 納める・所得税法 204条・212条）。
+         前は 源泉の 前の 額と 比べていたので、全部 受け取っても「全額」に ならなかった。源泉の 無い 1通は 今までと 同じ。 */
+    var total = gakuOf(v) || 0;
     var taxTotal = (v.totals && Number(v.totals.taxTotal)) || 0;
     var whole = (total > 0 && Number(rc.amount) === total && taxTotal > 0);
+    var gen = (pi.gensen && pi.gensen.on) ? Number(pi.gensen.amount) || 0 : 0;
     return Object.assign({}, pi, {
       docKind: 'receipt',
       receipt: {
         no: no, ymd: rc.ymd, amount: Number(rc.amount), method: rc.method || '',
         note: (v.data && v.data.subject) || '',
         taxTotal: taxTotal, taxSeparate: whole,
+        /* ★全額の 時は 差し引いた 源泉を 添える★（紙の 言葉は 請求書と 同じ「源泉徴収税額」） */
+        gensen: whole ? gen : 0,
       },
     });
   }

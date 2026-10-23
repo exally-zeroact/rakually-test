@@ -1305,12 +1305,16 @@
       var but = textOf(rc.note) || ((inv.no && noDasu(o)) ? ('請求書 ' + inv.no + ' の代金として') : '上記代金として');
       var sep = !!rc.taxSeparate && Number(rc.taxTotal) > 0;
       var rows = '';
+      /* ★源泉を 差し引いて 受け取った 時★（呼ぶ側が 全額の 時だけ 渡す）＝領収の 額は 実際に 受け取った 額の まま、
+         差し引いた 源泉徴収税額を 添える（源泉は 払う側が 国へ 納める＝受け取っていない 額を 領収と 書かない） */
+      var gen = Number(rc.gensen) || 0;
       if (sep) {
-        var base = Number(rc.amount) - Number(rc.taxTotal);
+        var base = Number(rc.amount) + gen - Number(rc.taxTotal);
         rows = '<table class="sums"><tbody>'
           + '<tr><th>税抜金額</th><td>' + yen(base) + '</td></tr>'
           + '<tr><th>消費税額等</th><td>' + yen(Number(rc.taxTotal)) + '</td></tr>'
-          + '<tr class="sums-g"><th>合計</th><td>' + yen(Number(rc.amount)) + '</td></tr>'
+          + (gen ? '<tr><th>源泉徴収税額</th><td>-' + yen(gen) + '</td></tr>' : '')
+          + '<tr class="sums-g"><th>' + (gen ? '差引お支払額' : '合計') + '</th><td>' + yen(Number(rc.amount)) + '</td></tr>'
           + '</tbody></table>';
       }
       /* ★印紙の注意は「要る時だけ」出す★。判定は seikyu-doc.js が唯一の正
@@ -1321,6 +1325,7 @@
         + '<span class="rc-but-b">' + esc(but) + '</span></div>'
         + '<div class="rc-ack">上記正に領収いたしました。</div>'
         + (rows ? '<div class="rc-sums">' + rows + '</div>' : '')
+        + (gen ? '<div class="rc-way rc-gen">源泉徴収税額 ' + Math.round(gen).toLocaleString('ja-JP') + '円 差引</div>' : '')
         + (rc.method ? '<div class="rc-way">お支払方法　' + esc(rc.method) + '</div>' : '')
         + (memo ? '<div class="note"><div class="note-h">備考</div><div class="note-b">' + esc(memo).replace(/\n/g, '<br>') + '</div></div>' : '')
         + (stamp ? '<div class="rc-stamp">' + esc(stamp) + '</div>' : '');
