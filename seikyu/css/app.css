@@ -734,8 +734,11 @@
 }
 .bk-sum-l { display: block; font-size: 11px; font-weight: 700; color: #6E6E6E; }
 .bk-sum-v {
-  display: block; font-family: 'DM Mono', ui-monospace, monospace; font-size: 14px; font-weight: 500;
-  color: #333333; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block; font-family: 'DM Mono', ui-monospace, monospace; font-size: 13px; font-weight: 500;
+  color: #333333; margin-top: 2px;
+  /* ★字を 切らない★（taiketsu 10-24 止3）＝前は nowrap＋…で 320px の 2,689,132円 が「2,689,1…」。
+     ⇒ 入りきらない 時は ★桁区切りの 後ろ（JS が 置く <wbr>）だけで★ 折る（数字の 途中・円の 前では 割らない） */
+  white-space: normal; word-break: keep-all; overflow-wrap: normal; line-height: 1.35;
 }
 .bk-sum-c.rem .bk-sum-v { color: #C0392B; }
 /* 集計＝取引先ごとの 表（取引先｜請求｜入金｜残り）＋ 合計 */
@@ -749,6 +752,6 @@
 .bk-co { font-size: 12px; font-weight: 700; }
 .bk-co .tag { display: inline-block; margin: 0 6px 2px 0; }
 .bk-co-n { overflow-wrap: anywhere; }
-.bk-n { font-family: 'DM Mono', ui-monospace, monospace; text-align: right; white-space: nowrap; }
+.bk-n { font-family: 'DM Mono', ui-monospace, monospace; text-align: right; white-space: normal; word-break: keep-all; overflow-wrap: normal; }
 .bk-rem { color: #C0392B; }
 .bk-tbl tfoot td { border-top: 1.5px solid #C8ECD8; border-bottom: none; font-weight: 700; padding-top: 10px; }

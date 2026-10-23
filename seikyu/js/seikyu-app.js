@@ -144,6 +144,8 @@
     if (id === 'scr-bill') {
       /* ★入る たびに 紙を 作り直す★（設定で 自社の情報や 様式を 変えて 戻った 時に 古い 紙を 見せない） */
       billKey = '';
+      /* ★一覧が 見積を 見ている 時・読めていない 時は 請求書の 棚を 別に 読む★（taiketsu 10-24 止1） */
+      if (!(S.listKind === 'invoice' && S.listReadOk === true)) loadBillInv();
       try { renderBill(); renderReport(); }
       catch (e) { box('bk-err', '請求書の画面が 描けませんでした（' + (e && e.message) + '）。'); }
     }
@@ -423,10 +425,10 @@
        ★数は REP.summarize の 返した物を そのまま 書くだけ★（1円も 足し直さない）。 */
   var repMonth = null;                       // null＝まだ人が選んでいない（＝いちばん新しい月）
 
-  function reportOf(month, kind) {
+  function reportOf(month, kind, list) {
     var REP = global.SeikyuReport;
     if (!REP) return null;
-    return REP.summarize({ invoices: S.invoices || [], receipts: S.receipts,
+    return REP.summarize({ invoices: list || S.invoices || [], receipts: S.receipts,
       partners: S.partners || [], month: month, kind: kind || S.kind || 'invoice', doc: DOC });
   }
   function ymLabel(m) { return m ? (m.slice(0, 4) + '年' + Number(m.slice(5, 7)) + '月') : ''; }
@@ -436,7 +438,15 @@
        ★描くのは 画面に 入った時と 月・切り替えを 押した時★（goScreen／billSegShow／bk-rep-month） */
     var sumEl = $('bk-rep-sum'), body = $('bk-rep-body'), sel = $('bk-rep-month');
     if (!sumEl || !body || !sel || !REP) return;
-    var months = REP.monthsOf((S.invoices || []).filter(function (v) {
+    var src = billSrc();
+    if (src.ok !== true) {
+      /* ★読めていない 間は「まだ 発行していない」と 言わない★（嘘に なる・taiketsu 10-24 止1） */
+      sel.innerHTML = '<option value="">―</option>'; sumEl.innerHTML = '';
+      show($('bk-rep-acts'), false);
+      body.innerHTML = '<div class="empty">' + esc(billYomenai(src.ok)) + '</div>';
+      return;
+    }
+    var months = REP.monthsOf(src.list.filter(function (v) {
       return (v.doc_type || 'invoice') === 'invoice' && v.status === 'issued';
     }));
     /* ★1通も 無い 間は 決めない★（null の まま）＝前は 空（ぜんぶ）に 固まり、初めて 発行した後も 最新の月に ならなかった */
@@ -448,7 +458,7 @@
       }).join('');
     sel.value = repMonth || '';
 
-    var s2 = reportOf(repMonth || '', 'invoice');
+    var s2 = reportOf(repMonth || '', 'invoice', src.list);
     var lb = repMonth ? ymLabel(repMonth) : 'ぜんぶ';
     var unk = (s2.totals.paid === null);
     /* ★「この月の集計だけExcelに」は 表が 在る時だけ★（手本 renderReport の repActions と 同じ） */
@@ -461,17 +471,20 @@
         + '（下書きと 取り消した紙は 数えません）</div>';
       return;
     }
-    var en = function (n) { return unk ? '未確認' : yen(n) + '円'; };
+    /* ★大きい 金額でも 字を 切らない★（taiketsu 10-24 止3＝320px で 2,689,132円 が「2,689,1…」）
+       ＝桁区切りの 後ろで だけ 折れる 様に する（数字の 途中では 割らない）。数は yen() の まま 1円も 変えない */
+    var yenW = function (n) { return esc(yen(n)).replace(/,/g, ',<wbr>'); };
+    var en = function (n) { return unk ? '未確認' : yenW(n) + '円'; };
     var cell = function (cls, t, v) {
       return '<div class="bk-sum-c' + cls + '"><span class="bk-sum-l">' + t + '</span>'
         + '<span class="bk-sum-v">' + v + '</span></div>';
     };
     var t = s2.totals;
-    sumEl.innerHTML = cell('', '請求', yen(t.total) + '円') + cell('', '入金', en(t.paid))
+    sumEl.innerHTML = cell('', '請求', yenW(t.total) + '円') + cell('', '入金', en(t.paid))
       + cell(' rem', '残額', en(t.remain));
     var num = function (n, rem) {
       if (n === null || n === undefined) return '<td class="bk-n">未確認</td>';
-      return '<td class="bk-n' + (rem && n > 0 ? ' bk-rem' : '') + '">' + yen(n) + '</td>';
+      return '<td class="bk-n' + (rem && n > 0 ? ' bk-rem' : '') + '">' + yenW(n) + '</td>';
     };
     body.innerHTML = '<table class="bk-tbl"><thead><tr><th>取引先</th><th>請求</th><th>入金</th><th>残り</th></tr></thead><tbody>'
       + s2.rows.map(function (r) {
@@ -495,7 +508,9 @@
    *  ・落とすのは 今の Excel の 出し口（SeikyuOut.excel）1本 */
   function repExcelSheet() {
     var month = repMonth || '';
-    var s2 = reportOf(month, 'invoice');
+    var src = billSrc();
+    if (src.ok !== true) return { why: billYomenai(src.ok) };
+    var s2 = reportOf(month, 'invoice', src.list);
     if (!s2 || !s2.seen) return { why: 'この月に 発行した請求書が ありません。' };
     if (s2.totals.paid === null) return { why: '入金が 読めていないので、集計の Excel は 作りません（入金0円の 表を 出さない為）。「もっと」の中の「読み直す」を 押してから もう一度 お試しください。' };
     var lb = month ? ymLabel(month) : 'ぜんぶ';
@@ -537,8 +552,45 @@
   var billPick = { ym: null, pid: '' };       // ym: null＝まだ人が 選んでいない（＝最新の月）／pid: ''＝全社
   var billKey = '';                           // ★同じ 中身なら 紙を 作り直さない★（読み直しの たびに 枠が ちらつかない）
 
+  /* ★★請求書の 棚★★（taiketsu 10-24 止1）
+     S.invoices は 一覧が 今 見ている 種類（S.docType）の 棚＝見積を 見ている 時は 見積しか 入っていない。
+     ⇒ 請求/集計は ★一覧の 種類に 依らず 請求書の 棚★から 描く。
+       ・一覧が 請求書を 読めている 時 … その 棚（S.invoices）
+       ・それ以外 … 別に 読んだ 請求書の 棚（S.billInv）／読めなければ ok=false（読み込み中は null） */
+  var _billNo = 0;
+  function billSrc() {
+    if (S.listKind === 'invoice' && S.listReadOk === true) return { ok: true, list: S.invoices || [] };
+    if (S.billOk === true) return { ok: true, list: S.billInv || [] };
+    return { ok: (S.billOk === false ? false : null), list: [] };
+  }
+  function billYomenai(ok) {
+    return ok === false
+      ? '請求書を 読めていません。通信を 確かめて、もう一度 この画面を 開いてください（一覧の「もう一度読み込む」でも 読み直せます）。'
+      : '請求書を 読み込んでいます…';
+  }
+  function loadBillInv() {
+    var my = ++_billNo;
+    if (S.billOk !== true) S.billOk = null;
+    var p;
+    try { p = Promise.resolve(S.store.invoices.list('invoice')); }
+    catch (e) { p = Promise.reject(e); }
+    return p.then(function (r) {
+      if (my !== _billNo) return;
+      S.billInv = r || []; S.billOk = true; billRedraw();
+    }, function (e) {
+      if (my !== _billNo) return;
+      console.error('★請求/集計：請求書を 取って来られませんでした★', e);
+      S.billOk = false; billRedraw();
+    });
+  }
+  /** ★読み直した 後、請求/集計を 開いていたら 描き直す★（同じ 中身なら 紙は 作り直さない） */
+  function billRedraw() {
+    var sb = $('scr-bill');
+    if (!sb || !sb.classList.contains('active')) return;
+    try { renderBill(); renderReport(); } catch (e) { box('bk-err', '請求書の画面が 描けませんでした（' + (e && e.message) + '）。'); }
+  }
   function billIssued() {
-    return (S.invoices || []).filter(function (v) {
+    return billSrc().list.filter(function (v) {
       return v && (v.doc_type || 'invoice') === 'invoice' && v.status === 'issued';
     });
   }
@@ -609,6 +661,15 @@
   function renderBill() {
     var mSel = $('bk-month'), pSel = $('bk-partner'), host = $('bk-papers');
     if (!mSel || !pSel || !host) return;
+    var src = billSrc();
+    if (src.ok !== true) {
+      /* ★読めていない／読み込み中は その事を 言って 3つとも 止める★（「まだ 発行していない」と 嘘を 言わない） */
+      mSel.innerHTML = '<option value="">―</option>'; pSel.innerHTML = '<option value="">全社</option>';
+      $('bk-none').textContent = billYomenai(src.ok); show($('bk-none'), true);
+      ['b-bk-pdf', 'b-bk-print', 'b-bk-xlsx'].forEach(function (id) { var b = $(id); if (b) b.disabled = true; });
+      setText('bk-count', ''); host.innerHTML = ''; billKey = '';
+      return;
+    }
     var months = global.SeikyuReport ? global.SeikyuReport.monthsOf(billIssued()) : [];
     if (billPick.ym === null || months.indexOf(billPick.ym) < 0) billPick.ym = months[0] || '';
     mSel.innerHTML = months.length
@@ -636,10 +697,11 @@
     }
     show(none, !rows.length);
     ['b-bk-pdf', 'b-bk-print', 'b-bk-xlsx'].forEach(function (id) { var b = $(id); if (b) b.disabled = !rows.length; });
-    var kei = 0;
-    rows.forEach(function (v) { var g = v.totals && v.totals.grandTotal; if (typeof g === 'number') kei += g; });
+    var kei = 0, yomeru = 0;
+    rows.forEach(function (v) { var g = v.totals && v.totals.grandTotal; if (typeof g === 'number') { kei += g; yomeru++; } });
+    /* ★金額の 読めない 1通を 黙って 抜かない★（一覧の 件数行と 同じ 注記） */
     setText('bk-count', rows.length ? (ymLabel(billPick.ym) + '・' + dare + '　' + rows.length + '通（発行済み）'
-      + '　合計 ' + yen(kei) + ' 円') : '');
+      + '　合計 ' + yen(kei) + ' 円' + (yomeru < rows.length ? '（金額が 入っている ' + yomeru + '通ぶん）' : '')) : '');
 
     /* ★紙★ 同じ 中身なら 作り直さない（入金の 印などで 一覧を 読み直しても 枠が ちらつかない） */
     var key = billPick.ym + '|' + billPick.pid + '|' + rows.map(function (v) {
@@ -729,20 +791,25 @@
   function billPdf(made, name, yobi) {
     box('bk-err', '');
     box('bk-ok', yobi + 'を作っています…（' + made.length + '通・字を紙に埋め込むので 少し待ちます）');
+    /* ★「渡した」印は 出来た 後だけ★（taiketsu 10-24 止2）＝作れなかった PDF で 印を 付けない。
+       ★全社を まとめた PDF は 付けない★（取引先ごとに 送れない 物＝送った 証に ならない）。印刷は 出来たら 付ける。 */
+    var hitori = made.every(function (x) { return String(x.v.partner_id || '') === String(made[0].v.partner_id || ''); });
+    var shirushi = (yobi === '印刷') || hitori;
     billPdfBytes(made, name).then(function (r) {
       return OUT.pdfOpen(r.bytes, name).then(function (o) {
+        if (shirushi) billOkutta(made);
         box('bk-ok', ((o && o.fellBack)
           ? 'この端末では 新しい窓が開けなかったので、' + yobi + 'を 落としました。（ブラウザの ポップアップの設定を 見てください）'
           : yobi + 'を 別の窓で 開きました（' + made.length + '通）。その画面の 共有ボタンから'
             + (yobi === '印刷' ? ' 印刷できます（プリンタを 選びます）。' : ' 保存・メールなどで 送れます。'))
           + (r.miss.length ? 'この字は 字体に無いので 〓 で出しました：' + r.miss.join('') : '')
-          + (r.bad ? '出せなかった絵が ' + r.bad + '件 あります' : ''));
+          + (r.bad ? '出せなかった絵が ' + r.bad + '件 あります' : '')
+          + (shirushi ? '' : '（全社の まとめは 取引先ごとに 送れないので「渡した」印は 付けません。取引先を 選んで 出すと 付きます）'));
       });
     }).catch(function (e) {
       box('bk-ok', '');
       box('bk-err', 'PDFが作れませんでした（' + (e && e.message) + '）。画面を 開き直して もう一度 お試しください。');
     });
-    billOkutta(made);
   }
   /** ★渡した 印★（一覧の「PDF」「印刷」と 同じ 決まり＝okutta）。読み直しは 最後に 1回だけ */
   function billOkutta(made) {
@@ -1059,6 +1126,9 @@
       S.receipts = r[1];                     // ★null のまま持つ＝「未確認」と「0件」を作り分ける
       S.quotes = (kind === 'quote') ? S.invoices : (r[2] || []);
       S.listReadOk = true; S.listAto = false; S.listKind = kind;   /* ★読めた 種類も 持つ★（種類が 違う 一覧では 繰越を 数えられない） */
+      /* ★請求/集計の 棚★（taiketsu 10-24 止1）＝請求書を 読めたら それを 持つ・見積なら 請求書を 別に 読む */
+      if (kind === 'invoice') { S.billInv = S.invoices; S.billOk = true; _billNo++; } else loadBillInv();
+      billRedraw();
       drawKind();
       renderList();
       drawYomenai();
@@ -1068,6 +1138,8 @@
       console.error('★一覧を 取って来られませんでした★', e);   /* ★生の 文は 画面に 出さず ここに 残す★ */
       /* ★「できています」は 読めるまで 持ち越す★（「もう一度読み込む」が また 落ちても 消さない・taiketsu 10-13） */
       S.listReadOk = false; S.listAto = ato || S.listAto;
+      if (kind === 'invoice') { S.billOk = false; _billNo++; }   /* ★読めない 事を 請求/集計でも 言う★ */
+      billRedraw();
       drawYomenai();
       if ($('b-issue')) drawIssueButton();
     });

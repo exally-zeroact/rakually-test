@@ -69,6 +69,12 @@ async function pageForChrome(doc, tag) {
     if (/^https?:/.test(href)) { l.remove(); return; }
     l.setAttribute('href', pathToFileURL(path.resolve(path.dirname(FILE), href)).href);
   });
+  /* ★字の 幅を 本物に 揃える★（2026-10-24 実測＝網の 字体 DM Mono が 無いと 代わりの 字が 細く、
+     320px で 切れる 2,689,132円 が 切れずに 見えて 見張りが 黙った）。DM Mono は 1字＝0.6em の 等幅＝
+     同じ 幅の 等幅（Courier New／Liberation Mono／DejaVu Sans Mono）に 置き換えて 測る。 */
+  const st = d.createElement('style');
+  st.textContent = "#scr-bill .bk-sum-v, #scr-bill .bk-n { font-family: 'Courier New', 'Liberation Mono', 'DejaVu Sans Mono', monospace !important; }";
+  d.head.appendChild(st);
   const FIT = 'function fitAll(){[].forEach.call(document.querySelectorAll("#bk-papers .pv-wrap"),function(w){'
     + 'var f=w.querySelector("iframe");if(!f)return;var dd=f.contentDocument;if(!dd||!dd.documentElement)return;'
     + 'var pw=Math.max(320,dd.documentElement.scrollWidth),ph=Math.max(320,dd.documentElement.scrollHeight);'
@@ -88,7 +94,9 @@ async function measureShape(doc, W = 390) {
     + 'var sc=document.getElementById("scr-bill").getBoundingClientRect();'
     + 'var papers=[].map.call(document.querySelectorAll("#bk-papers .pv-wrap"),function(w){var r=w.getBoundingClientRect();return [Math.round(r.width),Math.round(r.height)];});'
     + 'var acts=[].map.call(document.querySelectorAll(".bk-acts button"),function(b){var r=b.getBoundingClientRect();return [Math.round(r.width),Math.round(r.height),Math.round(r.top),b.scrollWidth-b.clientWidth,b.scrollHeight-b.clientHeight,Math.round(r.right)];});'
-    + 'return {vw:vw,sw:document.documentElement.scrollWidth,over:over.slice(0,8),scrW:Math.round(sc.width),papers:papers,acts:acts};';
+    + 'var clip=[];[].forEach.call(document.querySelectorAll("#scr-bill .bk-sum-v, #scr-bill .bk-tbl td, #scr-bill .bk-acts button"),function(e){var r=e.getBoundingClientRect();if(!(r.width>0))return;var o1=e.style.overflow,o2=e.style.textOverflow;e.style.overflow="visible";e.style.textOverflow="clip";var rg=document.createRange();rg.selectNodeContents(e);var rr=rg.getBoundingClientRect();var cs=getComputedStyle(e);var inR=r.right-parseFloat(cs.paddingRight)-parseFloat(cs.borderRightWidth);var inL=r.left+parseFloat(cs.paddingLeft)+parseFloat(cs.borderLeftWidth);e.style.overflow=o1;e.style.textOverflow=o2;if(rr.right>inR+0.5||rr.left<inL-0.5||e.scrollWidth>e.clientWidth+0.5||r.right>vw+0.5)clip.push((e.className||e.tagName)+" "+e.textContent.trim().slice(0,14)+" 字"+Math.round(rr.width)+"/枠"+Math.round(inR-inL));});'
+    + 'var sums=[].map.call(document.querySelectorAll("#scr-bill .bk-sum-v"),function(e){var rg=document.createRange();rg.selectNodeContents(e);return e.textContent.trim()+" [字"+Math.round(rg.getBoundingClientRect().width)+"/枠"+e.clientWidth+" "+getComputedStyle(e).whiteSpace+" "+getComputedStyle(e).fontFamily.slice(0,20)+"]";});'
+    + 'return {vw:vw,sw:document.documentElement.scrollWidth,over:over.slice(0,8),scrW:Math.round(sc.width),papers:papers,acts:acts,clip:clip,sums:sums};';
   const tail = '<script>window.addEventListener("load",function(){setTimeout(function(){var r;try{r=JSON.stringify((function(){'
     + PROBE + '})());}catch(e){r=JSON.stringify({error:String(e)});}parent.postMessage(r,"*");},300);});</scr' + 'ipt>';
   const html = '<!doctype html>\n' + d.documentElement.outerHTML;
@@ -156,6 +164,9 @@ function tane() {
     iv('g', '202610-006', 'issued', 'gone', '2026-10-15', 5000,
       { snapshot: { partner: { name: '消えた株式会社' } } }),
     iv('c', '202609-001', 'issued', 'p2', '2026-09-30', 40000),
+    /* ★7〜9桁の 月★（taiketsu 10-24 止3＝320px で 2,689,132円 が「2,689,1…」に 切れた） */
+    iv('big1', '202608-001', 'issued', 'p0', '2026-08-10', 2444666),     // 2,689,132
+    iv('big2', '202608-002', 'issued', 'p1', '2026-08-20', 112233445),   // 123,456,789
     iv('d11', '202611-001', 'draft', 'p1', '2026-11-02', 12345),         // ★下書きだけの月＝選び肢に 出さない
   ];
   const receipts = [
@@ -195,13 +206,23 @@ async function boot(appSrc) {
   S.fil = 'all'; S.docType = 'invoice'; S.kind = 'invoice';
   S.org = { yago: '合同会社Rakunally', addr: '東京都架空区見本台1-2-3', tel: '090-0000-0000',
     invoiceNo: 'T1234567890123', bank: '（見本）銀行 ◯◯支店 普通 1234567' };
-  S.store = {
+  /* ★偽の 倉庫は 本物と 同じく 種類（doc_type）で 分けて 返す★（taiketsu 10-24 止1＝前は 種類を 見ずに 全部 返していた
+     ので「見積に 切り替えたら 請求書が 消える」を 踏めなかった）。★写しを 返す★（画面の 書き込みが 倉庫に 漏れない） */
+  const DB = t.invoices;
+  const store = {
     partners: { list: () => Promise.resolve(S.partners) },
-    invoices: { list: () => Promise.resolve(S.invoices), usedNos: () => Promise.resolve([]) },
+    receipts: { list: () => Promise.resolve(t.receipts) },
+    invoices: {
+      list: (k) => (store.ochiru ? Promise.reject(new Error('fake-failure'))
+        : Promise.resolve(JSON.parse(JSON.stringify(DB.filter((v) => (v.doc_type || 'invoice') === (k || 'invoice')))))),
+      usedNos: () => Promise.resolve([]),
+      markSent: (id) => { rec.sent.push(id); return Promise.resolve({ ok: true }); },
+    },
   };
+  S.store = store;
   /* ★出す道は 本物の 部品を 呼ぶか だけ 見る★（PDFの字体は 網から 取るので jsdom では 作れない）
      ＝SeikyuPdf.build（紙→PDF）・PDFLib（まとめる）・SeikyuOut.pdfOpen／excel・FileOut.deliver を 控える */
-  const rec = { pdfHtml: [], opened: [], excel: [], deliver: [], merged: 0 };
+  const rec = { pdfHtml: [], opened: [], excel: [], deliver: [], merged: 0, sent: [] };
   win.SeikyuPdf.build = (h) => { rec.pdfHtml.push(String(h)); return Promise.resolve(new Uint8Array([rec.pdfHtml.length])); };
   win.PDFLib = { PDFDocument: {
     create: () => Promise.resolve({ pages: [],
@@ -215,13 +236,14 @@ async function boot(appSrc) {
   win.SeikyuOut.excel = (sheet, name) => { rec.excel.push({ name, sheet }); return Promise.resolve(); };
   win.FileOut.deliver = (bytes, name) => { rec.deliver.push({ name, bytes }); return Promise.resolve({}); };
   A._bindForTest();
+  await A._loadList();                    /* ★お客さんと 同じく 倉庫から 読む★（請求書の 棚） */
   A._go('scr-edit');
-  return { win, doc, A, S, rec, errs };
+  return { win, doc, A, S, rec, errs, DB, store };
 }
 
 async function run(label, appSrc) {
   console.log('\n[' + label + '] ★請求 / 集計（代行請求書と 同じ作り）★');
-  const { win, doc, A, S, rec, errs } = await boot(appSrc);
+  const { win, doc, A, S, rec, errs, DB, store } = await boot(appSrc);
   const $ = (id) => doc.getElementById(id);
   const txt = (id) => (($(id) || {}).textContent || '').replace(/\s+/g, ' ').trim();
   const kaeru = async (id, v) => {
@@ -262,7 +284,7 @@ async function run(label, appSrc) {
     const el = $('bk-month'); ok(el, '★月の 選び所が 無い★');
     eq(el.value, '2026-10', '★既定の 月★');
     const v = [...el.options].map((o) => o.value).filter(Boolean);
-    eq(v.join(','), '2026-10,2026-09', '★月の 選び肢（在る月だけ・新しい順・下書きだけの11月は 出さない）★');
+    eq(v.join(','), '2026-10,2026-09,2026-08', '★月の 選び肢（在る月だけ・新しい順・下書きだけの11月は 出さない）★');
     eq(el.options[el.selectedIndex].textContent, '2026年10月', '月の 字');
   });
 
@@ -336,6 +358,9 @@ async function run(label, appSrc) {
     eq(rec.merged, 4, '★1つの PDF に まとめていない★');
     eq(rec.opened.map((x) => x.name).join(','), '請求書_2026-10_全社.pdf', '★開いた PDF★');
     ok(/PDF/.test(txt('bk-ok')), '★できた事を 言っていない★: ' + txt('bk-ok'));
+    /* ★全社の まとめ PDF は「渡した」印を 付けない★（取引先ごとに 送れない 物・taiketsu 10-24 止2） */
+    eq(rec.sent.length, 0, '★全社の まとめ PDF で「渡した」印を 付けた★ ' + rec.sent.join(','));
+    ok(/印は 付けません/.test(txt('bk-ok')), '★印を 付けない 訳を 言っていない★: ' + txt('bk-ok'));
     /* 1社・1通＝今の 名前の付け方（seikyu-name）をそのまま */
     await kaeru('bk-partner', 'p1');
     rec.pdfHtml.length = 0; rec.opened.length = 0;
@@ -345,6 +370,8 @@ async function run(label, appSrc) {
     $('fn-ok').click(); await sleep(120);
     eq(rec.pdfHtml.length, 1, '1通の PDF');
     eq(rec.opened.length, 1, '1通を 開いた');
+    await sleep(60);
+    eq(rec.sent.join(','), 'b', '★1社の PDF が 出来たのに「渡した」印が 付かない★');
     await kaeru('bk-partner', '');
   });
 
@@ -356,6 +383,22 @@ async function run(label, appSrc) {
     eq(rec.opened.map((x) => x.name).join(','), '請求書_2026-10_全社.pdf', '★開いた PDF★');
     ok(/印刷/.test(txt('bk-ok')), '★印刷の 案内が 無い★: ' + txt('bk-ok'));
     ok(!errs.some((e) => /ブラウザの印刷/.test(e)), '★window.print を 呼んだ★');
+  });
+
+  await T('⑨-b「渡した」印は PDF・印刷が 本当に 出来た 後だけ（作れなかったら 付けない・taiketsu 10-24 止2）', async () => {
+    await A._loadList(); A._go('scr-bill'); await sleep(60);
+    const moto = win.SeikyuPdf.build;
+    win.SeikyuPdf.build = () => Promise.reject(new Error('作れない'));
+    rec.sent.length = 0; rec.opened.length = 0;
+    $('b-bk-print').click(); await sleep(150);
+    eq(rec.opened.length, 0, '開いていない 筈');
+    eq(rec.sent.length, 0, '★PDF が 作れなかったのに「渡した」印を 付けた★ ' + rec.sent.join(','));
+    ok(/作れません/.test(txt('bk-err')), '★作れなかった 事を 言っていない★: ' + txt('bk-err'));
+    win.SeikyuPdf.build = moto;
+    rec.sent.length = 0;
+    $('b-bk-print').click(); await sleep(200);
+    eq(rec.sent.length, 4, '★印刷が 出来たのに 印が 付かない★ ' + rec.sent.join(','));
+    await A._loadList(); A._go('scr-bill'); await sleep(60);
   });
 
   await T('⑩ Excel＝1通なら 今の出し方（SeikyuOut.excel）／まとめは 1冊に 紙ごとの シート', async () => {
@@ -428,10 +471,52 @@ async function run(label, appSrc) {
     checkReport('2026-10', null);
     ok(!/入金0円/.test(txt('bk-rep-sum').replace(/\s+/g, '')), '★読めていないのに 0円と 書いた★');
     S.receipts = keep;
-    S.kind = 'quote'; A._go('scr-bill'); doc.querySelector('#scr-bill [data-bseg="report"]').click(); await sleep(30);
-    checkReport('2026-10', S.receipts);
-    S.kind = 'invoice';
+    A._go('scr-bill');
     doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(30);
+  });
+
+  /* ★本物の 切り替えを 踏む★（taiketsu 10-24 止1＝前は S.kind を 立てるだけで 一覧の 棚が 見積に 入れ替わる 所を 通っていなかった） */
+  const invList = () => DB.filter((v) => (v.doc_type || 'invoice') === 'invoice');
+  await T('⑫-b 一覧で「見積書」を 押してから 開いても 請求書の 紙も 集計も 出る／画面に 居る間の 読み直しで 描き直す', async () => {
+    doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(30);
+    doc.querySelector('#kind-seg [data-kind="quote"]').click(); await sleep(120);
+    eq(S.docType, 'quote', '見積に 切り替わっていない');
+    doc.querySelector('.bn[data-scr="scr-bill"]').click(); await sleep(120);
+    eq(papers().join(','), 'a,a2,b,g', '★見積を 見ている 間は 請求書の 紙が 出ない★ ' + txt('bk-none'));
+    btnIds.forEach((id) => ok(!$(id).disabled, '★' + id + ' が 押せない★'));
+    doc.querySelector('#scr-bill [data-bseg="report"]').click(); await sleep(30);
+    const s = REP.summarize({ invoices: invList(), receipts: S.receipts, partners: S.partners, month: '2026-10', kind: 'invoice', doc: win.SeikyuDoc });
+    ok(txt('bk-rep-sum').replace(/\s+/g, '').indexOf(yen(s.totals.total) + '円') >= 0, '★見積を 見ている 間は 集計が 出ない★ ' + txt('bk-rep-body').slice(0, 60));
+    doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(30);
+    /* 画面に 居る 間に 倉庫が 増えて 読み直した → 描き直す */
+    DB.push({ id: 'new1', no: '202610-007', status: 'issued', doc_type: 'invoice', partner_id: 'p2', issue_ymd: '2026-10-29',
+      tax_mode: 'exclusive', rounding: 'floor', lines: [line('工事代金', 1000)], data: {}, totals: { grandTotal: 1100 } });
+    await A._loadList(); await sleep(120);
+    eq(papers().join(','), 'a,a2,b,new1,g', '★読み直したのに 描き直さない★');
+    DB.pop();
+    doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(30);
+    doc.querySelector('#kind-seg [data-kind="invoice"]').click(); await sleep(120);
+    A._go('scr-bill'); await sleep(60);
+    eq(papers().join(','), 'a,a2,b,g', '戻らない');
+  });
+
+  await T('⑫-c 請求書を 読めない時は「読めていません」と 言って 3つとも 止める（「まだ 発行していない」と 嘘を 言わない）', async () => {
+    store.ochiru = true;
+    await A._loadList(); await sleep(30);
+    eq(S.listReadOk, false, '読めない 姿に なっていない');
+    A._go('scr-bill'); await sleep(80);
+    const t = txt('bk-none');
+    ok(/読めていません/.test(t) && !/まだ/.test(t), '★読めないのに 違う事を 言った★: ' + t);
+    btnIds.forEach((id) => ok($(id).disabled, '★読めないのに ' + id + ' が 押せる★'));
+    eq(papers().length, 0, '★読めないのに 古い 紙が 残っている★');
+    doc.querySelector('#scr-bill [data-bseg="report"]').click(); await sleep(30);
+    ok(/読めていません/.test(txt('bk-rep-body')) && !/まだ/.test(txt('bk-rep-body')), '★集計も 嘘を 言った★: ' + txt('bk-rep-body'));
+    ok($('bk-rep-acts').style.display === 'none', '★読めないのに 集計の Excel が 押せる★');
+    store.ochiru = false;
+    await A._loadList(); await sleep(120);
+    ok(/2026年10月/.test($('bk-rep-month').options[$('bk-rep-month').selectedIndex].textContent), '★読めたのに 描き直さない★');
+    doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(60);
+    eq(papers().length, 4, '★読めたのに 紙が 戻らない★');
   });
 
   for (const W of [390, 320]) await T('⑬ ' + W + 'px で 横に はみ出さない・3つの ボタンが 横1列で 字が 切れない（本物の Chrome・全社の紙を 出した 姿）', async () => {
@@ -486,6 +571,18 @@ async function run(label, appSrc) {
     ok(/入金が 読めていない/.test(txt('bk-rep-err')), '★作らない 訳を 言っていない★: ' + txt('bk-rep-err'));
     S.receipts = keep; A._go('scr-bill');
     ok(!txt('bk-rep-err') || $('bk-rep-err').style.display === 'none', '★読めるように なったのに 古い「読めていない」が 残っている★: ' + txt('bk-rep-err'));
+    doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(30);
+  });
+
+  for (const W of [390, 320]) await T('⑬-b ' + W + 'px の 集計で 7〜9桁の 金額でも 字が 切れない・はみ出さない（本物の Chrome・taiketsu 10-24 止3）', async () => {
+    doc.querySelector('#scr-bill [data-bseg="report"]').click(); await sleep(30);
+    await kaeru('bk-rep-month', '2026-08');
+    const j = await measureShape(doc, W);
+    ok(j.sums.length === 3 && j.sums[0].indexOf('126,145,921') >= 0, '★大きい 月が 出ていない★ ' + j.sums.join(' / '));
+    ok(!j.clip.length, '★字が 切れている★ ' + j.clip.join(' / '));
+    ok(j.sw <= W && !j.over.length, '★はみ出した★ ' + j.sw + ' ' + j.over.join(' / '));
+    console.log('     ' + W + 'px 枠 … ' + j.sums.join(' ／ '));
+    await kaeru('bk-rep-month', '2026-10');
     doc.querySelector('#scr-bill [data-bseg="invoice"]').click(); await sleep(30);
   });
 
