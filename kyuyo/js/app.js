@@ -2580,8 +2580,43 @@
       +'<div style="font-size:10.5px;color:#3D6B53;margin-top:5px">毎日つけた記録（売上・時間・件数）を読み込んで、<b>売上や歩合で決まる基本給を自動計算</b>します。二度打ちは不要です。</div>'
       +'</div>';
   }
+  /* ★出勤が 空の 人を 所定日数で 埋めるのは 描く 前に 全員へ 1回★（2026-10-23 150人で 重い 件の 前準備・taiketsu）
+     前は 札と 表を 描く 中で 埋めていた＝★描かれない 人（ページの 外）は 出勤が 空の まま＝日給が 0円で 確定され得た★。
+     描き方を 変えても 全員に かかる 様に 1か所へ 移した（今の 動きは 同じ＝前も 描く 時に 全員を 回していた）。 */
+  function umeShotei(){
+    var sche=scheduledDaysOf(state.month); if(sche==null) return;
+    state.employees.forEach(function(e){
+      if(!isActiveInMonth(e,state.month)) return;
+      ensureKintai(e);
+      var soi=kinIdx(e,/出勤/); if(soi>=0 && (e.kintai[soi].value===''||e.kintai[soi].value==null)) e.kintai[soi].value=String(sche);
+    });
+  }
+  /* 名前・カナ・従業員番号の どれかに 字が 入っていれば 当たり（空白・全角半角の 違いは 見ない） */
+  function inputQAtaru(e,q){
+    var nz=function(x){ return String(x||'').replace(/[\s\u3000]/g,'').toLowerCase(); };
+    var qq=nz(q); if(!qq) return true;
+    return nz(e.name).indexOf(qq)>=0 || nz(e.kana).indexOf(qq)>=0 || nz(e.furiKana).indexOf(qq)>=0 || nz(e.no).indexOf(qq)>=0;
+  }
+  /* 上の 帯＝探す 欄＋何人目〜何人目／全何名＋前後（50名 以下で 探していない 時は 出さない＝少ない 会社の 画面は 今の まま） */
+  function pagerInputHTML(total,page,pageN,PER,q){
+    if(total<=PER && !q) return '';
+    var a=total?page*PER+1:0, b=Math.min(total,page*PER+PER);
+    return '<div class="in-pager" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px">'
+      +'<input class="finput" data-inputq type="search" placeholder="名前・番号で探す" value="'+attr(q)+'" style="flex:1 1 160px;min-width:0" aria-label="名前・番号で探す">'
+      +'<span style="font-size:12px;color:#333333;white-space:nowrap">'+a+'〜'+b+'人目／'+total+'名</span>'
+      +(pageN>1?'<button class="btn-ghost" data-ipage="-1"'+(page<=0?' disabled':'')+'>‹ 前の'+PER+'名</button><button class="btn-ghost" data-ipage="1"'+(page>=pageN-1?' disabled':'')+'>次の'+PER+'名 ›</button>':'')
+      +'</div>';
+  }
+  function pagerFootHTML(total,page,pageN){
+    if(pageN<=1) return '';
+    return '<div style="display:flex;justify-content:center;gap:8px;margin:10px 0 0">'
+      +'<button class="btn-ghost" data-ipage="-1"'+(page<=0?' disabled':'')+'>‹ 前へ</button>'
+      +'<span style="font-size:12px;color:#333333;align-self:center">'+(page+1)+'／'+pageN+'ページ</span>'
+      +'<button class="btn-ghost" data-ipage="1"'+(page>=pageN-1?' disabled':'')+'>次へ ›</button></div>';
+  }
   function renderInput(){
     var host=$('#input-list'); if(!host) return; loadPrev(); loadOtHistory();
+    umeShotei();
     var sche=scheduledDaysOf(state.month), H=HD();
     var hols=H?H.holidaysInMonth(state.month):[];
     var holStr=hols.length?hols.map(function(x){return x.day+'日 '+x.name;}).join('・'):'なし';
@@ -2604,6 +2639,22 @@
       +'<div style="font-size:10px;color:#555555;margin-top:3px">出勤日数は所定を初期表示。各自で手修正できます（赤で止めません）。会社独自の休みは「設定▸会社の決まり」で追加できます。</div>'
       +'</div>';
     var cnt=reviewCounts(), reviewOnly=!!state._reviewOnly;
+    /* ★★人が 多くても 重くならない 様に 1ページ 50名・名前／番号で 探す★★（2026-10-23 司さん「150人で重くなるのが問題」）
+       ★測った★ … 158人を 一度に 描くと 部品 約19,600個・入力タブで 画面が 1.3秒 固まった（電話の 遅さ）。
+       ★競合も 同じ 形★ … マネーフォワード クラウド給与も 2026-10-16 に「給与計算」画面を 1ページ 50名＋番号・氏名で 検索 に した（表示の 速さの 為）。
+       ★お金は 全員に かかる★ … 出勤の 埋め（umeShotei）・確認の 数・「今月を確定」・振込は ★全員の state★ を 見る（描いた 人だけ では ない）。 */
+    var PER=50, inputQ=String(state._inputQ||'').trim();
+    var miseru=[];
+    state.employees.forEach(function(e,i){
+      if(!isActiveInMonth(e,state.month)) return;
+      if(inputQ && !inputQAtaru(e,inputQ)) return;
+      if(reviewOnly){ ensureKintai(e); if(!empNeedsReview(e,compute(e))) return; }
+      miseru.push(i);
+    });
+    var pageN=Math.max(1,Math.ceil(miseru.length/PER));
+    var page=Math.min(Math.max(0,+state._inputPage||0),pageN-1); state._inputPage=page;
+    var showSet={}; miseru.slice(page*PER,page*PER+PER).forEach(function(i){ showSet[i]=true; });
+    var pagerHTML=pagerInputHTML(miseru.length,page,pageN,PER,inputQ);
     // 月の状態バッジ(下書き/確定済)=freee型「確定=凍結」の状態を可視化(UX🟠#7)。全員確認済=確定済(凍結)
     var monthConf=monthFixedInfo().fixed;
     var stateChip=monthConf?'<span class="mstate mstate-fixed" title="この月は確定=凍結済み。自動保存では上書きされません">🔒 確定済</span>':'<span class="mstate mstate-draft" title="下書き。編集すると自動保存されます">下書き</span>';
@@ -2689,13 +2740,11 @@
          ⇒ 出すのは ★お知らせと 確定ボタン（押せない）★だけ。答えが 来たら 一度で 描く。 */
       host.innerHTML=statutoryStaleWarn()+soukoHTML()+confirmBtn; return;
     }
-    if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+renderInputTableHTML(reviewOnly)+confirmBtn; return; }
+    if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+pagerHTML+renderInputTableHTML(reviewOnly,showSet)+pagerFootHTML(miseru.length,page,pageN)+confirmBtn; return; }
     var cards=state.employees.map(function(e,i){
-      if(!isActiveInMonth(e,state.month)) return '';
+      if(!showSet[i]) return '';
       ensureKintai(e);
-      if(sche!=null){ var soi=kinIdx(e,/出勤/); if(soi>=0 && (e.kintai[soi].value===''||e.kintai[soi].value==null)) e.kintai[soi].value=String(sche); }
       var r=compute(e);
-      if(reviewOnly && !empNeedsReview(e,r)) return '';
       var open=state.open['I'+e.id], mw=minWageInfo(e);
       var cf=empConfirmed(e), nr=empNeedsReview(e,r);
       var confHTML = cf
@@ -2724,11 +2773,11 @@
         +'<button class="btn-primary ec-btn" data-goto-empmaster>＋ 従業員を追加する</button></div>';
       return;
     }
-    var emptyMsg=(reviewOnly && !cards) ? '<p class="hint" style="text-align:center;padding:18px 0">要確認の人はいません（全員確認済み）。</p>' : '';
-    host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+cards+emptyMsg+confirmBtn;
+    var emptyMsg=!cards ? '<p class="hint" style="text-align:center;padding:18px 0">'+(inputQ?'「'+esc(inputQ)+'」に当たる人はいません。':(reviewOnly?'要確認の人はいません（全員確認済み）。':''))+'</p>' : '';
+    host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+pagerHTML+cards+emptyMsg+pagerFootHTML(miseru.length,page,pageN)+confirmBtn;
   }
   // 表でまとめて入力(全従業員1画面・弥生の弱点/Exallyモデル)。列は既存と同じdata属性を再利用=同じハンドラで書ける。
-  function renderInputTableHTML(reviewOnly){
+  function renderInputTableHTML(reviewOnly,showSet){
     var sche=scheduledDaysOf(state.month);
     function kinCell(e,i,re){ var idx=kinIdx(e,re); var v=idx>=0?e.kintai[idx].value:''; return '<td class="tnum"><input class="finput num ic-in tcell" data-g="kintai" data-ri="'+idx+'" data-f="value" inputmode="numeric" value="'+attr(v)+'"></td>'; }
     function hmCell(hName,mName,hVal,mVal,cls,dsH,dsM){ return '<td class="tnum"><span class="thm"><input class="'+cls+' tcell" '+dsH+' inputmode="numeric" placeholder="0" value="'+attr(hVal)+'">:<input class="'+cls+' tcell" '+dsM+' inputmode="numeric" placeholder="0" value="'+attr(mVal)+'"></span></td>'; }
@@ -2751,8 +2800,8 @@
       return '<td class="tnum"><span class="tstack">'+ins.join('')+'</span></td>'; }
     var rows=state.employees.map(function(e,i){
       if(!isActiveInMonth(e,state.month)) return '';
+      if(showSet && !showSet[i]) return '';
       ensureKintai(e);
-      if(sche!=null){ var soi=kinIdx(e,/出勤/); if(soi>=0 && (e.kintai[soi].value===''||e.kintai[soi].value==null)) e.kintai[soi].value=String(sche); }
       var r=compute(e);
       if(reviewOnly && !empNeedsReview(e,r)) return '';
       var cf=empConfirmed(e), nr=empNeedsReview(e,r);
@@ -6113,7 +6162,8 @@
              ＝★`confirmed:true` で 倉庫に 届く★／★他の 人の 確定済みの 月には 触らない★
            ★Web明細への 公開は これまで どおり「今月を確定」だけ★（★1人の 確認では 公開しない★） */
         setConfirm(emc.id, true); try{ saveMonthlyPayslips(false, emc.id); }catch(_){} renderInput(); persistSave(); return; }
-      if(e.target.dataset.reviewonly!=null){ state._reviewOnly=e.target.checked; renderInput(); return; }
+      if(e.target.dataset.reviewonly!=null){ state._reviewOnly=e.target.checked; state._inputPage=0; renderInput(); return; }
+      var ipg=e.target.closest('[data-ipage]'); if(ipg){ state._inputPage=(+state._inputPage||0)+(+ipg.dataset.ipage); renderInput(); var top=$('#input-list .in-pager')||$('#input-list'); if(top&&top.scrollIntoView) try{ top.scrollIntoView({block:'start'}); }catch(_){ } return; }
       var ivw=e.target.closest('[data-ivw]'); if(ivw){ state.inputView=ivw.dataset.ivw==='table'?'table':'card'; renderInput(); return; }
       /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
          ★戻すのは 3つ★＝①全員の 確認済 を外す ②Web明細から その月を 下げる
@@ -6202,6 +6252,14 @@
       var dld=e.target.closest('[data-dldel]'); if(dld){ var dp2=String(dld.dataset.dldel).split(':'); var dde=state.employees[+dp2[0]]; if(dde&&dde.dailyEntries){ dde.dailyEntries.splice(+dp2[1],1); renderInput(); } return; } // 日別: 日を削除
       if(e.target.dataset.add){ var ai=+e.target.dataset.i, g=e.target.dataset.add; state.employees[ai][g].push({label:'',value:''}); renderInput(); return; }
       if(e.target.classList.contains('m-del')&&e.target.closest('#input-list')){ var card=e.target.closest('.acc'); var ci=+card.dataset.i; var g=e.target.dataset.g, ri=+e.target.dataset.ri; state.employees[ci][g].splice(ri,1); renderInput(); return; }
+    });
+    /* 探す 欄＝打ち終わって 少し 待ってから 描き直し、欄に 戻る（打っている 最中に 欄が 消えない 様に） */
+    var _iqT=null;
+    il.addEventListener('input',function(e){
+      if(e.target.dataset==null || e.target.dataset.inputq==null) return;
+      state._inputQ=e.target.value; state._inputPage=0;
+      if(_iqT) clearTimeout(_iqT);
+      _iqT=setTimeout(function(){ _iqT=null; renderInput(); var q=$('#input-list [data-inputq]'); if(q){ try{ q.focus(); var L=q.value.length; q.setSelectionRange(L,L); }catch(_){ } } },250);
     });
     il.addEventListener('input',function(e){ var card=e.target.closest('.acc,.trow'); if(!card)return; var ci=+card.dataset.i; var emp=state.employees[ci];
       var dl=e.target.closest('[data-dl]'); if(dl){ var dpp=String(dl.dataset.dl).split(':'); if(emp.dailyEntries&&emp.dailyEntries[+dpp[1]]){ var f2=dpp[2]; emp.dailyEntries[+dpp[1]][f2]=(f2==='amount')?e.target.value.replace(/[^0-9]/g,''):e.target.value; } return; } // 日別入力(再描画せずフォーカス維持)
@@ -6843,7 +6901,7 @@
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       applyCloudState:applyCloudState, persistSaveDebounced:persistSaveDebounced, persistSave:persistSave, persistLoad:persistLoad, hazushiWasureru:function(){ for(var k in _hazushi) delete _hazushi[k]; },   /* ★棚(d) ロード側 newer-wins の 統合試験用（本物を呼ぶ・真似ない）／persistSave＝枠超クラウド退避の歯 quota-cloud-fallback.mjs 用（test-only露出・判定/金額は不変）★ */
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku, taishokuKubun:taishokuKubun, taishokuTomeruHito:taishokuTomeruHito, renderFuri:renderFuri, downloadZengin:downloadZengin, downloadFuriExcel:downloadFuriExcel,
-      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, saveBonusPayslips:saveBonusPayslips, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
+      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, inputQAtaru:inputQAtaru, umeShotei:umeShotei, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, saveBonusPayslips:saveBonusPayslips, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
          kyuyo/tests/shoyo-kami-hizuke.test.mjs */
       /* ★★2026-09-21 司さん「直したなら 直らないかん やろ」を 見張る 為★★
