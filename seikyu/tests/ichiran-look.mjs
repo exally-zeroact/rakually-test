@@ -122,7 +122,8 @@ if (SELF) {
   const kowasu = [
     ['確認で かぶせを 出さない', '    lookOpen();'],
     ['月で しぼらない', "if (lm && lm.value) rows = rows.filter(function (v) { return billYm(v) === lm.value; });"],
-    ['件数と 合計を 出さない', "setText('list-sum', rows.length + '件'"],
+    /* ★2026-10-23★ 件数（左）と 合計（右端）を 2つの 箱に 分けたので 書き方が 変わった（中身は 同じ） */
+    ['件数と 合計を 出さない', "if (sumEl) sumEl.innerHTML = '<span class=\"ls-n\">' + rows.length + '件'"],
     ['戻る道を 消す', "if ($('b-lv-back')) $('b-lv-back').onclick"],
     ['暗い所を 押しても 閉じない', "      $('lv-ov').onclick = function (e) { if (e.target === this) lookClose(); };"],
   ];
@@ -180,7 +181,9 @@ T('★⑤ 何年何月分で しぼれる（在る月だけ・新しい順・全
   const el = $('l-month');
   ok(el, '★月の 選び所が 無い★');
   const v = [...el.options].map((o) => o.value);
-  eq(v[0], '', '★「月をぜんぶ」が 先頭に 無い★ ' + JSON.stringify(v));
+  eq(v[0], '', '★「全期間」が 先頭に 無い★ ' + JSON.stringify(v));
+  /* ★2026-10-23 言葉を 代行請求に そろえた★（「月をぜんぶ」→「全期間」・司さん 赤丸） */
+  eq(el.options[0].textContent, '全期間', '★先頭の 言葉が「全期間」で ない★');
   eq(v.slice(1).join(','), YM.join(','), '★在る月だけ・新しい順 に なっていない★ ' + JSON.stringify(v));
   kaeru('l-month', '2026-08');
   eq(gyo(), NIN, '★月で 絞れていない★');
@@ -203,7 +206,9 @@ T('★⑥ 件数と 合計を 出す／絞り込み中は そう 書く', () => 
 T('★⑦ 取引先でも しぼれる（前からの 物が 壊れていない）', () => {
   const el = $('l-partner');
   ok(el, '★取引先の 選び所が 無い★');
-  eq([...el.options][0].value, '', '★「すべての取引先」が 先頭に 無い★');
+  eq([...el.options][0].value, '', '★「全社」が 先頭に 無い★');
+  /* ★2026-10-23 言葉を 代行請求に そろえた★（「すべての取引先」→「全社」・司さん 赤丸） */
+  eq([...el.options][0].textContent, '全社', '★先頭の 言葉が「全社」で ない★');
   kaeru('l-partner', 'p3');
   eq(gyo(), YM.length, '★取引先で 絞れていない★');
   kaeru('l-partner', '');

@@ -543,7 +543,9 @@
 
   function renderList() {
     renderRecurring();
-    renderReport();
+    /* ★2026-10-23 一覧の 頭の「ぜんぶ」の 集計は 外した★（司さん 赤丸）
+       ＝集計は 別の「請求／集計」の 画面へ 移る。renderReport そのものは 残す（その 画面が 呼ぶ）。
+       ここで 呼ぶのを やめただけ＝無い 欄を 触って 転ばない。 */
     var host = $('list-body'); if (!host) return;
     drawListPartners();
     var rows = S.invoices.filter(function (v) {
@@ -577,9 +579,13 @@
       var g = v.totals && v.totals.grandTotal;
       if (typeof g === 'number') { kei += g; yomeru++; }
     });
-    setText('list-sum', rows.length + '件' + (shibotta ? '（絞り込み中）' : '')
-      + (yomeru ? '　合計 ' + yen(kei) + ' 円'
-        + (yomeru < rows.length ? '（金額が 入っている ' + yomeru + '件ぶん）' : '') : ''));
+    /* ★2026-10-23★ 代行請求の .list-sum と 同じ＝「N件」が 左・「合計」が 右端 */
+    var sumEl = $('list-sum');
+    if (sumEl) sumEl.innerHTML = '<span class="ls-n">' + rows.length + '件'
+      + (shibotta ? '（絞り込み中）' : '') + '</span>'
+      + '<span class="ls-v">合計 ' + yen(kei) + ' 円'
+      + (yomeru < rows.length ? '<span class="ls-k">（金額が 入っている ' + yomeru + '件ぶん）</span>' : '')
+      + '</span>';
     if (!rows.length) {
       host.innerHTML = '<div class="card"><div class="empty">'
         + (S.invoices.length ? 'この絞り込みに当てはまる請求書はありません。' : 'まだ請求書がありません。「＋ 新しい請求書」から出せます。')
@@ -608,25 +614,30 @@
            発行した 請求書は ★消せない★（番号を 二度 使わない為）＝嘘を 書かない。 */
       var keseru = DOC.canDelete(v) && v.id;
       var kesu = keseru ? '削除' : (DOC.canVoid(v) ? '取り消す' : '');
+      /* ★2026-10-23 司さん（赤丸）★＝金額の 行に ★会社名（左）と 合計金額（右端）★
+         （代行請求の .list-item＝.li-meta が 左・.li-amt が 右端）。
+         ★下書きで 金額が 無い時は 右端に「金額まだ N行」★（0円と 見せない 知らせは 消さない）。 */
+      var migi = waiting
+        ? '<span class="iv-amt iv-amt-mada">金額まだ ' + waiting + '行</span>'
+        : '<span class="iv-amt">' + (g === undefined || g === null ? '—' : yen(g) + ' 円') + '</span>';
       return '<div class="card iv-card">'
         + '<div class="iv-top">' + tag
-        + '<span class="iv-no">' + (esc(v.no) || '（未採番）') + '</span>'
-        + '<span class="iv-name">' + esc(partnerName(v)) + '</span></div>'
+        + '<span class="iv-no">' + (esc(v.no) || '（未採番）') + '</span></div>'
         + '<div class="iv-sub">' + esc(v.issue_ymd || '請求日なし')
         + (v.due_ymd ? '　期限 ' + esc(v.due_ymd) : '')
         + '　' + esc(payLabel(v))
         /* ★出したが まだ 渡していない★（2026-09-10）＝送り漏れが 一覧で 見える */
         + (DOC.statusOf(v) === 'issued' && !v.sent_at ? '　<b class="iv-mada">まだ渡していません</b>' : '')
         + '</div>'
-        + '<div class="iv-sub"><span class="iv-amt">'
-        + (waiting
-          ? '金額まだ ' + waiting + '行'
-          : (g === undefined || g === null ? '—' : yen(g) + ' 円'))
-        + '</span></div>'
-        + '<div class="btn-row iv-btns">'
-        + '<button class="btn-ghost" type="button" data-look="' + esc(v.id) + '">確認</button>'
-        + '<button class="btn-ghost" type="button" data-open="' + esc(v.id) + '">修正</button>'
-        + (kesu ? '<button class="bdel" type="button" data-kesu="' + esc(v.id) + '">' + kesu + '</button>' : '')
+        + '<div class="iv-line">'
+        + '<span class="iv-name">' + esc(partnerName(v)) + '</span>' + migi + '</div>'
+        /* ★ボタンは 控えめに★（2026-10-23 司さん「もっと スタイリッシュに」）
+           ＝太い 枠を やめ、カードの 下に 線で 区切った 1列（代行請求の 行の 操作は 控えめ）。
+           ★指で 押せる 高さ（44px）と 削除の 赤★は 守る。 */
+        + '<div class="iv-btns">'
+        + '<button class="iv-b" type="button" data-look="' + esc(v.id) + '">確認</button>'
+        + '<button class="iv-b" type="button" data-open="' + esc(v.id) + '">修正</button>'
+        + (kesu ? '<button class="iv-b iv-b-del" type="button" data-kesu="' + esc(v.id) + '">' + kesu + '</button>' : '')
         + '</div></div>';
     }).join('');
     Array.prototype.forEach.call(host.querySelectorAll('[data-open]'), function (b) {
@@ -800,8 +811,6 @@
     goScreen('scr-edit');
   }
 
-  /* ★一覧の 取引先の 選び★＝今 出ている 紙に 出てくる 相手だけ 並べる
-     （1通も 無い 相手を 並べても 押す物が 増えるだけ）。 */
   /** ★何年何月分で しぼる★（2026-09-09 司さん
    *  「代行請求書アプリのように ここでも 請求ごとや 何年何月分とか 全体とか 選べれるようにして」）
    *  ★代行請求と 同じ作り★＝出した紙が 在る月だけを 実データから 拾って 新しい順。
@@ -817,7 +826,7 @@
       mita[m] = 1; list.push(m);
     });
     list.sort().reverse();
-    el.innerHTML = '<option value="">月をぜんぶ</option>'
+    el.innerHTML = '<option value="">全期間</option>'
       + list.map(function (m) {
         return '<option value="' + esc(m) + '"' + (m === ima ? ' selected' : '') + '>'
           + esc(m.slice(0, 4) + '年' + String(Number(m.slice(5, 7))) + '月') + '</option>';
@@ -825,17 +834,25 @@
     if (ima && el.value !== ima) el.value = '';   /* 無くなった月を 選んだままに しない */
   }
 
+  /* ★一覧の 会社の 選び★（2026-10-23 司さん 赤丸＝代行請求と 同じ）
+     ＝★取引先の 登録（マスタ）の 会社★を 登録の 順に（請求書が まだ 無い 会社も 並ぶ）。
+     ★登録から 消えたが 請求書は 残っている 相手★は 後ろに 足す（代行請求の 請求の 選びと 同じ
+       ＝消えた 相手の 請求書を 絞れなく しない）。先頭は「全社」＝value="" の 1個。 */
   function drawListPartners() {
     var el = $('l-partner'); if (!el) return;
     var ima = el.value || '';
     var mita = {}, list = [];
+    (S.partners || []).forEach(function (p) {
+      if (!p || !p.id || mita[p.id]) return;
+      mita[p.id] = 1;
+      list.push({ id: p.id, nm: (p.data && p.data.name) || '（名前なし）' });
+    });
     (S.invoices || []).forEach(function (v) {
       if (!v.partner_id || mita[v.partner_id]) return;
       mita[v.partner_id] = 1;
       list.push({ id: v.partner_id, nm: partnerName(v) });
     });
-    list.sort(function (a, b) { return String(a.nm).localeCompare(String(b.nm), 'ja'); });
-    el.innerHTML = '<option value="">すべての取引先</option>'
+    el.innerHTML = '<option value="">全社</option>'
       + list.map(function (x) {
         return '<option value="' + esc(x.id) + '"' + (x.id === ima ? ' selected' : '') + '>' + esc(x.nm) + '</option>';
       }).join('');
@@ -5543,9 +5560,8 @@
       });
       renderList();
     };
-    if ($('rep-month')) $('rep-month').onchange = function () {
-      repMonth = $('rep-month').value; renderReport();
-    };
+    /* ★2026-10-23 一覧の 集計の 月の 選び（rep-month）の 配線は 外した★＝欄が 一覧から 無くなった。
+       集計は 別の「請求／集計」の 画面が 配線する。 */
     /* ★動かしたら その場で 絵が変わる★（押さないと分からない、を作らない） */
     ['seal-mm', 'seal-x', 'seal-y'].forEach(function (id) {
       var el = $(id);
@@ -5727,6 +5743,7 @@
     _saveDraftForTest: function () { return saveDraft(); },          // テスト用: 下書き保存を そのまま走らせる
     _renderListForTest: function () { return renderList(); },        // テスト用: 一覧を 描き直す
     _reportForTest: function (m) { return reportOf(m); },            // テスト用: 集計の数だけ取る
+    _renderReportForTest: function () { return renderReport(); },    // テスト用: 集計を 描く（2026-10-23 一覧からは 呼ばなくなった＝描けるかを 直に 見る）
     /* テスト用: ★本物の紙★を そのまま返す（見張りが 紙の中身を数える為。
        ★画面と同じ道を通す★＝紙だけ別の作り方をしない） */
     _paperHtml: function () {

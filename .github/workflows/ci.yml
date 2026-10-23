@@ -532,6 +532,10 @@ jobs:
         run: node seikyu/tests/ichiran-look.mjs
       - name: ★一覧 (画面を変えない/しぼらない/件数を出さない/戻れない で赤になるかの自己確認)
         run: node seikyu/tests/ichiran-look.mjs --self-test
+      - name: ★一覧の形 (会社と期間の2つ・全社/全期間・会社はマスタから/会社名の右端に金額/下書きの金額まだ/確認・修正・削除/頭に集計を出さない・390px と 320px を Chrome で測る)
+        run: node seikyu/tests/ichiran-katachi.mjs
+      - name: ★一覧の形 (壊す所が本当にコードに在るかの自己確認)
+        run: node seikyu/tests/ichiran-katachi.mjs --self-test
       - name: ★請求書 1問目に様式を聞く/見本を見せる/戻って続きから (本物を動かして押す)
         run: node seikyu/tests/tpl-ask-ui.mjs
       - name: ★1問目を出さない姿へ戻したら赤になるかの自己確認

@@ -47,29 +47,18 @@
            ＝代行請求の 一覧は ★select の 横並び★（.filterbar）で、
              「全社」「全期間」は ★value="" の option 1個★。特別扱いは しない。
              月の 選択肢は ★実データから 作る★（出した紙が 在る月だけ・新しい順）。 -->
-      <div class="bill-pick">
-        <select class="finput" id="l-partner" aria-label="取引先でしぼる"></select>
-        <select class="finput" id="l-month" aria-label="何年何月分でしぼる"></select>
+      <!-- ★2026-10-23 司さん（スマホの 赤丸）★＝代行請求の 一覧と 同じ 頭に した
+           ・「会社を選ぶ」「期間（月）を選ぶ」の 2つを ★横に 並べる★（代行請求 .filterbar）
+             先頭は「全社」「全期間」＝value="" の option 1個（特別扱いは しない）
+           ・会社の 選択肢は ★取引先の 登録（マスタ）から★（請求書に 出てくる 相手だけ でなく）
+           ・その下に「N件」と 右端に「合計」の 1行（代行請求 .list-sum）＝「消えた」と 思わせない
+           ・★一覧の 頭の「ぜんぶ」の 集計（月の 選びと 集計の 1行・表）は 外した★
+             ＝集計は 別の「請求／集計」の 画面へ 移る（renderReport は 消していない）。 -->
+      <div class="filterbar">
+        <select class="finput fselect" id="l-partner" aria-label="会社を選ぶ"></select>
+        <select class="finput fselect" id="l-month" aria-label="期間を選ぶ"></select>
       </div>
-      <!-- ★何件に 絞ったか・いくらか を 必ず出す★（代行請求の #listSum と 同じ）
-           ＝「消えた」と 思わせない。 -->
-      <p class="hint" id="list-sum"></p>
-      <!-- ★★2026-09-10 「請求/集計」の タブを 外して ここへ 寄せました★★
-           司さん「一覧と集計の差は なんなん 同じことが できるなら いらんことないか？」
-           ★数えて 確かめた★＝請求/集計は 一覧の 一部で、新しい事は 1つも しない。
-             ・集計の 計算は ★同じ REP.summarize を 2か所で★ 呼んでいた
-             ・絞り込みの 欄も 2組（l-partner/l-month と bill-partner/bill-month）
-             ・出す ボタンは ★2組で 中身が ちがう★（一覧5個／集計3個）＝
-               ★納品書は 請求/集計からは 出せなかった★
-             ・分ける 理由は「選ぶだけで 紙が すぐ出る」だけ だったが、
-               2026-09-10 に 確認を かぶせに したので ★1回 押すだけ★に なった。
-           ★集計は 引き出し2枚の 下に 隠れていた★（もっと ▸ 集計）ので、
-           ★ここに 出しっぱなし★に する（毎月 いちばん 見る 数）。 -->
-      <div class="rep-sum" id="rep-sum"></div>
-      <div class="fil-row">
-        <select class="finput" id="rep-month" aria-label="集計する月"></select>
-      </div>
-      <div id="rep-body"></div>
+      <p class="list-sum" id="list-sum"></p>
       <!-- ★この字は JS（seikyu-app.js の drawDocWords）が 必ず 上書きする★
            ＝2か所で 別々に 直すと 片方が 残る。ここは 出るまでの つなぎ。 -->
       <p class="hint" id="list-hint">出した請求書も、あとから中身を直せます。番号は同じ物を二度使いません。</p>

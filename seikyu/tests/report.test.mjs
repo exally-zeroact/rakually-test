@@ -139,7 +139,22 @@ if (JSDOM) {
   doc.getElementById('app').hidden = false;
   const A = win.SeikyuApp, St = A._state;
   St.invoices = INV; St.receipts = RC; St.partners = PT; St.kind = 'invoice'; St.fil = 'all';
-  A._go('scr-list'); A._renderListForTest();
+  /* ★2026-10-23 集計は 一覧の 頭から 外した★（司さん 赤丸＝集計は 別の「請求／集計」の 画面へ 移る）
+     ＝一覧を 描いても 集計は 描かれない。★renderReport そのものは 残っている★ので、
+       集計の 3つの 欄（rep-sum・rep-month・rep-body）が ★まだ どこにも 無い時だけ★ 試験の 中で 置いて、
+       renderReport を 直に 走らせて 見る（新しい 画面が 欄を 持ったら その 欄を 使う）。 */
+  if (!doc.getElementById('rep-sum')) {
+    const host = doc.createElement('div');
+    host.innerHTML = '<div class="rep-sum" id="rep-sum"></div><div class="fil-row">'
+      + '<select class="finput" id="rep-month"></select></div><div id="rep-body"></div>';
+    doc.body.appendChild(host);
+  }
+  const draw = () => { A._renderListForTest(); A._renderReportForTest(); };
+  A._go('scr-list'); draw();
+  T('★⑨-b 一覧の 頭には 集計を 出さない（集計は 別の 画面へ 移った）', () => {
+    const li = doc.getElementById('scr-list');
+    ok(!li.querySelector('#rep-sum') && !li.querySelector('#rep-month'), '★一覧に 集計が 残っている★');
+  });
   const txt = (id) => ((doc.getElementById(id) || {}).textContent || '').replace(/\s+/g, ' ').trim();
 
   T('★⑩ 画面の1行に 請求・入金・残りが 出ている（実UI）', () => {
@@ -154,15 +169,15 @@ if (JSDOM) {
     console.log('     ' + t.slice(0, 76));
   });
   T('★⑫ 入金が読めていない時は 画面も「未確認」（0円と書かない）', () => {
-    St.receipts = null; A._renderListForTest();
+    St.receipts = null; draw();
     const t = txt('rep-sum');
     ok(/未確認/.test(t), '★0円と書いている★：' + t);
     St.receipts = RC;
   });
   T('★⑬ 見積を見ている時は 集計を出さない（見積は 請求ではない）', () => {
-    St.kind = 'quote'; A._renderListForTest();
+    St.kind = 'quote'; draw();
     ok(doc.getElementById('rep-sum').style.display === 'none', '★見積でも 売上の集計が 出ている★');
-    St.kind = 'invoice'; A._renderListForTest();
+    St.kind = 'invoice'; draw();
   });
 } else {
   console.log('  ※ jsdom が無いので 実UIの4本は 走っていません（★0件ではありません★）');

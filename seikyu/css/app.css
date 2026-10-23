@@ -69,23 +69,54 @@
 /* ── 一覧の1行の中身 ─────────────────────────────────── */
 .iv-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
 .iv-no { font-family: 'DM Mono', ui-monospace, monospace; font-size: 12px; color: #6E6E6E; white-space: nowrap; }
-.iv-name { font-size: 14px; font-weight: 700; color: #2E7D54; min-width: 0; overflow-wrap: break-word; }
+/* ★2026-10-23 司さん（赤丸）★＝会社名（左）と 合計金額（右端）を ★1行★に（代行請求の .list-item）
+   ・会社名は 主役（濃く・太く）・長ければ「…」で 切る（金額を 押し出さない）
+   ・金額は ★折り返さず 右端★（DM Mono） */
+.iv-line { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; min-width: 0; }
+.iv-name {
+  flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 700; color: #333333;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .iv-sub {
   display: block; width: 100%; font-size: 12px; color: #6E6E6E;
   line-height: 1.7; margin-top: 2px;
   white-space: normal; word-break: normal; overflow-wrap: break-word;
 }
-.iv-amt { font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; font-weight: 700; color: #2E7D54; }
+.iv-amt {
+  flex: 0 0 auto; margin-left: auto; white-space: nowrap;
+  font-family: 'DM Mono', ui-monospace, monospace; font-size: 15px; font-weight: 700; color: #2E7D54;
+}
+/* ★下書きで 金額が まだ 無い★＝0円と 見せない（注意の 色の 小さい 札） */
+.iv-amt-mada {
+  font-family: inherit; font-size: 12px; color: #92500A;
+  background: #FDF3E3; border: 1px solid #F0DDBC; border-radius: 999px; padding: 2px 8px;
+}
 
 /* ★2026-09-08 司さん「取引先のところに 確認や修正と削除のボタン作って
    押したらPDFが見えたり修正できたりでええやろ」★
    ＝行そのものを 押す（どこへ行くか 分からない）のを やめて、
      1通ぶんを ★1枚の カード★にし、下に ★何が起きるか 書いた ボタン★を 並べる。
    ★ボタンは 裸で 並べない＝flex+gap の 箱に 入れる★（全アプリ 共通の 決まり）。 */
-.iv-card { padding: 12px 14px 10px; margin-bottom: 10px; }
-.iv-btns { margin-top: 10px; gap: 8px; flex-wrap: wrap; }
-/* ★どのボタンも 指で 押せる 大きさ★（44px＝Apple の 目安） */
-.iv-btns > button { flex: 1 1 auto; min-width: 0; white-space: nowrap; min-height: 44px; }
+.iv-card { padding: 12px 14px 0; margin-bottom: 10px; }
+/* ★2026-10-23 司さん「もっと スタイリッシュに」★＝太い 枠の 大きな ボタン3つ を やめた。
+   代行請求の 行の 操作は 控えめ（枠なし・字だけ・削除は 赤）＝★カードの 下に 細い 線で 区切った 1列★。
+   ・★指で 押せる 高さ 44px★（Apple の 目安）は そのまま
+   ・★削除・取り消すは 赤の 字★＝他と 見分けられる
+   ・ボタンの 間は 細い 縦線（押す 所の 境が 分かる） */
+.iv-btns {
+  display: flex; margin: 10px -14px 0; border-top: 1px solid #D4EAE0;
+}
+.iv-b {
+  flex: 1 1 0; min-width: 0; min-height: 44px; white-space: nowrap;
+  font-family: inherit; font-size: 14px; font-weight: 700; color: #2E7D54;
+  background: transparent; border: 0; cursor: pointer; padding: 0 6px;
+}
+.iv-b + .iv-b { border-left: 1px solid #D4EAE0; }
+.iv-b:hover, .iv-b:active { background: #F0FAF4; }
+.iv-b-del { color: #C0392B; }
+.iv-b-del:hover, .iv-b-del:active { background: #FDF0EE; }
+.iv-btns > .iv-b:first-child { border-bottom-left-radius: 15px; }
+.iv-btns > .iv-b:last-child { border-bottom-right-radius: 15px; }
 /* ★確認で 出す 紙★＝入力画面の 下見と 同じ 見た目 */
 #lv-card .pv-wrap { margin-top: 10px; }
 
@@ -596,8 +627,18 @@
 
 /* ── ★請求 / 集計★（司さん 2026-08-31「代行のように 請求書／集計を作って 見せ方も一緒に」）
    月と相手を選ぶ → その紙が すぐ出る → PDF／印刷／Excel。 */
-.bill-pick { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
-.bill-pick .finput { flex: 1 1 140px; min-width: 0; }
+/* ★一覧の 絞り★（2026-10-23 司さん 赤丸＝代行請求の .filterbar と 同じ）
+   「会社を選ぶ」「期間を選ぶ」の 2つを ★必ず 横に 並べる★（320px でも 折り返さない）。 */
+.filterbar { display: flex; gap: 8px; margin: 4px 0 8px; }
+.filterbar .fselect { flex: 1 1 0; min-width: 0; font-size: 16px; padding: 8px 26px 8px 10px; min-height: 44px; text-overflow: ellipsis; }
+/* ★件数（左）と 合計（右端）の 1行★（代行請求の .list-sum） */
+.list-sum {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  margin: 2px 0 6px; font-size: 13px; color: #333333;
+}
+.list-sum .ls-n { white-space: nowrap; font-weight: 700; }
+.list-sum .ls-v { text-align: right; font-weight: 700; color: #2E7D54; }
+.list-sum .ls-k { display: block; font-weight: 400; font-size: 11px; color: #6E6E6E; }
 .bill-pv {
   width: 100%; aspect-ratio: 210 / 297; background: #FFFFFF;
   border: 1px solid #D4EAE0; overflow: hidden;
