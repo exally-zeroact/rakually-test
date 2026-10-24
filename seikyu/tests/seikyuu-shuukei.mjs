@@ -454,7 +454,7 @@ async function run(label, appSrc) {
     return s;
   };
 
-  await T('⑪ 集計＝表の数が REP.summarize と 1円も 違わない（請求・入金・残り・合計・件数）', async () => {
+  await T('⑪ 集計＝表の数が 画面の 集計（帳簿で 充てた 入金）と 1円も 違わない（請求・入金・残り・合計・件数）', async () => {
     doc.querySelector('#scr-bill [data-bseg="report"]').click(); await sleep(30);
     const el = $('bk-rep-month'); ok(el, '★集計の 月の 選び所が 無い★');
     eq(el.value, '2026-10', '★集計の 既定の 月★');
@@ -462,6 +462,12 @@ async function run(label, appSrc) {
     eq(s.totals.count, 4, '数えた 通数（種の 確かめ）');
     console.log('     ' + [...doc.querySelectorAll('#bk-rep-sum .bk-sum-c')].map((c) => c.textContent.replace(/\s+/g, ' ').trim()).join(' ／ ')
       + ' ／ ' + [...doc.querySelectorAll('#bk-rep-body tfoot td')][0].textContent);
+    /* ★帳簿の 固い 数★（比べる 正が 画面と 同じ 関数なので、帳簿が 壊れても 上の 比べは 緑の まま＝ここで 額を 押さえる）
+       例野工業の 10月の 紙に 記録した 11,000 は、未入金の 8月（2,689,132）へ 古い 方から 充たる */
+    const reino = (x) => x.rows.find((r) => r.name === '例野工業株式会社');
+    eq(reino(s).paid, 0, '★例野工業の 10月の 入金（帳簿で 8月へ）★');
+    await kaeru('bk-rep-month', '2026-08');
+    eq(reino(checkReport('2026-08', S.receipts)).paid, 11000, '★例野工業の 8月の 入金（帳簿で 10月から 充たる）★');
     await kaeru('bk-rep-month', '2026-09');
     checkReport('2026-09', S.receipts);
     await kaeru('bk-rep-month', '');
