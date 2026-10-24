@@ -109,6 +109,9 @@ async function tateru(o) {
   S.store = {
     partners: {
       list: () => Promise.resolve(S.partners),
+      /* ★前に 消した 取引先★＝この 試験では 無い（空の 一覧）。
+         入力の「この相手を作る」は 毎回 これを 読んで 判じる（⑤ ptNayose）＝読めないと 作らないので 空で 返す */
+      gone: () => Promise.resolve([]),
       /* その場で 作る＝同じ 名前が 在れば その 相手（already） */
       create: (d) => {
         const aru = S.partners.find((x) => x.data.name === d.name);
