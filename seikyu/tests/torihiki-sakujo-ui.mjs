@@ -24,6 +24,7 @@
  *   ⑱⑲⑳ 画面の 控えに 頼らない（別の 端末で 消された 後・消した 直後の 読み直し前・一覧が 読めない 時）… taiketsu 10-23 3回目
  *   ㉑㉒ 期限（20秒）の 後に 遅れて 返っても 確かめも 作りも 戻しも しない                      … taiketsu 10-23 4回目 止1
  *   ㉓㉔㉕ 入力の 画面の「この相手を作る」も 同じ 判じ（混ぜるか 訊く・読めなければ 作らない）   … taiketsu 10-23 4回目 止2
+ *   ㉖ 入力の 画面で「混ぜる」も 選びで 変えた 時と 同じ 道（aiteWoKaeta）＝源泉・前回の 当てが 入り 前の 相手の 物が 残らない
  *
  * 使い方: node seikyu/tests/torihiki-sakujo-ui.mjs [--self-test]
  */
@@ -586,6 +587,49 @@ async function run(label, o) {
     eq(r.sb._db.pay_partners.filter((x) => (x.data || {}).name === 'C商事').length, 0, '★確かめられないのに 作った★');
     ok(/確かめられません/.test(msg), '字: ' + msg);
   });
+
+  await T('㉖ 入力の 画面で「混ぜる」＝相手を 選びで 変えた 時と 同じ 道（aiteWoKaeta）＝源泉の 対象の A を B の 白紙から 戻すと 源泉・前回の 当てが 入り B の 物が 残らない', async () => {
+    /* A＝源泉の 対象（消した）・前回 出した 1通に 件名と 明細／B＝前回 出した 1通に B の 件名と 明細 */
+    const ptA = goneA();
+    ptA[0].data.gensen = true;
+    const ivs = clone(INVOICES);
+    ivs[0].data = { subject: 'A社の件名', gensen: true };
+    ivs[0].lines = [{ name: 'A社の工事', qty: '1', unit: '式', price: '30000', amount: 30000, rate: 10 }];
+    ivs.push({ id: 'iv_b', account_id: 'u1', doc_type: 'invoice', status: 'issued', no: '202609-009', partner_id: 'pt_b',
+      issue_ymd: '2026-09-30', due_ymd: '2026-10-31', tax_mode: 'exclusive', rounding: 'floor',
+      lines: [{ name: 'B社の品', qty: '1', unit: '式', price: '5000', amount: 5000, rate: 10 }],
+      totals: { grandTotal: 5500, taxTotal: 500 },
+      snapshot: { partner: { name: 'B工務店', honor: '様' }, org: { yago: '合同会社Rakunally' }, at: '2026-09-30' },
+      data: { subject: 'B社の件名' }, template_id: 'std1', deleted_at: null, updated_at: '2026-09-30T00:00:00Z' });
+    const r = await boot(Object.assign({ invoices: ivs, partners: ptA }, o));
+    const $ = (id) => r.doc.getElementById(id);
+    r.doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(100);
+    $('b-new').click(); await sleep(300);
+    $('e-partner').value = 'pt_b';
+    eq($('e-partner').value, 'pt_b', '★相手の 選びに B が 無い★（空振り）');
+    $('e-partner').dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(300);
+    const S = r.win.SeikyuApp._state;
+    const meisai = () => (S.cur.lines || []).map((l) => l && l.name).filter(Boolean).join('|');
+    /* ★空振りしない★＝B を 選んだ 時に B の 前回が 本当に 入っている（入らなければ「残らない」を 見る 意味が 無い） */
+    eq(S.cur.data.subject, 'B社の件名', '★B の 前回が 入っていない（空振り）★');
+    ok(/B社の品/.test(meisai()), '★B の 前回の 明細が 入っていない（空振り）★: ' + meisai());
+    eq(!!S.cur.data.gensen, false, 'B は 源泉の 対象で ない');
+    const asked = []; r.win.confirm = (m) => { asked.push(String(m)); return true; };
+    $('pt-new-name').value = 'A株式会社';
+    $('b-pt-new').click();
+    await sleep(500);
+    eq(asked.length, 1, '★混ぜるかを 訊いていない★');
+    eq(S.cur.partner_id, 'pt_a', '入力中の 請求書の 相手が 戻した A で ない');
+    eq(S.cur.data.gensen, true, '★戻した A の 源泉が 入っていない（aiteWoKaeta を 通っていない）★');
+    eq($('e-gensen').checked, true, '★源泉の 欄が 外れて 見える★');
+    eq(S.cur.data.subject, 'A社の件名', '★A の 前回の 件名が 当たっていない★');
+    eq($('e-subject').value, 'A社の件名', '★画面の 件名が A の 前回で ない★');
+    ok(!/B社の品/.test(meisai()), '★B の 明細が 残った★: ' + meisai());
+    ok(!/B社の件名/.test($('e-subject').value), '★B の 件名が 画面に 残った★');
+    ok(!/202609-009/.test(($('edit-ok') || {}).textContent || ''), '★B の「前回（No.202609-009）と 同じ」が 残った★');
+    eq(r.errs.length, 0, '画面の 誤り: ' + r.errs.join(' / '));
+  });
 }
 
 if (!SELF) {
@@ -606,6 +650,7 @@ if (!SELF) {
     ['毎月の請求に 消した 相手を 出す', { app: app.replace('.filter(function (d) { return !!ptLive(d.partnerId); });', ';') }],
     ['期限の 後でも 書く（owari を 見ない）', { app: app.split('if (kireta) return osoi();').join('') }],
     ['入力の 画面で 判じを 通さない', { app: app.replace('    return ptNayose(name, {' + String.fromCharCode(10) + '      err: say,', '    return (function (w) { return w.create(false); })({' + String.fromCharCode(10) + '      err: say,') }],
+    ['入力の 画面で 作った・戻した 相手を aiteWoKaeta に 通さない', { app: app.replace('if (S.cur && S.cur.partner_id !== id) aiteWoKaeta(id);', 'if (S.cur) S.cur.partner_id = id;') }],
     ['倉庫で 消えたかを 確かめない（seikyu-store）', { store: store.replace("if (!q || !q.data || !q.data.deleted_at) return { ok: false, reason: '倉庫で 消えた事を 確かめられませんでした' };", '') }],
   ];
   /* ★--self-test=3 のように 番号で 1通りだけ 回せる★（別の 席の 空きを 食わない為） */
