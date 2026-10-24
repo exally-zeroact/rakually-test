@@ -459,9 +459,10 @@
           var sp = m.gaku - m.credit; if (sp <= 0) return;
           var u = Math.min(sp, left); m.credit += u; n.credit -= u; left -= u;
         };
-        var j;
-        for (j = ni - 1; j >= 0; j--) ate(cells[j]);
-        for (j = ni + 1; j < cells.length; j++) ate(cells[j]);
+        /* 「以前」は ★日付で★ 見る（同じ 日の 後の 番号の 紙も 入れる・taiketsu 5回目 止1）＝並びの 前後では 決めない */
+        var hi = String(n.v.issue_ymd || ''), j;
+        for (j = cells.length - 1; j >= 0; j--) { if (j !== ni && String(cells[j].v.issue_ymd || '') <= hi) ate(cells[j]); }
+        for (j = 0; j < cells.length; j++) { if (j !== ni && String(cells[j].v.issue_ymd || '') > hi) ate(cells[j]); }
       });
       p.rcs.forEach(function (r) {
         var amt = Number(r.amount) || 0;
@@ -510,9 +511,10 @@
     if (c.credit) {
       st.remain = st.total - st.paid - c.credit;
       /* ★状態は 残りの 符号で 決める★（入金と 貸しが 打ち消して 0 でも、残りが マイナスなら 過入金＝返す 額が ある・taiketsu 4回目 止B） */
-      var nanimo = st.paid === 0 && c.credit === 0;
-      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? (nanimo ? 'unpaid' : 'paid') : (nanimo ? 'unpaid' : 'partial');
+      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : 'partial';
     }
+    /* ★引ける 紙が 無い 赤伝★も 残りが マイナス＝こちらが 返す 額が ある＝過入金（「未入金」と 言わない・taiketsu 5回目 止2） */
+    if (st.remain < 0) st.state = 'over';
     st.alloc = c.alloc;
     return st;
   }
@@ -3054,6 +3056,8 @@
     /* ★発行済みで 繰越を 写していない 紙は 繰越を 出さない★＝出した 時の 顔の まま（taiketsu 4回目 止C）
        前は 開き直す たびに 数え直し、後から 繰越を「入」に すると 出した 9月の 紙が 99,000・後の 紙を「前回」と 刷った */
     if (v.status && v.status !== 'draft') return null;
+    /* ★見積書に 請求書の 繰越を 乗せない★（帳簿は 請求書だけ＝見積には 入金が 無い・taiketsu 5回目 別件） */
+    if ((v.doc_type || 'invoice') !== 'invoice') return null;
     if (!carryOn()) return null;
     var t;
     try { t = currentTax(); } catch (e) { return null; }
