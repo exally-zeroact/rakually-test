@@ -94,7 +94,7 @@ export async function boot(t, appSrc) {
 
 async function run(label, appSrc) {
   console.log('\n[' + label + '] ★源泉の ある 領収書と 繰越の 連鎖★');
-  const partners = ['H', 'S', 'N', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'Q', 'R'].map((k, i) => ({ id: 'p' + k, sort: i, data: { name: '見本' + k + '商事', keisho: '御中' } }));
+  const partners = ['H', 'S', 'N', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'Q', 'R', 'U', 'V'].map((k, i) => ({ id: 'p' + k, sort: i, data: { name: '見本' + k + '商事', keisho: '御中' } }));
   const t = {
     partners,
     invoices: [
@@ -127,6 +127,11 @@ async function run(label, appSrc) {
       iv('q9', 'pQ', '2026-09-10', { sub: 30000, tax: 3000 }),           // 一部を 先に 払う
       iv('q10', 'pQ', '2026-10-10', { sub: 30000, tax: 3000, carry: { state: 'ok', prevNo: '202609-q9', prevTotal: 0, paid: 0, carry: 23000, thisTotal: 33000, grandTotal: 56000 } }),
       iv('r9', 'pR', '2026-09-10', { sub: 30000, tax: 3000 }),           // 消した 入金
+      /* ⑥ taiketsu 10-24 3回目の 止め */
+      iv('u9', 'pU', '2026-09-10', { sub: 30000, tax: 3000 }),           // 止2：後から 9/30 付けの 請求漏れの 紙
+      iv('u10', 'pU', '2026-10-10', { sub: 30000, tax: 3000, carry: { state: 'ok', prevNo: '202609-u9', prevTotal: 33000, paid: 0, carry: 33000, thisTotal: 33000, grandTotal: 66000 } }),
+      iv('v9', 'pV', '2026-09-10', { sub: 30000, tax: 3000 }),           // 止3：マイナスの 請求書（赤伝）−11,000
+      iv('vm', 'pV', '2026-09-20', { sub: -10000, tax: -1000 }),
     ],
     receipts: [
       { id: 'rh', invoice_id: 'h', amount: 89790, ymd: '2026-10-31' },
@@ -146,6 +151,8 @@ async function run(label, appSrc) {
       { id: 'rq9', invoice_id: 'q9', amount: 10000, ymd: '2026-09-20' },
       { id: 'rq10', invoice_id: 'q10', amount: 56000, ymd: '2026-10-31' },
       { id: 'rr9', invoice_id: 'r9', amount: 33000, ymd: '2026-09-20', deleted_at: '2026-09-21' },
+      { id: 'ru10', invoice_id: 'u10', amount: 66000, ymd: '2026-10-20' },
+      { id: 'rv9', invoice_id: 'v9', amount: 22000, ymd: '2026-09-25' },
     ],
   };
   const { ryoushuu, tsugiAtama, A, doc } = await boot(t, appSrc);
@@ -267,6 +274,20 @@ async function run(label, appSrc) {
     eq(joutai('r9'), '未入金', '★消した 入金を 数えた★');
   });
 
+  /* ⑥ taiketsu 10-24 3回目の 止め＝紙・一覧・集計が 同じ 数 */
+  await T('⑥ 止2 9月・10月を 払い終わった 後に 9/30 付けの 請求漏れの 紙（今回 11,000）→ 11,000（払った 33,000 を もう一度 請求しない）・一覧は 両方 入金済', async () => {
+    eq(tsugiAtama('pU', '2026-09-30', 10000), 11000, '★請求漏れの 紙（前は 44,000＝二重請求）★');
+    eq(joutai('u9'), '入金済', 'u9'); eq(joutai('u10'), '入金済', 'u10');
+  });
+  await T('⑥ 止3 9月 33,000・マイナスの 請求書 −11,000・9月の 紙に 22,000 入金 → 10月の 紙 11,000・一覧は 2通とも 入金済（残り 11,000 と 督促しない）・集計 9月 残り 0', async () => {
+    eq(tsugiAtama('pV', '2026-10-05', 10000), 11000, '★10月の 紙★');
+    eq(joutai('v9'), '入金済', '★9月が 一部入金（赤伝を 差し引いていない）★'); eq(joutai('vm'), '入金済', '★マイナスの 請求書が 未入金★');
+    const b = await hako('v9');
+    ok(/この1通に充てた入金 ¥?22,000/.test(b.sum) && /マイナスの請求書で差し引いた額 ¥?11,000/.test(b.sum) && /残り ¥?0/.test(b.sum), '★9月の 箱★ ' + b.sum);
+    const k = await shuukei('pV', '2026-09');
+    eq(k.seikyu, 22000, '集計の 9月の 請求'); eq(k.nyukin, 22000, '★集計の 入金に 赤伝を 混ぜた★'); eq(k.nokori, 0, '集計の 9月の 残り');
+  });
+
   await T('③ 源泉の ある 相手（10月の 紙の 差引 199,580 を 全部 払う）→ 11月の 紙に 繰越は 無い・9月も 10月も 入金済', async () => {
     eq(tsugiAtama('pG', '2026-11-05', 10000, true), 11000, '★11月の 紙の ご請求金額（源泉の 前の 頭の 額）★');
     eq(joutai('g9'), '入金済', '★9月★');
@@ -280,16 +301,19 @@ if (!SELF) {
   process.exit(fail ? 1 : 0);
 } else {
   const keep = fs.readFileSync(APP, 'utf8');
-  /* ★2か所を わざと 戻す★＝①源泉の 注記を 消費税の 判定に 縛る／⑤入金を 記録した 紙 だけに 充てる */
+  /* ★4か所を わざと 戻す★＝①源泉の 注記を 消費税の 判定に 縛る／⑤入金を 記録した 紙 だけに 充てる／
+     ⑥止2 繰越を この 紙の 日付で 切る／⑥止3 マイナスの 請求書を 貸しに しない */
   const marks = [['gensen: zengaku ? gen : 0,', 'gensen: whole ? gen : 0,'],
     /* ③⑤ 帳簿の 充て方を 古い 順で なく 記録した 紙 だけに する（＝前の 作りの 型） */
-    ['            c = cells[i]; var room = c.gaku - c.paid; if (room <= 0) continue;', '            c = cells[i]; if (c.v.id !== r.invoice_id) continue; var room = c.gaku - c.paid; if (room <= 0) continue;']];
+    ['            c = cells[i]; var room = c.gaku - c.credit - c.paid; if (room <= 0) continue;', '            c = cells[i]; if (c.v.id !== r.invoice_id) continue; var room = c.gaku - c.credit - c.paid; if (room <= 0) continue;'],
+    ["        && String(x.partner_id || '') === pid;\n    }).sort(choubo_jun);", "        && String(x.partner_id || '') === pid && !(v.issue_ymd && x.issue_ymd && x.issue_ymd > v.issue_ymd);\n    }).sort(choubo_jun);"],
+    ['        if (n.gaku >= 0) return;', '        return;']];
   let bad = keep;
   for (const [a, b] of marks) {
     if (bad.split(a).length !== 2) { console.log('  ★壊す所が 見つからない＝この自己診断は 古い★ ' + a); process.exit(2); }
     bad = bad.replace(a, b);
   }
-  await run('源泉の 注記を 縛る・入金を 記録した 紙だけに 充てる（わざと 壊した）', bad);
-  console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（2件以上のはず）');
-  process.exit(fail >= 2 ? 0 : 1);
+  await run('源泉の 注記を 縛る・入金を 記録した 紙だけに 充てる・繰越を 日付で 切る・赤伝を 貸しに しない（わざと 壊した）', bad);
+  console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（4件以上のはず）');
+  process.exit(fail >= 4 ? 0 : 1);
 }

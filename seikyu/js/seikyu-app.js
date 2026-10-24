@@ -443,16 +443,28 @@
       var p = parts[pid];
       p.invs.sort(choubo_jun);
       p.rcs.sort(function (x, y) { return String(x.ymd || '').localeCompare(String(y.ymd || '')) || String(x.created_at || '').localeCompare(String(y.created_at || '')); });
-      p.cells = p.invs.map(function (v) { var g = gakuOf(v); return { v: v, gaku: (g === null ? 0 : g), paid: 0, alloc: [] }; });
+      p.cells = p.invs.map(function (v) { var g = gakuOf(v); return { v: v, gaku: (g === null ? 0 : g), paid: 0, alloc: [], credit: 0 }; });
       p.cells.forEach(function (c) { byInv[c.v.id] = c; });
       var cells = p.cells;
+      /* ★マイナスの 請求書（赤伝）は 貸し★＝入金より 先に、古い 請求書から 順に 差し引く（2026-10-24 taiketsu 止3）
+         前は 消込で 飛ばされ、紙と 集計は 払い終わりなのに 一覧だけ「一部入金」と 督促していた。
+         ★お金の 入金では ない★＝credit に 持ち、chouboReceipts（集計の 入金）には 入れない（集計の 請求は もう 差し引いた 額） */
+      cells.forEach(function (n) {
+        if (n.gaku >= 0) return;
+        var left = -n.gaku;
+        for (var j = 0; j < cells.length && left > 0; j++) {
+          var m = cells[j]; if (m.gaku <= 0) continue;
+          var sp = m.gaku - m.credit; if (sp <= 0) continue;
+          var u = Math.min(sp, left); m.credit += u; n.credit -= u; left -= u;
+        }
+      });
       p.rcs.forEach(function (r) {
         var amt = Number(r.amount) || 0;
         if (!cells.length || !amt) return;
         var i, c, t;
         if (amt > 0) {                                               /* ★古い 請求書から 順に 充てる★ */
           for (i = 0; i < cells.length && amt > 0; i++) {
-            c = cells[i]; var room = c.gaku - c.paid; if (room <= 0) continue;
+            c = cells[i]; var room = c.gaku - c.credit - c.paid; if (room <= 0) continue;
             t = Math.min(room, amt); put(c, r, t); amt -= t;
           }
           if (amt > 0) put(cells[cells.length - 1], r, amt);        /* 余りは 一番 新しい 1通（過入金） */
@@ -488,6 +500,13 @@
     /* 状態の 決め方は DOC.paymentStateOf 1本（充てた 分を その 1通の 入金として 渡す） */
     var st = DOC.paymentStateOf({ id: inv.id, grand_total: g },
       c.alloc.map(function (a) { return { invoice_id: inv.id, amount: a.amount, ymd: a.rc.ymd || '' }; }));
+    /* 赤伝で 差し引いた 分は ★入金に 混ぜない★（「充てた入金」の 額は お金だけ）＝残りと 状態だけに 効かせる */
+    st.credit = c.credit;
+    if (c.credit) {
+      st.remain = st.total - st.paid - c.credit;
+      var sumi = st.paid + c.credit;
+      st.state = sumi === 0 ? 'unpaid' : st.remain > 0 ? 'partial' : st.remain === 0 ? 'paid' : 'over';
+    }
     st.alloc = c.alloc;
     return st;
   }
@@ -499,9 +518,13 @@
     var src = billSrc();
     var list = (src.ok === true) ? src.list : (S.invoices || []);
     var pid = String(v.partner_id || '');
+    /* ★日付で 切らない★＝この 紙 以外の 発行済み 全部（2026-10-24 taiketsu 止2）
+       前は この 紙より 後の 日付の 請求書と その 入金を 外していた＝請求日を 前に さかのぼった 紙（請求漏れ）で、
+       もう 払ってもらった 額を もう一度 請求し（9/30 付けで 11,000 の 所 44,000）、一覧の「入金済」と 食い違った。
+       取引先の 残り（帳簿の 消込と 同じ 数）を そのまま 繰り越す。 */
     var mae = list.filter(function (x) {
       return x && x.id !== v.id && (x.doc_type || 'invoice') === 'invoice' && x.status === 'issued'
-        && String(x.partner_id || '') === pid && !(v.issue_ymd && x.issue_ymd && x.issue_ymd > v.issue_ymd);
+        && String(x.partner_id || '') === pid;
     }).sort(choubo_jun);
     if (!mae.length) {
       return { state: 'first', prevNo: '', prevTotal: null, paid: null, carry: null,
@@ -515,12 +538,11 @@
     var ids = {}, sumG = 0;
     mae.forEach(function (x) { ids[x.id] = 1; sumG += (gakuOf(x) || 0); });
     var L = choubo(), before = 0, since = 0;
-    /* その 取引先の 入金（この 紙 自身と この 紙より 後の 紙に 記録した 物は 除く） */
+    /* その 取引先の 入金（この 紙 自身に 記録した 物だけ 除く） */
     var p = L.parts[pid] || { rcs: [] };
     p.rcs.forEach(function (r) {
       var on = L.invById[r.invoice_id];
       if (!on || on.id === v.id) return;
-      if (on.status === 'issued' && !ids[on.id]) return;             // この 紙より 後の 紙の 入金
       var amt = Number(r.amount) || 0;
       if (r.ymd && prev.issue_ymd && r.ymd < prev.issue_ymd) before += amt; else since += amt;
     });
@@ -2662,6 +2684,10 @@
           + (a.amount < 0 ? '− ' : '') + yen(Math.abs(a.amount)) + ' 円'
           + (on && on.id !== v.id ? '（' + esc(tsuki(on)) + 'の紙 ' + esc(on.no || '') + ' に記録した入金）' : '') + '</div>';
       });
+      if (st.credit) {
+        rows += '<div class="tot-r"><span class="tot-l">' + (st.credit > 0 ? 'マイナスの請求書で差し引いた額' : 'ほかの請求書から差し引いた額')
+          + '</span><span class="tot-v">' + yen(Math.abs(st.credit)) + ' 円</span></div>';
+      }
       rows += st.remain < 0
         ? '<div class="tot-r tot-g"><span class="tot-l">過入金</span><span class="tot-v">' + yen(-st.remain) + ' 円</span></div>'
         : '<div class="tot-r tot-g"><span class="tot-l">残り</span><span class="tot-v">' + yen(st.remain) + ' 円</span></div>';
