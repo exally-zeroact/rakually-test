@@ -217,5 +217,7 @@ if (!SELF) {
   await run('入金の 状態を 源泉の 前と 比べる（わざと 壊した）', keep.replace(mark, 'var g = (inv.totals && inv.totals.grandTotal) || 0;'));
   const nige = fail >= 1 ? 0 : 1;
   console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（1件以上のはず）');
+  /* ★約束の 行★（tools/_bunrui.mjs が 最初に 読む）＝わざと 壊した 回の ✗ は 狙った 赤。数は「壊して 赤に なった 回／空振り」 */
+  console.log('KEKKA {"passed":' + (nige ? 0 : 1) + ',"failed":' + nige + ',"mimiso":0}');
   process.exit(nige ? 1 : 0);
 }

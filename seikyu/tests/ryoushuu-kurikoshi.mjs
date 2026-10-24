@@ -544,5 +544,7 @@ if (!SELF) {
     if (!aka) kara++;
   }
   console.log('\n  わざと壊した ' + marks.length + 'か所の うち 赤に ならなかった 所 … ' + kara + '（0 の はず）');
+  /* ★約束の 行★（tools/_bunrui.mjs が 最初に 読む）＝わざと 壊した 回の ✗ は 狙った 赤。数は「壊して 赤に なった 所／空振り」 */
+  console.log('KEKKA {"passed":' + (marks.length - kara) + ',"failed":' + kara + ',"mimiso":0}');
   process.exit(kara ? 1 : 0);
 }
