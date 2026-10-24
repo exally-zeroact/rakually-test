@@ -94,6 +94,11 @@ export function zure(maeTop, atoTop) { return Math.round(atoTop - maeTop); }
    ★実測★ … 網で 揺れた 回は 保存が「⚠ 別の端末で更新されました（クラウド未保存）」に 替わり（試験の 口は CI・他の 席と 同じ＝本当に ぶつかる）、
      下に 保存の 帯（#save-alert・fixed）が 出て「今月を確定」の 帯（sticky・bottom:calc(--bn-h + --sa-h)）が ★--sa-h の 分だけ 持ち上がった★＝作りの 通り。
    ⇒ 除くのは ★その 帯の 中の 物が ちょうど −Δ（Δ＝--sa-h の 増え）動いた★ 分だけ。帯の 外の 動き・Δ と 違う 動きは 今まで 通り 赤（taiketsu 10-24）。 */
+/* ★帯（--sa-h で 持ち上がる 物）の 選び方★（2026-10-24 本番前 taiketsu 止め）
+   アプリは --sa-h を <html> 自身の style にも 書く（saFit・document.documentElement.style.setProperty）＝
+   '[style*="--sa-h"]' だけだと <html> も 帯として 拾い、画面中の 押す物が 全部「帯の 中」に なって 帯の 外の 動きまで 除けた。
+   ⇒ body の 中だけから 選ぶ。 */
+export const OBI_ERABU = 'body [style*="--sa-h"]';
 export function obiNoAgeWoNozoku(ugoita, mae, ato, delta, obiNoKagi) {
   if (!delta) return ugoita.slice();
   return ugoita.filter((k) => !(obiNoKagi.indexOf(k) >= 0 && zure(mae[k], ato[k]) === -delta));
@@ -128,8 +133,22 @@ if (SELF) {
   say('★段の 札★ 確かめ ' + KAKUNIN.length + '個に 札が 在り 段1＋段2＝全部（重なり 0・抜け 0）' + (fudaNg.length ? '（' + fudaNg.join('／') + '）' : ''), fudaNg.length === 0);
   const waza = KAKUNIN.map((x, j) => (j === 0 ? { na: x.na } : x));
   say('★わざと 札を 1つ 外した 名簿は 捕まる★（' + fudaWoMiru(waza).join('／') + '）', fudaWoMiru(waza).length > 0);
+  /* ★帯の 選び方★（jsdom＝ブラウザ 無し）… <html> に --sa-h が 付いても 帯の 外の ボタンを 帯の 中に 数えない */
+  {
+    const { createRequire } = await import('node:module');
+    const rq = createRequire(new URL('../package.json', import.meta.url));
+    let JD = null; try { JD = rq('jsdom').JSDOM; } catch (e) { JD = null; }
+    if (!JD) { say('★帯の 選び方★ jsdom が 読めない（npm install）', false); }
+    else {
+      const d = new JD('<!doctype html><html style="--sa-h: 33px"><body><button id="soto">外</button>'
+        + '<div style="position:sticky;bottom:calc(var(--bn-h,0px) + var(--sa-h,0px))"><button id="naka">今月を確定</button></div></body></html>').window.document;
+      const kazu = (sel) => [].map.call(d.querySelectorAll(sel), (bar) => [].map.call(bar.querySelectorAll('button'), (b) => b.id).join(',')).join('|');
+      say('★帯の 選び方★ <html> に --sa-h が 付いても 帯は「今月を確定」の 帯だけ（外の ボタンを 拾わない）', kazu(OBI_ERABU) === 'naka');
+      say('★帯の 選び方★ わざと 前の 選び方（<html> も 拾う）に すると 外の ボタンを 拾う＝捕まる', /soto/.test(kazu('[style*="--sa-h"]')));
+    }
+  }
   if (ng) { console.log('\n★自己確認 ' + ng + '件 おかしい★'); process.exit(1); }
-  console.log('  ★19通り ぜんぶ 思った通り★');
+  console.log('  ★21通り ぜんぶ 思った通り★');
   process.exit(0);
 }
 
@@ -426,7 +445,7 @@ for (const osoi of [false, true]) {
         +(e.className&&typeof e.className==='string'?'.'+e.className.trim().replace(/\\s+/g,'.'):'')).slice(0,40);}
       var sa=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sa-h'))||0;
       var kagi=[];
-      [].forEach.call(document.querySelectorAll('[style*="--sa-h"]'),function(bar){
+      [].forEach.call(document.querySelectorAll(${JSON.stringify(OBI_ERABU)}),function(bar){
         [].forEach.call(bar.querySelectorAll('button,a[href],summary,[role="button"],input[type="submit"],input[type="button"]'),function(el){
           kagi.push(nm(el)+'|'+(el.textContent||'').trim().replace(/\\s+/g,' ').slice(0,16)); });
       });
