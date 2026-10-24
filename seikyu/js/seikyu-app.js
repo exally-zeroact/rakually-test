@@ -681,7 +681,11 @@
         + '<span class="bk-sum-v">' + v + '</span></div>';
     };
     var t = s2.totals;
-    sumEl.innerHTML = cell('', '請求', yenW(t.total) + '円') + cell('', '入金', en(t.paid))
+    /* 赤伝の 差し引きが ある 時は 枠も 4つ＝請求 ＋ 差し引き − 入金 ＝ 残額 が 足し算で 合う（taiketsu 8回目 止2） */
+    var sashiT = s2.rows.some(function (r) { return r.credit; });
+    sumEl.innerHTML = cell('', '請求', yenW(t.total) + '円')
+      + (sashiT ? cell('', '赤伝で差し引き', unk ? '未確認' : yenW(-t.credit) + '円') : '')
+      + cell('', '入金', en(t.paid))
       + cell(' rem', '残額', en(t.remain));
     var num = function (n, rem) {
       if (n === null || n === undefined) return '<td class="bk-n">未確認</td>';
@@ -701,7 +705,7 @@
       }).join('')
       + '</tbody><tfoot><tr><td>合計（' + s2.rows.length + '社・' + t.count + '件）</td>'
       + num(t.total) + sc(t.credit) + num(t.paid) + num(t.remain, true) + '</tr></tfoot></table>'
-      + (sashi ? '<p class="hint">「赤伝で差し引き」は、マイナスの請求書をほかの月の請求書から差し引いた額です（残り＝請求 − 差し引き − 入金）。</p>' : '')
+      + (sashi ? '<p class="hint">「赤伝で差し引き」は、マイナスの請求書（赤伝）をほかの月の請求書から差し引いた額です。差し引かれた月はマイナス、赤伝の月はほかの月へ回した分がプラスで出ます（残り＝請求 ＋ 赤伝で差し引き − 入金）。</p>' : '')
       + '<p class="hint">金額は 円（税込）。' + esc(lb) + 'に 発行した請求書だけを 数えています（下書きと 取り消した紙は 数えません）。</p>'
       + repNote(src.list, repMonth || '')
       + (unk ? '<p class="hint">入金が読めていないので、入金と残りは出していません（0円ではありません）。</p>' : '');
@@ -6486,6 +6490,7 @@
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える
     _saveDraftForTest: function () { return saveDraft(); },          // テスト用: 下書き保存を そのまま走らせる
     _renderListForTest: function () { return renderList(); },        // テスト用: 一覧を 描き直す
+    _repExcelForTest: function (m) { var keep = repMonth; repMonth = m; try { return repExcelSheet(); } finally { repMonth = keep; } },   // テスト用: 集計の Excel の 表
     _reportForTest: function (m) { return reportOf(m); },            // テスト用: 集計の数だけ取る
     /* テスト用: ★本物の紙★を そのまま返す（見張りが 紙の中身を数える為。
        ★画面と同じ道を通す★＝紙だけ別の作り方をしない） */

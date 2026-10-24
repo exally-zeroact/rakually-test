@@ -102,7 +102,9 @@
         r.remain = r.total - r.credit - r.paid;
         /* ★残りが マイナスなら 入金が 0 でも 過入金★（赤伝だけの 月＝こちらが 返す 額・一覧と 同じ 言葉・taiketsu 6回目 止B） */
         /* 残りが 0 なら 済み（赤伝を 差し引いて 0 に なった 月も・入金 0 でも 督促しない） */
-        r.state = r.remain < 0 ? 'over' : r.remain > 0 ? (r.paid === 0 ? 'unpaid' : 'partial') : 'paid';
+        /* ただし 入金も 差し引きも 0 の 0円（額の 読めない 紙を 含む）は 済みと 言わない＝一覧と 同じ「未入金」（taiketsu 8回目 止3） */
+        r.state = r.remain < 0 ? 'over' : r.remain > 0 ? (r.paid === 0 ? 'unpaid' : 'partial')
+          : (r.paid === 0 && r.credit === 0 ? 'unpaid' : 'paid');
       }
       return r;
     }).sort(function (a, b) { return b.total - a.total; });

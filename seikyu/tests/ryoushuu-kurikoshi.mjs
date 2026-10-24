@@ -19,6 +19,7 @@ catch { console.log('★jsdom が 入っていません。飛ばせません（S
 const SELF = process.argv.includes('--self-test');
 const FILE = path.join(ROOT, 'seikyu/index.html');
 const APP = path.join(ROOT, 'seikyu/js/seikyu-app.js');
+const REPF = path.join(ROOT, 'seikyu/lib/seikyu-report.js');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (!c) throw new Error(m || 'false'); };
@@ -39,7 +40,7 @@ function iv(id, pid, ymd, o) {
   }, o.extra || {});
 }
 
-export async function boot(t, appSrc) {
+export async function boot(t, appSrc, repSrc) {
   const html = fs.readFileSync(FILE, 'utf8');
   const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''),
     { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/seikyu/index.html' });
@@ -52,7 +53,7 @@ export async function boot(t, appSrc) {
     const p = path.resolve(path.dirname(FILE), src);
     if (!fs.existsSync(p)) continue;
     const el = doc.createElement('script');
-    el.textContent = (base === 'seikyu-app.js' && appSrc) ? appSrc : fs.readFileSync(p, 'utf8');
+    el.textContent = (base === 'seikyu-app.js' && appSrc) ? appSrc : (base === 'seikyu-report.js' && repSrc) ? repSrc : fs.readFileSync(p, 'utf8');
     doc.body.appendChild(el);
   }
   await sleep(400);
@@ -92,9 +93,9 @@ export async function boot(t, appSrc) {
   return { win, doc, A, S, ryoushuu, tsugiAtama };
 }
 
-async function run(label, appSrc) {
+async function run(label, appSrc, repSrc) {
   console.log('\n[' + label + '] ★源泉の ある 領収書と 繰越の 連鎖★');
-  const partners = ['H', 'S', 'N', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'Q', 'R', 'U', 'V', 'W', 'X', 'Y', 'A', 'B', 'C', 'D', 'I', 'O', 'G1', 'G2', 'G4', 'G10', 'S3', 'G15'].map((k, i) => ({ id: 'p' + k, sort: i, data: { name: '見本' + k + '商事', keisho: '御中' } }));
+  const partners = ['H', 'S', 'N', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'Q', 'R', 'U', 'V', 'W', 'X', 'Y', 'A', 'B', 'C', 'D', 'I', 'O', 'G1', 'G2', 'G4', 'G10', 'S3', 'G15', 'Z0'].map((k, i) => ({ id: 'p' + k, sort: i, data: { name: '見本' + k + '商事', keisho: '御中' } }));
   const t = {
     partners,
     invoices: [
@@ -170,6 +171,7 @@ async function run(label, appSrc) {
       iv('s3m', 'pS3', '2026-10-05', { sub: -10000, tax: -1000 }),
       iv('g15a', 'pG15', '2026-10-10', { sub: 30000, tax: 3000 }),       // G15：同じ 月の 赤伝・入金 0
       iv('g15m', 'pG15', '2026-10-20', { sub: -10000, tax: -1000 }),
+      iv('z0', 'pZ0', '2026-10-12', { sub: 0, tax: 0 }),                 // ⑫ 0円の 紙（入金 なし）
     ],
     receipts: [
       { id: 'rh', invoice_id: 'h', amount: 89790, ymd: '2026-10-31' },
@@ -209,7 +211,7 @@ async function run(label, appSrc) {
       { id: 'rs3', invoice_id: 's3a', amount: 22000, ymd: '2026-09-25' },
     ],
   };
-  const { ryoushuu, tsugiAtama, A, doc, S } = await boot(t, appSrc);
+  const { ryoushuu, tsugiAtama, A, doc, S } = await boot(t, appSrc, repSrc);
 
   await T('① 免税の 相手（消費税 0）でも 払う額を 全部 受け取れば「源泉徴収税額 X円 差引」が 出る', async () => {
     const h = await ryoushuu('h', 'rh');
@@ -457,6 +459,39 @@ async function run(label, appSrc) {
     eq((await tsukiNokori('pG15', ['2026-10']))['2026-10'], 22000, '集計の 残り');
   });
 
+  /* ⑫ taiketsu 10-24 8回目＝上の 枠・説明の 式・集計の 言葉・Excel の 差し引きの 列 */
+  await T('⑫ 上の 枠は 差し引きが ある 月だけ 4つ＝請求 ＋ 赤伝で差し引き − 入金 ＝ 残額（10月）／説明の 式も 同じ 向き', async () => {
+    doc.querySelector('.bn[data-scr="scr-bill"]').click(); await new Promise((r) => setTimeout(r, 60));
+    doc.querySelector('#scr-bill [data-bseg="report"]').click();
+    const sel = doc.getElementById('bk-rep-month'); sel.value = '2026-10'; sel.dispatchEvent(new doc.defaultView.Event('change'));
+    await new Promise((r) => setTimeout(r, 30));
+    const waku = {}; [...doc.querySelectorAll('#bk-rep-sum .bk-sum-c')].forEach((c) => { waku[c.querySelector('.bk-sum-l').textContent.trim()] = num(c.querySelector('.bk-sum-v').textContent.replace(/\s+/g, '')); });
+    const hint = doc.getElementById('bk-rep-body').textContent.replace(/\s+/g, ' ');
+    doc.querySelector('#scr-bill [data-bseg="invoice"]').click();
+    ok('赤伝で差し引き' in waku, '★差し引きの 枠が 無い★ ' + JSON.stringify(waku));
+    eq(waku['請求'] + waku['赤伝で差し引き'] - waku['入金'], waku['残額'], '★枠が 足し算で 合わない★ ' + JSON.stringify(waku));
+    ok(/残り＝請求 ＋ 赤伝で差し引き − 入金/.test(hint), '★説明の 式★');
+  });
+  await T('⑫ 集計の 言葉＝残り 0 の 月は 入金済（G2・G10）／0円で 入金も 差し引きも 無い 紙は 一覧も 集計も 未入金', async () => {
+    for (const [pid, ym] of [['pG2', '2026-09'], ['pG2', '2026-10'], ['pG10', '2026-10'], ['pG10', '2026-11']]) {
+      const g = await shuukeiGyou(pid, ym); ok(/入金済/.test(g), '★' + pid + ' ' + ym + ' の 言葉★ ' + g);
+    }
+    eq(joutai('z0'), '未入金', '★0円の 紙の 一覧★');
+    const g0 = await shuukeiGyou('pZ0', '2026-10'); ok(/未入金/.test(g0) && !/入金済/.test(g0), '★0円の 紙の 集計★ ' + g0);
+  });
+  await T('⑫ 集計の Excel＝差し引きが ある 月だけ「赤伝で差し引き」の 列（G1 の 10月は −11,000・残額 0）／赤伝の 月（8月）は 回した 分が ＋11,000', async () => {
+    const x = A._repExcelForTest('2026-10');
+    ok(x && x.sheet, '★Excel の 表が 作れない★ ' + (x && x.why));
+    const head = x.sheet.aoa[0], row = x.sheet.aoa.find((r) => r[1] === '見本G1商事');
+    const ci = head.indexOf('赤伝で差し引き');
+    ok(ci > 0 && row, '★差し引きの 列か G1 の 行が 無い★ ' + JSON.stringify(head));
+    eq(row[ci], -11000, '★Excel の 差し引き★'); eq(row[head.indexOf('残額')], 0, '★Excel の 残額★');
+    eq(row[head.indexOf('請求額')], 33000, '★Excel の 請求額が 紙と 違う★');
+    /* 赤伝の 月（8/20 の 赤伝を 9月から 引いた）は ほかの 月へ 回した 分が プラス */
+    const x8 = A._repExcelForTest('2026-08'), h8 = x8.sheet.aoa[0], r8 = x8.sheet.aoa.find((r) => r[1] === '見本O商事');
+    eq(r8 && r8[h8.indexOf('赤伝で差し引き')], 11000, '★赤伝の 月の 差し引き（プラス）★'); eq(r8[h8.indexOf('残額')], 0, '★赤伝の 月の 残額★');
+  });
+
   await T('③ 源泉の ある 相手（10月の 紙の 差引 199,580 を 全部 払う）→ 11月の 紙に 繰越は 無い・9月も 10月も 入金済', async () => {
     eq(tsugiAtama('pG', '2026-11-05', 10000, true), 11000, '★11月の 紙の ご請求金額（源泉の 前の 頭の 額）★');
     eq(joutai('g9'), '入金済', '★9月★');
@@ -489,15 +524,21 @@ if (!SELF) {
     { na: '⑦止B 状態を 入金＋貸しの 和で 決める', pairs: [["      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : (st.paid === 0 ? 'unpaid' : 'partial');\n    }\n    /* ★引ける", "      st.state = (st.paid + c.credit) === 0 ? 'unpaid' : st.remain > 0 ? 'partial' : st.remain === 0 ? 'paid' : 'over';\n    }\n    /* ★引ける"], ["    if (st.remain < 0) st.state = 'over';\n", '']] },
     { na: '⑦止C 発行済みでも 繰越を 数え直す', pairs: [["    if (v.status && v.status !== 'draft') return null;\n", '']] },
   ];
+  const keepR = fs.readFileSync(REPF, 'utf8');
+  marks.push(
+    { na: '⑫ 集計の 残り 0 の 月を 済みに しない（前の 式）', file: 'rep', pairs: [["        r.state = r.remain < 0 ? 'over' : r.remain > 0 ? (r.paid === 0 ? 'unpaid' : 'partial')\n          : (r.paid === 0 && r.credit === 0 ? 'unpaid' : 'paid');", "        r.state = r.remain < 0 ? 'over' : r.paid === 0 ? 'unpaid' : r.remain > 0 ? 'partial' : 'paid';"]] },
+    { na: '⑫ 0円の 紙を 集計で 済みと 言う', file: 'rep', pairs: [["          : (r.paid === 0 && r.credit === 0 ? 'unpaid' : 'paid');", "          : 'paid';"]] },
+    { na: '⑫ 上の 枠に 差し引きを 出さない', pairs: [["      + (sashiT ? cell('', '赤伝で差し引き', unk ? '未確認' : yenW(-t.credit) + '円') : '')\n", '']] },
+    { na: '⑫ Excel の 差し引きの 符号を 逆に する', pairs: [["concat(sashi ? [-r.credit] : [],", "concat(sashi ? [r.credit] : [],"]] });
   let kara = 0;
   for (const m of marks) {
-    let bad = keep;
+    let bad = m.file === 'rep' ? keepR : keep;
     for (const [a, b] of m.pairs) {
       if (bad.split(a).length !== 2) { console.log('  ★壊す所が 見つからない＝この自己診断は 古い★ ' + m.na); process.exit(2); }
       bad = bad.replace(a, b);
     }
     const mae = fail;
-    await run(m.na + '（わざと 壊した）', bad);
+    await run(m.na + '（わざと 壊した）', m.file === 'rep' ? null : bad, m.file === 'rep' ? bad : null);
     const aka = fail - mae;
     console.log('  → ' + m.na + ' … 赤 ' + aka + '件' + (aka ? '' : '　★空振り★'));
     if (!aka) kara++;
