@@ -94,7 +94,7 @@ export async function boot(t, appSrc) {
 
 async function run(label, appSrc) {
   console.log('\n[' + label + '] ★源泉の ある 領収書と 繰越の 連鎖★');
-  const partners = ['H', 'S', 'N', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'Q', 'R', 'U', 'V', 'W', 'X', 'Y', 'A', 'B', 'C', 'D', 'I', 'O'].map((k, i) => ({ id: 'p' + k, sort: i, data: { name: '見本' + k + '商事', keisho: '御中' } }));
+  const partners = ['H', 'S', 'N', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'Q', 'R', 'U', 'V', 'W', 'X', 'Y', 'A', 'B', 'C', 'D', 'I', 'O', 'G1', 'G2', 'G4', 'G10', 'S3', 'G15'].map((k, i) => ({ id: 'p' + k, sort: i, data: { name: '見本' + k + '商事', keisho: '御中' } }));
   const t = {
     partners,
     invoices: [
@@ -155,6 +155,21 @@ async function run(label, appSrc) {
       iv('i10', 'pI', '2026-10-31', { sub: 30000, tax: 3000 }),
       iv('om', 'pO', '2026-08-20', { sub: -10000, tax: -1000 }),        // どの 紙より 古い 赤伝 → 後の 紙から 引く
       iv('o9', 'pO', '2026-09-10', { sub: 30000, tax: 3000 }),
+      /* ⑪ taiketsu 10-24 7回目＝月を またぐ 赤伝で 集計の 月の 行と 一覧が 割れない */
+      iv('g1m', 'pG1', '2026-09-20', { sub: -10000, tax: -1000 }),      // G1：9月の 赤伝・10月の 紙に 赤伝を 引いて 22,000
+      iv('g1a', 'pG1', '2026-10-10', { sub: 30000, tax: 3000 }),
+      iv('g2a', 'pG2', '2026-09-10', { sub: 30000, tax: 3000 }),         // G2：9月 払い終わり・10月は 赤伝だけ・その 赤伝に 返金
+      iv('g2m', 'pG2', '2026-10-15', { sub: -10000, tax: -1000 }),
+      iv('g4m', 'pG4', '2026-09-20', { sub: -10000, tax: -1000 }),      // G4：9月 赤伝・10月 全部 払う・11月 未入金
+      iv('g4a', 'pG4', '2026-10-10', { sub: 30000, tax: 3000 }),
+      iv('g4b', 'pG4', '2026-11-10', { sub: 30000, tax: 3000 }),
+      iv('g10a', 'pG10', '2026-09-10', { sub: 30000, tax: 3000 }),       // G10：9月 払い終わり・10/15 赤伝だけ・11月に 22,000
+      iv('g10m', 'pG10', '2026-10-15', { sub: -10000, tax: -1000 }),
+      iv('g10b', 'pG10', '2026-11-10', { sub: 30000, tax: 3000 }),
+      iv('s3a', 'pS3', '2026-09-10', { sub: 30000, tax: 3000 }),         // S3：9月に 22,000・10/05 の 赤伝
+      iv('s3m', 'pS3', '2026-10-05', { sub: -10000, tax: -1000 }),
+      iv('g15a', 'pG15', '2026-10-10', { sub: 30000, tax: 3000 }),       // G15：同じ 月の 赤伝・入金 0
+      iv('g15m', 'pG15', '2026-10-20', { sub: -10000, tax: -1000 }),
     ],
     receipts: [
       { id: 'rh', invoice_id: 'h', amount: 89790, ymd: '2026-10-31' },
@@ -185,6 +200,13 @@ async function run(label, appSrc) {
       { id: 'rd10', invoice_id: 'd10', amount: 22000, ymd: '2026-11-20' },
       { id: 'rim', invoice_id: 'im', amount: -11000, ymd: '2026-09-28' },
       { id: 'ro9', invoice_id: 'o9', amount: 22000, ymd: '2026-09-25' },
+      { id: 'rg1', invoice_id: 'g1a', amount: 22000, ymd: '2026-10-31' },
+      { id: 'rg2', invoice_id: 'g2a', amount: 33000, ymd: '2026-09-25' },
+      { id: 'rg2m', invoice_id: 'g2m', amount: -11000, ymd: '2026-10-20' },
+      { id: 'rg4', invoice_id: 'g4a', amount: 33000, ymd: '2026-10-25' },
+      { id: 'rg10a', invoice_id: 'g10a', amount: 33000, ymd: '2026-09-25' },
+      { id: 'rg10b', invoice_id: 'g10b', amount: 22000, ymd: '2026-11-20' },
+      { id: 'rs3', invoice_id: 's3a', amount: 22000, ymd: '2026-09-25' },
     ],
   };
   const { ryoushuu, tsugiAtama, A, doc, S } = await boot(t, appSrc);
@@ -265,8 +287,11 @@ async function run(label, appSrc) {
     await new Promise((r) => setTimeout(r, 30));
     const tr = doc.querySelector('#bk-rep-body tbody tr[data-pid="' + pid + '"]');
     const td = tr ? [...tr.querySelectorAll('td')].map((x) => x.textContent.replace(/\s+/g, '')) : [];
+    /* 列は 見出しの 名で 引く（赤伝の 差し引きの 列は ある 時だけ 出る） */
+    const th = [...doc.querySelectorAll('#bk-rep-body thead th')].map((x) => x.textContent.trim());
+    const at = (na) => { const i = th.indexOf(na); return i < 0 ? null : num(td[i]); };
     doc.querySelector('#scr-bill [data-bseg="invoice"]').click();
-    return { seikyu: num(td[1]), nyukin: num(td[2]), nokori: num(td[3]) };
+    return { seikyu: at('請求'), sashi: at('赤伝で差し引き'), nyukin: at('入金'), nokori: at('残り') };
   };
   await T('⑤ 止1 9月分を 9月の 紙・10月分を 10月の 紙に 記録 → 11月の 紙は 11,000（二重に 請求しない）・両方 入金済・箱も 同じ', async () => {
     eq(tsugiAtama('pJ', '2026-11-05', 10000), 11000, '★11月の 紙（前は 44,000＝二重請求）★');
@@ -395,6 +420,43 @@ async function run(label, appSrc) {
     eq(joutai('o9'), '入金済', '★9月が 一部入金★'); eq(joutai('om'), '入金済', '★赤伝★');
   });
 
+  /* ⑪ taiketsu 10-24 7回目＝集計の「請求」は 帳簿で 赤伝を 差し引いた 後の 額＝月の 行の 残りが 一覧と 同じ */
+  const tsukiNokori = async (pid, yms) => { const o = {}; for (const ym of yms) { const k = await shuukei(pid, ym); o[ym] = k.nokori === null ? 0 : k.nokori; } return o; };
+  const zero = (o, m) => Object.keys(o).forEach((ym) => eq(o[ym], 0, m + ' ' + ym + ' の 集計の 残り'));
+  await T('⑪ G1 9月の 赤伝 −11,000・10月 33,000 に 22,000 → 一覧 両方 入金済・集計 9月も 10月も 残り 0・10月の「請求」は 紙と 同じ 33,000（差し引き 11,000 は 別の 列）', async () => {
+    eq(joutai('g1m'), '入金済', 'g1m'); eq(joutai('g1a'), '入金済', 'g1a');
+    zero(await tsukiNokori('pG1', ['2026-09', '2026-10']), 'G1');
+    const k = await shuukei('pG1', '2026-10');
+    eq(k.seikyu, 33000, '★集計の 請求が 紙の ご請求金額と 違う★'); eq(k.sashi, -11000, '★赤伝で 差し引きの 列★'); eq(k.nyukin, 22000, '入金');
+  });
+  await T('⑪ G2 9月 払い終わり・10月は 赤伝だけ・その 赤伝に 返金 → 一覧 両方 入金済・集計 9月も 10月も 残り 0（払い終わった 9月を 督促しない）', async () => {
+    eq(joutai('g2a'), '入金済', 'g2a'); eq(joutai('g2m'), '入金済', 'g2m');
+    zero(await tsukiNokori('pG2', ['2026-09', '2026-10']), 'G2');
+  });
+  await T('⑪ G4 9月 赤伝・10月 全部 払う・11月 未入金 → 赤伝は 11月から 引く＝一覧 11月「未入金」・集計 11月 残り 22,000・9月 10月 0', async () => {
+    eq(joutai('g4a'), '入金済', 'g4a'); eq(joutai('g4b'), '未入金', '★11月（入金 0 なのに 一部入金と 言う）★');
+    const o = await tsukiNokori('pG4', ['2026-09', '2026-10', '2026-11']);
+    eq(o['2026-09'], 0, '9月'); eq(o['2026-10'], 0, '10月'); eq(o['2026-11'], 22000, '★11月の 集計の 残り★');
+  });
+  await T('⑪ G10 9月 払い終わり・10/15 赤伝だけ・11月に 22,000 → 一覧 3通とも 入金済・集計 9〜11月 残り 0', async () => {
+    ['g10a', 'g10m', 'g10b'].forEach((id) => eq(joutai(id), '入金済', id));
+    zero(await tsukiNokori('pG10', ['2026-09', '2026-10', '2026-11']), 'G10');
+  });
+  await T('⑪ S3 9月 33,000 に 22,000・10/05 の 赤伝 → 一覧 両方 入金済・集計 9月も 10月も 残り 0', async () => {
+    eq(joutai('s3a'), '入金済', 's3a'); eq(joutai('s3m'), '入金済', 's3m');
+    zero(await tsukiNokori('pS3', ['2026-09', '2026-10']), 'S3');
+  });
+  await T('⑪ 止B と 古い 赤伝の 集計＝⑦止B は 9月 過入金 11,000・⑩ 8/20 の 赤伝は 8月 9月 とも 残り 0', async () => {
+    const x = await tsukiNokori('pX', ['2026-09']); eq(x['2026-09'], -11000, '★⑦止B 9月の 集計の 残り★');
+    zero(await tsukiNokori('pO', ['2026-08', '2026-09']), '⑩古い赤伝');
+  });
+  await T('⑪ G15 同じ 月の 赤伝・入金 0 → 一覧も 集計も「未入金」22,000（一部入金と 言わない）', async () => {
+    eq(joutai('g15a'), '未入金', '★一覧★');
+    const g = await shuukeiGyou('pG15', '2026-10');
+    ok(/未入金/.test(g) && !/一部入金/.test(g), '★集計★ ' + g);
+    eq((await tsukiNokori('pG15', ['2026-10']))['2026-10'], 22000, '集計の 残り');
+  });
+
   await T('③ 源泉の ある 相手（10月の 紙の 差引 199,580 を 全部 払う）→ 11月の 紙に 繰越は 無い・9月も 10月も 入金済', async () => {
     eq(tsugiAtama('pG', '2026-11-05', 10000, true), 11000, '★11月の 紙の ご請求金額（源泉の 前の 頭の 額）★');
     eq(joutai('g9'), '入金済', '★9月★');
@@ -419,10 +481,12 @@ if (!SELF) {
     { na: '⑥止3 マイナスの 請求書を 貸しに しない', pairs: [['      var reds = cells.filter(function (n) { return n.gaku < 0; });', '      var reds = [];']] },
     { na: '⑦⑨⑩止A 赤伝を 月で なく 一番 古い 紙から 当てる', pairs: [["        for (j = cells.length - 1; j >= 0; j--) { if (tsuki(cells[j]) === ym) ate(n, cells[j]); }\n        for (j = cells.length - 1; j >= 0; j--) { if (tsuki(cells[j]) < ym) ate(n, cells[j]); }", '        for (j = 0; j < cells.length; j++) ate(n, cells[j]);']] },
     { na: '⑩止C 返金を 赤伝に 当てない', pairs: [['            c = reds[i]; var owe = c.left + c.paid; if (owe <= 0) continue;', '            c = reds[i]; continue;']] },
+    { na: '⑪ 集計に 赤伝の 差し引きを 渡さない', pairs: [['    var creditOf = function (v) { var c = L.ok ? L.byInv[v.id] : null; return c ? c.credit : 0; };', '    var creditOf = function () { return 0; };']] },
+    { na: '⑪ 入金 0 で 赤伝だけの 紙を 一部入金と 言う', pairs: [["st.remain === 0 ? 'paid' : (st.paid === 0 ? 'unpaid' : 'partial');", "st.remain === 0 ? 'paid' : 'partial';"]] },
     { na: '⑩ 残った 赤伝を 後の 月の 紙へ 回さない', pairs: [['        for (var j = 0; j < cells.length; j++) { if (tsuki(cells[j]) > ym) ate(n, cells[j]); }\n', '']] },
     { na: '⑨止2 引ける 紙の 無い 赤伝を 過入金に しない', pairs: [["    if (st.remain < 0) st.state = 'over';\n", '']] },
     { na: '⑨別件 見積にも 繰越を 乗せる', pairs: [["    if ((v.doc_type || 'invoice') !== 'invoice') return null;\n", '']] },
-    { na: '⑦止B 状態を 入金＋貸しの 和で 決める', pairs: [["      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : 'partial';\n    }\n    /* ★引ける", "      st.state = (st.paid + c.credit) === 0 ? 'unpaid' : st.remain > 0 ? 'partial' : st.remain === 0 ? 'paid' : 'over';\n    }\n    /* ★引ける"], ["    if (st.remain < 0) st.state = 'over';\n", '']] },
+    { na: '⑦止B 状態を 入金＋貸しの 和で 決める', pairs: [["      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : (st.paid === 0 ? 'unpaid' : 'partial');\n    }\n    /* ★引ける", "      st.state = (st.paid + c.credit) === 0 ? 'unpaid' : st.remain > 0 ? 'partial' : st.remain === 0 ? 'paid' : 'over';\n    }\n    /* ★引ける"], ["    if (st.remain < 0) st.state = 'over';\n", '']] },
     { na: '⑦止C 発行済みでも 繰越を 数え直す', pairs: [["    if (v.status && v.status !== 'draft') return null;\n", '']] },
   ];
   let kara = 0;

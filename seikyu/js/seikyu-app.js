@@ -530,7 +530,8 @@
     if (c.credit) {
       st.remain = st.total - st.paid - c.credit;
       /* ★状態は 残りの 符号で 決める★（入金と 貸しが 打ち消して 0 でも、残りが マイナスなら 過入金＝返す 額が ある・taiketsu 4回目 止B） */
-      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : 'partial';
+      /* 入金 0 で 赤伝だけ 当たった 紙は「未入金」（1円も 入っていない＝集計と 同じ 言葉・taiketsu 7回目 止3） */
+      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : (st.paid === 0 ? 'unpaid' : 'partial');
     }
     /* ★引ける 紙が 無い 赤伝★も 残りが マイナス＝こちらが 返す 額が ある＝過入金（「未入金」と 言わない・taiketsu 5回目 止2） */
     if (st.remain < 0) st.state = 'over';
@@ -624,7 +625,11 @@
   function reportOf(month, kind, list) {
     var REP = global.SeikyuReport;
     if (!REP) return null;
-    return REP.summarize({ amountOf: gakuOf, invoices: list || S.invoices || [], receipts: chouboReceipts(),
+    /* ★集計の「請求」は 紙の ご請求金額の まま（司さんの「揃えろ」）★、帳簿で 赤伝を 差し引いた 分は creditOf で 別に 渡す
+       （taiketsu 7回目 止1＝月を またぐ 赤伝でも 月の 行の 残り＝一覧の 残り）。入金が 読めない 時は 0（今までどおり）。 */
+    var L = choubo();
+    var creditOf = function (v) { var c = L.ok ? L.byInv[v.id] : null; return c ? c.credit : 0; };
+    return REP.summarize({ amountOf: gakuOf, creditOf: creditOf, invoices: list || S.invoices || [], receipts: chouboReceipts(),
       partners: S.partners || [], month: month, kind: kind || S.kind || 'invoice', doc: DOC });
   }
   function ymLabel(m) { return m ? (m.slice(0, 4) + '年' + Number(m.slice(5, 7)) + '月') : ''; }
@@ -682,17 +687,21 @@
       if (n === null || n === undefined) return '<td class="bk-n">未確認</td>';
       return '<td class="bk-n' + (rem && n > 0 ? ' bk-rem' : '') + '">' + yenW(n) + '</td>';
     };
-    body.innerHTML = '<table class="bk-tbl"><thead><tr><th>取引先</th><th>請求</th><th>入金</th><th>残り</th></tr></thead><tbody>'
+    /* ★赤伝の 差し引きが ある 時だけ 列を 出す★（無い 会社の 表は 今までどおり 3列） */
+    var sashi = s2.rows.some(function (r) { return r.credit; });
+    var sc = function (n) { return sashi ? num(n === null || n === undefined ? n : -n) : ''; };
+    body.innerHTML = '<table class="bk-tbl"><thead><tr><th>取引先</th><th>請求</th>' + (sashi ? '<th>赤伝で差し引き</th>' : '') + '<th>入金</th><th>残り</th></tr></thead><tbody>'
       + s2.rows.map(function (r) {
         var tag = unk ? '' : '<span class="tag ' + (r.state === 'paid' ? 'tag-on'
           : r.state === 'unpaid' ? 'tag-off' : 'tag-mute') + '">'
           + esc(DOC.PAY_STATE_LABEL[r.state] || '') + '</span>';
         return '<tr data-pid="' + esc(r.partnerId) + '"><td class="bk-co">' + tag
           + '<span class="bk-co-n">' + esc(r.name) + '</span></td>'
-          + num(r.total) + num(r.paid) + num(r.remain, true) + '</tr>';
+          + num(r.total) + sc(r.credit) + num(r.paid) + num(r.remain, true) + '</tr>';
       }).join('')
       + '</tbody><tfoot><tr><td>合計（' + s2.rows.length + '社・' + t.count + '件）</td>'
-      + num(t.total) + num(t.paid) + num(t.remain, true) + '</tr></tfoot></table>'
+      + num(t.total) + sc(t.credit) + num(t.paid) + num(t.remain, true) + '</tr></tfoot></table>'
+      + (sashi ? '<p class="hint">「赤伝で差し引き」は、マイナスの請求書をほかの月の請求書から差し引いた額です（残り＝請求 − 差し引き − 入金）。</p>' : '')
       + '<p class="hint">金額は 円（税込）。' + esc(lb) + 'に 発行した請求書だけを 数えています（下書きと 取り消した紙は 数えません）。</p>'
       + repNote(src.list, repMonth || '')
       + (unk ? '<p class="hint">入金が読めていないので、入金と残りは出していません（0円ではありません）。</p>' : '');
@@ -728,16 +737,18 @@
     if (!s2 || !s2.seen) return { why: 'この月に 発行した請求書が ありません。' };
     if (s2.totals.paid === null) return { why: '入金が 読めていないので、集計の Excel は 作りません（入金0円の 表を 出さない為）。「もっと」の中の「読み直す」を 押してから もう一度 お試しください。' };
     var lb = month ? ymLabel(month) : 'ぜんぶ';
-    var aoa = [['月', '取引先', '件数', '請求額', '入金額', '残額', '状態']];
+    /* 赤伝の 差し引きが ある 時だけ 列を 足す（画面の 表と 同じ） */
+    var sashi = s2.rows.some(function (r) { return r.credit; });
+    var aoa = [['月', '取引先', '件数', '請求額'].concat(sashi ? ['赤伝で差し引き'] : [], ['入金額', '残額', '状態'])];
     s2.rows.forEach(function (r) {
-      aoa.push([lb, r.name, r.count, r.total, r.paid, r.remain, DOC.PAY_STATE_LABEL[r.state] || '']);
+      aoa.push([lb, r.name, r.count, r.total].concat(sashi ? [-r.credit] : [], [r.paid, r.remain, DOC.PAY_STATE_LABEL[r.state] || '']));
     });
     var t = s2.totals;
-    aoa.push(['合計', s2.rows.length + '社', t.count, t.total, t.paid, t.remain, '']);
+    aoa.push(['合計', s2.rows.length + '社', t.count, t.total].concat(sashi ? [-t.credit] : [], [t.paid, t.remain, '']));
     var numFmt = [];
-    for (var r = 1; r < aoa.length; r++) [3, 4, 5].forEach(function (c) { numFmt.push({ r: r, c: c, z: AOA.YEN_FMT }); });
+    for (var r = 1; r < aoa.length; r++) (sashi ? [3, 4, 5, 6] : [3, 4, 5]).forEach(function (c) { numFmt.push({ r: r, c: c, z: AOA.YEN_FMT }); });
     return { sheet: { aoa: aoa, numFmt: numFmt, name: '月次集計',
-      cols: [{ wch: 10 }, { wch: 28 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }] },
+      cols: [{ wch: 10 }, { wch: 28 }, { wch: 6 }, { wch: 12 }].concat(sashi ? [{ wch: 14 }] : [], [{ wch: 12 }, { wch: 12 }, { wch: 10 }]) },
       name: '月次集計_' + (month || 'ぜんぶ') + '.xlsx' };
   }
   function repExcel() {
