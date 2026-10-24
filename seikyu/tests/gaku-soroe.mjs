@@ -212,9 +212,9 @@ if (!SELF) {
 } else {
   /* ★わざと 戻す★＝入金の 状態を 倉庫の grandTotal（源泉の 前）と 比べる 姿 */
   const keep = fs.readFileSync(APP, 'utf8');
-  const mark = '{ id: inv.id, grand_total: gakuOf(inv) || 0 }';
+  const mark = 'var g = gakuOf(inv) || 0;            /* ★払ってもらう 額（源泉の 後）と 比べる★ */';   /* 2026-10-24 帳簿に まとめた（payStateOf の 中） */
   if (keep.split(mark).length !== 2) { console.log('  ★壊す所が 見つからない＝この自己診断は 古い★'); process.exit(2); }
-  await run('入金の 状態を 源泉の 前と 比べる（わざと 壊した）', keep.replace(mark, '{ id: inv.id, grand_total: (inv.totals && inv.totals.grandTotal) || 0 }'));
+  await run('入金の 状態を 源泉の 前と 比べる（わざと 壊した）', keep.replace(mark, 'var g = (inv.totals && inv.totals.grandTotal) || 0;'));
   const nige = fail >= 1 ? 0 : 1;
   console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（1件以上のはず）');
   process.exit(nige ? 1 : 0);
