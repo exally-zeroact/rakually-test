@@ -1311,10 +1311,14 @@
       /* ★刷る 額と 印紙の 判定に 渡す 額を 同じ 材料から 作る★（taiketsu 10-24 止2）
          st＝印紙の 判定に 渡す 物。刷る 税抜金額＝差し引く 前の 額（DOC.stampBeforeGensenOf(st)）。 */
       var st = { amount: Number(rc.amount), taxTotal: Number(rc.taxTotal), taxSeparate: sep, gensen: gen };
+      /* ★繰越を 含む 紙の 全額★＝前回からの 繰越を 1行 分けて、残りを 今回の 1通の 税抜・消費税で 書く
+         （消費税額は 今回の 1通の 分だけ＝前の 月の 分は 前の 月の 紙に 書いてある）。印紙の 判定は st の まま（受け取った 額） */
+      var kuri = Number(rc.kurikoshi) || 0;
       if (sep) {
-        var base = DOC.stampBeforeGensenOf(st);
+        var base = DOC.stampBeforeGensenOf(st) - kuri;
         rows = '<table class="sums"><tbody>'
-          + '<tr><th>税抜金額</th><td>' + yen(base) + '</td></tr>'
+          + (kuri ? '<tr><th>前回からの繰越</th><td>' + yen(kuri) + '</td></tr>' : '')
+          + '<tr><th>' + (kuri ? '今回分 税抜金額' : '税抜金額') + '</th><td>' + yen(base) + '</td></tr>'
           + '<tr><th>消費税額等</th><td>' + yen(Number(rc.taxTotal)) + '</td></tr>'
           + (gen ? '<tr><th>源泉徴収税額</th><td>-' + yen(gen) + '</td></tr>' : '')
           + '<tr class="sums-g"><th>' + (gen ? '差引お支払額' : '合計') + '</th><td>' + yen(Number(rc.amount)) + '</td></tr>'
