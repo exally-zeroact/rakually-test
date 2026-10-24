@@ -503,6 +503,26 @@ export async function katazukeru(pg, opt) {
     ? (wazaY ? '④★--waza＝わざと ★キャンセル★ を 押した（人は 残ります）★' : '④削除の 確認を 押した【本物の click】（' + y2.ji + '）')
     : '④削除の 確認が 出なかった');
   await machi(1400);
+  /* ★★消した 返事（「削除しました」／「消せませんでした」）が 出るまで 待つ★★（2026-10-24 WebKit 39973301874）
+     ★何が 起きたか★ … 返事の 前に ⑥で 開き直した ⇒ 飛んで いた 保存が「Load request cancelled」で 切られ、
+       新しい 画面が DELETE の 前の 名簿を 読み、次の 保存で ★消した 人を 書き戻した★（⑥-2「DELETE の 後に 書きが 着いた 組 2組」）。
+     ⇒ ★客と 同じく 知らせを 見てから 次へ★（アプリは 倉庫の 返事を 待ってから 知らせを 出す＝empKesu）。
+       --waza（キャンセル）は 返事が 出ないので 待たない。出なければ ★出しに 書いて★ 進む（黙って 緑に しない）。 */
+  if (!wazaY) {
+    const t0 = Date.now();
+    let henji = '';
+    for (let k = 0; k < 40 && !henji; k++) {
+      henji = await pg.evaluate(() => {
+        const t = document.getElementById('app-toast');
+        const s = (t && t.textContent) || '';
+        return /削除しました|消せませんでした/.test(s) ? s : '';
+      }).catch(() => '');
+      if (!henji) await machi(500);
+    }
+    michi.push(henji
+      ? '④-2 消した 返事を 見た（' + Math.round((Date.now() - t0) / 100) / 10 + '秒）…「' + henji.slice(0, 40) + '」'
+      : '④-2 ★消した 返事が ' + Math.round((Date.now() - t0) / 1000) + '秒 待っても 出ません★（このまま 開き直すと 飛んで いる 保存を 切る 恐れ）');
+  }
 
   /* ★消えたかは 画面で 数える★（名前が 在れば 名前で／無ければ ★札の 総数が 1枚 減ったか★） */
   const nokori = na
