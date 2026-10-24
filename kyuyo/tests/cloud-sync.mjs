@@ -1103,6 +1103,54 @@ runs.push(T('unconfirmPayslip: 開いた 直後の 読み込み（saveHold）が
   ok(atoYonda >= 1, '読み込みの 後も 読んで いない（' + atoYonda + '回）');
 }));
 
+/* ★★㋕: 保存の 途中で 開き直しても 自分の 書きを 自分の 書きと 判じる★★（2026-10-24 taiketsu 止める-1）
+   ★客の 穴★ … 会社の 書きは 倉庫に 着いたが 人の 書き・差分削除の 前に 閉じる／開き直すと、
+     自分が 送った 値の 名簿（_okuttaUA）が 画面の 中にしか 無いので 消え、開き直しの 判じ（reconcileOnLoad）が
+     「両方 編集＝クラウドを 採る」に 倒れて ★消した 人が 黙って 戻る・他の 編集も 黙って 消える★（WebKit 39973301874 の 書き戻し）。
+   ⇒ 名簿を 端末（localStorage）にも 持ち、同じ 端末の 次の 画面で 引き継ぐ。 */
+function loadStoreWin(mock, lsItems, ssItems) {
+  const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously', url: 'http://localhost/', pretendToBeVisual: true });
+  const win = dom.window;
+  for (const [k, v] of Object.entries(lsItems || {})) win.localStorage.setItem(k, v);
+  for (const [k, v] of Object.entries(ssItems || {})) win.sessionStorage.setItem(k, v);
+  win.__YOMI_MACHI_MS__ = 300;
+  win.SUPA = { url: 'https://x.supabase.co', key: 'anon' };
+  win.supabase = { createClient: () => mock };
+  const el = win.document.createElement('script');
+  el.textContent = fs.readFileSync(path.join(ROOT, 'js/store.js'), 'utf8');
+  win.document.body.appendChild(el);
+  return { Store: win.Store, win };
+}
+const lsMatome = (win, st) => { const S = st || win.localStorage; const o = {}; for (let i = 0; i < S.length; i++) { const k = S.key(i); o[k] = S.getItem(k); } return o; };
+runs.push(T('★★㋕: 開き直した 次の 画面も「倉庫の 会社の 時刻＝自分が 送った 値」と 判じ、手元を 保って 送り直す（消した 人が 戻らない）★★', async function () {
+  const m = makeMock({ companyData: { company: {} }, companyUpdatedAt: '2026-10-24T00:00:00Z', dbFormat: true });
+  const A = loadStoreWin(m);
+  A.Store.setSnapshotFn(() => SNAP);
+  await A.Store.cloudLoadState();
+  await A.Store.cloudSaveState(SNAP);
+  const kaki = [].concat(m.__calls.companyUpsert || [], m.__calls.companyUpdate || []);
+  const okutta = (kaki.slice(-1)[0] || {}).updated_at;
+  ok(okutta, '会社の 書きが 1本も 出ていない');
+  ok(A.Store.isOwnCompanyUA(okutta), '同じ 画面でも 自分の 書きと 判じない（前提が 崩れた）');
+  const B = loadStoreWin(m, lsMatome(A.win), lsMatome(A.win, A.win.sessionStorage));   /* ★同じ タブで 開き直した 次の 画面（端末の 写しも タブの 控えも 残る）★ */
+  ok(B.Store.isOwnCompanyUA(okutta), '★開き直すと 自分が 送った 値を 忘れる＝消した 人が 戻る 道★');
+  const r = B.Store.reconcileOnLoad({ localDirty: true, baseCoUA: '2026-10-24T00:00:00.000Z', cloudCoUA: okutta, isOwnUA: B.Store.isOwnCompanyUA });
+  ok(r.apply === 'local' && r.push === true && r.conflict === false, '開き直しの 判じ ' + JSON.stringify(r));
+  const C = loadStoreWin(m);                     /* ★別の 端末（控え 無し）★＝前の 通り 自分の 書きとは 言わない */
+  ok(!C.Store.isOwnCompanyUA(okutta), '別の 端末が 他の 端末の 書きを 自分の 書きと 判じた');
+  /* ★同じ 端末の 別の タブ★（端末の 写しは 共有・タブの 控えは 別）＝他の タブの 書きを 自分の 書きと 判じない（taiketsu 10-24 止める＝古い タブが 新しい 中身を 消す 道） */
+  const D = loadStoreWin(m, lsMatome(A.win));
+  ok(!D.Store.isOwnCompanyUA(okutta), '★別の タブの 書きを 自分の 書きと 判じた＝古い タブの 写しが 勝ち、新しい 中身が 黙って 消える 道★');
+  const rD = D.Store.reconcileOnLoad({ localDirty: true, baseCoUA: '2026-10-24T00:00:00.000Z', cloudCoUA: okutta, isOwnUA: D.Store.isOwnCompanyUA });
+  ok(rD.apply === 'cloud' && rD.conflict === true, '別の タブの 開き直しの 判じ ' + JSON.stringify(rD));
+}));
+runs.push(T('★㋕: 端末の 控えが 壊れて いても 転ばない（読めない 物は 捨てる）★', async function () {
+  const m = makeMock({});
+  const B = loadStoreWin(m, null, { 'rk_okuttaUA_v1': '{壊れた' });
+  ok(B.Store && typeof B.Store.isOwnCompanyUA === 'function', 'store が 立ち上がらない');
+  ok(B.Store.isOwnCompanyUA('2026-10-24T00:00:00.000Z') === false, '壊れた 控えで 自分の 書きと 判じた');
+}));
+
 await Promise.all(runs);
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');   /* ★約束の行（_bunrui用）★表明式＝未測定0（本文の「未測定」は 覆い等の 説明） */

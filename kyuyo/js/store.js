@@ -325,11 +325,39 @@
                                   ＝★指示役1 の ③『★残った 窓に 入った 回数★』と 同じ 口★
                                   ⇒ ★0 なら 未測定／1以上 なら 残って いた 窓の 大きさ★ */
     function _msNi(v){ var t = Date.parse(String(v || '')); return isNaN(t) ? null : t; }
-    function _okuttaKuchi(uid){ if(_okuttaUid !== uid){ _okuttaUid = uid; _okuttaUA = []; } }
+    /* ★★名簿を タブにも 持つ（同じ タブの 次の 画面へ 引き継ぐ）★★（2026-10-24 taiketsu 止める-1）
+       ★客の 穴★ … 会社の 書きは 倉庫に 着いたが 人の 書き・差分削除の 前に 閉じる／開き直すと、名簿が 画面と 一緒に 消え、
+         開き直しの 判じ（reconcileOnLoad）が 倉庫の 時刻＝自分の 書きを「別の 端末の 書き」と 見て クラウドを 採る
+         ⇒ ★消した 人が 黙って 戻る・他の 編集も 黙って 消える★（WebKit 39973301874 の 書き戻し）。
+       ⇒ 送る 前に 名簿を ★sessionStorage（タブごと・開き直しで 残る）★にも 書き、立ち上がりで 読む。口（uid）ごと＝読み込みで 口が 違えば 捨てる。
+         ★localStorage に しない 訳★＝同じ 端末の 別の タブにも 見え、古い タブの 写しが 他の タブの 書きを 自分の 書きと 判じて
+           新しい 中身を 黙って 消す（10-12 に 塞いだ 道が 開く・taiketsu 10-24）。タブを 閉じると 控えは 消える＝前の 動き（クラウドを 採る）に 戻るだけ。
+         ★残る 穴★＝「押して すぐ 閉じる・iPhone で アプリを 払う」は 前の まま（消した 人が 戻る・他の 編集も 消える）。
+           次の 直し（案a）＝控えを 写し payslip_state_v1 の 中に _syncBase と 同じ 1回の setItem で 持つ。
+         書けない 端末は 今まで 通り 画面の 中だけ（黙らない＝console）。試験 kyuyo/tests/cloud-sync.mjs ㋕。 */
+    var OKUTTA_LS = 'rk_okuttaUA_v1';
+    function _okuttaKaku(){
+      try{ sessionStorage.setItem(OKUTTA_LS, JSON.stringify({ u:_okuttaUid, t:_okuttaUA })); }
+      catch(_eL){ console.error('★自分が 送った 時刻を 端末に 残せません（開き直すと 忘れます）★', _eL); }
+    }
+    (function _okuttaYomu(){
+      var raw = null;
+      try{ raw = sessionStorage.getItem(OKUTTA_LS); }catch(_eR){ console.error('★自分が 送った 時刻の 控えを 読めません★', _eR); return; }
+      if(!raw) return;
+      try{
+        var o = JSON.parse(raw);
+        if(o && typeof o.u === 'string' && o.u && Array.isArray(o.t)){
+          _okuttaUid = o.u;
+          _okuttaUA = o.t.filter(function(x){ return typeof x === 'number' && isFinite(x); }).slice(-OKUTTA_UE);
+        }
+      }catch(_eP){ console.error('★自分が 送った 時刻の 控えが 壊れて います＝捨てます★', _eP); }
+    })();
+    function _okuttaKuchi(uid){ if(_okuttaUid !== uid){ _okuttaUid = uid; _okuttaUA = []; _okuttaKaku(); } }
     function _okuttaIreru(v){
       var t = _msNi(v); if(t === null) return;   /* ★NaN は 入れない★ */
       if(_okuttaUA.indexOf(t) < 0) _okuttaUA.push(t);
       if(_okuttaUA.length > OKUTTA_UE) _okuttaUA.splice(0, _okuttaUA.length - OKUTTA_UE);
+      _okuttaKaku();
     }
     function _jibunGaOkuttaKa(v){ var t = _msNi(v); return t !== null && _okuttaUA.indexOf(t) >= 0; }
     /* ★測る 口★ */
@@ -799,6 +827,7 @@
         lastLoadErr = String((e && e.message) || '口が 確かめられない');
         throw e;
       }).then(function(uid){ if(!uid) return null;
+        _okuttaKuchi(uid);   /* ★端末の 控えが 別の 口の 物なら ここで 捨てる★（開き直しの 判じより 前） */
         return Promise.all([
           sb.from('pay_companies').select('data,updated_at').eq('account_id',uid).maybeSingle(),
           fetchAllQ(function(a,b){ return sb.from('pay_employees').select('data,sort',{count:'exact'}).eq('account_id',uid).order('sort',{ascending:true}).range(a,b); })
