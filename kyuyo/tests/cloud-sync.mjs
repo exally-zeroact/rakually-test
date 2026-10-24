@@ -566,7 +566,9 @@ runs.push(T('★隙③: 入口を 通って いない時は ★1回も 待たな
   const Store = loadStore(mock, { machiMs: 5000 });
   const t0 = Date.now();
   await Store.cloudSaveState(SNAP);
-  ok(Date.now() - t0 < 1000, '★入口を 通って いないのに 待った★');
+  /* ★時計の 上限は 待つ 上限（5000ms）より 短く 取る★＝待てば 必ず 5秒 以上＝4秒で 捕まる。前は 1秒＝機械が 混むと 待たなくても 越えて 網で 揺れた（10-24 実測：6本 同時 ×3 で 18回中 5〜12回 赤・単独は 5/5 緑）。
+     本当の 守りは 下の『待った 回数 0』。 */
+  ok(Date.now() - t0 < 4000, '★入口を 通って いないのに 待った★（' + (Date.now() - t0) + 'ms）');
   ok(Store.machiNoKazu().kai === 0, '★待った 回数が 0 でない★（' + JSON.stringify(Store.machiNoKazu()) + '）');
 }));
 
