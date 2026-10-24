@@ -449,14 +449,19 @@
       /* ★マイナスの 請求書（赤伝）は 貸し★＝入金より 先に、古い 請求書から 順に 差し引く（2026-10-24 taiketsu 止3）
          前は 消込で 飛ばされ、紙と 集計は 払い終わりなのに 一覧だけ「一部入金」と 督促していた。
          ★お金の 入金では ない★＝credit に 持ち、chouboReceipts（集計の 入金）には 入れない（集計の 請求は もう 差し引いた 額） */
-      cells.forEach(function (n) {
+      /* 当てる 先＝★赤伝の 日 以前で 一番 新しい 正の 紙から 古い 方へ★、余れば 後の 紙へ（taiketsu 4回目 止A）
+         一番 古い 紙から 当てると、払い終わった 9月に 当たって 9月の 入金が 10月へ 押し出され、集計の 9月が「一部入金」に 割れた */
+      cells.forEach(function (n, ni) {
         if (n.gaku >= 0) return;
         var left = -n.gaku;
-        for (var j = 0; j < cells.length && left > 0; j++) {
-          var m = cells[j]; if (m.gaku <= 0) continue;
-          var sp = m.gaku - m.credit; if (sp <= 0) continue;
+        var ate = function (m) {
+          if (left <= 0 || m.gaku <= 0) return;
+          var sp = m.gaku - m.credit; if (sp <= 0) return;
           var u = Math.min(sp, left); m.credit += u; n.credit -= u; left -= u;
-        }
+        };
+        var j;
+        for (j = ni - 1; j >= 0; j--) ate(cells[j]);
+        for (j = ni + 1; j < cells.length; j++) ate(cells[j]);
       });
       p.rcs.forEach(function (r) {
         var amt = Number(r.amount) || 0;
@@ -504,8 +509,9 @@
     st.credit = c.credit;
     if (c.credit) {
       st.remain = st.total - st.paid - c.credit;
-      var sumi = st.paid + c.credit;
-      st.state = sumi === 0 ? 'unpaid' : st.remain > 0 ? 'partial' : st.remain === 0 ? 'paid' : 'over';
+      /* ★状態は 残りの 符号で 決める★（入金と 貸しが 打ち消して 0 でも、残りが マイナスなら 過入金＝返す 額が ある・taiketsu 4回目 止B） */
+      var nanimo = st.paid === 0 && c.credit === 0;
+      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? (nanimo ? 'unpaid' : 'paid') : (nanimo ? 'unpaid' : 'partial');
     }
     st.alloc = c.alloc;
     return st;
@@ -3045,6 +3051,9 @@
   function currentCarry() {
     var v = S.cur; if (!v) return null;
     if (v.snapshot && v.snapshot.carry) return CARRY.fromSnapshot(v.snapshot.carry);
+    /* ★発行済みで 繰越を 写していない 紙は 繰越を 出さない★＝出した 時の 顔の まま（taiketsu 4回目 止C）
+       前は 開き直す たびに 数え直し、後から 繰越を「入」に すると 出した 9月の 紙が 99,000・後の 紙を「前回」と 刷った */
+    if (v.status && v.status !== 'draft') return null;
     if (!carryOn()) return null;
     var t;
     try { t = currentTax(); } catch (e) { return null; }
