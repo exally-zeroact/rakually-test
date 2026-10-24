@@ -167,6 +167,31 @@ if (Array.isArray(bo)) {
   T('★賞与＝支給日が 読めない 時は 退職日の 在る 人を 振込に 入れない★', !bo.some((t) => ['MAE', 'TOU', 'ATO', 'TAI0'].includes(t.emp.id)), '一覧 ' + ids(bo));
   if (!WAZA) T('★賞与＝支給日が 読めない 時は 金額の 入った 退職の 人を 全員 名指しで 止める★', tomeru('bonus') === 'ATO,MAE,TOU', tomeru('bonus'));
 } else T('賞与の 振込が 作れる（支給日 読めず）', false, String(bo && bo.message));
+/* 「退職にする」を 押した 月が 支給月より 前なのに 退職日が 支給日 以後＝どちらが 本当か 決められない＝名指しで 止める
+   （司さんの 決め 2026-10-24・月次と 同じ。前は 案3 で 支給日 以後＝払う に なっていた＝本番前 taiketsu S1） */
+A.state.month = '2026-12';
+A.state.employees = [mk('ZAISEKI'), mk('KUICHI', { retired: true, retiredYmd: '2026-10', taishokuYmd: '2026-12-31' })];
+A.state.confirmed = {};
+A.state.bonus = { payYm: '2026-12', payDay: '2026-12-10', byEmp: { ZAISEKI: { amount: '100000' }, KUICHI: { amount: '100000' } } };
+bo = (() => { try { return A.buildTransfers('bonus'); } catch (e) { return e; } })();
+if (Array.isArray(bo)) {
+  T('★賞与＝「退職にする」の 月の 後なのに 退職日が 先の 人は 振込に 入れない★', !bo.some((t) => t.emp.id === 'KUICHI') && bo.some((t) => t.emp.id === 'ZAISEKI'), '一覧 ' + ids(bo));
+  if (!WAZA) {
+    T('★賞与＝その人は 名指しで 止める（月次と 同じ）★', tomeru('bonus') === 'KUICHI', tomeru('bonus'));
+    T('★賞与＝その人が 居ると 振込ファイルを 作らない★', dasuKa('bonus') === false);
+    T('★賞与の 止めの 字が「退職にする」の 月と 退職日の 食い違いを 言う★', /退職にする/.test(saigoJi) && /退職日/.test(saigoJi), saigoJi.slice(0, 200));
+  }
+} else T('賞与の 振込が 作れる（食い違う 人）', false, String(bo && bo.message));
+/* 一度「退職にする」を 押して「復帰させる」で 戻した 人（retired なし・古い 押した 月が 残る）が 支給月に 辞める＝決め通り 支給日で 決める（止めない）
+   （taiketsu 10-24 K1＝「復帰させる」は 押した 月を 消さない。月次も 印の 無い 人に 押した 月を 見ない） */
+A.state.employees = [mk('ZAISEKI'), mk('FUKKI', { retired: false, retiredYmd: '2026-10', taishokuYmd: '2026-12-31' })];
+A.state.bonus = { payYm: '2026-12', payDay: '2026-12-10', byEmp: { ZAISEKI: { amount: '100000' }, FUKKI: { amount: '100000' } } };
+bo = (() => { try { return A.buildTransfers('bonus'); } catch (e) { return e; } })();
+if (Array.isArray(bo)) {
+  if (!WAZA) {
+    T('★賞与＝「復帰させる」で 戻した 人が 支給日 以後に 辞める＝止めずに 振込に 入る★', bo.some((t) => t.emp.id === 'FUKKI') && tomeru('bonus') === '', '一覧 ' + ids(bo) + '／止める ' + tomeru('bonus'));
+  }
+} else T('賞与の 振込が 作れる（復帰した 人）', false, String(bo && bo.message));
 /* 支給日が 支給月と 違う 月（夏の 支給日が 残ったまま 冬を 作る）＝読めても 違う 回の 日付＝止める（taiketsu 10-23 止め2） */
 A.state.month = '2026-12';
 A.state.employees = [mk('ZAISEKI'), mk('FUYU', { retired: true, taishokuYmd: '2026-12-05' })];
