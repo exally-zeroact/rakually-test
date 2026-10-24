@@ -104,15 +104,28 @@ async function run(label, appSrc) {
       iv('s1', 'pS', '2026-10-06', { sub: 50000, tax: 5000, gensen: 5105 }),
       iv('s2', 'pS', '2026-10-07', { sub: 50000, tax: 5000 }),
       iv('s3', 'pS', '2026-10-08', { sub: 40000, tax: 4000, gensen: 4084 }),
+      /* ③ 繰越の 連鎖（9月 未入金 → 10月の 紙に 繰越 → 10月の 紙に 払う → 11月） */
+      iv('e9', 'pE', '2026-09-10', { sub: 30000, tax: 3000 }),
+      iv('e10', 'pE', '2026-10-10', { sub: 30000, tax: 3000,
+        carry: { state: 'ok', prevNo: '202609-e9', prevTotal: 33000, paid: 0, carry: 33000, thisTotal: 33000, grandTotal: 66000 } }),
+      iv('f9', 'pF', '2026-09-10', { sub: 30000, tax: 3000 }),           // 一部だけ 払った
+      iv('f10', 'pF', '2026-10-10', { sub: 30000, tax: 3000,
+        carry: { state: 'ok', prevNo: '202609-f9', prevTotal: 33000, paid: 0, carry: 33000, thisTotal: 33000, grandTotal: 66000 } }),
+      iv('g9', 'pG', '2026-09-10', { sub: 100000, tax: 10000, gensen: 10210 }),   // 源泉の ある 相手（払う額 99,790）
+      iv('g10', 'pG', '2026-10-10', { sub: 100000, tax: 10000, gensen: 10210,
+        carry: { state: 'ok', prevNo: '202609-g9', prevTotal: 99790, paid: 0, carry: 99790, thisTotal: 110000, grandTotal: 209790 } }),
     ],
     receipts: [
       { id: 'rh', invoice_id: 'h', amount: 89790, ymd: '2026-10-31' },
       { id: 'rs1', invoice_id: 's1', amount: 49895, ymd: '2026-10-31' },
       { id: 'rs2', invoice_id: 's2', amount: 55000, ymd: '2026-10-31' },
       { id: 'rs3', invoice_id: 's3', amount: 39916, ymd: '2026-10-31' },
+      { id: 're10', invoice_id: 'e10', amount: 66000, ymd: '2026-10-31' },    // 10月の 紙の ご請求金額を 全部
+      { id: 'rf10', invoice_id: 'f10', amount: 40000, ymd: '2026-10-31' },    // 66,000 の うち 40,000 だけ
+      { id: 'rg10', invoice_id: 'g10', amount: 199580, ymd: '2026-10-31' },   // 209,790 − 源泉 10,210
     ],
   };
-  const { ryoushuu } = await boot(t, appSrc);
+  const { ryoushuu, tsugiAtama, A, doc } = await boot(t, appSrc);
 
   await T('① 免税の 相手（消費税 0）でも 払う額を 全部 受け取れば「源泉徴収税額 X円 差引」が 出る', async () => {
     const h = await ryoushuu('h', 'rh');
@@ -136,6 +149,31 @@ async function run(label, appSrc) {
     const h3 = plain(await ryoushuu('s3', 'rs3'));
     ok(!/収入印紙|印紙が要るか/.test(h3), '★5万円 未満なのに 印紙の 注意を 出した★');
   });
+
+  /* ③ 繰越の 連鎖（taiketsu 10-24 穴3）＝前回の 額は 前回の 紙の ご請求金額（刷った 繰越 込み）で 数える。
+     入金の 状態は 繰越を 含んだ 紙への 入金を 前の 月の 未入金に 充てた 後で 言う。 */
+  const joutai = (id) => {
+    A._go('scr-list'); A._renderListForTest();
+    const b = doc.querySelector('#list-body [data-look="' + id + '"]');
+    const c = b && b.closest('.iv-card');
+    const t2 = ((c && c.textContent) || '').replace(/\s+/g, ' ');
+    return ['過入金', '一部入金', '入金済', '未入金'].find((w) => t2.indexOf(w) >= 0) || '（無い）';
+  };
+  await T('③ 9月 未入金 → 10月の 紙（66,000）を 全部 払う → 11月の 紙に 繰越は 無い（−22,000 に ならない）・9月も 10月も 入金済', async () => {
+    eq(tsugiAtama('pE', '2026-11-05', 10000), 11000, '★11月の 紙の ご請求金額★');
+    eq(joutai('e9'), '入金済', '★9月が 未入金の まま★');
+    eq(joutai('e10'), '入金済', '★10月が 過入金★');
+  });
+  await T('③ 一部だけ 払った（66,000 の うち 40,000）→ 11月の 紙は 繰越 26,000＋今回・9月 入金済・10月 一部入金', async () => {
+    eq(tsugiAtama('pF', '2026-11-05', 10000), 37000, '★11月の 紙の ご請求金額★');
+    eq(joutai('f9'), '入金済', '★前の 月に 先に 充てていない★');
+    eq(joutai('f10'), '一部入金', '★10月の 状態★');
+  });
+  await T('③ 源泉の ある 相手（10月の 紙の 差引 199,580 を 全部 払う）→ 11月の 紙に 繰越は 無い・9月も 10月も 入金済', async () => {
+    eq(tsugiAtama('pG', '2026-11-05', 10000, true), 11000, '★11月の 紙の ご請求金額（源泉の 前の 頭の 額）★');
+    eq(joutai('g9'), '入金済', '★9月★');
+    eq(joutai('g10'), '入金済', '★10月★');
+  });
 }
 
 if (!SELF) {
@@ -144,9 +182,15 @@ if (!SELF) {
   process.exit(fail ? 1 : 0);
 } else {
   const keep = fs.readFileSync(APP, 'utf8');
-  const mark = 'gensen: zengaku ? gen : 0,';
-  if (keep.split(mark).length !== 2) { console.log('  ★壊す所が 見つからない＝この自己診断は 古い★'); process.exit(2); }
-  await run('源泉の 注記を 消費税の 判定に 縛る（わざと 壊した）', keep.replace(mark, 'gensen: whole ? gen : 0,'));
-  console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（1件以上のはず）');
-  process.exit(fail >= 1 ? 0 : 1);
+  /* ★2か所を わざと 戻す★＝①源泉の 注記を 消費税の 判定に 縛る／③前回の 額に 刷った 繰越を 足さない */
+  const marks = [['gensen: zengaku ? gen : 0,', 'gensen: whole ? gen : 0,'],
+    ['receipts: S.receipts, prevTotalOf: kamiGakuOf });', 'receipts: S.receipts, prevTotalOf: gakuOf });']];
+  let bad = keep;
+  for (const [a, b] of marks) {
+    if (bad.split(a).length !== 2) { console.log('  ★壊す所が 見つからない＝この自己診断は 古い★ ' + a); process.exit(2); }
+    bad = bad.replace(a, b);
+  }
+  await run('源泉の 注記を 縛る・前回の 繰越を 足さない（わざと 壊した）', bad);
+  console.log('\n  わざと壊した時に 赤になった数 … ' + fail + '件（2件以上のはず）');
+  process.exit(fail >= 2 ? 0 : 1);
 }

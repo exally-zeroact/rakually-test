@@ -393,10 +393,77 @@
   /* ═══ 一覧 ═══ */
   /** その1通の入金の状態。★数え方は seikyu-doc.js が唯一の正（画面で数え直さない）★
    *  S.receipts が null＝読めていない → paymentStateOf が 'unknown' を返す（0にしない）。 */
+  /* ═══ ★繰越の 連鎖★（taiketsu 10-24 穴3）═══
+     前は 前回の 額に ★前回の 紙に 入っていた 繰越を 足していなかった★＝
+       9月 33,000 未入金 → 10月の 紙は 繰越 33,000＋今回 33,000＝ご請求金額 66,000 → 相手が 66,000 払う
+       → 11月の 紙が「前回請求額 33,000／入金 66,000／繰越 −33,000 過入金」＝合計請求額 −22,000円（本当は 11,000円）。
+     ⇒ ★前回の 額＝前回の 紙の ご請求金額（その 紙に 刷った 繰越を 含む＝相手が その 紙で 払うべき 額）★
+       ＝gakuOf（源泉の 後・控除の 後）＋ 前回の 紙に 刻んだ 繰越（snapshot.carry.carry）。
+     ★発行済みの 紙に 刻んだ 繰越は 書き換えない★（読むだけ）。集計は 今まで どおり 1通の 分（gakuOf）＝二重に 数えない。 */
+  function kamiGakuOf(v) {
+    var g = gakuOf(v);
+    if (g === null) return null;
+    var c = v && v.snapshot && v.snapshot.carry;
+    var k = (c && (c.state === 'ok' || c.state === 'over') && Number.isFinite(Number(c.carry))) ? Number(c.carry) : 0;
+    return g + k;
+  }
+  /* ★入金の 充て方★（一覧の 入金の 状態・集計 が 食い違わない 様に）
+     繰越を 含んだ 紙に 払われた 額は ★まず その 紙に 刷った 繰越の 分だけ 前の 月の 未入金に 古い 順に 充て★、
+     残りを その 紙の 1通に 充てる（その 紙に 刷った 繰越 より 多くは 前へ 回さない）。
+     ・入金の 記録（倉庫）は 書き換えない＝読む 時に 分けた 写しを 作るだけ
+     ・繰越の 計算（CARRY.compute）は ★分ける 前の 記録★を 使う（紙に 払った 額と 紙の 額を 比べる）
+     ・返金（マイナス）・消した 入金は 分けない */
+  var _juKey = null, _juVal = null;
+  function juutouReceipts() {
+    var rs = S.receipts;
+    if (rs === null || rs === undefined) return null;
+    var src = billSrc();
+    var list = (src.ok === true) ? src.list : (S.invoices || []);
+    var key = [rs, list, rs.length, list.length];
+    if (_juKey && _juKey[0] === key[0] && _juKey[1] === key[1] && _juKey[2] === key[2] && _juKey[3] === key[3]) return _juVal;
+    var chains = {}, seen = {};
+    list.forEach(function (v) {
+      if (!v || (v.doc_type || 'invoice') !== 'invoice' || v.status !== 'issued') return;
+      var p = String(v.partner_id || '');
+      (chains[p] || (chains[p] = [])).push(v);
+      seen[v.id] = 1;
+    });
+    var direct = {};
+    rs.forEach(function (r) {
+      if (r && !r.deleted_at && r.invoice_id && seen[r.invoice_id]) (direct[r.invoice_id] || (direct[r.invoice_id] = [])).push(r);
+    });
+    var out = [];
+    rs.forEach(function (r) { if (!(r && !r.deleted_at && r.invoice_id && seen[r.invoice_id])) out.push(r); });
+    Object.keys(chains).forEach(function (p) {
+      var ch = chains[p].sort(function (a, b) {
+        return String(a.issue_ymd || '').localeCompare(String(b.issue_ymd || '')) || String(a.no || '').localeCompare(String(b.no || ''));
+      });
+      var eff = {};
+      ch.forEach(function (v, i) {
+        var c = v.snapshot && v.snapshot.carry;
+        var k = (c && c.state === 'ok' && Number(c.carry) > 0) ? Number(c.carry) : 0;
+        (direct[v.id] || []).forEach(function (r) {
+          var amt = Number(r.amount) || 0;
+          for (var j = 0; j < i && amt > 0 && k > 0; j++) {
+            var pv = ch[j], g = gakuOf(pv);
+            if (g === null) continue;
+            var rest = g - (eff[pv.id] || 0);
+            if (rest <= 0) continue;
+            var take = Math.min(rest, amt, k);
+            eff[pv.id] = (eff[pv.id] || 0) + take; amt -= take; k -= take;
+            out.push(Object.assign({}, r, { invoice_id: pv.id, amount: take, juutouMoto: v.id }));
+          }
+          if (amt !== 0) { eff[v.id] = (eff[v.id] || 0) + amt; out.push(amt === Number(r.amount) ? r : Object.assign({}, r, { amount: amt })); }
+        });
+      });
+    });
+    _juKey = key; _juVal = out;
+    return out;
+  }
   function payStateOf(inv) {
     return DOC.paymentStateOf(
       { id: inv.id, grand_total: gakuOf(inv) || 0 },   /* ★払ってもらう 額と 比べる★（源泉の 紙で「一部入金」と 言い続けない） */
-      S.receipts === null ? null : S.receipts);
+      juutouReceipts());                                 /* ★繰越を 含んだ 紙への 入金は 前の 月の 未入金に 充てた 後★ */
   }
   function payLabel(inv) {
     // ★発行していない紙に「未入金」と書かない★（まだ請求していない＝入金の話が無い）
@@ -444,7 +511,7 @@
   function reportOf(month, kind, list) {
     var REP = global.SeikyuReport;
     if (!REP) return null;
-    return REP.summarize({ amountOf: gakuOf, invoices: list || S.invoices || [], receipts: S.receipts,
+    return REP.summarize({ amountOf: gakuOf, invoices: list || S.invoices || [], receipts: juutouReceipts(),
       partners: S.partners || [], month: month, kind: kind || S.kind || 'invoice', doc: DOC });
   }
   function ymLabel(m) { return m ? (m.slice(0, 4) + '年' + Number(m.slice(5, 7)) + '月') : ''; }
@@ -2875,7 +2942,8 @@
     /* ★前回の 残りは 相手が 実際に 払う 額（gakuOf＝源泉の 後）で 数える★（司さん 10-24「法律的に最適解で」）
        ＝源泉の 分は 相手が 国へ 納める（所得税法 204条・212条）＝払い残りでは ない。
        ★発行済みの 紙は snapshot の 繰越の まま★（上の fromSnapshot で 返る＝書き換えない） */
-    return CARRY.compute({ thisTotal: t.grandTotal, prev: prev, receipts: S.receipts, prevTotalOf: gakuOf });
+    /* ★前回の 額は 前回の 紙の ご請求金額（その 紙に 刷った 繰越 込み）★・入金は 分ける 前の 記録（その 紙に 払った 額） */
+    return CARRY.compute({ thisTotal: t.grandTotal, prev: prev, receipts: S.receipts, prevTotalOf: kamiGakuOf });
   }
 
   /** 「◯年◯月分」の説明。★空なら 請求日の前月から自動で入る事を言う★ */
