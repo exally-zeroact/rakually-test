@@ -33,6 +33,7 @@ const eq = (a, b, m) => { if (a !== b) throw new Error((m ? m + ': ' : '') + 'ex
    ＝「いつのまにか別の物に頼っていた」を運ぶ日に初めて気づく、を無くす。 */
 const OUTSIDE = [
   'css/rakunally-ui.css',                 // 画面の見た目（帯・カード・ボタン）
+  'kyuyo/css/fonts-google.css',        // ★画面の字体の @font-face（給与と同じ1枚＝外の CSS を待って画面が止まっていた・2026-10-24）
   'index.html',                        // ★Rakunally の入口（共有データ＞会社）＝「会社の情報を直す」の飛び先
   /* ★2026-08-18 アイコンを差し替えた★ … img/icon-192.png（Exallyの文字だけの仮アイコン）を
      ★Rakunally のロゴ★の一組に替えた。iOSは manifest を見ないので apple-touch-icon が要る。 */
