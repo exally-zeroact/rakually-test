@@ -95,7 +95,7 @@ export async function boot(t, appSrc, repSrc) {
 
 async function run(label, appSrc, repSrc) {
   console.log('\n[' + label + '] ★源泉の ある 領収書と 繰越の 連鎖★');
-  const partners = ['H', 'S', 'N', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'Q', 'R', 'U', 'V', 'W', 'X', 'Y', 'A', 'B', 'C', 'D', 'I', 'O', 'G1', 'G2', 'G4', 'G10', 'S3', 'G15', 'Z0'].map((k, i) => ({ id: 'p' + k, sort: i, data: { name: '見本' + k + '商事', keisho: '御中' } }));
+  const partners = ['H', 'S', 'N', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'Q', 'R', 'U', 'V', 'W', 'X', 'Y', 'A', 'B', 'C', 'D', 'I', 'O', 'G1', 'G2', 'G4', 'G10', 'S3', 'G15', 'Z0', 'Z', 'ZR', 'ZH', 'ZC'].map((k, i) => ({ id: 'p' + k, sort: i, data: { name: '見本' + k + '商事', keisho: '御中' } }));
   const t = {
     partners,
     invoices: [
@@ -172,6 +172,15 @@ async function run(label, appSrc, repSrc) {
       iv('g15a', 'pG15', '2026-10-10', { sub: 30000, tax: 3000 }),       // G15：同じ 月の 赤伝・入金 0
       iv('g15m', 'pG15', '2026-10-20', { sub: -10000, tax: -1000 }),
       iv('z0', 'pZ0', '2026-10-12', { sub: 0, tax: 0 }),                 // ⑫ 0円の 紙（入金 なし）
+      /* ⑧ 取り消した 紙に 残った 入金（司さん 10-24「選べるようにしろ」・既定は 充てる） */
+      iv('z8', 'pZ', '2026-08-10', { sub: 30000, tax: 3000 }),
+      iv('z9', 'pZ', '2026-09-10', { sub: 30000, tax: 3000, extra: { status: 'void' } }),
+      iv('zr8', 'pZR', '2026-08-10', { sub: 30000, tax: 3000 }),        // 取り消した 9月の 入金を 8月の 紙で 返金した
+      iv('zr9', 'pZR', '2026-09-10', { sub: 30000, tax: 3000, extra: { status: 'void' } }),
+      iv('zh8', 'pZH', '2026-08-10', { sub: 30000, tax: 3000 }),        // 取り消す 前の 9月の 紙で 8月の 多い 分まで まとめて 返した（正味 マイナス）
+      iv('zh9', 'pZH', '2026-09-10', { sub: 30000, tax: 3000, extra: { status: 'void' } }),
+      iv('zc8', 'pZC', '2026-08-10', { sub: 30000, tax: 3000 }),        // 取り消した 紙の 上で 全部 返した（正味 0）＋8月の 多い 分の 返金
+      iv('zc9', 'pZC', '2026-09-10', { sub: 30000, tax: 3000, extra: { status: 'void' } }),
     ],
     receipts: [
       { id: 'rh', invoice_id: 'h', amount: 89790, ymd: '2026-10-31' },
@@ -209,6 +218,18 @@ async function run(label, appSrc, repSrc) {
       { id: 'rg10a', invoice_id: 'g10a', amount: 33000, ymd: '2026-09-25' },
       { id: 'rg10b', invoice_id: 'g10b', amount: 22000, ymd: '2026-11-20' },
       { id: 'rs3', invoice_id: 's3a', amount: 22000, ymd: '2026-09-25' },
+      { id: 'rz8', invoice_id: 'z8', amount: 33000, ymd: '2026-08-25' },
+      { id: 'rz9', invoice_id: 'z9', amount: 33000, ymd: '2026-09-25' },
+      { id: 'rzr8', invoice_id: 'zr8', amount: 33000, ymd: '2026-08-25' },
+      { id: 'rzr9', invoice_id: 'zr9', amount: 33000, ymd: '2026-09-25' },
+      { id: 'rzrb', invoice_id: 'zr8', amount: -33000, ymd: '2026-09-30' },
+      { id: 'rzh8', invoice_id: 'zh8', amount: 44000, ymd: '2026-08-25' },
+      { id: 'rzh9', invoice_id: 'zh9', amount: 33000, ymd: '2026-09-25' },
+      { id: 'rzh9b', invoice_id: 'zh9', amount: -44000, ymd: '2026-09-30' },
+      { id: 'rzc8', invoice_id: 'zc8', amount: 44000, ymd: '2026-08-25' },
+      { id: 'rzc8b', invoice_id: 'zc8', amount: -11000, ymd: '2026-08-30' },
+      { id: 'rzc9', invoice_id: 'zc9', amount: 33000, ymd: '2026-09-25' },
+      { id: 'rzc9b', invoice_id: 'zc9', amount: -33000, ymd: '2026-09-28' },
     ],
   };
   const { ryoushuu, tsugiAtama, A, doc, S } = await boot(t, appSrc, repSrc);
@@ -423,6 +444,16 @@ async function run(label, appSrc, repSrc) {
   });
 
   /* ⑪ taiketsu 10-24 7回目＝集計の「請求」は 帳簿で 赤伝を 差し引いた 後の 額＝月の 行の 残りが 一覧と 同じ */
+  /* 集計の 表の 下の 説明（警告）を 取る */
+  const shuukeiGyouHint = async (ym) => {
+    doc.querySelector('.bn[data-scr="scr-bill"]').click(); await new Promise((r) => setTimeout(r, 60));
+    doc.querySelector('#scr-bill [data-bseg="report"]').click();
+    const sel = doc.getElementById('bk-rep-month'); sel.value = ym; sel.dispatchEvent(new doc.defaultView.Event('change'));
+    await new Promise((r) => setTimeout(r, 30));
+    const t2 = doc.getElementById('bk-rep-body').textContent.replace(/\s+/g, ' ');
+    doc.querySelector('#scr-bill [data-bseg="invoice"]').click();
+    return t2;
+  };
   const tsukiNokori = async (pid, yms) => { const o = {}; for (const ym of yms) { const k = await shuukei(pid, ym); o[ym] = k.nokori === null ? 0 : k.nokori; } return o; };
   const zero = (o, m) => Object.keys(o).forEach((ym) => eq(o[ym], 0, m + ' ' + ym + ' の 集計の 残り'));
   await T('⑪ G1 9月の 赤伝 −11,000・10月 33,000 に 22,000 → 一覧 両方 入金済・集計 9月も 10月も 残り 0・10月の「請求」は 紙と 同じ 33,000（差し引き 11,000 は 別の 列）', async () => {
@@ -492,6 +523,65 @@ async function run(label, appSrc, repSrc) {
     eq(r8 && r8[h8.indexOf('赤伝で差し引き')], 11000, '★赤伝の 月の 差し引き（プラス）★'); eq(r8[h8.indexOf('残額')], 0, '★赤伝の 月の 残額★');
   });
 
+  /* ⑧ 取り消した 紙に 残った 入金＝設定で 選ぶ（既定＝充てる） */
+  await T('⑧ 既定（充てる）＝9月を 取り消しても 入金 33,000 は 相手の 貸し → 10月の 紙は −22,000・8月は 過入金', async () => {
+    eq(S.org.invoiceVoidPay, undefined, '★既定の 試験なのに 設定が 入っている★');
+    eq(tsugiAtama('pZ', '2026-10-05', 10000), -22000, '★10月の 紙★');
+    eq(joutai('z8'), '過入金', 'z8');
+  });
+  await T('⑧ 設定「充てない」＝取り消した 紙の 入金は 無かった 事に → 10月の 紙は 11,000・8月は 入金済・集計の 8月 残り 0', async () => {
+    S.org.invoiceVoidPay = 'ignore';
+    try {
+      eq(tsugiAtama('pZ', '2026-10-05', 10000), 11000, '★10月の 紙★');
+      eq(joutai('z8'), '入金済', 'z8');
+    } finally { delete S.org.invoiceVoidPay; }
+  });
+
+  await T('⑧ 取り消した 9月の 入金を 8月の 紙で 返金した 相手＝既定は 10月の 紙 11,000・8月 入金済／「充てない」は 推測せず 止めて 警告（司さん 10-25）', async () => {
+    eq(tsugiAtama('pZR', '2026-10-05', 10000), 11000, '★既定の 10月の 紙★'); eq(joutai('zr8'), '入金済', '★既定の 8月★');
+    S.org.invoiceVoidPay = 'ignore';
+    try {
+      const g = tsugiAtama('pZR', '2026-10-05', 10000);
+      ok(g === null, '★充てない＋返金 で 数を 出した（推測した）★ ' + g);
+      A._go('scr-list'); A._renderListForTest();
+      const c = doc.querySelector('#list-body [data-look="zr8"]').closest('.iv-card');
+      ok(/入金は未確認/.test(c.textContent), '★一覧が 未確認と 言わない★ ' + c.textContent.replace(/\s+/g, ' ').slice(0, 80));
+      const h = await shuukeiGyouHint('2026-08');
+      ok(/取り消した請求書に入金や返金の記録が残っていて/.test(h) && /見本ZR商事/.test(h), '★集計に 警告と 取引先の 名が 出ない★ ' + h.slice(0, 120));
+      eq(joutai('z8'), '入金済', '★警告の 無い 取引先（pZ）は 普通に 数える★');
+      /* ★止めた 訳を 入金の 箱と Excel の 断りで 言う★ */
+      const b = await hako('zr8'); ok(/取り消した請求書に入金や返金の記録が残っていて/.test(b.sum), '★入金の 箱に 訳が 出ない★ ' + b.sum.slice(0, 80));
+      const xw = A._repExcelForTest('2026-08'); ok(xw && /取り消した請求書に入金や返金の記録が残っていて/.test(xw.why || ''), '★Excel の 断りが 訳を 言わない★ ' + (xw && xw.why));
+      /* ★発行も 止まる★（繰越を 数えられないまま 紙を 固めない） */
+      let kaita = 0; const keepSt = S.store.invoices; S.store.invoices = Object.assign({}, keepSt, { save: () => { kaita++; return Promise.resolve({}); }, issue: () => { kaita++; return Promise.resolve({}); } });
+      /* お客さんと 同じ 道＝新しい 1通を 開いて 相手を 選び、発行を 押す */
+      A._new(); const ep = doc.getElementById('e-partner'); ep.value = 'pZR';
+      ok(ep.value === 'pZR', '★相手の 選びに pZR が 無い★（空振り）');
+      ep.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true })); await new Promise((r) => setTimeout(r, 40));
+      try { await A._issue(); } catch (e) { /* 止まれば よい */ }
+      const err = (doc.getElementById('edit-err') || {}).textContent || '';
+      S.cur = null; S.store.invoices = keepSt;
+      ok(/取り消した請求書に入金や返金の記録が残っていて/.test(err), '★発行の 止めの 字が 出ない★ ' + err.slice(0, 80));
+      eq(kaita, 0, '★止めずに 倉庫へ 書いた★');
+    } finally { delete S.org.invoiceVoidPay; }
+  });
+
+  await T('⑧ 取り消す 前の 紙で 8月の 多い 分まで 返した（取り消した 紙の 正味 −11,000）＝既定は 11,000・「充てない」は 止めて 警告（少なく 請求しない）', async () => {
+    eq(tsugiAtama('pZH', '2026-10-05', 10000), 11000, '★既定の 10月の 紙★'); eq(joutai('zh8'), '入金済', '★既定の 8月★');
+    S.org.invoiceVoidPay = 'ignore';
+    try {
+      const g = tsugiAtama('pZH', '2026-10-05', 10000);
+      ok(g === null, '★正味 マイナスで 数を 出した（0＝11,000 少なく 請求）★ ' + g);
+    } finally { delete S.org.invoiceVoidPay; }
+  });
+  await T('⑧ 取り消した 紙の 上で 全部 返した（正味 0）＋8月の 多い 分の 返金＝「充てない」でも 止めずに 11,000・8月 入金済（止めが 広すぎない）', async () => {
+    S.org.invoiceVoidPay = 'ignore';
+    try {
+      eq(tsugiAtama('pZC', '2026-10-05', 10000), 11000, '★正味 0 なのに 止めた／数が 違う★');
+      eq(joutai('zc8'), '入金済', 'zc8');
+    } finally { delete S.org.invoiceVoidPay; }
+  });
+
   await T('③ 源泉の ある 相手（10月の 紙の 差引 199,580 を 全部 払う）→ 11月の 紙に 繰越は 無い・9月も 10月も 入金済', async () => {
     eq(tsugiAtama('pG', '2026-11-05', 10000, true), 11000, '★11月の 紙の ご請求金額（源泉の 前の 頭の 額）★');
     eq(joutai('g9'), '入金済', '★9月★');
@@ -522,6 +612,13 @@ if (!SELF) {
     { na: '⑨止2 引ける 紙の 無い 赤伝を 過入金に しない', pairs: [["    if (st.remain < 0) st.state = 'over';\n", '']] },
     { na: '⑨別件 見積にも 繰越を 乗せる', pairs: [["    if ((v.doc_type || 'invoice') !== 'invoice') return null;\n", '']] },
     { na: '⑦止B 状態を 入金＋貸しの 和で 決める', pairs: [["      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : (st.paid === 0 ? 'unpaid' : 'partial');\n    }\n    /* ★引ける", "      st.state = (st.paid + c.credit) === 0 ? 'unpaid' : st.remain > 0 ? 'partial' : st.remain === 0 ? 'paid' : 'over';\n    }\n    /* ★引ける"], ["    if (st.remain < 0) st.state = 'over';\n", '']] },
+    { na: '⑧ 充てない＋返金 でも 発行を 止めない', pairs: [["    if (cw && cw.voidWarn) { box('edit-err', cw.why); return Promise.resolve(); }", '']] },
+    { na: '⑧ 充てない＋返金 で 止めずに 数える', pairs: [['      p.voidWarn = Object.keys(vn)', '      p.voidWarn = false && Object.keys(vn)']] },
+    { na: '⑧ 取り消した 紙の 正味 マイナスを 見ない', pairs: [['      p.voidWarn = Object.keys(vn).some(function (id) { return vn[id] < 0; })\n        ||', '      p.voidWarn = false\n        ||']] },
+    { na: '⑧ 正味 0 の 取り消した 紙でも 止める（広すぎ）', pairs: [['(Object.keys(vn).some(function (id) { return vn[id] > 0; })', '(Object.keys(vn).some(function (id) { return true; })']] },
+    { na: '⑧ 入金の 箱に 止めた 訳を 出さない', pairs: [["        + (st.voidWarn ? '<p class=\"hint err\">' + esc(VOIDWARN) + '</p>' : '');", "        + '';"]] },
+    { na: '⑧ 帳簿の 控えの 鍵から 設定を 抜く', pairs: [['    var key = [rs, list, rs ? rs.length : -1, list.length, voidPay];', '    var key = [rs, list, rs ? rs.length : -1, list.length, null];']] },
+    { na: '⑧ 設定「充てない」を 効かせない', pairs: [["      if (v.status === 'void' && voidPay === 'ignore') {", "      if (false) {"]] },
     { na: '⑦止C 発行済みでも 繰越を 数え直す', pairs: [["    if (v.status && v.status !== 'draft') return null;\n", '']] },
   ];
   const keepR = fs.readFileSync(REPF, 'utf8');
@@ -530,6 +627,17 @@ if (!SELF) {
     { na: '⑫ 0円の 紙を 集計で 済みと 言う', file: 'rep', pairs: [["          : (r.paid === 0 && r.credit === 0 ? 'unpaid' : 'paid');", "          : 'paid';"]] },
     { na: '⑫ 上の 枠に 差し引きを 出さない', pairs: [["      + (sashiT ? cell('', '赤伝で差し引き', unk ? '未確認' : yenW(-t.credit) + '円') : '')\n", '']] },
     { na: '⑫ Excel の 差し引きの 符号を 逆に する', pairs: [["concat(sashi ? [-r.credit] : [],", "concat(sashi ? [r.credit] : [],"]] });
+  /* ★段を 3つに 分ける（--bu=1／2／3）★＝壊す 所が 24 に 増え、1回で 265秒＝押す前の 網の 1段の 上限 180秒を 越えた
+     （2つ割りでも 134秒＝余りが 少ない）。中身は 1つも 変えず、壊す 所を 順に 割って 走らせる（--bu 無し＝全部）。打ち間違いは 止める。 */
+  const buA = process.argv.filter((x) => x.indexOf('--bu') === 0);
+  if (buA.length > 1 || (buA.length === 1 && ['--bu=1', '--bu=2', '--bu=3'].indexOf(buA[0]) < 0)) {
+    console.log('  ★--bu の 字が 違います（' + buA.join(' ') + '）＝何も 走らせずに 止めます★'); process.exit(2);
+  }
+  const BU = buA.length ? Number(buA[0].slice(5)) : 0;
+  const zenbu = marks.length;
+  if (BU) marks.splice(0, marks.length, ...marks.filter((m, i) => i % 3 === BU - 1));
+  console.log('  段 ' + (BU || '全部') + '＝壊す 所 ' + marks.length + '／' + zenbu);
+  if (!marks.length) { console.log('  ★この 段に 壊す 所が 0＝空振り★'); process.exit(1); }
   let kara = 0;
   for (const m of marks) {
     let bad = m.file === 'rep' ? keepR : keep;

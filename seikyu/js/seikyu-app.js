@@ -163,6 +163,10 @@
       rounding: (['floor', 'ceil', 'round'].indexOf(d.taxRounding) >= 0) ? d.taxRounding : 'floor',
       bank: d.bank || '',
       carry: !!d.invoiceCarry,      // ★繰越を紙に出すか（既定は切＝今までどおり）
+      /* ★取り消した請求書に残った入金を ほかの請求書に 充てるか★（司さん 2026-10-24「選べるようにしろ」・既定は 充てる）
+         充てる＝返金を 記録するまで 相手の 貸し（出し直しても 二重に 請求しない）／充てない＝無かった 事に する
+         （一覧の 入金の 状態と 繰越の 両方に 効く＝繰越を 使わない 会社にも 効く） */
+      voidPay: d.invoiceVoidPay === 'ignore' ? 'ignore' : 'count',
       template: TPL.get(d.invoiceTemplate) ? d.invoiceTemplate : TPL.DEFAULT_ID,
       cols: (d.invoiceCols && Array.isArray(d.invoiceCols.items) && d.invoiceCols.items.length) ? d.invoiceCols : null,
       /* ★紙の枠の行数（空＝既定。既定の数は紙の側が持っている）★
@@ -417,13 +421,15 @@
     return String(a.issue_ymd || '').localeCompare(String(b.issue_ymd || '')) || String(a.no || '').localeCompare(String(b.no || ''));
   }
   var _cbKey = null, _cbVal = null;
+  var VOIDWARN = '取り消した請求書に入金や返金の記録が残っていて、同じ取引先の返金がどの入金を返した物か分からないため、入金と繰越を数えられません。設定の「取り消した請求書に残っている入金を、ほかの請求書に充てる」を入にするか、返金の記録を直してください。';
   function choubo() {
     var rs = S.receipts;
     var src = billSrc();
     var list = (src.ok === true) ? src.list : (S.invoices || []);
-    var key = [rs, list, rs ? rs.length : -1, list.length];
-    if (_cbKey && _cbKey[0] === key[0] && _cbKey[1] === key[1] && _cbKey[2] === key[2] && _cbKey[3] === key[3]) return _cbVal;
-    var invById = {}, parts = {}, byInv = {}, byRc = {};
+    var voidPay = settings().voidPay;
+    var key = [rs, list, rs ? rs.length : -1, list.length, voidPay];
+    if (_cbKey && _cbKey[0] === key[0] && _cbKey[1] === key[1] && _cbKey[2] === key[2] && _cbKey[3] === key[3] && _cbKey[4] === key[4]) return _cbVal;
+    var invById = {}, parts = {}, byInv = {}, byRc = {}, warn = [];
     var P = function (pid) { pid = String(pid || ''); return parts[pid] || (parts[pid] = { invs: [], rcs: [] }); };
     list.forEach(function (v) {
       if (!v || !v.id || (v.doc_type || 'invoice') !== 'invoice') return;
@@ -433,6 +439,11 @@
     (rs || []).forEach(function (r) {
       if (!r || r.deleted_at) return;                                // 消した 入金は 数えない
       var v = invById[r.invoice_id]; if (!v) return;                 // 別の 種類・知らない 紙の 入金は 数えない
+      if (v.status === 'void' && voidPay === 'ignore') {             // ★取り消した 紙の 入金を 充てない 設定★（司さん 10-24）
+        var pv = P(v.partner_id); pv.voidNet = pv.voidNet || {};
+        pv.voidNet[v.id] = (pv.voidNet[v.id] || 0) + (Number(r.amount) || 0);   // 紙ごとの 正味（その 紙の 上の 返金も 引く）
+        return;
+      }
       P(v.partner_id).rcs.push(r);
     });
     var put = function (c, r, t) {
@@ -443,6 +454,15 @@
       var p = parts[pid];
       p.invs.sort(choubo_jun);
       p.rcs.sort(function (x, y) { return String(x.ymd || '').localeCompare(String(y.ymd || '')) || String(x.created_at || '').localeCompare(String(y.created_at || '')); });
+      /* ★「充てない」で 数えられない 取引先は 止めて 警告★（司さん 10-25「止めて警告」）
+         取り消した 紙に 入金が 残り（正味 ＞ 0）、同じ 取引先の 生きている 紙に 返金（マイナスの 入金）が ある 時は、
+         その 返金が 取り消した 紙の 分か 分からない（返金に 紐付けが 無い）＝推測で 打ち消すと 多く 払った 分の 返金まで 食って
+         少なく 請求する（taiketsu 止A〜C）。その 取引先は 入金の 状態・繰越・集計を「未確認」に して 発行を 止める。 */
+      /* 取り消した 紙の 正味が マイナス（その 紙の 上で ほかの 紙の 分まで 返した）時も、何の 返金か 分からない＝止める（taiketsu 3回目 止1） */
+      var vn = p.voidNet || {};
+      p.voidWarn = Object.keys(vn).some(function (id) { return vn[id] < 0; })
+        || (Object.keys(vn).some(function (id) { return vn[id] > 0; }) && p.rcs.some(function (r) { return (Number(r.amount) || 0) < 0; }));
+      if (p.voidWarn) warn.push(pid);
       p.cells = p.invs.map(function (v) { var g = gakuOf(v); return { v: v, gaku: (g === null ? 0 : g), paid: 0, alloc: [], credit: 0 }; });
       p.cells.forEach(function (c) { byInv[c.v.id] = c; });
       var cells = p.cells;
@@ -503,13 +523,13 @@
         n.left = keep - (rest - n.left);
       });
     });
-    _cbKey = key; _cbVal = { ok: rs !== null && rs !== undefined, parts: parts, byInv: byInv, byRc: byRc, invById: invById };
+    _cbKey = key; _cbVal = { ok: rs !== null && rs !== undefined, parts: parts, byInv: byInv, byRc: byRc, invById: invById, warn: warn };
     return _cbVal;
   }
   /** ★帳簿で 充てた 入金★を 1通ごとの 行に した 写し（集計の REP.summarize に 渡す）。読めない 時は null */
   function chouboReceipts() {
     var L = choubo();
-    if (!L.ok) return null;
+    if (!L.ok || L.warn.length) return null;   // 数えられない 取引先が ある 時は 集計の 入金も「未確認」（0円と 言わない）
     var out = [];
     Object.keys(L.byInv).forEach(function (id) {
       L.byInv[id].alloc.forEach(function (a) { out.push({ invoice_id: id, amount: a.amount, ymd: a.rc.ymd || '' }); });
@@ -520,6 +540,9 @@
     var g = gakuOf(inv) || 0;            /* ★払ってもらう 額（源泉の 後）と 比べる★ */
     var L = choubo();
     if (!L.ok) return DOC.paymentStateOf({ id: inv.id, grand_total: g }, null);
+    if (inv && L.parts[String(inv.partner_id || '')] && L.parts[String(inv.partner_id || '')].voidWarn) {
+      var sw = DOC.paymentStateOf({ id: inv.id, grand_total: g }, null); sw.voidWarn = true; return sw;   // 止めて 警告（未確認）
+    }
     var c = inv && L.byInv[inv.id];
     if (!c) return DOC.paymentStateOf({ id: inv.id, grand_total: g }, S.receipts);   // 下書き・取り消し（帳簿の 外）
     /* 状態の 決め方は DOC.paymentStateOf 1本（充てた 分を その 1通の 入金として 渡す） */
@@ -563,9 +586,14 @@
       return { state: 'unknown', prevNo: prev.no || '', prevTotal: null, paid: null, carry: null,
         thisTotal: thisTotal, grandTotal: null, label: CARRY.STATE_LABEL.unknown };
     }
+    var L = choubo();
+    if (L.parts[pid] && L.parts[pid].voidWarn) {                   // ★止めて 警告★（司さん 10-25）
+      return { state: 'unknown', prevNo: prev.no || '', prevTotal: null, paid: null, carry: null,
+        thisTotal: thisTotal, grandTotal: null, label: CARRY.STATE_LABEL.unknown, voidWarn: true, why: VOIDWARN };
+    }
     var ids = {}, sumG = 0;
     mae.forEach(function (x) { ids[x.id] = 1; sumG += (gakuOf(x) || 0); });
-    var L = choubo(), before = 0, since = 0;
+    var before = 0, since = 0;
     /* その 取引先の 入金（この 紙 自身に 記録した 物だけ 除く） */
     var p = L.parts[pid] || { rcs: [] };
     p.rcs.forEach(function (r) {
@@ -708,7 +736,9 @@
       + (sashi ? '<p class="hint">「赤伝で差し引き」は、マイナスの請求書（赤伝）をほかの月の請求書から差し引いた額です。差し引かれた月はマイナス、赤伝の月はほかの月へ回した分がプラスで出ます（残り＝請求 ＋ 赤伝で差し引き − 入金）。</p>' : '')
       + '<p class="hint">金額は 円（税込）。' + esc(lb) + 'に 発行した請求書だけを 数えています（下書きと 取り消した紙は 数えません）。</p>'
       + repNote(src.list, repMonth || '')
-      + (unk ? '<p class="hint">入金が読めていないので、入金と残りは出していません（0円ではありません）。</p>' : '');
+      + (unk ? '<p class="hint">' + (choubo().warn.length
+        ? esc(VOIDWARN + '（' + choubo().warn.map(function (id) { var pp = partnerById(id); return (pp && pp.data && pp.data.name) || id; }).join('・') + '）')
+        : '入金が読めていないので、入金と残りは出していません（0円ではありません）。') + '</p>' : '');
   }
 
   /** ★この月の集計だけ Excel に★（手本 exportReport＝daikou-seikyu.html:12680）
@@ -739,6 +769,7 @@
     if (src.ok !== true) return { why: billYomenai(src.ok) };
     var s2 = reportOf(month, 'invoice', src.list);
     if (!s2 || !s2.seen) return { why: 'この月に 発行した請求書が ありません。' };
+    if (s2.totals.paid === null && choubo().warn.length) return { why: VOIDWARN };
     if (s2.totals.paid === null) return { why: '入金が 読めていないので、集計の Excel は 作りません（入金0円の 表を 出さない為）。「もっと」の中の「読み直す」を 押してから もう一度 お試しください。' };
     var lb = month ? ymLabel(month) : 'ぜんぶ';
     /* 赤伝の 差し引きが ある 時だけ 列を 足す（画面の 表と 同じ） */
@@ -2715,7 +2746,8 @@
     if (st.paid === null) {
       // ★読めなかった＝0円と書かない★
       rows += '<div class="tot-r"><span class="tot-l">この1通に充てた入金</span><span class="tot-v">（未確認）</span></div>'
-        + '<div class="tot-r tot-g"><span class="tot-l">残り</span><span class="tot-v">（未確認）</span></div>';
+        + '<div class="tot-r tot-g"><span class="tot-l">残り</span><span class="tot-v">（未確認）</span></div>'
+        + (st.voidWarn ? '<p class="hint err">' + esc(VOIDWARN) + '</p>' : '');   /* ★止めた 訳を 返金を 直す 場所で 言う★ */
     } else {
       rows += '<div class="tot-r"><span class="tot-l">この1通に充てた入金</span><span class="tot-v">'
         + yen(st.paid) + ' 円' + (st.count ? '（' + st.count + '回）' : '') + '</span></div>';
@@ -3943,6 +3975,9 @@
           : (kl2 + 'の一覧が読めていないので発行できません（前回の請求からの繰越を数えられないため）。一覧の「もう一度読み込む」を押してから、もう一度お試しください。'));
       return Promise.resolve();
     }
+    /* ★止めて 警告★（司さん 10-25）＝取り消した 紙の 入金と 返金が 両方 ある 取引先は、繰越を 数えられないので 発行しない */
+    var cw = currentCarry();
+    if (cw && cw.voidWarn) { box('edit-err', cw.why); return Promise.resolve(); }
     var p = partnerById(v.partner_id);
     var chk = DOC.validateInvoice({ inv: Object.assign({}, v, { lines: cleanLines(v.lines) }), rawLines: v.lines, partner: p, org: { data: S.org || {} } });
     if (!chk.ok) { box('edit-err', chk.errors.join('\n')); box('edit-warn', ''); return Promise.resolve(); }
@@ -4918,6 +4953,7 @@
     $('s-bank').value = s.bank;
     drawBankRows(bankRows().length);
     $('s-carry').checked = s.carry;
+    $('s-voidpay').checked = s.voidPay === 'count';
     $('s-rows').value = (s.paperRows === null ? '' : s.paperRows);
     $('s-dedrows').value = (s.deductRows === null ? '' : s.deductRows);
     /* ★紙の書き方（会社ごと）★＝空なら 様式の既定（何も選ばなければ 今までどおり） */
@@ -5835,6 +5871,7 @@
       taxRounding: $('s-round').value,
       bank: $('s-bank').value,
       invoiceCarry: $('s-carry').checked,
+      invoiceVoidPay: $('s-voidpay').checked ? 'count' : 'ignore',
       invoicePaperRows: rowsSetting($('s-rows').value),
       invoiceDeductRows: rowsSetting($('s-dedrows').value),
       invoiceTemplate: settings().template,
