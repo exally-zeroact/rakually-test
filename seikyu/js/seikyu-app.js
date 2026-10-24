@@ -6490,6 +6490,7 @@
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える
     _saveDraftForTest: function () { return saveDraft(); },          // テスト用: 下書き保存を そのまま走らせる
     _renderListForTest: function () { return renderList(); },        // テスト用: 一覧を 描き直す
+    _reportForTest: function (m) { var src = billSrc(); return reportOf(m, 'invoice', src.ok === true ? src.list : null); },   // テスト用: 集計の 数（帳簿で 充てた 入金）
     _repExcelForTest: function (m) { var keep = repMonth; repMonth = m; try { return repExcelSheet(); } finally { repMonth = keep; } },   // テスト用: 集計の Excel の 表
     _reportForTest: function (m) { return reportOf(m); },            // テスト用: 集計の数だけ取る
     /* テスト用: ★本物の紙★を そのまま返す（見張りが 紙の中身を数える為。

@@ -426,8 +426,12 @@ async function run(label, appSrc) {
 
   /* ★集計★ … 数は REP.summarize と 1円も 違わない */
   const yen = (n) => Number(n).toLocaleString('en-US');
+  /* ★比べる 数は 画面と 同じ 集計（帳簿で 充てた 入金・2026-10-24 帳簿 1つ）★
+     前は 入金を 記録した 紙の 月に だけ 数える 生の receipts で 比べていた＝帳簿は 古い 請求書から 充てる
+     （例野工業の 10月に 記録した 11,000 は、未入金の 8月 2,689,132 に 充たる）ので 割れる。 */
   const checkReport = (month, receipts) => {
-    const s = REP.summarize({ invoices: S.invoices, receipts, partners: S.partners, month, kind: 'invoice', doc: win.SeikyuDoc });
+    const s = A._reportForTest(month);
+    eq(s.totals.paid === null, receipts === null, '★入金が 読めているか★');
     const trs = [...doc.querySelectorAll('#bk-rep-body tbody tr')];
     eq(trs.length, s.rows.length, '★表の 行の数★');
     s.rows.forEach((r, i) => {
@@ -558,7 +562,7 @@ async function run(label, appSrc) {
     $('fn-ok').click(); await sleep(60);
     eq(rec.excel.length, 1, '★今の Excel の 出し口を 通っていない★');
     const aoa = rec.excel[0].sheet.aoa;
-    const s = REP.summarize({ invoices: S.invoices, receipts: S.receipts, partners: S.partners, month: '2026-10', kind: 'invoice', doc: win.SeikyuDoc });
+    const s = A._reportForTest('2026-10');
     eq(aoa.length, s.rows.length + 2, '行の 数（見出し＋取引先＋合計）');
     s.rows.forEach((r, i) => eq(JSON.stringify(aoa[i + 1].slice(1, 6)), JSON.stringify([r.name, r.count, r.total, r.paid, r.remain]), '★' + r.name + ' の 数★'));
     eq(JSON.stringify(aoa[aoa.length - 1].slice(2, 6)), JSON.stringify([s.totals.count, s.totals.total, s.totals.paid, s.totals.remain]), '★合計の 行★');
