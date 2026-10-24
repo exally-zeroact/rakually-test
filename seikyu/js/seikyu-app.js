@@ -3348,32 +3348,18 @@
 
   /* ═══ 列の編集（★どんな項目にも対応する所★） ═══ */
   function editCols() {
-    /* ★この相手だけの列★を 作ってあれば、取引先の画面では そちらを直す
-       （★2か所に 同じ列を持たない★＝直した先が どこか 画面に書いてある） */
+    /* ★★列の 直し場は 設定だけ★★（2026-10-24 taiketsu 叩き4回目 止1）
+       ＝直すのは ★会社の列★ か ★この相手だけの列★ の どちらか。★今の1通（S.cur）には 書かない★。
+       ★前の作り★ … 「設定の 画面で ない 時は 今の1通の data.cols を 返す（無ければ 書く）」だった。
+         ところが 設定の 下タブは fillSettings を ★goScreen より 先★に 呼ぶ（入力の 画面が まだ active）ので、
+         設定へ 行くだけで ★今の1通に 列が 書き込まれ★、A社（相手だけの列＝現場名つき）で 作り始めて
+         設定へ 1度 行き、戻って B社を 選ぶと ★B の紙に A の「現場名」★（発行で 写しに 固まる）。
+         列を 直す 部品（col-list）は 設定にしか 無い＝入力の 画面から ここへ 来る 道は もう 無い。
+       ⇒ 画面を 見て 分けるのを やめ、★設定で 選んでいる 相手★だけで 決める。
+         今の1通の 紙の列は colsOf が その場で 決める（相手 → 会社 → 様式）。 */
     var pid = $('s-partner') && $('s-partner').value;
     var pOwn = pid ? SCOPE.partnerPaper(partnerById(pid)) : {};
-    if (pOwn.cols && pOwn.cols.items && pOwn.cols.items.length
-      && $('scr-set') && $('scr-set').classList.contains('active')) {
-      return pOwn.cols;
-    }
-    /* ★設定の 画面では 会社の 列を 触る★（司さん 2026-09-05
-         「選んだテンプレによって スクロールした下の カスタムするところは 変わらないかん」）
-       ★前の作り★＝設定でも 作りかけの1通(S.cur)の 列を 返していた。
-         だから 設定で 様式を 変えても ★下の カスタムは 1文字も 変わらなかった★
-         （2026-09-05 実測＝std1/elegant/koujo の3つとも 同じ7列だった。
-           koujo は「項目・金額」の2列のはず）。
-       ⇒ 設定＝会社の 既定（これから作る物に効く）／入力＝その1通、と ★触る相手を 分ける★。
-         （上の 取引先の分岐が 先に 効くのは そのまま＝相手ごとの 列が いちばん 強い） */
-    var setNow = $('scr-set') && $('scr-set').classList.contains('active');
-    // 編集できるのは下書きだけ。発行済みは写しの並びを見せるだけ。
-    var v = S.cur;
-    if (!setNow && v && !locked()) {
-      if (!v.data.cols || !colsAuMono(v.data.colsTpl, v.template_id || templateForPartner(v.partner_id))) {
-        v.data.cols = COLS.normalizeSpec(colsOf(v));
-        v.data.colsTpl = v.template_id || templateForPartner(v.partner_id);
-      }
-      return v.data.cols;
-    }
+    if (pOwn.cols && pOwn.cols.items && pOwn.cols.items.length) return pOwn.cols;
     var s = settings();
     if (!S.org) S.org = {};
     if (!S.org.invoiceCols) S.org.invoiceCols = COLS.normalizeSpec(s.cols || TPL.getOrDefault(s.template).cols);

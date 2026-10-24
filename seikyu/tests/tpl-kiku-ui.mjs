@@ -426,6 +426,44 @@ async function run(label, appSrc) {
     eq(r.S.cur.template_id, MAE, '★見積書で 前回の様式が 効いていない★');
     eq(r.doc.getElementById('tpl-strip-v').textContent, TPL.get(MAE).label, '入力の 今の紙');
   });
+  await T('G7 ★A（相手だけの列＝' + MAE + '＋現場名）で 作り始め → 設定へ 行く → 戻る → B を選ぶ★ → B の紙は B の列（A の 現場名を 持ち込まない）', async () => {
+    const r = await boot(appSrc, {
+      org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) },
+      ptA: { paper: { cols: COLS.normalizeSpec({ items: GENBA_PLUS }), colsTpl: MAE } },
+    });
+    await tab(r, 'scr-edit');
+    const ep = r.doc.getElementById('e-partner');
+    ep.value = 'pt_a'; ep.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(250);
+    eq(r.A._colsForTest().items.join('|'), GENBA_PLUS.join('|'), '前提：A の紙に A の列が 出ていない');
+    await tab(r, 'scr-set');
+    await tab(r, 'scr-edit');
+    ok(!(r.S.cur.data && r.S.cur.data.cols), '★設定へ 行っただけで 今の1通に 列が 書き込まれた★');
+    const g = await makeAndLook(r, 'pt_b');
+    eq(g.cols, colsOfTpl(MAE), '★B の紙に A の列（現場名）が 出た★');
+  });
+  await T('G7b ★B で 作り始め → 設定で B だけの列（現場名つき）を 作って 保存 → 入力へ 戻る★ → 今の1通に その列が 出る', async () => {
+    const r = await boot(appSrc, { org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) } });
+    await tab(r, 'scr-edit');
+    const ep = r.doc.getElementById('e-partner');
+    ep.value = 'pt_b'; ep.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(250);
+    await tab(r, 'scr-set');
+    const sel = r.doc.getElementById('s-partner');
+    sel.value = 'pt_b'; sel.dispatchEvent(new r.win.Event('change', { bubbles: true }));
+    await sleep(100);
+    r.doc.getElementById('b-pcols-own').click();
+    await sleep(100);
+    r.doc.getElementById('col-new').value = '現場名';
+    r.doc.getElementById('b-col-add').click();
+    await sleep(100);
+    r.doc.getElementById('b-pt-save').click();
+    await sleep(250);
+    await tab(r, 'scr-edit');
+    eq(r.S.cur.partner_id, 'pt_b', '前提：今の1通の 相手');
+    eq(r.A._colsForTest().items.join('|'), GENBA_PLUS.join('|'), '★作った B だけの列が 今の1通に 出ない★');
+    eq((r.S.partners.find((p) => p.id === 'pt_a').data.paper || {}).cols, undefined, '★よその相手に 列が 入った★');
+  });
   await T('G2 ★様式＝控除・相手だけの列＝' + MAE + '＋現場名（印の無い 古い列）★の相手 → 控除の紙に 備考を 出さない', async () => {
     const r = await boot(appSrc, {
       org: { invoiceTemplate: MAE, invoiceCols: COLS.normalizeSpec(TPL.get(MAE).cols) },
@@ -499,6 +537,12 @@ if (!SELF) {
       "(x.doc_type || 'invoice') !== shurui) return false;", "(x.doc_type || 'invoice') !== 'invoice') return false;"],
     ['相手の 様式を 外した 時刻を 見ない（止B）',
       '    var kijun = (ptAt > erandaAt) ? ptAt : erandaAt;', '    var kijun = erandaAt;'],
+    ['設定へ 行くと 今の1通に 列を 書く（叩き4 止1）',
+      '  function editCols() {',
+      '  function editCols() {'
+        + " var v0 = S.cur; if (v0 && !locked() && !($('scr-set') && $('scr-set').classList.contains('active'))) {"
+        + ' v0.data = v0.data || {}; if (!v0.data.cols) { v0.data.cols = COLS.normalizeSpec(colsOf(v0));'
+        + ' v0.data.colsTpl = v0.template_id || templateForPartner(v0.partner_id); } }'],
   ];
   let nige = 0, akaKei = 0;
   /* ★--only=N で 1通りだけ 回せる★（メモリを 抑える・1回ごとに node を 終わらせて 戻す） */
