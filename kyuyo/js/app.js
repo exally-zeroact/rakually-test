@@ -6927,7 +6927,7 @@
     window.__PAYSLIP_TEST={ roudouSummary:roudouSummary, roudouRitsuKeisan:roudouRitsuKeisan, printGate:printGate, updatePrintBtn:updatePrintBtn, monthFixedInfo:monthFixedInfo, webPubGate:webPubGate,
       applyCloudState:applyCloudState, persistSaveDebounced:persistSaveDebounced, persistSave:persistSave, persistLoad:persistLoad, hazushiWasureru:function(){ for(var k in _hazushi) delete _hazushi[k]; },   /* ★棚(d) ロード側 newer-wins の 統合試験用（本物を呼ぶ・真似ない）／persistSave＝枠超クラウド退避の歯 quota-cloud-fallback.mjs 用（test-only露出・判定/金額は不変）★ */
       compute:compute, defEmp:defEmp, defCompany:defCompany, mergeEmp:mergeEmp, state:state, buildDailyData:buildDailyData, dailySlipDoc:dailySlipDoc, shimePeriods:shimePeriods, shimeSplit:shimeSplit, buildTransfers:buildTransfers, renderChoView:renderChoView, rousaiFudaJi:rousaiFudaJi, furiKeisanOchiKaku:furiKeisanOchiKaku, taishokuKubun:taishokuKubun, taishokuTomeruHito:taishokuTomeruHito, renderFuri:renderFuri, downloadZengin:downloadZengin, downloadFuriExcel:downloadFuriExcel,
-      saveMonthlyPayslips:saveMonthlyPayslips, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, inputQAtaru:inputQAtaru, umeShotei:umeShotei, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, saveBonusPayslips:saveBonusPayslips, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
+      saveMonthlyPayslips:saveMonthlyPayslips, tabNoShirushiErabu:tabNoShirushiErabu, ensurePayRule:ensurePayRule, minWageInfo:minWageInfo, isInMinWage:isInMinWage, minWageTeate:minWageTeate, setConfirm:setConfirm, renderInput:renderInput, renderInputTableHTML:renderInputTableHTML, inputQAtaru:inputQAtaru, umeShotei:umeShotei, effShukkin:effShukkin, onboardSteps:onboardSteps, renderEmpMaster:renderEmpMaster, filterEmpSearch:filterEmpSearch, labelInputsA11y:labelInputsA11y, computeBonus:computeBonus, bonusEntry:bonusEntry, saveBonusPayslips:saveBonusPayslips, nenAggregate:nenAggregate, confirmedRecs:confirmedRecs, confirmedMonthsOf:confirmedMonthsOf, loadBonusYtd:loadBonusYtd, nenchoWizardHTML:nenchoWizardHTML, nenStore:nenStore, nenDeclBannerHTML:nenDeclBannerHTML, makePayPattern:makePayPattern, applyPayPattern:applyPayPattern, openBulkPatternApply:openBulkPatternApply, applyEmpProfile:applyEmpProfile, empProfileStripHTML:empProfileStripHTML, importEmpProfile:importEmpProfile, qrSvg:qrSvg, itemSuggestOptions:itemSuggestOptions, itemSuggestHTML:itemSuggestHTML, bonusItemSuggestOptions:bonusItemSuggestOptions, bonusItemSuggestHTML:bonusItemSuggestHTML, santeiKisoRow:santeiKisoRow, santeiRows:santeiRows, santeiCsvInput:santeiCsvInput, todokedeIchiran:todokedeIchiran, todokedeIchiranHTML:todokedeIchiranHTML, shutokuCsvInput:shutokuCsvInput, shutokuCsvBox:shutokuCsvBox, fuyoInputsOf:fuyoInputsOf, fuyoTodoke:fuyoTodoke, fuyoCsvBox:fuyoCsvBox, fuyoJimusho:fuyoJimusho, soshitsuCsvInput:soshitsuCsvInput, soshitsuCsvBox:soshitsuCsvBox, santeiAoa:santeiAoa, stType:stType, stLabel:stLabel, santeiRule:santeiRule, gekkakuTh:gekkakuTh, shahoBasisOf:shahoBasisOf, bonusHarauRows:bonusHarauRows, shoyoCsvInput:shoyoCsvInput, shoyoCsvBox:shoyoCsvBox, bonusHarauAoa:bonusHarauAoa, gekkakuRows:gekkakuRows, gekkakuCsvInput:gekkakuCsvInput, gekkakuCsvBox:gekkakuCsvBox, gekkakuAoa:gekkakuAoa, ymAddLocal:ymAddLocal, extractCity:extractCity, gyoyoRows:gyoyoRows, gyoyoMeisaiAoa:gyoyoMeisaiAoa, gyoyoSoukatsuAoa:gyoyoSoukatsuAoa, roudouRows:roudouRows, roudouSummary:roudouSummary, roudouGokei:roudouGokei, rousaiPermilOf:rousaiPermilOf, roudouHTML:roudouHTML, roudouAoa:roudouAoa, roudouFYof:roudouFYof, ymdPlus1:ymdPlus1, shikakuRows:shikakuRows, shikakuAoa:shikakuAoa, fuyoBuckets:fuyoBuckets, nenCompute:nenCompute, nenGensenHTML:nenGensenHTML, nenGensenDoc:nenGensenDoc, applyMigrationRows:applyMigrationRows, buildEmpFromRow:buildEmpFromRow, prevYmOf:prevYmOf, applyLedgerToEmployees:applyLedgerToEmployees, importLedgerForMonth:importLedgerForMonth, applyKintaiRows:applyKintaiRows, importKintaiCsv:importKintaiCsv, ledgerRowCount:ledgerRowCount, ledgerImportBanner:ledgerImportBanner, payRuleCtx:payRuleCtx, monthYmdRange:monthYmdRange, shahoKanyuWarn:shahoKanyuWarn, fullTimeWeeklyH:fullTimeWeeklyH, shoteiMonthlyWage:shoteiMonthlyWage, empWarnings:empWarnings, laborLimitItems:laborLimitItems, prorateNote:prorateNote, buildPeople:buildPeople, ctxOf:ctxOf,
       /* ★2026-09-06 賞与の 紙の 年月日を 見張る為★（★見られない物は 見張れない★）
          kyuyo/tests/shoyo-kami-hizuke.test.mjs */
       /* ★★2026-09-21 司さん「直したなら 直らないかん やろ」を 見張る 為★★
@@ -6941,6 +6941,24 @@
   }catch(e){}
   /* ---------- 永続化(localStorage既定・window.SUPA設定でSupabaseにも保存) ---------- */
   var PKEY='payslip_state_v1';
+  /* ★★この タブの 印（写しを 最後に 書いたのが この タブか を 見る）★★（2026-10-24 本番前 taiketsu 止め）
+     store.js は「自分が 送った 会社の 時刻」を タブ（sessionStorage）に 控え、開き直しで 自分の 書きと 判じる。
+     ところが 写し（payslip_state_v1）は 端末で 1つ＝古い タブが 後から 上書きすると、控えの 時刻を 自分の 書きと 見て
+     ★古い タブの 中身を 送り直し、この タブで 保存済みの 編集が 黙って 消えた★。
+     ⇒ 写しに 書いた タブの 印（_tab）を 入れ、★印が この タブと 同じ 時だけ★ 自分の 書きを 信じる（違えば 倉庫を 採る＝前の 動き）。
+     ★印を 引き継ぐのは 開き直し（reload）の 時だけ★＝タブの 複製・閉じた タブを 戻す 時は sessionStorage が 写るので 新しい 印に する。 */
+  var TABKEY='rk_tab_v1', _tabId=null, _utsushiTab=null;
+  /* ★純関数★＝前の 印を 引き継ぐのは 開き直し（reload）で 印が 在る 時だけ。それ以外は null（新しい 印を 作る） */
+  function tabNoShirushiErabu(nav, mae){ return (nav==='reload' && mae) ? String(mae) : null; }
+  (function(){
+    var nav='';
+    try{ nav=(typeof window!=='undefined' && window.__RK_NAV__) || ((performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || {}).type || ''; }
+    catch(_eN){ console.error('★開き方（reload か）を 読めません＝新しい タブの 印に します★', _eN); }
+    try{ _tabId=tabNoShirushiErabu(nav, sessionStorage.getItem(TABKEY)); }
+    catch(_eT){ console.error('★タブの 印を 読めません＝新しい 印に します★', _eT); }
+    if(!_tabId){ _tabId=String(Date.now())+'-'+Math.random().toString(36).slice(2,10);
+      try{ sessionStorage.setItem(TABKEY,_tabId); }catch(_eW){ console.error('★タブの 印を 残せません（開き直すと 自分の 書きを 信じない＝前の 動き）★', _eW); } }
+  })();
   /* ★★ロード側 newer-wins 用の 同期メタ（2026-10-07 棚(d)・司さん方針）★★
      ★別キーに持つ★＝クラウド(pay_companies settings)へ漏らさない（snapshot/realSave に混ぜない）。
        dirty＝手元に クラウド未確定の編集が 在る／baseCoUA＝最後に取り込んだ 会社 updated_at。
@@ -6965,8 +6983,8 @@
      ⇒ 写しと 基準を ★1回の setItem で★ 書く＝どちらも 同じ 時の 物。開き直しは 写しの 中の 基準を 使う（persistLoad）。
      ★_syncBase は 写しにだけ 足す★（snapshot＝クラウドへ 送る 中身には 混ぜない）。 */
   function _utsushiKaku(s, base){
-    var o=Object.assign({}, s); o._syncBase=(base===undefined)?_syncMeta.baseCoUA:base;
-    try{ localStorage.setItem(PKEY, JSON.stringify(o)); return true; }catch(e){ return false; }
+    var o=Object.assign({}, s); o._syncBase=(base===undefined)?_syncMeta.baseCoUA:base; o._tab=_tabId;
+    try{ localStorage.setItem(PKEY, JSON.stringify(o)); _utsushiTab=_tabId; return true; }catch(e){ return false; }   /* ★書けたら 写しは この タブの 物★（同じ 画面の 中の 2回目の 読み直しでも 自分の 書きを 信じる・taiketsu 任意1） */
   }
   var IN_KAKENAI_JI='⚠ この端末に 保存できません（このブラウザの空き容量）＝クラウドに 保存できるまで 閉じないでください';
   function _saveSyncMeta(){ try{ localStorage.setItem(SMKEY, JSON.stringify(_syncMeta)); return true; }catch(e){ console.error('★未送信の 印を この端末に 書けません★', e); return false; } }
@@ -7128,6 +7146,7 @@
     var s=null; try{ s=JSON.parse(localStorage.getItem(PKEY)||'null'); }catch(e){}
     /* ★基準の 時刻は 写しの 中の 物を 使う★（写しと 同じ 時に 書いた 基準＝古い タブや 書けなかった 写しと 食い違わない・2026-10-12）。無い 写し（前の 形）は 印の 物のまま */
     if(s && typeof s==='object' && Object.prototype.hasOwnProperty.call(s,'_syncBase')) _syncMeta.baseCoUA=(s._syncBase==null?null:String(s._syncBase));
+    _utsushiTab=(s && typeof s==='object' && s._tab!=null) ? String(s._tab) : null;   /* ★写しを 最後に 書いた タブ★（自分の 書きを 信じるかの 門） */
     if(s&&s.employees&&s.employees.length){
       if(s.company) state.company=Object.assign(defCompany(), s.company); state.employees=s.employees.map(mergeEmp);
       if(s.month) state.month=s.month; if(s.theme) state.theme=s.theme; if(s.prefer) state.prefer=migPrefer(s.prefer);
@@ -7152,7 +7171,8 @@
     var dec=null;
     try{ if(window.Store&&Store.reconcileOnLoad){ dec=Store.reconcileOnLoad({
       localDirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, cloudCoUA:cs._coUA,
-      isOwnUA:(Store.isOwnCompanyUA?function(ua){ return Store.isOwnCompanyUA(ua); }:null)
+      /* ★写しを 最後に 書いたのが この タブの 時だけ 自分の 書きを 信じる★（別の タブが 上書きした 写しで この タブの 控えを 使わない） */
+      isOwnUA:((Store.isOwnCompanyUA && _utsushiTab && _utsushiTab===_tabId)?function(ua){ return Store.isOwnCompanyUA(ua); }:null)
     }); } }catch(e){ console.error('★reconcileOnLoad が 呼べません（これまでの道で クラウド適用に 倒す）★', e); dec=null; }
     var protect=(dec&&dec.protect)||'replace';
     /* ★保護ドメイン(confirmed/nencho/bonus/payPatterns)の 扱い★（司さん②・2026-10-07＝絶対に消さない/巻き戻さない）

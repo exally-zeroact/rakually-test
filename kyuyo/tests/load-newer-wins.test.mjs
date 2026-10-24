@@ -514,6 +514,38 @@ if (!WAZA) {
         }
       } finally { win.Store.savePayslip = slipMoto; }
     }
+
+    /* 【タブの印】 ★「自分が 送った 時刻」を 信じるのは 写しを 最後に 書いたのが この タブの 時だけ★（2026-10-24 本番前 taiketsu 止め）
+       タブA が 保存（倉庫 T1・A の タブの 控えに T1）→ 古い タブC が 写しを 自分の 中身（基準 T0・dirty）で 上書き →
+       A を 開き直すと、控えの T1 を 自分の 書きと 見て C の 古い 中身を 送り直し、A の 編集が 黙って 消えた。
+       ⇒ 写しに 書いた タブの 印（_tab）を 入れ、印が 自分の タブと 違えば 自分の 書きと 見ない（倉庫を 採る）。 */
+    {
+      const ownMoto = win.Store.isOwnCompanyUA;
+      const T0 = '2026-10-24T08:00:00.000Z', T1 = '2026-10-24T08:10:00.000Z';
+      try {
+        A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', '倉庫の始め')], _coUA: T0 });
+        win.Store.cloudSaveState = () => Promise.resolve({ ok: false, reason: 'no net' });
+        win.Store.isOwnCompanyUA = (ua) => ua === T1;                                    /* この タブの 控えに T1（自分が 送った） */
+        A.state.employees[0].name = 'このタブの編集'; A.persistSaveDebounced(); await sleep(700); /* 写しは この タブが 書いた（基準 T0・dirty） */
+        A.persistLoad();
+        A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', '倉庫の古い')], _coUA: T1 });
+        T('【タブの印】 写しを 書いたのが この タブなら、開き直しで 自分の 書きと 見て 手元を 保つ（消した 人が 戻らない）', (A.state.employees[0] && A.state.employees[0].name) === 'このタブの編集',
+          '名前=' + (A.state.employees[0] && A.state.employees[0].name));
+        /* 別の タブC が 写しを 上書きした 形（印だけ 他の タブに 替える） */
+        A.state.employees[0].name = 'タブCの古い中身'; A.persistSaveDebounced(); await sleep(700);
+        const u = JSON.parse(win.localStorage.getItem('payslip_state_v1') || 'null');
+        if (u) { u._tab = 'betsu-no-tab'; u._syncBase = T0; win.localStorage.setItem('payslip_state_v1', JSON.stringify(u)); }
+        A.persistLoad();
+        A.applyCloudState({ company: A.defCompany ? A.defCompany() : {}, employees: [emp('e1', 'タブAの保存済')], _coUA: T1 });
+        T('【タブの印】 ★別の タブが 写しを 上書きした 後は、控えに 自分の 時刻が 在っても 倉庫を 採る（保存済みの 編集を 消さない）★', (A.state.employees[0] && A.state.employees[0].name) === 'タブAの保存済',
+          '名前=' + (A.state.employees[0] && A.state.employees[0].name) + '／写しの 印=' + (u && u._tab));
+      } finally { win.Store.isOwnCompanyUA = ownMoto; }
+      /* 印を 引き継ぐのは 開き直し（reload）の 時だけ（タブの 複製・閉じた タブを 戻す・新しく 開く は 新しい 印＝自分の 書きを 信じない） */
+      const ER = A.tabNoShirushiErabu;
+      T('【タブの印】 開き直し（reload）は 前の 印を 引き継ぐ', typeof ER === 'function' && ER('reload', 'mae-no-tab') === 'mae-no-tab', typeof ER);
+      T('【タブの印】 複製・戻す・新しく 開く（back_forward／navigate／不明）は 引き継がない', typeof ER === 'function'
+        && ER('back_forward', 'mae-no-tab') === null && ER('navigate', 'mae-no-tab') === null && ER('', 'mae-no-tab') === null && ER('reload', null) === null);
+    }
   } finally { console.error = _ce; win.Store.cloudSaveState = kumoMoto; }
 
 } else {
