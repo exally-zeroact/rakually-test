@@ -451,18 +451,25 @@
          ★お金の 入金では ない★＝credit に 持ち、chouboReceipts（集計の 入金）には 入れない（集計の 請求は もう 差し引いた 額） */
       /* 当てる 先＝★赤伝の 日 以前で 一番 新しい 正の 紙から 古い 方へ★、余れば 後の 紙へ（taiketsu 4回目 止A）
          一番 古い 紙から 当てると、払い終わった 9月に 当たって 9月の 入金が 10月へ 押し出され、集計の 9月が「一部入金」に 割れた */
-      cells.forEach(function (n, ni) {
-        if (n.gaku >= 0) return;
-        var left = -n.gaku;
-        var ate = function (m) {
-          if (left <= 0 || m.gaku <= 0) return;
-          var sp = m.gaku - m.credit; if (sp <= 0) return;
-          var u = Math.min(sp, left); m.credit += u; n.credit -= u; left -= u;
-        };
-        /* 「以前」は ★日付で★ 見る（同じ 日の 後の 番号の 紙も 入れる・taiketsu 5回目 止1）＝並びの 前後では 決めない */
-        var hi = String(n.v.issue_ymd || ''), j;
-        for (j = cells.length - 1; j >= 0; j--) { if (j !== ni && String(cells[j].v.issue_ymd || '') <= hi) ate(cells[j]); }
-        for (j = 0; j < cells.length; j++) { if (j !== ni && String(cells[j].v.issue_ymd || '') > hi) ate(cells[j]); }
+      /* ★赤伝の 決まり（taiketsu 6回目で 1つに まとめ直した）★ 集計は 請求月ごとに 赤伝を その 月で 差し引く＝帳簿も 同じ 順で 当てる
+         ①入金より 先に ★同じ 月★の 正の 紙（新しい 方から）→ ★前の 月★の 正の 紙（新しい 方から）
+         ②返金（マイナスの 入金）は まず ★まだ 引き切れていない 赤伝★に 当てる（こちらが 返した お金＝その 赤伝は 済み）
+         ③入金を 全部 充てた 後に まだ 残る 赤伝は 後の 月の 紙へ（古い 方から）
+         ④それでも 残れば 赤伝の 紙に 残る＝残りが マイナス＝過入金（こちらが 返す 額）
+         前は「日付で 以前→後」を 入金より 先に 当てたので、月の 途中の 返品の 赤伝が 払い終わった 9月に 当たって 集計が 割れ（止A）、
+         返金した 赤伝が 後の 10月の 紙を「一部入金」に した（止C）。 */
+      var tsuki = function (c) { return String(c.v.issue_ymd || '').slice(0, 7); };
+      var ate = function (n, m) {
+        if (n.left <= 0 || m === n || m.gaku <= 0) return;
+        var sp = m.gaku - m.credit - m.paid; if (sp <= 0) return;
+        var u = Math.min(sp, n.left); m.credit += u; n.credit -= u; n.left -= u;
+      };
+      var reds = cells.filter(function (n) { return n.gaku < 0; });
+      reds.forEach(function (n) { n.left = -n.gaku; });
+      reds.forEach(function (n) {
+        var ym = tsuki(n), j;
+        for (j = cells.length - 1; j >= 0; j--) { if (tsuki(cells[j]) === ym) ate(n, cells[j]); }
+        for (j = cells.length - 1; j >= 0; j--) { if (tsuki(cells[j]) < ym) ate(n, cells[j]); }
       });
       p.rcs.forEach(function (r) {
         var amt = Number(r.amount) || 0;
@@ -474,14 +481,26 @@
             t = Math.min(room, amt); put(c, r, t); amt -= t;
           }
           if (amt > 0) put(cells[cells.length - 1], r, amt);        /* 余りは 一番 新しい 1通（過入金） */
-        } else {                                                     /* ★返金は 新しい 方から 戻す★ */
+        } else {                                                     /* ★返金は まだ 引き切れていない 赤伝 → 新しい 方から 戻す★ */
           var back = -amt;
+          for (i = 0; i < reds.length && back > 0; i++) {
+            c = reds[i]; var owe = c.left + c.paid; if (owe <= 0) continue;   // 赤伝の まだ 返していない 額（paid は 返金で マイナス）
+            t = Math.min(owe, back); put(c, r, -t); back -= t;
+          }
           for (i = cells.length - 1; i >= 0 && back > 0; i--) {
             c = cells[i]; if (c.paid <= 0) continue;
             t = Math.min(c.paid, back); put(c, r, -t); back -= t;
           }
           if (back > 0) put(cells[cells.length - 1], r, -back);
         }
+      });
+      /* ③ まだ 残る（返金も されていない）赤伝は 後の 月の 紙へ（古い 方から） */
+      reds.forEach(function (n) {
+        var rest = n.left + n.paid; if (rest <= 0) return;            // 返金で 済んだ 分は 当てない
+        var keep = n.left; n.left = rest;
+        var ym = tsuki(n);
+        for (var j = 0; j < cells.length; j++) { if (tsuki(cells[j]) > ym) ate(n, cells[j]); }
+        n.left = keep - (rest - n.left);
       });
     });
     _cbKey = key; _cbVal = { ok: rs !== null && rs !== undefined, parts: parts, byInv: byInv, byRc: byRc, invById: invById };

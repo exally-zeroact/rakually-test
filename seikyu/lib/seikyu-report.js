@@ -86,7 +86,7 @@
       if (receipts !== null) {
         r.paid += num(st.paid);
         totals.paid += num(st.paid);
-        if (st.state === 'unpaid' || st.state === 'partial') totals.unpaidCount++;
+        if ((st.state === 'unpaid' || st.state === 'partial') && num(st.remain) > 0) totals.unpaidCount++;   // 赤伝（残りが マイナス）は 未入金に 数えない
       }
     });
 
@@ -94,7 +94,8 @@
       var r = rows[k];
       if (receipts !== null) {
         r.remain = r.total - r.paid;
-        r.state = r.paid === 0 ? 'unpaid' : r.remain > 0 ? 'partial' : r.remain === 0 ? 'paid' : 'over';
+        /* ★残りが マイナスなら 入金が 0 でも 過入金★（赤伝だけの 月＝こちらが 返す 額・一覧と 同じ 言葉・taiketsu 6回目 止B） */
+        r.state = r.remain < 0 ? 'over' : r.paid === 0 ? 'unpaid' : r.remain > 0 ? 'partial' : 'paid';
       }
       return r;
     }).sort(function (a, b) { return b.total - a.total; });
