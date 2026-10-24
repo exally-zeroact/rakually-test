@@ -2380,7 +2380,12 @@
          前は 源泉の 前の 額と 比べていたので、全部 受け取っても「全額」に ならなかった。源泉の 無い 1通は 今までと 同じ。 */
     var total = gakuOf(v) || 0;
     var taxTotal = (v.totals && Number(v.totals.taxTotal)) || 0;
-    var whole = (total > 0 && Number(rc.amount) === total && taxTotal > 0);
+    /* ★2つの 判定を 分ける★（taiketsu 10-24 止1）
+       zengaku … 払う 額を 全部 受け取ったか ＝★源泉の 注記は これだけで 決める★
+       whole   … その上で 消費税額を 区分して 書けるか（消費税 0 の 免税の 相手は 書く 物が 無い）
+       前は 2つを 1つに していたので、免税の 相手で 全部 受け取っても「源泉徴収税額 X円 差引」が 出なかった。 */
+    var zengaku = (total > 0 && Number(rc.amount) === total);
+    var whole = (zengaku && taxTotal > 0);
     var gen = (pi.gensen && pi.gensen.on) ? Number(pi.gensen.amount) || 0 : 0;
     return Object.assign({}, pi, {
       docKind: 'receipt',
@@ -2389,7 +2394,7 @@
         note: (v.data && v.data.subject) || '',
         taxTotal: taxTotal, taxSeparate: whole,
         /* ★全額の 時は 差し引いた 源泉を 添える★（紙の 言葉は 請求書と 同じ「源泉徴収税額」） */
-        gensen: whole ? gen : 0,
+        gensen: zengaku ? gen : 0,
       },
     });
   }
