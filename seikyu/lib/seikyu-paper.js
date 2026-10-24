@@ -1308,8 +1308,11 @@
       /* ★源泉を 差し引いて 受け取った 時★（呼ぶ側が 全額の 時だけ 渡す）＝領収の 額は 実際に 受け取った 額の まま、
          差し引いた 源泉徴収税額を 添える（源泉は 払う側が 国へ 納める＝受け取っていない 額を 領収と 書かない） */
       var gen = Number(rc.gensen) || 0;
+      /* ★刷る 額と 印紙の 判定に 渡す 額を 同じ 材料から 作る★（taiketsu 10-24 止2）
+         st＝印紙の 判定に 渡す 物。刷る 税抜金額＝差し引く 前の 額（DOC.stampBeforeGensenOf(st)）。 */
+      var st = { amount: Number(rc.amount), taxTotal: Number(rc.taxTotal), taxSeparate: sep, gensen: gen };
       if (sep) {
-        var base = Number(rc.amount) + gen - Number(rc.taxTotal);
+        var base = DOC.stampBeforeGensenOf(st);
         rows = '<table class="sums"><tbody>'
           + '<tr><th>税抜金額</th><td>' + yen(base) + '</td></tr>'
           + '<tr><th>消費税額等</th><td>' + yen(Number(rc.taxTotal)) + '</td></tr>'
@@ -1319,7 +1322,7 @@
       }
       /* ★印紙の注意は「要る時だけ」出す★。判定は seikyu-doc.js が唯一の正
          （区分して書けた時は、その消費税額を記載金額から外して数える＝No.7124）。 */
-      var stamp = DOC.stampNote({ amount: Number(rc.amount), taxTotal: Number(rc.taxTotal), taxSeparate: sep });
+      var stamp = DOC.stampNote(st);
       var memo = textOf(inv.data && inv.data.memo);
       return '<div class="rc-but"><span class="rc-but-l">但し　</span>'
         + '<span class="rc-but-b">' + esc(but) + '</span></div>'

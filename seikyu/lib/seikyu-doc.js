@@ -517,10 +517,28 @@
 
   /** 印紙の注意書き。★要らない時は空文字（いつも出さない）★
    *  ★しきい値は数から文を作る（法定の数を説明文に直書きしない）★ */
+  /* ★源泉を 差し引いて 受け取った 受取書★（taiketsu 10-24 止2・司さんの 決め＝安全側）
+     記載金額が 差し引く 前の 額か 後の 額かを 国税庁の 一次の 出典で 確かめられなかった。
+     ⇒ ★どちらかが しきい値 以上なら 注意を 出し、どの 額で 以上に なったかを 字で 言う★。
+     o.gensen … 差し引いた 源泉徴収税額（無ければ 0）。差し引く 前の 額＝stampBaseOf(o)＋gensen。 */
+  function stampBeforeGensenOf(o) {
+    var after = stampBaseOf(o);
+    if (after === null) return null;
+    var g = (o && typeof o === 'object') ? Number(o.gensen) || 0 : 0;
+    return after + (g > 0 ? g : 0);
+  }
   function stampNote(o) {
-    if (!stampNeeded(o)) return '';
-    return '※ ' + Math.round(STAMP_FREE_UNDER / 10000) + '万円以上の受取書には収入印紙が要る場合があります'
-      + '（営業に関しないものは非課税）。';
+    var man = Math.round(STAMP_FREE_UNDER / 10000);
+    if (stampNeeded(o)) {
+      return '※ ' + man + '万円以上の受取書には収入印紙が要る場合があります'
+        + '（営業に関しないものは非課税）。';
+    }
+    var before = stampBeforeGensenOf(o);
+    if (before !== null && before !== stampBaseOf(o) && before >= STAMP_FREE_UNDER) {
+      return '※ 源泉を差し引く前の額（' + Math.round(before).toLocaleString('ja-JP') + '円）では' + man + '万円以上です。'
+        + '印紙が要るかは税務署か税理士に確かめてください（営業に関しないものは非課税）。';
+    }
+    return '';
   }
 
   /** その入金から領収書を出せるか。返り = { ok, reason }
@@ -825,7 +843,7 @@
     DOC_TYPES: DOC_TYPES, STATUSES: STATUSES, FROZEN_FIELDS: FROZEN_FIELDS,
     DOC_KINDS: DOC_KINDS, DOC_LABEL: DOC_LABEL, docLabel: docLabel,
     receiptNoOf: receiptNoOf, receiptBranchOf: receiptBranchOf,
-    stampNeeded: stampNeeded, stampNote: stampNote, stampBaseOf: stampBaseOf,
+    stampNeeded: stampNeeded, stampNote: stampNote, stampBaseOf: stampBaseOf, stampBeforeGensenOf: stampBeforeGensenOf,
     STAMP_FREE_UNDER: STAMP_FREE_UNDER, canReceipt: canReceipt,
     rowIssuesOf: rowIssuesOf,
     deductionsOf: deductionsOf, deductTotalOf: deductTotalOf, validateDeductions: validateDeductions,
