@@ -6153,7 +6153,7 @@
         if (!mae) { waza.err(DAME); return; }
         if (mae.tsu > 0) {
           var mazeru = global.confirm('「' + name + '」の 名前で 前に 消した 取引先の 記録が 残っています（'
-            + '請求書 ' + mae.tsu + '通' + (mae.nyukin ? '・入金 ' + mae.nyukin + '件' : '') + '）。\n'
+            + '請求書 ' + mae.tsu + '通' + (mae.nyukin === null ? '・入金は未確認' : mae.nyukin ? '・入金 ' + mae.nyukin + '件' : '') + '）。\n'
             + 'この 取引先に 混ぜますか？ 混ぜると、前の 請求書・入金・繰越が この 取引先に 続きます。\n'
             + '混ぜないと、新しい 取引先として 作ります（前の 請求書は 前の まま 残り、繰越は 引き継ぎません）。');
           if (kireta) return osoi();               /* ★書く 直前でも 見る★ */
@@ -6194,12 +6194,13 @@
       Promise.resolve(S.store.receipts.list()).catch(function () { return null; }),
     ]).then(function (r) {
       var invs = r[0] || [];
-      var recs = Array.isArray(r[1]) ? r[1] : [];
+      /* ★入金が 読めない 時は 0件と 言わない★（silent-catch の 門・2026-10-25）＝null＝「入金は未確認」と 訊く 文に 出す */
+      var recs = Array.isArray(r[1]) ? r[1] : null;
       var best = null;
       cand.forEach(function (g) {
         var mine = invs.filter(function (v) { return v.partner_id === g.id; });
         var ids = {}; mine.forEach(function (v) { ids[v.id] = 1; });
-        var nyukin = recs.filter(function (x) { return ids[x.invoice_id]; }).length;
+        var nyukin = recs ? recs.filter(function (x) { return ids[x.invoice_id]; }).length : null;
         var e = { p: g, tsu: mine.length, nyukin: nyukin };
         if (!best || e.tsu > best.tsu) best = e;
       });
