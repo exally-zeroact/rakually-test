@@ -655,7 +655,12 @@ if (!SELF) {
   ];
   /* ★--self-test=3 のように 番号で 1通りだけ 回せる★（別の 席の 空きを 食わない為） */
   const hitotsu = (process.argv.find((a) => /^--self-test=\d+$/.test(a)) || '').split('=')[1];
-  const erabu = hitotsu ? [cases[Number(hitotsu) - 1]].filter(Boolean) : cases;
+  /* ★段を 7つに 分ける（--bu=1〜7）★＝13通りを 1回で 回すと 583秒・5つ割りでも 1段 135秒＝押す前の 網の 1段の 上限 180秒に 近すぎる。
+     中身は 変えず、壊し方を 順に 割る（--bu 無し＝全部）。打ち間違いは 止める（何も 走らせずに 緑、を 作らない） */
+  const buA = process.argv.filter((a) => a.indexOf('--bu') === 0);
+  if (buA.length > 1 || (buA.length === 1 && !/^--bu=[1-7]$/.test(buA[0]))) { console.log('★--bu の 字が 違います（' + buA.join(' ') + '）＝止めます★'); process.exit(2); }
+  const BU = buA.length ? Number(buA[0].slice(5)) : 0;
+  const erabu = hitotsu ? [cases[Number(hitotsu) - 1]].filter(Boolean) : (BU ? cases.filter((c, i) => i % 7 === BU - 1) : cases);
   let red = 0;
   for (const [nm, oo] of erabu) {
     const p0 = pass, f0 = fail;
@@ -663,7 +668,9 @@ if (!SELF) {
     if (fail > f0) red++;
     pass = p0; fail = f0;
   }
-  console.log('\n壊した ' + erabu.length + '通り のうち 赤 ' + red + (hitotsu ? '（' + hitotsu + '番目だけ）' : ''));
+  console.log('\n壊した ' + erabu.length + '通り のうち 赤 ' + red + (hitotsu ? '（' + hitotsu + '番目だけ）' : '') + (BU ? '（段 ' + BU + '／7）' : ''));
+  /* ★約束の 行★（tools/_bunrui.mjs が 最初に 読む）＝わざと 壊した 回の ✗ は 狙った 赤 */
+  console.log('KEKKA {"passed":' + red + ',"failed":' + (erabu.length - red) + ',"mimiso":0}');
   process.exit(red === erabu.length && erabu.length ? 0 : 1);
 }
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

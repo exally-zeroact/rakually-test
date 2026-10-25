@@ -601,8 +601,20 @@ jobs:
       # ★取引先を 消せる★（司さん 2026-10-23 ⑤）＝確かめ→論理削除・いいえは何も消えない・消した相手の請求書と名前は残る
       - name: ★取引先の 削除 実UI (スワイプ/ボタン・いいえで消えない・請求書と名前は残る・新しい請求書の相手に出ない)
         run: node seikyu/tests/torihiki-sakujo-ui.mjs
-      - name: ★取引先の 削除 (わざと壊して赤になるかの自己確認・13通り)
-        run: node seikyu/tests/torihiki-sakujo-ui.mjs --self-test
+      - name: ★取引先の 削除 (わざと壊して赤になるかの自己確認・13通り・段1)
+        run: node seikyu/tests/torihiki-sakujo-ui.mjs --self-test --bu=1
+      - name: ★同 わざと壊したら赤（段2）
+        run: node seikyu/tests/torihiki-sakujo-ui.mjs --self-test --bu=2
+      - name: ★同 わざと壊したら赤（段3）
+        run: node seikyu/tests/torihiki-sakujo-ui.mjs --self-test --bu=3
+      - name: ★同 わざと壊したら赤（段4）
+        run: node seikyu/tests/torihiki-sakujo-ui.mjs --self-test --bu=4
+      - name: ★同 わざと壊したら赤（段5）
+        run: node seikyu/tests/torihiki-sakujo-ui.mjs --self-test --bu=5
+      - name: ★同 わざと壊したら赤（段6）
+        run: node seikyu/tests/torihiki-sakujo-ui.mjs --self-test --bu=6
+      - name: ★同 わざと壊したら赤（段7）
+        run: node seikyu/tests/torihiki-sakujo-ui.mjs --self-test --bu=7
       # ★1つのステップで 給与と請求書を混ぜない★（指示役 2026-08-26 の運びで実際に詰まった）
       #   混ざっていると ★本番へ運ぶ時に「在る物と無い物が混ざったステップ」になって止まる★。
       #   ship-seikyu.mjs は ★勝手に直さず 赤にする★ 作りなので、元の側で分けておく。
