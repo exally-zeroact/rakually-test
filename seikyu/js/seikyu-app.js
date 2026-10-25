@@ -6255,6 +6255,18 @@
     h.className = 'hint' + (chk.ok ? '' : ' bad-t');
   }
 
+  /* ★お振込先だけを しまう★（taiketsu ⑤⑥ 止1・2026-10-25）
+     設定を 3つに 分けた（⑥）ので、自社情報の「保存」が テンプレートの 欄（繰越・取り消した入金・税・番号…）まで
+     黙って しまっていた＝見えていない 変えかけが 倉庫に 入る。倉庫は 渡した 欄だけ 重ねる（suite-data）＝お振込先だけ 渡す。 */
+  function saveBankOnly() {
+    box('set-ok', '');
+    return S.store.org.save({ bank: $('s-bank').value }).then(function (r) {
+      if (!r.ok) { box('set-err', '保存できませんでした（' + ptWhy(r.reason) + '）'); return; }
+      box('set-err', '');
+      S.org = r.data;
+      box('set-ok', '保存しました。');
+    });
+  }
   function saveSettings() {
     var patch = {
       numbering: Object.assign({}, (S.org && S.org.numbering) || {}, {
@@ -6262,7 +6274,7 @@
       }),
       taxMode: $('s-taxmode').value,
       taxRounding: $('s-round').value,
-      bank: $('s-bank').value,
+      /* お振込先は 自社情報の「保存」だけが しまう（saveBankOnly）＝テンプレートの 保存で 打ちかけの 口座を 入れない */
       invoiceCarry: $('s-carry').checked,
       invoiceVoidPay: $('s-voidpay').checked ? 'count' : 'ignore',
       invoicePaperRows: rowsSetting($('s-rows').value),
@@ -6864,7 +6876,7 @@
        知らせは ★押した 所（お振込先の 札）に 出す★（隣の 切り替えの 箱に 書いても 読めない）。 */
     if ($('b-bank-save')) $('b-bank-save').onclick = function () {
       box('bank-ok', ''); box('bank-err', '');
-      return saveSettings().then(function () {
+      return saveBankOnly().then(function () {
         var e = $('set-err'), o = $('set-ok');
         var bad = !!(e && e.style.display !== 'none' && e.textContent);
         /* ★落ちた 時は 成功の 字を 出さない★（taiketsu 10-23 止3） */

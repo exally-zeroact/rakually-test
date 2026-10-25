@@ -49,7 +49,7 @@ const FILE = path.join(ROOT, 'seikyu/index.html');
 const MAE_IDS = ['set-pv-card', 'set-pv-toggle', 'set-pv-body', 'set-paper', 'set-pv-note', 'org-view', 's-tpl-card',
   's-tpl-now', 'b-tpl-open', 's-tpl-box', 's-tpl', 's-tpl-note', 'paper-ask-card', 'paper-ask', 'set-more', 's-rows',
   's-dedrows-row', 's-dedrows', 's-rows-note', 'col-list', 'col-new', 'b-col-add', 'b-col-reset', 'b-col-undo', 'col-why',
-  'col-ok', 'col-err', 's-no', 's-format', 's-format-hint', 's-reset', 's-taxmode', 's-round', 's-carry', 's-carry-hint',
+  'col-ok', 'col-err', 's-no', 's-format', 's-format-hint', 's-reset', 's-taxmode', 's-round', 's-carry', 's-carry-hint', 's-voidpay',
   's-bank-list', 'b-bank-add', 's-bank', 's-style-box', 's-sumsorder', 's-taxnote-ask', 's-taxnote', 'b-set-save',
   'set-ok', 'set-err', 's-partner', 'pt-ask-set', 'pt-all', 's-phonor', 's-pperson', 's-paddr', 's-pzip', 's-ptel',
   's-pcode', 's-pterm', 's-ptermn', 's-pinvoice', 's-pinvoice-hint', 's-pgensen', 's-ptpl', 's-prows', 's-pbanks',
@@ -70,7 +70,7 @@ const WARI = {
   jisha: ['org-view', 's-bank-list', 'b-bank-add', 's-bank', 'b-book-pick', 'book-file', 'b-book-use',
     'seal-pv', 'seal-mm', 'b-seal-pick', 'seal-pos-box', 'seal-paper', 'b-seal-save', 'b-seal-clear'],
   tpl: ['s-tpl-card', 's-tpl', 'b-tpl-open', 'paper-ask-card', 'set-more', 's-rows', 's-dedrows', 'col-list', 'b-col-add',
-    's-no', 's-format', 's-reset', 's-taxmode', 's-round', 's-carry', 's-style-box', 's-sumsorder', 's-taxnote', 'b-set-save',
+    's-no', 's-format', 's-reset', 's-taxmode', 's-round', 's-carry', 's-voidpay', 's-style-box', 's-sumsorder', 's-taxnote', 'b-set-save',
     /* ★会社の既定と 別の紙の 取引先の 一覧★（⑧ 2026-10-23 で 足された 物） */
     's-tpl-pt'],
 };
@@ -224,11 +224,11 @@ async function run(label, o) {
     ok(r.errs.length === 0, '★画面で 例外★ ' + r.errs.join(' / '));
   });
 
-  await T('③ ★前に 在った 欄が 1つも 落ちていない★（106個 数える）', async () => {
+  await T('③ ★前に 在った 欄が 1つも 落ちていない★（107個 数える）', async () => {
     const r = await boot(o); await openSet(r);
     const set = r.doc.getElementById('scr-set');
     const ochi = MAE_IDS.filter((id) => { const el = r.doc.getElementById(id); return !el || !set.contains(el); });
-    eq(MAE_IDS.length, 106, '★数える 物が 106個 無い＝拾えていない★');
+    eq(MAE_IDS.length, 107, '★数える 物が 107個 無い＝拾えていない★');
     eq(ochi.length, 0, '★設定から 落ちた 欄★ ' + ochi.join(' / '));
     /* ★落ちていない＝どこかに 見える 道が 在る★（切り替えの 中か、上の 下見か、一番下の ログイン） */
     const mayoi = MAE_IDS.filter((id) => {
@@ -359,6 +359,23 @@ async function run(label, o) {
     const setOk = r.doc.getElementById('set-ok');
     ok(setOk.style.display === 'none', '★テンプレートの 箱にも 古い「保存しました」が 残る★');
   });
+  await T('⑪ ★保存は 押した 切り替えの 物だけ★＝テンプレートで 外して 保存しない「取り消した入金を充てる」を、自社情報の お振込先の「保存」が 黙って しまわない／逆も（taiketsu ⑤⑥ 止1）', async () => {
+    const r = await boot(o); await openSet(r);
+    const yomu = async () => (await r.sb.from('pay_org').select('data').eq('account_id', 'u1').maybeSingle()).data.data;
+    r.doc.querySelector('#set-seg [data-setseg="tpl"]').click(); await sleep(30);
+    const vp = r.doc.getElementById('s-voidpay'); ok(vp && vp.checked, '★取り消した入金の 箱が 無いか 既定が 入で ない★');
+    vp.checked = false; vp.dispatchEvent(new r.win.Event('change', { bubbles: true }));      // 保存は 押さない
+    r.doc.querySelector('#set-seg [data-setseg="jisha"]').click(); await sleep(30);
+    r.doc.getElementById('b-bank-save').click(); await sleep(300);
+    ok(/保存しました/.test(r.doc.getElementById('bank-ok').textContent), 'お振込先の 保存が 通らない');
+    ok((await yomu()).invoiceVoidPay !== 'ignore', '★お振込先の 保存が 見えていない テンプレートの 変えかけを しまった★');
+    /* 逆＝自社情報で 打ちかけの 口座を、テンプレートの「保存」が しまわない */
+    const mae = (await yomu()).bank;
+    r.doc.getElementById('s-bank').value = '打ちかけ銀行 支店 普通 7654321 ウチカケ';
+    r.doc.querySelector('#set-seg [data-setseg="tpl"]').click(); await sleep(30);
+    r.doc.getElementById('b-set-save').click(); await sleep(300);
+    eq((await yomu()).bank, mae, '★テンプレートの 保存が 自社情報の 打ちかけの 口座を しまった★');
+  });
 
   await T('⑨ 形（Chrome 390px）＝切り替え 3つが 1行に 横いっぱい・字が 切れない・横に はみ出さない', async () => {
     if (JSDOM_ONLY) { mimei++; console.log('     ★未測定★（--jsdom-only＝ブラウザを 使っていない）'); return; }
@@ -391,6 +408,8 @@ if (!SELF) {
     ['切り替えを 消す', { html: html.replace(/<div class="set-seg"[\s\S]*?<\/div>/, '') }],
     ['角印を 落とす', { html: html.replace('id="b-seal-save"', 'id="b-seal-save-x"') }],
     ['札を 開かない', { app: app.replace('function ptToggle(id) {', 'function ptToggle(id) { return;') }],
+    ['お振込先の 保存で 全部 しまう（前の 作り）', { app: app.replace('return saveBankOnly().then(', 'return saveSettings().then(') }],
+    ['テンプレートの 保存で お振込先も しまう（前の 作り）', { app: app.replace('      invoiceCarry: $(\'s-carry\').checked,', '      bank: $(\'s-bank\').value,\n      invoiceCarry: $(\'s-carry\').checked,') }],
   ];
   let red = 0;
   for (const [nm, o] of cases) {
@@ -400,6 +419,8 @@ if (!SELF) {
     pass = p0; fail = f0;
   }
   console.log('\n壊した ' + cases.length + '通り のうち 赤 ' + red);
+  /* ★約束の 行★（tools/_bunrui.mjs が 最初に 読む）＝わざと 壊した 回の ✗ は 狙った 赤 */
+  console.log('KEKKA {"passed":' + red + ',"failed":' + (cases.length - red) + ',"mimiso":0}');
   process.exit(red === cases.length ? 0 : 1);
 }
 if (mimei) { pass -= mimei; console.log('\n★未測定 ' + mimei + '本（ブラウザ）★＝緑ではない'); }
