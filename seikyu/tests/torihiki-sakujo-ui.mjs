@@ -326,7 +326,9 @@ async function run(label, o) {
     const from0 = r.sb.from;
     r.sb.from = function (t) {
       const q = from0.call(this, t);
-      if (t === 'pay_partners') q.update = () => ({ eq: () => Promise.resolve({ data: [], error: null }) });
+      /* 0行の 返りは .select 有りでも 無しでも 同じ（2026-10-25 共有層 cd82bce が update().eq().select('id') に なった） */
+      const zero = () => { const p = Promise.resolve({ data: [], error: null }); p.select = () => Promise.resolve({ data: [], error: null }); return p; };
+      if (t === 'pay_partners') q.update = () => ({ eq: zero });
       return q;
     };
     await kesuA(r);
@@ -334,6 +336,24 @@ async function run(label, o) {
     ok(cardOf(r.doc, 'A株式会社'), '★書けていないのに 札が 消えた★');
     ok(/削除できませんでした/.test(r.doc.getElementById('pt-list-err').textContent), '★書けていないのに 黙っている★');
     ok(!/削除しました/.test(r.doc.getElementById('pt-list-ok').textContent), '★嘘の「削除しました」★');
+  });
+  /* ⑩-b ★共有層が「書けた」と 返しても 本当に 消えたかを 請求書の 側で 読み直す★（2026-10-25）
+     共有層は cd82bce から 0行を not-found に するので ⑩ は 共有層が 止める。請求書の 読み直しは 2枚目の 守り＝
+     共有層が 1行 書けたと 返したのに 倉庫に 立っていない 形（返りと 中身の 食い違い）は これだけが 捕まえる */
+  await T('⑩-b ★共有層が「書けた」と 返しても 倉庫に 消した 印が 無ければ「削除しました」と 言わない★（読み直しの 守り）', async () => {
+    const r = await bootI(); await openSet(r);
+    r.win.confirm = () => true;
+    const from0 = r.sb.from;
+    r.sb.from = function (t) {
+      const q = from0.call(this, t);
+      const one = () => { const p = Promise.resolve({ data: [{ id: 'pt_a' }], error: null }); p.select = () => Promise.resolve({ data: [{ id: 'pt_a' }], error: null }); return p; };
+      if (t === 'pay_partners') q.update = () => ({ eq: one });     // 「1行 書けた」と 返すが 倉庫は 変えない
+      return q;
+    };
+    await kesuA(r);
+    eq(r.sb._db.pay_partners.find((x) => x.id === 'pt_a').deleted_at, null, '試験の 形が 違う（本当に 書けてしまった）');
+    ok(cardOf(r.doc, 'A株式会社'), '★消えていないのに 札が 消えた★');
+    ok(/削除できませんでした/.test(r.doc.getElementById('pt-list-err').textContent), '★消えていないのに 黙っている★');
   });
 
   const goneA = () => [
