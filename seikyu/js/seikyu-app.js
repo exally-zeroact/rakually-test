@@ -1651,6 +1651,8 @@
     var v = null;
     for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === id) v = S.invoices[i];
     if (!v) return Promise.resolve();
+    /* ★発行の 返事を 待つ 1通は 消さない★（消すのが 先に 当たると 発行で 生き返り、後に 当たると 0行で「消せた」に なる） */
+    if (hakkoMachi(v)) { box('list-err', '発行の 返事を 待っています。少し 待ってから、もう一度 お試しください。'); return Promise.resolve(); }
     var mae = { cur: S.cur, dirty: S.dirty };
     S.cur = JSON.parse(JSON.stringify(v));
     S.dirty = false;
@@ -1684,6 +1686,12 @@
     var v = null;
     for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === id) v = S.invoices[i];
     if (!v) { box('list-err', 'この請求書が見つかりませんでした。「読み直す」を押してください。'); return; }
+    /* ★発行の 返事を 待つ 1通は、写しで なく その 1通 そのものを 開く★（taiketsu 10-25 止A）＝写しで 開くと「別の 1通」に 見えて
+       自動の しまいと「保存」の 止めを すり抜け、下書きの 9000 が 発行済みの 7000 と 食い違ったり 凍結に 拒まれたりした */
+    /* id の 付く 前でも 同じ 番号の 行なら その 1通（写しは 倉庫の 古い 下書きで、開き直すと 打ち直した 値が 古い 値に 戻った・taiketsu 5回 止2） */
+    /* 開き直したら ★打ちかけの 印を 立てる★（別の 1通を 開いた 時に 印が 落ち、断られると 打った 値が 黙って 消えた・taiketsu 6回 止1）
+       ＝返事の 後に その 1通を もう一度 しまう（同じ 中身なら 害は 無い） */
+    if (hakkoMachi(v)) { S.cur = S.hakkoChu; S.dirty = true; fillEdit(); goScreen('scr-edit'); return; }
     S.cur = JSON.parse(JSON.stringify(v));
     S.dirty = false;                  // ★前の 1通の「直しかけ」を 持ち越さない★（taiketsu 10-14）
     /* ★保存できなかった 1通は ★打った 値で★ 開く★（倉庫の 古い値で 上書きしない＝打った物を 黙って 捨てない） */
@@ -1696,6 +1704,21 @@
   }
 
   function locked() { return S.cur && !DOC.canEdit(S.cur); }
+
+  /* ★その 1通は 発行の 返事を 待っているか★（2026-10-25 taiketsu 3回）＝同じ 物か ★同じ id★ か で 見る
+     （一覧から 開いた 写しも 同じ 1通。写しを 別の 1通と 見ると 自動の しまい・保存・削除が 止めを すり抜けた）。
+     止める 口は ここ 1つ（自動の しまい・保存・削除・取り消し・一覧から 消す）＝口ごとに 書くと 口が 増えた 日に 割れる */
+  function hakkoMachi(v) {
+    var h = S.hakkoChu;
+    if (!(h && v)) return false;
+    if (h === v || (v.id && h.id === v.id)) return true;
+    /* ★まだ id の 無い 1通★（最初の しまいが 倉庫に 当たり、返事の 前）＝★一覧の 行（id の 在る 物）だけ★ 同じ 種類・同じ 番号で 見分ける
+       （番号は 種類ごとに 1つ＝倉庫の 一意。taiketsu 4回 止1＝見分けないと 古い 下書きの 写しが 開き、発行済みの 金額を 書き戻した）。
+       id の 無い 別の 1通（新しく 作って 自動で 同じ 番号が 出た 等）は 止めない（taiketsu 5回 止1＝止めると 打った 字が 黙って 残らなかった） */
+    /* 番号は ★発行を 押した 時の 番号★（S.hakkoNo）＝返事待ちに 相手を 選び直すと 番号が 取り直されて 動いた・taiketsu 6回 止2 */
+    var no = S.hakkoNo || h.no;
+    return !h.id && !!v.id && !!no && String(v.no || '') === String(no) && (v.doc_type || 'invoice') === (h.doc_type || 'invoice');
+  }
 
   /* ★今の 1通は 保存か 発行を 終えて、その後 何も 打っていないか★（2026-10-23）
      ＝下の「入力」を 押した時に 白紙で 開く 条件。打ちかけ・しまえなかった 1通は 続きを 出す（失わない） */
@@ -3798,12 +3821,16 @@
     var okuttaCur = S.cur;
     var okuttaKata = hozonKata(v);    /* ★送った 時の 中身★（返事を 待つ 間に 打った 字を 見分ける・taiketsu 止A） */
     if (v.id && S.kieta && S.kieta[v.id]) return;
+    /* ★発行の 返事を 待つ 1通は しまわない★（2026-10-25）＝下書きの まま 送ると 発行済みに 当たって 凍結に 拒まれ（偽の「取り消して 作り直して」）、
+       id の 無い 1通なら 同じ 番号で 2通目を 作ろうとした。待つ 間に 打った 字は 発行の 返事の 後に 予約し直す（issue） */
+    if (hakkoMachi(S.cur)) return;
     try {
       S.hozonChu = S.store.invoices.saveDraft(okuru);
       S.hozonChu.then(function (r) {
         if (r && r.ok) {
           /* ★id は 送った 1通に 付ける★（返事の 前に 別の 1通を 見ても、戻った 時に id が 無いと 同じ番号で 2通目を 作ろうとした・taiketsu 10-23） */
           if (okuttaCur && !okuttaCur.id) okuttaCur.id = r.id;
+          if (okuttaCur) okuttaCur._shimatta = okuttaKata;   /* ★倉庫に 入った 中身★（発行を 断られた 時に 積むかを 見る） */
           /* ★返事を 待つ 間に 打った 字は まだ 倉庫に 無い★（taiketsu 止A）＝送った 時と 同じ 中身の 時だけ 印を 落とす。
              違えば 印を 残して 次の 自動の しまいに 任せる */
           if (S.cur && S.cur === okuttaCur) {
@@ -3924,6 +3951,9 @@
     var v = collect();
     if (!v) { box('edit-err', '入力の画面と 中身が 合っていないので 保存しませんでした。一覧の「修正」から 開き直してください。'); return Promise.resolve(); }
     if (v.id && S.kieta && S.kieta[v.id]) { box('edit-err', 'この下書きは 削除しました。'); return Promise.resolve(); }
+    /* ★発行の 返事を 待つ 1通は 下書きで 送らない★（taiketsu 10-25 止2＝発行済みに 当たって 偽の「取り消して 作り直して」／
+       id の 無い 1通は 偽の「番号は 既に 使われています」）。打った 字は 発行の 返事の 後に 自動で しまう */
+    if (hakkoMachi(S.cur)) { box('edit-err', '発行の 返事を 待っています。直した 内容が あれば、返事の 後に 保存します。'); return Promise.resolve(); }
     var t = recalc();
     var motoGyo = (v.lines || []).length;
     v.lines = cleanLines(v.lines);
@@ -3946,6 +3976,7 @@
       }
       ochiKesu(okuttaCur);
       if (okuttaCur && !okuttaCur.id) okuttaCur.id = r.id;   // ★id は 送った 1通に 付ける★（taiketsu 10-23）
+      if (okuttaCur) okuttaCur._shimatta = okuttaKata;
       if (S.cur !== okuttaCur) return;   // 返事の 前に 別の 1通を 開いた＝今の 画面には 付けない
       S.cur.id = r.id;
       /* ★返事を 待つ 間に 打った 字は まだ 倉庫に 無い★（taiketsu 止1）＝送った 時と 同じ 中身の 時だけ
@@ -4069,8 +4100,43 @@
        発行済みの 明細が 別の 1通の 明細で 上書きされた・taiketsu 10-23） */
     var hakko = S.cur;
     var hakkoKata = nakamiKata(v);    /* ★送った 時の 中身★（taiketsu 止1） */
-    return S.store.invoices.issue(row, at).then(function (r) {
-      if (!r.ok) { box('edit-err', '発行できませんでした（' + r.reason + '）'); return; }
+    /* ★★発行と 自動の しまいを ぶつけない★★（2026-10-25 指示役・実測 3つ）
+       ①打ち直して すぐ 発行＝予約の しまいが 発行済みに 下書きで 当たり、凍結に 拒まれて 偽の「取り消して 作り直して」が 残った
+       ②id の 無い 1通を すぐ 発行＝予約の しまいが 同じ 番号で 2通目を 作ろうとして 偽の「この番号は 既に 使われています」
+       ③最初の しまいの 返事待ちに 発行＝下書きと 発行済みの ★2通★（番号が 1つ 進む）＝後で 下書きを 発行すると 二重の 請求
+       ⇒ 予約を 消す・発行の 返事まで この 1通の 自動の しまいを 止める・しまいの 返事を 待って、返った id で 発行する。
+       ★2度 押しも 通さない★（返事の 前の 2度目は id が 無く、番号を 進めて 2通 発行した） */
+    if (S.hakkoChu) { box('edit-err', '発行の 返事を 待っています。少し 待ってから、もう一度 お試しください。'); return Promise.resolve(); }
+    if (jidoTimer) { clearTimeout(jidoTimer); jidoTimer = null; }
+    S.hakkoChu = hakko;
+    S.hakkoNo = row.no;
+    var maeDirty = S.dirty;           /* 押した 時に 打ちかけ だったか */
+    var owari = function () {
+      if (S.hakkoChu === hakko) { S.hakkoChu = null; S.hakkoNo = ''; }
+      /* 一覧に 出した「返事を 待っています」は 返事が 来たら 消す（断られた 時は 一覧を 読み直さないので 残り続けた・taiketsu 5回 止2） */
+      var le = $('list-err');
+      if (le && /発行の 返事を 待っています/.test(le.textContent)) box('list-err', '');
+    };
+    /* ★待つ 間に 打った 字を 黙って 捨てない★（taiketsu 10-25 止1）＝この 1通の 自動の しまいは 止めて あるので、
+       返事の 前に 別の 1通へ 移ると 誰も しまわなかった。今の 1通なら 予約し直す・別の 1通なら 打った 値ごと
+       「まだ 保存されていません」に 残す（開き直すと その 値で 戻る。合計は その 1通を 開いて 数え直すので ここでは しまわない） */
+    var nokosu = function (why, kakita) {
+      if (S.cur === hakko) { if (S.dirty) jidoYoyaku(); return; }
+      /* 倉庫に 無い 中身か＝発行できた 時は 発行で 送った 中身と、断られた 時は 最後に しまえた 中身と 比べる
+         （打っていない 1通に 偽の「まだ 保存されていません」を 積まない・taiketsu 10-25 任意1） */
+      var mada = nakamiKata(hakko) !== hakkoKata || (!kakita && maeDirty && hozonKata(hakko) !== hakko._shimatta);
+      if (mada) ochita(hakko, { ok: false, reason: why });
+    };
+    return Promise.resolve(S.hozonChu).then(function () { return null; }, function () { return null; }).then(function () {
+      if (!row.id && hakko.id) row.id = hakko.id;   /* ★しまいが 付けた id★＝その 下書きを 発行済みに する（2通に しない） */
+      return S.store.invoices.issue(row, at);
+    }).then(function (r) {
+      owari();
+      if (!r || !r.ok) {
+        box('edit-err', '発行できませんでした（' + ((r && r.reason) || '理由不明') + '）');
+        nokosu('発行できなかったため', false);   /* 待つ 間に 打った 字は 下書きと して しまう */
+        return;
+      }
       hakko.id = r.id; hakko.no = r.no; hakko.status = 'issued'; hakko.issued_at = at;
       ochiKesu(hakko);                 // ★発行で 中身も 倉庫に 入った＝「まだ 保存されていません」を 残さない★（taiketsu 10-14）
       hakko.snapshot = snap; hakko.totals = row.totals;
@@ -4082,6 +4148,7 @@
         owattaOboe(hakko);
         if (S.cur === hakko) S.dirty = false;
       } else if (S.cur === hakko) { S.dirty = true; jidoYoyaku(); }
+      if (S.cur !== hakko) nokosu('発行の 返事を 待つ 間に 直したため', true);
       box('edit-ok', '請求書 ' + r.no + ' を発行しました。'
         + (r.bumped ? '（同じ番号が先に使われていたので ' + r.bumped + ' つ進めました）' : '')
         /* ★固まるのは 番号だけ★（中身は あとからでも 直せる） */
@@ -4089,12 +4156,17 @@
       /* ★次の 一手を その場に 出す★（2026-09-10）＝一覧へ 歩かせない */
       var ai = $('after-issue'); if (ai) ai.style.display = '';
       return loadList({ ato: DOC.docLabel(v.doc_type || 'invoice') + ' ' + r.no + ' の 発行は できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { if (S.cur === hakko) fillEdit(); });
+    }, function (e) {
+      owari();
+      box('edit-err', '発行できませんでした（' + ((e && e.message) || '理由不明') + '）');
+      nokosu('発行できなかったため', false);
     });
   }
 
   function voidIt() {
     atoKesu();
     var v = S.cur;
+    if (hakkoMachi(v)) { box('edit-err', '発行の 返事を 待っています。少し 待ってから、もう一度 お試しください。'); return Promise.resolve(); }
     if (!DOC.canVoid(v)) return Promise.resolve();
     if (!global.confirm('請求書 ' + (v.no || '') + ' を取り消しますか？\n（中身は残ります。番号は他で使えません）')) return Promise.resolve();
     return S.store.invoices.voidIt(v.id, new Date().toISOString()).then(function (r) {
@@ -4109,6 +4181,8 @@
   function removeDraft() {
     atoKesu();
     var v = S.cur;
+    /* ★発行の 返事を 待つ 1通は 消さない★（消すのが 後に 当たると 0行で「消せた」に なり、消した 印で その 発行済みが 直せなくなった・taiketsu 3回 止1） */
+    if (hakkoMachi(v)) { box('edit-err', '発行の 返事を 待っています。少し 待ってから、もう一度 お試しください。'); return Promise.resolve(); }
     if (!(DOC.canDelete(v) && v.id)) return Promise.resolve();
     if (!global.confirm('この下書きを削除しますか？')) return Promise.resolve();
     /* ★消した 下書きが 生き返らない様に★（2026-10-14 taiketsu）

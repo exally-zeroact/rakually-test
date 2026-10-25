@@ -528,6 +528,20 @@ jobs:
         run: node seikyu/tests/mae-no-aite.mjs
       - name: ★前の取引先の中身が残らない (外すのをやめる/覚えるのをやめる/印を戻さない 等を本当に壊すと赤かの自己確認)
         run: node seikyu/tests/mae-no-aite.mjs --self-test
+      # ★発行と 自動の しまいを ぶつけない★（2026-10-25 指示役）＝打って すぐ 発行・しまいの 返事待ちに 発行・2度 押しで
+      #   偽の「取り消して 作り直して」「番号は 既に 使われています」、下書きと 発行済みの 2通（二重の 請求の 元）が 出ていた
+      - name: ★発行と自動のしまいがぶつからない その1 (打ってすぐ発行/返事待ちに発行/2度押し/待つ間に打った字/別の1通へ移る)
+        run: node seikyu/tests/hakko-to-jido.mjs --bu=1
+      - name: ★発行と自動のしまいがぶつからない その2 (返事待ちの保存/開き直し/打っていない1通/返事待ちに消す)
+        run: node seikyu/tests/hakko-to-jido.mjs --bu=2
+      - name: ★発行と自動のしまいがぶつからない その3 (id の付く前の行/断られた後/別の1通/戻る/相手の選び直し)
+        run: node seikyu/tests/hakko-to-jido.mjs --bu=3
+      - name: ★発行と自動のしまいがぶつからない その1 (止め・待ち・id・2度押し・断られた後を本当に壊すと赤かの自己確認)
+        run: node seikyu/tests/hakko-to-jido.mjs --self-test --bu=1
+      - name: ★発行と自動のしまいがぶつからない その2 (保存・開き直し・消すを本当に壊すと赤かの自己確認)
+        run: node seikyu/tests/hakko-to-jido.mjs --self-test --bu=2
+      - name: ★発行と自動のしまいがぶつからない その3 (番号で見分ける・印・待っていますを本当に壊すと赤かの自己確認)
+        run: node seikyu/tests/hakko-to-jido.mjs --self-test --bu=3
       # ★お振込先の 入れ方★（司さん 2026-09-10「どこで 改行など 分からんから ちゃんとして
       #   それと 2個 表示する時用で 追加ボタンで また 入力するようにしろ」）
       # ★押しても 何も 変わらない 設定を 残さない★（司さん 2026-09-10
