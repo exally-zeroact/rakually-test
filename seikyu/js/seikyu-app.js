@@ -2281,7 +2281,10 @@
        （A社 税込み 50000 → C社 前回 税抜き 5000 を 足すと 合計 51,700 が 47,000）。
        ⇒ 打った 行が 残り、前回と 税の 入れ方（か 端数）が 違う 時は 前回の 明細・控除を 足さず、そう 言う。同じなら 今まで通り 足す */
     var tasu = !!S.oiToki && !zeiChigau;
-    if (S.oiToki && zeiChigau && ((g.lines && g.lines.length) || (g.deductions && g.deductions.length))) {
+    /* ★控除は 円の 額＝税の 入れ方に 関わらない★＝税が 違っても 前回の 控除は 今まで通り 足す（taiketsu ⑦ 止1・
+       前は 控除まで 黙って 落ち、ご請求金額が 控除の 分 多く なった）。止めて 言うのは 前回の 明細が 在る 時だけ */
+    var tasuD = !!S.oiToki;
+    if (S.oiToki && zeiChigau && g.lines && g.lines.length) {
       var pNm = ((partnerById(v.partner_id) || {}).data || {}).name || 'この相手';
       zeiTome += pNm + 'の 前回の 明細は 金額の入れ方が 違う（' + (tomeTax ? zeiNa(g.taxMode) : marumeNa(g.rounding)) + '）ので 足していません。';
     }
@@ -2291,7 +2294,7 @@
       v.lines = kara ? ireL : v.lines.filter(gyoAru).concat(ireL);
       hikiL = ireL.length;
     }
-    if ((kara || tasu) && g.deductions && g.deductions.length && (tasu || !(v.data.deductions || []).length)) {
+    if ((kara || tasuD) && g.deductions && g.deductions.length && (tasuD || !(v.data.deductions || []).length)) {
       ireD = g.deductions.map(function (x) {
         return { name: String((x && x.name) || ''), amount: (x && x.amount) };
       });

@@ -78,6 +78,13 @@ const MAE_G = {
   lines: [line('G社の品', 3300)], data: {}, totals: {},
 };
 
+/* H社＝前回は ★税抜き・明細 0行・控除 1行だけ★（taiketsu ⑦ 止1＝税が 違っても 控除は 円の 額なので 足す） */
+const MAE_H = {
+  id: 'vH0', no: 'H-001', status: 'issued', doc_type: 'invoice', partner_id: 'pH',
+  issue_ymd: '2026-09-30', tax_mode: 'exclusive', rounding: 'floor',
+  lines: [], data: { deductions: [{ name: 'H社の控除', amount: '2000' }] }, totals: {},
+};
+
 let APP_KAE = null;   /* 自分ためしで 壊した 本文（ふだんは null＝本物を 読む） */
 /* ★1つの 道ごとに 画面を 1から 立てる★（前の 道の 状態を 持ち越さない） */
 async function tateru(o) {
@@ -107,6 +114,7 @@ async function tateru(o) {
     { id: 'pE', sort: 4, data: { name: 'E設備', honor: '御中' } },
     { id: 'pF', sort: 5, data: { name: 'F電気', honor: '御中' } },
     { id: 'pG', sort: 6, data: { name: 'G工務', honor: '御中' } },
+    { id: 'pH', sort: 7, data: { name: 'H設計', honor: '御中' } },
   ];
   if (o && o.hitori) S.partners = [S.partners[0]];
   /* 会社が 足した 列「現場」（taiketsu 止3） */
@@ -114,7 +122,7 @@ async function tateru(o) {
   /* ★返事が 遅い 倉庫★＝★送った 時点で 写し★、返事だけ 遅らせる（後で 写すと 待つ間に 打った 字まで 入って 偽の 緑・taiketsu 止1） */
   const osoi = (o && o.osoi) || 0;
   const matsu = (x) => (osoi ? new Promise((r) => setTimeout(() => r(x), osoi)) : Promise.resolve(x));
-  const kura = [JSON.parse(JSON.stringify(MAE_A)), JSON.parse(JSON.stringify(MAE_C)), JSON.parse(JSON.stringify(MAE_E)), JSON.parse(JSON.stringify(MAE_F)), JSON.parse(JSON.stringify(MAE_G))];
+  const kura = [JSON.parse(JSON.stringify(MAE_A)), JSON.parse(JSON.stringify(MAE_C)), JSON.parse(JSON.stringify(MAE_E)), JSON.parse(JSON.stringify(MAE_F)), JSON.parse(JSON.stringify(MAE_G)), JSON.parse(JSON.stringify(MAE_H))];
   let n = 0;
   const shimau = (v) => {
     const c = JSON.parse(JSON.stringify(v)); if (!c.id) c.id = 'new' + (++n);
@@ -589,6 +597,15 @@ MICHI.push(['★㉛ A社（税込み）の 1行を 50000 に 直す → C社（�
   eq(x.goukei, 50000, '★合計（円）が 打った 50,000 と 違う★');
   ok(/C建設の 前回の 明細は 金額の入れ方が 違う（税抜き）ので 足していません/.test(x.okBun), '★足さなかった事を 言っていない★: ' + x.okBun);
 }]);
+MICHI.push(['★㉟ A社（税込み）の 1行を 50000 に 直す → H社（前回 税抜き・明細 0行・控除 2,000円だけ）＝控除は 円の 額なので 足す・明細を 足さないとは 言わない', async () => {
+  const t = await tateru(); t.A._new(); await t.erabu('pA');
+  await naoshite50000(t);
+  await t.erabu('pH');
+  const x = t.naka();
+  eq(x.lines.join('|'), 'A社の工事', '打った 行の まま');
+  eq(x.ded.join('|'), 'H社の控除', '★税が 違うだけで 前回の 控除まで 落とした（ご請求金額が 控除の 分 多く なる）★');
+  ok(!/前回の 明細は 金額の入れ方が 違う/.test(x.okBun), '★明細が 無いのに「明細を 足していません」と 言った★: ' + x.okBun);
+}]);
 MICHI.push(['★㉜ A社（税込み）の 1行を 50000 に 直す → G社（前回も 税込み）＝今まで通り G社の 前回を 足す', async () => {
   const t = await tateru(); t.A._new(); await t.erabu('pA');
   await naoshite50000(t);
@@ -669,7 +686,9 @@ if (!SELF) {
     ['保存の 比べに 番号を 入れない（任意1）', '  function hozonKata(v) { return JSON.stringify([v.no, nakamiKata(v)]); }', '  function hozonKata(v) { return nakamiKata(v); }', '★㉖'],
     ['打った 行が 在っても 前回の 税を 当てる（決め）', '    if (!uttaGyo) {', '    if (true) {', '★㉗'],
     ['税が 違っても 前回の 明細を 足す（止1）', '    var tasu = !!S.oiToki && !zeiChigau;', '    var tasu = !!S.oiToki;', '★㉛'],
-    ['自動の 保存で 画面の 行を 詰める（止2）', '    var okuru = Object.assign({}, v, { lines: cleanLines(v.lines) });', '    v.lines = cleanLines(v.lines); var okuru = v;', '★㉝'],
+    ['税が 違うと 前回の 控除まで 落とす（⑦ 止1）', '    var tasuD = !!S.oiToki;', '    var tasuD = tasu;', '★㉟'],
+    ['明細が 無くても「明細を 足していません」と 言う（⑦ 止1）', '    if (S.oiToki && zeiChigau && g.lines && g.lines.length) {', '    if (S.oiToki && zeiChigau && ((g.lines && g.lines.length) || (g.deductions && g.deductions.length))) {', '★㉟'],
+    ['自動の 保存で 画面の 行を 詰める（止2）','    var okuru = Object.assign({}, v, { lines: cleanLines(v.lines) });', '    v.lines = cleanLines(v.lines); var okuru = v;', '★㉝'],
     ['自動の 保存で 画面の 行を 詰める（止2・3行目）', '    var okuru = Object.assign({}, v, { lines: cleanLines(v.lines) });', '    v.lines = cleanLines(v.lines); var okuru = v;', '★㉞'],
     ['行を 全部 消しても 知らせを 残す（任意4）', '        if (!S.cur.lines.some(gyoAru) && okEl', '        if (false && okEl', '★㉘'],
     ['税込みを 2回 言う（任意4）', '    if (S.zeiItta) {', '    if (false) {', '★㉙'],
