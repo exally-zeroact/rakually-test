@@ -6259,14 +6259,17 @@
      設定を 3つに 分けた（⑥）ので、自社情報の「保存」が テンプレートの 欄（繰越・取り消した入金・税・番号…）まで
      黙って しまっていた＝見えていない 変えかけが 倉庫に 入る。倉庫は 渡した 欄だけ 重ねる（suite-data）＝お振込先だけ 渡す。 */
   function saveBankOnly() {
-    box('set-ok', '');
-    return S.store.org.save({ bank: $('s-bank').value }).then(function (r) {
-      if (!r.ok) { box('set-err', '保存できませんでした（' + ptWhy(r.reason) + '）'); return; }
-      box('set-err', '');
+    /* ★知らせは お振込先の 札（bank-ok／bank-err）だけ★（taiketsu ⑤⑥ 3回目 止1）
+       テンプレートの 欄の set-ok に「保存しました。」を 書くと、まだ しまっていない 様式も しまったと 読めた */
+    box('bank-ok', ''); box('bank-err', '');
+    var okuru = $('s-bank').value;
+    return S.store.org.save({ bank: okuru }).then(function (r) {
+      if (!r.ok) { box('bank-err', '保存できませんでした（' + ptWhy(r.reason) + '）'); return; }
       /* ★しまった 欄だけ 手元に 重ねる★（taiketsu ⑤⑥ 2回目 止1）＝倉庫の 返りで S.org を 丸ごと 置き換えると、
-         テンプレートで 選んで まだ しまっていない 様式・列（手元の S.org にだけ 在る）が 黙って 元に 戻った */
-      S.org = Object.assign({}, S.org || {}, { bank: (r.data && r.data.bank !== undefined) ? r.data.bank : $('s-bank').value });
-      box('set-ok', '保存しました。');
+         テンプレートで 選んで まだ しまっていない 様式・列（手元の S.org にだけ 在る）が 黙って 元に 戻った。
+         返りに bank が 無い 時は ★送った 値★（待つ 間に 打った 字では ない） */
+      S.org = Object.assign({}, S.org || {}, { bank: (r.data && r.data.bank !== undefined) ? r.data.bank : okuru });
+      box('bank-ok', '保存しました。');
     });
   }
   function saveSettings() {
@@ -6877,14 +6880,8 @@
     /* ★お振込先は 自社情報へ 移した★（2026-10-23 ⑥）＝しまう 道は 前と 同じ saveSettings 1本。
        知らせは ★押した 所（お振込先の 札）に 出す★（隣の 切り替えの 箱に 書いても 読めない）。 */
     if ($('b-bank-save')) $('b-bank-save').onclick = function () {
-      box('bank-ok', ''); box('bank-err', '');
-      return saveBankOnly().then(function () {
-        var e = $('set-err'), o = $('set-ok');
-        var bad = !!(e && e.style.display !== 'none' && e.textContent);
-        /* ★落ちた 時は 成功の 字を 出さない★（taiketsu 10-23 止3） */
-        box('bank-err', bad ? e.textContent : '');
-        box('bank-ok', (!bad && o && o.style.display !== 'none') ? o.textContent : '');
-      }, function (er) {
+      /* ★落ちた 時は 成功の 字を 出さない★（taiketsu 10-23 止3）＝saveBankOnly が bank-ok／bank-err に 直に 書く */
+      return saveBankOnly().then(function () {}, function (er) {
         box('bank-err', '保存できませんでした（' + ptWhy(er && er.message) + '）');
         box('bank-ok', '');
       });

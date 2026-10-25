@@ -385,6 +385,9 @@ async function run(label, o) {
     r.doc.querySelector('#set-seg [data-setseg="jisha"]').click(); await sleep(30);
     r.doc.getElementById('b-bank-save').click(); await sleep(300);
     r.doc.querySelector('#set-seg [data-setseg="tpl"]').click(); await sleep(30);
+    /* ★お振込先の 保存は テンプレートの 欄に「保存しました」を 出さない★（taiketsu ⑤⑥ 3回目 止1＝様式も しまったと 読めた） */
+    const so = r.doc.getElementById('set-ok');
+    ok(!(so && so.style.display !== 'none' && /保存しました/.test(so.textContent)), '★お振込先の 保存で テンプレートの 欄に「保存しました。」が 出た（様式は まだ しまっていない）★');
     r.doc.getElementById('b-set-save').click(); await sleep(300);
     eq((await yomu()).invoiceTemplate, 'koujo', '★お振込先の 保存で 選んだ 様式が 戻り、テンプレートの 保存が 古い 様式を しまった★');
   });
@@ -420,7 +423,8 @@ if (!SELF) {
     ['切り替えを 消す', { html: html.replace(/<div class="set-seg"[\s\S]*?<\/div>/, '') }],
     ['角印を 落とす', { html: html.replace('id="b-seal-save"', 'id="b-seal-save-x"') }],
     ['札を 開かない', { app: app.replace('function ptToggle(id) {', 'function ptToggle(id) { return;') }],
-    ['お振込先の 保存の 後に 手元を 倉庫の 返りで 丸ごと 置き換える', { app: app.replace("S.org = Object.assign({}, S.org || {}, { bank: (r.data && r.data.bank !== undefined) ? r.data.bank : $('s-bank').value });", 'S.org = r.data;') }],
+    ['お振込先の 保存の 後に 手元を 倉庫の 返りで 丸ごと 置き換える', { app: app.replace("S.org = Object.assign({}, S.org || {}, { bank: (r.data && r.data.bank !== undefined) ? r.data.bank : okuru });", 'S.org = r.data;') }],
+    ['お振込先の 保存の 知らせを テンプレートの 欄に 書く（前の 直し）', { app: app.replace("      box('bank-ok', '保存しました。');\n    });\n  }", "      box('bank-ok', '保存しました。'); box('set-ok', '保存しました。');\n    });\n  }") }],
     ['お振込先の 保存で 全部 しまう（前の 作り）',{ app: app.replace('return saveBankOnly().then(', 'return saveSettings().then(') }],
     ['テンプレートの 保存で お振込先も しまう（前の 作り）', { app: app.replace('      invoiceCarry: $(\'s-carry\').checked,', '      bank: $(\'s-bank\').value,\n      invoiceCarry: $(\'s-carry\').checked,') }],
   ];
