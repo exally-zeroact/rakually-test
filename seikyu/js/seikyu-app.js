@@ -6263,7 +6263,9 @@
     return S.store.org.save({ bank: $('s-bank').value }).then(function (r) {
       if (!r.ok) { box('set-err', '保存できませんでした（' + ptWhy(r.reason) + '）'); return; }
       box('set-err', '');
-      S.org = r.data;
+      /* ★しまった 欄だけ 手元に 重ねる★（taiketsu ⑤⑥ 2回目 止1）＝倉庫の 返りで S.org を 丸ごと 置き換えると、
+         テンプレートで 選んで まだ しまっていない 様式・列（手元の S.org にだけ 在る）が 黙って 元に 戻った */
+      S.org = Object.assign({}, S.org || {}, { bank: (r.data && r.data.bank !== undefined) ? r.data.bank : $('s-bank').value });
       box('set-ok', '保存しました。');
     });
   }

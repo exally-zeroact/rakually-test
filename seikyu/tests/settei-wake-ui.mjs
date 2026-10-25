@@ -376,6 +376,18 @@ async function run(label, o) {
     r.doc.getElementById('b-set-save').click(); await sleep(300);
     eq((await yomu()).bank, mae, '★テンプレートの 保存が 自社情報の 打ちかけの 口座を しまった★');
   });
+  await T('⑫ ★お振込先を しまっても テンプレートで 選んだ（まだ しまっていない）紙の 様式が 戻らない★＝様式を 選ぶ → お振込先の 保存 → テンプレートの 保存 → 倉庫も その 様式（taiketsu ⑤⑥ 2回目 止1）', async () => {
+    const r = await boot(o); await openSet(r);
+    const yomu = async () => (await r.sb.from('pay_org').select('data').eq('account_id', 'u1').maybeSingle()).data.data;
+    r.doc.querySelector('#set-seg [data-setseg="tpl"]').click(); await sleep(30);
+    const kb = r.doc.querySelector('#s-tpl [data-tpl="koujo"]'); ok(kb, '★控除ありの 様式の 札が 無い（空振り）★');
+    kb.click(); await sleep(50);
+    r.doc.querySelector('#set-seg [data-setseg="jisha"]').click(); await sleep(30);
+    r.doc.getElementById('b-bank-save').click(); await sleep(300);
+    r.doc.querySelector('#set-seg [data-setseg="tpl"]').click(); await sleep(30);
+    r.doc.getElementById('b-set-save').click(); await sleep(300);
+    eq((await yomu()).invoiceTemplate, 'koujo', '★お振込先の 保存で 選んだ 様式が 戻り、テンプレートの 保存が 古い 様式を しまった★');
+  });
 
   await T('⑨ 形（Chrome 390px）＝切り替え 3つが 1行に 横いっぱい・字が 切れない・横に はみ出さない', async () => {
     if (JSDOM_ONLY) { mimei++; console.log('     ★未測定★（--jsdom-only＝ブラウザを 使っていない）'); return; }
@@ -408,7 +420,8 @@ if (!SELF) {
     ['切り替えを 消す', { html: html.replace(/<div class="set-seg"[\s\S]*?<\/div>/, '') }],
     ['角印を 落とす', { html: html.replace('id="b-seal-save"', 'id="b-seal-save-x"') }],
     ['札を 開かない', { app: app.replace('function ptToggle(id) {', 'function ptToggle(id) { return;') }],
-    ['お振込先の 保存で 全部 しまう（前の 作り）', { app: app.replace('return saveBankOnly().then(', 'return saveSettings().then(') }],
+    ['お振込先の 保存の 後に 手元を 倉庫の 返りで 丸ごと 置き換える', { app: app.replace("S.org = Object.assign({}, S.org || {}, { bank: (r.data && r.data.bank !== undefined) ? r.data.bank : $('s-bank').value });", 'S.org = r.data;') }],
+    ['お振込先の 保存で 全部 しまう（前の 作り）',{ app: app.replace('return saveBankOnly().then(', 'return saveSettings().then(') }],
     ['テンプレートの 保存で お振込先も しまう（前の 作り）', { app: app.replace('      invoiceCarry: $(\'s-carry\').checked,', '      bank: $(\'s-bank\').value,\n      invoiceCarry: $(\'s-carry\').checked,') }],
   ];
   let red = 0;

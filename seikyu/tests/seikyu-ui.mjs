@@ -1478,6 +1478,9 @@ await TA('6. 設定を保存すると自社の棚に入る（番号の形・丸�
   $('s-bank').value = '伊予銀行 見本支店 普通 1234567';
   $('b-set-save').click();
   await sleep(40);
+  /* お振込先は 自社情報の「保存」で しまう（2026-10-25 ⑤⑥＝テンプレートの 保存は 見えていない 区分を しまわない） */
+  $('b-bank-save').click();
+  await sleep(40);
   const org = db.pay_org[0].data;
   eq(org.numbering.invoice.format, 'y-seq');
   eq(org.taxRounding, 'round');
@@ -3085,7 +3088,8 @@ await TA('15-c2. ★長い 口座で 振込先が 紙の 上で 行を 増やす
   const mae = db.pay_org[0].data.bank;
   const setBank = async (b) => {
     doc.querySelector('.bn[data-scr="scr-set"]').click(); await sleep(20);
-    $('s-bank').value = b; $('b-set-save').click(); await sleep(60);
+    /* お振込先は 自社情報の「保存」で しまう（2026-10-25 ⑤⑥＝テンプレートの 保存は お振込先を しまわない） */
+    $('s-bank').value = b; $('b-bank-save').click(); await sleep(60);
     doc.querySelector('.bn[data-scr="scr-edit"]').click(); await sleep(40);
     setLine(0, 'amount', '1001'); await sleep(140);   /* 打ち直して 数え直させる */
   };
