@@ -45,7 +45,7 @@ function setup(over) {
     pay_org: [], pay_partners: [], pay_ledger: [], exally_entitlements: [],
     ...over
   };
-  const sb = createFakeSupa({ uid: 'u1', tables, pk: { pay_companies: 'account_id', pay_org: 'account_id', exally_entitlements: ['account_id', 'app'] } });
+  const sb = createFakeSupa({ uid: 'u1', tables, updateNeedsSelect: true, pk: { pay_companies: 'account_id', pay_org: 'account_id', exally_entitlements: ['account_id', 'app'] } });
   const sd = SuiteData.create({ client: sb, newId: (p) => p + '_fixed' + (tables[p === 'lg' ? 'pay_ledger' : 'pay_partners'].length + 1) });
   return { sb, sd, tables };
 }
@@ -211,6 +211,31 @@ test('§4 partners: 追加・sort順・ソフト削除で一覧から消える',
   assert.ok(tables.pay_partners.find(p => p.id === 'pt_a').deleted_at, 'deleted_at が入っていない');
 });
 
+/* ★消せた 行が 0 なら「消しました」に しない★（2026-10-25）
+   前は 書けた 行を 見ずに {ok:true}＝他の 口の 行・もう 無い 行でも 画面は「削除しました」・倉庫は deleted_at が null の まま。
+   ⇒ 書けた 行を 返させて（.select('id')）数える。0行＝not-found（hub.js の jpFail が「対象が見つかりませんでした」と 出す）。 */
+test('§4 partners.remove: 他の口の行・無い行は ok にしない（消えていないのに「削除しました」と言わない）', async () => {
+  const { sd, tables } = setup({ pay_partners: [{ id: 'pt_tanin', account_id: 'u2', sort: 0, data: { name: '他人の取引先' }, deleted_at: null }] });
+  const r1 = await sd.partners.remove('pt_tanin');
+  assert.strictEqual(r1.ok, false, '他の口の行を消せていないのに ok');
+  assert.ok(/not-found/.test(r1.reason), 'reason=' + r1.reason);
+  assert.strictEqual(tables.pay_partners[0].deleted_at, null, '他の口の行に deleted_at が立った');
+  const r2 = await sd.partners.remove('pt_nai');
+  assert.strictEqual(r2.ok, false, '無い行なのに ok');
+  await sd.partners.upsert({ id: 'pt_jibun', sort: 1, data: { name: '自分の取引先' } });
+  const r3 = await sd.partners.remove('pt_jibun');
+  assert.strictEqual(r3.ok, true, '自分の行が消せない＝' + JSON.stringify(r3));
+});
+test('§5 ledger.remove: 他の口の行・無い行は ok にしない', async () => {
+  const { sd, tables } = setup({ pay_ledger: [{ id: 'lg_tanin', account_id: 'u2', employee_id: 'x9', ymd: '2026-07-01', data: {}, deleted_at: null }] });
+  const r1 = await sd.ledger.remove('lg_tanin');
+  assert.strictEqual(r1.ok, false, '他の口の台帳の行を消せていないのに ok');
+  assert.ok(/not-found/.test(r1.reason), 'reason=' + r1.reason);
+  assert.strictEqual(tables.pay_ledger[0].deleted_at, null);
+  const r2 = await sd.ledger.remove('lg_nai');
+  assert.strictEqual(r2.ok, false, '無い行なのに ok');
+});
+
 /* ═══ §5 日次台帳 ═══ */
 
 test('§5 ledger: 同じ人・同じ日に複数行を入れられる(1日に何本も=代行の実態)', async () => {
@@ -258,7 +283,8 @@ test('§5 ledger: 従業員で絞れる', async () => {
 test('§5 ledger: ソフト削除(お金の記録を物理削除しない)', async () => {
   const { sd, tables } = setup();
   const r = await sd.ledger.upsert({ employeeId: 'e1', ymd: '2026-07-01', data: { uriage: 100 } });
-  await sd.ledger.remove(r.id);
+  const kr = await sd.ledger.remove(r.id);
+  assert.strictEqual(kr.ok, true, '自分の台帳の行が消せない＝' + JSON.stringify(kr));
   assert.strictEqual((await sd.ledger.list({ from: '2026-07-01', to: '2026-07-31' })).length, 0);
   assert.strictEqual(tables.pay_ledger.length, 1, '物理削除された');
   assert.ok(tables.pay_ledger[0].deleted_at);

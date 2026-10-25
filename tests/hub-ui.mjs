@@ -309,6 +309,20 @@ await (async () => {
   doc.getElementById('pt-add').click(); await sleep(5);
   doc.getElementById('pt-cancel').click(); await sleep(5);
   T('4. やめるで閉じる', () => ok(doc.getElementById('pt-edit').style.display === 'none'));
+  /* ★消えなかった時は「削除しました」と 言わない★（2026-10-25・共有層 partners.remove が 0行を not-found で 返す様に した） */
+  const motoRemove = fakeSD.partners.remove;
+  fakeSD.partners.remove = (id) => { calls.push(['pt.remove', id]); return Promise.resolve({ ok: false, reason: 'not-found' }); };
+  try {
+    const nokori = doc.querySelector('#pt-rows [data-pt]');
+    const toastEl = doc.getElementById('toast'); if (toastEl) toastEl.textContent = '';
+    if (nokori) { nokori.click(); await sleep(10); doc.getElementById('pt-del').click(); await sleep(40); }
+    T('4. ★消えなかった時は「削除しました」と 言わず、「対象が見つかりませんでした」と 出して フォームを 閉じない★', () => {
+      ok(!!nokori, '一覧に 取引先が 無い');
+      ok(!/削除しました/.test((toastEl && toastEl.textContent) || ''), '札=' + (toastEl && toastEl.textContent));
+      ok(/対象が見つかりませんでした/.test(doc.getElementById('pt-edit-msg').textContent), '字=' + doc.getElementById('pt-edit-msg').textContent);
+      ok(doc.getElementById('pt-edit').style.display !== 'none', 'フォームが 閉じた');
+    });
+  } finally { fakeSD.partners.remove = motoRemove; }
 })();
 
 /* ★2026-08-18 「5. 集計(E1/E5)」と「5b. 日次台帳(E2)」の検査を外した★

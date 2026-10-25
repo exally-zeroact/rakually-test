@@ -74,6 +74,15 @@
   // 呼び出し側は .catch / try-await の1本だけ書けばよい。
   function P(fn) { try { return Promise.resolve(fn()); } catch (e) { return Promise.reject(e); } }
 
+  // ★ソフト削除の返りを 見る★（2026-10-25）＝前は 書けた 行を 見ずに {ok:true}。他の口の行・もう無い行は
+  //   RLS で 0行に なるのに「削除しました」と 出て、倉庫は deleted_at が null のまま。
+  //   ⇒ 書けた 行（.select('id')）が 0 なら not-found（hub.js の jpFail が「対象が見つかりませんでした」と 出す）。
+  function kesetaKa(w) {
+    if (w && w.error) return { ok: false, reason: err(w.error) };
+    var n = (w && Array.isArray(w.data)) ? w.data.length : 0;
+    return n > 0 ? { ok: true } : { ok: false, reason: 'not-found' };
+  }
+
   function create(opts) {
     opts = opts || {};
     var sb = opts.client;
@@ -242,8 +251,8 @@
         },
         // ソフト削除(物理削除しない)
         remove: function (id) {
-          return Promise.resolve(sb.from('pay_partners').update({ deleted_at: nowIso(), updated_at: nowIso() }).eq('id', id))
-            .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true }; })
+          return Promise.resolve(sb.from('pay_partners').update({ deleted_at: nowIso(), updated_at: nowIso() }).eq('id', id).select('id'))
+            .then(kesetaKa)
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         }
       },
@@ -290,8 +299,8 @@
         },
         // ソフト削除(お金の記録は物理削除しない)
         remove: function (id) {
-          return Promise.resolve(sb.from('pay_ledger').update({ deleted_at: nowIso(), updated_at: nowIso() }).eq('id', id))
-            .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true }; })
+          return Promise.resolve(sb.from('pay_ledger').update({ deleted_at: nowIso(), updated_at: nowIso() }).eq('id', id).select('id'))
+            .then(kesetaKa)
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         }
       },

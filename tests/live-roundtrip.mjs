@@ -100,7 +100,8 @@ const run = async () => {
   await sd.partners.upsert({ id: p1.id, data: { name: 'A社(改名)' } });      // sort を渡さない
   plist = await sd.partners.list();
   ok('3. sortを渡さない更新でも並び順が壊れない', plist.map(x => x.data.name).join(',') === 'B社,A社(改名)', JSON.stringify(plist.map(x => x.data.name)));
-  await sd.partners.remove(p2.id);
+  const p2kesu = await sd.partners.remove(p2.id);
+  ok('3. 自分の取引先を消すと ok が返る（書けた行を数える・0行なら not-found）', !!(p2kesu && p2kesu.ok), JSON.stringify(p2kesu));
   plist = await sd.partners.list();
   const p2raw = await sb.from('pay_partners').select('id,deleted_at').eq('id', p2.id).maybeSingle();
   ok('3. ソフト削除で一覧から消える', plist.length === 1 && plist[0].id === p1.id, JSON.stringify(plist.map(x => x.id)));
@@ -126,7 +127,8 @@ const run = async () => {
   await sd.ledger.upsert({ id: l3.id, employeeId: 'e_test1', ymd: '2026-07-11', data: { uriage: 2500 } });
   const per3 = await sd.ledger.list({ from: '2026-07-11', to: '2026-07-20' });
   ok('4. 同じidで直すと重複せず更新される', per3.length === 1 && per3[0].data.uriage === 2500, JSON.stringify(per3.map(r => [r.id, r.data.uriage])));
-  await sd.ledger.remove(l4.id);
+  const l4kesu = await sd.ledger.remove(l4.id);
+  ok('4. 自分の台帳の行を消すと ok が返る', !!(l4kesu && l4kesu.ok), JSON.stringify(l4kesu));
   const per4 = await sd.ledger.list({ from: '2026-07-01', to: '2026-07-31' });
   const l4raw = await sb.from('pay_ledger').select('id,deleted_at').eq('id', l4.id).maybeSingle();
   ok('4. ソフト削除で集計から外れる', per4.every(r => r.id !== l4.id), JSON.stringify(per4.map(r => r.id)));

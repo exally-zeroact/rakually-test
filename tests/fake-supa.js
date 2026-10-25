@@ -69,9 +69,9 @@ function createFakeSupa(opts) {
 
   function Query(table, op, payload) {
     this._t = table; this._op = op; this._payload = payload;
-    this._filters = []; this._cols = '*'; this._order = null; this._limit = null; this._single = null;
+    this._filters = []; this._cols = '*'; this._order = null; this._limit = null; this._single = null; this._selected = false;
   }
-  Query.prototype.select = function (cols, o) { this._cols = cols || '*'; this._count = !!(o && o.count); return this; };
+  Query.prototype.select = function (cols, o) { this._selected = true; this._cols = cols || '*'; this._count = !!(o && o.count); return this; };
   Query.prototype.eq = function (c, v) { this._filters.push(function (r) { return String(r[c]) === String(v); }); return this; };
   Query.prototype.gte = function (c, v) { this._filters.push(function (r) { return String(r[c]) >= String(v); }); return this; };
   Query.prototype.lte = function (c, v) { this._filters.push(function (r) { return String(r[c]) <= String(v); }); return this; };
@@ -133,6 +133,9 @@ function createFakeSupa(opts) {
     if (this._op === 'update') {
       for (var m = 0; m < match.length; m++) { var kz2 = koori(t, match[m], self._payload || {}); if (kz2) return { data: null, error: kz2 }; }
       match.forEach(function (r) { Object.assign(r, clone(self._payload)); });
+      // ★updateNeedsSelect＝本物の supabase-js v2 と同じく .select() を付けた時だけ 書けた行を返す（付けなければ data:null）。
+      //   既定は前の形（11本の試験が使う）。共有層の消しは これで「.select('id') を落とすと 自分の行も 消せない」を赤にする（2026-10-25 taiketsu）。
+      if (opts.updateNeedsSelect && !self._selected) return { data: null, error: null };
       return { data: match.map(clone), error: null };
     }
     if (this._op === 'delete') {
