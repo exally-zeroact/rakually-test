@@ -69,7 +69,10 @@ const EMPTY_OK = {
    （2026-08-28 ④を足して 初めて 分かった＝それまで「0件」と言っていた）。 */
 const OPEN_ALL = '<style>.screen{display:block!important}details>*{display:block!important}'
   + '[hidden]{display:block!important}[style*="display:none"]{display:block!important}'
-  + '.hide{display:block!important}.hidden{display:block!important}.acc-body{display:block!important}</style>';
+  + '.hide{display:block!important}.hidden{display:block!important}.acc-body{display:block!important}'
+  /* ★請求書の 設定の 切り替え（取引先／自社情報／テンプレート・2026-10-23 ⑥）★＝選ばれていない 区分は 隠れている＝開けてから 測る
+     （開けないと テンプレートの 欄 s-reset・s-carry・s-voidpay が 0×0＝測れていない で 赤・2026-10-25 12906cc の WebKit） */
+  + '.set-panel{display:block!important}</style>';
 
 /* ★playwright は 別の repo に入っている物を借りる★（rakually-test には入れない＝重い依存を足さない） */
 import { borrow, launch as pwLaunch } from './_borrow-playwright.mjs';
