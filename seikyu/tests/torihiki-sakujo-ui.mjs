@@ -651,7 +651,7 @@ if (!SELF) {
     ['期限の 後でも 書く（owari を 見ない）', { app: app.split('if (kireta) return osoi();').join('') }],
     ['入力の 画面で 判じを 通さない', { app: app.replace('    return ptNayose(name, {' + String.fromCharCode(10) + '      err: say,', '    return (function (w) { return w.create(false); })({' + String.fromCharCode(10) + '      err: say,') }],
     ['入力の 画面で 作った・戻した 相手を aiteWoKaeta に 通さない', { app: app.replace('if (S.cur && S.cur.partner_id !== id) aiteWoKaeta(id);', 'if (S.cur) S.cur.partner_id = id;') }],
-    ['倉庫で 消えたかを 確かめない（seikyu-store）', { store: store.replace("if (!q || !q.data || !q.data.deleted_at) return { ok: false, reason: '倉庫で 消えた事を 確かめられませんでした' };", '') }],
+    ['倉庫で 消えたかを 確かめない（seikyu-store）', { store: store.replace("if (!q || !q.data || !q.data.deleted_at) return { ok: false, reason: '消せたか 確かめられませんでした。もう一度 お試しください' };", '') }],
   ];
   /* ★--self-test=3 のように 番号で 1通りだけ 回せる★（別の 席の 空きを 食わない為） */
   const hitotsu = (process.argv.find((a) => /^--self-test=\d+$/.test(a)) || '').split('=')[1];

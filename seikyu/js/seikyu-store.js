@@ -314,7 +314,7 @@
                （見えない 行・別の 端末で 先に 消えた 等）。共有層は 変えずに ここで 確かめる。 */
             return Promise.resolve(sb.from('pay_partners').select('id,deleted_at').eq('id', id).maybeSingle()).then(function (q) {
               if (q && q.error) return { ok: false, reason: err(q.error) };
-              if (!q || !q.data || !q.data.deleted_at) return { ok: false, reason: '倉庫で 消えた事を 確かめられませんでした' };
+              if (!q || !q.data || !q.data.deleted_at) return { ok: false, reason: '消せたか 確かめられませんでした。もう一度 お試しください' };
               return { ok: true };
             });
           }).catch(function (e) { return { ok: false, reason: err(e) }; });
