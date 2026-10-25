@@ -164,6 +164,24 @@
     return { apply:'cloud', push:false, conflict:true, protect:'cloud' };
   };
 
+  /* ★★自分が 送った 時刻の 名簿を 写しの 中に 持つ（案a・2026-10-25）★★
+     ★客の 穴★ … 会社の 行は 倉庫に 着いたが 人の 書き・差分削除の 前に「押して すぐ 閉じる・iPhone で アプリを 払う」と、
+       開き直しは 新しい タブ（タブの 控え rk_okuttaUA_v1 も 消える）＝倉庫の 時刻を 自分の 書きと 分からず クラウドを 採り、
+       ★消した 人が 戻る・他の 編集も 黙って 消える★。
+     ⇒ 会社を 書く ★前★に app へ 名簿を 渡し（setMaeKakiFn）、app が 写し payslip_state_v1 の 中に 中身と 同じ 1回の setItem で 書く。
+       名簿は「この 写しの 中身を 書いた 者が 送った 時刻」＝中身と 一緒に 動く。古い タブが 写しを 上書きすれば 名簿も その タブの 物に 替わる
+       ＝他の タブの 書きを 自分の 書きと 判じない（rk_okuttaUA_v1 を localStorage に しなかった 訳は ここで 塞がる）。
+     ★純関数・口は hasSupa の 外★＝supabase 無しでも 定義される（app の 登録が 黙って 飛ばない・taiketsu 10-25 止める-2）。
+     試験＝kyuyo/tests/atarashii-tab-hiraki.test.mjs（本物の app.js＋store.js を 偽の supabase で）。 */
+  var _maeKakiFn = null;
+  Store.setMaeKakiFn = function(fn){ _maeKakiFn = (typeof fn === 'function') ? fn : null; };
+  /* ★名簿 o＝{u:口, t:[ms…]}★。口が 同じ かつ ua の ms が 名簿に 在る 時だけ true（NaN・形の 壊れは false） */
+  Store.okuttaNiAruKa = function(o, uid, ua){
+    if(!o || typeof o !== 'object' || !Array.isArray(o.t) || typeof o.u !== 'string' || !o.u || uid == null) return false;
+    var t = Date.parse(String(ua || '')); if(isNaN(t)) return false;
+    return o.u === uid && o.t.indexOf(t) >= 0;
+  };
+
   /* ★★消さない union（純関数・副作用0・★常に定義★・2026-10-07 棚(d)）★★
      ＝司さん「確定明細/賃金台帳(confirmed)・年末調整(nencho)・賞与(bonus)・給与テンプレ(payPatterns)は
        ★絶対に消さない/巻き戻さない★」の為。a=ローカル・b=クラウド。
@@ -718,6 +736,8 @@
            ★口ごとに 持つ★＝`uid` が 変わったら 名簿を 捨てる */
         _okuttaKuchi(uid);
         _okuttaIreru(now);
+        /* ★会社を 書く 前に 名簿を 写しへ（案a）★＝転んでも 保存は 続ける（写しに 無ければ 開き直しは 前の 動き＝クラウドを 採る） */
+        if(_maeKakiFn){ try{ _maeKakiFn({ u:uid, t:_okuttaUA.slice() }); }catch(_eM){ console.error('★送る 時刻を 写しに 書けません（押して すぐ 閉じると 開き直しで クラウドを 採ります）★', _eM); } }
         /* ★★⑦ 会社を ★先に★ 書く＝古い書きで 巻き戻るのを 塞ぐ★★（2026-10-03・指示役と）
            ・控え!=null → ★条件付き update `.eq('updated_at',控え)`★＝控えと 同じ時だけ 当たる（事前SELECTと
              本書きの 間＝TOCTOU を 塞ぐ・事前SELECTが 転んだ時も 効く）。
@@ -868,6 +888,7 @@
             }
           }catch(_e3){}
           if(!co && !emps.length) return null; var s=co||{}; s.employees=emps;
+          s._uid=uid;   /* ★読んだ 口（案a＝写しの 名簿が 同じ 口の 物かを 見る）★ */
           s._coUA=(res[0].data && res[0].data.updated_at)||null;   /* ★ロード側 newer-wins 用＝クラウドの会社 updated_at を 返りに載せる（追加のみ・既存の読み手は無視＝挙動不変・2026-10-07 棚(d)）★ */
           return s;
         }, function(e){

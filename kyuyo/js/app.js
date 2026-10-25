@@ -6948,6 +6948,20 @@
      ⇒ 写しに 書いた タブの 印（_tab）を 入れ、★印が この タブと 同じ 時だけ★ 自分の 書きを 信じる（違えば 倉庫を 採る＝前の 動き）。
      ★印を 引き継ぐのは 開き直し（reload）の 時だけ★＝タブの 複製・閉じた タブを 戻す 時は sessionStorage が 写るので 新しい 印に する。 */
   var TABKEY='rk_tab_v1', _tabId=null, _utsushiTab=null;
+  /* ★写しの 名簿（案a・2026-10-25）★＝{u:口, t:[ms…]}＝この 写しの 中身を 書いた 者が 送った 会社の 時刻。store.js の setMaeKakiFn の 覚書を 見る。
+     開き直しで 写しから 読み、送る たびに store の 名簿と 合わせて 書く（新しい タブの 送り直しが 会社の 書きの 前に 殺されても 前の 時刻を 落とさない・taiketsu 任意-1） */
+  var _okuttaUtsushi=null, OKUTTA_UTSUSHI_UE=8;
+  function _okuttaKatachi(o){
+    if(!o || typeof o!=='object' || typeof o.u!=='string' || !o.u || !Array.isArray(o.t)) return null;
+    return { u:o.u, t:o.t.filter(function(x){ return typeof x==='number' && isFinite(x); }).slice(-OKUTTA_UTSUSHI_UE) };
+  }
+  function _maeKakiUke(ok){
+    var n=_okuttaKatachi(ok); if(!n) return;
+    var t=(_okuttaUtsushi && _okuttaUtsushi.u===n.u) ? _okuttaUtsushi.t.slice() : [];
+    n.t.forEach(function(x){ if(t.indexOf(x)<0) t.push(x); });
+    _okuttaUtsushi={ u:n.u, t:t.slice(-OKUTTA_UTSUSHI_UE) };
+    if(!_utsushiKaku(snapshot())) console.error('★送る 時刻を 写しに 書けません（このブラウザの空き容量）＝押して すぐ 閉じると 開き直しで クラウドを 採ります★');
+  }
   /* ★純関数★＝前の 印を 引き継ぐのは 開き直し（reload）で 印が 在る 時だけ。それ以外は null（新しい 印を 作る） */
   function tabNoShirushiErabu(nav, mae){ return (nav==='reload' && mae) ? String(mae) : null; }
   (function(){
@@ -6984,6 +6998,7 @@
      ★_syncBase は 写しにだけ 足す★（snapshot＝クラウドへ 送る 中身には 混ぜない）。 */
   function _utsushiKaku(s, base){
     var o=Object.assign({}, s); o._syncBase=(base===undefined)?_syncMeta.baseCoUA:base; o._tab=_tabId;
+    if(_okuttaUtsushi){ o._okutta=_okuttaUtsushi; }   /* ★名簿も 同じ 1回の setItem で（案a）★ */
     try{ localStorage.setItem(PKEY, JSON.stringify(o)); _utsushiTab=_tabId; return true; }catch(e){ return false; }   /* ★書けたら 写しは この タブの 物★（同じ 画面の 中の 2回目の 読み直しでも 自分の 書きを 信じる・taiketsu 任意1） */
   }
   var IN_KAKENAI_JI='⚠ この端末に 保存できません（このブラウザの空き容量）＝クラウドに 保存できるまで 閉じないでください';
@@ -7024,6 +7039,9 @@
     var _ss=document.getElementById('save-status'); if(_ss) _ss.textContent='⚠ クラウド保存の 準備に 失敗（開き直してください）';
     hozonFuda('ng', '⚠ クラウド保存の 準備に 失敗（開き直してください）');
   }
+  /* ★会社を 書く 前に 名簿を 写しへ 書く 口（案a）★＝付かないと 押して すぐ 閉じた 時に 消した 人が 戻る＝黙らない */
+  try{ if(window.Store&&Store.setMaeKakiFn) Store.setMaeKakiFn(_maeKakiUke); else console.error('★送る 時刻を 写しに 書く 口が ありません★'); }
+  catch(e){ console.error('★送る 時刻を 写しに 書く 口が 付きませんでした★', e); }
   function persistSave(){
     var snap=snapshot(), lsOk=true, _kumoP=null, _koNo=_henshuNo;   /* ★この 保存が 運ぶ 編集の 番号★（store は 送る 直前に 取り直す＝これより 新しい 事は 在っても 古い 事は 無い） */
     lsOk=_utsushiKaku(snap);
@@ -7147,6 +7165,7 @@
     /* ★基準の 時刻は 写しの 中の 物を 使う★（写しと 同じ 時に 書いた 基準＝古い タブや 書けなかった 写しと 食い違わない・2026-10-12）。無い 写し（前の 形）は 印の 物のまま */
     if(s && typeof s==='object' && Object.prototype.hasOwnProperty.call(s,'_syncBase')) _syncMeta.baseCoUA=(s._syncBase==null?null:String(s._syncBase));
     _utsushiTab=(s && typeof s==='object' && s._tab!=null) ? String(s._tab) : null;   /* ★写しを 最後に 書いた タブ★（自分の 書きを 信じるかの 門） */
+    _okuttaUtsushi=(s && typeof s==='object') ? _okuttaKatachi(s._okutta) : null;     /* ★写しの 名簿（案a）★＝壊れた 形は 捨てる */
     if(s&&s.employees&&s.employees.length){
       if(s.company) state.company=Object.assign(defCompany(), s.company); state.employees=s.employees.map(mergeEmp);
       if(s.month) state.month=s.month; if(s.theme) state.theme=s.theme; if(s.prefer) state.prefer=migPrefer(s.prefer);
@@ -7172,8 +7191,18 @@
     try{ if(window.Store&&Store.reconcileOnLoad){ dec=Store.reconcileOnLoad({
       localDirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, cloudCoUA:cs._coUA,
       /* ★写しを 最後に 書いたのが この タブの 時だけ 自分の 書きを 信じる★（別の タブが 上書きした 写しで この タブの 控えを 使わない） */
-      isOwnUA:((Store.isOwnCompanyUA && _utsushiTab && _utsushiTab===_tabId)?function(ua){ return Store.isOwnCompanyUA(ua); }:null)
+      /* ★もう 1つ＝写しの 中の 名簿（案a）★＝中身と 一緒に 動くので タブの 門は 要らない（新しい タブ・アプリを 払った 後でも 効く）。口（uid）が 同じ 時だけ */
+      isOwnUA:function(ua){
+        if(Store.isOwnCompanyUA && _utsushiTab && _utsushiTab===_tabId && Store.isOwnCompanyUA(ua)) return true;
+        return !!(Store.okuttaNiAruKa && Store.okuttaNiAruKa(_okuttaUtsushi, cs._uid, ua));
+      }
     }); } }catch(e){ console.error('★reconcileOnLoad が 呼べません（これまでの道で クラウド適用に 倒す）★', e); dec=null; }
+    /* ★手元が 0人なら 手元を 採らない★（taiketsu 10-25 止める-1）＝写しが 0人だと 開き直しで 写しを 読まず 会社も 既定の まま（振込元が 空）。
+       それを 送ると 倉庫の 会社の 設定を 既定値で 上書きし、人は 0人なので 差分削除も 走らず 消した 人も 消えない。⇒ 倉庫を 採る（消した 人は 戻る＝前の 動き） */
+    if(dec && dec.apply==='local' && !(state.employees && state.employees.length)){
+      console.error('★手元が 0人なので クラウドを 採ります（会社の 設定を 既定値で 上書きしない）★');
+      dec={ apply:'cloud', push:false, conflict:true, protect:'cloud' };
+    }
     var protect=(dec&&dec.protect)||'replace';
     /* ★保護ドメイン(confirmed/nencho/bonus/payPatterns)の 扱い★（司さん②・2026-10-07＝絶対に消さない/巻き戻さない）
        protect='replace'＝クラウドで置換(手元に未送信編集なし＝失う物なし・値の巻き戻し無し)／
@@ -7212,6 +7241,7 @@
     if(cs.onboardDone)state.onboardDone=true;
     _mamoru();   /* ★confirmed/nencho/bonus/payPatterns＝replace か union（向きは reconcile・消さない/巻き戻さない）★ */
     _syncMeta.baseCoUA=(cs._coUA==null?null:String(cs._coUA)); _syncMeta.dirty=false; _saveSyncMeta();   /* ★クラウドを採った＝基準を更新・cleanに（棚d）★ */
+    _okuttaUtsushi=null;   /* ★中身が 倉庫の 物に 替わった＝写しの 名簿は もう この 中身の 物では ない（案a）★ */
     state._prevYm=null; state._bonusPrevYm=null; state._bonusYtdYm=null; // クラウド復元で前月比キャッシュを無効化(stale防止)
     $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); warmLedger(); var act=$('.screen.active'); if(act)showScreen(act.id); _hazushiMeiboOk=true; return true; }
   /* ★倉庫の 答えが 来るまで 人の 一覧を 描かない★（2026-09-05 指示役の裁定・案D）
