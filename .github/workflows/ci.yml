@@ -672,6 +672,8 @@ jobs:
         run: node kyuyo/tests/cloud-sync.mjs
       - name: ★ロード側 newer-wins (古いクラウドが新しいローカル編集を消さない・confirmed等はunionで消さない・本物のapplyCloudState)
         run: node kyuyo/tests/load-newer-wins.test.mjs && node kyuyo/tests/load-newer-wins.test.mjs --waza
+      - name: ★選んだ物が 画面を 行き来しても 戻らない（印刷の 人・月を 変えた時に 居ない人を 選ばない・要確認だけ表示・振込の 自社の 欄＝司さん 10-25「画面変えると また戻ってる」）
+        run: node kyuyo/tests/gamen-ikiki-modoranai.test.mjs && node kyuyo/tests/gamen-ikiki-modoranai.test.mjs --waza && node kyuyo/tests/gamen-ikiki-modoranai.test.mjs --waza=tsuki
       - name: ★押して すぐ 閉じる・アプリを 払う→新しい タブで 開いても 消した 人が 戻らない（写しの 名簿・本物の app＋store を 偽の supabase で・壊し5つ）
         run: node kyuyo/tests/atarashii-tab-hiraki.test.mjs && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=1 && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=2 && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=3 && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=4 && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=5
       - name: ★読めるまで消さない・読めるまで保存しない（2026-09-03 P0＝開いただけで従業員が消えた 6/10）

@@ -4831,6 +4831,12 @@
     updatePrintMonthUI();
     updateDailyLayoutUI();
     var sel=$('#p-emp'); sel.innerHTML='<option value="__all">全員</option>'+state.employees.map(function(e,i){return isActiveInMonth(e,state.month)?'<option value="'+i+'">'+esc(e.name)+'</option>':'';}).join('');
+    /* ★選んだ人を 描き直しで 失わない★（2026-10-25 司さん「画面変えると また戻ってる 他の所も 確認して直せ」）
+       前は 描くたびに「全員」へ 戻った＝1人を 選んで 他の 画面へ 行き 戻ると 全員の 明細に なっていた。
+       ⇒ 人の id で 覚える（並びが 変わっても 別の人に ならない）。その月に 居ない人なら「全員」にして 覚えを 捨てる（下の else）。 */
+    if(state._printEmpId){ var _pi=-1; state.employees.forEach(function(e,i){ if(e.id===state._printEmpId) _pi=i; });
+      if(_pi>=0 && sel.querySelector('option[value="'+_pi+'"]')) sel.value=String(_pi);
+      else state._printEmpId=null; }   /* ★「全員」に 落ちたら 覚えを 捨てる★＝後で 黙って その人に 戻らない（taiketsu 任意-2） */
     // ★押せない時は理由をボタンの中に（下に小さく置くと読まれない）
     var wp=$('#b-webpub'), g=webPubGate();
     if(wp){ wp.disabled=!g.enabled; wp.textContent=g.enabled?'Web明細で公開':('Web明細で公開（'+g.short+'）'); }
@@ -5594,7 +5600,8 @@
     document.addEventListener('change',function(ev){ if(!ev.target.classList.contains('scr-month'))return; state.month=ev.target.value||state.month; state._prevYm=null; state._bonusPrevYm=null; state._bonusYtdYm=null; /* 月替わりで前月比/賞与前月キャッシュを更新 */ $$('.scr-month').forEach(function(m){ m.value=state.month; }); updatePaydayPreview(); warmLedger();
       if($('#scr-input').classList.contains('active')){$('#in-month').textContent=monthLabel();renderInputArea();}
       if($('#scr-list').classList.contains('active')) renderListActive();
-      if($('#scr-print').classList.contains('active')) doPreview(); // 印刷の月も対象月に統合(P1-18)
+      /* ★印刷は 選ぶ欄から 作り直す★（2026-10-25 taiketsu）＝前は doPreview だけで、その月に 居ない 人を 選んだ まま 下絵・Excel の 対象に していた */
+      if($('#scr-print').classList.contains('active')) renderPrint(); // 印刷の月も対象月に統合(P1-18)
       if($('#scr-furikomi')&&$('#scr-furikomi').classList.contains('active')) renderFuri(); }); // ★振込も月を変えたら作り直す
 
     // 入力タブ: 月次給与/賞与 モード切替
@@ -6383,8 +6390,8 @@
     $('#view-list').addEventListener('click',function(e){ var tg=e.target.closest('[data-ltoggle]'); if(!tg)return; var id=tg.dataset.ltoggle; state.open['L'+id]=!state.open['L'+id]; $('#view-list .acc[data-lid="'+id+'"]').classList.toggle('open'); });
 
     // 印刷
-    $('#p-emp').addEventListener('change',doPreview);
-    // #p-monthは.scr-monthに統合(P1-18)→共通ハンドラ(対象月change)が state.month同期＋doPreviewを行う
+    $('#p-emp').addEventListener('change',function(){ var v=$('#p-emp').value, pe=(v==='__all')?null:state.employees[+v]; state._printEmpId=pe?pe.id:null; doPreview(); });   /* ★選んだ人を 覚える（renderPrint が 戻す）★ */
+    // #p-monthは.scr-monthに統合(P1-18)→共通ハンドラ(対象月change)が state.month同期＋renderPrint（選ぶ欄から作り直す）を行う
     $('#print-mode-seg').addEventListener('click',function(e){ var b=e.target.closest('.pmode'); if(!b)return; state.printMode=b.dataset.pmode==='bonus'?'bonus':'monthly'; $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===state.printMode); }); updatePrintMonthUI(); updateDailyLayoutUI(); doPreview(); });
     $('#daily-layout-seg').addEventListener('click',function(e){ var b=e.target.closest('.dls'); if(!b)return; state.dailySlipLayout=b.dataset.dls==='2col'?'2col':'1col'; $$('.dls').forEach(function(x){ x.classList.toggle('on', x.dataset.dls===state.dailySlipLayout); }); doPreview(); });
     function afterDesign(){ renderDesign(); if($('#scr-print')&&$('#scr-print').classList.contains('active')) doPreview(); }
