@@ -542,6 +542,11 @@ jobs:
         run: node seikyu/tests/hakko-to-jido.mjs --self-test --bu=2
       - name: ★発行と自動のしまいがぶつからない その3 (番号で見分ける・印・待っていますを本当に壊すと赤かの自己確認)
         run: node seikyu/tests/hakko-to-jido.mjs --self-test --bu=3
+      # ★発行済みは 金額が 計算できない 間 しまわない★（2026-10-30 taiketsu 本番の 凍結 入れ替え前 止1）＝合計を 空 {} で 倉庫に 入れない
+      - name: ★発行済みは計算できない間しまわない (合計を空にしない・下書きは今まで通り)
+        run: node seikyu/tests/hakko-keisan.mjs
+      - name: ★発行済みは計算できない間しまわない (門を外すと赤かの自己確認)
+        run: node seikyu/tests/hakko-keisan.mjs --self-test
       # ★一覧の 古い 行から 開いて 金額を 書き戻さない★（2026-10-25 指示役）＝自動の しまいの 後に 一覧から 開くと 古い 値で 開き、件名だけで 倉庫の 金額を 戻した
       - name: ★一覧の古い行から開いても金額を書き戻さない (自動のしまいの後に一覧の行も直す)
         run: node seikyu/tests/furui-gyo.mjs --bu=1
