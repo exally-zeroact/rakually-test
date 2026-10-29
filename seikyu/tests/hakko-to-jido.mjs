@@ -487,17 +487,19 @@ if (!SELF) {
     ['返事待ちの 1通を 開く 時に 写しを 作る（4回 止1・5回 止2）', '    if (hakkoMachi(v)) { S.cur = S.hakkoChu; S.dirty = true; fillEdit();', '    if (false) { S.cur = S.hakkoChu; S.dirty = true; fillEdit();', '⑮'],
     ['id の 無い 別の 1通も 番号で 止める（5回 止1）', "    return !h.id && !!v.id && !!no &&", "    return !h.id && !!no &&", '⑱'],
     ['返事の 後に 一覧の「待っています」を 消さない（5回 止2）', "      if (le && /発行の 返事を 待っています/.test(le.textContent)) box('list-err', '');", '', '⑲'],
-    ['開き直しで 打ちかけの 印を 立てない（6回 止1）', '    if (hakkoMachi(v)) { S.cur = S.hakkoChu; S.dirty = true; fillEdit();', '    if (hakkoMachi(v)) { S.cur = S.hakkoChu; fillEdit();', '㉑'],
+    /* ㉑は 2つの 守りで 守る＝開き直しの 印と、しまいの 返事で 中身が 違えば 印を 立てて 送り直す（10-26 furui-gyo の 件）。両方 壊すと 赤 */
+    ['開き直しで 打ちかけの 印を 立てず 送り直しも しない（6回 止1）', [['    if (hakkoMachi(v)) { S.cur = S.hakkoChu; S.dirty = true; fillEdit();', '    if (hakkoMachi(v)) { S.cur = S.hakkoChu; fillEdit();'], ['            else { S.dirty = true; jidoYoyaku(); }', '            else jidoYoyaku();']], null, '㉑'],
     ['今の 番号で 見分ける（6回 止2）', '    var no = S.hakkoNo || h.no;', '    var no = h.no;', '㉒'],
     ['予約を 消さずに しまいの 止めも 外す', "    if (jidoTimer) { clearTimeout(jidoTimer); jidoTimer = null; }\n    S.hakkoChu = hakko;", '    S.hakkoChu = null;', '②'],
   ];
   for (const [i, [na, a, b, mi]] of kowasu.entries()) {
     if (!buNi(i, kowasu.length)) continue;
     await T('壊すと 赤: ' + na, async () => {
-      ok(app.split(a).length === 2, '★壊す所が 1つ 見つからない★ … ' + a);
+      const kumi = Array.isArray(a) ? a : [[a, b]];
+      for (const [x] of kumi) ok(app.split(x).length === 2, '★壊す所が 1つ 見つからない★ … ' + x);
       const m = MICHI.find(([n]) => n.startsWith(mi));
       ok(m, '★見張る 道が 無い★ ' + mi);
-      APP_KAE = app.replace(a, b);
+      APP_KAE = kumi.reduce((acc, [x, y]) => acc.replace(x, y), app);
       try { new Function(APP_KAE); } catch (e) { APP_KAE = null; throw new Error('★壊し方が 文に なっていない★ ' + e.message); }
       let aka = false;
       try { await m[1](); } catch (e) { aka = true; }

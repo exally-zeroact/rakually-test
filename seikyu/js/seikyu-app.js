@@ -1380,6 +1380,8 @@
   function loadList(opts) {
     var my = ++_listNo;
     var kind = S.docType;
+    var yomiBan = S.henjiNo;           /* ★読み直しを 始めた 時の 返事の 番号★（これより 後に 着いた 保存の 返事で 直した 行は 読んだ 物で 戻さない。
+                                          送った 番号で 比べると、読み直しの 前に 送って 後に 返事が 着いた 保存を 守れなかった・taiketsu 7回 止1） */
     /* ato＝true（保存など）か 字（発行の 番号つき）。★.then(loadList) の 配列は 見ない★ */
     var ato = (opts && (opts.ato === true || typeof opts.ato === 'string')) ? opts.ato : false;
     /* ★読み直して いる 間は「読み込み中」★＝発行した ばかりの 1通が 入って いない 古い 一覧で 繰越を 数えない。
@@ -1394,6 +1396,14 @@
     ]).then(function (r) {
       if (my !== _listNo) return;            // ★後から 呼んだ 読みが 在る＝古い 一覧で 上書きしない★
       S.invoices = r[0] || [];
+      /* ★読み直しの 返事が 遅い 間に 保存の 返事で 直した 行は 戻さない★（taiketsu 6回 止1＝倉庫を 読んだのは 保存より 前・返事は 後で、
+         一覧の 行が 7000 に 戻り、開き直して 件名を 直すだけで 倉庫の 8000 を 7000 に 戻した）。状態が 違えば 読んだ 物の 方が 新しい */
+      S.invoices.forEach(function (gyo, i) {
+        var id = gyo && gyo.id, u = id && S.utsushitaGyo[id];
+        if (u && (S.utsushitaHenji[id] || 0) > yomiBan && String(gyo.status || 'draft') === String(u.status || 'draft')) {
+          S.invoices[i] = Object.assign({}, gyo, JSON.parse(JSON.stringify(u)));
+        }
+      });
       S.receipts = r[1];                     // ★null のまま持つ＝「未確認」と「0件」を作り分ける
       S.quotes = (kind === 'quote') ? S.invoices : (r[2] || []);
       S.listReadOk = true; S.listAto = false; S.listKind = kind;   /* ★読めた 種類も 持つ★（種類が 違う 一覧では 繰越を 数えられない） */
@@ -1692,6 +1702,10 @@
     /* 開き直したら ★打ちかけの 印を 立てる★（別の 1通を 開いた 時に 印が 落ち、断られると 打った 値が 黙って 消えた・taiketsu 6回 止1）
        ＝返事の 後に その 1通を もう一度 しまう（同じ 中身なら 害は 無い） */
     if (hakkoMachi(v)) { S.cur = S.hakkoChu; S.dirty = true; fillEdit(); goScreen('scr-edit'); return; }
+    var okuriNo = okuriChuNoId(id);
+    /* 状態が 一覧の 行と 違えば 倉庫の 方が 先に 進んだ（取り消し・別の 端末）＝その 1通は 使わず 行の 方で 開く（taiketsu 5回 止C） */
+    if (okuriNo && String(okuriNo.status || 'draft') !== String(v.status || 'draft')) { okuriOwari(okuriNo); okuriNo = null; }
+    if (okuriNo) { S.cur = okuriNo; S.dirty = true; fillEdit(); goScreen('scr-edit'); return; }
     S.cur = JSON.parse(JSON.stringify(v));
     S.dirty = false;                  // ★前の 1通の「直しかけ」を 持ち越さない★（taiketsu 10-14）
     /* ★保存できなかった 1通は ★打った 値で★ 開く★（倉庫の 古い値で 上書きしない＝打った物を 黙って 捨てない） */
@@ -3820,13 +3834,20 @@
     var okuru = Object.assign({}, v, { lines: cleanLines(v.lines) });
     var okuttaCur = S.cur;
     var okuttaKata = hozonKata(v);    /* ★送った 時の 中身★（返事を 待つ 間に 打った 字を 見分ける・taiketsu 止A） */
+    var okuttaGyo = gyoNoUtsushi(okuru);   /* ★送った 時の 14列の 写し★（返事の 後に 一覧へ 置く） */
     if (v.id && S.kieta && S.kieta[v.id]) return;
     /* ★発行の 返事を 待つ 1通は しまわない★（2026-10-25）＝下書きの まま 送ると 発行済みに 当たって 凍結に 拒まれ（偽の「取り消して 作り直して」）、
        id の 無い 1通なら 同じ 番号で 2通目を 作ろうとした。待つ 間に 打った 字は 発行の 返事の 後に 予約し直す（issue） */
     if (hakkoMachi(S.cur)) return;
+    /* ★返事が 逆に 着いても 古い 方に 負けない★（taiketsu 3回 止1）＝並べずに すぐ 送る（並べると 返事の 来ない 1本で その 1通が 止まり、
+       移った 後の 打ち足しが 消えた・taiketsu 4回）。代わりに ①一覧の 行は 一番 新しく 送った 分より 古い 返事を 置かない
+       ②返事の 時に 画面が 送った 物と 違えば 印を 立てて 送り直す（倉庫に 当たる 順が 逆でも 最後は 画面の 中身に 揃う） */
+    var okuriBan = ++S.okuriBan;
     try {
+      okuriKaishi(okuttaCur);
       S.hozonChu = S.store.invoices.saveDraft(okuru);
       S.hozonChu.then(function (r) {
+        okuriOwari(okuttaCur);
         if (r && r.ok) {
           /* ★id は 送った 1通に 付ける★（返事の 前に 別の 1通を 見ても、戻った 時に id が 無いと 同じ番号で 2通目を 作ろうとした・taiketsu 10-23） */
           if (okuttaCur && !okuttaCur.id) okuttaCur.id = r.id;
@@ -3835,13 +3856,61 @@
              違えば 印を 残して 次の 自動の しまいに 任せる */
           if (S.cur && S.cur === okuttaCur) {
             if (hozonKata(S.cur) === okuttaKata) S.dirty = false;
-            else jidoYoyaku();
+            else { S.dirty = true; jidoYoyaku(); }   /* ★印を 立てて 送り直す★（立てないと 次の しまいが 何も しなかった・taiketsu 3回） */
           }
+          ichiranNiUtsusu(okuttaGyo, r.id, okuriBan);
           ochiKesu(okuttaCur); return;
         }
         ochita(okuttaCur, r);
-      }).catch(function (e) { ochita(okuttaCur, { ok: false, reason: e && e.message }); });
-    } catch (e) { ochita(okuttaCur, { ok: false, reason: e && e.message }); }
+      }).catch(function (e) { okuriOwari(okuttaCur); ochita(okuttaCur, { ok: false, reason: e && e.message }); });
+    } catch (e) { okuriOwari(okuttaCur); ochita(okuttaCur, { ok: false, reason: e && e.message }); }
+  }
+  /* ★自動の しまいが 通ったら、手元の 一覧の その 行も 倉庫と 同じ 中身に する★（2026-10-25 指示役・taiketsu 6回 の 前から 在る 穴）
+     ＝静かに しまうので 一覧は 読み直さない。前は 一覧の 行が 古い まま 残り、下タブで 一覧へ 出て 同じ 1通を 開くと
+       古い 値（7000）で 開き、件名を 1文字 直すだけで 倉庫の 8000 を 7000 に 黙って 書き戻した（お金）。
+     ・置くのは ★保存が 倉庫へ 書く 列だけ★（seikyu-store.js saveDraft と 同じ 14列）。
+       送った日時・発行日時 等の 倉庫だけが 持つ 列と、手元だけの 印（_shimatta・_k）は 置かない
+       （丸ごと 重ねると 送った日時が 古い 空で 上書きされ「まだ 渡していません」が 出た／手元の 印が 漏れて 発行を 断られた 時の 知らせが 消えた・taiketsu 止1・止2）
+     ・一覧に まだ 無い 1通（新しく 作った 1通）は 足さない＝次に 読み直した 時に 出る
+     ・一覧の 種類が 違う 時は 触らない */
+  var KURA_NI_KAKU = ['doc_type', 'no', 'partner_id', 'issue_ymd', 'due_ymd', 'status', 'tax_mode', 'rounding',
+    'lines', 'totals', 'snapshot', 'data', 'template_id', 'quote_from'];
+  /* ★返事を 待っている 1通★（id ごと）＝返事の 前に 一覧から 同じ 1通を 開くと、古い 行の 写しで なく ★その 1通 そのもの★を 開く
+     （写しで 開くと 古い 7000 で 開き、件名を 直すだけで 倉庫の 8000 を 7000 に 戻した・taiketsu 4回 止3）。
+     手元の 印を 1通に 書かない（写しや 知らせに 漏れる）＝別の 置き場で 数で 持つ */
+  var OKURI_CHU = [];
+  S.okuriBan = 0; S.utsushitaBan = {}; S.utsushitaGyo = {}; S.henjiNo = 0; S.utsushitaHenji = {};
+  function okuriKaishi(o) { if (o) OKURI_CHU.push(o); }
+  function okuriOwari(o) { var i = OKURI_CHU.indexOf(o); if (i >= 0) OKURI_CHU.splice(i, 1); }
+  function okuriChuNoId(id) {
+    for (var i = OKURI_CHU.length - 1; i >= 0; i--) if (OKURI_CHU[i] && OKURI_CHU[i].id && OKURI_CHU[i].id === id) return OKURI_CHU[i];
+    return null;
+  }
+  /* ★送る その時に 14列の 深い 写しを 取る★（返事を 待つ 間に 打った 字が 入らない・taiketsu 2回 止1＝
+     返事の 時の 画面を 写すと 倉庫に 無い 番号が 一覧に 入り、偽の「取り消して 作り直して」に なった） */
+  function gyoNoUtsushi(v) {
+    var o = {};
+    KURA_NI_KAKU.forEach(function (k) { if (v && (k in v)) o[k] = JSON.parse(JSON.stringify(v[k] === undefined ? null : v[k])); });
+    return o;
+  }
+  function ichiranNiUtsusu(utsushi, id, ban) {
+    if (!id || !utsushi || !Array.isArray(S.invoices)) return;
+    /* ★一番 新しく 送った 分より 古い 返事は 置かない★（返事が 逆に 着いた 時に 古い 方で 上書きしない） */
+    if (ban) { if ((S.utsushitaBan[id] || 0) > ban) return; S.utsushitaBan[id] = ban; }
+    /* ★倉庫に 入った 中身は 一覧の 行の 状態に 関わらず 覚える★（遅い 読み直しの 返事に 重ねる 為＝重ねるのは 読んだ 行と 状態が 合う 時だけ・loadList。
+       発行の 直後は 一覧の 行が まだ 下書きで ここでは 置けないが、読み直した 発行済みの 行には 重ねる・taiketsu 6回 止1） */
+    S.utsushitaGyo[id] = JSON.parse(JSON.stringify(utsushi));
+    S.utsushitaHenji[id] = ++S.henjiNo;   /* 返事が 着いた 順（読み直しの 返事と 比べる） */
+    if ((utsushi.doc_type || 'invoice') !== (S.listKind || S.docType || 'invoice')) return;
+    for (var i = 0; i < S.invoices.length; i++) {
+      if (S.invoices[i] && S.invoices[i].id === id) {
+        /* ★倉庫の 方が 先に 進んで いたら 置かない★（taiketsu 5回 止A・止B）＝返事を 待つ 間に 発行・取り消し・読み直しで 一覧の 行の 状態が
+           送った 時と 変わって いれば、その 行の 方が 新しい（置くと 発行済みが 下書きに・取り消し済みが 発行済みに 戻り、集計と 繰越が ずれた） */
+        if (String(S.invoices[i].status || 'draft') !== String(utsushi.status || 'draft')) return;
+        S.invoices[i] = Object.assign({}, S.invoices[i], JSON.parse(JSON.stringify(utsushi)));
+        return;
+      }
+    }
   }
   /* ★★しまえなかった事を 黙らない★★（2026-10-14 指示役・taiketsu）
      ＝倉庫が 発行済みの 直しを 拒むと ★自動の しまいは 黙って 落ち★、画面は 直した値・紙と 台帳は 古い値の まま だった。
@@ -3966,15 +4035,21 @@
     box('edit-ok', '');               // ★前の「保存しました」を 残さない★（落ちた時に 並んで 出ていた・taiketsu 10-14）
     var okuttaCur = S.cur;
     var okuttaKata = hozonKata(v);    /* ★送った 時の 中身★（返事を 待つ 間に 打った 字を 見分ける・taiketsu 止1） */
+    var okuttaGyo = gyoNoUtsushi(v);  /* ★送った 時の 14列の 写し★（v は 画面の 1通 そのもの＝返事の 後に 写すと 待つ 間に 打った 字が 入った） */
+    var okuriBan = ++S.okuriBan;
+    okuriKaishi(okuttaCur);
     var pr = Promise.resolve().then(function () { return S.store.invoices.saveDraft(v); });
     S.hozonChu = pr;
     return pr.then(function (r) {
+      okuriOwari(okuttaCur);
       if (!r || !r.ok) {
         if (r && r.dup) { box('edit-err', 'この番号（' + v.no + '）は既に使われています。別の番号にしてください。'); return; }
         ochita(okuttaCur, r);
         return;
       }
       ochiKesu(okuttaCur);
+      /* ★返事の 前に 別の 1通へ 移ると 下で 読み直しを 飛ばす★＝一覧の 行は ここで 倉庫と 同じに する（taiketsu 10-26 D） */
+      ichiranNiUtsusu(okuttaGyo, r.id, okuriBan);
       if (okuttaCur && !okuttaCur.id) okuttaCur.id = r.id;   // ★id は 送った 1通に 付ける★（taiketsu 10-23）
       if (okuttaCur) okuttaCur._shimatta = okuttaKata;
       if (S.cur !== okuttaCur) return;   // 返事の 前に 別の 1通を 開いた＝今の 画面には 付けない
@@ -3991,7 +4066,7 @@
         : S.cur.status === 'void' ? '取り消し済みの 中身を 保存しました。'
           : '下書きを保存しました。'));
       return loadList({ ato: true }).then(function () { fillEdit(); });
-    }, function (e) { ochita(okuttaCur, { ok: false, reason: e && e.message }); });
+    }, function (e) { okuriOwari(okuttaCur); ochita(okuttaCur, { ok: false, reason: e && e.message }); });
   }
 
   /* ═══ ★「発行する」が押せない理由★ ═══

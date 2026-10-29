@@ -542,6 +542,19 @@ jobs:
         run: node seikyu/tests/hakko-to-jido.mjs --self-test --bu=2
       - name: ★発行と自動のしまいがぶつからない その3 (番号で見分ける・印・待っていますを本当に壊すと赤かの自己確認)
         run: node seikyu/tests/hakko-to-jido.mjs --self-test --bu=3
+      # ★一覧の 古い 行から 開いて 金額を 書き戻さない★（2026-10-25 指示役）＝自動の しまいの 後に 一覧から 開くと 古い 値で 開き、件名だけで 倉庫の 金額を 戻した
+      - name: ★一覧の古い行から開いても金額を書き戻さない (自動のしまいの後に一覧の行も直す)
+        run: node seikyu/tests/furui-gyo.mjs --bu=1
+      - name: ★一覧の古い行 その2 (返事が逆の順・返事待ちの開き直し・発行や取り消しの後に遅れた返事)
+        run: node seikyu/tests/furui-gyo.mjs --bu=2
+      - name: ★一覧の古い行 その3 (読み直しが遅い・下タブ・複製・別の端末)
+        run: node seikyu/tests/furui-gyo.mjs --bu=3
+      - name: ★一覧の古い行 (一覧の行を直すのをやめると赤かの自己確認)
+        run: node seikyu/tests/furui-gyo.mjs --self-test --bu=1
+      - name: ★一覧の古い行 その2 (並べ・状態の門を本当に壊すと赤かの自己確認)
+        run: node seikyu/tests/furui-gyo.mjs --self-test --bu=2
+      - name: ★一覧の古い行 その3 (返事の順の比べを本当に壊すと赤かの自己確認)
+        run: node seikyu/tests/furui-gyo.mjs --self-test --bu=3
       # ★お振込先の 入れ方★（司さん 2026-09-10「どこで 改行など 分からんから ちゃんとして
       #   それと 2個 表示する時用で 追加ボタンで また 入力するようにしろ」）
       # ★押しても 何も 変わらない 設定を 残さない★（司さん 2026-09-10
