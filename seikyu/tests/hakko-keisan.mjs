@@ -213,15 +213,41 @@ michi('④下書きは 今まで通り「-」でも しまう（打ちかけを 
   t.tanka('-'); await nemuru(2000);
   ok(t.LOG.slice(n0).some((l) => /^save /.test(l)), '★下書きの 打ちかけを しまわなくなった★ ' + t.LOG.slice(n0).join(' | '));
 });
+michi('⑤発行済みで 控除の 行を 足し 金額を 読めない 字の まま 手を 止める＝しまわない（請求額が 控除前で 入らない）', async () => {
+  const t = await hakkoSumi();
+  await shuseiDe(t);
+  const mae = gokei(kuraB(t));
+  await oshu(t, '#b-ded-add');
+  const el = t.doc.querySelector('[data-da]'); ok(el, '★前置き：控除の 金額の 欄が 無い★');
+  const n0 = t.LOG.length;
+  el.value = '1万'; el.dispatchEvent(new t.win.Event('input', { bubbles: true }));
+  await nemuru(2000);
+  eq(gokei(kuraB(t)), mae, '★控除が 読めないのに 合計が 書き換わった★');
+  ok(!t.LOG.slice(n0).some((l) => /^save /.test(l)), '★控除が 読めないのに 倉庫へ 送った★ ' + t.LOG.slice(n0).join(' | '));
+});
+const kenmei = (t, x) => { const e = t.$('e-subject'); e.value = x; e.dispatchEvent(new t.win.Event('input', { bubbles: true })); e.dispatchEvent(new t.win.Event('change', { bubbles: true })); };
+michi('⑥「-」の まま 下タブで 一覧へ 出る＝打った 値ごと 知らせが 残り、同じ 1通を 開き直しても 消えない', async () => {
+  const t = await hakkoSumi();
+  await shuseiDe(t);
+  kenmei(t, '直した件名');
+  t.tanka('-'); await nemuru(300);
+  await oshu(t, '.bn[data-scr="scr-list"]'); await nemuru(300);
+  const li = t.$('list-ochita');
+  ok(li && li.style.display !== 'none' && /計算できない/.test(li.textContent), '★一覧に 知らせが 無い★ ' + (li && li.textContent));
+  await shuseiDe(t); await nemuru(200);
+  eq(t.$('e-subject').value, '直した件名', '★開き直したら 打った 件名が 消えた★');
+});
 
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
 } else {
   const app = fs.readFileSync(path.join(ROOT, 'seikyu', 'js', 'seikyu-app.js'), 'utf8').replace(/\r\n/g, '\n');
   const kowasu = [
-    ['自動の しまいで 門を 見ない', '    if (keisanDekinaiHakko(v, t)) return;\n', '', '①'],
-    ['手の 保存で 門を 見ない', '    if (keisanDekinaiHakko(v, t)) {\n', '    if (false) {\n', '③'],
-    ['下書きも 止める', "    return !!(v && v.status && v.status !== 'draft' && !(t && t.ok));", '    return !(t && t.ok);', '④'],
+    ['自動の しまいで 門を 見ない', '    if (keisanDekinaiHakko(v, t)) {\n      /*', '    if (false) {\n      /*', '①'],
+    ['手の 保存で 門を 見ない', '    if (keisanDekinaiHakko(v, t)) {\n      box(', '    if (false) {\n      box(', '③'],
+    ['下書きも 止める', "    return !!(v && v.status && v.status !== 'draft' && (", '    return !!(v && (', '④'],
+    ['控除を 門に 入れない', ' && (!(t && t.ok) || currentDeduct() === null));', ' && !(t && t.ok));', '⑤'],
+    ['画面を 出る 時に 知らせを 残さない', '      if (!tsukuruYoi) ochita(S.cur, { reason: KEISAN_DEKINAI });\n', '', '⑥'],
   ];
   for (const [na, a, b, mi] of kowasu) {
     await T('壊すと 赤: ' + na, async () => {

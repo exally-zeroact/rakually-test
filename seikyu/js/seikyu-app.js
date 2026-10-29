@@ -3794,10 +3794,13 @@
        true  … 打鍵が 止まった時（人が 本当に 打っている）
        false … 画面を 変えた時・窓を 隠した時＝★もう在る 紙を 直すだけ★
                （ここで 作ると 触っただけの 空の紙が 一覧に 増える＝実測で 試験が 9本 落ちた） */
-  /** ★発行済み・取り消し済みで 金額が 計算できない★＝しまうと 合計が 空 {} で 倉庫に 入る（下書きは 今まで通り しまう） */
+  /** ★発行済み・取り消し済みで 金額が 計算できない★＝しまうと 合計が 空 {} で 倉庫に 入る（下書きは 今まで通り しまう）
+   *  ★控除が 読めない 時も 同じ★（taiketsu 10-30 1回 止1＝控除は TAX.compute に 入らないので t.ok は 真の まま、
+   *    totalsOf が 控除 0・請求額＝控除前 で 書いていた） */
   function keisanDekinaiHakko(v, t) {
-    return !!(v && v.status && v.status !== 'draft' && !(t && t.ok));
+    return !!(v && v.status && v.status !== 'draft' && (!(t && t.ok) || currentDeduct() === null));
   }
+  var KEISAN_DEKINAI = '金額が 計算できない 形の ままです。明細か 控除の 数に ならない 欄を 直すと しまいます';
   function jidoHozon(tsukuruYoi) {
     if (jidoTimer) { clearTimeout(jidoTimer); jidoTimer = null; }
     if (!S.dirty) return;
@@ -3838,7 +3841,12 @@
        ＝ここで 合計を 空 {} に して 送ると、凍結が 3列に なった 倉庫は 通し、入金の 残り・繰越・源泉・集計が 空を 読む。
        12列の 凍結が たまたま 拒んで 塞いでいた 穴。打ち直しの 途中（「1万」「-」）で 手を 止めた だけで 起きる。
        知らせは recalc が edit-err に 出す（どの 行が 数に ならないか）。直れば 次の 打鍵で また しまう */
-    if (keisanDekinaiHakko(v, t)) return;
+    if (keisanDekinaiHakko(v, t)) {
+      /* ★画面を 出る 時（tsukuruYoi が 偽＝下タブ・別の 1通・複製・窓を 隠す）は 打った 値ごと 知らせを 残す★
+         （taiketsu 10-30 1回 止2＝黙って 戻ると、一覧から 同じ 1通を 開き直した 時に 古い 行で 開いて 打ちかけが 消えた） */
+      if (!tsukuruYoi) ochita(S.cur, { reason: KEISAN_DEKINAI });
+      return;
+    }
     v.totals = (t && t.ok) ? totalsOf(t) : {};
     var okuru = Object.assign({}, v, { lines: cleanLines(v.lines) });
     var okuttaCur = S.cur;
@@ -4036,7 +4044,7 @@
     /* ★発行済み・取り消し済みは 計算できない 間 しまわない★（jidoHozon と 同じ 門・taiketsu 10-30 止1） */
     if (keisanDekinaiHakko(v, t)) {
       box('edit-err', ((t && t.errors && t.errors.length) ? t.errors.join('\n') + '\n' : '')
-        + '発行済みの 請求書は、金額が 計算できる 形に なるまで 保存しません（合計を 空に しない為）。');
+        + '発行済みの 請求書は、金額が 計算できる 形に なるまで 保存しません（合計を 空に しない為）。' + KEISAN_DEKINAI + '。');
       return Promise.resolve();
     }
     var motoGyo = (v.lines || []).length;
