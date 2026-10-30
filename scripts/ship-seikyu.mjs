@@ -230,19 +230,38 @@ export function ciForShipped(yml, exists) {
   const dropped = [];
   const mixed = [];
   const skipUsed = {};
-  parts.forEach((b) => {
+  /* ★job ごとに 残った段を数える★＝段が全部外れた job は steps が空になり CI が動かない */
+  const jobOf = (s) => { const m = s.match(/^  ([A-Za-z0-9_-]+):\s*$/gm); return m ? m[m.length - 1].trim().slice(0, -1) : null; };
+  let job = jobOf(top);
+  const keptOf = {};
+  if (job) keptOf[job] = 0;
+  parts.forEach((p) => {
+    /* ★job の最後の段の後ろには 次の job の頭（字下げ2以下の行）が付いてくる★
+       ＝段と一緒に外すと 次の job の段が 前の job に混ざる（2026-10-30 実測：kuchi・tpl-kowasu の頭が消えた）。
+       ⇒ 頭は 段から切り離して 必ず残す */
+    const t = p.search(/\n(?= {0,2}\S)/);
+    const b = t < 0 ? p : p.slice(0, t);
+    const tail = t < 0 ? '' : p.slice(t + 1);
+    const keep = (s) => { kept.push(s); if (job) keptOf[job]++; };
+    const after = () => {
+      if (!tail) return;
+      kept.push(tail);
+      const j = jobOf(tail);
+      if (j) { job = j; keptOf[job] = 0; }
+    };
     const nm0 = (b.match(/- name:\s*(.*)/) || [, '?'])[1].trim();
     /* ★手で書いた「走らせない」一覧★（理由つき）を先に見る */
     const sk = CI_SKIP.filter((s) => nm0.indexOf(s.has) >= 0)[0];
     if (sk) {
       skipUsed[sk.has] = 1;
       dropped.push({ name: nm0, files: filesOfStep(b), why: sk.why });
+      after();
       return;
     }
     const files = filesOfStep(b);
-    if (!files.length) { kept.push(b); return; }
+    if (!files.length) { keep(b); after(); return; }
     const gone = files.filter((f) => !exists(f));
-    if (!gone.length) { kept.push(b); return; }
+    if (!gone.length) { keep(b); after(); return; }
     const nm = (b.match(/- name:\s*(.*)/) || [, '?'])[1].trim();
     /* ★走らせる物(.mjs/.js)が 在る物と無い物に割れたら 赤★
        ＝そのまま外すと ★動くはずの試験まで 一緒に捨てる★ 事になるので 勝手に直さない
@@ -251,13 +270,33 @@ export function ciForShipped(yml, exists) {
     const isRun = (f) => /\.(mjs|js)$/.test(f);
     if (files.filter(isRun).some(exists) && gone.some(isRun)) {
       mixed.push({ name: nm, have: files.filter(isRun).filter(exists), gone: gone });
+      after();
       return;
     }
     dropped.push({ name: nm, files: files });
+    after();
   });
   /* ★書いたのに1本も当たらない「走らせない」は 掃除し忘れ★＝黙って持ち続けない */
   const stale = CI_SKIP.filter((s) => !skipUsed[s.has]).map((s) => s.has);
-  return { yml: top + kept.join('\n'), dropped: dropped, mixed: mixed, stale: stale };
+  const emptyJobs = Object.keys(keptOf).filter((j) => !keptOf[j]);
+  return { yml: top + kept.join('\n'), dropped: dropped, mixed: mixed, stale: stale, emptyJobs: emptyJobs };
+}
+
+/* ★作り替えた CI を 書いてよいか★＝止める訳を返す（無ければ ''）。ship() はこれだけを見る */
+export function ciStop(r, f) {
+  if (r.mixed.length) {
+    return '★' + f + ' の1つのステップの中で 在る物と無い物が混ざっています（勝手に直しません）★'
+      + r.mixed.map((m) => '\n  ・' + m.name + ' … 無い＝' + m.gone.join(' , ')).join('');
+  }
+  if (r.emptyJobs.length) return '★' + f + ' で 段が全部外れて 空になる job★ … ' + r.emptyJobs.join(' , ') + '（勝手に直しません）';
+  return '';
+}
+
+/* ★運び先に 給与(kyuyo/)が 在れば 運ばない★＝この道具は「請求書だけ」の運び先用。
+   本番 rakually は給与ごと出している（2026-10-30 taiketsu）＝向けて回すと 入口の給与タイル・帰り道・
+   給与の CI 15段を 黙って消す。⇒ 1字も書く前に止める */
+export function destHasKyuyo(to) {
+  return fs.existsSync(path.join(to, 'kyuyo'));
 }
 
 /* ★外した物は 必ず CI の頭に書く★（この repo の決まり） */
@@ -313,6 +352,10 @@ function copyDir(rel, to) {
 }
 
 function ship(to, dry) {
+  if (destHasKyuyo(to)) {
+    console.error('★運び先に kyuyo/ が在ります★＝給与ごと出している所（本番 rakually など）。この道具は請求書だけの運び先用＝1つも書かずに止めます');
+    return 1;
+  }
   const before = count(ROOT);
   const need = before.inside.concat(before.outside);
   console.log('★写す前★ 中 ' + before.inside.length + '本 ／ 外 ' + before.outside.length
@@ -363,22 +406,16 @@ function ship(to, dry) {
   others.forEach((f) => {
     const fp = path.join(wfDir, f);
     const r2 = ciForShipped(fs.readFileSync(fp, 'utf8'), exists);
-    if (r2.mixed.length) {
-      console.error('★' + f + ' の1つのステップで 在る物と無い物が 混ざっています★');
-      r2.mixed.forEach((m) => console.error('  ・' + m.name + ' … 無い＝' + m.gone.join(' , ')));
-      throw new Error('mixed in ' + f);
-    }
+    const stop2 = ciStop(r2, f);
+    if (stop2) { console.error(stop2); throw new Error('ci stop in ' + f); }
     fs.writeFileSync(fp, ciHeaderNote(r2.yml, r2.dropped), 'utf8');
     console.log('★' + f + ' も 作り替えた★ … 外したステップ ' + r2.dropped.length + '件'
       + (r2.dropped.length ? '（' + r2.dropped.map((d) => d.name).join(' ／ ') + '）' : ''));
   });
   const ciPath = path.join(to, '.github/workflows/ci.yml');
   const ci = ciForShipped(fs.readFileSync(ciPath, 'utf8'), exists);
-  if (ci.mixed.length) {
-    console.error('★1つのステップの中で 在る物と無い物が混ざっています（勝手に直しません）★');
-    ci.mixed.forEach((m) => console.error('  ・' + m.name + ' … 無い＝' + m.gone.join(' , ')));
-    return 1;
-  }
+  const stop = ciStop(ci, 'ci.yml');
+  if (stop) { console.error(stop); return 1; }
   if (ci.stale.length) {
     console.error('★「走らせない」に書いたのに 当たらない物が ' + ci.stale.length + '件★ … '
       + ci.stale.join(' , ') + '（CIの名前が変わった＝掃除し忘れ）');
@@ -491,6 +528,49 @@ console.log('\n★自己診断★');
   must(0, all.mixed.length, '全部 在る時は 混ざりも0');
   const none = ciForShipped(yml0, (f) => f.indexOf('kyuyo/') !== 0);
   must(true, none.dropped.length > 0, '★kyuyo/ を消すと その分だけ外れる★（' + none.dropped.length + '本）');
+  /* ★段を外しても job の頭は1本も消えない★（2026-10-30 実測：kuchi・tpl-kowasu の頭が 前の段と一緒に消えていた） */
+  const jobsOf = (y) => (y.match(/^  [A-Za-z0-9_-]+:\s*$/gm) || []).join('|');
+  must(jobsOf(yml0), jobsOf(none.yml), '★kyuyo/ を消しても job の頭は全部残る★');
+  must(0, none.emptyJobs.length, '★kyuyo/ を消しても 空になる job は0★（' + none.emptyJobs.join(',') + '）');
+  {
+    const nl = String.fromCharCode(10);
+    const y = ['jobs:', '  a:', '    runs-on: x', '    steps:',
+      '      - name: 残る', '        run: node tests/aru.test.mjs',
+      '      - name: 外れる', '        run: node tests/nai.test.mjs',
+      '  b:', '    needs: a', '    steps:',
+      '      - name: bの段', '        run: node tests/aru.test.mjs',
+      '  c:', '    steps:',
+      '      - name: cの段', '        run: node tests/nai.test.mjs', ''].join(nl);
+    const r = ciForShipped(y, (f) => f !== 'tests/nai.test.mjs');
+    must(true, /\n  b:\n    needs: a\n    steps:\n      - name: bの段/.test(r.yml), '★外した段の後ろの job の頭（needs まで）が残る★');
+    must('c', r.emptyJobs.join(','), '★段が全部外れた job は名指しで返す★');
+    must(2, r.dropped.length, '作り物で 外れたのは2段');
+    must(true, /空になる job.*c/.test(ciStop(r, 'x.yml')), '★空の job が在れば ciStop が止める★');
+    must('', ciStop(ciForShipped(y, () => true), 'x.yml'), '★全部在れば ciStop は止めない★');
+    /* ★job の最後の段が「走らせない」一覧・混ざりの時も 次の job の頭が残る★ */
+    const y2 = y.replace('      - name: 外れる', '      - name: ' + CI_SKIP[0].has);
+    const r2 = ciForShipped(y2, () => true);
+    must(1, r2.dropped.filter((d) => d.why).length, '作り物で 走らせない一覧に当たったのは1段');
+    must(true, /\n  b:\n    needs: a\n    steps:/.test(r2.yml), '★最後の段が 走らせない一覧でも 次の job の頭が残る★');
+    const y3 = y.replace('        run: node tests/nai.test.mjs' + nl + '  b:',
+      '        run: node tests/aru.test.mjs && node tests/nai.test.mjs' + nl + '  b:');
+    const r3 = ciForShipped(y3, (f) => f !== 'tests/nai.test.mjs');
+    must(1, r3.mixed.length, '作り物で 混ざりは1段');
+    must(true, /\n  b:\n    needs: a\n    steps:/.test(r3.yml), '★最後の段が 混ざりでも 次の job の頭が残る★');
+    must(true, /混ざって/.test(ciStop(r3, 'x.yml')), '★混ざりが在れば ciStop が止める★');
+  }
+  /* ★運び先に kyuyo/ が在れば 1字も書かずに止める★（本番 rakually へ向けて回した時） */
+  {
+    const t3 = fs.mkdtempSync(path.join(os.tmpdir(), 'shipk-'));
+    try {
+      fs.mkdirSync(path.join(t3, 'kyuyo'));
+      must(true, destHasKyuyo(t3), '★kyuyo/ の在る運び先を 見分ける★');
+      must(1, ship(t3, false), '★kyuyo/ の在る運び先へは 運ばない（1を返す）★');
+      must('kyuyo', fs.readdirSync(t3).join(','), '★止めた時は 1つも書いていない★');
+      fs.rmdirSync(path.join(t3, 'kyuyo'));
+      must(false, destHasKyuyo(t3), '空の運び先は 止めない');
+    } finally { fs.rmSync(t3, { recursive: true, force: true }); }
+  }
   /* ★在る物と無い物が混ざったステップは 勝手に直さず 赤にするか★ */
   const mix = ciForShipped(yml0, (f) => !/ym-picker/.test(f));
   must(true, mix.mixed.length > 0, '★在る物と無い物が混ざったステップは 赤にする★');
