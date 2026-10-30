@@ -28,12 +28,14 @@ permissions:
 jobs:
   watch:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - name: 法定データ更新リマインダー
+        timeout-minutes: 5
         id: check
         run: |
           set +e
@@ -48,6 +50,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           exit 0
       - name: Issue作成/更新(要更新のとき)
+        timeout-minutes: 5
         if: steps.check.outputs.code == '10'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,6 +66,7 @@ jobs:
             gh issue create --title "$TITLE" --label statutory-update --body "$FULL"
           fi
       - name: 更新不要ならIssueクローズ
+        timeout-minutes: 5
         if: steps.check.outputs.code == '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

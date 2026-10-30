@@ -10,6 +10,9 @@ name: WebKit（iOSと同じエンジンで測る）
 #     ⇒ 30分内に 3回 押すと 真ん中の 押しの WebKit は 走らず cancelled。
 #     ⇒ ★決まり★＝★WebKit が cancelled の commit は 緑ではなく『走って いない』。本番へ写すのは
 #        WebKit が success の commit か、その上の commit だけ★。
+#   ★★2026-10-30 足した★★ … ★上限（timeout-minutes）で 切れた 回も cancelled に なる★（赤には ならない・taiketsu 実測）。
+#     注記に「The job has exceeded the maximum execution time」が 在る cancelled は ★走って いない ではなく 固まった＝赤と 同じ★。
+#     ⇒ 次の commit を 待たず、どの 段で 固まったかを 見る（iOS の 客の 画面が 固まる 不具合かも しれない）。
 #   ★repo 単位★ … テスト線と 本番は 別々に 直列化（干渉しない）。本番 rakually の WebKit は
 #     test@test.com を 使わず 自己抜け＝ここが 在っても 無害。
 concurrency:
@@ -140,6 +143,11 @@ on:
 jobs:
   webkit:
     runs-on: ubuntu-24.04
+    # ★上限★（2026-10-30）… 書かないと GitHub の 既定 360分＝固まると 6時間 待たされ、その間 押しの門も 止まる。
+    #   実測（直近100回）＝中央 1008秒・最長 3150秒（Install WebKit の apt が 2090秒 掛かった回・成功）。
+    #   ★取り込みの 段に 段の 上限★（Install WebKit 45・Install Chromium 20）＝段で 切れると 赤(failure)。
+    #   job の 上限は 段の 上限の 合計＋試験 約17分 より 長い 90分＝★最後の 砦★（job で 切れると cancelled＝頭の 決まりを 見る）
+    timeout-minutes: 90
     # ★ここは「測る為に 用意した場所」＝道具が 無いのは 用意の失敗＝赤★（指示役の裁定 2026-09-02）
     #   手元・毎回のCI では 同じ試験が ★未測定・緑（声は 出す）★ になる。
     #   判定は scripts/_borrow-playwright.mjs が 1か所で 持つ（★yml に 書き足さない★）。
@@ -158,6 +166,7 @@ jobs:
           SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
       # ★webkit だけ★ 入れる（chromium/firefox は要らない＝そのぶん速い）
       - name: Install WebKit
+        timeout-minutes: 45
         run: npx playwright install --with-deps webkit
         env:
           SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
@@ -182,6 +191,7 @@ jobs:
       #   ★本物のブラウザで 本物の紙から PDFを作って 数で見る★（chromium が要る）。
       #   司さんの指摘「なんでここが揃ってないんど／右揃えか左揃えかやろが」を 数で 押さえた物。
       - name: Install Chromium (自作PDFを 本物のブラウザで 作る為)
+        timeout-minutes: 20
         run: npx playwright install --with-deps chromium
         env:
           SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）

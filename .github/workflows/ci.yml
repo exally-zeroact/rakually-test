@@ -28,6 +28,13 @@ on:
 jobs:
   test-1:
     runs-on: ubuntu-24.04
+    # ★上限★（2026-10-30）… 書かないと GitHub の 既定 360分＝固まると 6時間 待たされ、その間 押しの門も 止まる。
+    #   実測の 最長（10-30 割った後）＝test-1〜4 876秒・kuchi 33秒・tpl-kowasu 192秒 → 約3倍で 切る。
+    #   ★job の 上限で 切れると 結論は 赤(failure)でなく cancelled（灰色）★（Daikou で 20本中20本・taiketsu 10-30 実測）。
+    #   ここは 段が 300本 在るので 段の 上限は 付けない＝★最後の 砦★。cancelled でも 待ちの列で 消えた 回と 混ぜない＝
+    #   注記「The job has exceeded the maximum execution time」が 在れば ★固まり＝赤と 同じに 扱う★（webkit.yml の 頭の 決まり）。
+    #   上限の 有る無しは tests/job-jougen.test.mjs が 見る（新しい job を 足して 書き忘れたら 赤）
+    timeout-minutes: 40
     # ★合言葉（SHIKEN_KUCHI_PASS）は 渡さない★＝試験の口を 叩く 段は job kuchi に 集めた（2026-10-30）
     steps:
       - uses: actions/checkout@v4
@@ -200,6 +207,10 @@ jobs:
         run: node tests/kaisha-ask-ui.mjs
       - name: CI coverage guard (CIから黙って外れているテストが無いか=除外は理由と戻す条件つきのみ)
         run: node tests/ci-coverage.test.mjs
+      - name: ★CI の job と 段に 上限が 在るか（無い＝既定 360分で 固まりを 6時間 待つ／job で 切れると cancelled なので 取り込み・外へ 取る 段は 段で 切る）
+        run: node tests/job-jougen.test.mjs
+      - name: ★同 わざと 上限を 抜いて 赤に なるか（10通り・読み落とし・重なり も・空振り止め）
+        run: node tests/job-jougen.test.mjs --self-test
       - name: ★webkit.yml の 括り(paths)を 人に 覚えさせない（読まれるのに 括りに 無い＝赤／括りに 在るが 誰も 読まない＝出す）
         run: node tests/webkit-paths.test.mjs
       - name: ★同 わざと 括りを 抜いて 赤に なるか（5通り・空振り止め）
@@ -531,6 +542,7 @@ jobs:
     # ★CI を 60分から 20分以下へ 割った 1本★（2026-10-30・段の 中身と 順は 変えず 続きの 段を 4つの job に 分けた）
     #   ★支度（checkout・node・npm install）と 合言葉の env は test-1 と 同じ★＝どの job も まっさらな 機械で 1から 立つ
     runs-on: ubuntu-24.04
+    timeout-minutes: 40
     # ★合言葉（SHIKEN_KUCHI_PASS）は 渡さない★＝試験の口を 叩く 段は job kuchi に 集めた（2026-10-30）
     steps:
       - uses: actions/checkout@v4
@@ -583,6 +595,7 @@ jobs:
     # ★CI を 60分から 20分以下へ 割った 1本★（2026-10-30・段の 中身と 順は 変えず 続きの 段を 4つの job に 分けた）
     #   ★支度（checkout・node・npm install）と 合言葉の env は test-1 と 同じ★＝どの job も まっさらな 機械で 1から 立つ
     runs-on: ubuntu-24.04
+    timeout-minutes: 40
     # ★合言葉（SHIKEN_KUCHI_PASS）は 渡さない★＝試験の口を 叩く 段は job kuchi に 集めた（2026-10-30）
     steps:
       - uses: actions/checkout@v4
@@ -676,6 +689,7 @@ jobs:
     # ★CI を 60分から 20分以下へ 割った 1本★（2026-10-30・段の 中身と 順は 変えず 続きの 段を 4つの job に 分けた）
     #   ★支度（checkout・node・npm install）と 合言葉の env は test-1 と 同じ★＝どの job も まっさらな 機械で 1から 立つ
     runs-on: ubuntu-24.04
+    timeout-minutes: 40
     # ★合言葉（SHIKEN_KUCHI_PASS）は 渡さない★＝試験の口を 叩く 段は job kuchi に 集めた（2026-10-30）
     steps:
       - uses: actions/checkout@v4
@@ -940,6 +954,7 @@ jobs:
   #   ★cancel-in-progress: false★＝走って いる 回は 消さない（待ちの 1本が 次に 来た 1本に 置き換えられる 穴は webkit.yml の 頭の 覚書）
   kuchi:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     concurrency:
       group: webkit-shared-account
       cancel-in-progress: false
@@ -987,6 +1002,7 @@ jobs:
   #   ★n: の 番号は 壊し方の 数と 揃える★＝seikyu/tests/tpl-kiku-ui.mjs が --only の 時に この 行を 読んで 揃わなければ 赤（exit 2）
   tpl-kowasu:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -1020,7 +1036,7 @@ jobs:
   #   ②給与の 試験の job（test-1〜4・tpl-kowasu）と 分けた＝secret の 置き忘れ等で ここが 赤でも 給与の 約250段は 走る
   kinshi:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

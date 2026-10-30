@@ -26,6 +26,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-24.04
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,9 +34,11 @@ jobs:
           node-version: '20'
 
       - name: ★判定そのものが空振りしていないか（外へ出ない・必ず先に走らせる）
+        timeout-minutes: 15
         run: node scripts/check-warehouse-pointers.mjs --self-test
 
       - name: 倉庫の向き先を6か所×全アプリで数える（読むだけ）
+        timeout-minutes: 20
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_SECRETS_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
