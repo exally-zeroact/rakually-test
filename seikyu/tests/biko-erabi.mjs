@@ -385,6 +385,16 @@ michi('⑰取引先が 読めなかった 時は 当てる 釦を 出さず、�
   await oshu(t, '#b-tpl-ateru'); await nemuru(1800);
   eq(t.S.cur.template_id, 'koujomemo', '★取引先が 読めないのに 当てた★');
 });
+michi('⑱自社が 読めなかった 時も 当てる 釦を 出さず、当てない', async () => {
+  const t = await hakkoSumi('koujomemo');
+  setPt(t, 'koujo');
+  await shuseiDe(t);
+  ok(mieru(ateruBtn(t)), '★前置き：釦が 出ていない★');
+  t.S.orgReadOk = false; t.A._fillEdit(); await nemuru(50);
+  ok(!mieru(ateruBtn(t)), '★自社が 読めないのに 当てる 釦が 出た★');
+  await oshu(t, '#b-tpl-ateru'); await nemuru(1800);
+  eq(t.S.cur.template_id, 'koujomemo', '★自社が 読めないのに 当てた★');
+});
 
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
@@ -402,7 +412,8 @@ if (!SELF) {
     ['選び直しを 名前で 比べる（ずれた 1通に 当たらない）', '    if (!t || t === tplKiku(v)) return;\n    tplAteru(v, t);', '    if (!t || t === v.template_id) return;\n    tplAteru(v, t);', '⑭'],
     ['選び直した 時の 列を 固めない', '    if (snapTpl && snapTpl !== t) v.data.erabiCols = { tpl: t, cols: colsSaki(v.partner_id, t) };', '    if (false) v.data.erabiCols = null;', '⑮'],
     ['固める 先を data.cols に する（複製に 流れ込む）', '    if (snapTpl && snapTpl !== t) v.data.erabiCols = { tpl: t, cols: colsSaki(v.partner_id, t) };', '    if (snapTpl && snapTpl !== t) { v.data.cols = colsSaki(v.partner_id, t); v.data.colsTpl = t; }', '⑯'],
-    ['取引先が 読めなくても 当てる', '    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);', '    return true;', '⑰'],
+    ['取引先が 読めなくても 当てる', '    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);', '    return S.orgReadOk !== false && !!partnerById(v.partner_id);', '⑰'],
+    ['自社が 読めなくても 当てる', '    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);', '    return S.partnersReadOk !== false && !!partnerById(v.partner_id);', '⑱'],
     ['送った 中身の 比べに 様式を 入れない', '[v.no, nakamiKata(v), v.template_id || null, (v.data && v.data.tplErabi) || null]', '[v.no, nakamiKata(v)]', '⑫'],
   ];
   for (const [na, a, b, mi] of kowasu) {
