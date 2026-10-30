@@ -2051,7 +2051,7 @@
     if (!v) { show(strip, false); show(why, false); return; }
     var ro = locked();
     var dashita = !!(v.status && v.status !== 'draft');   /* 発行済み・取り消し済み＝その 1通の 様式を 言う（設定の 様式でなく） */
-    var cur = (ro || dashita) ? (v.template_id || settings().template) : tplNow(v);
+    var cur = (ro || dashita) ? (tplKiku(v) || settings().template) : tplNow(v);
     var t = TPL.getOrDefault(cur);
     setText('tpl-strip-v', t.label);
     show(strip, true);
@@ -2094,7 +2094,15 @@
   function tplAteruSaki(v) {
     if (!v || !v.id || !v.status || v.status === 'draft' || !v.partner_id) return null;
     var t = tplNow(v);
-    return (t && t !== v.template_id) ? t : null;
+    return (t && t !== tplKiku(v)) ? t : null;
+  }
+  /** ★発行済み・取り消し済みの 1通に 今 効いている 様式★＝選び直した 印が その 名前と 同じなら その 名前、無ければ 写しの 様式。
+   *  前の 作り（tplSync が 発行済みにも 当たった）で ★名前だけ ずれて しまわれた 1通★（template_id＝今の紙・写し＝発行の 時・印 無し）を
+   *  名前で 見ると「もう 当たっている」と 見えて 釦が 出ず、選び直しても 当たらなかった（taiketsu 10-30 止1） */
+  function tplKiku(v) {
+    if (!v) return null;
+    if (v.data && v.data.tplErabi && v.data.tplErabi === v.template_id) return v.template_id;
+    return (v.snapshot && v.snapshot.templateId) || v.template_id || null;
   }
   /** ★その 1通に 様式を 当てて 印を 付け、自動で しまう★（erabiAteru と 釦の 2か所が 使う＝当て方は 1つ） */
   function tplAteru(v, t) {
@@ -2136,7 +2144,7 @@
     if (!v || !v.id || v.id !== m.id) return;
     if (!m.erabi) return;
     var t = tplNow(v);
-    if (!t || t === v.template_id) return;
+    if (!t || t === tplKiku(v)) return;
     tplAteru(v, t);
   }
   function tplSync() {

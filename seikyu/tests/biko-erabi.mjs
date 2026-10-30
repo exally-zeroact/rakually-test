@@ -325,6 +325,30 @@ michi('⑪当てる 釦は 要らない時に 出ない（下書き・取引先�
   ok(!mieru(ateruBtn(t)), '★取引先の 紙と 同じ 発行済みに 当てる 釦が 出た★');
   eq(t.S.cur.template_id, 'koujomemo', '★押していないのに 様式が 変わった★');
 });
+/* ★taiketsu 10-30 止1★ 前の 作りで 名前だけ ずれて しまわれた 1通＝template_id は 取引先の 今の紙・写しは 発行の 時の 紙・印 無し
+   ＝名前で 比べると「もう 当たっている」に 見えて 釦が 出ず、選び直しても 当たらず、札は「選び直すと 当たります」と 言っていた */
+michi('⑬名前だけ ずれて しまわれた 発行済み（印 無し）＝札は 写しの 紙を 言い、釦が 出て、押すと 紙・倉庫に 当たる', async () => {
+  const t = await hakkoSumi('koujomemo');
+  setPt(t, 'koujo');
+  const x0 = t.kura.find((r) => r.partner_id === 'pB' && r.status === 'issued');
+  x0.template_id = 'koujo';                  /* 前の tplSync が 名前だけ 書き換えて しまった 形（印は 無い） */
+  ok(!(x0.data && x0.data.tplErabi), '★前置き：印が 付いている★');
+  await shuseiDe(t);
+  eq(t.S.cur.template_id, 'koujo', '★前置き：ずれた 名前で 開いていない★');
+  eq(retsu(t), '項目,数量,単位,金額,消費税,備考', '★前置き：写しの 列で ない★');
+  ok(!/項目と金額だけ/.test(t.$('tpl-strip-v').textContent), '★札が ずれた 名前（今 効いていない 紙）を 言う★ ' + t.$('tpl-strip-v').textContent);
+  ok(mieru(ateruBtn(t)), '★写しの 紙と 取引先の 今の紙が 違うのに 当てる 釦が 出ない★ ' + t.$('tpl-strip-why').textContent);
+  await oshu(t, '#b-tpl-ateru'); await nemuru(1800);
+  atattaKa(t);
+  ok(!bikoRetsu(await kakunin(t)), '★当てた 後の「確認」の 紙に 備考の 列が 残った★');
+});
+michi('⑭名前だけ ずれた 1通を「この取引先の紙を変える」で 選び直して 戻る＝その 1通に 当たる', async () => {
+  const t = await hakkoSumi('koujomemo');
+  const x0 = t.kura.find((r) => r.partner_id === 'pB' && r.status === 'issued');
+  x0.template_id = 'koujo';
+  await erabiNaosu(t, 'koujo');
+  atattaKa(t);
+});
 
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
@@ -338,6 +362,8 @@ if (!SELF) {
     ['当てる 釦を 出さない', '      show(ab, !!saki);', '      show(ab, false);', '⑩'],
     ['当てる 釦を 押しても 当てない', '      tplAteru(v, t);\n      renderTplAsk();', '      renderTplAsk();', '⑩'],
     ['当てる 釦を いつも 出す', '      show(ab, !!saki);', '      show(ab, true);', '⑪'],
+    ['釦を 出すかを 名前で 比べる（ずれた 1通に 釦が 出ない）', '    return (t && t !== tplKiku(v)) ? t : null;', '    return (t && t !== v.template_id) ? t : null;', '⑬'],
+    ['選び直しを 名前で 比べる（ずれた 1通に 当たらない）', '    if (!t || t === tplKiku(v)) return;\n    tplAteru(v, t);', '    if (!t || t === v.template_id) return;\n    tplAteru(v, t);', '⑭'],
     ['送った 中身の 比べに 様式を 入れない', '[v.no, nakamiKata(v), v.template_id || null, (v.data && v.data.tplErabi) || null]', '[v.no, nakamiKata(v)]', '⑫'],
   ];
   for (const [na, a, b, mi] of kowasu) {
