@@ -279,6 +279,53 @@ michi('⑨取り消し済みの 札は「取り消し済み」と 言う', async
   ok(/取り消し済み/.test(t.$('tpl-strip-why').textContent), '★取り消し済みを「発行済み」と 言った★ ' + t.$('tpl-strip-why').textContent);
 });
 
+/* ★taiketsu 10-29 3回目 止A★ 客の 1通そのもの＝取引先の 紙は もう 備考なしで 保存済み・1通は 備考ありで 発行済み
+   ＝「この取引先の紙を変える」で 同じ 物を 選んでも change が 起きない ⇒ 札の 釦で その場で 当てる */
+const ateruBtn = (t) => t.$('b-tpl-ateru');
+const mieru = (el) => !!el && el.style.display !== 'none';
+michi('⑩取引先の 紙は もう 備考なし・1通は 備考ありで 発行済み＝札に「この1通も…にする」が 出て、押すと 紙・倉庫に 当たる', async () => {
+  const t = await hakkoSumi('koujomemo');
+  setPt(t, 'koujo');                         /* 前に 取引先の 紙だけ 保存された（凍結で 1通には 入らなかった） */
+  await shuseiDe(t);
+  /* 同じ 物を 選んでも ブラウザは change を 出さない＝欄が もう 備考なしなのを 見て そのまま 戻る（jsdom で change を 投げると 起きない 事が 起きる） */
+  await oshu(t, '#b-tpl-pt');
+  eq(t.$('s-ptpl').value, 'koujo', '★前置き：取引先の 欄が 保存した 紙で ない★');
+  await oshu(t, '.bn[data-scr="scr-edit"]'); await nemuru(300);
+  eq(t.S.cur.template_id, 'koujomemo', '★前置き：押す 前から 当たっている★');
+  const b = ateruBtn(t);
+  ok(mieru(b), '★取引先の 今の紙と 違うのに 当てる 釦が 出ない★ ' + t.$('tpl-strip-why').textContent);
+  eq(b.textContent, 'この1通も この取引先の紙にする', '★ボタンの 字★');
+  ok(/今の紙は「項目と金額だけ/.test(t.$('tpl-strip-why').textContent), '★札が 取引先の 今の紙を 言わない★ ' + t.$('tpl-strip-why').textContent);
+  await oshu(t, '#b-tpl-ateru'); await nemuru(1800);
+  atattaKa(t);
+  ok(!mieru(ateruBtn(t)), '★当てた 後も 釦が 残る★');
+  ok(!bikoRetsu(await kakunin(t)), '★当てた 後の「確認」の 紙に 備考の 列が 残った★');
+});
+michi('⑫自動の しまいの 返事を 待つ 間に「この1通も…」を 押す＝選んだ 紙が 倉庫に 入る（中身が 同じと 見て 印を 降ろさない）', async () => {
+  const t = await hakkoSumi('koujomemo');
+  setPt(t, 'koujo');
+  await shuseiDe(t);
+  t.kuraOsoi.v = 4000;                       /* 返事は 送ってから 4秒 後 */
+  { const tr = t.doc.querySelector('#lines-body tr'); const el = tr.querySelector('[data-f="price"]') || tr.querySelector('[data-f="amount"]'); ok(el, '★前置き：金額の 欄が 無い★'); el.value = '8000'; el.dispatchEvent(new t.win.Event('input', { bubbles: true })); el.dispatchEvent(new t.win.Event('change', { bubbles: true })); }
+  await nemuru(4500);          /* 1.5秒 待って 送った＋3秒＝返事の 1秒 前に 押す（押した 後の 予約は 返事の 後に 走る） */
+  ok(mieru(ateruBtn(t)), '★前置き：ボタンが 出ていない★');
+  await oshu(t, '#b-tpl-ateru');
+  await nemuru(9000);
+  const x = t.kura.find((r) => r.partner_id === 'pB' && r.status === 'issued');
+  eq(x.template_id + '|' + ((x.data || {}).tplErabi || ''), 'koujo|koujo', '★返事待ちに 押した 紙が 倉庫に 入らない★ ' + t.LOG.join(' | '));
+  ok(/8000/.test(JSON.stringify(x.lines[0] || {})), '★前置き：金額の 直しが 倉庫に 無い★ ' + JSON.stringify(x.lines[0]));
+});
+michi('⑪当てる 釦は 要らない時に 出ない（下書き・取引先の 紙と 同じ 発行済み）', async () => {
+  const t = await tateru();
+  setPt(t, 'koujomemo');
+  await t.hajime(7000); await nemuru(300);
+  ok(!mieru(ateruBtn(t)), '★下書きに 当てる 釦が 出た★');
+  t.kuraOsoi.v = 100; await t.A._issue(); await nemuru(500);
+  await shuseiDe(t);
+  ok(!mieru(ateruBtn(t)), '★取引先の 紙と 同じ 発行済みに 当てる 釦が 出た★');
+  eq(t.S.cur.template_id, 'koujomemo', '★押していないのに 様式が 変わった★');
+});
+
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
 } else {
@@ -288,6 +335,10 @@ if (!SELF) {
     ['取引先の 様式を 選んでも 印を 付けない', "        if (id === 's-ptpl' && S.tplErabi && S.tplErabi.pid === pp.id) S.tplErabi.erabi = true;", '', '①'],
     ['印を 見ず 写しの 列を 使う（確認・まとめ出し）', '    var erabiNaoshi = !!(snapTpl && v.template_id && v.data && v.data.tplErabi === v.template_id && snapTpl !== v.template_id);', '    var erabiNaoshi = false;', '②'],
     ['発行済みにも 設定の 様式を 当てる（過去の 紙が 変わる）', "    if (v.status && v.status !== 'draft') return;\n", '', '③'],
+    ['当てる 釦を 出さない', '      show(ab, !!saki);', '      show(ab, false);', '⑩'],
+    ['当てる 釦を 押しても 当てない', '      tplAteru(v, t);\n      renderTplAsk();', '      renderTplAsk();', '⑩'],
+    ['当てる 釦を いつも 出す', '      show(ab, !!saki);', '      show(ab, true);', '⑪'],
+    ['送った 中身の 比べに 様式を 入れない', '[v.no, nakamiKata(v), v.template_id || null, (v.data && v.data.tplErabi) || null]', '[v.no, nakamiKata(v)]', '⑫'],
   ];
   for (const [na, a, b, mi] of kowasu) {
     await T('壊すと 赤: ' + na, async () => {

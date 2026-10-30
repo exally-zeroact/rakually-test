@@ -1757,7 +1757,9 @@
   }
   function owattaKata(v) { return JSON.stringify([v.no, v.status, nakamiKata(v)]); }
   /* ★保存の 比べ★＝番号も 入れる（返事待ちに 番号を 打っても 見分ける）。発行は 番号が 進むので nakamiKata だけ */
-  function hozonKata(v) { return JSON.stringify([v.no, nakamiKata(v)]); }
+  /* ★様式（template_id・印 tplErabi）も 比べる★（taiketsu 10-30 4回 止1＝返事を 待つ 間に「この1通も…」を 押すと、
+     中身が 同じと 見て 印を 降ろし、選んだ 紙が 倉庫に 入らなかった）。nakamiKata は 発行の 比べにも 使うので 触らない */
+  function hozonKata(v) { return JSON.stringify([v.no, nakamiKata(v), v.template_id || null, (v.data && v.data.tplErabi) || null]); }
   function owattaOboe(v) { S.owatta = v; S.owattaKata = v ? owattaKata(v) : null; }
   function owattaNoMama() {
     var v = S.cur;
@@ -2057,7 +2059,9 @@
     var kara = ro ? '発行済み＝出した時の 紙のまま（設定を変えても 動きません）'
       : dashita ? ((v.data && v.data.tplErabi === v.template_id && v.snapshot && v.snapshot.templateId !== v.template_id)
         ? '発行した 後に この1通の 紙を 選び直しました'
-        : (v.status === 'void' ? '取り消し済み' : '発行済み') + '＝出した時の 紙のまま（「この取引先の紙を変える」で 選び直すと この1通にも 当たります）')
+        : (v.status === 'void' ? '取り消し済み' : '発行済み') + '＝出した時の 紙のまま' + (tplAteruSaki(v)
+          ? '（この取引先の 今の紙は「' + TPL.getOrDefault(tplAteruSaki(v)).label + '」です。「この1通も この取引先の紙にする」で この1通も その紙に できます）'
+          : '（「この取引先の紙を変える」で 選び直すと この1通にも 当たります）'))
       : tplKara(v.partner_id).kara;
     setText('tpl-strip-why', kara + '。項目（列）も 設定で 足す・消す・並べ替えが できます。');
     show(why, true);
@@ -2075,6 +2079,30 @@
         pb.textContent = (pt0 && TPL.get(pt0)) ? 'この取引先の紙を変える' : 'この取引先だけ 別の紙にする';
       }
     }
+    /* ★発行済みの 1通が 取引先の 今の紙と 違う時は、その場で この1通に 当てる 釦を 出す★（taiketsu 10-29 3回 止A）
+       ＝取引先の 紙を 先に 保存してあると「この取引先の紙を変える」で 同じ 物を 選び直しても change が 起きず、
+         選び直す 手が 無かった（ある取引先の 1通そのもの）。黙って 当てず、押した 時だけ 当てる */
+    var ab = $('b-tpl-ateru');
+    if (ab) {
+      var saki = ro ? null : tplAteruSaki(v);
+      show(ab, !!saki);
+      /* 字は 短く 決まった 物＝様式の 名前を 入れると スマホの 幅で 箱から はみ出す（taiketsu 4回 止2）。名前は 下の 言い分で 言う */
+    }
+  }
+
+  /** ★発行済み・取り消し済みの 1通に 当てられる 様式★＝取引先の 今の紙が その 1通と 違う時だけ（同じ・下書き・相手なし＝null） */
+  function tplAteruSaki(v) {
+    if (!v || !v.id || !v.status || v.status === 'draft' || !v.partner_id) return null;
+    var t = tplNow(v);
+    return (t && t !== v.template_id) ? t : null;
+  }
+  /** ★その 1通に 様式を 当てて 印を 付け、自動で しまう★（erabiAteru と 釦の 2か所が 使う＝当て方は 1つ） */
+  function tplAteru(v, t) {
+    v.template_id = t;
+    v.data = v.data || {};
+    v.data.tplErabi = t;
+    S.dirty = true;
+    jidoYoyaku();
   }
 
   /** ★この相手に 今 出る紙と、どこで そう決まったか★（入力と 設定 ▸ 取引先 の 両方が これを 見る） */
@@ -2109,11 +2137,7 @@
     if (!m.erabi) return;
     var t = tplNow(v);
     if (!t || t === v.template_id) return;
-    v.template_id = t;
-    v.data = v.data || {};
-    v.data.tplErabi = t;
-    S.dirty = true;
-    jidoYoyaku();
+    tplAteru(v, t);
   }
   function tplSync() {
     var v = S.cur;
@@ -6899,6 +6923,18 @@
     };
     /* ★[この取引先だけ 別の紙にする]＝設定 ▸ 取引先 の その相手の「様式」へ 連れて行く★（2026-10-23）
        ★作りかけの 1通は 消さない★（[設定で変える] と 同じ＝続きから 戻れる） */
+    var tplAt = $('b-tpl-ateru');
+    if (tplAt) tplAt.onclick = function () {
+      var v = S.cur;
+      if (!v || locked()) return;
+      var t = tplAteruSaki(v);
+      if (!t) return;
+      tplAteru(v, t);
+      renderTplAsk();
+      renderLines();
+      renderDeductions();
+      recalc();
+    };
     var tplPt = $('b-tpl-pt');
     if (tplPt) tplPt.onclick = function () {
       var pid = S.cur && S.cur.partner_id;
