@@ -350,6 +350,42 @@ michi('⑭名前だけ ずれた 1通を「この取引先の紙を変える」�
   atattaKa(t);
 });
 
+/* ★taiketsu 10-30 任意A・止1・止2★ 選び直した 時の 列を その 1通に 固める（data.cols でなく data.erabiCols） */
+const setPtCols = (t, items) => { const p = t.S.partners.find((x) => x.id === 'pB'); p.data.paper = Object.assign({}, p.data.paper, { cols: { items }, colsTpl: 'koujo' }); };
+const ateruDe = async (t) => {
+  const t0 = await hakkoSumi('koujomemo');
+  setPt(t0, 'koujo');
+  await shuseiDe(t0);
+  await oshu(t0, '#b-tpl-ateru'); await nemuru(1800);
+  atattaKa(t0);
+  return t0;
+};
+michi('⑮当てた 後に 取引先の 列を 変えても、その 1通の 紙の 列は 動かない（倉庫にも 固めた 列）', async () => {
+  const t = await ateruDe();
+  setPtCols(t, ['項目', '数量', '金額']);
+  await shuseiDe(t);
+  eq(retsu(t), '項目,金額', '★当てた 後に 取引先の 列を 変えたら 出した 紙の 列が 動いた★');
+  const x = t.kura.find((r) => r.partner_id === 'pB' && r.status === 'issued');
+  eq(((((x.data || {}).erabiCols || {}).cols || {}).items || []).join(','), '項目,金額', '★固めた 列が 倉庫に 無い★ ' + JSON.stringify(x.data));
+});
+michi('⑯当てた 1通を 複製 → 取引先の 列を 変えた＝新しい 下書きは 取引先の 今の 列（固めた 列が 流れ込まない）', async () => {
+  const t = await ateruDe();
+  setPtCols(t, ['項目', '数量', '金額']);
+  t.A._duplicateForTest(); await nemuru(300);
+  eq(t.S.cur.status || 'draft', 'draft', '★前置き：複製が 下書きで ない★');
+  eq(retsu(t), '項目,数量,金額', '★複製した 下書きに 固めた 列が 流れ込んだ★ ' + retsu(t));
+});
+michi('⑰取引先が 読めなかった 時は 当てる 釦を 出さず、当てない（違う 紙を 固めない）', async () => {
+  const t = await hakkoSumi('koujomemo');
+  setPt(t, 'koujo');
+  await shuseiDe(t);
+  ok(mieru(ateruBtn(t)), '★前置き：釦が 出ていない★');
+  t.S.partnersReadOk = false; t.A._fillEdit(); await nemuru(50);
+  ok(!mieru(ateruBtn(t)), '★取引先が 読めないのに 当てる 釦が 出た★');
+  await oshu(t, '#b-tpl-ateru'); await nemuru(1800);
+  eq(t.S.cur.template_id, 'koujomemo', '★取引先が 読めないのに 当てた★');
+});
+
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
 } else {
@@ -364,6 +400,9 @@ if (!SELF) {
     ['当てる 釦を いつも 出す', '      show(ab, !!saki);', '      show(ab, true);', '⑪'],
     ['釦を 出すかを 名前で 比べる（ずれた 1通に 釦が 出ない）', '    return (t && t !== tplKiku(v)) ? t : null;', '    return (t && t !== v.template_id) ? t : null;', '⑬'],
     ['選び直しを 名前で 比べる（ずれた 1通に 当たらない）', '    if (!t || t === tplKiku(v)) return;\n    tplAteru(v, t);', '    if (!t || t === v.template_id) return;\n    tplAteru(v, t);', '⑭'],
+    ['選び直した 時の 列を 固めない', '    if (snapTpl && snapTpl !== t) v.data.erabiCols = { tpl: t, cols: colsSaki(v.partner_id, t) };', '    if (false) v.data.erabiCols = null;', '⑮'],
+    ['固める 先を data.cols に する（複製に 流れ込む）', '    if (snapTpl && snapTpl !== t) v.data.erabiCols = { tpl: t, cols: colsSaki(v.partner_id, t) };', '    if (snapTpl && snapTpl !== t) { v.data.cols = colsSaki(v.partner_id, t); v.data.colsTpl = t; }', '⑯'],
+    ['取引先が 読めなくても 当てる', '    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);', '    return true;', '⑰'],
     ['送った 中身の 比べに 様式を 入れない', '[v.no, nakamiKata(v), v.template_id || null, (v.data && v.data.tplErabi) || null]', '[v.no, nakamiKata(v)]', '⑫'],
   ];
   for (const [na, a, b, mi] of kowasu) {

@@ -205,9 +205,12 @@
        設定を 変えただけで その 取引先の 過去の 発行済みが 全部 備考なしに なった）。印は 倉庫に 入る（data）ので
        修正・確認・まとめ出しの どの 出口でも 同じ 紙（止1）。印が 無ければ 今まで通り 写しの 列 */
     var erabiNaoshi = !!(snapTpl && v.template_id && v.data && v.data.tplErabi === v.template_id && snapTpl !== v.template_id);
+    /* ★選び直した 時に 固めた 列★（taiketsu 10-30 任意A＝選び直した 後に 取引先・会社の 列を 変えると 出した 紙が 動いた）。
+       data.cols に 置かないのは 複製・見積から 写った 下書きに 流れ込むから（taiketsu 止1）＝下書きは erabiNaoshi が 偽で 読まない */
+    var ec = erabiNaoshi && v.data.erabiCols;
+    if (ec && ec.tpl === v.template_id && ec.cols && Array.isArray(ec.cols.items) && ec.cols.items.length) return COLS.normalizeSpec(ec.cols);
     var snap = v.snapshot && v.snapshot.cols;
     if (!erabiNaoshi && snap && Array.isArray(snap.items) && snap.items.length) return COLS.normalizeSpec(snap);
-    var s = settings();
     // ★もう出してしまった紙（発行済み・取り消し済み）は、会社の「今の列」を当てない★
     //   列を足した日に、去年 出した請求書の紙まで列が増えるのは、控えと紙が食い違うのと同じ。
     //   写しに列が無い＝列を選べるようになる前に出した物 → その様式の既定（＝当時 刷った並び）で刷る。
@@ -231,8 +234,13 @@
     var own = v.data && v.data.cols;
     if (own && Array.isArray(own.items) && own.items.length
       && colsAuMono(v.data.colsTpl, tpl)) return COLS.normalizeSpec(own);
+    return colsSaki(v.partner_id, tpl);
+  }
+  /** ★その 相手・様式で 今 出る 列★（相手だけの列 → 会社の列 → 様式の 列）＝colsOf の 下半分と 選び直しの 固めが 使う */
+  function colsSaki(pid, tpl) {
+    var s = settings();
     /* ★この相手だけの列★（会社の既定より 強い・無ければ 素通り＝今までどおり） */
-    var pPaper = SCOPE ? SCOPE.partnerPaper(partnerById(v.partner_id)) : {};
+    var pPaper = SCOPE ? SCOPE.partnerPaper(partnerById(pid)) : {};
     var pc = pPaper.cols;
     if (pc && Array.isArray(pc.items) && pc.items.length && ptColsAu(pPaper, tpl)) return COLS.normalizeSpec(pc);
     if (s.cols && colsAuMono(s.template, tpl)) return COLS.normalizeSpec(s.cols);
@@ -2093,8 +2101,13 @@
   /** ★発行済み・取り消し済みの 1通に 当てられる 様式★＝取引先の 今の紙が その 1通と 違う時だけ（同じ・下書き・相手なし＝null） */
   function tplAteruSaki(v) {
     if (!v || !v.id || !v.status || v.status === 'draft' || !v.partner_id) return null;
+    if (!yometaKa(v)) return null;
     var t = tplNow(v);
     return (t && t !== tplKiku(v)) ? t : null;
+  }
+  /** ★取引先・自社が 読めているか★（読めない 時に 当てると 違う 様式・列を 固めて 戻らない・taiketsu 10-30 止2） */
+  function yometaKa(v) {
+    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);
   }
   /** ★発行済み・取り消し済みの 1通に 今 効いている 様式★＝選び直した 印が その 名前と 同じなら その 名前、無ければ 写しの 様式。
    *  前の 作り（tplSync が 発行済みにも 当たった）で ★名前だけ ずれて しまわれた 1通★（template_id＝今の紙・写し＝発行の 時・印 無し）を
@@ -2106,9 +2119,16 @@
   }
   /** ★その 1通に 様式を 当てて 印を 付け、自動で しまう★（erabiAteru と 釦の 2か所が 使う＝当て方は 1つ） */
   function tplAteru(v, t) {
+    if (!yometaKa(v)) return;
     v.template_id = t;
     v.data = v.data || {};
     v.data.tplErabi = t;
+    /* ★その 時の 列を この 1通に 固める★（後で 取引先・会社の 列を 変えても 出した 紙は 動かない）。
+       下書きの 頃の data.cols は 見ない（人が この1通の 為に 選んだ 列では ない・taiketsu 止1 の 2）。
+       写しの 様式へ 戻した 時は 固めない＝写しの 列で 出る */
+    var snapTpl = v.snapshot && v.snapshot.templateId;
+    if (snapTpl && snapTpl !== t) v.data.erabiCols = { tpl: t, cols: colsSaki(v.partner_id, t) };
+    else delete v.data.erabiCols;
     S.dirty = true;
     jidoYoyaku();
   }
