@@ -26,11 +26,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  test-1:
     runs-on: ubuntu-24.04
-    # ★試験の口の 合言葉は repo に 置かない★＝secret（tests/_shiken-kuchi.mjs が 読む・無ければ exit 2・決め2 10-11）
-    env:
-      SHIKEN_KUCHI_PASS: ${{ secrets.SHIKEN_KUCHI_PASS }}
+    # ★合言葉（SHIKEN_KUCHI_PASS）は 渡さない★＝試験の口を 叩く 段は job kuchi に 集めた（2026-10-30）
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -528,6 +526,26 @@ jobs:
         run: node seikyu/tests/mae-no-aite.mjs
       - name: ★前の取引先の中身が残らない (外すのをやめる/覚えるのをやめる/印を戻さない 等を本当に壊すと赤かの自己確認)
         run: node seikyu/tests/mae-no-aite.mjs --self-test
+
+  test-2:
+    # ★CI を 60分から 20分以下へ 割った 1本★（2026-10-30・段の 中身と 順は 変えず 続きの 段を 4つの job に 分けた）
+    #   ★支度（checkout・node・npm install）と 合言葉の env は test-1 と 同じ★＝どの job も まっさらな 機械で 1から 立つ
+    runs-on: ubuntu-24.04
+    # ★合言葉（SHIKEN_KUCHI_PASS）は 渡さない★＝試験の口を 叩く 段は job kuchi に 集めた（2026-10-30）
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ★依存は「使う前」に入れる。CIは毎回まっさらな環境で走るので、
+      #   ローカルで緑でも node_modules が無ければ jsdom を使うテストが SKIP になり、
+      #   テスト側は「SKIPを緑と呼ばない」作りなので赤になる（その振る舞いが正しい）。
+      - name: Install test deps (jsdom / jsqr)
+        run: npm install --no-audit --no-fund
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
+
       # ★発行と 自動の しまいを ぶつけない★（2026-10-25 指示役）＝打って すぐ 発行・しまいの 返事待ちに 発行・2度 押しで
       #   偽の「取り消して 作り直して」「番号は 既に 使われています」、下書きと 発行済みの 2通（二重の 請求の 元）が 出ていた
       - name: ★発行と自動のしまいがぶつからない その1 (打ってすぐ発行/返事待ちに発行/2度押し/待つ間に打った字/別の1通へ移る)
@@ -560,6 +578,26 @@ jobs:
         run: node seikyu/tests/furui-gyo.mjs --self-test --bu=2
       - name: ★一覧の古い行 その3 (返事の順の比べを本当に壊すと赤かの自己確認)
         run: node seikyu/tests/furui-gyo.mjs --self-test --bu=3
+
+  test-3:
+    # ★CI を 60分から 20分以下へ 割った 1本★（2026-10-30・段の 中身と 順は 変えず 続きの 段を 4つの job に 分けた）
+    #   ★支度（checkout・node・npm install）と 合言葉の env は test-1 と 同じ★＝どの job も まっさらな 機械で 1から 立つ
+    runs-on: ubuntu-24.04
+    # ★合言葉（SHIKEN_KUCHI_PASS）は 渡さない★＝試験の口を 叩く 段は job kuchi に 集めた（2026-10-30）
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ★依存は「使う前」に入れる。CIは毎回まっさらな環境で走るので、
+      #   ローカルで緑でも node_modules が無ければ jsdom を使うテストが SKIP になり、
+      #   テスト側は「SKIPを緑と呼ばない」作りなので赤になる（その振る舞いが正しい）。
+      - name: Install test deps (jsdom / jsqr)
+        run: npm install --no-audit --no-fund
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
+
       # ★お振込先の 入れ方★（司さん 2026-09-10「どこで 改行など 分からんから ちゃんとして
       #   それと 2個 表示する時用で 追加ボタンで また 入力するようにしろ」）
       # ★押しても 何も 変わらない 設定を 残さない★（司さん 2026-09-10
@@ -595,8 +633,6 @@ jobs:
       # ★選んだ様式の列が その紙に出る★（司さん 2026-10-23「控除の様式を選んだのに 備考が入っている」）
       - name: ★請求書 選んだ様式の列が紙に出る (全様式×会社の設定/取引先ごと/前回別の様式の相手・出した紙は写しのまま・お金は同じ)
         run: node seikyu/tests/tpl-kiku-ui.mjs
-      - name: ★同 わざと壊して赤になるか（列を様式に合わせない姿に戻す）
-        run: node seikyu/tests/tpl-kiku-ui.mjs --self-test
       # ★本番へ運ぶ道具★（手で写さない／呼ばれる側も一緒に／写す前と後で数える）
       # ★この repo は テスト線か本番か★ を答える道具（見張りが判定を分ける時の唯一の読み手）
       #   覚書に書いた env:'prod' に釣られると ★本番で判定が逆になる★（帯を出す/タイルを出す）。
@@ -630,6 +666,26 @@ jobs:
         run: node seikyu/tests/settei-wake-ui.mjs
       - name: ★設定の 3つの 切り替え (わざと壊して赤になるかの自己確認・3通り)
         run: node seikyu/tests/settei-wake-ui.mjs --self-test
+
+  test-4:
+    # ★CI を 60分から 20分以下へ 割った 1本★（2026-10-30・段の 中身と 順は 変えず 続きの 段を 4つの job に 分けた）
+    #   ★支度（checkout・node・npm install）と 合言葉の env は test-1 と 同じ★＝どの job も まっさらな 機械で 1から 立つ
+    runs-on: ubuntu-24.04
+    # ★合言葉（SHIKEN_KUCHI_PASS）は 渡さない★＝試験の口を 叩く 段は job kuchi に 集めた（2026-10-30）
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ★依存は「使う前」に入れる。CIは毎回まっさらな環境で走るので、
+      #   ローカルで緑でも node_modules が無ければ jsdom を使うテストが SKIP になり、
+      #   テスト側は「SKIPを緑と呼ばない」作りなので赤になる（その振る舞いが正しい）。
+      - name: Install test deps (jsdom / jsqr)
+        run: npm install --no-audit --no-fund
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
+
       # ★取引先を 消せる★（司さん 2026-10-23 ⑤）＝確かめ→論理削除・いいえは何も消えない・消した相手の請求書と名前は残る
       - name: ★取引先の 削除 実UI (スワイプ/ボタン・いいえで消えない・請求書と名前は残る・新しい請求書の相手に出ない)
         run: node seikyu/tests/torihiki-sakujo-ui.mjs
@@ -772,20 +828,6 @@ jobs:
         run: node kyuyo/tests/soshitsu-csv.test.mjs && node kyuyo/tests/soshitsu-csv.test.mjs --self-test
       - name: ★資格取得届の電子申請CSV（様式2200700・34項目／マイナンバー無し＝郵便番号・住所カナが必須）
         run: node kyuyo/tests/shutoku-csv.test.mjs && node kyuyo/tests/shutoku-csv.test.mjs --self-test
-      - name: ★スマホ幅で潰れ0・はみ出し0（段1＝入口4画面［給与・請求書・明細・Rakunally］×3幅／代行請求の物差しを借用）
-        run: node tests/sumaho-haba.mjs --self-test && node tests/sumaho-haba.mjs --bu=1
-      - name: ★スマホ幅（段2＝給与の中 幅375・390）／1段だと押す前の網の上限180秒を越えたので4段に分けた（2026-10-20・中身は同じ）
-        run: node tests/sumaho-haba.mjs --bu=2
-      - name: ★スマホ幅（段3＝給与の中 幅412）
-        run: node tests/sumaho-haba.mjs --bu=3
-      - name: ★スマホ幅（段4＝入口の中 ホーム・データ×4幅）
-        run: node tests/sumaho-haba.mjs --bu=4
-      - name: ★真ん中を突いて本当に押せるか（段1＝①ログイン前と入った後の5画面・ダイコメの物差しを借用）
-        run: node tests/oseru-ka.mjs --self-test && node tests/oseru-ka.mjs --bu=1
-      - name: ★出た時に下の物がずれないか（段2＝②Ａ／Ｂ・実測129px）／1段だと押す前の網の上限180秒を越える回が出たので2段に分けた（2026-10-02）
-        run: node tests/oseru-ka.mjs --bu=2
-      - name: ★給与の紙は白黒で刷っても読める（代行請求の物差しを借用・罫線が消えない）
-        run: node kyuyo/tests/kami-shiro-kuro.mjs --self-test && node kyuyo/tests/kami-shiro-kuro.mjs
       - name: Payroll pagination (1000件超が黙って欠落しない)
         run: node kyuyo/tests/pagination.test.mjs
       - name: Payroll meisai store (Web明細 公開一覧/削除時リンク失効)
@@ -800,14 +842,6 @@ jobs:
         run: node kyuyo/tests/shoyo-zenmonth-nashi.test.mjs
       - name: ★同 アプリの1行を直す前に戻すと赤になるか（自己確認）
         run: node kyuyo/tests/shoyo-zenmonth-nashi.test.mjs --self-test
-      - name: ★どの画面も無駄に動かない（iPhoneの空スクロール／5画面ぜんぶ）
-        run: node tests/scroll-muda.mjs
-      - name: ★同 判定そのものが空振りしていないか（自己確認）
-        run: node tests/scroll-muda.mjs --self-test
-      - name: ★他人のデータが見えない・書けない（渡す前のいちばん大事な所／本番repoでは測れないと言って抜ける）
-        run: node kyuyo/tests/rls-tanin.mjs
-      - name: ★同 判定そのものが空振りしていないか（自己確認）
-        run: node kyuyo/tests/rls-tanin.mjs --self-test
       - name: ★倉庫の鍵を ~/.supabase-token から読む（倉庫に触らない・偽のHOMEで確かめる）
         run: node kyuyo/tests/kagi-no-okiba.test.mjs
       - name: ★明細・申告の 関数（/rpc/）が 鍵を 照らしているか（試験の倉庫・anon・鍵が無いGitHubでは測らず抜ける）
@@ -895,6 +929,81 @@ jobs:
         run: node kyuyo/scripts/check-shaho-ritsu.mjs --self-test
 
 
+  # ★試験の口（test@test.com・共有の 倉庫）を 本当に 叩く 段★＝ここ 1か所に 集める（2026-10-30・CI を job に 割った時 taiketsu 止2）
+  #   ★WebKit（webkit.yml）も 同じ 口を 使う★＝同じ concurrency の 組 webkit-shared-account に 入れて 時刻を 重ねない
+  #   （1本の job だった 頃は この 段が 始まって 64分後＝WebKit の 後に 走って いた。割ると 13分目＝WebKit の 最中に なる）
+  #   ★cancel-in-progress: false★＝走って いる 回は 消さない（待ちの 1本が 次に 来た 1本に 置き換えられる 穴は webkit.yml の 頭の 覚書）
+  kuchi:
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: webkit-shared-account
+      cancel-in-progress: false
+    # ★試験の口の 合言葉は repo に 置かない★＝secret（tests/_shiken-kuchi.mjs が 読む・無ければ exit 2・決め2 10-11）
+    env:
+      SHIKEN_KUCHI_PASS: ${{ secrets.SHIKEN_KUCHI_PASS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ★依存は「使う前」に入れる。CIは毎回まっさらな環境で走るので、
+      #   ローカルで緑でも node_modules が無ければ jsdom を使うテストが SKIP になり、
+      #   テスト側は「SKIPを緑と呼ばない」作りなので赤になる（その振る舞いが正しい）。
+      - name: Install test deps (jsdom / jsqr)
+        run: npm install --no-audit --no-fund
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
+      - name: ★スマホ幅で潰れ0・はみ出し0（段1＝入口4画面［給与・請求書・明細・Rakunally］×3幅／代行請求の物差しを借用）
+        run: node tests/sumaho-haba.mjs --self-test && node tests/sumaho-haba.mjs --bu=1
+      - name: ★スマホ幅（段2＝給与の中 幅375・390）／1段だと押す前の網の上限180秒を越えたので4段に分けた（2026-10-20・中身は同じ）
+        run: node tests/sumaho-haba.mjs --bu=2
+      - name: ★スマホ幅（段3＝給与の中 幅412）
+        run: node tests/sumaho-haba.mjs --bu=3
+      - name: ★スマホ幅（段4＝入口の中 ホーム・データ×4幅）
+        run: node tests/sumaho-haba.mjs --bu=4
+      - name: ★真ん中を突いて本当に押せるか（段1＝①ログイン前と入った後の5画面・ダイコメの物差しを借用）
+        run: node tests/oseru-ka.mjs --self-test && node tests/oseru-ka.mjs --bu=1
+      - name: ★出た時に下の物がずれないか（段2＝②Ａ／Ｂ・実測129px）／1段だと押す前の網の上限180秒を越える回が出たので2段に分けた（2026-10-02）
+        run: node tests/oseru-ka.mjs --bu=2
+      - name: ★給与の紙は白黒で刷っても読める（代行請求の物差しを借用・罫線が消えない）
+        run: node kyuyo/tests/kami-shiro-kuro.mjs --self-test && node kyuyo/tests/kami-shiro-kuro.mjs
+      - name: ★どの画面も無駄に動かない（iPhoneの空スクロール／5画面ぜんぶ）
+        run: node tests/scroll-muda.mjs
+      - name: ★同 判定そのものが空振りしていないか（自己確認）
+        run: node tests/scroll-muda.mjs --self-test
+      - name: ★他人のデータが見えない・書けない（渡す前のいちばん大事な所／本番repoでは測れないと言って抜ける）
+        run: node kyuyo/tests/rls-tanin.mjs
+      - name: ★同 判定そのものが空振りしていないか（自己確認）
+        run: node kyuyo/tests/rls-tanin.mjs --self-test
+
+
+  # ★請求書 選んだ様式の列の「わざと壊して赤になるか」★＝壊し方 7通りを 1通りずつ 別の job で（1段 1206秒＝CI が 60分の 元・2026-10-30）
+  #   ★n: の 番号は 壊し方の 数と 揃える★＝seikyu/tests/tpl-kiku-ui.mjs が --only の 時に この 行を 読んで 揃わなければ 赤（exit 2）
+  tpl-kowasu:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4, 5, 6, 7]
+    # ★倉庫も 試験の口も 使わない（偽の倉庫 tests/fake-supa.js）＝合言葉は 渡さない★
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ★依存は「使う前」に入れる。CIは毎回まっさらな環境で走るので、
+      #   ローカルで緑でも node_modules が無ければ jsdom を使うテストが SKIP になり、
+      #   テスト側は「SKIPを緑と呼ばない」作りなので赤になる（その振る舞いが正しい）。
+      - name: Install test deps (jsdom / jsqr)
+        run: npm install --no-audit --no-fund
+        env:
+          SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
+      - name: ★同 わざと壊して赤になるか（列を様式に合わせない姿に戻す・${{ matrix.n }} 通りめ）
+        run: node seikyu/tests/tpl-kiku-ui.mjs --self-test --only=${{ matrix.n }}
+
+
   # ★公開 repo に 実在の 字（司さん・会社・お客さんの 本物）を 戻さない★（2026-10-11・Castally の 凍結版 nomiya-app b3dfea3 を 写した）
   #   一覧は repo に 置かない＝secret KINSHI_JI（1行に 1語）。無ければ「未測定」で 赤。
   #   指紋（変数 KINSHI_JI_FINGER）と 違えば 赤＝secret が 縮んだ・壊れた を 止める。
@@ -903,7 +1012,7 @@ jobs:
   # ★凍結版と 違う 所（2つ）★
   #   ①段の 中身は scripts/kinshi-ci.sh に 移し、run: は 1行＝この repo の 押す前の 網は run: の 1行しか 拾わない
   #     （塊の run: | は「|」として 回って 9段 赤・見張りが 網で 1回も 走らない＝taiketsu 10-11 実測）
-  #   ②給与の 試験の job（test）と 分けた＝secret の 置き忘れ等で ここが 赤でも 給与の 約250段は 走る
+  #   ②給与の 試験の job（test-1〜4・tpl-kowasu）と 分けた＝secret の 置き忘れ等で ここが 赤でも 給与の 約250段は 走る
   kinshi:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

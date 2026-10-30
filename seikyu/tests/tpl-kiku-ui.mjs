@@ -549,6 +549,15 @@ if (!SELF) {
   const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
   const erabu = only ? KOWASU.filter((_, i) => String(i + 1) === only) : KOWASU;
   if (only && !erabu.length) { console.log('  ★--only=' + only + ' の 壊し方が 無い（1〜' + KOWASU.length + '）★'); process.exit(2); }
+  /* ★CI は 壊し方 1通りずつを 別の job（ci.yml の tpl-kowasu の matrix）で 回す★（2026-10-30・1段 1206秒で CI が 60分）
+     ＝matrix の 番号が 1〜KOWASU.length と 揃っていないと 黙って 回らない 壊し方が 出る＝--only の 時は ci.yml を 読んで 揃いを 見る */
+  if (only) {
+    const yml = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+    const m = yml.match(/^  tpl-kowasu:[\s\S]*?^\s+n:\s*\[([^\]]*)\]/m);
+    const ban = m ? m[1].split(',').map((x) => x.trim()).join(',') : '';
+    const hoshii = KOWASU.map((_, i) => String(i + 1)).join(',');
+    if (ban !== hoshii) { console.log('  ★ci.yml の tpl-kowasu の n: [' + ban + '] が 壊し方 1〜' + KOWASU.length + ' と 揃っていない★'); process.exit(2); }
+  }
   for (const [na, mark, kae] of erabu) {
     if (keep.indexOf(mark) < 0) { console.log('  ★壊す場所が見つからない＝この自己診断は古い★ ' + na); process.exit(2); }
     const mae = fail;

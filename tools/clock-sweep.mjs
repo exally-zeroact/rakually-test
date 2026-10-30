@@ -35,7 +35,20 @@ const yml = fs.readFileSync(YML, 'utf8');
      「★1段も 走らなければ 赤★」（★0段 走って 緑★を 塞ぐ）
    ★Exally が 1日で 2回 踏んだ★＝「全部」の 中身が 人と 機械で ちがった */
 const hirotta = [...yml.matchAll(/^\s*run:\s*(.+)$/gm)].map((m) => m[1].trim());
-const all = hirotta.filter((c) => !/^npm install/.test(c));
+/* ★`${{ matrix.X }}` の 段は matrix の 値 1つずつに 開く★（2026-10-30・tpl-kowasu を 壊し方 7通りの matrix に 割った）
+   ＝字の まま 殻に 渡すと「--only=${{ の 壊し方が 無い」で 毎回 偽の 赤／7通りが 1回も 走らない（taiketsu 止B）。
+   値は その 行より 前で 一番 近い `X: [ … ]` から 取る。見つからなければ 字の まま 残す（赤で 見える） */
+const hiraku = (c) => {
+  const m = c.match(/\$\{\{\s*matrix\.(\w+)\s*\}\}/);
+  if (!m) return [c];
+  const at = yml.indexOf('run: ' + c);
+  const mae = at < 0 ? '' : yml.slice(0, at);
+  const ns = [...mae.matchAll(new RegExp('^\\s+' + m[1] + ':\\s*\\[([^\\]]*)\\]', 'gm'))];
+  if (!ns.length) return [c];
+  return ns[ns.length - 1][1].split(',').map((v) => v.trim()).filter(Boolean)
+    .map((v) => c.split(m[0]).join(v));
+};
+const all = hirotta.filter((c) => !/^npm install/.test(c)).flatMap(hiraku);
 const nozoita = hirotta.length - all.length;   /* 支度（npm install）＝走らせない */
 /* ★★分けて 回す 時は「合わせて 全部か」を 数で 出す★★（2026-09-19 司さん「分けてやれや」）
    ★訳★ … 総なめが ★3度 メモリで 止められた★（235段は 1回で 走り切れない 日が 在る）。
