@@ -194,13 +194,24 @@
      下書き   … その1通の data.cols ／ 無ければ会社の既定 ／ それも無ければ様式の初期値 */
   function colsOf(inv) {
     var v = inv || {};
+    /* ★発行の 後に 様式を 選び直した 1通は、写しの 列を 使わない★（2026-10-29 司さん（客の実画面）
+         「ある取引先の請求書やけど 修正から 備考なしで 選択したのに まだ 反映されんやないか」）
+       ＝前は 発行済みでも 様式の 合わせ（tplSync）が 様式の 名前を 変えるのに、
+         列は ★発行した 時の 写し★（備考つき）の まま＝上の 札は「備考なし」・紙は 備考の 列 で 食い違っていた。
+       ⇒ その 1通を 選び直した 印（下）が 在り、写しの 様式（snapshot.templateId）と 違えば、下書きと 同じ 決め方で 列を 出す。
+         同じなら 今まで通り 写しの 列（出した紙の 列を 勝手に 変えない）。写しに 様式の 無い 古い 1通も 今まで通り。 */
+    var snapTpl = v.snapshot && v.snapshot.templateId;
+    /* ★選び直したかは その 1通の 印（data.tplErabi）で 見る★（taiketsu 10-29 止2＝「今の 設定 ≠ 発行の 時」で 判じると、
+       設定を 変えただけで その 取引先の 過去の 発行済みが 全部 備考なしに なった）。印は 倉庫に 入る（data）ので
+       修正・確認・まとめ出しの どの 出口でも 同じ 紙（止1）。印が 無ければ 今まで通り 写しの 列 */
+    var erabiNaoshi = !!(snapTpl && v.template_id && v.data && v.data.tplErabi === v.template_id && snapTpl !== v.template_id);
     var snap = v.snapshot && v.snapshot.cols;
-    if (snap && Array.isArray(snap.items) && snap.items.length) return COLS.normalizeSpec(snap);
+    if (!erabiNaoshi && snap && Array.isArray(snap.items) && snap.items.length) return COLS.normalizeSpec(snap);
     var s = settings();
     // ★もう出してしまった紙（発行済み・取り消し済み）は、会社の「今の列」を当てない★
     //   列を足した日に、去年 出した請求書の紙まで列が増えるのは、控えと紙が食い違うのと同じ。
     //   写しに列が無い＝列を選べるようになる前に出した物 → その様式の既定（＝当時 刷った並び）で刷る。
-    if (v.id && v.status && v.status !== 'draft') {
+    if (!erabiNaoshi && v.id && v.status && v.status !== 'draft') {
       return COLS.normalizeSpec(TPL.getOrDefault(v.template_id).cols);
     }
     /* ★★列は その紙の 様式に 合わせる★★（2026-10-23 司さん（客の実画面）
@@ -1510,6 +1521,7 @@
   }
 
   function newInvoice() {
+    S.tplErabi = null;                 /* 別の 1通＝発行済みの 1通の 選び直しの 覚えは 捨てる */
     S.cur = blankInvoice();
     S.dirty = false;
     /* ★前の 1通の「当てた」印・札・知らせを 白紙に 持ち越さない★（2026-10-23 司さん
@@ -1820,6 +1832,7 @@
     /* ★設定で 決めた 紙を その場で 効かせる★（入力では 聞かなくなった＝2026-09-05）
        ここを 呼ばないと ★設定を 変えたのに 下書きは 前の紙のまま★になる。
        ★renderTplAsk より 先★＝1行に 出す名前と 実際に 出る紙を 食い違わせない。 */
+    erabiAteru();
     tplSync();
     renderTplAsk();
     renderGuess();
@@ -2035,12 +2048,17 @@
     var v = S.cur;
     if (!v) { show(strip, false); show(why, false); return; }
     var ro = locked();
-    var cur = ro ? (v.template_id || settings().template) : tplNow(v);
+    var dashita = !!(v.status && v.status !== 'draft');   /* 発行済み・取り消し済み＝その 1通の 様式を 言う（設定の 様式でなく） */
+    var cur = (ro || dashita) ? (v.template_id || settings().template) : tplNow(v);
     var t = TPL.getOrDefault(cur);
     setText('tpl-strip-v', t.label);
     show(strip, true);
     /* ★どこで そう決まったのかを 言う★（同じ状態を 2か所で 別々に 判定しない＝tplKara 1つ） */
-    var kara = ro ? '発行済み＝出した時の 紙のまま（設定を変えても 動きません）' : tplKara(v.partner_id).kara;
+    var kara = ro ? '発行済み＝出した時の 紙のまま（設定を変えても 動きません）'
+      : dashita ? ((v.data && v.data.tplErabi === v.template_id && v.snapshot && v.snapshot.templateId !== v.template_id)
+        ? '発行した 後に この1通の 紙を 選び直しました'
+        : (v.status === 'void' ? '取り消し済み' : '発行済み') + '＝出した時の 紙のまま（「この取引先の紙を変える」で 選び直すと この1通にも 当たります）')
+      : tplKara(v.partner_id).kara;
     setText('tpl-strip-why', kara + '。項目（列）も 設定で 足す・消す・並べ替えが できます。');
     show(why, true);
     var ch = $('b-tpl-change'); if (ch) show(ch, !ro);
@@ -2080,9 +2098,29 @@
   /** ★下書きの 中身を 設定に そろえる★
    *  ＝入力で 聞かなくなったので、設定を 変えたら その場で 下書きにも 効かせる。
    *  ★発行済みには 触らない★（写しは 動かさない）。 */
+  /* ★発行済みの 1通から「この取引先の紙を変える」で 様式を 選んで 戻ったら、その 1通に 当てて 印を 付けて しまう★（2026-10-29 司さん） */
+  function erabiAteru() {
+    var m = S.tplErabi, v = S.cur;
+    if (!m) return;
+    /* ★同じ 1通かは id で 見る★（一覧の「修正」で 開き直すと 写しの 物に なる＝物で 比べると 当たらなかった・taiketsu 10-29 2回 止2）。
+       違う 1通を 開いたら 覚えは 捨てる（後で 戻っても 当てない） */
+    S.tplErabi = null;
+    if (!v || !v.id || v.id !== m.id) return;
+    if (!m.erabi) return;
+    var t = tplNow(v);
+    if (!t || t === v.template_id) return;
+    v.template_id = t;
+    v.data = v.data || {};
+    v.data.tplErabi = t;
+    S.dirty = true;
+    jidoYoyaku();
+  }
   function tplSync() {
     var v = S.cur;
     if (!v || locked()) return;
+    /* ★発行済み・取り消し済みには 当てない★（注記の 決めの 通り。canEdit が いつも 真に なってから 発行済みにも 当たり、
+       設定を 変えるたびに 過去の 紙の 様式の 名前が 変わっていた・taiketsu 10-29）。その 1通に 当てるのは erabiAteru だけ */
+    if (v.status && v.status !== 'draft') return;
     var beki = tplNow(v);
     if ((v.template_id || null) === beki) return;
     /* ★勝手に 直す時は 様式だけ★（列には 触らない）
@@ -5913,6 +5951,7 @@
         if (!pp) return;
         pp.data = pp.data || {};
         pp.data.paper = partnerPaperFromForm(pp.id);
+        if (id === 's-ptpl' && S.tplErabi && S.tplErabi.pid === pp.id) S.tplErabi.erabi = true;   /* 覚えた 1通の 相手の 様式を 選んだ */
         /* ★様式を 選び直しても この相手だけの列は 消さない・上書きしない★（2026-10-24 taiketsu 止3）
            ＝合わない 様式の 紙では 使わない だけ（colsOf ②）。元の様式に 戻すと 手で 作った列が 帰る。
            知らせは fillPartnerPaper（s-pcols-hint）が 中身どおりに 言う。 */
@@ -6739,7 +6778,9 @@
            「新しい請求書を入力から作る時に、前の取引先の中身が反映されてる」）
            ＝前は 終えた 1通が そのまま 出て、相手を 変えて 打つと ★その 1通が 書き換わった★。
            ★打ちかけ（修正で 開いて まだ 保存も 発行も していない）は 続きを 出す★＝打った 物を 失わない */
-        if (t === 'scr-edit' && (!S.cur || owattaNoMama())) { newInvoice(); return; }
+        /* ★発行済みの 1通から「この取引先の紙を変える」で 様式を 選んで 戻る 時は、その 1通へ 戻す★（発行・保存の 直後でも 白紙に しない・taiketsu 10-29 2回 止1） */
+        var erabiModori = t === 'scr-edit' && S.tplErabi && S.tplErabi.erabi && S.cur && S.cur.id === S.tplErabi.id;
+        if (t === 'scr-edit' && !erabiModori && (!S.cur || owattaNoMama())) { newInvoice(); return; }
         if (t === 'scr-set') fillSettings();
         /* ★設定を変えて戻ってきた時、古い案内を残さない★
            （紙の行数を20行にしたのに「紙は2枚になります」と言ったまま＝
@@ -6748,6 +6789,7 @@
           /* ★設定で 紙の様式を 変えて 戻ってきた時、その場で 効かせる★（2026-09-05）
              ＝ここを 呼ばないと ★設定は koujo なのに 入力の 1行は 前のまま★になる（実測）。
              ★同じ状態を 2か所で 別々に 判定しない★＝正は 設定（tplNow）1つ。 */
+          erabiAteru();   /* 発行済みの 1通から 来て 様式を 選んだ 時だけ その 1通に 当てる */
           tplSync();
           renderTplAsk();
           renderLines();
@@ -6860,6 +6902,8 @@
     var tplPt = $('b-tpl-pt');
     if (tplPt) tplPt.onclick = function () {
       var pid = S.cur && S.cur.partner_id;
+      /* ★発行済みの 1通から 来たら その 1通を 覚える★＝設定で この 相手の 様式を 選んだら、戻った 時に その 1通にも 当てる（erabiAteru） */
+      S.tplErabi = (S.cur && S.cur.id && S.cur.status && S.cur.status !== 'draft' && pid) ? { id: S.cur.id, pid: pid, erabi: false } : null;
       fillSettings();
       goScreen('scr-set');
       /* ★取引先は「取引先」の 切り替えの 中の 札★（2026-10-23 ⑥ 設定を 3つに 分けた）＝その 相手の 札を 開く */
