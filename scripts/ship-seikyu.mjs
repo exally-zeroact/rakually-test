@@ -294,9 +294,11 @@ export function ciStop(r, f) {
 
 /* ★運び先に 給与(kyuyo/)が 在れば 運ばない★＝この道具は「請求書だけ」の運び先用。
    本番 rakually は給与ごと出している（2026-10-30 taiketsu）＝向けて回すと 入口の給与タイル・帰り道・
-   給与の CI 15段を 黙って消す。⇒ 1字も書く前に止める */
+   給与の CI 15段を 黙って消す。⇒ 1字も書く前に止める。
+   ★kyuyo/ の有る無しで決めない★＝この道具も 運び先に kyuyo/lib/ の2本を書くので、
+   それだと 1回運んだ所へ 二度と運べない（本番前 taiketsu 10-30）。給与の画面の入口で見る */
 export function destHasKyuyo(to) {
-  return fs.existsSync(path.join(to, 'kyuyo'));
+  return fs.existsSync(path.join(to, 'kyuyo', 'index.html'));
 }
 
 /* ★外した物は 必ず CI の頭に書く★（この repo の決まり） */
@@ -563,11 +565,15 @@ console.log('\n★自己診断★');
   {
     const t3 = fs.mkdtempSync(path.join(os.tmpdir(), 'shipk-'));
     try {
-      fs.mkdirSync(path.join(t3, 'kyuyo'));
-      must(true, destHasKyuyo(t3), '★kyuyo/ の在る運び先を 見分ける★');
-      must(1, ship(t3, false), '★kyuyo/ の在る運び先へは 運ばない（1を返す）★');
+      fs.mkdirSync(path.join(t3, 'kyuyo', 'lib'), { recursive: true });
+      fs.writeFileSync(path.join(t3, 'kyuyo', 'lib', 'shiharai-chosho.js'), '', 'utf8');
+      must(false, destHasKyuyo(t3), '★1回運んだ所（kyuyo/lib だけ）は 止めない＝運び直せる★');
+      fs.writeFileSync(path.join(t3, 'kyuyo', 'index.html'), '', 'utf8');
+      must(true, destHasKyuyo(t3), '★給与の画面の在る運び先を 見分ける★');
+      must(1, ship(t3, false), '★給与の画面の在る運び先へは 運ばない（1を返す）★');
       must('kyuyo', fs.readdirSync(t3).join(','), '★止めた時は 1つも書いていない★');
-      fs.rmdirSync(path.join(t3, 'kyuyo'));
+      must('index.html,lib', fs.readdirSync(path.join(t3, 'kyuyo')).sort().join(','), '★止めた時は kyuyo/ の中も そのまま★');
+      fs.rmSync(path.join(t3, 'kyuyo'), { recursive: true, force: true });
       must(false, destHasKyuyo(t3), '空の運び先は 止めない');
     } finally { fs.rmSync(t3, { recursive: true, force: true }); }
   }
