@@ -82,6 +82,7 @@ on:
       - 'tests/repo-supa.mjs'
       - 'scripts/_borrow-playwright.mjs'
       - 'scripts/repo-env.mjs'
+      - 'scripts/_souko-ref.mjs'
       - 'tools/aka-kiroku.mjs'
   # ★PR でも 走らせる★（2026-09-04 指示役／Exally 実測）
   #   ★schedule と push(main) だけだと ★入れた後で 初めて 赤に なる★★
@@ -137,6 +138,7 @@ on:
       - 'tests/repo-supa.mjs'
       - 'scripts/_borrow-playwright.mjs'
       - 'scripts/repo-env.mjs'
+      - 'scripts/_souko-ref.mjs'
       - 'tools/aka-kiroku.mjs'
   workflow_dispatch:
 
