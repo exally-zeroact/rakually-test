@@ -795,6 +795,8 @@ jobs:
         run: node kyuyo/tests/ym-hozon.test.mjs && node kyuyo/tests/ym-hozon.test.mjs --self-test
       - name: ★倉庫を触る測りは必ず同じ門を通る（鍵が無い時の決めを人の記憶で保たない＝09-15に同じ型を3回）
         run: node kyuyo/tests/souko-mon.test.mjs && node kyuyo/tests/souko-mon.test.mjs --self-test
+      - name: ★倉庫の入口は本番のrepoでは1回も問わない（11-01＝覚書に「止める」と在って中身に門が無かった／作り物のrepoと偽のfetchで数える）
+        run: node kyuyo/tests/souko-honban-mon.test.mjs && node kyuyo/tests/souko-honban-mon.test.mjs --self-test
       - name: ★人を消したら その人の給与明細も倉庫から消す／消す道は1か所（ボタンとスワイプを揃える）
         run: node kyuyo/tests/emp-kesu-meisai.test.mjs && node kyuyo/tests/emp-kesu-meisai.test.mjs --self-test
       - name: ★客に出る紙は全部「中身を見る実ブラウザ試験」を持つ（09-19＝手で引いて2回外した／名前の形で引く・置き場を1つしか見ない）

@@ -34,9 +34,37 @@ import path from 'node:path';
    ⇒ ★repo が 向いている 先を 機械に 決めさせる★（js/supa-config.js 1か所から 読む）。
      ＝★本番の repo で 走らせたら 本番を 指す★＝★下の 門で その場で 止まる★。 */
 import { repoSupa } from '../../tests/repo-supa.mjs';
+import { fileURLToPath } from 'node:url';
+import { repoEnv } from '../../scripts/repo-env.mjs';
+import { TEST_REF } from '../../scripts/_souko-ref.mjs';
 
 /* ★試験の 倉庫でなければ 1文字も 書かない★＝名前では なく ★repo の 向き先★で 決める。
    ★この紙は delete を 持つ★＝★取り違えたら 客の データが 消える★ので 門を 置く。 */
+/* ★★本番の 門（2026-11-01・本番前 taiketsu 10-31 の 任意を 直した）★★
+   ★前★ … 上の 覚書は「本番の ref を 渡されたら その場で 止める」と 言うのに、★中身に 門が 無かった★。
+     ＝本番の 木（rakually）で 手元から 回すと、鍵が 在れば ★本番の 倉庫に 問い★、
+       自己確認⑥〜⑨は ★本番の pay_payslips に 1999-01 の 2行を 置いて 消す★。
+     （CI は 鍵が 無いので 抜けていた＝★手元で 回した 時だけ 開く 穴★）
+   ⇒ ★唯一の 入口 toi() の 一番 頭★で repo の 名札（scripts/repo-env.mjs＝kagi-terasu・souko-kengen と 同じ 読み方）を 見る。
+     ・test … 通す
+     ・prod … ★1文字も 問わない★＝鍵を 読む 前に 返す（未測定＝終わり値 0・kagi-terasu の「本番＝抜ける」と 同じ）
+     ・読めない … ★1文字も 問わない★＝★赤★（未測定に しない＝黙って 抜ける 日を 作らない）
+   ★名札だけで 決めない★（設計前 taiketsu 11-01 止2）＝「env:'test' の まま url だけ 本番」（09-14 に 実際に 出た 型・
+     supa-config-env-matches-repo の 覚書）でも 止める ⇒ ★問いに 行く 先（souko() の ref）が TEST_REF の 時だけ 通す★。
+     名札 test・ref が 試験で ない … ZURE_JI＝★赤★。
+   ★鍵の 有無より 先に 見る★＝本番の CI（鍵 無し）でも 訳は「本番」と 出る（鍵の 話に 化けない）。 */
+const ROOT_SK = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const HONBAN_JI = '★test の 倉庫を 指す repo では 無い（本番）★＝倉庫を 触りません';
+export const FUMEI_JI = '★repo の 名札（js/supa-config.js の env）が 読めない★＝倉庫を 触りません';
+export const ZURE_JI = '★名札は test なのに 問う 先（url の ref）が 試験の 倉庫で ない★＝倉庫を 触りません';
+export function monNoKotae(env, ref) {
+  if (env === 'prod') return HONBAN_JI;
+  if (env !== 'test') return FUMEI_JI;
+  return ref === TEST_REF ? null : ZURE_JI;
+}
+function refNoNa() { try { return souko(); } catch (e) { return ''; } }
+function kankyoNoNa() { try { return repoEnv(ROOT_SK); } catch (e) { return ''; } }
+
 function souko() {
   const { ref } = repoSupa();
   return ref;
@@ -53,6 +81,8 @@ export function kagiYomu(file) {
 function kagi() { return kagiYomu(TOKEN_FILE); }
 
 async function toi(sql) {
+  const mon = monNoKotae(kankyoNoNa(), refNoNa());          /* ★鍵を 読む 前・fetch の 前★ */
+  if (mon) return { ok: false, naze: mon };
   const t = kagi();
   if (!t) return { ok: false, naze: '鍵の 紙が 読めない（' + TOKEN_FILE + '）' };
   try {
@@ -427,12 +457,13 @@ export async function kojiKazoeru() {
 }
 
 export function kankyoKa(naze) {
-  return String(naze || '').indexOf('鍵の 紙が 読めない') >= 0;
+  /* ★本番の repo も「この環境では 測らない」★（読めない＝FUMEI_JI は 入れない＝赤） */
+  return String(naze || '').indexOf('鍵の 紙が 読めない') >= 0 || String(naze || '') === HONBAN_JI;
 }
 
 /* ★★その時 出す 字も 1か所★★（呼ぶ側で 書き写さない＝ずれない） */
 export function kankyoIu(nanNoHanashi) {
-  console.log('  🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い）'
+  console.log('  🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い／本番の repo）'
     + (nanNoHanashi ? '／' + nanNoHanashi : ''));
   console.log('     ＝★手元の テスト線で 数えています★／戻す条件＝CIに 鍵を 置いた日');
   console.log('     ★0件＝合格 とは 書きません★');
@@ -814,7 +845,7 @@ export async function awaseru(mae, byo = 20) {
          （tests/_hairu.mjs の kagiAru と 同じ 決め方＝★測れない事を 字で 言ってから 抜ける★）
        ★測り損ね（鍵は 在るのに 読めない 等）は 今までどおり 未測定★＝赤の まま。 */
     const naze = (mae && mae.naze) || '（訳 不明）';
-    if (naze.indexOf('鍵の 紙が 読めない') >= 0) {
+    if (kankyoKa(naze)) {
       /* ★★緑で 通すなら 数を 出す（2026-09-14 指示役1 の 条件）★★
          ★「赤にも 緑にも しない」は 機械には 無い★＝終わり値は 0 か 0以外。
          0（緑）に するなら ★材料が 無いのに 緑★＝今日 ずっと 潰してきた 形。
@@ -824,7 +855,7 @@ export async function awaseru(mae, byo = 20) {
            ③CI の 段の 名前にも 出す（名前を 見ただけで 分かる）
          ★字は「未測定」を 含める★＝★静かに 消えない★ようにする。 */
       return { han: '環境',
-        iu: '🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い）'
+        iu: '🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い／本番の repo）'
           + '＝★手元の テスト線で 数えています★／戻す条件＝CIに 鍵を 置いた日' };
     }
     return { han: '未測定', iu: '★前を 数えられていない★＝' + naze };
@@ -1022,8 +1053,8 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('_souko-kazo
        ⇒ 上の awaseru と ★同じ 決め方★に 揃える:
          ・鍵が 無い … ★緑（0）で 通す／ただし 未測定として 数を 出す★
          ・鍵は 在るのに 読めない … ★今までどおり 赤（2）★ */
-    if (String(ima.naze).indexOf('鍵の 紙が 読めない') >= 0) {
-      console.log('  🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い）');
+    if (kankyoKa(ima.naze)) {
+      console.log('  🟡 ★未測定★ ★この環境では 倉庫を 数えていません … 1本★（試験の 鍵が 無い／本番の repo）');
       console.log('     ＝★手元の テスト線で 数えています★／戻す条件＝CIに 鍵を 置いた日');
       console.log('     ★0件＝合格 とは 書きません★');
       process.exit(0);
