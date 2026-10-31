@@ -2697,10 +2697,11 @@
     drawKind();
     S.cur = Object.assign(blankInvoice({ docType: 'invoice' }), draft);
     S.cur.data = Object.assign({}, draft.data || {});
-    if (S.cur.data.cols && !S.cur.data.colsTpl) {
-      /* ★見積の列は 見積の様式の 為の物★（様式が 同じなら そのまま 持っていく） */
-      S.cur.data.colsTpl = q.template_id || settings().template;
-    }
+    /* ★見積の列は 見積の様式の 為の物★（様式が 同じなら そのまま 持っていく＝印は convertQuoteToInvoice が 写す）。
+       ★印の 無い 列は 捨てる★＝前は 見積の 今の 様式の 印を 当てていたので、様式を 選び直した 見積の
+         古い列（備考つき）が「備考なし」の 請求書に 出た。印の 無い 列は 見積の 紙でも 使っていない（colsOf ①）
+         ＝捨てると 請求書は 見積の 紙と 同じ 列で 出る */
+    if (S.cur.data.cols && !S.cur.data.colsTpl) delete S.cur.data.cols;
     S.guessDone = true;              // ★見積から当てたので「前回と同じで作りますか？」は出さない
     S.dirty = true;
     return loadList().then(function () {
@@ -2728,8 +2729,9 @@
     drawKind();
     S.cur = Object.assign(blankInvoice({ docType: draft.doc_type }), draft);
     S.cur.data = Object.assign({}, draft.data || {});
-    /* ★写した列は 元の紙の 様式の 為の物★（様式が 同じなら 同じ列で 出る） */
-    if (S.cur.data.cols && !S.cur.data.colsTpl) S.cur.data.colsTpl = src.template_id || settings().template;
+    /* ★写した列は 元の紙の 様式の 為の物★（様式が 同じなら 同じ列で 出る＝印は duplicateDoc が data ごと 写す）。
+       ★印の 無い 列は 捨てる★（今の 様式の 印を 当てると、様式を 選び直した 古い 1通の 備考つきの 列が 複製に 出る・toInvoice と 同じ） */
+    if (S.cur.data.cols && !S.cur.data.colsTpl) delete S.cur.data.cols;
     S.guessDone = true;               // 中身は もう写してある＝「前回と同じで作りますか」は出さない
     S.dirty = true;
     return loadList().then(function () {

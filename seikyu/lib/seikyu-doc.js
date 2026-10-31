@@ -745,6 +745,9 @@
         widths: Object.assign({}, qd.cols.widths || {}),
         aligns: Object.assign({}, qd.cols.aligns || {}),
       };
+      /* ★列と 一緒に「どの様式の 為の列か」の 印も 持っていく★（落とすと 受け側が 今の様式の 印を 当てて、
+         様式を 選び直した 見積の 古い列（備考つき）が 請求書に 出た） */
+      if (qd.colsTpl) data.colsTpl = qd.colsTpl;
     }
     /* 見積で足した自由な列の中身も落とさない（lines の extra ごと持っていく） */
     var lines = (q.lines || []).map(function (ln) {

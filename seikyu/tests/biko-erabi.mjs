@@ -396,6 +396,45 @@ michi('⑱自社が 読めなかった 時も 当てる 釦を 出さず、当�
   eq(t.S.cur.template_id, 'koujomemo', '★自社が 読めないのに 当てた★');
 });
 
+/* ★taiketsu 10-30 2回目 控え★ 様式を 選び直した 見積・古い 1通を 請求書・複製に すると 備考の 列が 出た
+   （受け側が 印の 無い 列に 今の 様式の 印を 当てていた・convertQuoteToInvoice は 印を 落としていた） */
+const KOUJOMEMO = { items: ['項目', '数量', '単位', '金額', '消費税', '備考'] };
+const mitsumori = (data) => ({ id: 'q1', doc_type: 'quote', status: 'issued', no: 'Q-0001', partner_id: 'pB', issue_ymd: '2026-10-01',
+  template_id: 'koujo', tax_mode: 'exclusive', rounding: 'floor', lines: [{ name: 'Q品', qty: 1, price: 7000, amount: 7000 }],
+  totals: {}, snapshot: { templateId: 'koujo' }, data });
+const seikyuNi = async (data) => {
+  const t = await tateru();
+  setPt(t, 'koujo');
+  t.S.docType = 'quote'; t.S.cur = mitsumori(data); t.A._fillEdit(); await nemuru(50);
+  const mae = retsu(t);
+  ok(mae.indexOf('備考') < 0, '★前置き：見積の 紙に 備考が 在る★ ' + mae);
+  await oshu(t, '#b-toinv'); await nemuru(600);
+  eq(t.S.cur.doc_type, 'invoice', '★前置き：請求書に なっていない★');
+  return { t, mae };
+};
+michi('⑲様式を 選び直した 見積（列の 印が 古い 様式）を 請求書に＝見積の 紙と 同じ 列（備考が 出ない）', async () => {
+  const { t, mae } = await seikyuNi({ cols: KOUJOMEMO, colsTpl: 'koujomemo' });
+  eq(retsu(t), mae, '★見積に 無い 備考の 列が 請求書に 出た★');
+});
+michi('⑳印の 無い 古い 見積を 請求書に＝見積の 紙と 同じ 列（備考が 出ない）', async () => {
+  const { t, mae } = await seikyuNi({ cols: KOUJOMEMO });
+  eq(retsu(t), mae, '★見積に 無い 備考の 列が 請求書に 出た★');
+});
+michi('㉑見積の 様式の 為の 列は 請求書へ そのまま 持っていく（印も 写す）', async () => {
+  const { t } = await seikyuNi({ cols: { items: ['項目', '金額', '消費税'] }, colsTpl: 'koujo' });
+  eq(t.S.cur.data.colsTpl, 'koujo', '★列の 印が 写っていない★');
+  eq(retsu(t), '項目,金額,消費税', '★見積で 選んだ 列が 落ちた★');
+});
+michi('㉒印の 無い 古い 1通を 複製＝今の 様式の 列（備考つきの 古い 列が 出ない）', async () => {
+  const t = await tateru();
+  setPt(t, 'koujo');
+  t.S.cur = Object.assign(mitsumori({ cols: KOUJOMEMO }), { id: 'i1', doc_type: 'invoice', no: 'B-0001' });
+  t.A._fillEdit(); await nemuru(50);
+  t.A._duplicateForTest(); await nemuru(300);
+  eq(t.S.cur.status || 'draft', 'draft', '★前置き：複製が 下書きで ない★');
+  ok(retsu(t).indexOf('備考') < 0, '★様式は 備考なしなのに 複製に 備考の 列が 出た★ ' + retsu(t));
+});
+
 if (!SELF) {
   for (const [na, fn] of MICHI) await T(na, fn);
 } else {
@@ -415,6 +454,9 @@ if (!SELF) {
     ['固める 先を data.cols に する（複製に 流れ込む）', '    if (snapTpl && snapTpl !== t) v.data.erabiCols = { tpl: t, cols: colsSaki(v.partner_id, t) };', '    if (snapTpl && snapTpl !== t) { v.data.cols = colsSaki(v.partner_id, t); v.data.colsTpl = t; }', '⑯'],
     ['取引先が 読めなくても 当てる', '    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);', '    return S.orgReadOk !== false && !!partnerById(v.partner_id);', '⑰'],
     ['自社が 読めなくても 当てる', '    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);', '    return S.partnersReadOk !== false && !!partnerById(v.partner_id);', '⑱'],
+    ['見積の 印の 無い 列に 今の 様式の 印を 当てる（前の 作り）', '    if (S.cur.data.cols && !S.cur.data.colsTpl) delete S.cur.data.cols;\n    S.guessDone = true;              //', '    if (S.cur.data.cols && !S.cur.data.colsTpl) S.cur.data.colsTpl = q.template_id;\n    S.guessDone = true;              //', '⑳'],
+    ['見積の 列を 全部 捨てる（選んだ 列が 落ちる）', '    if (S.cur.data.cols && !S.cur.data.colsTpl) delete S.cur.data.cols;\n    S.guessDone = true;              //', '    delete S.cur.data.cols;\n    S.guessDone = true;              //', '㉑'],
+    ['複製の 印の 無い 列に 今の 様式の 印を 当てる（前の 作り）', '    if (S.cur.data.cols && !S.cur.data.colsTpl) delete S.cur.data.cols;\n    S.guessDone = true;               //', '    if (S.cur.data.cols && !S.cur.data.colsTpl) S.cur.data.colsTpl = src.template_id;\n    S.guessDone = true;               //', '㉒'],
     ['送った 中身の 比べに 様式を 入れない', '[v.no, nakamiKata(v), v.template_id || null, (v.data && v.data.tplErabi) || null]', '[v.no, nakamiKata(v)]', '⑫'],
   ];
   for (const [na, a, b, mi] of kowasu) {
