@@ -47,6 +47,7 @@ const nemuru = (ms) => new Promise((r) => setTimeout(r, ms));
 const rel = 'seikyu/index.html', file = path.join(ROOT, rel);
 const html = fs.readFileSync(file, 'utf8');
 
+const IMA = Date.parse('2026-10-25T12:00:00+09:00');   /* 試験の 中の「今日」（下の tateru で 画面に 渡す） */
 let APP_KAE = null;   /* 自分ためしで 壊した 本文（ふだんは null＝本物を 読む） */
 /* ★1つの 道ごとに 画面を 1から 立てる★ */
 async function tateru() {
@@ -54,6 +55,8 @@ async function tateru() {
     { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/' + rel });
   const win = dom.window, doc = win.document;
   win.fetch = () => Promise.reject(new Error('no net'));
+  /* ★今日を 2026-10-25 に 固める★（番号の 月「202610」と 請求日を 決め打ちで 比べている＝2026-11-01 に 月が 変わって 赤に なった） */
+  win.eval('Date = class extends Date { constructor(...a) { if (a.length) super(...a); else super(' + IMA + '); } static now() { return ' + IMA + '; } };');
   win.scrollTo = () => {}; win.print = () => {}; win.confirm = () => true;
   win.URL.createObjectURL = () => 'blob:fake';
   for (const m of html.matchAll(/<script src="([^"]+)"><\/script>/g)) {
