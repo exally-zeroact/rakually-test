@@ -411,6 +411,7 @@ if (!SELF) {
     ['釦を 出すかを 名前で 比べる（ずれた 1通に 釦が 出ない）', '    return (t && t !== tplKiku(v)) ? t : null;', '    return (t && t !== v.template_id) ? t : null;', '⑬'],
     ['選び直しを 名前で 比べる（ずれた 1通に 当たらない）', '    if (!t || t === tplKiku(v)) return;\n    tplAteru(v, t);', '    if (!t || t === v.template_id) return;\n    tplAteru(v, t);', '⑭'],
     ['選び直した 時の 列を 固めない', '    if (snapTpl && snapTpl !== t) v.data.erabiCols = { tpl: t, cols: colsSaki(v.partner_id, t) };', '    if (false) v.data.erabiCols = null;', '⑮'],
+    ['固めた 列を 紙で 読まない（倉庫に 在っても 今の 列で 刷る）', '    if (ec && ec.tpl === v.template_id && ec.cols && Array.isArray(ec.cols.items) && ec.cols.items.length) return COLS.normalizeSpec(ec.cols);\n', '', '⑮'],
     ['固める 先を data.cols に する（複製に 流れ込む）', '    if (snapTpl && snapTpl !== t) v.data.erabiCols = { tpl: t, cols: colsSaki(v.partner_id, t) };', '    if (snapTpl && snapTpl !== t) { v.data.cols = colsSaki(v.partner_id, t); v.data.colsTpl = t; }', '⑯'],
     ['取引先が 読めなくても 当てる', '    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);', '    return S.orgReadOk !== false && !!partnerById(v.partner_id);', '⑰'],
     ['自社が 読めなくても 当てる', '    return S.partnersReadOk !== false && S.orgReadOk !== false && !!partnerById(v.partner_id);', '    return S.partnersReadOk !== false && !!partnerById(v.partner_id);', '⑱'],
