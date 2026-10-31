@@ -2685,6 +2685,17 @@
     b.title = why || '';
   }
 
+  /** ★印（colsTpl）の 無い 写した 列に 付ける 印★（toInvoice・duplicateCur の 2か所）
+   *  前は 元の紙の ★今の★ 様式を 当てたので、様式を 選び直した 紙の 古い列（備考つき）が「備考なし」の 請求書・複製に 出た。
+   *  ・出した紙 … 10-23 より前の 発行では 写しの列＝その時の data.cols（taiketsu 10-31 止1＝捨てると 手で 足した 列が 消える）
+   *               ⇒ ★写しの 様式★を 印に する＝選び直して いなければ 同じ 列・選び直した 紙は 印が 合わず colsOf ① が 使わない
+   *               写しに 様式の 無い 古い 紙は 今まで通り その紙の 様式
+   *  ・下書き … 印の 無い 列は colsOf ① が 使っていない＝null（呼ぶ側が 捨てる）＝紙と 同じ 列で 出る */
+  function utsushiShirushi(src) {
+    if (!src || !src.status || src.status === 'draft') return null;
+    return (src.snapshot && src.snapshot.templateId) || src.template_id || null;
+  }
+
   /** 見積 → 請求（★品目・数量・単価・税区分・件名・備考・源泉・列をそのまま持っていく★） */
   function toInvoice() {
     var q = S.cur;
@@ -2698,10 +2709,11 @@
     S.cur = Object.assign(blankInvoice({ docType: 'invoice' }), draft);
     S.cur.data = Object.assign({}, draft.data || {});
     /* ★見積の列は 見積の様式の 為の物★（様式が 同じなら そのまま 持っていく＝印は convertQuoteToInvoice が 写す）。
-       ★印の 無い 列は 捨てる★＝前は 見積の 今の 様式の 印を 当てていたので、様式を 選び直した 見積の
-         古い列（備考つき）が「備考なし」の 請求書に 出た。印の 無い 列は 見積の 紙でも 使っていない（colsOf ①）
-         ＝捨てると 請求書は 見積の 紙と 同じ 列で 出る */
-    if (S.cur.data.cols && !S.cur.data.colsTpl) delete S.cur.data.cols;
+       印の 無い 列（10-23 より前）は utsushiShirushi で 印を 決める */
+    if (S.cur.data.cols && !S.cur.data.colsTpl) {
+      var shq = utsushiShirushi(q);
+      if (shq) S.cur.data.colsTpl = shq; else delete S.cur.data.cols;
+    }
     S.guessDone = true;              // ★見積から当てたので「前回と同じで作りますか？」は出さない
     S.dirty = true;
     return loadList().then(function () {
@@ -2730,8 +2742,11 @@
     S.cur = Object.assign(blankInvoice({ docType: draft.doc_type }), draft);
     S.cur.data = Object.assign({}, draft.data || {});
     /* ★写した列は 元の紙の 様式の 為の物★（様式が 同じなら 同じ列で 出る＝印は duplicateDoc が data ごと 写す）。
-       ★印の 無い 列は 捨てる★（今の 様式の 印を 当てると、様式を 選び直した 古い 1通の 備考つきの 列が 複製に 出る・toInvoice と 同じ） */
-    if (S.cur.data.cols && !S.cur.data.colsTpl) delete S.cur.data.cols;
+       印の 無い 列は utsushiShirushi で 印を 決める（toInvoice と 同じ） */
+    if (S.cur.data.cols && !S.cur.data.colsTpl) {
+      var shd = utsushiShirushi(src);
+      if (shd) S.cur.data.colsTpl = shd; else delete S.cur.data.cols;
+    }
     S.guessDone = true;               // 中身は もう写してある＝「前回と同じで作りますか」は出さない
     S.dirty = true;
     return loadList().then(function () {
