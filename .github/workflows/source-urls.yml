@@ -55,15 +55,18 @@ jobs:
       #   ★次に lib へ 手で 出典を 書いた人が また 死んだ URL を 入れられる★ので ここで 見る。
       #   ★URL は この道具に 1本も 書かない★＝buildStatutoryRows（lib）から 取る。
       - name: ★lib が持つ出典URLが全部生きているか（全kind・404なら赤）
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node scripts/check-shutten-mukai.mjs
       - name: ★lib の出典 (物差しそのものの自己確認・7通り)
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node scripts/check-shutten-mukai.mjs --self-test
       # ★材料が 無い時に 緑を 返さないか★（指示役1 の注文 2026-09-13）
       #   定時の見張りが 空振りで 緑を 返すと、その日から 見張りは 死ぬ。
       #   ⇒ ★1本も つながらない回を わざと 作って、赤(3)で 止まる事を 毎回 確かめる★
       - name: ★lib の出典 (1本もつながらない回は 赤で止まるか＝空振りを緑にしない)
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: 'if node scripts/check-shutten-mukai.mjs --tsunaganai > /dev/null 2>&1; then echo "★空振りなのに 緑★"; exit 1; else echo "空振りは 赤で 止まった（正しい）"; fi'
 
@@ -72,6 +75,7 @@ jobs:
       #   ここが赤(exit 3)＝★切替が要る合図★。★期限 2026-09-15★ までに人が見て判断する。
       #   出典URLと同じ理由で通常CIには入れない（外のサイトの都合で push を止めない）。
       - name: ★賃金要件(88,000円)の撤廃が法令に入ったか（入っていたら赤＝切替の合図）
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/scripts/check-wage88k-removal.mjs --strict
 
@@ -81,6 +85,7 @@ jobs:
       #   （機械にPDFを読ませて黙って数字を書き換えさせない。前科: 2026-07-10 に47県中38県が誤値だった）。
       #   取れなかった回は 🟡未測定 と出す＝「今のままでよい」と混ぜない。
       - name: ★最低賃金の年度が進んだか（進んでいたら赤＝入れ替えの合図）
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/scripts/check-saitei-nendo.mjs --strict
 
@@ -90,8 +95,10 @@ jobs:
       #   ★repo の 中だけで 判る「lib が 壊れていないか」は ci.yml の rousai-ritsu.test.mjs が 毎回 見る★。
       #   取れなかった回は 🟡未測定（exit 2）＝「合っている」と 混ぜない。
       - name: ★労災保険率表が法令と合っているか（ズレたら赤＝入れ替えの合図）
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/scripts/check-rousai-ritsu.mjs
       - name: ★社保の 率が 法令と 合うか（厚年＝一致／健保＝幅の中47県／雇用＝下限／★介護は 機械では 見られない★）★
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/scripts/check-shaho-ritsu.mjs --strict

@@ -43,17 +43,22 @@ jobs:
         timeout-minutes: 5
         run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils && pdftotext -v
       - name: ★門そのものが空振りしていないか（種類を数えて出す・先に走らせる）
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/tests/run.js 2>&1 | grep -E "中央の種類|hydrate-wired|passed," || true
       - name: ★lib == 中央statutory（全kind・取れなかった回も赤＝--strict）
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/scripts/verify-statutory.mjs --strict
       - name: ★中央から作る写し（出典・確認日・最賃47県）がズレていないか
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/scripts/pull-statutory.mjs --check
       - name: ★出典URLを実際に取って、その中に47県の額が在るか（ドメインだけ見ても足りない）
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/tests/saitei-source.test.mjs --strict
       - name: ★最賃の公示（確定版）が出たかを機械で拾う（出たら赤＝予定を確定に直す合図）
+        if: ${{ !cancelled() }}   # ★前の段が赤でも走る（お金の見張りを飛ばさない）・job の上限切れ（cancelled）では走らない
         timeout-minutes: 5
         run: node kyuyo/tests/saitei-koji.test.mjs --strict
