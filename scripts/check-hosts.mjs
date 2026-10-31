@@ -78,7 +78,7 @@ const SHINDA = [
 
 async function get(url) {
   try {
-    const r = await fetch(url, { redirect: 'manual', headers: { 'User-Agent': 'Kyually-host-check/1.0' } });
+    const r = await fetch(url, { redirect: 'manual', headers: { 'User-Agent': 'Kyually-host-check/1.0' }, signal: AbortSignal.timeout(25000) });
     const loc = r.headers.get('location');
     const body = await r.text().catch(() => '');
     return { status: r.status, location: loc, body: body.slice(0, 200000) };
@@ -88,7 +88,7 @@ async function get(url) {
 }
 async function head(url) {
   try {
-    const r = await fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'Kyually-host-check/1.0' } });
+    const r = await fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'Kyually-host-check/1.0' }, signal: AbortSignal.timeout(25000) });
     return r.status;
   } catch (e) { return 0; }
 }

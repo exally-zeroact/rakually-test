@@ -50,7 +50,7 @@ const pdfText = (buf) => {
 const main = async () => {
   let html;
   try {
-    const r = await fetch(ICHIRAN, { headers: { 'User-Agent': 'claude-code' } });
+    const r = await fetch(ICHIRAN, { headers: { 'User-Agent': 'claude-code' }, signal: AbortSignal.timeout(25000) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     html = await r.text();
   } catch (e) {
@@ -90,7 +90,7 @@ const main = async () => {
   if (SAI.SOURCE_URL !== u) yaru.push('②出典を この確定版URLへ（今 ' + SAI.SOURCE_URL + '）');
   let t;
   try {
-    const r2 = await fetch(u, { headers: { 'User-Agent': 'claude-code' } });
+    const r2 = await fetch(u, { headers: { 'User-Agent': 'claude-code' }, signal: AbortSignal.timeout(25000) });
     if (!r2.ok) throw new Error('HTTP ' + r2.status);
     t = pdfText(Buffer.from(await r2.arrayBuffer()));
   } catch (e) {

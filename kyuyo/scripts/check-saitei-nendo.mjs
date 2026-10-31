@@ -101,6 +101,7 @@ if (process.argv.includes('--self-test')) {
 
 /* ══ 本番（厚労省のページを実際に叩く）═══════════════════════════════════ */
 const JSON_OUT = process.argv.includes('--json');
+const STRICT = process.argv.includes('--strict');   /* ★週1の定時(source-urls.yml)で 使う＝取れない回を 赤(4)にする（verify-statutory と 同じ）★ */
 const SAI = require_(path.join(ROOT, 'lib/saitei-chingin.js'));
 
 // 一覧PDFへの link を拾う（人が pdftotext にかける物。額を機械で書き換えたりはしない）
@@ -123,7 +124,7 @@ const report = {
 };
 
 try {
-  const r = await fetch(PAGE, { headers: { 'User-Agent': 'Kyually-saitei-check/1.0' }, redirect: 'follow' });
+  const r = await fetch(PAGE, { headers: { 'User-Agent': 'Kyually-saitei-check/1.0' }, redirect: 'follow', signal: AbortSignal.timeout(25000) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const html = await r.text();
   const text = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
@@ -175,4 +176,7 @@ else {
 }
 
 if (d.action === 'update') { console.log(''); process.exit(3); }
+/* ★2026-10-31 fetch に 25秒の 上限を 付けた ので、相手が 黙る回は 段の 5分より 先に ここへ 来る★
+   （前は 段で 切れて 赤）＝★--strict の 時は 未測定を 緑に しない★ */
+if (STRICT && d.action === 'unmeasured') { console.log('★赤★ 未測定（--strict）＝週1の 見張りは 取れない回を 緑に しない'); process.exit(4); }
 process.exit(0);

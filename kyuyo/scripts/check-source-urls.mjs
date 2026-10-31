@@ -28,12 +28,13 @@ const SUPA_URL = 'https://tnfwipbgfgjaymlszeid.supabase.co';
 const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRuZndpcGJnZmdqYXltbHN6ZWlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1Nzk4MzQsImV4cCI6MjA5NzE1NTgzNH0.zhKPLSlW4zxsdjsXNvqDHvtP3wBqp-EKaxbjqLGW_ek';
 
 const JSON_OUT = process.argv.includes('--json');
+const STRICT = process.argv.includes('--strict');   /* ★週1の定時(source-urls.yml)で 使う＝取れない回を 赤(4)にする（verify-statutory と 同じ）★ */
 
 async function head(url) {
   // HEAD を弾くサイトがあるので、ダメなら GET で確かめ直す（本文は読まない）
   for (const method of ['HEAD', 'GET']) {
     try {
-      const r = await fetch(url, { method, redirect: 'follow', headers: { 'User-Agent': 'Kyually-source-check/1.0' } });
+      const r = await fetch(url, { method, redirect: 'follow', headers: { 'User-Agent': 'Kyually-source-check/1.0' }, signal: AbortSignal.timeout(25000) });
       if (r.ok) return { ok: true, status: r.status, method, finalUrl: r.url };
       if (method === 'GET') return { ok: false, status: r.status, method, finalUrl: r.url };
     } catch (e) {
@@ -46,10 +47,11 @@ async function head(url) {
 let rows;
 try {
   const r = await fetch(SUPA_URL + '/rest/v1/statutory?select=kind,year,source_url,verified_at&order=kind,year',
-    { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON } });
+    { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON }, signal: AbortSignal.timeout(25000) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   rows = await r.json();
 } catch (e) {
+  if (STRICT) { console.log('★赤★ 中央statutoryを取得できませんでした（--strict）。理由: ' + e.message); process.exit(4); }
   console.log('中央statutoryを取得できませんでした（' + e.message + '）。検証スキップ＝赤くしない。');
   rows = null;
 }

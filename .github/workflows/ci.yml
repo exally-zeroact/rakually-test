@@ -211,6 +211,10 @@ jobs:
         run: node tests/job-jougen.test.mjs
       - name: ★同 わざと 上限を 抜いて 赤に なるか（10通り・読み落とし・重なり も・空振り止め）
         run: node tests/job-jougen.test.mjs --self-test
+      - name: ★CI で 走る JS の fetch に 時間の 上限(signal)が 在るか（Node の fetch の 既定の 切れは 約300秒＝段の 5分と 同じ＝1本 黙ると 段ごと 落ちる／試験の 段は job で 切れて 灰色）
+        run: node tests/fetch-jougen.test.mjs
+      - name: ★同 わざと signal を 抜いて 赤に なるか（作り物8通り＋本物から 抜く分・注記と 字は 数えない・空振り止め）
+        run: node tests/fetch-jougen.test.mjs --self-test
       - name: ★webkit.yml の 括り(paths)を 人に 覚えさせない（読まれるのに 括りに 無い＝赤／括りに 在るが 誰も 読まない＝出す）
         run: node tests/webkit-paths.test.mjs
       - name: ★同 わざと 括りを 抜いて 赤に なるか（5通り・空振り止め）

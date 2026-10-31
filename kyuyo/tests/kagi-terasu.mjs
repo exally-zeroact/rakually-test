@@ -59,8 +59,8 @@ async function sql(q) {
   }
 }
 async function rpc(fn, args) {
-  const r = await fetch(URL + '/rest/v1/rpc/' + fn, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
-  let j = null; try { j = await r.json(); } catch (e) {}
+  const r = await fetch(URL + '/rest/v1/rpc/' + fn, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: AbortSignal.timeout(25000) });
+  let j = null; try { j = await r.json(); } catch (e) { if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) throw e; }   // ★本文の 途中で 切れたのを「拒まれた(null)」と 読まない（2026-10-31）
   return { st: r.status, j };
 }
 /* 返り値から「拒まれたか」を 見る（字では なく 旗で）＝unauth/found:false/ok:false/need_consent */

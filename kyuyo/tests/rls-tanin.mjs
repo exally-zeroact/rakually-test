@@ -98,7 +98,7 @@ const TANA = ['pay_companies', 'pay_employees', 'pay_payslips', 'pay_ledger',
 async function login(u) {
   const r = await fetch(URL_ + '/auth/v1/token?grant_type=password', {
     method: 'POST', headers: { apikey: KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({ email: u.email, password: u.pass }),
+    body: JSON.stringify({ email: u.email, password: u.pass }), signal: AbortSignal.timeout(25000),
   });
   const j = await r.json().catch(() => ({}));
   return j.access_token || null;
@@ -112,7 +112,7 @@ async function login(u) {
 async function yomu2(tana, tok) {
   const h = { apikey: KEY };
   if (tok) h.Authorization = 'Bearer ' + tok;
-  const r = await fetch(URL_ + '/rest/v1/' + tana + '?select=*&limit=50', { headers: h });
+  const r = await fetch(URL_ + '/rest/v1/' + tana + '?select=*&limit=50', { headers: h, signal: AbortSignal.timeout(25000) });
   const t = await r.text();
   let n = null;
   try { const j = JSON.parse(t); if (Array.isArray(j)) n = j.length; } catch (e) { /* 表でない */ }
@@ -151,7 +151,7 @@ if (todokuNoni0 || todokanai) {
 }
 /* ★書ける／消せるか★ */
 const rows = await (await fetch(URL_ + '/rest/v1/pay_employees?select=*&limit=1',
-  { headers: { apikey: KEY, Authorization: 'Bearer ' + tokA } })).json().catch(() => []);
+  { headers: { apikey: KEY, Authorization: 'Bearer ' + tokA }, signal: AbortSignal.timeout(25000) })).json().catch(() => []);
 const row = Array.isArray(rows) && rows[0] ? rows[0] : null;
 if (!row) { console.log('   🟡 書ける/消せるは 測れず（Aに 従業員の 行が 無い）'); ng++; }
 else {
@@ -160,7 +160,7 @@ else {
     const w = await fetch(URL_ + '/rest/v1/pay_employees?id=eq.' + encodeURIComponent(row.id), {
       method: 'PATCH',
       headers: { apikey: KEY, Authorization: 'Bearer ' + tok, 'content-type': 'application/json', Prefer: 'return=representation' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body), signal: AbortSignal.timeout(25000),
     });
     const t = await w.text();
     try { const j = JSON.parse(t); if (Array.isArray(j)) return j.length; } catch (e) { /* */ }
@@ -175,7 +175,7 @@ else {
   if (r2.mark !== '🟢') ng++;
   console.log('   ' + r2.mark + ' ' + '書き換え'.padEnd(16) + '  ' + r2.ji);
   const d = await fetch(URL_ + '/rest/v1/pay_employees?id=eq.' + encodeURIComponent(row.id),
-    { method: 'DELETE', headers: { apikey: KEY, Authorization: 'Bearer ' + tokB, Prefer: 'return=representation' } });
+    { method: 'DELETE', headers: { apikey: KEY, Authorization: 'Bearer ' + tokB, Prefer: 'return=representation' }, signal: AbortSignal.timeout(25000) });
   const dt = await d.text(); let dn = null;
   try { const j = JSON.parse(dt); if (Array.isArray(j)) dn = j.length; } catch (e) { /* */ }
   const keseta = (dn === 0 || d.status === 401 || d.status === 403);
@@ -183,7 +183,8 @@ else {
   console.log('   ' + (keseta ? '🟢' : '🔴') + ' ' + '消す'.padEnd(18) + '  他人(B)が 消せた行 ' + (dn === null ? d.status : dn));
   /* ★元に戻ったか 目で 確かめる★（戻し忘れたまま 緑に しない） */
   const ato = await (await fetch(URL_ + '/rest/v1/pay_employees?select=data&id=eq.' + encodeURIComponent(row.id),
-    { headers: { apikey: KEY, Authorization: 'Bearer ' + tokA } })).json().catch(() => []);
+    { headers: { apikey: KEY, Authorization: 'Bearer ' + tokA }, signal: AbortSignal.timeout(25000) })).json()
+    .catch((e) => { if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) throw e; return []; });   // ★途中で 切れたのを「印は 無い」と 読まない（2026-10-31）
   const nokori = Array.isArray(ato) && ato[0] && ato[0].data && ato[0].data.__rlsTanin;
   if (nokori) { ng++; console.log('   🔴 ★試験の 印が 残っている（戻せていない）★'); }
   else console.log('   🟢 試験の 印は 残っていない（元に戻した）');

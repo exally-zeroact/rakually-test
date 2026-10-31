@@ -115,10 +115,11 @@ if (process.argv.includes('--self-test')) {
 
 /* ══ 本番（e-Gov を実際に叩く）═════════════════════════════════════════ */
 const JSON_OUT = process.argv.includes('--json');
+const STRICT = process.argv.includes('--strict');   /* ★週1の定時(source-urls.yml)で 使う＝取れない回を 赤(4)にする（verify-statutory と 同じ）★ */
 const SK = require_(path.join(ROOT, 'lib/shaho-kanyu.js'));
 
 async function getJson(url) {
-  const res = await fetch(url, { headers: { accept: 'application/json' } });
+  const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(25000) });
   if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + url);
   return res.json();
 }
@@ -190,6 +191,7 @@ else {
 }
 
 const ok = report.laws.filter(l => !l.error);
+if (!ok.length && STRICT) { console.log('\n★赤★ e-Govに繋がりませんでした（--strict）＝週1の 見張りは 取れない回を 緑に しない'); process.exit(4); }
 if (!ok.length) { console.log('\n（e-Govに繋がりませんでした。ネットが無いだけなので赤にしません）'); process.exit(0); }
 const needSwitch = ok.some(l => l.decision && !l.decision.agree && !l.decision.suspicious);
 const odd = ok.some(l => l.decision && l.decision.suspicious);
@@ -200,4 +202,5 @@ if (needSwitch || odd) {
 }
 console.log('\n今のままでよい（法令と lib が一致）。次に見る日: 2027-10-01 まで');
 if (netError) console.log('（一部だけ取得できませんでした: ' + netError.message + '）');
+if (netError && STRICT) { console.log('★赤★ 一部が 未測定（--strict）'); process.exit(4); }
 process.exit(0);

@@ -34,6 +34,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SELF = process.argv.indexOf('--self-test') >= 0;
+const STRICT = process.argv.includes('--strict');   /* ★週1の定時(source-urls.yml)で 使う＝取れない回を 赤(4)にする（verify-statutory と 同じ）★ */
 
 /* ★元（一次情報）★＝★id は 書いてよい／但し 名前で 確かめる★（上の「取れた≠合っている」） */
 export const MOTO = [
@@ -133,7 +134,7 @@ export function koyoRitsu(jou) {
       + '＋育児休業給付 千分の' + ikuji[1] };
 }
 
-let pass = 0, fail = 0, mi = 0;
+let pass = 0, fail = 0, mi = 0, hikenai = 0;   // hikenai＝★法令を 引けなかった 数★（介護の 様な 元から 見られない 物とは 分ける）
 const T = (n, c, m) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ ' + n + (m ? ' — ' + m : '')); } };
 const MI = (n, m) => { mi++; console.log('  🟡 ★決められません★ ' + n + (m ? ' … ' + m : '')); };
 
@@ -173,10 +174,10 @@ const hiita = {};
 for (const m of MOTO) {
   let j = null;
   try {
-    const r = await fetch(API + m.id, { headers: { 'User-Agent': 'rakunally-shaho-check/1.0' } });
-    if (!r.ok) { MI(m.na + ' を 引けない', 'HTTP ' + r.status); continue; }
+    const r = await fetch(API + m.id, { headers: { 'User-Agent': 'rakunally-shaho-check/1.0' }, signal: AbortSignal.timeout(25000) });
+    if (!r.ok) { hikenai++; MI(m.na + ' を 引けない', 'HTTP ' + r.status); continue; }
     j = await r.json();
-  } catch (e) { MI(m.na + ' を 引けない', String(e && e.message || e).slice(0, 60)); continue; }
+  } catch (e) { hikenai++; MI(m.na + ' を 引けない', String(e && e.message || e).slice(0, 60)); continue; }
   /* ★★引いた 後に 名前を 確かめる★★（`322AC0000000070` で 宮内庁法が 返った 実例） */
   const deta = (j.revision_info && j.revision_info.law_title) || '（題が 無い）';
   const bango = (j.law_info && j.law_info.law_num) || '';
@@ -278,4 +279,6 @@ MI('★介護保険★', '★条文に 数も 幅も 無い★（健保法156・
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed'
   + (mi ? ', ' + mi + ' ★決められません★' : '') + '（★見られるのは 4つ中 3つ★）');
+/* ★2026-10-31 fetch に 25秒の 上限＝相手が 黙る回は 段の 5分より 先に ここへ 来る（前は 段で 切れて 赤）★ */
+if (!fail && hikenai && STRICT) { console.log('★赤★ 法令を ' + hikenai + '本 引けない（--strict）＝週1の 見張りは 取れない回を 緑に しない'); process.exit(4); }
 process.exit(fail ? 1 : 0);

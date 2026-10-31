@@ -62,7 +62,7 @@ async function toi(sql) {
     const r = await fetch('https://api.supabase.com/v1/projects/' + ref + '/database/query', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json', 'User-Agent': 'rakunally-souko-kazoeru' },
-      body: JSON.stringify({ query: sql }),
+      body: JSON.stringify({ query: sql }), signal: AbortSignal.timeout(25000),
     });
     if (!r.ok) return { ok: false, naze: '倉庫が ' + r.status + ' を 返した' };
     return { ok: true, gyo: await r.json() };

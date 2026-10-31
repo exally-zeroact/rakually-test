@@ -37,7 +37,7 @@ const row = SR.buildStatutoryRows(L).find((r) => r.kind === 'saitei_chingin');
 const yen = (n) => Number(n).toLocaleString('en-US');
 
 const toru = async (url) => {
-  const r = await fetch(url, { headers: { 'User-Agent': 'claude-code' } });
+  const r = await fetch(url, { headers: { 'User-Agent': 'claude-code' }, signal: AbortSignal.timeout(25000) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const ct = r.headers.get('content-type') || '';
   if (/pdf/i.test(ct) || /[.]pdf$/i.test(url)) {

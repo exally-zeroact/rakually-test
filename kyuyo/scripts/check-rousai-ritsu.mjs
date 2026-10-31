@@ -76,7 +76,7 @@ if (process.argv.includes('--self-test')) {
 }
 
 /* ── ここから 外に 出る ───────────────────────────────── */
-const res = await fetch(R.SOURCE_URL, { headers: { 'user-agent': 'rakunally-statutory-check' } })
+const res = await fetch(R.SOURCE_URL, { headers: { 'user-agent': 'rakunally-statutory-check' }, signal: AbortSignal.timeout(25000) })
   .catch((e) => ({ ok: false, status: 0, _e: e }));
 if (!res || !res.ok) {
   console.log('🟡 ★未測定★ 法令が 取れませんでした（' + (res && res.status) + '）＝★合っている とも 違う とも 言えない★');

@@ -130,7 +130,7 @@ function verify(rows) {
 const run = async () => {
   let rows;
   try {
-    const res = await fetch(SUPA_URL + '/rest/v1/statutory?select=kind,year,data', { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON } });
+    const res = await fetch(SUPA_URL + '/rest/v1/statutory?select=kind,year,data', { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON }, signal: AbortSignal.timeout(25000) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     rows = await res.json();
   } catch (e) {

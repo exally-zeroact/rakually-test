@@ -47,7 +47,7 @@ jobs:
           node-version: '20'
       - name: ★中央statutoryの出典URLが全部生きているか（404なら赤・ただしCIは止めない）
         timeout-minutes: 5
-        run: node kyuyo/scripts/check-source-urls.mjs
+        run: node kyuyo/scripts/check-source-urls.mjs --strict
 
       # ★2026-09-13＝lib 側の 出典は 誰も 見ていなかった（実測で 3本 404）★
       #   koyo:2025 / koyo:2026 の 一覧ページ、warimashi:2023 の PDF。
@@ -73,7 +73,7 @@ jobs:
       #   出典URLと同じ理由で通常CIには入れない（外のサイトの都合で push を止めない）。
       - name: ★賃金要件(88,000円)の撤廃が法令に入ったか（入っていたら赤＝切替の合図）
         timeout-minutes: 5
-        run: node kyuyo/scripts/check-wage88k-removal.mjs
+        run: node kyuyo/scripts/check-wage88k-removal.mjs --strict
 
       # ★最低賃金の「次の年度」が公式に出たか＝厚労省「地域別最低賃金の全国一覧」を実際に叩いて年度を読む。
       #   最賃は毎年10月に入れ替わる。libは令和7年度(2025-10〜)。★2026-10分の給与から令和8年度が要る★。
@@ -82,7 +82,7 @@ jobs:
       #   取れなかった回は 🟡未測定 と出す＝「今のままでよい」と混ぜない。
       - name: ★最低賃金の年度が進んだか（進んでいたら赤＝入れ替えの合図）
         timeout-minutes: 5
-        run: node kyuyo/scripts/check-saitei-nendo.mjs
+        run: node kyuyo/scripts/check-saitei-nendo.mjs --strict
 
       # ★労災保険率表（別表第１）が 法令と 合っているか★（2026-09-04 に 表を 持った）
       #   出どころ＝e-Gov 法令検索の API（労働保険の保険料の徴収等に関する法律施行規則）。
@@ -94,4 +94,4 @@ jobs:
         run: node kyuyo/scripts/check-rousai-ritsu.mjs
       - name: ★社保の 率が 法令と 合うか（厚年＝一致／健保＝幅の中47県／雇用＝下限／★介護は 機械では 見られない★）★
         timeout-minutes: 5
-        run: node kyuyo/scripts/check-shaho-ritsu.mjs
+        run: node kyuyo/scripts/check-shaho-ritsu.mjs --strict

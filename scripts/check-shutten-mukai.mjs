@@ -78,7 +78,7 @@ const TSUNAGANAI = process.argv.includes('--tsunaganai');
 async function tataku(u) {
   if (TSUNAGANAI) return 0;
   try {
-    const r = await fetch(u, { headers: { 'User-Agent': 'rakunally-shutten-check' }, redirect: 'follow' });
+    const r = await fetch(u, { headers: { 'User-Agent': 'rakunally-shutten-check' }, redirect: 'follow', signal: AbortSignal.timeout(25000) });
     return r.status;
   } catch (e) { return 0; }
 }

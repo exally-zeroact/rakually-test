@@ -37,7 +37,7 @@ const GEN = path.join(ROOT, 'lib/statutory-central.generated.js');
 
 async function fetchRows() {
   const url = SUPA_URL + '/rest/v1/statutory?select=kind,year,data,source_url,verified_at&order=kind,year';
-  const r = await fetch(url, { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON } });
+  const r = await fetch(url, { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON }, signal: AbortSignal.timeout(25000) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
 }
