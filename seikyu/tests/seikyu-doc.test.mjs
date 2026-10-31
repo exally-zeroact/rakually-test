@@ -806,6 +806,32 @@ T('★控除は 名前が要る／0円・マイナスは止める（何を引い
   eq(of(many).ok, false, '控除の行数に蓋が無い');
 });
 
+/* ★門（validateDeductions）と 画面・倉庫（currentDeduct＝receiptAmountOf）の読みが 割れない★
+   割れると「門は通る・totalsOf は控除0」＝控除を引き忘れた紙が 発行済みで 固まる（11-01 taiketsu 止1） */
+const DED_JI = ['+500', '1.0', '1e3', '0x10', '0b11', '0o7', '500.', '500', 500, 7310, '1,000', '1 000', '　500', '00500',
+  ' 500', '﻿500', '５００', '−500', '－500', '▲500', '500円', '¥500', '-500', '0', 0, '', ' ', null, 'あ', 1.5, '1.5',
+  '99999', ',500', '1,0,0,0', '-0', 'NaN', 'Infinity', true];
+T('★控除の門と画面の読みが 1つ残らず 同じ（門が通す ⇔ 全ての行が receiptAmountOf で 0 より大きい）', () => {
+  for (const a of DED_JI) {
+    const gate = D.validateDeductions({ data: { deductions: [{ name: 'a', amount: a }] } }).ok;
+    const n = D.receiptAmountOf(a);
+    const scr = n !== null && n > 0;
+    eq(gate, scr, '★門と画面の読みが割れた★ ' + JSON.stringify(a) + ' 門=' + gate + ' 画面=' + JSON.stringify(n));
+    // 合計の読みも同じ1本（読めない＝null・読めたら その数）
+    eq(D.deductTotalOf({ data: { deductions: [{ name: 'a', amount: a }] } }), n, '合計の読みが割れた ' + JSON.stringify(a));
+  }
+});
+T('★「+500」「1.0」「1e3」「500.」「0x10」は 門で止まる（通すと 控除0の紙が出る）', () => {
+  for (const a of ['+500', '1.0', '1e3', '500.', '0x10']) {
+    const r = D.validateDeductions({ data: { deductions: [{ name: 'a', amount: a }] } });
+    eq(r.ok, false, '★' + a + ' が門を通る★');
+    ok(hasErr(r.errors, '1円単位'), '理由が数の話になっていない: ' + r.errors.join('/'));
+  }
+  eq(D.validateDeductions({ data: { deductions: [{ name: 'a', amount: '　500' }] } }).ok, true, '全角空白つきの500を止めている（締めすぎ）');
+  eq(D.deductTotalOf({ data: { deductions: [{ name: 'a', amount: '1,000' }] } }), 1000, '「1,000」を読めていない');
+  eq(D.deductTotalOf({ data: { deductions: [{ name: 'a', amount: '+500' }] } }), null, '「+500」を合計に入れている');
+});
+
 T('★控除が在る紙は 発行前の検査でも止まる（画面と別々に判定しない）', () => {
   const bad = { ...goodInv(), data: { deductions: [{ name: '', amount: 100 }] } };
   const r = D.validateInvoice({ inv: bad, partner: goodPartner, org: goodOrg });

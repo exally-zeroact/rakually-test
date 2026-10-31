@@ -578,8 +578,10 @@
     var list = deductionsOf(inv);
     var t = 0;
     for (var i = 0; i < list.length; i++) {
-      var n = Number((list[i] || {}).amount);
-      if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
+      /* ★数の読みは receiptAmountOf 1本★（画面の currentDeduct・倉庫の totalsOf と同じ）
+         Number で読むと「+500」「1.0」「1e3」が通り、画面と門で答えが割れる（11-01 taiketsu 止1） */
+      var n = receiptAmountOf((list[i] || {}).amount);
+      if (n === null) return null;
       t += n;
     }
     return t;
@@ -599,8 +601,10 @@
       var raw = String(d.amount == null ? '' : d.amount).trim();
       if (!raw) errors.push('控除の' + no + '行目の金額が空です');
       else {
-        var n = Number(raw.replace(/[,\s]/g, ''));
-        if (!Number.isFinite(n) || !Number.isInteger(n)) errors.push('控除の' + no + '行目の金額は1円単位の数字で入れてください');
+        /* ★門の読みも receiptAmountOf★＝ここで通して currentDeduct が null だと、
+           totalsOf が 控除0・請求額＝控除前 で 写しに 固まる（引き忘れた紙が出る・11-01 taiketsu 止1） */
+        var n = receiptAmountOf(raw);
+        if (n === null) errors.push('控除の' + no + '行目の金額は1円単位の数字で入れてください');
         else if (n === 0) errors.push('控除の' + no + '行目が0円です');
         else if (n < 0) errors.push('控除の' + no + '行目がマイナスです');
       }
