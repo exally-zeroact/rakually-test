@@ -7,18 +7,20 @@
  *   KOYO.RATES／D.PARAMS も {} だと Math.max()=-Infinity、鍵が 年で ないと NaN＝比べが 黙って 偽。
  *
  * ★測り方★（台本を 一時の 木（kyuyo/scripts＋kyuyo/lib）へ 写し、★作り物の lib 4本★ で 本当に node で 走らせる）
- *   ㋐ 暦の 網 … 境の 月と その 前の 月（01/02/03/08/09/11/12）で、4項目 それぞれ
+ *   ㋐ 暦の 網 … 境の 月と その 前の 月（01/02/03/08/09/11/12）で、5項目 それぞれ
  *       収録年＝必要年度 → code 0／収録年＝必要年度の 1年前 → code 10 で ★その 項目だけ★ TODO に 出る
  *       （必要年度・境の 月・12月の 先取りが ずれたら 赤＝taiketsu 11-01 2回目 止1）
- *       作り物は 本物の 年度の 決め（saiteiNendoOf＝10月から／shahoYearOf＝3月から／RATES・PARAMS の 鍵）を 写す。
- *   ㋑ 形が 壊れた 作り物 14通り → ★exit 1 と ::error::★（年の 鍵と 年で ない 鍵が 混ざる 物も）
+ *       作り物は 本物の 年度の 決め（saiteiNendoOf＝10月から／shahoYearOf＝3月から／KAIGO_NENDO の 表／RATES・PARAMS の 鍵）を 写す。
+ *       ★健保と 介護は 同じ shakaihoken-hyo.js★＝作り物は 関数ごとの 部品を つないで 1つの ファイルに する
+ *       （健保だけ 新しく 介護だけ 古い＝2026-11-01 の 穴 を そのまま 作れる）。
+ *   ㋑ 形が 壊れた 作り物 17通り → ★exit 1 と ::error::★（年の 鍵と 年で ない 鍵が 混ざる 物も・壊すのは その 部品だけ）
  *   ㋒ 本物の lib … ★写さず その場の 木で★（root の package.json の 読み方まで 本物と 同じ）
  *       2026-11／2026-12 → 0 か 10（年度の 変わり目で 動く）
- *       2099-12 → code 10 かつ ★4項目の 名が 1回ずつ★（lib が どれだけ 新しくても 届かない＝全部が 出口へ 届くか）
+ *       2099-12 → code 10 かつ ★5項目の 名が 1回ずつ★（lib が どれだけ 新しくても 届かない＝全部が 出口へ 届くか）
  *   ★repo の 木には 何も 書かない★（一時の 木は os.tmpdir・終われば 消す・途中で 落ちても 残るのは tmp だけ）
  *
  * 使い方: node tests/statutory-reminder-katachi.test.mjs            … 今の 台本を 数える
- *         node tests/statutory-reminder-katachi.test.mjs --self-test … ★台本を わざと 壊して 赤に なるか★（13通り・㋐㋑ で 数える）
+ *         node tests/statutory-reminder-katachi.test.mjs --self-test … ★台本を わざと 壊して 赤に なるか★（16通り・㋐㋑ で 数える）
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -30,39 +32,47 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'kyuyo/scripts/statutory-reminder.mjs');
 
 // ── 仕様（役所の 改定時期）＝この 見張りの 正。台本と 別に 書く ──
-//   最賃＝9月から 当年度・健保＝2月から 当年・雇用＝3月から 当年度・所得税＝12月から 翌年分
+//   最賃＝9月から 当年度・健保／介護＝2月から 当年・雇用＝3月から 当年度・所得税＝12月から 翌年分
 const KOUMOKU = [
   { key: 'saitei', label: '最低賃金 ', need: (y, m) => (m >= 9 ? y : y - 1) },
-  { key: 'kenko', label: '社会保険料率(健保/介護) ', need: (y, m) => (m >= 2 ? y : y - 1) },
+  { key: 'kenko', label: '健康保険料率 ', need: (y, m) => (m >= 2 ? y : y - 1) },
+  { key: 'kaigo', label: '介護保険料率 ', need: (y, m) => (m >= 2 ? y : y - 1) },
   { key: 'koyo', label: '雇用保険料率 ', need: (y, m) => (m >= 3 ? y : y - 1) },
   { key: 'shotoku', label: '所得税(源泉/年末調整) ', need: (y, m) => (m >= 12 ? y + 1 : y) },
 ];
 
-// ── 作り物の lib（収録年 L を 焼き込む）。年度の 決めは 本物の lib を 写す ──
+// ── 作り物の lib の 部品（収録年 L を 焼き込む）。年度の 決めは 本物の lib を 写す ──
+//   部品＝module.exports の 中身 1つ分の 字。同じ ファイルの 部品は つないで 書く（健保と 介護）。
 const FAKE = {
-  saitei: (L) => 'module.exports = { saiteiStale: function (ym) { var y = +String(ym).slice(0, 4), m = +String(ym).slice(5, 7); var nendo = m >= 10 ? y : y - 1; return nendo !== ' + L + '; } };',
-  kenko: (L) => 'module.exports = { getKenko: function (pref, ym) { var y = +String(ym).slice(0, 4), m = +String(ym).slice(5, 7); var sy = m >= 3 ? y : y - 1; return { stale: sy > ' + L + ' }; } };',
-  koyo: (L) => 'module.exports = { RATES: { ' + (L - 1) + ': {}, ' + L + ': {} } };',
-  shotoku: (L) => 'module.exports = { PARAMS: { ' + (L - 1) + ': {}, ' + L + ': {} } };',
+  saitei: (L) => 'saiteiStale: function (ym) { var y = +String(ym).slice(0, 4), m = +String(ym).slice(5, 7); var nendo = m >= 10 ? y : y - 1; return nendo !== ' + L + '; }',
+  kenko: (L) => 'getKenko: function (pref, ym) { var y = +String(ym).slice(0, 4), m = +String(ym).slice(5, 7); var sy = m >= 3 ? y : y - 1; return { stale: sy > ' + L + ' }; }',
+  // 本物＝KAIGO_NENDO に その 社保年度が 無ければ stale（表 引き）
+  kaigo: (L) => 'getKaigo: function (ym) { var y = +String(ym).slice(0, 4), m = +String(ym).slice(5, 7); var sy = m >= 3 ? y : y - 1; var T = { ' + (L - 1) + ': 1, ' + L + ': 1 }; return { total: 0.0162, jugyoin: 0.0081, stale: !T[sy] }; }',
+  koyo: (L) => 'RATES: { ' + (L - 1) + ': {}, ' + L + ': {} }',
+  shotoku: (L) => 'PARAMS: { ' + (L - 1) + ': {}, ' + L + ': {} }',
 };
-const FILE = { saitei: 'saitei-chingin.js', kenko: 'shakaihoken-hyo.js', koyo: 'koyo-hoken.js', shotoku: 'shotokuzei-densan.js' };
+const FILE = { saitei: 'saitei-chingin.js', kenko: 'shakaihoken-hyo.js', kaigo: 'shakaihoken-hyo.js', koyo: 'koyo-hoken.js', shotoku: 'shotokuzei-densan.js' };
 
 // 形が 壊れた 作り物（今日＝2026-11・他の 項目は 収録済み）
 const KATACHI = [
-  { name: 'saiteiStale が 無い', key: 'saitei', src: 'module.exports = { isStale: function () { return true; } };' },
-  { name: 'saiteiStale が 返さない', key: 'saitei', src: 'module.exports = { saiteiStale: function () {} };' },
-  { name: 'saiteiStale が 字を 返す', key: 'saitei', src: 'module.exports = { saiteiStale: function () { return "yes"; } };' },
-  { name: 'getKenko が 無い', key: 'kenko', src: 'module.exports = { kenko: function () { return { stale: true }; } };' },
-  { name: 'getKenko が null', key: 'kenko', src: 'module.exports = { getKenko: function () { return null; } };' },
-  { name: 'getKenko に stale が 無い', key: 'kenko', src: 'module.exports = { getKenko: function () { return { isStale: true }; } };' },
-  { name: 'RATES が 無い', key: 'koyo', src: 'module.exports = { RATE: { 2026: {} } };' },
-  { name: 'RATES が 空', key: 'koyo', src: 'module.exports = { RATES: {} };' },
-  { name: 'RATES の 鍵が 年で ない', key: 'koyo', src: 'module.exports = { RATES: { r7: {} } };' },
-  { name: 'RATES に 年と 年で ない 鍵が 混ざる', key: 'koyo', src: 'module.exports = { RATES: { 2025: {}, 2026: {}, note: {} } };' },
-  { name: 'RATES に 5桁の 打ち間違い（20260）', key: 'koyo', src: 'module.exports = { RATES: { 2025: {}, 20260: {} } };' },
-  { name: 'PARAMS が 無い', key: 'shotoku', src: 'module.exports = {};' },
-  { name: 'PARAMS が 空', key: 'shotoku', src: 'module.exports = { PARAMS: {} };' },
-  { name: 'PARAMS に 年と 年で ない 鍵が 混ざる', key: 'shotoku', src: 'module.exports = { PARAMS: { 2025: {}, 2026: {}, memo: {} } };' },
+  //   src＝その 項目の 部品だけ 差し替える（同じ ファイルの 他の 部品は 正しい まま＝健保を 壊して 介護で 赤に なる 事は 無い）
+  { name: 'saiteiStale が 無い', key: 'saitei', src: 'isStale: function () { return true; }' },
+  { name: 'saiteiStale が 返さない', key: 'saitei', src: 'saiteiStale: function () {}' },
+  { name: 'saiteiStale が 字を 返す', key: 'saitei', src: 'saiteiStale: function () { return "yes"; }' },
+  { name: 'getKenko が 無い', key: 'kenko', src: 'kenko: function () { return { stale: true }; }' },
+  { name: 'getKenko が null', key: 'kenko', src: 'getKenko: function () { return null; }' },
+  { name: 'getKenko に stale が 無い', key: 'kenko', src: 'getKenko: function () { return { isStale: true }; }' },
+  { name: 'getKaigo が 無い', key: 'kaigo', src: 'kaigo: function () { return { stale: true }; }' },
+  { name: 'getKaigo が null', key: 'kaigo', src: 'getKaigo: function () { return null; }' },
+  { name: 'getKaigo に stale が 無い（率だけ 返す）', key: 'kaigo', src: 'getKaigo: function () { return { total: 0.0162, jugyoin: 0.0081 }; }' },
+  { name: 'RATES が 無い', key: 'koyo', src: 'RATE: { 2026: {} }' },
+  { name: 'RATES が 空', key: 'koyo', src: 'RATES: {}' },
+  { name: 'RATES の 鍵が 年で ない', key: 'koyo', src: 'RATES: { r7: {} }' },
+  { name: 'RATES に 年と 年で ない 鍵が 混ざる', key: 'koyo', src: 'RATES: { 2025: {}, 2026: {}, note: {} }' },
+  { name: 'RATES に 5桁の 打ち間違い（20260）', key: 'koyo', src: 'RATES: { 2025: {}, 20260: {} }' },
+  { name: 'PARAMS が 無い', key: 'shotoku', src: '' },
+  { name: 'PARAMS が 空', key: 'shotoku', src: 'PARAMS: {}' },
+  { name: 'PARAMS に 年と 年で ない 鍵が 混ざる', key: 'shotoku', src: 'PARAMS: { 2025: {}, 2026: {}, memo: {} }' },
 ];
 const TSUKI = ['2026-01', '2026-02', '2026-03', '2026-08', '2026-09', '2026-11', '2026-12'];
 
@@ -88,7 +98,12 @@ function kazoeruFake(src, say) {
     // 作り物の lib を CommonJS として 読ませる（一時の 木の 上に package.json が 在っても 揺れない）
     fs.writeFileSync(path.join(dir, 'kyuyo/lib/package.json'), '{"type":"commonjs"}');
     const oku = (L, over = {}) => {
-      for (const k of KOUMOKU) fs.writeFileSync(path.join(dir, 'kyuyo/lib', FILE[k.key]), over[k.key] != null ? over[k.key] : FAKE[k.key](L[k.key]));
+      const buhin = {};
+      for (const k of KOUMOKU) {
+        const b = over[k.key] != null ? over[k.key] : FAKE[k.key](L[k.key]);
+        (buhin[FILE[k.key]] = buhin[FILE[k.key]] || []).push(b);
+      }
+      for (const [fn, bs] of Object.entries(buhin)) fs.writeFileSync(path.join(dir, 'kyuyo/lib', fn), 'module.exports = { ' + bs.filter(Boolean).join(', ') + ' };');
     };
     // ㋐ 暦の 網
     for (const t of TSUKI) {
@@ -126,10 +141,10 @@ function kazoeruHonmono(say) {
   for (const t of ['2026-11', '2026-12', '2099-12']) {
     const r = hashiru(SCRIPT, t);
     let ok;
-    if (t === '2099-12') ok = r.code === 10 && todoAll(r.out) === 4 && KOUMOKU.every((k) => todoOf(r.out, k.label) === 1);
+    if (t === '2099-12') ok = r.code === 10 && todoAll(r.out) === KOUMOKU.length && KOUMOKU.every((k) => todoOf(r.out, k.label) === 1);
     else ok = r.code === 0 || r.code === 10;
     if (!ok) aka++;
-    say((ok ? '  ok  ' : '  ★赤 ') + '本物の lib（' + t + '）：' + (t === '2099-12' ? '10・4項目の 名が 1回ずつ' : '0 か 10') + '／got ' + r.code + '・TODO ' + todoAll(r.out) + (ok ? '' : head3(r.out)));
+    say((ok ? '  ok  ' : '  ★赤 ') + '本物の lib（' + t + '）：' + (t === '2099-12' ? '10・' + KOUMOKU.length + '項目の 名が 1回ずつ' : '0 か 10') + '／got ' + r.code + '・TODO ' + todoAll(r.out) + (ok ? '' : head3(r.out)));
   }
   return aka;
 }
@@ -152,6 +167,9 @@ if (process.argv.includes('--self-test')) {
     { name: '鍵の 確かめ every→some', from: /ks\.every\(/, to: 'ks.some(' },
     { name: '鍵の 確かめを 4桁ちょうど→数字なら何でも（/^\\d+$/）', from: /\/\^\\d\{4\}\$\//, to: '/^\\d+$/' },
     { name: '鍵の 確かめを 抜く', from: /if \(!ks\.length \|\| [^\n]*\n/, to: '' },
+    { name: '介護の 項目を 黙って 消す（if (false)）', from: /if \(bool\(g\.stale, [^)]*\)\)/, to: 'if (false)' },
+    { name: '介護を 前の 穴に 戻す（健保の stale で 見る）', from: /const g = SHH\.getKaigo\(need \+ '-06'\);/, to: "const g = SHH.getKenko('tokyo', need + '-06');" },
+    { name: '介護の 判じを `g && g.stale` に', from: /if \(!g \|\| typeof g !== 'object'\)[^\n]*\n\s*if \(bool\(g\.stale, [^)]*\)\)/, to: 'if (g && g.stale)' },
   ];
   let nuke = 0;
   for (const k of KOWASU) {

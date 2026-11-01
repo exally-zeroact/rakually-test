@@ -53,13 +53,22 @@ function saishinNen(obj, what) {
   if (typeof SAI.saiteiStale !== 'function') kowareta('saitei-chingin.js の saiteiStale が 無い');
   if (bool(SAI.saiteiStale(need + '-10'), 'saiteiStale の 返り'))
     reminders.push('最低賃金 ' + reikan(need) + '度(' + need + ')が未収録。厚労省の答申額を確認 → kyuyo/lib/saitei-chingin.js 47県+NENDO_YEAR更新 → 管理画面の法定データタブで[反映]。'); }
-// 健保/介護(協会けんぽ): 社保年度3月適用・公表2月。2月以降は当年が必要。getKenko(..).staleで判定。
+// 健保・介護(協会けんぽ): 社保年度3月適用・公表2月。2月以降は当年が必要。getKenko(..).stale／getKaigo(..).stale で判定。
+//  ★2026-11-01 介護を 別に 見る★ 前は「健保/介護」と 書いて getKenko だけ 見ていた。getKenko の stale は
+//  shakaihoken-hyo.js の `y > 2026` 決め打ちで、介護の 表 KAIGO_NENDO とは つながっていない＝
+//  健保だけ 新しい 年度へ 上げて 介護を 入れ忘れると、getKaigo は stale:true（前の 年度の 率で 計算）なのに
+//  ここは 黙って「更新不要」と 言い、statutory-watch.yml は Issue を 閉じた（2027-03 の 形で 測った）。
 { const need = (m >= 2 ? y : y - 1);
   if (typeof SHH.getKenko !== 'function') kowareta('shakaihoken-hyo.js の getKenko が 無い');
   const k = SHH.getKenko('tokyo', need + '-06');
   if (!k || typeof k !== 'object') kowareta('getKenko の 返りが 物で ない');
   if (bool(k.stale, 'getKenko の stale'))
-    reminders.push('社会保険料率(健保/介護) ' + reikan(need) + '(' + need + ')が未収録。協会けんぽ料率表を確認 → kyuyo/lib/shakaihoken-hyo.js更新 → 管理画面の[反映]。'); }
+    reminders.push('健康保険料率 ' + reikan(need) + '(' + need + ')が未収録。協会けんぽ料率表を確認 → kyuyo/lib/shakaihoken-hyo.js（47県の健保の表 と getKenko の年度の決め打ち）更新 → 管理画面の[反映]。');
+  if (typeof SHH.getKaigo !== 'function') kowareta('shakaihoken-hyo.js の getKaigo が 無い');
+  const g = SHH.getKaigo(need + '-06');
+  if (!g || typeof g !== 'object') kowareta('getKaigo の 返りが 物で ない');
+  if (bool(g.stale, 'getKaigo の stale'))
+    reminders.push('介護保険料率 ' + reikan(need) + '(' + need + ')が未収録。協会けんぽ料率表を確認 → kyuyo/lib/shakaihoken-hyo.js（KAIGO_NENDO）更新 → 管理画面の[反映]。'); }
 // 雇用保険: 労働保険年度4月適用・公表3月。lib(KOYO.RATES)の収録最新年と比較。
 { const need = (m >= 3 ? y : y - 1); const latest = saishinNen(KOYO.RATES, 'koyo-hoken.js の RATES');
   if (need > latest)
