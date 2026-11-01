@@ -211,6 +211,8 @@ jobs:
         run: node tests/job-jougen.test.mjs
       - name: ★同 わざと 上限を 抜いて 赤に なるか（10通り・読み落とし・重なり も・空振り止め）
         run: node tests/job-jougen.test.mjs --self-test
+      - name: ★法定データの 週1の 見張りが 落ちたら 赤か（code 0／10 以外で 段1が exit 0＝後ろ 2段が 飛んで job 緑だった・段の 字を 偽の node で 走らせる・わざと 壊す 11通り）
+        run: node tests/statutory-watch-ochiru.test.mjs && node tests/statutory-watch-ochiru.test.mjs --self-test
       - name: ★CI で 走る JS の fetch に 時間の 上限(signal)が 在るか（Node の fetch の 既定の 切れは 約300秒＝段の 5分と 同じ＝1本 黙ると 段ごと 落ちる／試験の 段は job で 切れて 灰色）
         run: node tests/fetch-jougen.test.mjs
       - name: ★同 わざと signal を 抜いて 赤に なるか（作り物8通り＋本物から 抜く分・注記と 字は 数えない・空振り止め）

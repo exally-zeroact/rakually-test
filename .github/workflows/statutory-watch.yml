@@ -48,6 +48,13 @@ jobs:
             echo "$OUT"
             echo EOF
           } >> "$GITHUB_OUTPUT"
+          # ★0（最新）と 10（要更新）以外は 赤★（2026-11-01・taiketsu 10-31 別件）
+          #   直す前は 何で 落ちても exit 0＝後ろの 段が 両方 飛んで job は 緑（分からない 時に 通す 側）。
+          #   見張り＝tests/statutory-watch-ochiru.test.mjs（この 段の 字を 偽の node で 本当に 走らせる）
+          if [ "$CODE" != 0 ] && [ "$CODE" != 10 ]; then
+            echo "::error::statutory-reminder.mjs が code=$CODE で 落ちた（0 と 10 以外）＝法定データの 見張りが 判定できていない"
+            exit 1
+          fi
           exit 0
       - name: Issue作成/更新(要更新のとき)
         timeout-minutes: 5
