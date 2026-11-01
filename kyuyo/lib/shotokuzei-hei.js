@@ -16,11 +16,15 @@
   // 年分別テーブル(年度キー)。現状R8のみ。hydrate()で中央データ上書き可。
   var HEI_BY_YEAR = { 2026: HEI_R8 };
   var LATEST = 2026;
-  // opts.year → 収録テーブル選択。2026以降=当年(無ければ最新)/2026未満=直近収録(=2026)。
+  // opts.year → 「その年 以下で 一番 近い 収録年」（2026-11-02）。収録より 古い 年は 一番 古い 収録年・年が 読めない時は 最新。
+  //  ★前は 収録の 最新を 返した＝中央から 2027 を 引き込むと 2026 の 丙が 来年の 表に なった★（nichi と 同じ 穴）。
   function tableFor(year) {
     var y = parseInt(year, 10);
-    if (!y || y < LATEST) return HEI_BY_YEAR[LATEST];
-    return HEI_BY_YEAR[y] || HEI_BY_YEAR[LATEST];
+    var ks = Object.keys(HEI_BY_YEAR).map(Number).filter(function (k) { return k > 0; }).sort(function (a, b) { return a - b; });
+    if (!y) return HEI_BY_YEAR[LATEST];
+    var hit = null;
+    for (var i = 0; i < ks.length; i++) { if (ks[i] <= y) hit = ks[i]; }
+    return HEI_BY_YEAR[hit != null ? hit : ks[0]];
   }
 
   // 丙欄税額: その日の社保控除後の日額 → 税額。opts.year(令和8=2026以降)。
@@ -43,7 +47,12 @@
     if (!Array.isArray(data.arr) || data.arr.length === 0) return;
     if (!(typeof data.start === 'number' && data.start > 0)) return;
     if (!(typeof data.step === 'number' && data.step > 0)) return;
-    HEI_BY_YEAR[parseInt(year, 10)] = { start: data.start, step: data.step, arr: data.arr.slice() };
+    var y = parseInt(year, 10); if (!y) return;
+    var cur = HEI_BY_YEAR[y], t = { start: data.start, step: data.step, arr: data.arr.slice() };
+    // ★lib の 同じ年に 在る 他の 鍵（24,000円以上の 段など）は 消さない★（2026-11-02・丸ごと 置き換えで 段が 消えていた）
+    if (cur) { for (var k in cur) { if (!(k in t)) t[k] = cur[k]; } }
+    if (Array.isArray(data.over) && data.over.length) t.over = data.over;
+    HEI_BY_YEAR[y] = t;
   }
-  return { heiTax: heiTax, HEI_R8: HEI_R8, HEI_BY_YEAR: HEI_BY_YEAR, hydrate: hydrate };
+  return { heiTax: heiTax, HEI_R8: HEI_R8, HEI_BY_YEAR: HEI_BY_YEAR, hydrate: hydrate, tableFor: tableFor };
 });

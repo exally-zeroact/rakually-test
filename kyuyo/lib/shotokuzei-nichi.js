@@ -237,7 +237,18 @@
 
   var BY_YEAR = { 2026: TABLE_R8 };
   var LATEST = 2026;
-  function tableFor(year) { var y = parseInt(year, 10); if (!y || y < LATEST) return BY_YEAR[LATEST]; return BY_YEAR[y] || BY_YEAR[LATEST]; }
+  /* ★年の 選び方＝「その年 以下で 一番 近い 収録年」★（2026-11-02）
+     前は「収録の 最新より 古い 年は 最新」＝中央から 新しい年（2027）を 引き込んだ 瞬間、
+     ★今年（2026）の 日払いが 来年の 表で 計算された★（taiketsu 実測：10,000円 甲0 265→260・3,600円 10→0）。
+     収録より 古い 年は 一番 古い 収録年（今と 同じ）。年が 読めない時は 最新（今と 同じ）。 */
+  function tableFor(year) {
+    var y = parseInt(year, 10);
+    var ks = Object.keys(BY_YEAR).map(Number).filter(function (k) { return k > 0; }).sort(function (a, b) { return a - b; });
+    if (!y) return BY_YEAR[LATEST];
+    var hit = null;
+    for (var i = 0; i < ks.length; i++) { if (ks[i] <= y) hit = ks[i]; }
+    return BY_YEAR[hit != null ? hit : ks[0]];
+  }
 
   function kouOver(amt, col, T) {
     var segs = T.koOver;
@@ -288,12 +299,17 @@
     if (!(start > 0) || !(step > 0) || !Array.isArray(data.ko) || !data.ko.length || !Array.isArray(data.otsu) || data.otsu.length !== data.ko.length) return false;
     if (!data.ko.every(function (r) { return Array.isArray(r) && r.length === 8 && r.every(function (v) { return typeof v === 'number' && isFinite(v); }); })) return false;
     if (!data.otsu.every(function (v) { return typeof v === 'number' && isFinite(v); })) return false;
+    /* ★24,000円以上の 段は ★他の年（R8）で 埋めない★（2026-11-02）＝中央の 行に 無ければ その年の lib の 段を 残す。
+       lib にも その年が 無く 中央にも 段が 無いなら ★引き込まない★（R8 の 段で 来年を 計算させない）。 */
+    var cur = BY_YEAR[y];
+    var koOver = Array.isArray(data.koOver) && data.koOver.length ? data.koOver : (cur && cur.koOver);
+    var otsuOver = Array.isArray(data.otsuOver) && data.otsuOver.length ? data.otsuOver : (cur && cur.otsuOver);
+    var otsuLowRate = num(data.otsuLowRate) || (cur && cur.otsuLowRate);
+    if (!koOver || !otsuOver || !otsuLowRate) return false;
     var t = { start: start, step: step, ko: data.ko, otsu: data.otsu,
-      koOver: Array.isArray(data.koOver) ? data.koOver : KO_OVER_R8,
-      otsuLowRate: num(data.otsuLowRate) || TABLE_R8.otsuLowRate,
-      otsuOver: Array.isArray(data.otsuOver) ? data.otsuOver : TABLE_R8.otsuOver };
+      koOver: koOver, otsuLowRate: otsuLowRate, otsuOver: otsuOver };
     BY_YEAR[y] = t; if (y > LATEST) LATEST = y; return true;
   }
 
-  return { nichiTax: nichiTax, kouTax: function (a, d, y) { return kouTax(a, d, tableFor(y)); }, otsuTax: function (a, y) { return otsuTax(a, tableFor(y)); }, hydrate: hydrate, TABLE_R8: TABLE_R8, tableFor: tableFor };
+  return { nichiTax: nichiTax, kouTax: function (a, d, y) { return kouTax(a, d, tableFor(y)); }, otsuTax: function (a, y) { return otsuTax(a, tableFor(y)); }, hydrate: hydrate, TABLE_R8: TABLE_R8, tableFor: tableFor, BY_YEAR: BY_YEAR };
 });
