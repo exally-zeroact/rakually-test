@@ -24,6 +24,15 @@ T('densan 甲: 扶養1人で FUYOU_KOJO=31667 が引かれ税が下がる', func
 T('densan 乙 令和8: A=300000,扶養0 → 53600円(part2.5-part1.5→100円丸め×1.021)', function () {
   eq(D.calcOtsu(300000, 0, { year: 2026 }), 53600);
 });
+T('densan 乙 令和8: 50円の境の端数を先に丸めない（国税庁 月額表 乙欄 令和8年分の実値・2026-11-01）', function () {
+  // C×1.021＝12,149.9 を先に Math.round して 12,200 にしていた（表は 12,100）。
+  eq(D.calcOtsu(175000, 0, { year: 2026 }), 12100);
+  eq(D.calcOtsu(176999, 0, { year: 2026 }), 12100);
+  eq(D.calcOtsu(443000, 0, { year: 2026 }), 114200);
+  eq(D.calcOtsu(445999, 0, { year: 2026 }), 114200);
+  eq(D.calcOtsu(173000, 0, { year: 2026 }), 11800); // 隣の段は変わらない
+  eq(D.calcOtsu(446000, 0, { year: 2026 }), 116000);
+});
 T('densan 乙: A<105000 は A×3.063%(1円切捨)', function () {
   eq(D.calcOtsu(100000, 0, { year: 2026 }), Math.floor(100000 * 0.03063)); // 3063
 });

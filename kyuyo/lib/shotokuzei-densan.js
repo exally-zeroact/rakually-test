@@ -16,7 +16,10 @@
   function round10(x) { return Math.round(x / 10) * 10; }  // 10円未満四捨五入
   function floor1(x) { return Math.floor(x + 1e-9); }      // 1円未満切捨
   // 50円未満切捨・50円以上100円未満→100円切上（乙欄用）
-  function round100_50(x) { x = Math.round(x); var b = Math.floor(x / 100) * 100; return (x - b) < 50 ? b : b + 100; }
+  //  ★先に Math.round を かけない★（2026-11-01）：C×1.021＝12,149.9 を 12,150 に 丸めてから 判じて
+  //   12,200 に して いた＝国税庁の 月額表 乙欄（令和8年分）は 12,100。175,000・443,000 の 段で 100円 多く 取って いた。
+  //   端数は「100円未満の部分」で 判じる。小数の 誤差は 1e-6 だけ 見逃す。
+  function round100_50(x) { var b = Math.floor((x + 1e-6) / 100) * 100; return (x - b) < 50 - 1e-6 ? b : b + 100; }
 
   // ── 年度別パラメータ(既定=ハードコード=フォールバック)。hydrateで年度別に上書き ──
   // 第1表 給与所得控除: X<=upto なら flat(定額) または ceil1(X*rate+add)。
