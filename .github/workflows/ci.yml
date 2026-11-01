@@ -213,6 +213,8 @@ jobs:
         run: node tests/job-jougen.test.mjs --self-test
       - name: ★法定データの 週1の 見張りが 落ちたら 赤か（code 0／10 以外で 段1が exit 0＝後ろ 2段が 飛んで job 緑だった・段の 字を 偽の node で 走らせる・わざと 壊す 11通り）
         run: node tests/statutory-watch-ochiru.test.mjs && node tests/statutory-watch-ochiru.test.mjs --self-test
+      - name: ★法定データの 年度更新の 催促が lib の 形が 変わった時に 黙って「更新不要」と 言わないか（境の 月 7つ×4項目の 暦の 網・関数名・返りの 形・収録年の 鍵 14通り・本物 3通り（2099-12 で 4項目の 名が 1回ずつ）＝52通り／台本を わざと 壊す 13通り）
+        run: node tests/statutory-reminder-katachi.test.mjs && node tests/statutory-reminder-katachi.test.mjs --self-test
       - name: ★CI で 走る JS の fetch に 時間の 上限(signal)が 在るか（Node の fetch の 既定の 切れは 約300秒＝段の 5分と 同じ＝1本 黙ると 段ごと 落ちる／試験の 段は job で 切れて 灰色）
         run: node tests/fetch-jougen.test.mjs
       - name: ★同 わざと signal を 抜いて 赤に なるか（作り物8通り＋本物から 抜く分・注記と 字は 数えない・空振り止め）
