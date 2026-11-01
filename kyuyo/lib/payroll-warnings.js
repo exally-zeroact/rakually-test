@@ -15,15 +15,17 @@
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory(require('./payroll-monthly.js'), require('./payroll-calc.js'), require('./warimashi.js'),
-      require('./saitei-chingin.js'), require('./shaho-kanyu.js'), require('./pay-rule.js'), require('./shakaihoken-hyo.js'));
+      require('./saitei-chingin.js'), require('./shaho-kanyu.js'), require('./pay-rule.js'), require('./shakaihoken-hyo.js'),
+      require('./shotokuzei-densan.js'));
   } else {
+    // 所得税(ShotokuzeiDensan)は 渡さない＝読み込み順に 頼らず 使う時に window から 拾う（下の DN()）。
     // ★SAITEI_CHINGIN / SHAKAIHOKEN_HYO は `const` 宣言でwindowに付かない。UMDラッパはグローバル
     //   スコープで走るので bare 参照なら拾える。window経由だけだと最賃チェックが丸ごと無言で消える。
     root.PayrollWarnings = factory(root.PayrollMonthly, root.PayrollCalc, root.Warimashi,
       (typeof SAITEI_CHINGIN !== 'undefined' ? SAITEI_CHINGIN : root.SAITEI_CHINGIN), root.ShahoKanyu, root.PayRule,
       (typeof SHAKAIHOKEN_HYO !== 'undefined' ? SHAKAIHOKEN_HYO : root.SHAKAIHOKEN_HYO));
   }
-})(typeof self !== 'undefined' ? self : this, function (_PM, _PayrollCalc, _Warimashi, _SAI, _ShahoKanyu, _PayRule, _SHH) {
+})(typeof self !== 'undefined' ? self : this, function (_PM, _PayrollCalc, _Warimashi, _SAI, _ShahoKanyu, _PayRule, _SHH, _DN) {
   'use strict';
 
   var G = (typeof globalThis !== 'undefined') ? globalThis : (typeof window !== 'undefined' ? window : {});
@@ -34,6 +36,7 @@
   function SK() { return _ShahoKanyu || G.ShahoKanyu; }
   function PR() { return _PayRule || G.PayRule; }
   function SHH() { return _SHH || G.SHAKAIHOKEN_HYO || null; }
+  function DN() { return _DN || G.ShotokuzeiDensan || null; }
 
   var num = function (v) { return PM().num(v); };
   // app.js と同じ文字列ユーティリティ（文言をバイト単位で一致させるために必要・業務ロジックではない）
@@ -229,9 +232,25 @@
 
   // ── ⑦ 法定データの鮮度（silent-wrong防止・会社/月スコープ） ──
   // 対象月の法定値(社保料率・所得税額表・最低賃金)が未収録年度なら暫定計算の黄警告(silent-wrong防止)。値は捏造せず直近収録値で暫定。
+  /* ★2026-11-01 健保だけで なく 介護・所得税も 見る★
+     前は getKenko の stale だけで「社会保険料率・所得税額表」を 出していた。
+     ・介護：getKenko の stale は 年の 決め打ちで KAIGO_NENDO と つながらない＝健保だけ 新年度に 上げて
+       介護を 入れ忘れると 介護は 前年度の 率で 黙って 計算され、この 警告も 出なかった。
+     ・所得税：額は 対象月の 年で 選ぶ（payroll-monthly と 同じ）。収録（PARAMS）より 新しい 年分は
+       直近の 表で 計算するのに、社保年度が 3月から なので 1・2月分（例 2027-01）は 健保が 古く ならず 警告が 出なかった。
+     文言は 変えない（「社会保険料率・所得税額表」の まま）。 */
+  function zeiSaishinNen() {
+    var D = DN(); if (!D || !D.PARAMS) return null;
+    var ks = Object.keys(D.PARAMS).filter(function (k) { return /^\d{4}$/.test(k); });
+    return ks.length ? Math.max.apply(null, ks.map(Number)) : null;
+  }
   function statutoryStaleWarn(ctx) {
-    var msgs = []; var S = SHH();
-    if (S && S.getKenko) { var k = S.getKenko('tokyo', YM(ctx)); if (k && k.stale) msgs.push('社会保険料率・所得税額表'); }
+    var msgs = []; var S = SHH(); var ym = YM(ctx); var furui = false;
+    if (S && S.getKenko) { var k = S.getKenko('tokyo', ym); if (k && k.stale) furui = true; }
+    if (S && S.getKaigo) { var g = S.getKaigo(ym); if (g && g.stale) furui = true; }
+    var zy = parseInt(String(ym).slice(0, 4), 10), zl = zeiSaishinNen();
+    if (zy && zl != null && zy > zl) furui = true;
+    if (furui) msgs.push('社会保険料率・所得税額表');
     var SA = SAI();
     if (SA && SA.saiteiStale && SA.saiteiStale(YM(ctx))) msgs.push('最低賃金');
     if (!msgs.length) return '';

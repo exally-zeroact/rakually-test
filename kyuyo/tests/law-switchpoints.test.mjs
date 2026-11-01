@@ -115,6 +115,36 @@ T('★令和9年度の最賃は書かない: 2027-10以降は stale=true で黄�
   if (!has) throw new Error('2027-10 で STATUTORY_STALE が出ていない（推測値で黙って計算してはいけない）');
 });
 
+/* ★2026-11-01 暫定計算の 黄警告は 健保だけで なく 介護・所得税も 見る★（payroll-warnings.js statutoryStaleWarn）
+   前は getKenko の stale だけ＝介護だけ 古い・所得税の 年分だけ 古い（1・2月分）時に 黙って 前の 率／表で 計算していた。
+   年は 打ち込まず lib から 作る（収録が 進んでも 揺れない）。 */
+const PW = require(path.join(ROOT, 'lib/payroll-warnings.js'));
+const DN = require(path.join(ROOT, 'lib/shotokuzei-densan.js'));
+const SHAHO_ZEI = '社会保険料率・所得税額表';
+const warnOf = (ym) => PW.statutoryStaleWarn({ month: ym, company: CO });
+const zeiL = Math.max.apply(null, Object.keys(DN.PARAMS).filter(k => /^\d{4}$/.test(k)).map(Number));
+T('★所得税の 年分が 未収録の 1月分は 黄警告（社保年度は まだ 古く ない 月）', function () {
+  const ym = (zeiL + 1) + '-01';
+  // 健保・介護は 社保年度（3月から）＝1月は 前の 年度＝収録の 内（ここが 古いと この 試験の 意味が 無い）
+  eq(SHH.getKenko('tokyo', ym).stale || SHH.getKaigo(ym).stale, false, ym + ' の 健保／介護');
+  if (warnOf(ym).indexOf(SHAHO_ZEI) < 0) throw new Error(ym + '：所得税 ' + (zeiL + 1) + '年分は 未収録なのに 黄警告が 出ない');
+});
+T('★収録の 内の 月（所得税の 最新年の 12月・健保／介護も 収録済み）は 社保・税の 黄警告を 出さない', function () {
+  const ym = zeiL + '-12';
+  if (SHH.getKenko('tokyo', ym).stale || SHH.getKaigo(ym).stale) return; // 社保が 先に 古い＝ここでは 見ない
+  if (warnOf(ym).indexOf(SHAHO_ZEI) >= 0) throw new Error(ym + '：収録の 内なのに 黄警告が 出た');
+});
+T('★介護だけ 古い（健保は 収録済み）時も 黄警告', function () {
+  const ym = '2026-11';
+  eq(SHH.getKenko('tokyo', ym).stale, false, ym + ' の 健保');
+  if (warnOf(ym).indexOf(SHAHO_ZEI) >= 0) throw new Error(ym + '：前提が 崩れた（何も 古く ないのに 出た）');
+  const orig = SHH.getKaigo;
+  SHH.getKaigo = function (x) { const r = orig.call(SHH, x); return { total: r.total, jugyoin: r.jugyoin, stale: true }; };
+  try {
+    if (warnOf(ym).indexOf(SHAHO_ZEI) < 0) throw new Error(ym + '：介護が stale なのに 黄警告が 出ない');
+  } finally { SHH.getKaigo = orig; }
+});
+
 // ── provenance に「実際に選ばれた年度」が出ること ──
 T('provenance に実行時に選ばれた年度/率が出る（切替が効いているか出力で確認できる）', function () {
   const s = snap('2026-06');
