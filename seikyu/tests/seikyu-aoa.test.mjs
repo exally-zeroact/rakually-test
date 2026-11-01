@@ -391,5 +391,96 @@ T('★★振込先の名義は Excel でも次の行（紙と同じ分け方を�
   eq(c[1][1], want2[1], '紙と Excel で2行目が違う');
 });
 
+/* ═══ ★控除も Excel に出る（紙と1円も違わない）★（2026-11-01）═══
+   紙は控除を引いて 281,260・Excel は 292,600 と書いていた（seikyu-aoa.js が o.deduct を一度も読まなかった）。
+   ★額は紙の見出し（grand-v）と Excel の見出しを 突き合わせる★＝どこかに同じ数が在るだけでは証しにならない。 */
+const dedTax_ = () => TAX.compute({ lines: [{ name: '運転代行', amount: 266000, rate: STD }], taxMode: 'exclusive', rounding: 'floor' });
+const headOf_ = (rows) => { const r = rows.find((x) => x[0] === '御請求金額（税込）'); return r ? r[1] : undefined; };
+const valOf_ = (rows, label) => { const r = rows.find((x) => x.includes(label)); return r ? r[r.indexOf(label) + 1] : undefined; };
+/* 締めの行（同じ字の 一番 下＝控除の一覧の 見出し「控除」と 取り違えない） */
+const lastOf_ = (rows, label) => { const r = rows.filter((x) => x.includes(label)).pop(); return r ? r[r.indexOf(label) + 1] : undefined; };
+const paperHead_ = (h) => (/<td class="grand-v">([^<]*)<\/td>/.exec(h) || [])[1];
+const dedInput_ = (extra) => Object.assign({}, sample(), { tax: dedTax_(),
+  deduct: 11340, deductLines: [{ name: '事務手数料', amount: 10000 }, { name: '駐車場代', amount: 1340 }] }, extra || {});
+
+T('★控除が Excel にも出る：頭も締めも 紙と同じ 281,260（292,600 にしない）', () => {
+  const pi = dedInput_();
+  eq(pi.tax.grandTotal, 292600, '前提（控除前 292,600）が崩れている');
+  const rows = roundTripRows(AOA.build(pi));
+  eq(headOf_(rows), 281260, '★Excel の頭が控除前のまま★');
+  eq(valOf_(rows, '中計'), 292600, '控除を引く紙なのに「中計」が無い');
+  eq(lastOf_(rows, '控除'), 11340, '締めに控除の行が無い（マイナスを付けない＝司さん 08-31）');
+  const fin = rows.filter((r) => r.includes('合計')).map((r) => r[r.indexOf('合計') + 1]);
+  ok(fin.includes(281260), '締めの「合計」が控除後でない: ' + JSON.stringify(fin));
+  ok(!fin.includes(292600), '★控除を引く紙に 控除前の「合計」が残っている★');
+  eq(valOf_(rows, '事務手数料'), 10000, '控除の行（1行目）が無い');
+  eq(valOf_(rows, '駐車場代'), 1340, '控除の行（2行目）が無い');
+  eq(valOf_(rows, '控除計'), 11340, '控除計が無い');
+  eq(paperHead_(PAPER_.build(pi).html), PAPER_.yen(281260), '紙の頭（突き合わせの相手）が違う');
+});
+
+T('★控除が読めない時：Excel の頭・控除の行・締めは「（未確認）」（0 も 控除前の額も 書かない）', () => {
+  const pi = dedInput_({ deduct: null, deductLines: [{ name: '弁当', amount: null }, { name: '駐車', amount: 500 }] });
+  const rows = roundTripRows(AOA.build(pi));
+  eq(headOf_(rows), '（未確認）', '★読めないのに頭に額を書いている★');
+  eq(valOf_(rows, '弁当'), '（未確認）', '★読めない控除の行を 0 にしている★');
+  eq(valOf_(rows, '駐車'), 500, '読める控除の行が落ちた');
+  eq(valOf_(rows, '控除計'), '（未確認）', '控除計に額を作っている');
+  eq(lastOf_(rows, '控除'), '（未確認）', '締めの控除に額を作っている');
+  eq(paperHead_(PAPER_.build(pi).html), '（未確認）', '紙の頭（突き合わせの相手）が違う');
+});
+
+T('★源泉と控除が両方ある時：差引＝紙と同じ payableOf（控除を引いてから 源泉）', () => {
+  const lines = [{ name: '原稿料', amount: 100000, rate: STD, gensen: true }];
+  const tax = TAX.compute({ lines, taxMode: 'exclusive', rounding: 'floor' });
+  const gen = GENSEN.compute({ lines, tax, taxMode: 'exclusive', rounding: 'floor' });
+  const pi = Object.assign({}, sample(), { tax, gensen: gen, deduct: 5000, deductLines: [{ name: '手数料', amount: 5000 }] });
+  const want = DOC_.payableOf(tax, null, gen, 5000);
+  eq(want, gen.net - 5000, '前提が崩れている');
+  const rows = roundTripRows(AOA.build(pi));
+  eq(valOf_(rows, gen.netLabel), want, '★Excel の差引が控除を引いていない★');
+  ok(flat_(PAPER_.build(pi).html).includes(PAPER_.yen(want)), '紙の差引（突き合わせの相手）が違う');
+});
+
+T('★繰越がある時：Excel の頭も 紙と同じ（繰越を足した 合計請求額）', () => {
+  const tax = dedTax_();
+  const carry = CARRY.compute({ thisTotal: tax.grandTotal, prev: { id: 'p1', no: 'C-1', totals: { grandTotal: 11000 } }, receipts: [] });
+  const pi = Object.assign({}, sample(), { tax, carry });
+  const rows = roundTripRows(AOA.build(pi));
+  eq(headOf_(rows), 303600, '★Excel の頭が繰越を足していない★');
+  eq(paperHead_(PAPER_.build(pi).html), PAPER_.yen(headOf_(rows)), '★紙と Excel の頭が食い違う★');
+});
+
+T('★控除の呼び名は 紙と同じ所（PAPER.labelsOf）から＝様式で変えた字が Excel にも出る', () => {
+  const pi = dedInput_({ style: { dedHead: '控除明細', dedSum: '控除の合計', finalLabel: '差引ご請求額' } });
+  const L = PAPER_.labelsOf(pi);
+  eq(L.dedHead, '控除明細'); eq(L.dedSum, '控除の合計'); eq(L.finalLabel, '差引ご請求額');
+  const rows = roundTripRows(AOA.build(pi));
+  ok(rows.some((r) => r.includes('控除明細')), 'Excel に様式の見出しが無い');
+  eq(valOf_(rows, '控除の合計'), 11340, 'Excel の控除計が様式の字でない');
+  eq(valOf_(rows, '差引ご請求額'), 281260, 'Excel の最後の行が様式の字でない');
+  const h = flat_(PAPER_.build(pi).html);
+  ['控除明細', '控除の合計', '差引ご請求額'].forEach((w) => ok(h.includes(w), '紙に「' + w + '」が無い（突き合わせの相手）'));
+});
+
+T('★控除が無い紙は 今まで通り（中計も 控除の行も 出さない）', () => {
+  const rows = roundTripRows(AOA.build(sample()));
+  ok(!rows.some((r) => r.includes('中計')), '控除が無いのに中計');
+  ok(!rows.some((r) => r.includes('控除') || r.includes('控除計')), '控除が無いのに控除の行');
+  eq(headOf_(rows), sample().tax.grandTotal, '控除が無い紙の頭が変わった');
+});
+
+if (process.argv.includes('--self-test')) {
+  /* ★作り物＝控除を読まない build★（直す前の形）。上の検査が これを 赤にできる事を見る */
+  console.log('\n[self-test 控除] 控除を読まない Excel は 落ちるか');
+  const bad = (pi) => AOA.build(Object.assign({}, pi, { deduct: undefined, deductLines: undefined }));
+  const rowsBad = roundTripRows(bad(dedInput_()));
+  T('作り物（控除を読まない）は 頭が 281,260 にならず 中計も無い＝上の検査が赤にする',
+    () => ok(headOf_(rowsBad) !== 281260 && !rowsBad.some((r) => r.includes('中計')), '★作り物でも 281,260 が出る＝検査が空振り★'));
+  const rowsBad2 = roundTripRows(bad(dedInput_({ deduct: null })));
+  T('作り物（控除を読まない）は 読めない控除でも 額を書く＝上の検査が赤にする',
+    () => ok(headOf_(rowsBad2) !== '（未確認）', '空振り'));
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

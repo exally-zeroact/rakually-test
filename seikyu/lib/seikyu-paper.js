@@ -189,6 +189,21 @@
     return themeOf(Object.assign({}, o.theme || {}, o.style || {}, (inv.data && inv.data.style) || {})).noOn !== false;
   }
 
+  /* ★控除と締めの 呼び名＝1か所★（2026-11-01 taiketsu 止3）
+     紙（deductBlock・sumsRows）と Excel（seikyu-aoa.js）が ★同じ 重ね方★で 呼び名を 決める。
+     Excel に「控除」「控除計」を 焼き付けると、控除型の 様式の 会社では 紙と 違う 字になる。 */
+  function labelsOf(o) {
+    o = o || {};
+    var inv = o.inv || {};
+    var d = inv.data || {};
+    var TH = themeOf(Object.assign({}, o.theme || {}, o.style || {}, d.style || {}));
+    return {
+      dedHead: textOf(d.dedHeadLabel || o.dedHeadLabel || TH.dedHead) || '控除',
+      dedSum: textOf(d.dedSumLabel || o.dedSumLabel || TH.dedSum) || '控除計',
+      finalLabel: textOf(TH.finalLabel) || '合計',
+    };
+  }
+
   var DEFAULT_COLS = {
     items: ['#', '品名・内容', '数量', '単位', '単価', '金額', '消費税'],
     widths: { '#': 28, '品名・内容': 220, '数量': 56, '単位': 44, '単価': 80, '金額': 100, '消費税': 72 },
@@ -1906,7 +1921,7 @@
   }
 
   return {
-    build: build, css: css, esc: esc, yen: yen, comma: comma, noDasu: noDasu,
+    build: build, css: css, esc: esc, yen: yen, comma: comma, noDasu: noDasu, labelsOf: labelsOf,
     dateStr: dateStr, jpDate: jpDate, honorOf: honorOf, taxLabel: taxLabel,
     paginate: paginate, sealMm: sealMm, sealStyle: sealStyle, sealOverflowMm: sealOverflowMm,
     TEMPLATE_ID: TEMPLATE_ID,

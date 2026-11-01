@@ -75,8 +75,22 @@
     if (g.tel) push(['', 'TEL ' + g.tel]);
     if (g.invoiceNo) push(['', '登録番号 ' + g.invoiceNo]);
     push([]);
-    var gr = push([(isQuote ? '御見積金額（税込）' : '御請求金額（税込）'), Number(tax.grandTotal) || 0]);
-    money(gr, 1);
+    /* ★控除と繰越は 紙と 同じ物から 読む★（2026-11-01・紙 281,260 なのに Excel 292,600 だった）
+       ・出すかは PAPER.showDeductOf（紙と同じ1か所）
+       ・額は seikyu-doc.js の billedOf／payableOf が唯一の正（ここで 足し引きしない）
+       ・★読めない控除は 0 にせず「（未確認）」★ */
+    var carry = o.carry || null;
+    var gen = o.gensen || null;
+    var showDeduct = !!(PAPER && PAPER.showDeductOf) && PAPER.showDeductOf(inv, o);
+    var deduct = (o.deduct === undefined || o.deduct === null) ? null : Number(o.deduct);
+    if (deduct !== null && !Number.isFinite(deduct)) deduct = null;
+    if (!showDeduct && deduct === null) deduct = undefined;   // 控除の話が無い紙＝今まで通り
+    var hasDeduct = showDeduct && (deduct === null || deduct !== 0);
+    var LB = (PAPER && PAPER.labelsOf) ? PAPER.labelsOf(o) : { dedHead: '控除', dedSum: '控除計', finalLabel: '合計' };
+    /* ★頭の額は 紙の grandBlock と 同じ式★＝繰越を足し、控除を引いた後 */
+    var headBilled = (showDeduct && deduct === null) ? null : DOC.billedOf(tax, carry, deduct);
+    var gr = push([(isQuote ? '御見積金額（税込）' : '御請求金額（税込）'), headBilled === null ? '（未確認）' : headBilled]);
+    if (headBilled !== null) money(gr, 1);
     if (inv.data && inv.data.subject) push(['件名', inv.data.subject]);
     push([]);
 
@@ -123,20 +137,50 @@
       row[labCol] = label; row[amtCol] = Number(v) || 0;
       var r = push(row); money(r, amtCol);
     }
+    function textRow(label, text) {
+      var row = items.map(function () { return ''; });
+      row[labCol] = label; row[amtCol] = text;
+      push(row);
+    }
+    /* ★控除の 行（紙の deductBlock と 同じ 中身）★
+       ★読めない額は（未確認）★＝紙の 1200行目は Number(null)=0 で ¥0 と刷る（別の1件）。
+       Excel は 自分で null／空を 見分けて 0 を作らない。 */
+    if (showDeduct) {
+      var dLines = Array.isArray(o.deductLines) ? o.deductLines : [];
+      push([]);
+      var hd = items.map(function () { return ''; }); hd[labCol] = LB.dedHead; push(hd);
+      dLines.forEach(function (d) {
+        var a = d ? d.amount : null;
+        var n = (a === null || a === undefined || a === '') ? NaN : Number(a);
+        var nm = String((d && d.name) || '') || '控除';
+        if (Number.isFinite(n)) sumRow(nm, n); else textRow(nm, '（未確認）');
+      });
+      if (deduct === null) textRow(LB.dedSum, '（未確認）'); else sumRow(LB.dedSum, deduct);
+    }
+
     push([]);
     sumRow('小計', tax.subtotal);
     sumRow('消費税', tax.taxTotal);
-    sumRow('合計', tax.grandTotal);
+    /* ★控除を引く紙は ここが「中計」★（紙の sumsRows 型A と同じ並び・言葉）
+       小計 → 消費税 → 中計 → 控除（マイナスを付けない・司さん 08-31）→ 合計 */
+    sumRow(hasDeduct ? '中計' : '合計', tax.grandTotal);
+    if (hasDeduct) {
+      if (deduct === null) {
+        textRow('控除', '（未確認）');
+        textRow(LB.finalLabel, '（未確認）');
+      } else {
+        sumRow('控除', deduct);
+        sumRow(LB.finalLabel, DOC.billedOf(tax, null, deduct));
+      }
+    }
 
     /* ★源泉徴収は Excel にも出す★
        紙にだけ出して Excel に出さないと、Excel で数えた人だけ違う額を振り込む。 */
-    var gen = o.gensen || null;
-    var carry = o.carry || null;
     if (gen && gen.on) {
       sumRow(gen.label, -Math.abs(Number(gen.amount) || 0));
       /* ★差引は「合計請求額（繰越こみ）− 源泉」★ 順番は seikyu-doc.js が唯一の正。
          紙と Excel で別々に足し引きすると、必ずどちらかが間違う。 */
-      var pay = DOC.payableOf(tax, carry, gen);
+      var pay = (showDeduct && deduct === null) ? null : DOC.payableOf(tax, carry, gen, deduct);
       if (pay === null) {
         var rp = items.map(function () { return ''; });
         rp[labCol] = gen.netLabel; rp[amtCol] = '（未確認）';   // ★0を作らない★

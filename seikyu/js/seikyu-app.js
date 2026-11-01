@@ -1130,7 +1130,7 @@
           + (out.skipped.length ? '／入れられなかった ' + out.skipped.length + '個' : '') + '）。';
       }) : OUT.excel(sheet, name).then(function () { return name + ' を保存しました。'; });
       p.then(function (m) { box('bk-ok', m); })
-        .catch(function (e) { box('bk-err', 'Excelが出せませんでした（' + ((e && e.message) || 'error') + '）'); });
+        .catch(function (e) { box('bk-err', (e && e.dedStop) ? e.message : 'Excelが出せませんでした（' + ((e && e.message) || 'error') + '）'); });
       return;
     }
     /* ★まとめ＝1冊に 紙ごとの シート★（中身は 同じ AOA.build・書き方は SeikyuOut.excel と 同じ） */
@@ -3858,6 +3858,7 @@
         box('edit-ok', '自社の Excel に 入れて 出しました（書いたセル ' + out.wrote.length + '個'
           + (out.skipped.length ? '／入れられなかった ' + out.skipped.length + '個' : '') + '）。');
       }).catch(function (e) {
+        if (e && e.dedStop) { box('edit-ok', ''); box('edit-err', e.message); return; }
         box('edit-err', '自社の Excel に 入れられませんでした（' + (e && e.message) + '）。'
           + '設定の「自社の請求書（Excel）を使う」で 読み直してください。');
       });
@@ -4912,9 +4913,24 @@
     var B = bookLib(), saved = bookSaved();
     if (!B || !saved) return null;
     var pi = paperInput(); if (!pi) return null;
+    /* ★控除の在る1通は 自社 Excel に 入れない★（2026-11-01 taiketsu 止1）
+       自社 Excel には 控除を 入れる マスが 無い＝ご請求金額が 数式なら 控除前の額を 計算して 出し、
+       値のマスでも「小計＋消費税≠合計」で 控除の行の無い 紙になる。★黙って違う額を出さず 止めて 知らせる★。 */
+    if (bookDedStop(pi)) {
+      var er = new Error(BOOK_DED_MSG); er.dedStop = true;
+      return Promise.reject(er);
+    }
     var vals = bookVals(pi);
     var bytes = b64ToBytes(saved.b64);
     return bookFill(B, saved, bytes, vals, name, pi);
+  }
+  var BOOK_DED_MSG = 'この請求書には 控除が あります。覚えた 自社の Excel には 控除を 入れる 場所が 無いので、'
+    + '出すと 控除前の 額に なります。PDF で 出すか、設定で「Rakunallyの紙に 戻す」と Rakunally の Excel で 控除まで 出せます。';
+  /** 控除が 在る（読めない控除も 含む）＝自社 Excel では 出せない 1通か */
+  function bookDedStop(pi) {
+    if (!pi || !PAPER.showDeductOf(pi.inv, pi)) return false;
+    var d = (pi.deduct === undefined || pi.deduct === null) ? null : Number(pi.deduct);
+    return d === null || !Number.isFinite(d) || d !== 0;
   }
   /* ★自社 Excel に 入れる 値★（試験から 呼べる 1か所・2026-10-14） */
   function bookVals(pi) {
@@ -7337,6 +7353,8 @@
     _loadMasters: function () { return loadMasters(true); },   // テストから1回だけ読ませる
     _loadList: function (o) { return loadList(o); },
     _issue: function () { return issue(); },
+    _bookDedStopForTest: function () { var pi = paperInput(); return pi ? bookDedStop(pi) : null; },
+    _bookExcelForTest: function (name) { return bookExcel(name); },   // テスト用: 控除の在る 1通で 自社 Excel が 止まるか
     _bookValsForTest: function () { var pi = paperInput(); return pi ? bookVals(pi) : null; },   // テスト用: 自社 Excel に 入れる 値（番号を 出さない 時に 空か）                    // テスト用: ボタンの 灰色を 通らずに 発行の 歯止めを 見る           // テスト用: 一覧だけ 読ませる（読めない 時の 知らせを 見る）
     _recalcForTest: function () { return recalc(); },
     _colsForTest: function () { return S.cur ? COLS.normalizeSpec(colsOf(S.cur)) : null; },   // テスト用: 今の1通の 紙の列          // テスト用: 数え直しだけ走らせる

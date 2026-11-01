@@ -1875,6 +1875,36 @@ await TA('7-e. ★番号を 出さない 設定の 時は 自社 Excel に 入�
   }
 });
 
+await TA('7-f. ★控除の在る 1通は 自社 Excel に 入れず 止めて 知らせる（控除前の額を 黙って 出さない・2026-11-01）', async () => {
+  /* 自社 Excel には 控除の マスが 無い＝ご請求金額が 数式なら 控除前を 計算し、値のマスでも 小計＋消費税≠合計 の 紙になる（taiketsu 止1） */
+  const app = win.SeikyuApp, st = app._state;
+  const maeX = st.org && st.org.bookXlsx, maeP = st.org && st.org.bookPlan;
+  try {
+    $('b-new').click(); await sleep(60);
+    setVal('e-partner', 'pt_a'); await sleep(20);
+    const tr = $('lines-body').querySelector('tr');
+    tr.querySelector('[data-f="name"]').value = '工事代金'; tr.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+    tr.querySelector('[data-f="amount"]').value = '5000'; tr.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+    await sleep(60);
+    st.org.bookXlsx = 'AA=='; st.org.bookPlan = { ok: true, sheet: 'Sheet1', slots: {} };
+    st.cur.data.deductions = [];
+    ok(app._bookDedStopForTest() === false, '前提：控除が 無いのに 止める（今まで 出せた 物を 止めている）');
+    let e0 = null;
+    try { await app._bookExcelForTest('a.xlsx'); } catch (e) { e0 = e; }
+    ok(!(e0 && e0.dedStop), '★控除が 無いのに 控除の 理由で 止めた★');
+    st.cur.data.deductions = [{ name: '手数料', amount: '1000' }];
+    ok(app._bookDedStopForTest() === true, '★控除 1,000 が 在るのに 自社 Excel へ 入れる★');
+    let e1 = null;
+    try { await app._bookExcelForTest('a.xlsx'); } catch (e) { e1 = e; }
+    ok(e1 && e1.dedStop && /控除/.test(e1.message), '★控除が 在るのに 止まらない／理由が 控除と 言っていない★: ' + (e1 && e1.message));
+    st.cur.data.deductions = [{ name: '弁当', amount: 'abc' }];
+    ok(app._bookDedStopForTest() === true, '★読めない 控除でも 自社 Excel へ 入れる（0 と 見ている）★');
+  } finally {
+    if (st.cur && st.cur.data) st.cur.data.deductions = [];
+    if (st.org) { st.org.bookXlsx = maeX; st.org.bookPlan = maeP; }
+  }
+});
+
 /* ═══ 9. ②-b 源泉徴収 / 繰越 / 非課税 ═══
    ★合格条件（指示役 2026-08-11 追加）★
      ・この3つを足しても「前回から当てる」が壊れない
