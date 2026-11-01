@@ -314,10 +314,10 @@ T('年末調整: 給与所得控除・基礎控除R8・算出税・復興税・�
   const NM = win.Nenmatsu; ok(NM && NM.computeNencho, 'Nenmatsu露出');
   const r = NM.computeNencho({ kyuyoShunyu: 5000000, shakaiHoken: 750000 });
   near(r.kyuyoShotoku, 3560000, 1, '給与所得(控除144万)');      // 500万×20%+44万=144万控除
-  near(r.kojoList.kiso, 990000, 1, '基礎控除R8=99万');
-  near(r.kazeiKyuyoShotoku, 1820000, 1, '課税所得');
-  near(r.sanshutuZei, 91000, 1, '算出税(5%)');
-  near(r.nenchouNenzei, 92900, 1, '年調年税額(×1.021・百円切捨)');
+  near(r.kojoList.kiso, 1040000, 1, '基礎控除R8=104万(≤489万)');
+  near(r.kazeiKyuyoShotoku, 1770000, 1, '課税所得(356-104-75=177万)');
+  near(r.sanshutuZei, 88500, 1, '算出税(5%)');
+  near(r.nenchouNenzei, 90300, 1, '年調年税額(88,500×1.021=90,358.5→百円切捨)');
   const r3 = NM.computeNencho({ kyuyoShunyu: 3000000, shakaiHoken: 450000 });
   near(r3.kyuyoShotoku, 2020000, 1, '300万→給与所得控除98万');
 });

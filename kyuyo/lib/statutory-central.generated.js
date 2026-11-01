@@ -19,7 +19,7 @@
   var META = {
     'koyo:2025': { source_url: "https://www.mhlw.go.jp/content/001401966.pdf", verified_at: "2026-08-04", fingerprint: '36dc8e47' },
     'koyo:2026': { source_url: "https://jsite.mhlw.go.jp/aichi-hellowork/list/okazaki/news/koyouhokennryouR08.html", verified_at: "2026-08-03", fingerprint: 'd7ad3a44' },
-    'nenmatsu:2026': { source_url: "https://www.nta.go.jp/users/gensen/2026kaisei/index.htm", verified_at: "2026-07-09", fingerprint: '4f3b1829' },
+    'nenmatsu:2026': { source_url: "https://www.nta.go.jp/users/gensen/2026kaisei/index.htm", verified_at: "2026-11-01", fingerprint: '7c001a8e' },
     'rousai_ritsu:2024': { source_url: "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000008", verified_at: "2026-09-04", fingerprint: 'db8cc232' },
     'saitei_chingin:2025': { source_url: "https://web.archive.org/web/20260317144856/https://www.mhlw.go.jp/content/11200000/001571192.pdf", verified_at: "2026-08-03", fingerprint: '5566dc03' },
     'saitei_chingin:2026': { source_url: "https://www.mhlw.go.jp/content/11200000/001753404.pdf", verified_at: "2026-10-23", fingerprint: '2076f5fd' },
