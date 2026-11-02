@@ -241,10 +241,14 @@
     }
     if (!carry) return g;
     if (carry.grandTotal === null || carry.grandTotal === undefined) return null;  // 入金が未確認
-    /* 繰越は「前回の残り＋今回」。今回ぶんから控除を引いた形にそろえる。 */
-    var c = Number(carry.grandTotal);
-    if (deduct !== undefined && deduct !== null) c = c - Number(deduct);
-    return c;
+    /* ★請求額＝繰越額（前回の残り）＋今回分（控除の後）★（2026-11-02）
+       carry.grandTotal（表の 合計請求額）は ★足し引きに 使わない★＝表に 出すだけの 値。
+       前は「carry.grandTotal − 控除」だった＝表の 今回請求額を 控除後に すると 2回 引く。
+       繰越額だけを 足せば、表が 控除前の 古い 写しでも 控除後の 新しい 紙でも 同じ 額に なる。 */
+    if (carry.state === 'first') return g;
+    var k = Number(carry.carry);
+    if (carry.carry === null || carry.carry === undefined || !Number.isFinite(k)) return null;
+    return k + g;
   }
 
   /** 実際に振り込んでもらう額（源泉があれば引いたあと）。読めない時は null */

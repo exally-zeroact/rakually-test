@@ -2460,6 +2460,48 @@ T('11-l. ★入金の文は block で最低幅を持つ（狭い端末で1文字
   ok(/btn-big/.test($('b-pay-add').className), '★理由を入れるボタンが折り返せない書き方（はみ出す）★');
 });
 
+await TA('11-k2. ★★繰越＋控除：表の 合計請求額も 控除の 後＝上の 請求額と 同じ（2026-11-02）★★', async () => {
+  /* 前は 表の 今回請求額に 控除前を 渡していた＝繰越 30,000＋今回 292,600・控除 11,340 で
+     上の 御請求金額 311,260 なのに 表の 合計請求額 322,600（弥生・バクラク：控除は 引いた 後が 請求額／MF：繰越＋今回＝合計請求額） */
+  const st = win.SeikyuApp._state;
+  doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(10);
+  $('b-new').click(); await sleep(20);
+  setVal('e-partner', 'pt_p'); await sleep(60);
+  setVal('e-issue', '2026-11-30'); await sleep(40);
+  const tr = doc.querySelector('#lines-body tr');
+  const setF = (k, v) => { const e = tr.querySelector('[data-f="' + k + '"]'); e.value = v; e.dispatchEvent(new win.Event('input')); e.dispatchEvent(new win.Event('change')); };
+  setF('name', '11月分 業務委託料'); setF('amount', '50000');
+  await sleep(40);
+  const rowsOf = () => {
+    const m = {};
+    [...$('tot-box').querySelectorAll('.tot-r')].forEach((r) => {
+      const l = r.querySelector('.tot-l'), v = r.querySelector('.tot-v');
+      if (l && v) m[l.textContent.trim()] = v.textContent.trim();
+    });
+    return m;
+  };
+  const yenOf = (t) => Number(String(t || '').replace(/[^0-9-]/g, ''));
+  try {
+    st.cur.data.deductions = [{ name: '振込手数料', amount: '5000' }];
+    win.SeikyuApp._recalcForTest(); await sleep(20);
+    let m = rowsOf();
+    ok(m['繰越額'] !== undefined, '前提：繰越の 表が 出ていない: ' + JSON.stringify(m));
+    const kuri = yenOf(m['繰越額']);
+    // ★手計算★ 今回 50,000＋消費税 5,000＝55,000 − 控除 5,000＝50,000 ／ 合計請求額＝繰越＋50,000
+    eq(yenOf(m['請求額']), 50000, '上の 請求額（控除の 後）');
+    eq(yenOf(m['合計請求額']), kuri + 50000, '★表の 合計請求額が 控除前（繰越＋55,000）のまま★');
+    ok(m['合計請求額'] !== yenS(kuri + 55000) + ' 円', '★控除前の 合計請求額を 出している★');
+    // ★読めない 控除＝表の 合計請求額も（未確認）。繰越だけを 合計に しない★
+    st.cur.data.deductions = [{ name: '弁当', amount: 'abc' }];
+    win.SeikyuApp._recalcForTest(); await sleep(20);
+    m = rowsOf();
+    ok(/未確認/.test(m['合計請求額'] || ''), '★控除が 読めないのに 合計請求額を 数で 出す★: ' + JSON.stringify(m));
+    ok(m['合計請求額'] !== yenS(kuri) + ' 円', '★繰越だけが 合計請求額に なった★');
+  } finally {
+    if (st.cur && st.cur.data) st.cur.data.deductions = [];
+  }
+});
+
 await TA('11-z. 繰越の設定を元に戻す（次の検査を汚さない）', async () => {
   delete db.pay_org[0].data.invoiceCarry;
   await win.SeikyuApp._loadMasters();

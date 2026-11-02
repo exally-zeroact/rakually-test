@@ -633,7 +633,8 @@
     var prevTotal = sumG - before;
     var carry = prevTotal - since;
     return { state: carry < 0 ? 'over' : 'ok', prevNo: prev.no || '', prevTotal: prevTotal, paid: since, carry: carry,
-      thisTotal: thisTotal, grandTotal: carry + thisTotal, label: carry < 0 ? CARRY.STATE_LABEL.over : '' };
+      thisTotal: thisTotal, grandTotal: (thisTotal === null || thisTotal === undefined) ? null : carry + thisTotal,   // ★null に 足すと 繰越だけが 合計に なる★
+      label: carry < 0 ? CARRY.STATE_LABEL.over : '' };
   }
   function payLabel(inv) {
     // ★発行していない紙に「未入金」と書かない★（まだ請求していない＝入金の話が無い）
@@ -3321,7 +3322,12 @@
        ・入金が 読めていない 時は「未確認」（0 に しない＝紙に「未確認」と 出る）
        ・1通の 額は gakuOf（源泉の 後＝源泉は 相手が 国へ 納める・所得税法 204条・212条＝払い残りでは ない）
        ・★発行済みの 紙は snapshot の 繰越の まま★（上の fromSnapshot で 返る＝書き換えない） */
-    return carryFromLedger(v, t.grandTotal);
+    /* ★表の 今回請求額は 控除の 後★（2026-11-02 司さん「リサーチして最適解ならそれでやれ」）
+       ＝弥生・バクラク：控除・相殺は 引いた 後が 請求額／MF の 5項目：繰越＋今回＝合計請求額。
+       控除前を 渡すと 表の 合計請求額が 上の 御請求金額より 控除の 分 大きく 出た（322,600 と 311,260）。
+       ★控除が 読めない 時は null★＝表の 今回・合計も（未確認）。0 に しない（繰越だけが 請求額に 見える）。 */
+    var ded = currentDeduct();          // ★billedOf は null を「控除なし」と 読む＝ここで 先に 止める★
+    return carryFromLedger(v, ded === null ? null : DOC.billedOf(t, null, ded));
   }
 
   /** 「◯年◯月分」の説明。★空なら 請求日の前月から自動で入る事を言う★ */
@@ -3542,7 +3548,7 @@
         html += '<div class="hint">' + esc(c.label) + '</div>';
       } else if (c) {
         CARRY.ROWS.forEach(function (r) {
-          if (r.key === 'thisTotal') return;                       // 今回請求額＝上の「合計」と同じ
+          if (r.key === 'thisTotal') return;                       // 今回請求額＝上の「請求額」（控除の 後）と 同じ
           var val = c[r.key];
           var txt = (val === null || val === undefined) ? '（未確認）' : yen(val) + ' 円';
           html += '<div class="tot-r' + (r.key === 'grandTotal' ? ' tot-g' : '') + '"><span class="tot-l">'

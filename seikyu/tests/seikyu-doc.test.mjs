@@ -790,6 +790,27 @@ T('★控除は「読めない行が1つでもあれば null」（0にしない�
   eq(D.billedOf({ grandTotal: 1000 }, null, NaN), null, '★読めない控除で数を作っている★');
 });
 
+T('★繰越＋控除：請求額＝繰越額＋今回分（控除の後）＝表の 合計請求額（2026-11-02）', () => {
+  const t = { grandTotal: 292600 };
+  // 新しい紙＝表の 今回請求額が 控除の後（281,260）・合計請求額 311,260
+  const neu = { state: 'ok', carry: 30000, thisTotal: 281260, grandTotal: 311260 };
+  eq(D.billedOf(t, neu, 11340), 311260, '★控除を 2回 引いている（表の 合計請求額から さらに 引いた）★');
+  eq(D.billedOf(t, neu, 11340), neu.grandTotal, '★上の 請求額と 表の 合計請求額が 合わない★');
+  // 古い 発行済みの 写し＝表は 控除前（292,600／322,600）のまま。上の額は 1円も 変わらない
+  const old = { state: 'ok', carry: 30000, thisTotal: 292600, grandTotal: 322600 };
+  eq(D.billedOf(t, old, 11340), 311260, '★古い 写しの 上の額が 変わった★');
+  // 払い過ぎ（over）・初回・未確認
+  eq(D.billedOf(t, { state: 'over', carry: -5000, thisTotal: 281260, grandTotal: 276260 }, 11340), 276260, '払い過ぎ');
+  eq(D.billedOf(t, { state: 'first', carry: null, thisTotal: 281260, grandTotal: 281260 }, 11340), 281260, '初回');
+  eq(D.billedOf(t, { state: 'unknown', carry: null, thisTotal: 281260, grandTotal: null }, 11340), null, '★入金が 読めないのに 数を 作った★');
+  eq(D.billedOf(t, { state: 'ok', carry: null, thisTotal: 281260, grandTotal: 311260 }, 11340), null, '★繰越額が 無いのに 数を 作った★');
+  eq(D.billedOf(t, neu, NaN), null, '★読めない控除で 数を 作った★');
+  // 源泉あり＝差引は 合計請求額 − 源泉
+  eq(D.payableOf(t, neu, { on: true, amount: 10210 }, 11340), 311260 - 10210, '差引お支払額');
+  // 控除なし・繰越あり は 今までどおり
+  eq(D.billedOf(t, { state: 'ok', carry: 30000, thisTotal: 292600, grandTotal: 322600 }), 322600, '控除なしが 変わった');
+});
+
 T('★控除は 名前が要る／0円・マイナスは止める（何を引いたか分からない紙を出さない）', () => {
   const of = (d) => D.validateDeductions({ data: { deductions: d } });
   eq(of([{ name: '弁当代', amount: 11340 }]).ok, true);
