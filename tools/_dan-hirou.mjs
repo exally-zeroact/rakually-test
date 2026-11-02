@@ -54,3 +54,25 @@ export function erabu(ymlJi) {
   });
   return { zen: zen.length, hashiru, nozoku };
 }
+
+/* ★★段ごとの 秒を まとめる★★（2026-11-02・網を 組に 割る 前に 測る＝taiketsu 止4 の 1つ目）
+   ★なぜ★ … 網は 段ごとの 秒を 控えて いなかった＝「どの 段が 重いか」「上限 180秒に 近い 段が 何本か」が 見立てだった
+   ★出す 物★ … 合計秒・遅い 順の 上位・上限に 近い（120秒 以上）段の 数・CI の job ごとの 秒（割り方を 秒で 決める 元）
+   ★守りは 変えない★ … 秒は 見るだけ（赤／緑の 判じに 使わない） */
+export function byouMatome(list, ue = 15, chikai = 120) {
+  const zen = list.reduce((s, x) => s + x.byou, 0);
+  const jun = list.slice().sort((a, b) => b.byou - a.byou);
+  const job = {};
+  list.forEach((x) => { const k = x.job || '?'; job[k] = job[k] || { dan: 0, byou: 0 }; job[k].dan++; job[k].byou += x.byou; });
+  return { zen, ue: jun.slice(0, ue), chikai: jun.filter((x) => x.byou >= chikai).length, job };
+}
+/* ★段の 番号 → CI の job の 名★（oshu-mae.mjs は 読むと 網が 走る＝関数は ここに 置く）（yml の 字を 上から 読む・拾い方は hirouDan と 同じ run: の 行） */
+export function danNoJob(ymlJi) {
+  const out = []; let cur = null;
+  String(ymlJi || '').split(String.fromCharCode(10)).forEach((l) => {
+    const m = l.match(/^  ([A-Za-z0-9_-]+):\s*$/);
+    if (m) cur = m[1];
+    if (/^\s*run:\s*(.+)$/.test(l)) out.push(cur);
+  });
+  return out;
+}

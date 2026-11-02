@@ -26,7 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { erabu, omoiKa, hirouDan } from './_dan-hirou.mjs';
+import { erabu, omoiKa, hirouDan, byouMatome, danNoJob } from './_dan-hirou.mjs';
 import { bunrui, OKE_JUN } from './_bunrui.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -95,7 +95,23 @@ if (process.argv.includes('--self-test')) {
     iu('★★出しと 叫びが 混ざって いない★★', soD.every((x) => x.indexOf('SAKEBI') < 0) && seD.length === 3);
     iu('★40行 未満なら 全部 出る（叫び 3行）★', seD[0] === 'SAKEBI-1' && seD[2] === 'SAKEBI-3');
   }
-  console.log(ng ? '★自己確認 ' + ng + '件 おかしい★' : '  ★17通り ぜんぶ 思った通り★');
+  /* ★★段ごとの 秒の まとめ（2026-11-02）★★ */
+  {
+    const m = byouMatome([{ c: 'a', byou: 10, job: 'x' }, { c: 'b', byou: 130, job: 'y' }, { c: 'c', byou: 5, job: 'x' }], 2, 120);
+    iu('★秒の 合計＝145★', m.zen === 145);
+    iu('★遅い 順の 上位 2＝b,a★', m.ue.length === 2 && m.ue[0].c === 'b' && m.ue[1].c === 'a');
+    iu('★上限に 近い（120秒 以上）＝1本★', m.chikai === 1);
+    iu('★job ごと x＝2段 15秒★', m.job.x.dan === 2 && m.job.x.byou === 15);
+    const djJi = ['jobs:', '  j1:', '    steps:', '        run: node a', '        run: node b', '  j2:', '        run: node c'].join(String.fromCharCode(10));
+    const dj = danNoJob(djJi);
+    iu('★段 → job（j1,j1,j2）＝run: の 数と 合う★', dj.join(',') === 'j1,j1,j2' && dj.length === hirouDan(djJi).length);
+    /* ★本物の ci.yml でも 段の 数と job の 数が 合い、job の 無い 段が 0★（合わないと 秒の job 分けが ずれる） */
+    const ymlHon = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+    const djH = danNoJob(ymlHon);
+    iu('★本物の ci.yml … 段 ' + hirouDan(ymlHon).length + '・job 付き ' + djH.filter(Boolean).length + '★',
+      djH.length === hirouDan(ymlHon).length && djH.every(Boolean));
+  }
+  console.log(ng ? '★自己確認 ' + ng + '件 おかしい★' : '  ★23通り ぜんぶ 思った通り★');
   process.exit(ng ? 1 : 0);
 }
 
@@ -103,6 +119,8 @@ const ymlArg = process.argv.find((x) => x.indexOf('--yml=') === 0);
 const YML = ymlArg ? ymlArg.split('=')[1] : '.github/workflows/ci.yml';
 const yml = fs.readFileSync(path.join(ROOT, YML), 'utf8');
 const e = erabu(yml);
+const JOB_NO = danNoJob(yml);   /* ★段の 番号(1から) → job★ */
+const byouList = [];
 
 /* ★★★空きを 測る★★★（2026-09-26・指示役1 の 足し）
    ★なぜ 要るか（実測）★
@@ -187,8 +205,10 @@ e.hashiru.forEach((d, ban) => {
     mi++; miDan.push({ d: d, naze: '★空きが 足りず 途中で 止めた★' });
     return;
   }
+  const t0 = Date.now();
   const r = spawnSync(d.c, { cwd: ROOT, encoding: 'utf8', shell: true,
     maxBuffer: 32 * 1024 * 1024, timeout: 180000 });
+  byouList.push({ i: d.i, c: d.c, job: JOB_NO[d.i - 1], byou: (Date.now() - t0) / 1000 });
   if (r.error || r.status === null) {
     mi++; miDan.push({ d: d, naze: (r.error && r.error.message) || '終わり値が 無い' });
     return;
@@ -237,6 +257,14 @@ e.hashiru.forEach((d, ban) => {
 });
 console.log('  ★空き（終わり） … ' + kuukiIu(kuukiSaigo === null ? kuukiGB() : kuukiSaigo)
   + (tometa ? '／★★' + tometa + '段まで 走って 止めました★★' : '') + '★');
+/* ★★段ごとの 秒（見るだけ・判じに 使わない）★★ */
+{
+  const m = byouMatome(byouList);
+  console.log('  ★段ごとの 秒★ … 合計 ' + m.zen.toFixed(0) + '秒（' + (m.zen / 60).toFixed(1) + '分）／上限 180秒に 近い（120秒 以上）' + m.chikai + '段');
+  Object.keys(m.job).forEach((k) => console.log('    job ' + k + ' … ' + m.job[k].dan + '段 ' + m.job[k].byou.toFixed(0) + '秒'));
+  console.log('    遅い 順 上位 ' + m.ue.length + '：');
+  m.ue.forEach((x) => console.log('      ' + x.byou.toFixed(1).padStart(6) + '秒 ' + x.i + '段 [' + x.job + '] ' + x.c.slice(0, 80)));
+}
 console.log('  ★赤 ' + aka + '段★ ／ ★走らせられない ' + mi + '段★'
   + ' ／ 回った ' + (e.hashiru.length - mi) + '段（回すつもり ' + e.hashiru.length + '段）');
 /* ★★回った 緑の 中を 割る★★＝「回った N＝赤0」を 盛りに しない（測った/一部抜け/丸ごと抜け/読めない/exit0failed） */
