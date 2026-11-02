@@ -2251,6 +2251,39 @@ await TA('9-g. ★控除＋源泉：画面の 差引お支払額と 源泉の �
   }
 });
 
+await TA('9-h. ★一覧：控除が 読めない 下書きに 控除前の 額を 出さない（（未確認））★', async () => {
+  /* 倉庫の totalsOf は 控除が 読めない 時 grandTotal＝控除前（gross）で しまう（発行は 門が 止める・下書きは 通る）。
+     一覧の 右端は その 数を そのまま 出していた＝110,000 円（控除を 引けば 100,000 未満）。 */
+  const st = win.SeikyuApp._state;
+  const mk = (id, no, ded) => ({ id, no, doc_type: 'invoice', status: 'draft', partner_id: 'pt_p', issue_ymd: '2026-11-30',
+    lines: [{ name: '業務委託料', amount: 100000, rate: 10 }], data: { deductions: ded },
+    totals: { subtotal: 100000, taxTotal: 10000, gross: 110000, deduct: 0, grandTotal: 110000 } });
+  const bad = mk('iv_ded_bad', 'T-DED-BAD', [{ name: '弁当', amount: 'abc' }]);
+  const good = mk('iv_ded_ok', 'T-DED-OK', [{ name: '振込手数料', amount: '660' }]);
+  good.totals = Object.assign({}, good.totals, { deduct: 660, grandTotal: 109340 });
+  const keepFil = st.fil;
+  st.invoices.push(bad, good);
+  try {
+    st.fil = 'all';
+    ['l-partner', 'l-month'].forEach((id) => { if ($(id)) $(id).value = ''; });
+    win.SeikyuApp._renderListForTest(); await sleep(20);
+    const amtOf = (no) => {
+      const card = [...$('list-body').querySelectorAll('.iv-card')].find((c) => c.textContent.includes(no));
+      ok(card, '前提：一覧に ' + no + ' が 出ていない');
+      return card.querySelector('.iv-amt').textContent.trim();
+    };
+    const a = amtOf('T-DED-BAD');
+    ok(/未確認/.test(a), '★控除が 読めない 下書きに 数を 出す★: ' + a);
+    ok(!a.includes('110,000'), '★控除前の 額を 出した★: ' + a);
+    // ★読める 控除の 下書きは 今までどおり 控除の 後★
+    eq(amtOf('T-DED-OK'), '109,340 円', '読める 控除の 下書き');
+  } finally {
+    st.invoices = st.invoices.filter((v) => v !== bad && v !== good);
+    st.fil = keepFil;
+    win.SeikyuApp._renderListForTest(); await sleep(10);
+  }
+});
+
 T('9-e. ★税率のある行は非課税にならない（印だけ立てても数え違えない）', () => {
   const TAX = require_(path.join(ROOT, 'seikyu/lib/seikyu-tax.js'));
   const SR = require_(path.join(ROOT, 'kyuyo/lib/shouhizei-ritsu.js'));

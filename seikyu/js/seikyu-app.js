@@ -1338,8 +1338,12 @@
       /* ★2026-10-23 司さん（赤丸）★＝金額の 行に ★会社名（左）と 合計金額（右端）★
          （代行請求の .list-item＝.li-meta が 左・.li-amt が 右端）。
          ★下書きで 金額が 無い時は 右端に「金額まだ N行」★（0円と 見せない 知らせは 消さない）。 */
+      /* ★控除が 読めない 下書きは 額を 出さない★（倉庫の totalsOf は その時 控除前の 額で しまう＝発行は 門が 止める・2026-11-03）
+         ＝0円の 控除として 数えた 額を 一覧に 出さない（紙・画面と 同じ（未確認））。 */
+      var dedNg = v.status === 'draft' && DOC.deductTotalOf(v) === null;
       var migi = waiting
         ? '<span class="iv-amt iv-amt-mada">金額まだ ' + waiting + '行</span>'
+        : dedNg ? '<span class="iv-amt iv-amt-mada">控除（未確認）</span>'
         : '<span class="iv-amt">' + (g === undefined || g === null ? '—' : yen(g) + ' 円') + '</span>';
       return '<div class="card iv-card">'
         + '<div class="iv-top">' + tag
