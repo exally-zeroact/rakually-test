@@ -43,7 +43,8 @@ const diffs = [];
 function canon(x) {
   if (Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';
   if (x && typeof x === 'object') return '{' + Object.keys(x).sort().map(k => JSON.stringify(k) + ':' + canon(x[k])).join(',') + '}';
-  return JSON.stringify(x);
+  // ★無い値（undefined）は 字に する★（2026-11-02）＝JSON.stringify(undefined) は undefined で、片方に 無い 鍵の 食い違いを 出す 所で 落ちて（exit 2）字が 出なかった
+  return x === undefined ? "undefined" : JSON.stringify(x);
 }
 /* ★差は 丸ごと 出さない★（2026-09-11）＝最賃47県・労災53業種を そのまま 出すと
    ★1行が 数千字に なって 読めない★。★先頭120字だけ★ 見せて 長さを 添える。 */
@@ -81,7 +82,7 @@ function verify(rows) {
   { const d = row(rows, 'shotokuzei_densan', 2025); if (d) { eq('densan2025.kyuyo', D.PARAMS[2025].kyuyo, d.kyuyo); eq('densan2025.kiso', D.PARAMS[2025].kiso, d.kiso); } else diffs.push('shotokuzei_densan/2025 無し'); }
   { const d = row(rows, 'shotokuzei_densan', 2026); if (d) { eq('densan2026.kyuyo', D.PARAMS[2026].kyuyo, d.kyuyo); eq('densan2026.kiso', D.PARAMS[2026].kiso, d.kiso); eq('densan.zeiKo', D.ZEI_KO, d.zeiKo); eq('densan.zeiOtsu', D.ZEI_OTSU, d.zeiOtsu); } else diffs.push('shotokuzei_densan/2026 無し'); }
   // ── 所得税 日額(hei) ──
-  { const d = row(rows, 'shotokuzei_hei', 2026); const t = (H.HEI_BY_YEAR && H.HEI_BY_YEAR[2026]) || H.HEI_R8; if (d) { eq('hei.start', t.start, d.start); eq('hei.step', t.step, d.step); eq('hei.arr', t.arr, d.arr); } else diffs.push('shotokuzei_hei 無し'); }
+  { const d = row(rows, 'shotokuzei_hei', 2026); const t = (H.HEI_BY_YEAR && H.HEI_BY_YEAR[2026]) || H.HEI_R8; if (d) { eq('hei.start', t.start, d.start); eq('hei.step', t.step, d.step); eq('hei.arr', t.arr, d.arr); eq('hei.over', t.over, d.over); } else diffs.push('shotokuzei_hei 無し'); }
   // ── 所得税 日額 甲乙(nichi) ──
   { const d = row(rows, 'shotokuzei_nichi', 2026); const t = (NI.tableFor && NI.tableFor(2026)) || NI.TABLE_R8; if (d) { eq('nichi.start', t.start, d.start); eq('nichi.step', t.step, d.step); eq('nichi.ko', t.ko, d.ko); eq('nichi.otsu', t.otsu, d.otsu); eq('nichi.koOver', t.koOver, d.koOver); } else diffs.push('shotokuzei_nichi 無し'); }
   // ── 賞与(shoyo) ──

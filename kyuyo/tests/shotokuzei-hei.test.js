@@ -22,8 +22,9 @@ T('丙欄 境界: 未満0 / 先頭9800=1 / 中間 / 上限手前738 / 上超近�
   eq(Hei.heiTax(0), 0); eq(Hei.heiTax(-100), 0); eq(Hei.heiTax(5000), 0);
   eq(Hei.heiTax(9800), 1); eq(Hei.heiTax(9899), 1);
   eq(Hei.heiTax(12000), 79); eq(Hei.heiTax(20000), 419);
-  eq(Hei.heiTax(23900), 738); eq(Hei.heiTax(24000), 738);
-  eq(Hei.heiTax(24100), 738 + 8); // 24000超は末尾738+超過分近似(step100あたり8.4)
+  eq(Hei.heiTax(23900), 738);
+  // ★2026-11-02 24,000円以上は 表の 文の 通り（746＋超える分×10.21%）。前は 738／738+8 の 近似を 固めていた＝表と 違う★
+  eq(Hei.heiTax(24000), 746); eq(Hei.heiTax(24100), 756);
 });
 /* year解決: 2026以降=R8表 / 2026未満=直近(=R8) */
 T('丙欄 year解決: 2026/2030/2025いずれもR8表', function () {
@@ -66,4 +67,13 @@ T('通し: 丙欄 日給12,000×出勤20日 → 所得税=heiTax(12000)*20', fun
 T('通し: 丙欄はincomeTaxオフで0', function () {
   var r = PayslipCalc.computePayslip({ shikyu: [{ label: '基本給', value: 240000 }], birthYmd: '1990-01-01', payYm: '2026-06', taxClass: 'hei', heiTaxAmount: 1580, apply: { incomeTax: false }, hyojunBase: 240000 });
   eq(r.incomeTax, 0);
+});
+
+/* ── 丙 24,000円以上（令和8年分 日額表 08-14.xls の 文の 通り・2026-11-02）──
+   前は 末尾＋100円ごと 8.4円の 近似＝24,000円 738・30,000円 1,242・60,000円 3,762（表は 746・1,715・9,450）。 */
+T('丙 24,000円以上：各段の 頭と 段の 中が 表の 文の 通り', function () {
+  var H2 = require('../lib/shotokuzei-hei.js');
+  function h(a) { return H2.heiTax(a, { year: 2026 }); }
+  eq(h(23999), 738); eq(h(24000), 746); eq(h(26500), 1001); eq(h(32500), 2226); eq(h(57500), 8608); eq(h(116500), 28486);
+  eq(h(30000), 1715); eq(h(60000), 9450); eq(h(26499), 746 + Math.floor(2499 * 0.1021)); eq(h(200000), 28486 + Math.floor(83500 * 0.4084));
 });

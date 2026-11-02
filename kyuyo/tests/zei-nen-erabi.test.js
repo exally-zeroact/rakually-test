@@ -24,7 +24,7 @@ function rainen(N0, H0) {
   };
 }
 
-T('来年（2027）を 引き込んでも 2025・2026・年なしの 日額/丙は 1円も 変わらない', function () {
+T('来年（2027）を 引き込んでも 2025・2026 の 日額/丙は 1円も 変わらない', function () {
   var m = fresh(), N = m.N, H = m.H;
   var b25 = snap(N, H, 2025), b26 = snap(N, H, 2026);
   var r = rainen(N, H);
