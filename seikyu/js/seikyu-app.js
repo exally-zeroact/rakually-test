@@ -3289,7 +3289,10 @@
     if (!g || !g.on) { setText('e-gensen-hint', '源泉の対象になる行がまだありません（立替など対象外だけの時は掛かりません）。'); return; }
     var t = null;
     try { t = currentTax(); } catch (e) { t = null; }
-    var pay = (t && t.ok) ? DOC.payableOf(t, c || null, g) : null;
+    /* ★説明も 控除の 後★（紙と 同じ payableOf に 控除を 渡す・2026-11-02）。前は 控除を 渡さず 紙 179,676 に 説明 197,150 の 形。
+       ★控除が 読めない 時は（未確認）★＝payableOf は null を「控除なし」と 読む＝ここで 先に 止める */
+    var ded = currentDeduct();
+    var pay = (t && t.ok && ded !== null) ? DOC.payableOf(t, c || null, g, ded) : null;
     setText('e-gensen-hint', '対象額 ' + yen(g.base) + ' 円 → ' + g.label + ' ' + yen(g.amount) + ' 円 → '
       + g.netLabel + ' ' + (pay === null ? '（未確認）' : yen(pay) + ' 円'));
   }
@@ -3515,7 +3518,8 @@
          紙にだけ出して画面に出さないと、見ている数字と振り込まれる額が食い違う。 */
       if (g && g.on) {
         /* ★差引は「合計請求額（繰越こみ）− 源泉」★ 順番は seikyu-doc.js が唯一の正 */
-        var pay = DOC.payableOf(t, c, g, ded);
+        /* ★控除が 読めない 時は 差引も（未確認）★＝payableOf は null を「控除なし」と 読む（紙 seikyu-paper.js と 同じ 止め・2026-11-02） */
+        var pay = (ded === null) ? null : DOC.payableOf(t, c, g, ded);
         lines.push([g.label, '− ' + yen(g.amount) + ' 円']);
         lines.push([g.netLabel, pay === null ? '（未確認）' : yen(pay) + ' 円']);
       }

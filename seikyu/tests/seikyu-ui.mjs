@@ -2206,6 +2206,51 @@ await TA('9-f. ★源泉の説明は、打つたびに直る（古い文が残�
   ok(/対象になる行がまだありません/.test(hint()), '対象が無くなったのに説明が古いまま: ' + hint());
 });
 
+await TA('9-g. ★控除＋源泉：画面の 差引お支払額と 源泉の 説明も 控除の 後＝紙と 同じ（読めない控除は（未確認））★', async () => {
+  /* 前は 説明が payableOf(t, c, g) で 控除を 渡さず（紙 179,676 に 説明 197,150 の 形）、
+     画面の 差引は 控除が 読めない 時も payableOf が null を「控除なし」と 読んで 数を 出していた。 */
+  const st = win.SeikyuApp._state;
+  const sel = doc.querySelector('#lines-body [data-f="rate"]');
+  sel.value = [...sel.options].find((o) => /%$/.test(o.textContent)).value;
+  sel.dispatchEvent(new win.Event('change'));
+  await sleep(40);
+  const CHOSHO = require_(path.join(ROOT, 'kyuyo/lib/shiharai-chosho.js'));
+  const gen = CHOSHO.gensenA(100000);
+  const rowsOf = () => {
+    const m = {};
+    [...$('tot-box').querySelectorAll('.tot-r')].forEach((r) => {
+      const l = r.querySelector('.tot-l'), v = r.querySelector('.tot-v');
+      if (l && v) m[l.textContent.trim()] = v.textContent.trim();
+    });
+    return m;
+  };
+  const yenOf = (t) => Number(String(t || '').replace(/[^0-9-]/g, ''));
+  const hint = () => $('e-gensen-hint').textContent;
+  try {
+    let m = rowsOf();
+    eq(yenOf(m['合計']), 110000, '前提：100,000＋消費税 10,000 でない');
+    ok(m['差引お支払額'] !== undefined, '前提：源泉が 入っていない: ' + JSON.stringify(m));
+    st.cur.data.deductions = [{ name: '振込手数料', amount: '10000' }];
+    win.SeikyuApp._recalcForTest(); await sleep(20);
+    m = rowsOf();
+    // ★手計算★ 110,000 − 控除 10,000 ＝ 100,000 − 源泉 gensenA(100,000)
+    const want = 100000 - gen;
+    eq(yenOf(m['差引お支払額']), want, '画面の 差引お支払額');
+    ok(hint().includes(want.toLocaleString('ja-JP') + ' 円'), '★源泉の 説明が 控除を 引いていない★（欲しい ' + want + '）: ' + hint());
+    ok(!hint().includes((110000 - gen).toLocaleString('ja-JP')), '★説明が 控除前の 額★: ' + hint());
+    // ★読めない 控除＝差引も 説明も（未確認）＝0 として 数えた 額を 出さない★
+    st.cur.data.deductions = [{ name: '弁当', amount: 'abc' }];
+    win.SeikyuApp._recalcForTest(); await sleep(20);
+    m = rowsOf();
+    ok(/未確認/.test(m['差引お支払額'] || ''), '★控除が 読めないのに 差引お支払額を 数で 出す★: ' + JSON.stringify(m));
+    ok(/未確認/.test(hint()), '★控除が 読めないのに 説明が 数を 出す★: ' + hint());
+    ok(!hint().includes((110000 - gen).toLocaleString('ja-JP')), '★説明が 控除0 として 数えた★: ' + hint());
+  } finally {
+    if (st.cur && st.cur.data) st.cur.data.deductions = [];
+    win.SeikyuApp._recalcForTest(); await sleep(20);
+  }
+});
+
 T('9-e. ★税率のある行は非課税にならない（印だけ立てても数え違えない）', () => {
   const TAX = require_(path.join(ROOT, 'seikyu/lib/seikyu-tax.js'));
   const SR = require_(path.join(ROOT, 'kyuyo/lib/shouhizei-ritsu.js'));
@@ -2497,8 +2542,18 @@ await TA('11-k2. ★★繰越＋控除：表の 合計請求額も 控除の 後
     m = rowsOf();
     ok(/未確認/.test(m['合計請求額'] || ''), '★控除が 読めないのに 合計請求額を 数で 出す★: ' + JSON.stringify(m));
     ok(m['合計請求額'] !== yenS(kuri) + ' 円', '★繰越だけが 合計請求額に なった★');
+    // ★繰越＋控除＋源泉★ 説明と 箱が 同じ 繰越を 渡す（どちらかだけ 渡し方を 変えたら 赤・taiketsu 宿題1 2026-11-02）
+    $('e-gensen').checked = true; $('e-gensen').dispatchEvent(new win.Event('change'));
+    st.cur.data.deductions = [{ name: '振込手数料', amount: '5000' }];
+    win.SeikyuApp._recalcForTest(); await sleep(20);
+    m = rowsOf();
+    const CHOSHO = require_(path.join(ROOT, 'kyuyo/lib/shiharai-chosho.js'));
+    const wantG = kuri + 50000 - CHOSHO.gensenA(50000);
+    eq(yenOf(m['差引お支払額']), wantG, '繰越＋控除＋源泉の 差引お支払額');
+    ok($('e-gensen-hint').textContent.includes(yenS(wantG) + ' 円'), '★説明が 箱と 違う 額★（欲しい ' + wantG + '）: ' + $('e-gensen-hint').textContent);
   } finally {
-    if (st.cur && st.cur.data) st.cur.data.deductions = [];
+    if (st.cur && st.cur.data) { st.cur.data.deductions = []; st.cur.data.gensen = false; }
+    if ($('e-gensen')) $('e-gensen').checked = false;
   }
 });
 
