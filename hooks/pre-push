@@ -82,4 +82,7 @@ push_input=$(cat)
 echo "[pre-push] ★押す commit の メールと 中身の 門（数秒）★"
 printf '%s\n' "$push_input" | node .githooks/pre-push-author.mjs "$@"
 printf '%s\n' "$push_input" | node .githooks/pre-push-kinshi.mjs "$@"
-node tools/oshu-mae.mjs
+# ★★2026-11-03 網は ★押す sha の 別の 作業木★で 回す（網の 4つ割り 押し2）★★
+#   ★押す 物の 名簿を 網にも 渡す★＝網が 見る 字 ＝ 押す commit（今の 作業木の 未commit は 混ざらない）
+#   ★逃げ道★ … OSHU_MAE_WAKE=1 で 今の 作業木の まま 回す（前の 形）
+printf '%s\n' "$push_input" | node tools/oshu-mae.mjs --sha-stdin

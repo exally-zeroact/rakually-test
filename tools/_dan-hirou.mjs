@@ -76,3 +76,41 @@ export function danNoJob(ymlJi) {
   });
   return out;
 }
+
+/* ★★押す sha を 読む★★（2026-11-03・網の 4つ割り 押し2＝設計前 taiketsu 止1）
+   ★入力★ … pre-push の 標準入力（1行＝`<local ref> <local sha> <remote ref> <remote sha>`）
+   ★返す★ … { gyou: 行数, shas: 0で ない local sha（重なりを 除く）, kesu: 消す 押しの 数, naze: 止める 訳 か null }
+   ★止める★ … 行が 0（＝押す 物が 分からない＝赤）／0で ない sha が 2つ 以上（＝1つの 作業木で 全部を 見られない・1押し1件）
+   ★飛ばす★ … 消す 押しだけ（shas 0・kesu 1以上）＝回す 物が 無い */
+export function oshuShaYomu(txt) {
+  const ZERO = /^0+$/;
+  const gyou = String(txt || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const shas = []; let kesu = 0, hen = 0;
+  gyou.forEach((l) => {
+    const p = l.split(/\s+/);
+    if (p.length < 4 || !/^[0-9a-f]{40}$/.test(p[1])) { hen++; return; }
+    if (ZERO.test(p[1])) { kesu++; return; }
+    if (shas.indexOf(p[1]) < 0) shas.push(p[1]);
+  });
+  let naze = null;
+  if (!gyou.length) naze = '押す 物の 名簿が 空（何を 押すか 分からない）';
+  else if (hen) naze = '読めない 行が ' + hen + '行';
+  else if (shas.length > 1) naze = '0で ない sha が ' + shas.length + 'つ（1押し1件＝1つずつ 押す）';
+  return { gyou: gyou.length, shas, kesu, naze };
+}
+
+/* ★★前の 網が 残した 作業木の うち 消して よい 物★★（設計前 taiketsu 止3＝他の 席の 網を 消さない）
+   ★名前★ … `om-<pid>-<始めた ms の 36進>`（この 形 以外は 触らない）
+   ★消す★ … pid が 死んで いる 物 か、始めて から kigenMs（既定 6時間）を 過ぎた 物 だけ
+   ★ikiteru(pid)★ … 呼ぶ 側が 渡す（試験で 差し替える） */
+export function nokoriErabu(namae, nowMs, ikiteru, kigenMs = 6 * 3600 * 1000) {
+  const out = [];
+  namae.forEach((n) => {
+    const m = String(n).match(/^om-(\d+)-([0-9a-z]+)$/);
+    if (!m) return;
+    const pid = Number(m[1]), t = parseInt(m[2], 36);
+    if (!ikiteru(pid)) out.push({ n, naze: 'pid ' + pid + ' が 居ない' });
+    else if (!(t > 0) || nowMs - t > kigenMs) out.push({ n, naze: '古い（' + ((nowMs - t) / 3600000).toFixed(1) + '時間）' });
+  });
+  return out;
+}

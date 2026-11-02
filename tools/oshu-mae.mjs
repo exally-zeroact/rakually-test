@@ -21,20 +21,70 @@
  *   node tools/oshu-mae.mjs                … ci.yml の 速い 段を 全部
  *   node tools/oshu-mae.mjs --yml=.github/workflows/webkit.yml
  *   node tools/oshu-mae.mjs --self-test    … ★選び方だけ 試す（1段も 走らせない）★
+ *   … | node tools/oshu-mae.mjs --sha-stdin … ★pre-push が 使う★＝標準入力の 押す sha を 別の 作業木に 出して そこで 回す
+ *        （OSHU_MAE_WAKE=1 なら 今の 作業木の まま）
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { erabu, omoiKa, hirouDan, byouMatome, danNoJob } from './_dan-hirou.mjs';
+import { erabu, omoiKa, hirouDan, byouMatome, danNoJob, oshuShaYomu, nokoriErabu } from './_dan-hirou.mjs';
 import { bunrui, OKE_JUN } from './_bunrui.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/* ★★押す sha の 別の 作業木（2026-11-03・網の 4つ割り 押し2）★★
+   ★なぜ★ … 今までは 網が ★今の 作業木の 字★を 見た＝未commit が 混ざる／自己確認が わざと 壊した 字（#FF00FF 等）が
+     網を 途中で 殺されると 押す 作業木に 残った（feedback_ami_wo_tochuu_de_tomeru…）。
+     ⇒ 押す sha を 捨てる 作業木に 出して そこで 回す＝「網が 見た 字 ＝ 押す commit」・壊しは 捨てる 作業木の 中だけ。
+   ★守る 事（設計前 taiketsu 止3）★
+     ・node_modules は 元の 作業木への junction（npm/npx/husky を 新しい 作業木で 回さない）
+     ・片付けは ★junction を 先に 外して から★（外せなければ 消さない＝中身を 辿って node_modules を 消さない）
+     ・前の 残りは pid が 死んだ 物 か 6時間 過ぎた 物 だけ 消す（他の 席の 走って いる 網を 消さない）
+     ・置き場は repo ごとに 分ける（本番 rakually と テスト線の 網が 互いを 触らない） */
+const gitR = (args, cwd) => spawnSync('git', args, { cwd: cwd || ROOT, encoding: 'utf8' });
+function junctionHazusu(p) {
+  let st;
+  try { st = fs.lstatSync(p); } catch (err) { return true; }          /* ★無い＝外れて いる★ */
+  if (!st.isSymbolicLink()) return false;                              /* ★本物の dir＝触らない★ */
+  try { fs.unlinkSync(p); } catch (err) { try { fs.rmdirSync(p); } catch (err2) { return false; } }
+  try { fs.lstatSync(p); return false; } catch (err) { return true; }
+}
+function wtKatasu(dir, root) {
+  if (!junctionHazusu(path.join(dir, 'node_modules'))) return '★node_modules の junction を 外せない＝消さずに 残した★';
+  gitR(['worktree', 'remove', '--force', dir], root);
+  if (fs.existsSync(dir)) {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (err) { return '★消せない★ ' + err.message; }
+  }
+  gitR(['worktree', 'prune'], root);
+  return fs.existsSync(dir) ? '★消せない★' : null;
+}
+const pidIkiteru = (pid) => { try { process.kill(pid, 0); return true; } catch (err) { return err.code === 'EPERM'; } };
+function wtOki(root) {
+  const common = path.resolve(root, gitR(['rev-parse', '--git-common-dir'], root).stdout.trim());
+  return path.join(os.tmpdir(), 'oshu-mae-wt', path.basename(path.dirname(common)));
+}
+function wtTsukuru(sha, root, base) {
+  fs.mkdirSync(base, { recursive: true });
+  nokoriErabu(fs.readdirSync(base), Date.now(), pidIkiteru).forEach((x) => {
+    const r = wtKatasu(path.join(base, x.n), root);
+    console.log('  ★前の 網の 残りを 片付けた★ ' + x.n + '（' + x.naze + '）' + (r ? '  ' + r : ''));
+  });
+  const dir = path.join(base, 'om-' + process.pid + '-' + Date.now().toString(36));
+  const r = gitR(['worktree', 'add', '--detach', dir, sha], root);
+  if (r.status !== 0) return { err: 'worktree add が 赤（' + String(r.stderr || '').trim().slice(0, 200) + '）' };
+  const head = gitR(['rev-parse', 'HEAD'], dir).stdout.trim();
+  if (head !== sha) { wtKatasu(dir, root); return { err: '作業木の HEAD ' + head + ' が 押す sha ' + sha + ' と 違う' }; }
+  const nm = path.join(root, 'node_modules');
+  if (fs.existsSync(nm)) fs.symlinkSync(fs.realpathSync(nm), path.join(dir, 'node_modules'), 'junction');
+  return { dir };
+}
+
 if (process.argv.includes('--self-test')) {
   console.log('\n[oshu-mae] ★自己確認★（★1段も 走らせません★）');
-  let ng = 0;
-  const iu = (n, good) => { if (!good) ng++; console.log('  ' + (good ? '✓' : '✗') + ' ' + n + (good ? '' : '  ★思っていたのと 違う★')); };
+  let ng = 0, zenTori = 0;
+  const iu = (n, good) => { zenTori++; if (!good) ng++; console.log('  ' + (good ? '✓' : '✗') + ' ' + n + (good ? '' : '  ★思っていたのと 違う★')); };
   /* ★見本は ★実物と 同じ 書き方★ に する★（2026-09-22 踏んだ）
      ★はじめ★ … 一行の 形で 書いた ⇒ ★拾えず 8件 赤★
      ★実物を 数えた★ … ci.yml 241／★一行の 形は 0★／webkit 48／0
@@ -111,13 +161,99 @@ if (process.argv.includes('--self-test')) {
     iu('★本物の ci.yml … 段 ' + hirouDan(ymlHon).length + '・job 付き ' + djH.filter(Boolean).length + '★',
       djH.length === hirouDan(ymlHon).length && djH.every(Boolean));
   }
-  console.log(ng ? '★自己確認 ' + ng + '件 おかしい★' : '  ★23通り ぜんぶ 思った通り★');
+  /* ★★押す sha を 読む（止1）★★ */
+  {
+    const A = 'a'.repeat(40), B = 'b'.repeat(40), Z = '0'.repeat(40);
+    const g = (l, s) => 'refs/heads/x ' + l + ' refs/heads/main ' + (s || Z);
+    const r1 = oshuShaYomu(g(A) + '\n');
+    iu('★1行＝sha 1つ・止めない★', r1.shas.length === 1 && r1.shas[0] === A && r1.naze === null);
+    iu('★空＝止める（0件＝合格に しない）★', oshuShaYomu('\n').naze !== null && oshuShaYomu('').naze !== null);
+    const r3 = oshuShaYomu(g(Z, A));
+    iu('★消す 押しだけ＝sha 0・消す 1・止めない（回す 物が 無い）★', r3.shas.length === 0 && r3.kesu === 1 && r3.naze === null);
+    iu('★違う sha 2つ＝止める（1押し1件）★', oshuShaYomu(g(A) + '\n' + g(B)).naze !== null);
+    iu('★同じ sha を 2つの 枝へ＝1つ・止めない★', oshuShaYomu(g(A) + '\n' + g(A)).shas.length === 1 && oshuShaYomu(g(A) + '\n' + g(A)).naze === null);
+    iu('★読めない 行＝止める★', oshuShaYomu('xx yy').naze !== null);
+    iu('★CRLF でも 読める★', oshuShaYomu(g(A) + '\r\n').naze === null);
+  }
+  /* ★★前の 残りの 選び方（止3＝他の 席を 消さない）★★ */
+  {
+    const now = 1e12, t = (ms) => (now - ms).toString(36);
+    const ike = (pid) => pid !== 111;
+    const s = nokoriErabu(['om-111-' + t(1000), 'om-222-' + t(1000), 'om-333-' + t(7 * 3600e3), 'oshu-mae-444-x', 'tanin'], now, ike).map((x) => x.n.split('-')[1]);
+    iu('★pid 死＝消す／生きて 新しい＝残す／生きて 古い＝消す／形の 違う 名＝触らない★', s.join(',') === '111,333');
+  }
+  /* ★★本物の 作業木を 作って 片付ける（junction の 先は 消えない）★★＝網は 1段も 回さない */
+  {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'om-st-'));
+    const saki = path.join(tmp, 'saki'); fs.mkdirSync(saki); fs.writeFileSync(path.join(saki, 'nokoru.txt'), 'x');
+    const head = gitR(['rev-parse', 'HEAD']).stdout.trim();
+    const base = path.join(tmp, 'base');
+    const nmKazu = () => (fs.existsSync(path.join(ROOT, 'node_modules')) ? fs.readdirSync(path.join(ROOT, 'node_modules')).length : -1);
+    const nmKazu0 = nmKazu();
+    const w = wtTsukuru(head, ROOT, base);
+    iu('★押す sha の 作業木が 出来る★', !w.err && fs.existsSync(path.join(w.dir, 'tools', 'oshu-mae.mjs')));
+    if (!w.err) {
+      const nmOk = !fs.existsSync(path.join(ROOT, 'node_modules')) || fs.lstatSync(path.join(w.dir, 'node_modules')).isSymbolicLink();
+      iu('★node_modules は junction（本物の dir を 作らない）★', nmOk);
+      iu('★作業木の HEAD ＝ 押す sha★', gitR(['rev-parse', 'HEAD'], w.dir).stdout.trim() === head);
+      const err = wtKatasu(w.dir, ROOT);
+      iu('★片付けで 作業木が 消える★', err === null && !fs.existsSync(w.dir));
+      iu('★git の 作業木の 名簿にも 残らない★', gitR(['worktree', 'list', '--porcelain']).stdout.indexOf(path.basename(w.dir)) < 0);
+      iu('★node_modules の 先は 消えない（中の 数 ' + nmKazu0 + ' → ' + nmKazu() + '）★', nmKazu() === nmKazu0);
+    }
+    /* ★本物の dir の node_modules は 片付けが 触らない★ */
+    const nise = path.join(tmp, 'nise'); fs.mkdirSync(path.join(nise, 'node_modules'), { recursive: true });
+    fs.writeFileSync(path.join(nise, 'node_modules', 'a.txt'), 'x');
+    iu('★本物の node_modules が 在る dir は 消さない★', wtKatasu(nise, ROOT) !== null && fs.existsSync(path.join(nise, 'node_modules', 'a.txt')));
+    /* ★junction を 外しても 先の 中身は 残る★ */
+    const j2 = path.join(tmp, 'j2'); fs.symlinkSync(saki, j2, 'junction');
+    iu('★junction を 外す＝junction は 消え・先の 中身は 残る★', junctionHazusu(j2) && !fs.existsSync(j2) && fs.existsSync(path.join(saki, 'nokoru.txt')));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  console.log(ng ? '★自己確認 ' + ng + '件 おかしい（全 ' + zenTori + '通り）★' : '  ★' + zenTori + '通り ぜんぶ 思った通り★');
   process.exit(ng ? 1 : 0);
 }
 
 const ymlArg = process.argv.find((x) => x.indexOf('--yml=') === 0);
 const YML = ymlArg ? ymlArg.split('=')[1] : '.github/workflows/ci.yml';
-const yml = fs.readFileSync(path.join(ROOT, YML), 'utf8');
+/* ★★どこで 回すか★★（2026-11-03 押し2）＝--sha-stdin なら 押す sha の 別の 作業木・OSHU_MAE_WAKE=1 なら 今の 作業木 */
+let RUN_ROOT = ROOT;
+if (process.argv.includes('--sha-stdin') && process.env.OSHU_MAE_WAKE !== '1') {
+  let txt = '';
+  try { txt = fs.readFileSync(0, 'utf8'); } catch (err) { txt = ''; }
+  const s = oshuShaYomu(txt);
+  if (s.naze) {
+    console.log('\n[oshu-mae] ★★押す 物が 決まらない＝止めます★★ … ' + s.naze);
+    console.log('  ★「赤 0」とは 書きません＝★何も 測って いません★★');
+    process.exit(1);
+  }
+  if (!s.shas.length) {
+    console.log('\n[oshu-mae] ★消す 押しだけ（' + s.kesu + '本）＝回す 字が 無い＝網を 回しません★');
+    process.exit(0);
+  }
+  const w = wtTsukuru(s.shas[0], ROOT, wtOki(ROOT));
+  if (w.err) {
+    console.log('\n[oshu-mae] ★★押す sha の 作業木を 作れない＝止めます★★ … ' + w.err);
+    console.log('  ★今の 作業木で 回すなら OSHU_MAE_WAKE=1（未commit も 混ざります）★');
+    process.exit(1);
+  }
+  RUN_ROOT = w.dir;
+  let katazuketa = false;
+  const katasu = () => {
+    if (katazuketa) return; katazuketa = true;
+    const r = wtKatasu(w.dir, ROOT);
+    console.log('  ★押す sha の 作業木を 片付けた★' + (r ? '  ' + r + ' ' + w.dir : ''));
+  };
+  process.on('exit', katasu);
+  ['SIGINT', 'SIGTERM', 'SIGHUP'].forEach((sg) => process.on(sg, () => { katasu(); process.exit(1); }));
+  console.log('\n[oshu-mae] ★押す sha ' + s.shas[0].slice(0, 10) + ' を 別の 作業木で 回す★ … ' + w.dir
+    + (s.kesu ? '（消す 押し ' + s.kesu + '本は 回さない）' : ''));
+} else {
+  /* ★黙って 前の 形に 戻らない（taiketsu 任4）★＝どちらで 回して いるかを 必ず 字で 出す */
+  console.log('\n[oshu-mae] ★今の 作業木で 回す（未commit も 混ざる）★ … '
+    + (process.env.OSHU_MAE_WAKE === '1' ? 'OSHU_MAE_WAKE=1' : '--sha-stdin が 無い（手で 回した／hook から 渡って いない）'));
+}
+const yml = fs.readFileSync(path.join(RUN_ROOT, YML), 'utf8');
 const e = erabu(yml);
 const JOB_NO = danNoJob(yml);   /* ★段の 番号(1から) → job★ */
 const byouList = [];
@@ -206,7 +342,7 @@ e.hashiru.forEach((d, ban) => {
     return;
   }
   const t0 = Date.now();
-  const r = spawnSync(d.c, { cwd: ROOT, encoding: 'utf8', shell: true,
+  const r = spawnSync(d.c, { cwd: RUN_ROOT, encoding: 'utf8', shell: true,
     maxBuffer: 32 * 1024 * 1024, timeout: 180000 });
   byouList.push({ i: d.i, c: d.c, job: JOB_NO[d.i - 1], byou: (Date.now() - t0) / 1000 });
   if (r.error || r.status === null) {
