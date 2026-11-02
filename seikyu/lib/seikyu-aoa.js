@@ -143,7 +143,7 @@
       push(row);
     }
     /* ★控除の 行（紙の deductBlock と 同じ 中身）★
-       ★読めない額は（未確認）★＝紙の 1200行目は Number(null)=0 で ¥0 と刷る（別の1件）。
+       ★読めない額は（未確認）★＝紙の deductBlock と 同じ（紙も 2026-11-02 から ¥0 と 刷らない）。
        Excel は 自分で null／空を 見分けて 0 を作らない。 */
     if (showDeduct) {
       var dLines = Array.isArray(o.deductLines) ? o.deductLines : [];

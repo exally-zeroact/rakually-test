@@ -1063,7 +1063,9 @@
           rows.push(['', textOf(TH.finalLabel) || '合計', (netB === null ? '（未確認）' : yen(netB))]);
         }
         if (gen && gen.on) {
-          var payB = DOC.payableOf(tax, carry, gen, deduct);
+          /* ★控除が 読めない 時は 差引お支払額も 数に しない★（2026-11-02）
+             payableOf は deduct=null を「控除なし」と 読む＝控除前から 源泉だけ 引いた 額を 刷っていた（¥99,790） */
+          var payB = (showDeduct && deduct === null) ? null : DOC.payableOf(tax, carry, gen, deduct);
           rows.push(['sums-minus', esc(gen.label), '-' + yen(gen.amount)]);
           rows.push(['', esc(gen.netLabel), (payB === null ? '（未確認）' : yen(payB))]);
         }
@@ -1096,7 +1098,7 @@
           (billedNet === null ? '（未確認）' : yen(billedNet))]);
       }
       if (gen && gen.on) {
-        var pay = DOC.payableOf(tax, carry, gen, deduct);
+        var pay = (showDeduct && deduct === null) ? null : DOC.payableOf(tax, carry, gen, deduct);   // ★読めない 控除＝（未確認）★
         rows.push(['sums-minus', esc(gen.label), '-' + yen(gen.amount)]);
         rows.push(['', esc(gen.netLabel), (pay === null ? '（未確認）' : yen(pay))]);
       }
@@ -1212,7 +1214,10 @@
       if (!showDeduct) return '';
       var used = deductLines.length;
       var rows = deductLines.map(function (d) {
-        var dv = Number(d && d.amount);
+        /* ★空・null の 額を ¥0 と 刷らない★（2026-11-02）＝Number('')・Number(null) は 0。
+           読み方は 画面の 控除の 合計（currentDeduct）と 同じ receiptAmountOf 1本 */
+        var dv = DOC.receiptAmountOf(d && d.amount);
+        if (dv === null) dv = NaN;
         return '<tr><th>' + (esc(d && d.name) || '控除') + '</th><td>'
           + (Number.isFinite(dv) ? yen(dv) : '（未確認）') + '</td></tr>';
       }).join('');

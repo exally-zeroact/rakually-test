@@ -447,5 +447,40 @@ T('★呼び名は 焼き付いていない（会社が 変えられる）', () 
   ok(t.indexOf('差引請求額') < 0, '★変えたのに 既定の 呼び名が 残っている★');
 });
 
+/* ★控除が 読めない 時は 紙に 数を 刷らない★（2026-11-02・taiketsu の 書き留め）
+   前は 源泉の 差引お支払額だけ 控除前から 源泉を 引いた 額を 刷っていた（例 ¥99,790 型）。
+   空・null の 控除の 行は Number('')＝0 で ¥0 と 刷っていた。 */
+const GEN = { on: true, label: '源泉徴収税額', netLabel: '差引お支払額', amount: 20210 };
+T('★控除が 読めない＋源泉：差引お支払額も（未確認）＝数を 刷らない', () => {
+  const t = textOf(build({}, { deduct: null, deductLines: [{ name: '弁当代', amount: null }], gensen: GEN }).html);
+  const i = t.lastIndexOf('差引お支払額');
+  ok(i >= 0, '前提：差引お支払額の 行が 無い');
+  eq(t[i + 1], '（未確認）', '★控除が 読めないのに 差引お支払額を 数で 刷った★');
+  const tax = TAX.compute({ lines: invOf().lines, taxMode: 'exclusive', rounding: 'floor' });
+  ok(t.indexOf(PAPER.yen(tax.grandTotal - GEN.amount)) < 0, '★控除前−源泉 の 額が 紙に 在る★');
+});
+T('★様式B（小計（税込）→控除→合計）でも 同じ', () => {
+  const t = textOf(build({}, { deduct: null, deductLines: [{ name: '弁当代', amount: null }], gensen: GEN, style: { sumsOrder: 'B' } }).html);
+  const i = t.lastIndexOf('差引お支払額');
+  ok(i >= 0, '前提：差引お支払額の 行が 無い');
+  eq(t[i + 1], '（未確認）', '★様式B で 控除が 読めないのに 差引お支払額を 数で 刷った★');
+});
+T('★空・null の 控除の 行は ¥0 と 刷らない（（未確認））', () => {
+  for (const a of [null, '', undefined]) {
+    const t = textOf(build({}, { deduct: null, deductLines: [{ name: '弁当代', amount: a }] }).html);
+    const i = t.indexOf('弁当代');
+    ok(i >= 0, '前提：控除の 行が 無い');
+    eq(t[i + 1], '（未確認）', '★読めない 控除の 行（' + JSON.stringify(a) + '）を 数で 刷った★');
+  }
+});
+T('★読める 控除＋源泉は 今までどおり＝payableOf と 同じ 額', () => {
+  const t = textOf(build({}, { gensen: GEN }).html);
+  const i = t.lastIndexOf('差引お支払額');
+  const tax = TAX.compute({ lines: invOf().lines, taxMode: 'exclusive', rounding: 'floor' });
+  // ★手で数えた額★ 197,600＋税19,760＝217,360 − 控除17,474 − 源泉20,210 ＝ 179,676（payableOf から答えを作らない）
+  eq(money(t[i + 1]), 179676, '差引お支払額');
+  eq(DOC.payableOf(tax, null, GEN, DOC.deductTotalOf(invOf())), 179676, 'payableOf も 手の数と 同じ');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
