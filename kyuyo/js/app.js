@@ -694,7 +694,8 @@
      額と違って ★出典は 誰も 見比べないので 一番 気づきにくい★。 */
   function shahoYearNow(){ var H=SHH(); try { return (H&&H.shahoYearOf) ? H.shahoYearOf(todayYm()) : 2026; } catch(e){ return 2026; } }
   function densanYearNow(){ var D=(typeof ShotokuzeiDensan!=='undefined'?ShotokuzeiDensan:window.ShotokuzeiDensan);
-    try { return (D&&D.PARAMS) ? Math.max.apply(null, Object.keys(D.PARAMS).map(Number)) : 2026; } catch(e){ return 2026; } }
+    // ★今日の 年で 選ぶ（2026-11-02 令和9 を 足した＝収録の 最新に すると 11〜12月に 計算は 令和8・出典の 窓は 令和9 の PDF に なった・taiketsu N2）★
+    try { return (D&&D.yearKey) ? D.yearKey(new Date().getFullYear()) : ((D&&D.PARAMS) ? Math.max.apply(null, Object.keys(D.PARAMS).map(Number)) : 2026); } catch(e){ return 2026; } }
   function todayYm(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
 
   /* 休みの曜日＋1日の時間から「年間休日・週の所定」を機械で出す（★決定論・法定ではない計算★） */

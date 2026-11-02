@@ -42,8 +42,28 @@ const INTENDED = [
     source: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/gensen/2795.htm',
     decidedAt: '2026-08-04', decidedBy: '指示役（一次情報で確認）',
   },
+  {
+    // ★所得税の額だけ変わる型（kind:'incomeTax'）＝控除の行は増えない。所得税の行の額・控除計・差引だけが (to−from) 動く。
+    who: '月給', dataset: 'stale-2027-06', kind: 'incomeTax',
+    from: 4630, to: 4460,
+    why: '凍結時は 令和9年分の表が無く 令和8年の表で暫定計算（黄警告つき）。'
+      + '令和9年1月1日以後に支払う給与は 令和9年分の 電算機計算の特例（別表第一 第1段の 給与所得控除の 上げ）で計算する＝'
+      + '2027-06分（支払 令和9年7月25日）は 4,630 → 4,460円（−170円）。警告 STATUTORY_STALE は 他の年度未収録で そのまま。',
+    source: 'https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/18.pdf',
+    decidedAt: '2026-11-02', decidedBy: 'Rakunally 席（司さん了承済みの R9 税額表）',
+  },
 ];
-const intendedFor = (name) => INTENDED.find(x => x.who === name) || null;
+const intendedFor = (name, dsId) => INTENDED.find(x => x.who === name && x.dataset === dsId) || null;
+// ★所得税の額だけ変わる型：golden の所得税の行・控除計・差引を (to−from) 動かした物と、op が丸ごと一致すること
+function shiftIncomeTax(obj, it, where) {
+  const d = it.to - it.from, o = JSON.parse(JSON.stringify(obj));
+  const rows = (o.kojo || []).filter(x => /^所得税/.test(x.label));
+  if (rows.length !== 1 || Number(rows[0].value) !== it.from) throw new Error(`${where}: golden の所得税の行が ${it.from} の1行ではない: ${JSON.stringify(rows)}`);
+  rows[0].value = it.to;
+  if ('incomeTax' in o) { if (o.incomeTax !== it.from) throw new Error(`${where}: golden の incomeTax=${o.incomeTax}（from=${it.from} のはず）`); o.incomeTax = it.to; }
+  o.kojoTotal += d; o.net -= d;
+  return o;
+}
 function eqNum(a, b, where) { if (a !== b) { diffs.push(`${where}: golden=${b} op=${a} 差=${a - b}`); throw new Error(`${where} golden=${b} op=${a}`); } }
 function deep(a, b, where) { const A = JSON.stringify(a), B = JSON.stringify(b); if (A !== B) { diffs.push(`${where}: 不一致`); throw new Error(`${where}\n  golden=${B.slice(0, 300)}\n  op    =${A.slice(0, 300)}`); } }
 
@@ -98,9 +118,10 @@ for (const ds of input.datasets) {
       const op_ = res.value.people[i];
       const w = `${ds.id}/${gp.name}`;
       if (op_.empId !== gp.empId) throw new Error(`${w}: empId golden=${gp.empId} op=${op_.empId}`);
-      const m = gp.money;
-      const intended = intendedFor(gp.name);
-      if (intended) {
+      const intended = intendedFor(gp.name, ds.id);
+      // 所得税の額だけ変わる型は、golden を その額ぶん動かした物と 下の「全部1円一致」で比べる（他は1円も動いてはいけない）
+      const m = intended && intended.kind === 'incomeTax' ? shiftIncomeTax(gp.money, intended, `${w}.money`) : gp.money;
+      if (intended && intended.kind !== 'incomeTax') {
         // ★わざと変えた人。変わってよいのは「源泉徴収税ぶんだけ」＝それ以外は今までどおり1円一致。
         eqNum(op_.shikyuTotal, m.shikyuTotal, `${w}.総支給`);           // 支給は変わらない
         eqNum(op_.kojoTotal, m.kojoTotal + intended.to - intended.from, `${w}.控除計(意図した差分)`);
@@ -136,7 +157,9 @@ for (const ds of input.datasets) {
     const p = res.cells._people;
     if (p.length !== g.excel.people.length) throw new Error(`人数 golden=${g.excel.people.length} op=${p.length}`);
     g.excel.people.forEach((gp, i) => {
-      if (intendedFor(gp.name)) return;      // ★わざと変えた人は上のお金の比較で1点ずつ見ている
+      const it = intendedFor(gp.name, ds.id);
+      if (it && it.kind === 'incomeTax') { deep(p[i], shiftIncomeTax(gp, it, `${ds.id}/${gp.name} excel.person`), `${ds.id}/${gp.name} excel.person(意図した所得税の差分)`); return; }
+      if (it) return;      // ★わざと変えた人は上のお金の比較で1点ずつ見ている
       deep(p[i], gp, `${ds.id}/${gp.name} excel.person`);
     });
     deep(res.cells._opts, g.excel.opts, `${ds.id} excel.opts`);
@@ -178,6 +201,22 @@ for (const ds of input.datasets) {
       const s = sheets[i + 1];
       if (s.name !== gm.sheetName) throw new Error(`${ds.id} シート名 golden=${gm.sheetName} op=${s.name}`);
       const hit = names.find(x => x.who === gm.sheetName);
+      if (hit && hit.kind === 'incomeTax') {
+        // ★所得税の額だけ変わる型：明細は「所得税の額・控除計・差引」の3セルだけが (to−from) 動き、他は1セルも変わらない
+        const d = hit.to - hit.from, A = s.aoa, B = gm.aoa;
+        if (A.length !== B.length) throw new Error(`${ds.id} ${gm.sheetName}: 明細の行数 golden=${B.length} op=${A.length}`);
+        const moved = [];
+        for (let r = 0; r < B.length; r++) for (let c = 0; c < Math.max(A[r].length, B[r].length); c++) {
+          if (JSON.stringify(A[r][c]) === JSON.stringify(B[r][c])) continue;
+          moved.push(`${r},${c}:${B[r][c]}→${A[r][c]}`);
+          const diff = Number(A[r][c]) - Number(B[r][c]);
+          if (Math.abs(diff) !== Math.abs(d)) throw new Error(`${ds.id} ${gm.sheetName}: 明細 [${r},${c}] が (to−from) 以外に動いた golden=${B[r][c]} op=${A[r][c]}`);
+        }
+        if (moved.length !== 3) throw new Error(`${ds.id} ${gm.sheetName}: 明細で動いたセルが ${moved.length}（所得税・控除計・差引の3のはず）: ${moved.join(' / ')}`);
+        deep({ cols: s.cols, merges: s.merges }, { cols: gm.cols, merges: gm.merges }, `${ds.id} 明細シート#${i + 1} cols/merges`);
+        cellChecked++;
+        return;
+      }
       if (hit) {
         // ★わざと変えた人の明細: 源泉徴収税の行が増えていること（額はお金の比較で見ている）
         const flat = JSON.stringify(s.aoa);

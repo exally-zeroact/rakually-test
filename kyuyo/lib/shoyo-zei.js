@@ -9,7 +9,7 @@
  *  社保: 日本年金機構「賞与にかかる保険料」標準賞与額=賞与総額(税引前)の1,000円未満切捨
  *   健保=標準賞与額(年度累計573万上限)×健保率÷2 / 厚年=標準賞与額(1回150万上限)×18.3%÷2
  *   介護=標準賞与額×介護率÷2 / 雇用=賞与総額×雇用保険料率(従業員)
- * 【年度キー】賞与支給月(payYm)の年分で算出率表を選択(所得税densanと同型)。令和8(2026)を収録。
+ * 【年度キー】賞与支給月(payYm)の年分で算出率表を選択(所得税densanと同型)。令和8(2026)・令和9(2027)を収録。
  *  ※健保/介護率・標準賞与額上限は呼出側が shakaihoken-hyo の年度選択値を渡す。
  * 【乙欄】令和8の乙欄(申告書なし)も収録(公式PDFを画面描画で読み取り): 前月社保控除後給与で5段階
  *   〜224千円=10.210% / 224〜295=20.420% / 295〜527=30.630% / 527〜1,118=38.798% / 1,118千円〜=45.945%
@@ -38,29 +38,49 @@
     6: [0, 284, 343, 438, 483, 505, 527, 553, 589, 630, 697, 821, 862, 907, 957, 1022, 1104, 1464, 1555, 2764, 3685],
     7: [0, 317, 383, 463, 508, 529, 552, 578, 614, 657, 708, 845, 887, 933, 985, 1051, 1135, 1489, 1583, 2788, 3717]
   };
-  var KOU_BY_YEAR = { 2026: KOU_2026 };
+  // ★令和9年分★（2026-11-02）出典: 国税庁 令和9年分 賞与に対する源泉徴収税額の算出率の表 https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/15-16.pdf（.xls を 機械抽出）。率の 並びは 令和8と 同じ。
+  var KOU_2027 = {
+    0: [0, 87, 100, 263, 313, 346, 375, 405, 436, 520, 607, 686, 717, 755, 797, 857, 925, 1321, 1521, 2621, 3495],
+    1: [0, 112, 253, 292, 349, 376, 404, 432, 466, 520, 622, 707, 742, 781, 824, 885, 956, 1345, 1526, 2645, 3527],
+    2: [0, 147, 279, 325, 380, 402, 429, 460, 495, 528, 637, 730, 766, 807, 851, 913, 986, 1369, 1526, 2669, 3559],
+    3: [0, 185, 300, 357, 408, 427, 454, 487, 519, 553, 653, 753, 791, 832, 878, 941, 1016, 1394, 1538, 2693, 3590],
+    4: [0, 222, 300, 390, 434, 455, 480, 511, 542, 580, 668, 777, 816, 858, 906, 969, 1047, 1418, 1555, 2716, 3622],
+    5: [0, 255, 308, 415, 460, 482, 505, 533, 567, 607, 683, 800, 840, 884, 933, 997, 1077, 1443, 1555, 2740, 3654],
+    6: [0, 287, 347, 440, 486, 508, 530, 555, 592, 633, 698, 824, 865, 910, 960, 1025, 1108, 1467, 1555, 2764, 3685],
+    7: [0, 320, 387, 466, 510, 532, 555, 580, 617, 660, 710, 847, 889, 936, 988, 1054, 1138, 1491, 1583, 2788, 3717]
+  };
+  var KOU_BY_YEAR = { 2026: KOU_2026, 2027: KOU_2027 };
   // 乙欄(扶養控除等申告書の提出が無い人)。前月の社保控除後給与の下限(千円)→率(%)。出典:国税庁 令和8年分 算出率表(乙)。
   var OTSU_2026 = [[0, 10.210], [224, 20.420], [295, 30.630], [527, 38.798], [1118, 45.945]];
-  var OTSU_BY_YEAR = { 2026: OTSU_2026 };
+  var OTSU_2027 = [[0, 10.210], [224, 20.420], [296, 30.630], [528, 38.798], [1118, 45.945]]; // 令和9年分 算出率表(乙)
+  var OTSU_BY_YEAR = { 2026: OTSU_2026, 2027: OTSU_2027 };
   // 健保: 年度累計上限573万 / 厚年: 1回150万 / 厚年率18.3%(従業員9.15%)
   var KENPO_YEAR_CAP = 5730000, KOSEI_PER_CAP = 1500000, KOSEI_RITSU_JUGYOIN = 0.0915;
 
   function shoyoYearOf(payYm) { return parseInt(String(payYm == null ? "" : payYm).slice(0, 4), 10) || 2026; }
 
-  // 賞与の率(%)。甲(申告書あり)/乙(なし=taxClass==='otsu')。範囲外年は直近年+stale。
+  // ★年 → 使う 収録年＝「その年 以下で 一番 近い 収録年」・無ければ 一番 古い 収録年（2026-11-02 令和9）★
+  //   前は「無い年＝最新」＝令和9を 足すと 2025年分の 賞与が 令和9の 表に なる（densan・nichi・hei と 同じ 選び方に 揃えた）。
+  //   収録の 年と 違えば stale（収録より 新しい 年＝表が 古い 警告）。
+  function pickYear(by, year) {
+    var ks = Object.keys(by).map(Number).sort(function (a, b) { return a - b; }), hit = null;
+    for (var i = 0; i < ks.length; i++) { if (ks[i] <= year) hit = ks[i]; }
+    return hit != null ? hit : ks[0];
+  }
+  // 賞与の率(%)。甲(申告書あり)/乙(なし=taxClass==='otsu')。範囲外年は 一番 近い 収録年+stale。
   function bonusRate(prevAfterSI, fuyou, opts) {
     opts = opts || {};
     var year = opts.year || 2026;
     var manYen = num(prevAfterSI) / 1000; // 千円単位で比較(表は千円・以上)
     if (opts.taxClass === "otsu") {
       var ot = OTSU_BY_YEAR[year], ost = false;
-      if (!ot) { var oys = Object.keys(OTSU_BY_YEAR).map(Number).sort(function (a, b) { return a - b; }); year = oys[oys.length - 1]; ot = OTSU_BY_YEAR[year]; ost = true; }
+      if (!ot) { year = pickYear(OTSU_BY_YEAR, year); ot = OTSU_BY_YEAR[year]; ost = true; }
       var orate = ot[0][1];
       for (var k = 0; k < ot.length; k++) { if (manYen >= ot[k][0]) orate = ot[k][1]; else break; }
       return { rate: orate, year: year, stale: ost, otsu: true };
     }
     var table = KOU_BY_YEAR[year], stale = false;
-    if (!table) { var ys = Object.keys(KOU_BY_YEAR).map(Number).sort(function (a, b) { return a - b; }); year = ys[ys.length - 1]; table = KOU_BY_YEAR[year]; stale = true; }
+    if (!table) { year = pickYear(KOU_BY_YEAR, year); table = KOU_BY_YEAR[year]; stale = true; }
     var f = Math.max(0, Math.min(7, Math.floor(num(fuyou))));
     var lows = table[f];
     var idx = 0;

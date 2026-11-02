@@ -58,7 +58,28 @@
         { upto: 2204166, flat: 26667 },
         { upto: 2245833, flat: 13334 },
         { upto: Infinity, flat: 0 }
-      ]
+      ],
+      // 乙欄の 月額表の 定数（令和8年分 月額表 乙欄の 文）
+      otsu: { low: 105000, over1At: 740000, over1Base: 259200, over2At: 1710000, over2Base: 655400 }
+    },
+    2027: { // 令和9（令和9年1月1日以後に 支払うべき 給与等）＝別表第一の 第1段・別表第三の 第1段だけ 上がる（他の段・別表第二・第四は 令和8と 同じ）
+      // 出典 https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/18.pdf（別表第一〜四）・同 01-07（月額表 乙欄の 文）
+      fuyouKojo: 31667,
+      kyuyo: [
+        { upto: 169444, flat: 57500 },
+        { upto: 299999, rate: 0.30, add: 6667 },
+        { upto: 549999, rate: 0.20, add: 36667 },
+        { upto: 708330, rate: 0.10, add: 91667 },
+        { upto: Infinity, flat: 162500 }
+      ],
+      kiso: [
+        { upto: 2120833, flat: 51667 },
+        { upto: 2162499, flat: 40000 },
+        { upto: 2204166, flat: 26667 },
+        { upto: 2245833, flat: 13334 },
+        { upto: Infinity, flat: 0 }
+      ],
+      otsu: { low: 111000, over1At: 740000, over1Base: 259000, over2At: 1720000, over2Base: 659300 }
     }
   };
   // 第4表 甲欄(復興税1.021込み・令和7/8 同一)。B<=upto なら B*rate - sub、最後に round10。
@@ -85,7 +106,19 @@
 
   // 給与の対象月の「年分」で令和8(2026〜)以降か
   function isR8(opts) { var y = (opts && opts.year) || 2026; return y >= 2026; }
-  function paramsFor(r8) { return r8 ? PARAMS[2026] : PARAMS[2025]; }
+  // ★年 → 使う 年分（2026-11-02 令和9）★＝収録の 中で その年 以下の 一番 新しい 年（年が 無い時は 2026＝今まで通り）。
+  //   true/false（前の 呼び方＝令和8か）も 受ける：true→2026・false→2025。収録より 新しい 年は 最新（警告は payroll-warnings）。
+  function yearKey(y) {
+    if (y === true) return 2026; if (y === false) return 2025;
+    y = parseInt(y, 10); if (!y) return 2026;
+    var ks = Object.keys(PARAMS).map(Number).sort(function (a, b) { return a - b; }), k = ks[0];
+    for (var i = 0; i < ks.length; i++) if (ks[i] <= y) k = ks[i];
+    return k;
+  }
+  function paramsFor(y) { return PARAMS[yearKey(y)]; }
+  // 乙欄は 令和8の 式を 令和7にも 使って きた（変えない）＝otsu の 定数が 無い 年は 2026 の 物
+  function otsuParams(y) { var p = paramsFor(y); return p.otsu ? p : PARAMS[2026]; }
+  function optYear(opts) { return (opts && opts.year) || 2026; }
   // ブラケット評価: X<=upto の段で flat か rate/add。
   function evalBracket(X, table) {
     for (var i = 0; i < table.length; i++) { var b = table[i]; if (X <= b.upto) { return b.flat != null ? b.flat : ceil1(X * b.rate + b.add); } }
@@ -98,9 +131,9 @@
   }
 
   // 第1表 給与所得控除の額（X=社保控除後給与 or 乙の計算基準額×倍率）
-  function kyuyoKojo(X, r8) { return evalBracket(X, paramsFor(r8).kyuyo); }
+  function kyuyoKojo(X, y) { return evalBracket(X, paramsFor(y).kyuyo); }
   // 第3表 基礎控除の額
-  function kisoKojo(A, r8) { return evalBracket(A, paramsFor(r8).kiso); }
+  function kisoKojo(A, y) { return evalBracket(A, paramsFor(y).kiso); }
   // 第4表 甲欄・課税給与所得B→税額(10円四捨五入)
   function zeiFromB(B) { return round10(evalTax(B, ZEI_KO)); }
   // 乙欄 第3表 plain率(復興税は最後に×1.021)・課税給与所得B→税額(1円切捨は呼出側)
@@ -109,27 +142,27 @@
   // 甲欄
   function calc(A, fuyou, opts) {
     A = Math.floor(Math.max(0, A || 0)); if (A <= 0) return 0;
-    var r8 = isR8(opts), f = Math.max(0, Math.floor(fuyou || 0));
-    var B = A - kyuyoKojo(A, r8) - paramsFor(r8).fuyouKojo * f - kisoKojo(A, r8);
+    var y = yearKey(optYear(opts)), f = Math.max(0, Math.floor(fuyou || 0));
+    var B = A - kyuyoKojo(A, y) - paramsFor(y).fuyouKojo * f - kisoKojo(A, y);
     if (B <= 0) return 0;
     return zeiFromB(B);
   }
   // 乙欄(令和8算式・denshi_02)。fuyouは原則0(従たる申告書ありなら1人1,610円控除)
   function calcOtsu(A, fuyou, opts) {
     A = Math.floor(Math.max(0, A || 0)); if (A <= 0) return 0;
-    var tax;
-    if (A < 105000) tax = floor1(A * 0.03063);
-    else if (A > 740000) {
-      tax = (A < 1710000) ? floor1(259200 + (A - 740000) * 0.4084) : floor1(655400 + (A - 1710000) * 0.45945);
+    var tax, P = otsuParams(optYear(opts)), o = P.otsu;      // 年の 表（令和9＝111,000・259,000・1,720,000・659,300）
+    if (A < o.low) tax = floor1(A * 0.03063);
+    else if (A > o.over1At) {
+      tax = (A < o.over2At) ? floor1(o.over1Base + (A - o.over1At) * 0.4084) : floor1(o.over2Base + (A - o.over2At) * 0.45945);
     } else {
       var base;
-      if (A === 740000) base = 740000;
-      else if (A < 221000) base = 105000 + Math.floor((A - 105000) / 2000) * 2000;
+      if (A === o.over1At) base = o.over1At;
+      else if (A < 221000) base = o.low + Math.floor((A - o.low) / 2000) * 2000;
       else base = 221000 + Math.floor((A - 221000) / 3000) * 3000;
-      var kiso = paramsFor(true).kiso[0].flat; // A<=2,120,833 段の基礎控除(令和8=48334)
+      var kiso = P.kiso[0].flat; // A<=2,120,833 段の基礎控除(令和8=48,334・令和9=51,667)
       var part = function (mult) {
         var X = base * mult;
-        var Bp = X - kyuyoKojo(X, true) - kiso;
+        var Bp = X - evalBracket(X, P.kyuyo) - kiso;
         if (Bp < 0) Bp = 0;
         return floor1(zeiOtsuPlain(Bp));
       };
@@ -152,7 +185,7 @@
   // year=2025(令和7)/2026(令和8)の2エラ。data={fuyouKojo,kyuyo[],kiso[],zeiKo[]?,zeiOtsu[]?}。甲乙税率表は年度共通。
   function hydrate(year, data) {
     if (!data || typeof data !== 'object') return;
-    var p = PARAMS[year]; if (!p) return; // 現行モデルは2025/2026のみ
+    var p = PARAMS[year]; if (!p) return; // 収録の 年（2025/2026/2027）だけ
     if (isNum(data.fuyouKojo)) p.fuyouKojo = data.fuyouKojo; // calcは paramsFor(r8).fuyouKojo を読む(export FUYOU_KOJOは既定値の参照専用)
     if (validBrackets(data.kyuyo, 'kojo')) p.kyuyo = normUpto(data.kyuyo);
     if (validBrackets(data.kiso, 'kojo')) p.kiso = normUpto(data.kiso);
@@ -180,7 +213,7 @@
   return {
     calc: calc, calcOtsu: calcOtsu, calcByClass: calcByClass,
     kyuyoKojo: kyuyoKojo, kisoKojo: kisoKojo, zeiFromB: zeiFromB,
-    FUYOU_KOJO: FUYOU_KOJO, isR8: isR8, NENDO: '令和7/令和8(年度自動選択)',
+    FUYOU_KOJO: FUYOU_KOJO, isR8: isR8, yearKey: yearKey, NENDO: '令和7/令和8/令和9(年度自動選択)',
     PARAMS: PARAMS, ZEI_KO: ZEI_KO, ZEI_OTSU: ZEI_OTSU, hydrate: hydrate
   };
 });

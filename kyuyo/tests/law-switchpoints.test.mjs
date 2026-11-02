@@ -124,10 +124,25 @@ const SHAHO_ZEI = '社会保険料率・所得税額表';
 const warnOf = (ym) => PW.statutoryStaleWarn({ month: ym, company: CO });
 const zeiL = Math.max.apply(null, Object.keys(DN.PARAMS).filter(k => /^\d{4}$/.test(k)).map(Number));
 T('★所得税の 年分が 未収録の 1月分は 黄警告（社保年度は まだ 古く ない 月）', function () {
+  /* ★2026-11-02 令和9を 足したら 前提が 作れなく なった★＝所得税の 最新年（2027）が 社保の 収録（2026年度＝2027-02 まで）を 追い越し、
+     2028-01 は 健保も 古い。⇒ 所得税の 新しい 年を 一時 外して「社保は 古く ない・税だけ 古い 1月」を 作る（終わったら 戻す）。
+     作れなければ 赤（黙って 抜けない）。 */
+  let zl = zeiL;
+  const shahoFurui = (y) => SHH.getKenko('tokyo', (y + 1) + '-01').stale || SHH.getKaigo((y + 1) + '-01').stale;
+  while (zl > 0 && DN.PARAMS[zl] && shahoFurui(zl)) zl--;
+  if (!DN.PARAMS[zl] || shahoFurui(zl)) throw new Error('「社保は 古く ない・税だけ 古い 1月」を 作れない（収録 ' + Object.keys(DN.PARAMS).join(',') + '）');
+  const hazusu = Object.keys(DN.PARAMS).filter(k => /^\d{4}$/.test(k) && Number(k) > zl);
+  const okiba = {}; hazusu.forEach(k => { okiba[k] = DN.PARAMS[k]; delete DN.PARAMS[k]; });
+  try {
+    const ym = (zl + 1) + '-01';
+    eq(SHH.getKenko('tokyo', ym).stale || SHH.getKaigo(ym).stale, false, ym + ' の 健保／介護');
+    if (warnOf(ym).indexOf(SHAHO_ZEI) < 0) throw new Error(ym + '：所得税 ' + (zl + 1) + '年分は 未収録なのに 黄警告が 出ない（外した 年 ' + (hazusu.join(',') || 'なし') + '）');
+  } finally { Object.keys(okiba).forEach(k => { DN.PARAMS[k] = okiba[k]; }); }
+  if (Math.max.apply(null, Object.keys(DN.PARAMS).filter(k => /^\d{4}$/.test(k)).map(Number)) !== zeiL) throw new Error('外した 年を 戻せて いない');
+});
+T('★所得税の 最新年の 次の 年の 1月は（社保も 古くても）黄警告', function () {
   const ym = (zeiL + 1) + '-01';
-  // 健保・介護は 社保年度（3月から）＝1月は 前の 年度＝収録の 内（ここが 古いと この 試験の 意味が 無い）
-  eq(SHH.getKenko('tokyo', ym).stale || SHH.getKaigo(ym).stale, false, ym + ' の 健保／介護');
-  if (warnOf(ym).indexOf(SHAHO_ZEI) < 0) throw new Error(ym + '：所得税 ' + (zeiL + 1) + '年分は 未収録なのに 黄警告が 出ない');
+  if (warnOf(ym).indexOf(SHAHO_ZEI) < 0) throw new Error(ym + '：黄警告が 出ない');
 });
 T('★収録の 内の 月（所得税の 最新年の 12月・健保／介護も 収録済み）は 社保・税の 黄警告を 出さない', function () {
   const ym = zeiL + '-12';

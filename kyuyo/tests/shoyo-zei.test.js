@@ -29,7 +29,7 @@ T('賞与率 乙(令和8・公式PDF): 前月課税で5段階', function () {
 });
 T('範囲外年は直近年+stale', function () {
   var r = SZ.bonusRate(290000, 0, { year: 2099 });
-  eq(r.rate, 6.126); eq(r.stale, true); eq(r.year, 2026);
+  eq(r.rate, 6.126); eq(r.stale, true); eq(r.year, 2027); // 収録の 最新＝令和9（2026-11-02 R9 を 足した）
 });
 
 /* ── 賞与の源泉所得税 = (賞与−賞与社保) × 率 ── */
@@ -131,14 +131,16 @@ T('hydrate kou: 年度別扶養テーブル差替→率選択が変わる・rest
   // 前月290千円で idx=3(6.126%)を、しきい値を上げて idx=2(4.084%)にする
   var newKou = { 0: [0, 82, 94, 999, 309, 342, 372, 402, 433, 520, 605, 684, 715, 752, 795, 854, 922, 1318, 1521, 2621, 3495],
     1: origF0, 2: origF0, 3: origF0, 4: origF0, 5: origF0, 6: origF0, 7: origF0 };
-  SZ.hydrate(2027, { kou: newKou });
-  eq(SZ.bonusRate(290000, 0, { year: 2027 }).rate, 4.084); // 94≤290<999
+  // ★2099 で 試す（2027 は 令和9 の 本物の 表＝上書きすると 同じ process の 後ろの 試験が 偽の 表を 見る・taiketsu N3 2026-11-02）
+  SZ.hydrate(2099, { kou: newKou });
+  eq(SZ.bonusRate(290000, 0, { year: 2099 }).rate, 4.084); // 94≤290<999
   eq(SZ.bonusRate(290000, 0, { year: 2026 }).rate, 6.126); // 2026は不変
+  eq(SZ.bonusRate(262999, 0, { year: 2027 }).rate, 4.084); // 2027（令和9）も不変
 });
 T('hydrate otsu: 乙欄テーブル差替・restore', function () {
-  SZ.hydrate(2028, { otsu: [[0, 11.111], [500, 22.222]] });
-  eq(SZ.bonusRate(100000, 0, { taxClass: 'otsu', year: 2028 }).rate, 11.111);
-  eq(SZ.bonusRate(600000, 0, { taxClass: 'otsu', year: 2028 }).rate, 22.222);
+  SZ.hydrate(2099, { otsu: [[0, 11.111], [500, 22.222]] }); // ★2099 で（2028 だと 後ろの 試験の 2028 以後の 乙が 偽の 表に 当たる・taiketsu 2026-11-02）
+  eq(SZ.bonusRate(100000, 0, { taxClass: 'otsu', year: 2099 }).rate, 11.111);
+  eq(SZ.bonusRate(600000, 0, { taxClass: 'otsu', year: 2099 }).rate, 22.222);
   eq(SZ.bonusRate(100000, 0, { taxClass: 'otsu', year: 2026 }).rate, 10.210); // 2026不変
 });
 T('hydrate caps: kenpo_year_cap/kosei_per_cap 差替→calcBonusSIに反映・restore', function () {
@@ -173,4 +175,19 @@ T('hydrate kosei_ritsu_jugyoin: 上書き可・既定は0.0915のまま(shakaiho
   // restore 公式値
   SZ.hydrate(null, { kosei_ritsu_jugyoin: 0.0915 });
   eq(SZ.calcBonusSI({ bonus: 500000, healthRate: 0.04955 }).pension, SZ.han50(500000 * 0.0915));
+});
+
+/* ★令和9年分（2027）賞与の 算出率の表 ロック★（2026-11-02・taiketsu N3）
+ * 出典: 国税庁 令和9年分 https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/15-16.pdf
+ *   甲 扶養0 の 段の 下限（千円）＝87・100・263…（令和8 は 82・94・260）・乙 296／528 千円（令和8 は 295／527） */
+T('令和9 賞与 甲: 扶養0 86,999=0% / 87,000=2.042% / 262,999=4.084% / 263,000=6.126%・扶養7 320,000=2.042%', function () {
+  var r = function (p, f) { return SZ.bonusRate(p, f, { year: 2027 }).rate; };
+  eq(r(86999, 0), 0); eq(r(87000, 0), 2.042); eq(r(262999, 0), 4.084); eq(r(263000, 0), 6.126);
+  eq(r(319999, 7), 0); eq(r(320000, 7), 2.042);
+  eq(SZ.bonusRate(262999, 0, { year: 2026 }).rate, 6.126, '令和8 は 260千円で 6.126%（混ざらない）');
+});
+T('令和9 賞与 乙: 295,999=20.42% / 296,000=30.63% / 527,999=30.63% / 528,000=38.798%', function () {
+  var o = function (p) { return SZ.bonusRate(p, 0, { taxClass: 'otsu', year: 2027 }).rate; };
+  eq(o(295999), 20.42); eq(o(296000), 30.63); eq(o(527999), 30.63); eq(o(528000), 38.798);
+  eq(SZ.bonusRate(295000, 0, { taxClass: 'otsu', year: 2026 }).rate, 30.63, '令和8 は 295千円から 30.63%');
 });

@@ -24,25 +24,38 @@ function rainen(N0, H0) {
   };
 }
 
-T('来年（2027）を 引き込んでも 2025・2026 の 日額/丙は 1円も 変わらない', function () {
+// ★2026-11-02 令和9（2027）を lib に 足した＝「lib に まだ 無い 来年」は 2028 で 試す
+T('来年（2028）を 引き込んでも 2025・2026・2027 の 日額/丙は 1円も 変わらない', function () {
   var m = fresh(), N = m.N, H = m.H;
-  var b25 = snap(N, H, 2025), b26 = snap(N, H, 2026);
+  var b25 = snap(N, H, 2025), b26 = snap(N, H, 2026), b27 = snap(N, H, 2027);
   var r = rainen(N, H);
-  H.hydrate(2027, r.hei);
-  N.hydrate(2027, Object.assign({}, r.nichi, { koOver: N.tableFor(2026).koOver, otsuOver: N.tableFor(2026).otsuOver, otsuLowRate: 0.03063 }));
-  var a25 = snap(N, H, 2025), a26 = snap(N, H, 2026), d = 0;
-  a25.forEach(function (v, i) { if (v !== b25[i]) d++; }); a26.forEach(function (v, i) { if (v !== b26[i]) d++; });
+  H.hydrate(2028, Object.assign({}, r.hei, { over: H.tableFor(2027).over }));
+  N.hydrate(2028, Object.assign({}, r.nichi, { koOver: N.tableFor(2026).koOver, otsuOver: N.tableFor(2026).otsuOver, otsuLowRate: 0.03063 }));
+  var a25 = snap(N, H, 2025), a26 = snap(N, H, 2026), a27 = snap(N, H, 2027), d = 0;
+  a25.forEach(function (v, i) { if (v !== b25[i]) d++; }); a26.forEach(function (v, i) { if (v !== b26[i]) d++; }); a27.forEach(function (v, i) { if (v !== b27[i]) d++; });
   eq(d, 0, '変わった点');
-  eq(N.tableFor(2027).start, 3700, '2027 は 来年の 表'); eq(N.tableFor(2026).start, 3500, '2026 は 今年の 表');
-  eq(H.tableFor(2027).start, 10000, '丙 2027'); eq(H.tableFor(2026).start, 9800, '丙 2026');
-  eq(N.tableFor(2030).start, 3700, '収録より 新しい 年は 一番 近い 年以下'); eq(N.tableFor(2020).start, 3500, '収録より 古い 年は 一番 古い 収録年');
+  eq(N.tableFor(2028).start, 3700, '2028 は 引き込んだ 表'); eq(N.tableFor(2027).start, 3700, '2027 は 令和9'); eq(N.tableFor(2026).start, 3500, '2026 は 令和8');
+  eq(H.tableFor(2028).start, 10000, '丙 2028'); eq(H.tableFor(2027).start, 10000, '丙 2027＝令和9'); eq(H.tableFor(2026).start, 9800, '丙 2026');
+  eq(N.tableFor(2020).start, 3500, '収録より 古い 年は 一番 古い 収録年');
+  fresh();
+});
+
+T('年無し（年が 読めない）は 2026＝最新（2027）に しない（年を 渡し忘れた 呼び元に 来年の 表を 当てない）', function () {
+  var m = fresh(), N = m.N, H = m.H;
+  eq(N.nichiTax(10000, { taxClass: 'ko', deps: 0 }), N.nichiTax(10000, { taxClass: 'ko', deps: 0, year: 2026 }), '日額 甲0 10,000円');
+  eq(N.nichiTax(10000, { taxClass: 'ko', deps: 0 }), 265, '令和8 の 265円（令和9 は 260円）');
+  eq(N.nichiTax(20000, { taxClass: 'otsu' }), 6530, '日額 乙 20,000円＝令和8');
+  eq(H.heiTax(12000), 79, '丙 12,000円＝令和8');
+  eq(N.tableFor(2030).start, 3700, '収録より 新しい 年は 一番 近い 年以下＝令和9');
   fresh();
 });
 
 T('日額：段（koOver/otsuOver）の 無い 来年の 行は 引き込まない（R8 の 段で 埋めない）', function () {
   var m = fresh(), N = m.N, H = m.H;
-  var ok = N.hydrate(2027, rainen(N, H).nichi);
-  eq(ok, false, '引き込みを 断る'); eq(N.tableFor(2027).start, 3500, '2027 は まだ 今年の 表のまま');
+  var ok = N.hydrate(2028, rainen(N, H).nichi);
+  eq(ok, false, '引き込みを 断る'); eq(N.tableFor(2028), N.tableFor(2027), '2028 は 収録の 2027 の 表のまま');
+  H.hydrate(2028, rainen(N, H).hei); // 丙も 段（over）の 無い 年は 断る（taiketsu O1）
+  eq(H.tableFor(2028), H.tableFor(2027), '丙 2028 は 収録の 2027 の 表のまま');
   fresh();
 });
 

@@ -27,10 +27,14 @@
     'shakaihoken:2026': { source_url: "https://www.kyoukaikenpo.or.jp/about/business/insurance_rate/rate_prefectures/r08/index.html", verified_at: "2026-08-03", fingerprint: '4554fe20' },
     'shotokuzei_densan:2025': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/nencho2025/pdf/03.pdf", verified_at: "2026-07-09", fingerprint: '2e37e55a' },
     'shotokuzei_densan:2026': { source_url: "https://www.nta.go.jp/users/gensen/2026kaisei/index.htm", verified_at: "2026-07-09", fingerprint: '17488f72' },
+    'shotokuzei_densan:2027': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/18.pdf", verified_at: "2026-11-02", fingerprint: '3ef5ee6e' },
     'shotokuzei_hei:2026': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/02.htm", verified_at: "2026-11-02", fingerprint: '448a294f' },
+    'shotokuzei_hei:2027': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/08-14.pdf", verified_at: "2026-11-02", fingerprint: '7bb59227' },
     'shotokuzei_nichi:2026': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/data/08-14.pdf", verified_at: "2026-11-02", fingerprint: '352d3770' },
+    'shotokuzei_nichi:2027': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/08-14.pdf", verified_at: "2026-11-02", fingerprint: 'fd0c87c8' },
     'shouhizei:2019': { source_url: "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6101.htm", verified_at: "2026-08-03", fingerprint: '4a4d2a88' },
     'shoyo:2026': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/03.htm", verified_at: "2026-07-09", fingerprint: '8c199970' },
+    'shoyo:2027': { source_url: "https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/15-16.pdf", verified_at: "2026-11-02", fingerprint: 'b0898949' },
     'warimashi:2023': { source_url: "https://jsite.mhlw.go.jp/wakayama-roudoukyoku/newpage_00470.html", verified_at: "2026-08-04", fingerprint: '0423f4c3' },
   };
   return { META: META };

@@ -52,6 +52,14 @@
     if (!SHZ || typeof SHZ.hyojun !== 'number') throw new Error('buildStatutoryRows: SHZ(lib/shouhizei-ritsu.js)が渡されていません');
     var heiTable = (H.HEI_BY_YEAR && H.HEI_BY_YEAR[2026]) || H.HEI_R8;
     var nichiTable = (NI.tableFor && NI.tableFor(2026)) || NI.TABLE_R8;
+    // ★令和9年分（2026-11-02）★＝lib に 2027 が 在る時だけ 行を 作る（古い lib で 中央に 無い 行を 求めない）
+    var hei9 = H.HEI_BY_YEAR && H.HEI_BY_YEAR[2027];
+    var nichi9 = NI.BY_YEAR && NI.BY_YEAR[2027];
+    var r9 = [];
+    if (D.PARAMS[2027]) r9.push({ kind: 'shotokuzei_densan', year: 2027, data: { fuyouKojo: D.PARAMS[2027].fuyouKojo, kyuyo: D.PARAMS[2027].kyuyo, kiso: D.PARAMS[2027].kiso, zeiKo: D.ZEI_KO, zeiOtsu: D.ZEI_OTSU }, source_url: 'https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/18.pdf' });
+    if (hei9) r9.push({ kind: 'shotokuzei_hei', year: 2027, data: { start: hei9.start, step: hei9.step, arr: hei9.arr, over: hei9.over }, source_url: 'https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/08-14.pdf' });
+    if (nichi9) r9.push({ kind: 'shotokuzei_nichi', year: 2027, data: { start: nichi9.start, step: nichi9.step, ko: nichi9.ko, otsu: nichi9.otsu, koOver: nichi9.koOver, otsuLowRate: nichi9.otsuLowRate, otsuOver: nichi9.otsuOver }, source_url: 'https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/08-14.pdf' });
+    if (SZ.KOU_BY_YEAR[2027] && SZ.OTSU_BY_YEAR[2027]) r9.push({ kind: 'shoyo', year: 2027, data: { rates: SZ.RATES, kou: SZ.KOU_BY_YEAR[2027], otsu: SZ.OTSU_BY_YEAR[2027], kenpo_year_cap: SZ.KENPO_YEAR_CAP, kosei_per_cap: SZ.KOSEI_PER_CAP, kosei_ritsu_jugyoin: SZ.KOSEI_RITSU_JUGYOIN }, source_url: 'https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/15-16.pdf' });
     var rows = [
       { kind: 'saitei_chingin', year: SAI.NENDO_YEAR, data: { todofuken: saiteiForCentral(SAI), zenkoku_heikin: SAI.ZENKOKU_HEIKIN, nendo: SAI.NENDO, hatsuko_chui: SAI.HATSUKO_CHUI || '' }, source_url: /* ★2026-09-12＝出典は 一覧ページでは なく 答申のPDFを 直接 指す（経営者1が 見つけた）★
         一覧ページを 実際に 取って 数えたら ★1,280 も 1,177 も 令和8年度 も 0回★＝
@@ -93,6 +101,8 @@
         data: { hyo: RR.TABLE, senpaku_permil: RR.SENPAKU_PERMIL, higyomu_permil: RR.HIGYOMU_PERMIL },
         source_url: RR.SOURCE_URL });
     }
+    // ★令和9年分の 行（上で 作った r9）を 足す★（2026-11-02）
+    r9.forEach(function (r) { rows.push(r); });
     return rows;
   }
 

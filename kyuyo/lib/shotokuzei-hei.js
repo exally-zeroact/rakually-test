@@ -22,15 +22,27 @@
       { at: 57500, base: 8608, rate: 0.33693 },
       { at: 116500, base: 28486, rate: 0.4084 }
     ] };
-  // 年分別テーブル(年度キー)。現状R8のみ。hydrate()で中央データ上書き可。
-  var HEI_BY_YEAR = { 2026: HEI_R8 };
-  var LATEST = 2026;
-  // opts.year → 「その年 以下で 一番 近い 収録年」（2026-11-02）。収録より 古い 年は 一番 古い 収録年・年が 読めない時は 最新。
+  // ★令和9年分（令和9年1月1日以後に 支払うべき 給与等）★（2026-11-02）
+  //   出典＝国税庁 令和9年分 日額表 https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/data/08-14.pdf（.xls を 機械抽出）。
+  //   10,000円未満＝0・10,000〜24,000円未満 100円刻み 140段。24,000円以上は 丙欄の 文（731円＋10.21%…・58,000円で 8,720円＋33.693%）。
+  var HEI_R9 = { start: 10000, step: 100, arr: [1,4,8,11,15,18,22,25,29,32,36,39,43,46,51,54,58,61,65,68,72,75,79,82,86,89,93,96,101,104,108,111,115,118,122,125,129,133,137,141,146,150,154,158,162,166,170,174,178,182,186,190,195,199,203,207,211,215,219,223,227,231,235,239,244,248,252,256,260,264,268,272,276,280,284,288,293,297,301,305,309,313,317,321,325,329,333,337,342,346,350,354,358,362,366,370,374,379,387,396,404,412,420,428,436,445,453,461,469,477,485,494,502,510,518,526,535,543,551,559,567,575,584,592,600,608,616,624,633,641,649,657,665,673,682,690,698,706,714,722],
+    over: [
+      { at: 24000, base: 731, rate: 0.1021 },
+      { at: 26500, base: 986, rate: 0.2042 },
+      { at: 32500, base: 2211, rate: 0.25525 },
+      { at: 58000, base: 8720, rate: 0.33693 },
+      { at: 116500, base: 28430, rate: 0.4084 }
+    ] };
+  // 年分別テーブル(年度キー)。hydrate()で中央データ上書き可。
+  var HEI_BY_YEAR = { 2026: HEI_R8, 2027: HEI_R9 };
+  var LATEST = 2027;
+  var NEN_NASHI = 2026; // 年が 読めない時の 年（densan の optYear・shoyo-zei の shoyoYearOf と 同じ 2026）
+  // opts.year → 「その年 以下で 一番 近い 収録年」（2026-11-02）。収録より 古い 年は 一番 古い 収録年・年が 読めない時は 2026（densan・shoyo-zei と 同じ）。
   //  ★前は 収録の 最新を 返した＝中央から 2027 を 引き込むと 2026 の 丙が 来年の 表に なった★（nichi と 同じ 穴）。
   function tableFor(year) {
     var y = parseInt(year, 10);
     var ks = Object.keys(HEI_BY_YEAR).map(Number).filter(function (k) { return k > 0; }).sort(function (a, b) { return a - b; });
-    if (!y) return HEI_BY_YEAR[LATEST];
+    if (!y) y = NEN_NASHI; // ★年が 読めない時は 2026（月額 densan・賞与 shoyo-zei と 同じ）＝最新に すると 年を 渡し忘れた 呼び元に 来年の 表が 当たる（2026-11-02 R9 を 足した時）
     var hit = null;
     for (var i = 0; i < ks.length; i++) { if (ks[i] <= y) hit = ks[i]; }
     return HEI_BY_YEAR[hit != null ? hit : ks[0]];
@@ -67,7 +79,10 @@
     // ★lib の 同じ年に 在る 他の 鍵（24,000円以上の 段など）は 消さない★（2026-11-02・丸ごと 置き換えで 段が 消えていた）
     if (cur) { for (var k in cur) { if (!(k in t)) t[k] = cur[k]; } }
     if (Array.isArray(data.over) && data.over.length && data.over.every(function (r) { return r && typeof r.at === 'number' && typeof r.base === 'number' && typeof r.rate === 'number'; })) t.over = data.over;
+    // ★24,000円以上の 段が 無い 年は 受けない★（2026-11-02・taiketsu O1）＝lib にも 中央にも 段が 無いと 旧い 近似（表より 少なく 取る）に 倒れる。
+    //   nichi の hydrate と 同じく 断る（その年の lib・他の 年の 表が 残る）。
+    if (!Array.isArray(t.over) || !t.over.length) return;
     HEI_BY_YEAR[y] = t;
   }
-  return { heiTax: heiTax, HEI_R8: HEI_R8, HEI_BY_YEAR: HEI_BY_YEAR, hydrate: hydrate, tableFor: tableFor };
+  return { heiTax: heiTax, HEI_R8: HEI_R8, HEI_R9: HEI_R9, HEI_BY_YEAR: HEI_BY_YEAR, hydrate: hydrate, tableFor: tableFor };
 });

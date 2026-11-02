@@ -16,12 +16,13 @@ var RR = require('../lib/rousai-ritsu.js');   /* ★労災も 渡す＝渡さな
 
 var rows = SR.buildStatutoryRows({ SHH: SHH, SAI: SAI, KOYO: KOYO, D: D, H: H, NI: NI, SZ: SZ, N: N, WM: WM, SHZ: SHZ, RR: RR });
 
-T('buildStatutoryRows: 14行・想定の(kind,year)を網羅', function () {
-  eq(rows.length, 14, '行数');
+T('buildStatutoryRows: 18行・想定の(kind,year)を網羅', function () {
+  eq(rows.length, 18, '行数');
   var keys = rows.map(function (r) { return r.kind + ':' + r.year; }).sort().join(',');
   var want = ['saitei_chingin:2026', 'shakaihoken:2025', 'shakaihoken:2026', 'koyo:2025', 'koyo:2026',
     'shotokuzei_densan:2025', 'shotokuzei_densan:2026', 'shotokuzei_hei:2026', 'shotokuzei_nichi:2026',
-    'shoyo:2026', 'nenmatsu:2026', 'warimashi:2023', 'shouhizei:2019', 'rousai_ritsu:2024'].sort().join(',');
+    'shoyo:2026', 'nenmatsu:2026',
+    /* 令和9（2026-11-02） */ 'shotokuzei_densan:2027', 'shotokuzei_hei:2027', 'shotokuzei_nichi:2027', 'shoyo:2027', 'warimashi:2023', 'shouhizei:2019', 'rousai_ritsu:2024'].sort().join(',');
   eq(keys, want, 'kind:year 集合');
 });
 
