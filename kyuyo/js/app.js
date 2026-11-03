@@ -4567,13 +4567,17 @@
     var entries=(periodMode&&window.Periods)?Periods.entriesInPeriod(allEntries, period):allEntries;
     var contractor=(e.employmentType==='contractor');
     var year=parseInt(String(state.month||'').slice(0,4),10)||2026;
+    /* ★所得税の表は 支払日の 年で 選ぶ（2026-11-04 R9 押し3）★ 日払い＝その日に払う＝その日の年。週払い＝紙1枚＝1回の払い＝対象月の年と 入っている日の 一番遅い日の年の 大きい方を 全部の日に（1枚の中で 年を 混ぜない）。
+       日付が 空なら 対象月の 年（前と同じ）。決まりは lib（daily-pay taxYearForDay）。月次の 年は payroll-monthly taxYearOf。 */
+    var cycY=(state.company&&state.company.payCycle)||'monthly';
+    function yearOfDay(ymd){ return dp.taxYearForDay(ymd,{ cycle:cycY, entries:entries, fallbackYear:year }); } // 決まりは lib（daily-pay taxYearForDay・試験で額を見る）
     var cls=e.taxClass||'ko';
     // その日の課税額→所得税(日ごと)。丙=日雇い日額表丙欄 / 甲・乙=日額表 甲乙欄(継続雇用の日払週払)。★期間モードは計算しない。
     var hei=HEI(), nichi=NICHI(), fuyou=num(e.fuyou), dayTaxFn=null, taxLabel='';
     if(!periodMode){
-      if(cls==='hei'){ if(hei){ dayTaxFn=function(t){ return hei.heiTax(t,{year:year}); }; taxLabel='丙欄'; } }
-      else if(cls==='otsu'){ if(nichi){ dayTaxFn=function(t){ return nichi.nichiTax(t,{taxClass:'otsu',year:year}); }; taxLabel='乙欄'; } }
-      else { var depsK=fuyou+jintekiOf(e,'ko'); if(nichi){ dayTaxFn=function(t){ return nichi.nichiTax(t,{taxClass:'ko',deps:depsK,year:year}); }; taxLabel='甲欄'; } } // 甲=本人の人的加算を扶養数に反映(月次と整合)
+      if(cls==='hei'){ if(hei){ dayTaxFn=function(t,ymd){ return hei.heiTax(t,{year:yearOfDay(ymd)}); }; taxLabel='丙欄'; } }
+      else if(cls==='otsu'){ if(nichi){ dayTaxFn=function(t,ymd){ return nichi.nichiTax(t,{taxClass:'otsu',year:yearOfDay(ymd)}); }; taxLabel='乙欄'; } }
+      else { var depsK=fuyou+jintekiOf(e,'ko'); if(nichi){ dayTaxFn=function(t,ymd){ return nichi.nichiTax(t,{taxClass:'ko',deps:depsK,year:yearOfDay(ymd)}); }; taxLabel='甲欄'; } } // 甲=本人の人的加算を扶養数に反映(月次と整合)
     }
     var dd=dp.computeDaily(entries, { taxClass:cls, year:year, dayTaxFn:dayTaxFn });
     var cyc=(state.company&&state.company.payCycle)||'monthly';

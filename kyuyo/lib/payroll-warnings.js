@@ -248,7 +248,8 @@
     var msgs = []; var S = SHH(); var ym = YM(ctx); var furui = false;
     if (S && S.getKenko) { var k = S.getKenko('tokyo', ym); if (k && k.stale) furui = true; }
     if (S && S.getKaigo) { var g = S.getKaigo(ym); if (g && g.stale) furui = true; }
-    var zy = parseInt(String(ym).slice(0, 4), 10), zl = zeiSaishinNen();
+    // 所得税は 支払日の 年で 表を 選ぶ（payroll-monthly taxYearOf と 同じ年で 比べる・11-04）
+    var _pm = PM(), zy = (_pm && _pm.taxYearOf) ? _pm.taxYearOf(ctx) : parseInt(String(ym).slice(0, 4), 10), zl = zeiSaishinNen();
     if (zy && zl != null && zy > zl) furui = true;
     if (furui) msgs.push('社会保険料率・所得税額表');
     var SA = SAI();

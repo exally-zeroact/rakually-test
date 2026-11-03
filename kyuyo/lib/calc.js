@@ -84,7 +84,8 @@
     // 課税対象Aは「適用する社保のみ」控除後（オフにした社保は課税からも引かない）
     var siApplied = (on('health') ? si.health : 0) + (hasKaigo && on('kaigo') ? si.kaigo : 0) + (on('pension') ? si.pension : 0) + (on('employ') ? si.employ : 0);
     var A = Math.max(0, (payTotal - nonTax) - siApplied);
-    var taxYear = parseInt(String(emp.payYm || '').slice(0, 4), 10) || 2026; // 対象月の年分で税表を自動選択
+    // 税表の年＝支払日の年（呼ぶ側 payroll-monthly が taxYearOf で渡す）。渡されなければ対象月の年（前と同じ）
+    var taxYear = parseInt(emp.taxYear, 10) || parseInt(String(emp.payYm || '').slice(0, 4), 10) || 2026;
     // 所得税: 丙欄(日雇い)=呼び出し側で日額表×出勤日数を算出し emp.heiTaxAmount で受ける(算式なし=表引き)。甲乙=電算機特例。
     var incomeTax = 0;
     if (on('incomeTax')) {

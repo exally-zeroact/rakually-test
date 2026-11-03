@@ -276,7 +276,8 @@
     var heiAmt = null;
     // 丙(日雇い)は日額表の表引き=「日給(=日額)」前提。丙×非日給は日額でないので甲で計算(silent-wrong防止・UIで警告)
     var heiActive = (e.taxClass === 'hei' && e.payType === '日給');
-    if (heiActive) { var SHhei = HEI(); if (SHhei) heiAmt = SHhei.heiTax(num(e.base), { year: parseInt(String(month).slice(0, 4), 10) || 2026 }) * kintaiVal(e, /出勤/); }
+    var taxYear = taxYearOf(ctx); // ★所得税の表は 支払日の 年で 選ぶ（下の taxYearOf）★
+    if (heiActive) { var SHhei = HEI(); if (SHhei) heiAmt = SHhei.heiTax(num(e.base), { year: taxYear }) * kintaiVal(e, /出勤/); }
     // 社保の当月/翌月徴収(会社設定 shahoTiming)。既定/'current'=現行(回帰ゼロ)。'next'=入社月0/月末退職2/月中退職1(前月分控除)
     var _tim = coK.shahoTiming, _shMult = 1, _shMonth = pr.shahoMonth;
     if (_tim === 'next') { var _zk = ZK(); if (_zk && _zk.shahoChargeMonths) _shMult = _zk.shahoChargeMonths({ timing: 'next', ym: month, joinYmd: e.joinYmd, taishokuYmd: e.taishokuYmd }); _shMonth = true; /* 翌月はmultで表現し旧shahoMonth抑止 */ }
@@ -295,7 +296,7 @@
         contractorGensen = _SC.gensenFor(e.houshuKubun, _payG, { monthlySalary: 0, days: effShukkin(e, ctx) });
       }
     }
-    var r = Calc().computePayslip({ shikyu: shikyu, birthYmd: e.birthYmd, payYm: month, fuyou: effFuyou, taxClass: effTaxClass, heiTaxAmount: heiAmt, residentTax: residentTaxOf(e, ctx), healthRate: prefRate(e.pref, month), employRate: employRateOf(coK.gyoshu, null, ctx), hyojunBase: e.hyojunBase, apply: apply, extraKojo: e.extraKojo, shahoMonth: _shMonth, shahoMult: _shMult, employmentType: e.employmentType, contractorGensen: contractorGensen });
+    var r = Calc().computePayslip({ shikyu: shikyu, birthYmd: e.birthYmd, payYm: month, taxYear: taxYear, fuyou: effFuyou, taxClass: effTaxClass, heiTaxAmount: heiAmt, residentTax: residentTaxOf(e, ctx), healthRate: prefRate(e.pref, month), employRate: employRateOf(coK.gyoshu, null, ctx), hyojunBase: e.hyojunBase, apply: apply, extraKojo: e.extraKojo, shahoMonth: _shMonth, shahoMult: _shMult, employmentType: e.employmentType, contractorGensen: contractorGensen });
     if (e.employmentType !== 'contractor') applyNenchoAdj(e, r, ctx); // 年末調整の過不足を反映(業務委託=年調なし=対象外)
     return r;
   }
@@ -312,6 +313,21 @@
     var dd = String(c.paydayDay == null ? '' : c.paydayDay); var last = new Date(py, pm, 0).getDate();
     var day = /末/.test(dd) ? last : Math.min(parseInt(dd, 10) || 25, last); if (day < 1) day = 1;
     return { y: py, m: pm, d: day };
+  }
+  /* ★所得税の 税額表を 選ぶ 年＝支払日の 年★（2026-11-04 R9 押し3）
+     源泉徴収税額表は「その年の 1月1日 以後に 支払うべき 給与」に 当たる（令和8年度改正 Q&A Q1-1・R9 表は R9-01-01 以後 支払分）。
+     前は 対象月の 年で 選んでいた＝12月分を 翌月(1月)払いの 会社は 古い 年の 表で 引いていた。
+     ・支払日＝payDateObj（紙の 支給日・契約の 日）の 年。振込日を 休みで 前に 寄せても 年は 契約の 支給日で 決める（所基通36-9 の 支給日）。
+     ・日払い／週払い（payCycle daily/weekly）は 月次の 支払日が 無い（その日・その週に 払う）＝対象月の 年の まま（taiketsu 止め1）。
+       日別の 紙（app.js buildDailyData）は 日ごとの 年で 選ぶ。
+     ・社保・介護・雇用・県の 率は 変えない（対象月で 選ぶ）。賞与は 支給月で 選ぶ（shoyo-zei）。
+     ・12月の 保存済み 明細は 本番0件・テスト線0件（11-04 数えた）＝過去の 確定の 額は 変わらない。 */
+  function taxYearOf(ctx) {
+    var ym = YM(ctx), my = parseInt(String(ym || '').slice(0, 4), 10) || 2026;
+    if (!ym) return my;
+    var cyc = C(ctx).payCycle;
+    if (cyc === 'daily' || cyc === 'weekly') return my;
+    return payDateObj(ctx).y || my;
   }
   function payDateStr(ctx) { var o = payDateObj(ctx); return '令和' + (o.y - 2018) + '年' + o.m + '月' + o.d + '日'; }
 
@@ -409,6 +425,6 @@
     kintaiVal: kintaiVal, workedMin: workedMin, workedLabel: workedLabel, effShukkin: effShukkin, syncBasePay: syncBasePay,
     residentTaxOf: residentTaxOf, isActiveInMonth: isActiveInMonth, prorateInfo: prorateInfo,
     scheduledDaysOf: scheduledDaysOf, leaveNoWorkInfo: leaveNoWorkInfo, jintekiOf: jintekiOf,
-    compute: compute, applyNenchoAdj: applyNenchoAdj, payDateObj: payDateObj, payDateStr: payDateStr,
+    compute: compute, applyNenchoAdj: applyNenchoAdj, payDateObj: payDateObj, payDateStr: payDateStr, taxYearOf: taxYearOf,
   };
 });

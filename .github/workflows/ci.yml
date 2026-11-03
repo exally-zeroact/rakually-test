@@ -900,6 +900,8 @@ jobs:
         run: node kyuyo/tests/ops-payroll-monthly.test.mjs
       - name: Law switchpoints (健保R7→R8/支援金2026-04/雇用保険年度/最賃年度の境界前後)
         run: node kyuyo/tests/law-switchpoints.test.mjs
+      - name: ★所得税の表は 支払日の 年で 選ぶ（12月分の翌月払い＝新しい年の表・日払い/週払いの日別はその日/その週の締めの年）
+        run: node kyuyo/tests/shiharaibi-zeihyo.test.mjs
       # ★賃金要件(88,000円)撤廃の見張り。実際にe-Govを叩くのは週1(source-urls.yml)。
       #   ここでは【判定そのもの】が正しいかだけ見る(ネットに触らない=CIを外の都合で赤くしない)。
       - name: ★賃金要件撤廃の見張りの判定 (--self-test・ネットに触らない)

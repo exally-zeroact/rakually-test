@@ -23,7 +23,7 @@
     var perDay = !!dayTaxFn;
     var days = entries.map(function (e) {
       var amount = num(e.amount), taxable = e.hikazei ? 0 : amount;
-      var tax = perDay ? Math.round(dayTaxFn(taxable)) : null;
+      var tax = perDay ? Math.round(dayTaxFn(taxable, e.ymd || '')) : null; // ★その日の ymd も渡す＝税表の年を その日（支払日）で選べる（11-04）
       return { ymd: e.ymd || '', min: num(e.min), amount: amount, count: num(e.count), hikazei: !!e.hikazei, tax: tax };
     });
     var totalMin = days.reduce(function (a, d) { return a + d.min; }, 0);
@@ -35,5 +35,26 @@
   }
   function hhmm(min) { min = Math.max(0, num(min)); var h = Math.floor(min / 60), m = min % 60; return h + ':' + ('0' + m).slice(-2); } // 負値は0:00にクランプ(M1)
 
-  return { computeDaily: computeDaily, hhmm: hhmm };
+  /* ★日別の 紙の 所得税の 表の 年＝支払日の 年★（2026-11-04 R9 押し3）
+     日払い＝その日に 払う＝その日の 年。
+     週払い＝★紙1枚＝1回の 払い★（紙は「今週支給額」と 手取りが 1つ）＝払うのは 入っている日の 一番遅い日の 後
+       ＝★紙の 全部の日に「対象月の 年」と「一番遅い日の 年」の 大きい方★を 当てる。1枚の中で 令和8 と 令和9 を 混ぜない（支払日は 1つ）。
+       対象月の 年を 下限に する訳＝1月の紙に 12月の日だけ（12-31 締め→1月払い）でも 払いは 1月＝新しい年の表
+       （一番遅い日だけだと 前の年の表＝前より 取り過ぎ・同じ紙の 月次 taxYearOf とも 食い違う・taiketsu 11-04 5回目）。
+       ★日の近くで 週を 推す形（その日から6日先まで）は 取らない＝週の頭の 欄が 無く、休みの 並びで 年が 変わる（taiketsu 11-04 4回目）★。
+       12月の紙に 何週ぶんも 入れる 使い方は 紙の 作り（今週支給額）の 外。
+     日付が 空・読めない 時は 対象月の 年（fallbackYear）。
+     日付の 年は 対象月の 年の 前後1年 だけ 受ける（それ以外＝打ち間違い＝対象月の 年・2062 等 1つで 紙全体を 動かさない）。 */
+  function taxYearForDay(ymd, opts) {
+    opts = opts || {};
+    var fy = parseInt(opts.fallbackYear, 10) || 2026;
+    var yOf = function (v) { var y = parseInt(String(v || '').slice(0, 4), 10) || 0; return (y >= fy - 1 && y <= fy + 1) ? y : 0; };
+    if (opts.cycle === 'weekly') {
+      var last = (opts.entries || []).reduce(function (a, x) { var y = yOf(x && x.ymd); return y > a ? y : a; }, 0);
+      return Math.max(fy, last);
+    }
+    return yOf(ymd) || fy;
+  }
+
+  return { computeDaily: computeDaily, hhmm: hhmm, taxYearForDay: taxYearForDay };
 });

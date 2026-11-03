@@ -1,0 +1,169 @@
+/* shiharaibi-zeihyo.test.mjs — ★所得税の税額表は 支払日の 年で 選ぶ★（2026-11-04 R9 押し3）
+ *
+ * 法令：源泉徴収税額表（令和9年分）は 令和9年1月1日 以後に「支払うべき」給与に 当たる。
+ *   出典 国税庁 令和8年度改正 Q&A Q1-1／https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2027/01.htm
+ * 前は 対象月の 年で 選んでいた＝12月分を 翌月(1月)払いする 会社に 古い年の 表が 当たった。
+ *
+ * 期待値は 自分の 出力から 作らない：その年の 表（lib の calcByClass に 年を 直に 渡した 値）と 比べ、
+ * しかも ★その課税額で 古い年と 新しい年の 額が 違う★ 事を 先に 確かめる（同じ額なら 試験が 空振りする）。
+ */
+import path from 'node:path';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const require = createRequire(path.join(ROOT, 'package.json'));
+const op = require(path.join(ROOT, 'ops/payroll.monthly.js'));
+const PM = require(path.join(ROOT, 'lib/payroll-monthly.js'));
+const D = require(path.join(ROOT, 'lib/shotokuzei-densan.js'));
+const HEI = require(path.join(ROOT, 'lib/shotokuzei-hei.js'));
+const NICHI = require(path.join(ROOT, 'lib/shotokuzei-nichi.js'));
+const DP = require(path.join(ROOT, 'lib/daily-pay.js'));
+
+let pass = 0, fail = 0;
+function T(n, fn) { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } }
+function eq(a, b, m) { if (a !== b) throw new Error((m ? m + ': ' : '') + `expected ${b} got ${a}`); }
+function ne(a, b, m) { if (a === b) throw new Error((m ? m + ': ' : '') + `${a} と ${b} が同じ＝試験が空振り`); }
+
+const CO = (o) => Object.assign({ name: 'S', annualHolidays: '120', dailyWorkH: '8', dailyWorkM: '0', gyoshu: 'ippan', holidays: [0], ruleOn: {}, paydayDay: '25' }, o);
+const EMP = { id: 'b01', name: 'B', payType: '月給', base: '300000', fuyou: '0', pref: 'tokyo', birthYmd: '1985-04-10' };
+const one = (ym, co, emp) => op.engine({ month: ym, company: CO(co), employees: [emp || EMP] }).value.people[0];
+const hyou = (kazei, y) => D.calcByClass(kazei, 0, 'ko', { year: y });
+
+console.log('\n[shiharaibi-zeihyo] 所得税の表は 支払日の 年で 選ぶ');
+
+T('2026-12 分・翌月払い（2027-01-25 払い）＝令和9年分の表', () => {
+  const p = one('2026-12', { paydayRel: 'next' });
+  ne(hyou(p.kazei, 2026), hyou(p.kazei, 2027), 'R8/R9');
+  eq(p.incomeTax, hyou(p.kazei, 2027), '所得税');
+});
+T('2026-12 分・当月払い（2026-12-25 払い）＝令和8年分の表', () => {
+  const p = one('2026-12', { paydayRel: 'current' });
+  ne(hyou(p.kazei, 2026), hyou(p.kazei, 2027), 'R8/R9');
+  eq(p.incomeTax, hyou(p.kazei, 2026), '所得税');
+});
+T('2026-11 分・翌月払い（2026-12-25 払い）＝令和8年分の表', () => {
+  const p = one('2026-11', { paydayRel: 'next' });
+  eq(p.incomeTax, hyou(p.kazei, 2026), '所得税');
+});
+T('2027-01 分・当月払い＝令和9年分の表', () => {
+  const p = one('2027-01', { paydayRel: 'current' });
+  ne(hyou(p.kazei, 2026), hyou(p.kazei, 2027), 'R8/R9');
+  eq(p.incomeTax, hyou(p.kazei, 2027), '所得税');
+});
+T('2025-12 分・翌月払い（2026-01 払い）＝令和8年分の表（R8 表も 支払日で当たる）', () => {
+  const p = one('2025-12', { paydayRel: 'next' });
+  ne(hyou(p.kazei, 2025), hyou(p.kazei, 2026), 'R7/R8');
+  eq(p.incomeTax, hyou(p.kazei, 2026), '所得税');
+});
+T('支給日の欄が無い会社（既定＝翌月）でも 2026-12 分は令和9年分', () => {
+  const p = one('2026-12', {});
+  eq(p.incomeTax, hyou(p.kazei, 2027), '所得税');
+});
+// ★taiketsu 止め1★ 日払い・週払いは 月次の 支払日が 無い＝対象月の 年の まま
+T('日払いの会社の 2026-12 月次＝令和8年分（翌月払いの欄が在っても）', () => {
+  const p = one('2026-12', { paydayRel: 'next', payCycle: 'daily' });
+  ne(hyou(p.kazei, 2026), hyou(p.kazei, 2027), 'R8/R9');
+  eq(p.incomeTax, hyou(p.kazei, 2026), '所得税');
+});
+T('週払いの会社の 2026-12 月次＝令和8年分', () => {
+  const p = one('2026-12', { payCycle: 'weekly' });
+  eq(p.incomeTax, hyou(p.kazei, 2026), '所得税');
+});
+T('社保は 対象月で 選ぶ（翌月払いでも 当月払いと 同じ）', () => {
+  const a = one('2026-12', { paydayRel: 'next' }), b = one('2026-12', { paydayRel: 'current' });
+  eq(a.si.total, b.si.total, '社保の合計');
+});
+T('丙欄（日給）も 支払日の 年', () => {
+  const emp = { id: 'h01', name: 'H', payType: '日給', base: '10000', fuyou: '0', pref: 'tokyo', birthYmd: '1985-04-10', taxClass: 'hei',
+    kintai: [{ label: '出勤日数', value: 3 }] };
+  ne(HEI.heiTax(10000, { year: 2026 }), HEI.heiTax(10000, { year: 2027 }), '丙 R8/R9');
+  const a = one('2026-12', { paydayRel: 'next' }, emp), b = one('2026-12', { paydayRel: 'current' }, emp);
+  eq(a.incomeTax, HEI.heiTax(10000, { year: 2027 }) * 3, '翌月払い');
+  eq(b.incomeTax, HEI.heiTax(10000, { year: 2026 }) * 3, '当月払い');
+});
+T('taxYearOf：契約の支給日の年（振込日を休みで前に寄せても 年は動かない）', () => {
+  eq(PM.taxYearOf({ month: '2026-12', company: { paydayRel: 'next', paydayDay: '1' } }), 2027, '翌月1日払い');
+  eq(PM.taxYearOf({ month: '2026-12', company: { paydayRel: 'next', paydayDay: '末' } }), 2027, '翌月末払い');
+  eq(PM.taxYearOf({ month: '', company: {} }), 2026, '対象月が空');
+});
+// 日払い・週払いの 日別の紙＝その日の ymd を dayTaxFn へ 渡す（app.js buildDailyData が 日ごとの 年を 選ぶ）
+T('daily-pay：dayTaxFn に その日の ymd が 渡る', () => {
+  const seen = [];
+  DP.computeDaily([{ ymd: '2026-12-31', min: 480, amount: 12000 }, { ymd: '2027-01-01', min: 480, amount: 12000 }],
+    { taxClass: 'ko', dayTaxFn: function (t, ymd) { seen.push(ymd); return 0; } });
+  eq(seen.join(','), '2026-12-31,2027-01-01', '渡った日');
+});
+T('日額表 甲：12,000円は R8 と R9 で額が違う（日別の年が効く 前提）', () => {
+  ne(NICHI.nichiTax(12000, { taxClass: 'ko', deps: 0, year: 2026 }), NICHI.nichiTax(12000, { taxClass: 'ko', deps: 0, year: 2027 }), '日額 R8/R9');
+});
+// ★日別の 紙の 年（app.js buildDailyData は dp.taxYearForDay を呼ぶだけ）＝額で 見る★
+const nichiKo = (t, y) => NICHI.nichiTax(t, { taxClass: 'ko', deps: 0, year: y });
+const dayTax = (entries, cycle, fy) => DP.computeDaily(entries, { taxClass: 'ko',
+  dayTaxFn: (t, ymd) => nichiKo(t, DP.taxYearForDay(ymd, { cycle, entries, fallbackYear: fy })) }).days.map((d) => d.tax).join(',');
+const TOSHI = [{ ymd: '2026-12-31', min: 480, amount: 12000 }, { ymd: '2027-01-01', min: 480, amount: 12000 }];
+T('日払い：12-31 は令和8・01-01 は令和9 の日額表', () => {
+  eq(dayTax(TOSHI, 'daily', 2026), [nichiKo(12000, 2026), nichiKo(12000, 2027)].join(','), '日ごとの税');
+});
+T('週払い：年をまたぐ週は 一番遅い日（01-01＝令和9）で 全部の日', () => {
+  eq(dayTax(TOSHI, 'weekly', 2026), [nichiKo(12000, 2027), nichiKo(12000, 2027)].join(','), '日ごとの税');
+});
+// ★週払いの紙 1枚＝1回の払い（今週支給額・手取り 1つ）＝1枚の中で 年を 混ぜない（taiketsu 11-04 4回目）★
+T('週払い：年末に 毎日働いた 1枚（12-28〜01-02）＝1回の払い＝全部の日が令和9（混ぜない）', () => {
+  const ds = ['2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02'];
+  const e = ds.map((ymd) => ({ ymd, min: 480, amount: 12000 }));
+  const r9 = nichiKo(12000, 2027);
+  eq(dayTax(e, 'weekly', 2026), ds.map(() => r9).join(','), '日ごとの税');
+});
+T('週払い：12-24 と 01-02 の 1枚＝払いは 01-02 の後＝両方とも令和9（日の近くで 週を推さない）', () => {
+  const e = [{ ymd: '2026-12-24', min: 480, amount: 12000 }, { ymd: '2027-01-02', min: 480, amount: 12000 }];
+  eq(dayTax(e, 'weekly', 2026), [nichiKo(12000, 2027), nichiKo(12000, 2027)].join(','), '日ごとの税');
+});
+T('週払い：12月の紙に 12-30 だけ＝令和8（1月の日が無い＝対象月の年）', () => {
+  eq(dayTax([{ ymd: '2026-12-30', min: 480, amount: 12000 }], 'weekly', 2026), String(nichiKo(12000, 2026)), '日の税');
+});
+T('週払い：1月の紙に 12-25〜12-31 だけ（12-31 締め→1月払い）＝令和9（対象月の年が下限）', () => {
+  const ds = ['2026-12-25', '2026-12-26', '2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31'];
+  const e = ds.map((ymd) => ({ ymd, min: 480, amount: 12000 }));
+  eq(dayTax(e, 'weekly', 2027), ds.map(() => nichiKo(12000, 2027)).join(','), '日ごとの税');
+  // 同じ紙の 月次（週払いの会社＝対象月の年）とも 同じ年
+  eq(PM.taxYearOf({ month: '2027-01', company: { payCycle: 'weekly' } }), 2027, '月次の年');
+});
+T('週払い：12月だけの 1枚は 令和8（前の年の日が在っても 動かない）', () => {
+  const e = [{ ymd: '2026-12-21', min: 480, amount: 12000 }, { ymd: '2026-12-25', min: 480, amount: 12000 }];
+  eq(dayTax(e, 'weekly', 2026), [nichiKo(12000, 2026), nichiKo(12000, 2026)].join(','), '日ごとの税');
+});
+T('週払い：日付の打ち間違い（2062）1つで 表を動かさない', () => {
+  const e = [{ ymd: '2026-12-07', min: 480, amount: 12000 }, { ymd: '2062-12-08', min: 480, amount: 12000 }];
+  eq(dayTax(e, 'weekly', 2026), [nichiKo(12000, 2026), nichiKo(12000, 2026)].join(','), '日ごとの税');
+});
+T('日払い：日付が空・打ち間違いなら 対象月の年／1月の紙の 12-31 は その日の年', () => {
+  eq(DP.taxYearForDay('', { cycle: 'daily', fallbackYear: 2026 }), 2026, '空');
+  eq(DP.taxYearForDay('2062-01-01', { cycle: 'daily', fallbackYear: 2026 }), 2026, '2062');
+  eq(DP.taxYearForDay('2026-12-31', { cycle: 'daily', fallbackYear: 2027 }), 2026, '1月の紙の 12-31');
+});
+T('app.js の日別の税は 3つとも dp.taxYearForDay を通る（字の見張り・額は上の4件）', () => {
+  const s = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+  eq((s.match(/year:yearOfDay\(ymd\)/g) || []).length, 3, '丙・乙・甲の3つ');
+  if (!/function yearOfDay\(ymd\)\{ return dp\.taxYearForDay\(ymd,/.test(s)) throw new Error('yearOfDay が lib を呼んでいない');
+});
+// ★古い表の警告＝出る／出ない で 見る★ 社保・最賃の 古さを 外して 所得税の 年だけで 判じる
+T('警告：2027-12 分 翌月払い（2028 払い＝未収録）は出る・当月払い（2027＝収録済み）は出ない', () => {
+  const SHH = require(path.join(ROOT, 'lib/shakaihoken-hyo.js'));
+  const SAI = require(path.join(ROOT, 'lib/saitei-chingin.js'));
+  const PW = require(path.join(ROOT, 'lib/payroll-warnings.js'));
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale };
+  try {
+    SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
+    SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+    SAI.saiteiStale = function () { return false; };
+    const next = PW.statutoryStaleWarn({ month: '2027-12', company: { paydayRel: 'next', paydayDay: '25' } });
+    const cur = PW.statutoryStaleWarn({ month: '2027-12', company: { paydayRel: 'current', paydayDay: '25' } });
+    if (!/所得税額表/.test(next)) throw new Error('翌月払いで 警告が 出ない');
+    eq(cur, '', '当月払い');
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
+});
+
+console.log(`\n  ${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);
