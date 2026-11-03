@@ -127,6 +127,9 @@ export function nokoriErabu(namae, nowMs, ikiteru, kigenMs = 6 * 3600 * 1000) {
 export const KUCHI_IMPORT_RE = /\bimport\b[^\n]*_(?:shiken-kuchi|souko-kazoeru)\.mjs/;
 export function kuchiKa(cmd, yomu) {
   const fa = [...String(cmd || '').matchAll(/(?:^|\s)([\w./-]+\.(?:mjs|js|cjs))(?=\s|$)/g)].map((m) => m[1]);
+  /* ★ファイルを 1つも 拾えない 段＝触る 側（分からないを 安全側へ・押し3 taiketsu 任D）★
+     11-03 の yml では 2段（330・338＝sh scripts/ci-yuka.sh --self-test・node も curl も 無い）＝338 が 道0 へ 移る だけ */
+  if (fa.length === 0) return true;
   return fa.some((f) => {
     if (/(^|\/)_(shiken-kuchi|souko-kazoeru)\.mjs$/.test(f)) return false;   /* ★道具 自身の 自己確認＝外へ 出ない★ */
     const t = yomu(f); return t === null ? true : KUCHI_IMPORT_RE.test(t);

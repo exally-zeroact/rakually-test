@@ -230,6 +230,7 @@ if (process.argv.includes('--self-test')) {
     iu('★試験口の 道具を import する 段＝触る（await import も import 文も）★', kuchiKa('node x.mjs', yo) && kuchiKa('node z.mjs --bu=1', yo));
     iu('★字に 出るだけ＝触らない・道具 自身の 自己確認＝触らない★', !kuchiKa('node y.mjs', yo) && !kuchiKa('sh s.sh 10 -- node tests/_shiken-kuchi.mjs --self-test', (f) => (f === 's.sh' ? '' : null)));
     iu('★読めない ファイル＝触る 側（分からないを 安全側へ）★', kuchiKa('node nai.mjs', yo));
+    iu('★ファイルを 1つも 拾えない 段（sh・npx）＝触る 側★', kuchiKa('sh scripts/ci-yuka.sh --self-test', yo) && kuchiKa('npx vitest run', yo));
     const now = 1e12, t = (now - 1000).toString(36);
     const nk = nokoriErabu(['om-111-' + t + '_test-1', 'om-111-' + t + '_kinshi-node24', 'om-222-' + t + '_test-1', 'om-111-' + t + '_a b'], now, (pid) => pid !== 111).map((x) => x.n);
     iu('★道の 作業木（_道名）も pid 死で 片付く・生きて 新しい は 残す・形の 違う 名は 触らない★', nk.length === 2 && nk.every((n) => n.indexOf('om-111-') === 0 && n.indexOf(' ') < 0));
@@ -266,6 +267,8 @@ const YML = ymlArg ? ymlArg.split('=')[1] : '.github/workflows/ci.yml';
 /* ★★どこで 回すか★★（2026-11-03 押し2）＝--sha-stdin なら 押す sha の 別の 作業木・OSHU_MAE_WAKE=1 なら 今の 作業木 */
 let RUN_ROOT = ROOT;
 let OSHU_SHA = null;   /* ★押す sha（--sha-stdin の 時だけ）＝道を 並べるのは この 時だけ★ */
+/* ★作業木を 消す 前に 道の 子を 先に 止める★（押し3 taiketsu 任A）＝道0 の 段が 生きた まま junction を 外さない。下で 道を 起こす 所が 入れる */
+let koSakiniTomeru = () => {};
 const HR = heiretsuYomu(process.env.OSHU_MAE_HEIRETSU);
 if (HR.naze) {
   console.log('\n[oshu-mae] ★★並べる 数が 読めない＝止めます★★ … ' + HR.naze);
@@ -297,6 +300,7 @@ if (process.argv.includes('--sha-stdin') && process.env.OSHU_MAE_WAKE !== '1') {
   let katazuketa = false;
   const katasu = () => {
     if (katazuketa) return; katazuketa = true;
+    try { koSakiniTomeru(); } catch (err) { console.log('  ★道の 子を 止められない★ ' + err.message); }
     const r = wtKatasu(w.dir, ROOT);
     console.log('  ★押す sha の 作業木を 片付けた★' + (r ? '  ' + r + ' ' + w.dir : ''));
   };
@@ -408,6 +412,7 @@ const ikiteruKo = new Set();
 const michiWt = [];
 const michiKatasu = (dir) => { const r = wtKatasu(dir, ROOT); if (r) console.log('  ★道の 作業木を 片付けられない★ ' + r + ' ' + dir); };
 const zenbuTomeru = () => { ikiteruKo.forEach((pid) => kiTomeru(pid)); };
+koSakiniTomeru = zenbuTomeru;
 process.on('exit', () => {
   zenbuTomeru();
   michiWt.splice(0).forEach(michiKatasu);

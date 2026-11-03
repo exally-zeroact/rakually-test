@@ -33,15 +33,18 @@ export function kiTomeru(pid) {
 export function danHashiru(c, cwd, jogenMs = JOGEN_MS) {
   return new Promise((res) => {
     const t0 = Date.now();
-    let so = '', se = '', owari = false, kireta = false;
+    let so = '', se = '', owari = false, kireta = false, ookii = false;
     const MAX = 32 * 1024 * 1024;
     let ch;
     try {
-      ch = spawn(c, { cwd, shell: true, detached: process.platform !== 'win32', windowsHide: true });
+      /* ★stdin は ignore★＝前の spawnSync と 同じく 入力は すぐ 終わり（読む 段が 180秒 待たない・本番前 taiketsu 任B） */
+      ch = spawn(c, { cwd, shell: true, detached: process.platform !== 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) { res({ status: null, mi: '起こせない（' + err.message + '）', so: '', se: '', byou: 0 }); return; }
     danHashiru.imaPid = ch.pid;
-    ch.stdout.on('data', (b) => { if (so.length < MAX) so += b.toString('utf8'); });
-    ch.stderr.on('data', (b) => { if (se.length < MAX) se += b.toString('utf8'); });
+    /* ★setEncoding★＝塊の 境目で 日本語が 割れない（任C）。★32MB 超え＝黙って 切らず 走らせられない に 数える★（前の ENOBUFS と 同じ 向き） */
+    ch.stdout.setEncoding('utf8'); ch.stderr.setEncoding('utf8');
+    ch.stdout.on('data', (b) => { if (so.length < MAX) so += b; else ookii = true; });
+    ch.stderr.on('data', (b) => { if (se.length < MAX) se += b; else ookii = true; });
     const tm = setTimeout(() => { kireta = true; kiTomeru(ch.pid); }, jogenMs);
     const owaru = (status, mi) => {
       if (owari) return; owari = true; clearTimeout(tm);
@@ -51,6 +54,7 @@ export function danHashiru(c, cwd, jogenMs = JOGEN_MS) {
     ch.on('close', (code) => {
       if (kireta) owaru(null, '★' + (jogenMs / 1000) + '秒で 切った（孫まで 止めた）★');
       else if (code === null) owaru(null, '終わり値が 無い（外から 殺された）');
+      else if (ookii) owaru(null, '★出しが ' + (MAX / 1024 / 1024) + 'MB を 超えた（字を 全部 読めない）★');
       else owaru(code, null);
     });
   });
