@@ -4958,12 +4958,39 @@
       var er = new Error(BOOK_DED_MSG); er.dedStop = true;
       return Promise.reject(er);
     }
+    /* ★繰越の 在る 1通も 自社 Excel に 入れない★（2026-11-03）
+       自社 Excel には 繰越の マスが 無い＝合計に 今回分だけが 入り、紙の ご請求金額（繰越 込み）と 割れる。
+       ★黙って 繰越を 落とさず 止めて 知らせる★（dedStop と 同じ 出し方＝画面は e.message を そのまま 出す）。 */
+    if (bookCarryStop(pi)) {
+      var ec = new Error(bookCarryMsg(pi)); ec.dedStop = true; ec.carryStop = true;
+      return Promise.reject(ec);
+    }
     var vals = bookVals(pi);
     var bytes = b64ToBytes(saved.b64);
     return bookFill(B, saved, bytes, vals, name, pi);
   }
   var BOOK_DED_MSG = 'この請求書には 控除が あります。覚えた 自社の Excel には 控除を 入れる 場所が 無いので、'
     + '出すと 控除前の 額に なります。PDF で 出すか、設定で「Rakunallyの紙に 戻す」と Rakunally の Excel で 控除まで 出せます。';
+  var BOOK_CARRY_MSG = 'この請求書には 前回からの 繰越が あります。覚えた 自社の Excel には 繰越を 入れる 場所が 無いので、'
+    + '出すと 今回分だけの 額に なります。PDF で 出すか、設定で「Rakunallyの紙に 戻す」と Rakunally の Excel で 繰越まで 出せます。';
+  /** 止めた 訳の 字。★入金が 未確認の 時は「繰越が ある」と 言わない★（本当は 0 かも 知れない・Rakunally の Excel に 戻しても 額は 決まらない）
+   *  取り消した 請求書の 入金で 止めた 時は その 訳（VOIDWARN）を そのまま 出す＝直し方に たどり着ける */
+  function bookCarryMsg(pi) {
+    var c = (pi && pi.carry) || {};
+    if (c.state === 'unknown') {
+      return c.why ? c.why
+        : '入金が まだ 確かめられていないので、前回からの 繰越の 額が 決まりません。入金の 記録を 読み直してから 出してください（自社の Excel にも Rakunally の Excel にも 額を 入れません）。';
+    }
+    return BOOK_CARRY_MSG;
+  }
+  /** 繰越が 在る（0 でない・読めない も 含む）＝自社 Excel では 出せない 1通か。初回（first）と 繰越 0 は 出せる（額が 割れない） */
+  function bookCarryStop(pi) {
+    var c = pi && pi.carry;
+    if (!c || c.state === 'first') return false;
+    var k = Number(c.carry);
+    if (c.carry === null || c.carry === undefined || c.carry === '' || !Number.isFinite(k)) return true;
+    return k !== 0;
+  }
   /** 控除が 在る（読めない控除も 含む）＝自社 Excel では 出せない 1通か */
   function bookDedStop(pi) {
     if (!pi || !PAPER.showDeductOf(pi.inv, pi)) return false;
@@ -7392,6 +7419,7 @@
     _loadList: function (o) { return loadList(o); },
     _issue: function () { return issue(); },
     _bookDedStopForTest: function () { var pi = paperInput(); return pi ? bookDedStop(pi) : null; },
+    _bookCarryStopForTest: function () { var pi = paperInput(); return pi ? bookCarryStop(pi) : null; },
     _bookExcelForTest: function (name) { return bookExcel(name); },   // テスト用: 控除の在る 1通で 自社 Excel が 止まるか
     _bookValsForTest: function () { var pi = paperInput(); return pi ? bookVals(pi) : null; },   // テスト用: 自社 Excel に 入れる 値（番号を 出さない 時に 空か）                    // テスト用: ボタンの 灰色を 通らずに 発行の 歯止めを 見る           // テスト用: 一覧だけ 読ませる（読めない 時の 知らせを 見る）
     _recalcForTest: function () { return recalc(); },

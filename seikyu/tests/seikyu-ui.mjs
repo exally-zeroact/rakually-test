@@ -1905,6 +1905,45 @@ await TA('7-f. ★控除の在る 1通は 自社 Excel に 入れず 止めて �
   }
 });
 
+await TA('7-g. ★繰越の在る 1通は 自社 Excel に 入れず 止めて 知らせる（繰越を 黙って 落とさない・2026-11-03）', async () => {
+  /* 自社 Excel には 繰越の マスが 無い＝合計に 今回分だけが 入り、紙の ご請求金額（繰越込み）と 割れる */
+  const app = win.SeikyuApp, st = app._state;
+  const maeX = st.org && st.org.bookXlsx, maeP = st.org && st.org.bookPlan;
+  const maeS = st.cur && st.cur.snapshot;
+  try {
+    st.org.bookXlsx = 'AA=='; st.org.bookPlan = { ok: true, sheet: 'Sheet1', slots: {} };
+    st.cur.data.deductions = [];
+    const put = (c) => { st.cur.snapshot = Object.assign({}, maeS || {}, { carry: c }); };
+    put({ state: 'first', carry: null, prevTotal: 0, paid: 0, thisTotal: 5500, grandTotal: 5500 });
+    ok(app._bookCarryStopForTest() === false, '★初回（繰越なし）なのに 止める★');
+    put({ state: 'ok', carry: 0, prevTotal: 5500, paid: 5500, thisTotal: 5500, grandTotal: 5500 });
+    ok(app._bookCarryStopForTest() === false, '★繰越 0（払い済み）なのに 止める＝今まで 出せた 物を 止めている★');
+    put({ state: 'ok', carry: 3000, prevTotal: 5500, paid: 2500, thisTotal: 5500, grandTotal: 8500 });
+    ok(app._bookCarryStopForTest() === true, '★繰越 3,000 が 在るのに 自社 Excel へ 入れる★');
+    let e1 = null;
+    try { await app._bookExcelForTest('a.xlsx'); } catch (e) { e1 = e; }
+    ok(e1 && e1.carryStop && /繰越/.test(e1.message), '★繰越が 在るのに 止まらない／理由が 繰越と 言っていない★: ' + (e1 && e1.message));
+    put({ state: 'over', carry: -2000, prevTotal: 5500, paid: 7500, thisTotal: 5500, grandTotal: 3500 });
+    ok(app._bookCarryStopForTest() === true, '★過入金（繰越 −2,000）なのに 自社 Excel へ 入れる★');
+    put({ state: 'unknown', carry: null, prevTotal: 5500, paid: null, thisTotal: 5500, grandTotal: null });
+    ok(app._bookCarryStopForTest() === true, '★入金が 未確認の 繰越でも 自社 Excel へ 入れる（0 と 見ている）★');
+    let e2 = null;
+    try { await app._bookExcelForTest('a.xlsx'); } catch (e) { e2 = e; }
+    ok(e2 && e2.carryStop && /入金/.test(e2.message) && !/繰越が あります/.test(e2.message),
+      '★入金が 未確認なのに「繰越が あります」と 言う（直し方に たどり着けない）★: ' + (e2 && e2.message));
+    /* ★画面に 字が 出る★（入力の画面の Excel ボタン＝edit-err） */
+    put({ state: 'ok', carry: 3000, prevTotal: 5500, paid: 2500, thisTotal: 5500, grandTotal: 8500 });
+    $('edit-err').textContent = '';
+    $('b-xlsx').click(); await sleep(10);
+    if ($('fn-ov').classList.contains('open')) { $('fn-ok').click(); }
+    await sleep(80);
+    ok(/繰越/.test($('edit-err').textContent), '★止めたのに 画面に 訳が 出ない★: ' + $('edit-err').textContent);
+  } finally {
+    if (st.cur) st.cur.snapshot = maeS;
+    if (st.org) { st.org.bookXlsx = maeX; st.org.bookPlan = maeP; }
+  }
+});
+
 /* ═══ 9. ②-b 源泉徴収 / 繰越 / 非課税 ═══
    ★合格条件（指示役 2026-08-11 追加）★
      ・この3つを足しても「前回から当てる」が壊れない
