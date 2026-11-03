@@ -1039,7 +1039,7 @@
     if (made.length === 1) {
       var pi = made[0].pi;
       return NAME.suggest({ docType: pi.inv.doc_type, issueYmd: pi.inv.issue_ymd,
-        partnerName: pi.partner.name, grandTotal: pi.tax.grandTotal, ext: ext });
+        partnerName: pi.partner.name, grandTotal: nameGakuOf(pi), ext: ext });
     }
     var who = billPick.pid ? (NAME.sanitize(billPartnerName(billPick.pid)) || '取引先') : '全社';
     return '請求書_' + billPick.ym + '_' + who + '.' + ext;
@@ -3755,8 +3755,16 @@
     if (!pi) return null;
     return NAME.suggest({
       docType: kind || pi.inv.doc_type, issueYmd: pi.inv.issue_ymd,
-      partnerName: pi.partner.name, grandTotal: pi.tax.grandTotal, ext: ext,
+      partnerName: pi.partner.name, grandTotal: nameGakuOf(pi), ext: ext,
     });
+  }
+  /** ★ファイル名の 額＝紙の 頭の「ご請求金額」と 同じ★（seikyu-paper の grandBlock と 同じ式＝DOC.billedOf）
+   *  前は 税込の 合計（控除を 引く前・繰越を 足す前）を 名前に 付けていた＝紙の 一番 大きい 額と 名前の 額が 割れた。
+   *  控除が 読めない（pi.deduct が null）・入金が 未確認の 繰越 → null（名前は「金額不明」＝0や 引く前の 額を 付けない）。 */
+  function nameGakuOf(pi) {
+    if (!pi) return null;
+    if (pi.deduct === null) return null;
+    return DOC.billedOf(pi.tax, pi.carry, pi.deduct);
   }
 
   /* ★落とす前に名前を出して直させる★ */
@@ -7387,6 +7395,7 @@
     _bookExcelForTest: function (name) { return bookExcel(name); },   // テスト用: 控除の在る 1通で 自社 Excel が 止まるか
     _bookValsForTest: function () { var pi = paperInput(); return pi ? bookVals(pi) : null; },   // テスト用: 自社 Excel に 入れる 値（番号を 出さない 時に 空か）                    // テスト用: ボタンの 灰色を 通らずに 発行の 歯止めを 見る           // テスト用: 一覧だけ 読ませる（読めない 時の 知らせを 見る）
     _recalcForTest: function () { return recalc(); },
+    _suggestNameForTest: function (ext, kind) { return suggestName(ext, kind); },   // テスト用: 落とす前に 出す 名前
     _colsForTest: function () { return S.cur ? COLS.normalizeSpec(colsOf(S.cur)) : null; },   // テスト用: 今の1通の 紙の列          // テスト用: 数え直しだけ走らせる
     _fillEdit: fillEdit,          // テスト用: 入力の画面を描き直す（★見られない物は 見張れない★）
     _invAskAnswer: function (k, v) { return invAskAnswer(k, v); },   // テスト用: 聞く形に答える

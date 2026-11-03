@@ -2251,6 +2251,37 @@ await TA('9-g. ★控除＋源泉：画面の 差引お支払額と 源泉の �
   }
 });
 
+await TA('9-i. ★ファイル名の 額＝紙の 頭の「ご請求金額」（控除の 後）・読めない 控除は「金額不明」★', async () => {
+  /* 前は 名前に 税込の 合計（控除を 引く前）を 付けていた＝紙は ご請求金額 100,000 なのに 名前は _110000。 */
+  const st = win.SeikyuApp._state;
+  const A = win.SeikyuApp;
+  const grandOf = () => {
+    const h = A._paperHtml();
+    const m = /class="grand-v">([^<]*)</.exec(h);
+    return m ? m[1] : '';
+  };
+  try {
+    st.cur.data.deductions = [];
+    A._recalcForTest(); await sleep(20);
+    ok(/_110000\.xlsx$/.test(A._suggestNameForTest('xlsx')), '前提：控除なしで 110000 でない: ' + A._suggestNameForTest('xlsx'));
+    st.cur.data.deductions = [{ name: '振込手数料', amount: '10000' }];
+    A._recalcForTest(); await sleep(20);
+    const g = grandOf();
+    eq(Number(g.replace(/[^0-9-]/g, '')), 100000, '前提：紙の ご請求金額が 控除の 後でない: ' + g);
+    const n = A._suggestNameForTest('xlsx');
+    ok(/_100000\.xlsx$/.test(n), '★名前の 額が 紙の ご請求金額（100,000）と 違う★: ' + n);
+    ok(/_100000\.pdf$/.test(A._suggestNameForTest('pdf')), '★PDF の 名前も 同じ 額でない★');
+    st.cur.data.deductions = [{ name: '弁当', amount: 'abc' }];
+    A._recalcForTest(); await sleep(20);
+    ok(/未確認/.test(grandOf()), '前提：読めない 控除で 紙が（未確認）でない');
+    const n2 = A._suggestNameForTest('xlsx');
+    ok(/_金額不明\.xlsx$/.test(n2), '★控除が 読めないのに 名前に 数を 付けた★: ' + n2);
+  } finally {
+    if (st.cur && st.cur.data) st.cur.data.deductions = [];
+    A._recalcForTest(); await sleep(20);
+  }
+});
+
 await TA('9-h. ★一覧：控除が 読めない 下書きに 控除前の 額を 出さない（（未確認））★', async () => {
   /* 倉庫の totalsOf は 控除が 読めない 時 grandTotal＝控除前（gross）で しまう（発行は 門が 止める・下書きは 通る）。
      一覧の 右端は その 数を そのまま 出していた＝110,000 円（控除を 引けば 100,000 未満）。 */
