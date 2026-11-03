@@ -29,6 +29,14 @@ export function kiTomeru(pid) {
   else { try { process.kill(-pid, 'SIGKILL'); } catch (err) { try { process.kill(pid, 'SIGKILL'); } catch (err2) { /* ★もう 居ない★ */ } } }
 }
 
+/* ★止めて よいか★（時間切れ と Ctrl-C で 同じ 決まり・11-04）
+   ★殻が もう 終わって いたら 止めない★＝終わった pid は Windows が 使い回す＝関係ない 木を 止め得る（taiketsu 任意1）
+   ★Windows だけ★＝Linux は 組に 人が 残る 間は 番号を 使い回さない＝kill(-pid) で 同じ 組の 孫まで 止める */
+export function tometeYoi(ch, plat = process.platform) {
+  if (!ch || !ch.pid) return false;
+  return plat !== 'win32' || (ch.exitCode === null && ch.signalCode === null);
+}
+
 /* ★1段を 回す★＝{ status, mi, so, se, byou } */
 /* ★切った 後の 猶予★（11-03 本番前 taiketsu 任意①）＝止めても 管（stdout/stderr）を 持った 孫が 残ると close が 来ず
    網が いつまでも 終わらない（親が 先に 死んで taskkill /T が 木を 辿れない 時）。切って この 秒 待っても 閉じなければ
@@ -44,16 +52,14 @@ export function danHashiru(c, cwd, jogenMs = JOGEN_MS, yuuyoMs = YUUYO_MS) {
       /* ★stdin は ignore★＝前の spawnSync と 同じく 入力は すぐ 終わり（読む 段が 180秒 待たない・本番前 taiketsu 任B） */
       ch = spawn(c, { cwd, shell: true, detached: process.platform !== 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) { res({ status: null, mi: '起こせない（' + err.message + '）', so: '', se: '', byou: 0 }); return; }
-    danHashiru.imaPid = ch.pid;
+    danHashiru.imaCh = ch;
     /* ★setEncoding★＝塊の 境目で 日本語が 割れない（任C）。★32MB 超え＝黙って 切らず 走らせられない に 数える★（前の ENOBUFS と 同じ 向き） */
     ch.stdout.setEncoding('utf8'); ch.stderr.setEncoding('utf8');
     ch.stdout.on('data', (b) => { if (so.length < MAX) so += b; else ookii = true; });
     ch.stderr.on('data', (b) => { if (se.length < MAX) se += b; else ookii = true; });
     let yuuyo = null;
     const tm = setTimeout(() => {
-      /* ★殻が もう 終わって いたら 止めない★＝終わった pid は Windows が 使い回す＝関係ない 木を 止め得る（taiketsu 任意1） */
-      /* ★Windows だけ★＝Linux は 組に 人が 残る 間は 番号を 使い回さない＝kill(-pid) で 同じ 組の 孫まで 止める（taiketsu 任意1） */
-      kireta = true; if (process.platform !== 'win32' || (ch.exitCode === null && ch.signalCode === null)) kiTomeru(ch.pid);
+      kireta = true; if (tometeYoi(ch)) kiTomeru(ch.pid);
       yuuyo = setTimeout(() => {
         try { ch.stdout.destroy(); ch.stderr.destroy(); } catch (err) { /* ★もう 閉じた★ */ }
         owaru(null, '★' + (jogenMs / 1000) + '秒で 切ったが 管が 閉じない（孫が 残った 見込み）★');
@@ -94,7 +100,8 @@ if (ware) {
     console.error('[oshu-michi] ★名簿を 読めない★ ' + err.message); process.exit(2);
   }
   if (!m || !Array.isArray(m.dan) || !m.dan.length || !m.cwd) { console.error('[oshu-michi] ★名簿が 空か 形が 違う★'); process.exit(2); }
-  const yame = () => { if (danHashiru.imaPid) kiTomeru(danHashiru.imaPid); process.exit(1); };
+  /* ★Ctrl-C も 時間切れと 同じ 決まり★（11-04）＝前は 殻の 生死を 見ずに 前の 段の pid を taskkill＝使い回しの 番号を 撃ち得た */
+  const yame = () => { const c = danHashiru.imaCh; if (tometeYoi(c)) kiTomeru(c.pid); process.exit(1); };
   ['SIGINT', 'SIGTERM', 'SIGHUP'].forEach((sg) => process.on(sg, yame));
   for (const d of m.dan) {
     const r = await danHashiru(d.c, m.cwd);

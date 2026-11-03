@@ -30,7 +30,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { erabu, omoiKa, hirouDan, byouMatome, danNoJob, oshuShaYomu, nokoriErabu, kuchiKa, kuchiJobYomu, michiTsukuru, heiretsuYomu } from './_dan-hirou.mjs';
-import { kiTomeru, danHashiru, kekkaGyou } from './_oshu-michi.mjs';
+import { kiTomeru, danHashiru, kekkaGyou, tometeYoi } from './_oshu-michi.mjs';
 import { bunrui, OKE_JUN } from './_bunrui.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -267,6 +267,11 @@ if (process.argv.includes('--self-test')) {
       && gy[1].i === 9 && gy[1].status === 4 && gy[1].so.join() === 'X');
     fs.writeFileSync(meibo, JSON.stringify({ cwd: tmp3, dan: [] }));
     iu('★空の 名簿＝子は 終わり値 2（0件＝合格に しない）★', spawnSync(process.execPath, [path.join(ROOT, 'tools', '_oshu-michi.mjs'), meibo, kek], { encoding: 'utf8' }).status === 2);
+    /* ★止めて よいか（時間切れ・Ctrl-C で 同じ）★＝Windows は 殻が 終わって いたら 止めない（使い回しの 番号）・Linux は 組ごと 止める */
+    iu('★止めて よいか＝Windows で 終わった 殻は 止めない・走り中は 止める・Linux は 組ごと・子 無し は 止めない★',
+      tometeYoi({ pid: 5, exitCode: 0, signalCode: null }, 'win32') === false && tometeYoi({ pid: 5, exitCode: null, signalCode: 'SIGTERM' }, 'win32') === false
+      && tometeYoi({ pid: 5, exitCode: null, signalCode: null }, 'win32') === true && tometeYoi({ pid: 5, exitCode: 0, signalCode: null }, 'linux') === true
+      && tometeYoi(undefined, 'win32') === false && tometeYoi({ pid: 0, exitCode: null, signalCode: null }, 'linux') === false);
     iu('★結果の 1行（赤）＝終わりの 40行だけ★', kekkaGyou({ i: 1 }, { status: 1, mi: null, so: Array.from({ length: 50 }, (x, k) => 'L' + k).join(NL), se: '', byou: 1 }).so.length === 40);
     fs.rmSync(tmp3, { recursive: true, force: true });
   }
@@ -423,7 +428,8 @@ const michiTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'oshu-mae-michi-'));
 const ikiteruKo = new Set();
 const michiWt = [];
 const michiKatasu = (dir) => { const r = wtKatasu(dir, ROOT); if (r) console.log('  ★道の 作業木を 片付けられない★ ' + r + ' ' + dir); };
-const zenbuTomeru = () => { ikiteruKo.forEach((pid) => kiTomeru(pid)); };
+/* ★子の 物を 持ち tometeYoi を 通す★（11-04）＝exit から close までの 間に 終わった 番号を 撃たない（Ctrl-C の yame と 同じ 決まり） */
+const zenbuTomeru = () => { ikiteruKo.forEach((c) => { if (tometeYoi(c)) kiTomeru(c.pid); }); };
 koSakiniTomeru = zenbuTomeru;
 process.on('exit', () => {
   zenbuTomeru();
@@ -455,11 +461,11 @@ async function michiHashiru(k) {
   fs.writeFileSync(kekka, '');
   const owari = await new Promise((res) => {
     const ch = spawn(process.execPath, [KO, meibo, kekka], { cwd, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
-    ikiteruKo.add(ch.pid);
+    ikiteruKo.add(ch);
     let se = '';
     ch.stderr.on('data', (b) => { se += b.toString('utf8'); });
     ch.on('error', (err) => res({ code: null, se: err.message }));
-    ch.on('close', (code) => { ikiteruKo.delete(ch.pid); res({ code, se }); });
+    ch.on('close', (code) => { ikiteruKo.delete(ch); res({ code, se }); });
   });
   michiKekka[k].owari = owari.code;
   if (owari.code !== 0) michiKekka[k].naze = '道 ' + m.na + ' の 終わり値 ' + owari.code + (owari.se.trim() ? '（' + owari.se.trim().slice(-160) + '）' : '');
