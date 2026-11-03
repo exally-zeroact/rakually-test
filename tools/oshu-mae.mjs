@@ -27,9 +27,10 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { erabu, omoiKa, hirouDan, byouMatome, danNoJob, oshuShaYomu, nokoriErabu } from './_dan-hirou.mjs';
+import { erabu, omoiKa, hirouDan, byouMatome, danNoJob, oshuShaYomu, nokoriErabu, kuchiKa, kuchiJobYomu, michiTsukuru, heiretsuYomu } from './_dan-hirou.mjs';
+import { kiTomeru, danHashiru, kekkaGyou } from './_oshu-michi.mjs';
 import { bunrui, OKE_JUN } from './_bunrui.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -65,13 +66,13 @@ function wtOki(root) {
   const common = path.resolve(root, gitR(['rev-parse', '--git-common-dir'], root).stdout.trim());
   return path.join(os.tmpdir(), 'oshu-mae-wt', path.basename(path.dirname(common)));
 }
-function wtTsukuru(sha, root, base) {
+function wtTsukuru(sha, root, base, ato = '') {
   fs.mkdirSync(base, { recursive: true });
   nokoriErabu(fs.readdirSync(base), Date.now(), pidIkiteru).forEach((x) => {
     const r = wtKatasu(path.join(base, x.n), root);
     console.log('  ★前の 網の 残りを 片付けた★ ' + x.n + '（' + x.naze + '）' + (r ? '  ' + r : ''));
   });
-  const dir = path.join(base, 'om-' + process.pid + '-' + Date.now().toString(36));
+  const dir = path.join(base, 'om-' + process.pid + '-' + Date.now().toString(36) + ato);   /* ★ato＝押し3 の 道の 名（_<道名>）★ */
   const r = gitR(['worktree', 'add', '--detach', dir, sha], root);
   if (r.status !== 0) return { err: 'worktree add が 赤（' + String(r.stderr || '').trim().slice(0, 200) + '）' };
   const head = gitR(['rev-parse', 'HEAD'], dir).stdout.trim();
@@ -210,6 +211,52 @@ if (process.argv.includes('--self-test')) {
     iu('★junction を 外す＝junction は 消え・先の 中身は 残る★', junctionHazusu(j2) && !fs.existsSync(j2) && fs.existsSync(path.join(saki, 'nokoru.txt')));
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+  /* ★★押し3＝道に 分けて 同時に 回す（2026-11-03・設計前 taiketsu 止1〜3）★★ */
+  {
+    const NL = String.fromCharCode(10);
+    const hs = [{ i: 1, c: 'node a.mjs' }, { i: 2, c: 'node b.mjs' }, { i: 3, c: 'node c.mjs' }, { i: 4, c: 'node d.mjs' }];
+    const m1 = michiTsukuru(hs, ['j1', 'j1', 'j2', 'j3'], () => false, []);
+    iu('★道＝job ごと（j1 2段・j2・j3）★', !m1.naze && m1.michi.map((x) => x.na + ':' + x.dan.length).join(',') === 'j1:2,j2:1,j3:1');
+    const m2 = michiTsukuru(hs, ['j1', 'j1', 'j2', 'j3'], (i) => i === 3, ['j3']);
+    iu('★試験口の 段を 持つ job（j2＝中身・j3＝印）は 1本の 道に 繋ぐ★', !m2.naze && m2.michi[0].na === 'j2+j3' && m2.michi[0].dan.map((d) => d.i).join(',') === '3,4' && m2.michi.length === 2);
+    const m3 = michiTsukuru(hs, ['j1', 'j1', 'j2', 'j3'], (i) => i === 1 || i === 4, []);
+    iu('★試験口の 段が 移っても（j1 と j3）名前で なく 中身で 1本に★', !m3.naze && m3.michi.filter((x) => x.dan.some((d) => d.i === 1 || d.i === 4)).length === 1);
+    iu('★job の 無い 段＝止める★', michiTsukuru(hs, ['j1', null, 'j2', 'j3'], () => false, []).naze !== null);
+    iu('★並べる 数＝既定 6・3・0 と 字 と 小数 は 止める★', heiretsuYomu(undefined).n === 6 && heiretsuYomu('3').n === 3
+      && heiretsuYomu('0').naze !== null && heiretsuYomu('x').naze !== null && heiretsuYomu('1.5').naze !== null);
+    const ymlK = ['jobs:', '  a:', '    steps:', '        run: node x', '  kuchi:', '    concurrency:', '      group: webkit-shared-account', '  k2:', '    env:', '      SHIKEN_KUCHI_PASS: ${{ secrets.SHIKEN_KUCHI_PASS }}', '  b:', '    env:', "      SHIKEN_KUCHI_PASS: ''"].join(NL);
+    iu('★job の 印（concurrency の 組・合言葉の secret）を 拾う・空の 合言葉は 拾わない★', kuchiJobYomu(ymlK).join(',') === 'kuchi,k2');
+    const yo = (f) => ({ 'x.mjs': "const { toiawase } = await import('./_souko-kazoeru.mjs');", 'y.mjs': '// test@test.com の 説明だけ', 'z.mjs': "import { kuchi } from '../tests/_shiken-kuchi.mjs';" }[f] ?? null);
+    iu('★試験口の 道具を import する 段＝触る（await import も import 文も）★', kuchiKa('node x.mjs', yo) && kuchiKa('node z.mjs --bu=1', yo));
+    iu('★字に 出るだけ＝触らない・道具 自身の 自己確認＝触らない★', !kuchiKa('node y.mjs', yo) && !kuchiKa('sh s.sh 10 -- node tests/_shiken-kuchi.mjs --self-test', (f) => (f === 's.sh' ? '' : null)));
+    iu('★読めない ファイル＝触る 側（分からないを 安全側へ）★', kuchiKa('node nai.mjs', yo));
+    const now = 1e12, t = (now - 1000).toString(36);
+    const nk = nokoriErabu(['om-111-' + t + '_test-1', 'om-111-' + t + '_kinshi-node24', 'om-222-' + t + '_test-1', 'om-111-' + t + '_a b'], now, (pid) => pid !== 111).map((x) => x.n);
+    iu('★道の 作業木（_道名）も pid 死で 片付く・生きて 新しい は 残す・形の 違う 名は 触らない★', nk.length === 2 && nk.every((n) => n.indexOf('om-111-') === 0 && n.indexOf(' ') < 0));
+    /* ★時間切れで 孫まで 止まる★＝孫の node が pid を 書いて 眠る→2秒で 切る→孫が 居ないか */
+    const tmp3 = fs.mkdtempSync(path.join(os.tmpdir(), 'om-st3-'));
+    const pf = path.join(tmp3, 'mago.pid');
+    fs.writeFileSync(path.join(tmp3, 'mago.cjs'), 'require("fs").writeFileSync(' + JSON.stringify(pf) + ',String(process.pid));setTimeout(()=>{},60000);');
+    fs.writeFileSync(path.join(tmp3, 'oya.cjs'), 'require("child_process").spawn(process.execPath,[' + JSON.stringify(path.join(tmp3, 'mago.cjs')) + '],{stdio:"ignore"});setTimeout(()=>{},60000);');
+    const r3 = await danHashiru('node oya.cjs', tmp3, 2500);
+    let magoPid = 0; try { magoPid = Number(fs.readFileSync(pf, 'utf8')); } catch (err) { magoPid = 0; }
+    await new Promise((rr) => setTimeout(rr, 800));
+    const magoIkiteru = magoPid > 0 && (() => { try { process.kill(magoPid, 0); return true; } catch (err) { return err.code === 'EPERM'; } })();
+    iu('★時間切れ＝走らせられない（赤）・孫の node も 止まる（孫 pid ' + magoPid + '）★', r3.mi !== null && r3.status === null && magoPid > 0 && !magoIkiteru);
+    if (magoIkiteru) kiTomeru(magoPid);
+    /* ★子の 道を 本当に 回す★（緑 1・赤 1）→ 結果の 行を 段の 番号で 読める */
+    const meibo = path.join(tmp3, 'm.json'), kek = path.join(tmp3, 'k.jsonl');
+    fs.writeFileSync(meibo, JSON.stringify({ cwd: tmp3, dan: [{ i: 7, c: 'node -e "console.log(\'✓ a\')"' }, { i: 9, c: 'node -e "console.log(\'X\');process.exit(4)"' }] }));
+    fs.writeFileSync(kek, '');
+    const rk = spawnSync(process.execPath, [path.join(ROOT, 'tools', '_oshu-michi.mjs'), meibo, kek], { encoding: 'utf8' });
+    const gy = fs.readFileSync(kek, 'utf8').split(NL).filter(Boolean).map((l) => JSON.parse(l));
+    iu('★子の 道＝終わり値 0・結果 2行（7 緑・9 赤 終わり値 4・赤の 出し 1行）★', rk.status === 0 && gy.length === 2 && gy[0].i === 7 && gy[0].status === 0 && !!gy[0].oke
+      && gy[1].i === 9 && gy[1].status === 4 && gy[1].so.join() === 'X');
+    fs.writeFileSync(meibo, JSON.stringify({ cwd: tmp3, dan: [] }));
+    iu('★空の 名簿＝子は 終わり値 2（0件＝合格に しない）★', spawnSync(process.execPath, [path.join(ROOT, 'tools', '_oshu-michi.mjs'), meibo, kek], { encoding: 'utf8' }).status === 2);
+    iu('★結果の 1行（赤）＝終わりの 40行だけ★', kekkaGyou({ i: 1 }, { status: 1, mi: null, so: Array.from({ length: 50 }, (x, k) => 'L' + k).join(NL), se: '', byou: 1 }).so.length === 40);
+    fs.rmSync(tmp3, { recursive: true, force: true });
+  }
   console.log(ng ? '★自己確認 ' + ng + '件 おかしい（全 ' + zenTori + '通り）★' : '  ★' + zenTori + '通り ぜんぶ 思った通り★');
   process.exit(ng ? 1 : 0);
 }
@@ -218,6 +265,14 @@ const ymlArg = process.argv.find((x) => x.indexOf('--yml=') === 0);
 const YML = ymlArg ? ymlArg.split('=')[1] : '.github/workflows/ci.yml';
 /* ★★どこで 回すか★★（2026-11-03 押し2）＝--sha-stdin なら 押す sha の 別の 作業木・OSHU_MAE_WAKE=1 なら 今の 作業木 */
 let RUN_ROOT = ROOT;
+let OSHU_SHA = null;   /* ★押す sha（--sha-stdin の 時だけ）＝道を 並べるのは この 時だけ★ */
+const HR = heiretsuYomu(process.env.OSHU_MAE_HEIRETSU);
+if (HR.naze) {
+  console.log('\n[oshu-mae] ★★並べる 数が 読めない＝止めます★★ … ' + HR.naze);
+  console.log('  ★「赤 0」とは 書きません＝★何も 測って いません★★');
+  process.exit(1);
+}
+const HEIRETSU = HR.n;
 if (process.argv.includes('--sha-stdin') && process.env.OSHU_MAE_WAKE !== '1') {
   let txt = '';
   try { txt = fs.readFileSync(0, 'utf8'); } catch (err) { txt = ''; }
@@ -238,6 +293,7 @@ if (process.argv.includes('--sha-stdin') && process.env.OSHU_MAE_WAKE !== '1') {
     process.exit(1);
   }
   RUN_ROOT = w.dir;
+  OSHU_SHA = s.shas[0];
   let katazuketa = false;
   const katasu = () => {
     if (katazuketa) return; katazuketa = true;
@@ -318,81 +374,125 @@ Object.keys(wake).forEach((k) => console.log('    回さない … ' + wake[k] +
   }
 }
 
+/* ★★★道に 分けて 同時に 回す★★★（2026-11-03・網の 4つ割り 押し3）
+   ★組＝CI の job（yml から 機械で）★。試験口に 触る job（job の 印 か 段の import）は 全部 1本の 道に 繋ぐ。
+   ★各道は 押す sha の 自分の 作業木★（om-<pid>-<36進>_<道名>）で、子（tools/_oshu-michi.mjs＝親と 同じ ROOT）が 1段ずつ 回す。
+   ★並べるのは 押す sha の 作業木で 回す 時だけ★（OSHU_MAE_WAKE=1・手で 回した 時は 1本順＝同じ 作業木を 2本で 触らない）。
+   ★守り（今と 同じ）★ … 結果は 段の 番号で 照らす（重なり・抜け・道の 終わり値≠0・読めない 行 は 走らせられない＝赤）。
+     途中で 空きが 下限を 割ったら ★全部の 道を 孫まで 止めて★ 残りを 走らせられない に。 */
+const yomuF = (f) => { try { return fs.readFileSync(path.join(RUN_ROOT, f), 'utf8'); } catch (err) { return null; } };
+const kuchiMap = {};
+e.hashiru.forEach((d) => { kuchiMap[d.i] = kuchiKa(d.c, yomuF); });
+const mt = michiTsukuru(e.hashiru, JOB_NO, (i) => kuchiMap[i], kuchiJobYomu(yml));
+if (mt.naze) {
+  console.log('\n[oshu-mae] ★★道を 作れない＝止めます★★ … ' + mt.naze);
+  console.log('  ★「赤 0」とは 書きません＝★何も 測って いません★★');
+  process.exit(1);
+}
+const NARABE = !!OSHU_SHA && HEIRETSU > 1;
+const michi = NARABE ? mt.michi : [{ na: '1本順', jobs: [], dan: e.hashiru.slice(), kuchi: false }];
+console.log('  ★道 ' + michi.length + '本★（同時に ' + (NARABE ? Math.min(HEIRETSU, michi.length) : 1) + '本・'
+  + (NARABE ? 'OSHU_MAE_HEIRETSU=' + HEIRETSU : (OSHU_SHA ? 'OSHU_MAE_HEIRETSU=1' : '今の 作業木＝並べない')) + '）');
+michi.forEach((m) => console.log('    道 ' + m.na + ' … ' + m.dan.length + '段' + (m.kuchi ? '（★試験口に 触る 段を 1本に 集めた★）' : '')));
+
 let aka = 0, mi = 0;
-let tometa = 0;               /* ★空き不足で 途中で 止めた 段の 数★ */
-let kuukiSaigo = null;
+let tometa = 0;               /* ★空き不足で 止めた＝1★ */
+let kuukiSaigo = null, kuukiSoko = null;
 const akaDan = [], miDan = [];
 /* ★★回った 緑を 4つ組に 割る★★（2026-10-03・⑤）＝「回った N＝赤0」でなく 中で 測ったかを 出す */
 const tally = {}; OKE_JUN.forEach((k) => (tally[k] = []));
 const yomikata = { 約束: 0, 目印: 0 };
-e.hashiru.forEach((d, ban) => {
-  /* ★★途中でも 測る★★＝★下限を 割ったら ★止めて 『走らせられなかった 段』に 数える★ */
-  if (tometa === 0 && ban > 0 && ban % KUUKI_MAI === 0) {
-    const k = kuukiGB();
-    kuukiSaigo = k;
-    if (k !== null && k < KUUKI_GB_TOCHU) {
-      tometa = ban;
-      console.log('  ★★途中で 止めます＝空き ' + kuukiIu(k)
-        + ' が 途中の 下限 ' + KUUKI_GB_TOCHU + ' GB を 割りました★★'
-        + '（' + ban + '段まで 走った）');
-    }
+const KO = path.join(ROOT, 'tools', '_oshu-michi.mjs');
+const michiTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'oshu-mae-michi-'));
+const ikiteruKo = new Set();
+const michiWt = [];
+const michiKatasu = (dir) => { const r = wtKatasu(dir, ROOT); if (r) console.log('  ★道の 作業木を 片付けられない★ ' + r + ' ' + dir); };
+const zenbuTomeru = () => { ikiteruKo.forEach((pid) => kiTomeru(pid)); };
+process.on('exit', () => {
+  zenbuTomeru();
+  michiWt.splice(0).forEach(michiKatasu);
+  try { fs.rmSync(michiTmp, { recursive: true, force: true }); } catch (err) { /* ★一時の 名簿だけ★ */ }
+});
+['SIGINT', 'SIGTERM', 'SIGHUP'].forEach((sg) => process.on(sg, () => { zenbuTomeru(); process.exit(1); }));
+const michiKekka = michi.map(() => ({ owari: null, naze: null, kekka: null }));
+const kuuki = setInterval(() => {
+  const k = kuukiGB();
+  kuukiSaigo = k;
+  if (k !== null && (kuukiSoko === null || k < kuukiSoko)) kuukiSoko = k;
+  if (!tometa && k !== null && k < KUUKI_GB_TOCHU) {
+    tometa = 1;
+    console.log('  ★★途中で 止めます＝空き ' + kuukiIu(k) + ' が 途中の 下限 ' + KUUKI_GB_TOCHU + ' GB を 割りました★★（全部の 道を 孫まで 止める）');
+    zenbuTomeru();
   }
-  if (tometa) {
-    mi++; miDan.push({ d: d, naze: '★空きが 足りず 途中で 止めた★' });
+}, 15000);
+async function michiHashiru(k) {
+  const m = michi[k];
+  let cwd = RUN_ROOT;
+  if (NARABE && k > 0) {
+    const w = wtTsukuru(OSHU_SHA, ROOT, wtOki(ROOT), '_' + m.na.replace(/[^A-Za-z0-9-]/g, '-'));
+    if (w.err) { michiKekka[k].naze = '道の 作業木を 作れない（' + w.err + '）'; return; }
+    cwd = w.dir; michiWt.push(w.dir);
+  }
+  const meibo = path.join(michiTmp, 'm' + k + '.json'), kekka = path.join(michiTmp, 'k' + k + '.jsonl');
+  fs.writeFileSync(meibo, JSON.stringify({ cwd, dan: m.dan }));
+  fs.writeFileSync(kekka, '');
+  const owari = await new Promise((res) => {
+    const ch = spawn(process.execPath, [KO, meibo, kekka], { cwd, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    ikiteruKo.add(ch.pid);
+    let se = '';
+    ch.stderr.on('data', (b) => { se += b.toString('utf8'); });
+    ch.on('error', (err) => res({ code: null, se: err.message }));
+    ch.on('close', (code) => { ikiteruKo.delete(ch.pid); res({ code, se }); });
+  });
+  michiKekka[k].owari = owari.code;
+  if (owari.code !== 0) michiKekka[k].naze = '道 ' + m.na + ' の 終わり値 ' + owari.code + (owari.se.trim() ? '（' + owari.se.trim().slice(-160) + '）' : '');
+  michiKekka[k].kekka = fs.readFileSync(kekka, 'utf8');
+  if (cwd !== RUN_ROOT) { const j = michiWt.indexOf(cwd); if (j >= 0) michiWt.splice(j, 1); michiKatasu(cwd); }
+}
+{
+  const nokori = michi.map((x, k) => k);
+  const hito = Array.from({ length: NARABE ? Math.min(HEIRETSU, michi.length) : 1 }, async () => {
+    while (nokori.length && !tometa) await michiHashiru(nokori.shift());
+  });
+  await Promise.all(hito);
+}
+clearInterval(kuuki);
+/* ★★段の 番号で 照らす★★ */
+const kekkaI = {};
+let yomenai = 0, kasanari = 0;
+michiKekka.forEach((x) => String(x.kekka || '').split(String.fromCharCode(10)).filter((l) => l.trim()).forEach((l) => {
+  let o; try { o = JSON.parse(l); } catch (err) { yomenai++; return; }
+  if (kekkaI[o.i]) kasanari++;
+  kekkaI[o.i] = o;
+}));
+const michiNo = {}; michi.forEach((m, k) => m.dan.forEach((d) => { michiNo[d.i] = k; }));
+e.hashiru.forEach((d) => {
+  const o = kekkaI[d.i];
+  if (!o) {
+    const mk = michiKekka[michiNo[d.i]];
+    mi++; miDan.push({ d: d, naze: tometa ? '★空きが 足りず 途中で 止めた★' : (mk && mk.naze) || '結果が 無い' });
     return;
   }
-  const t0 = Date.now();
-  const r = spawnSync(d.c, { cwd: RUN_ROOT, encoding: 'utf8', shell: true,
-    maxBuffer: 32 * 1024 * 1024, timeout: 180000 });
-  byouList.push({ i: d.i, c: d.c, job: JOB_NO[d.i - 1], byou: (Date.now() - t0) / 1000 });
-  if (r.error || r.status === null) {
-    mi++; miDan.push({ d: d, naze: (r.error && r.error.message) || '終わり値が 無い' });
-    return;
-  }
-  if (r.status !== 0) {
+  byouList.push({ i: d.i, c: d.c, job: JOB_NO[d.i - 1], byou: o.byou });
+  if (o.mi) { mi++; miDan.push({ d: d, naze: o.mi }); return; }
+  if (o.status !== 0) {
     aka++;
-    /* ★★赤の 段の ★出し★ を 捨てない★★（2026-09-28）
-       ★踏んだ 穴★ … `node kyuyo/scripts/verify-statutory.mjs` が
-         ★網の 中では 赤／同じ 手元で 単独に 走らせると 緑（exit 0）★
-         ⇒ ★★割ろうにも ★網が `r.stdout` を 1文字も 使って いなかった★★★
-         ⇒ ★だから「揺れ」と 呼びたく なる★＝★足りない 量を 測る 前に 名前を 付ける★ の 型
-       ★直し★ … ★赤の 段だけ★ ★終わりの 数行★と ★終わり値★を 控えて 下で 出す
-         ＝★緑は 控えません★（出しが 膨らまない・お金も 時間も 増えない）
-
-       ★★★2026-09-28 その日の うちに ★6行では 足りませんでした★★★★
-         ★実物★ … `tests/supa-config-env-matches-repo.test.mjs --self-test` が
-           ★押しの 中だけ 赤／単独 20回 とも 緑★に なった 時、残った 6行は こう でした:
-             `output: [ null, null, null ], pid: …, stdout: null, stderr: null`
-           ⇒ ★★『中の どの 子（git／sh／tar）が 落ちたか』が ★読めなかった★★★
-         ★★私が ★6★ を 決めた 訳＝『測らずに 決めた』★★
-           ＝[[feedback_menjo_no_wake_wa_hazushite_hakaru_made_mitate]]（★免除の 訳は 見立て★）
-         ★直し★ … ⑴★40行★に 上げる
-                  ⑵★★何行の うち 何行 出したかを 書く★★（★自分で 切ったら 書く★
-                     ＝[[feedback_dashi_wo_jibun_de_kittara_kaku]]）
-                     ⇒ ★次に 足りなければ ★字で 分かる★（また 見立てで 決めない）
-                  ⑶★★`stdout` と `stderr` を ★分けて★ 控える★★
-                     ＝★繋げると『どちらの 字か』が 分からない★（★指示役1 が 読めなかった 因の 1つ★） */
-    const AKA_GYO = 40;
-    const kiru = (s) => String(s || '')
-      .split(String.fromCharCode(10)).map((x) => x.replace(/\s+$/, '')).filter((x) => x.trim());
-    const so = kiru(r.stdout), se = kiru(r.stderr);
-    akaDan.push({
-      d: d,
-      status: r.status,
-      soZen: so.length, seZen: se.length,
-      so: so.slice(-AKA_GYO),
-      se: se.slice(-AKA_GYO),
-    });
+    akaDan.push({ d: d, status: o.status, soZen: o.soZen, seZen: o.seZen, so: o.so, se: o.se });
     console.log('  ✗ ' + d.i + '段 … ' + d.c.slice(0, 90));
     return;
   }
-  /* ★緑（終わり値0）＝中で 測ったかを 分ける（赤/走らせられない には しない＝診断）★ */
-  const b = bunrui(0, (r.stdout || '') + String.fromCharCode(10) + (r.stderr || ''));
-  tally[b.oke].push({ c: d.c, b: b });
-  if (b.how === '約束') yomikata.約束++; else if (b.how === '目印') yomikata.目印++;
+  tally[o.oke].push({ c: d.c, b: o.b });
+  if (o.how === '約束') yomikata.約束++; else if (o.how === '目印') yomikata.目印++;
 });
+/* ★道 そのものの 崩れ★＝段の 結果が 揃って いても 道の 終わり値≠0・読めない 行・重なり は 走らせられない に 足す（黙って 緑に しない） */
+michiKekka.forEach((x, k) => {
+  if (x.naze && michi[k].dan.every((d) => kekkaI[d.i])) { mi++; miDan.push({ d: { i: '道', c: michi[k].na }, naze: x.naze }); }
+});
+if (yomenai) { mi++; miDan.push({ d: { i: '道', c: '結果' }, naze: '読めない 結果の 行 ' + yomenai }); }
+if (kasanari) { mi++; miDan.push({ d: { i: '道', c: '結果' }, naze: '同じ 段の 結果が 2つ ' + kasanari }); }
 console.log('  ★空き（終わり） … ' + kuukiIu(kuukiSaigo === null ? kuukiGB() : kuukiSaigo)
-  + (tometa ? '／★★' + tometa + '段まで 走って 止めました★★' : '') + '★');
+  + '／一番 低い 所 ' + kuukiIu(kuukiSoko)
+  + (tometa ? '／★★空きで 止めました★★' : '') + '★');
 /* ★★段ごとの 秒（見るだけ・判じに 使わない）★★ */
 {
   const m = byouMatome(byouList);

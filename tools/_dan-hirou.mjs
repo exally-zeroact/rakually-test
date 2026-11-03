@@ -100,17 +100,89 @@ export function oshuShaYomu(txt) {
 }
 
 /* ★★前の 網が 残した 作業木の うち 消して よい 物★★（設計前 taiketsu 止3＝他の 席の 網を 消さない）
-   ★名前★ … `om-<pid>-<始めた ms の 36進>`（この 形 以外は 触らない）
+   ★名前★ … `om-<pid>-<始めた ms の 36進>` か `om-<pid>-<36進>_<道名>`（押し3）（この 形 以外は 触らない）
    ★消す★ … pid が 死んで いる 物 か、始めて から kigenMs（既定 6時間）を 過ぎた 物 だけ
    ★ikiteru(pid)★ … 呼ぶ 側が 渡す（試験で 差し替える） */
 export function nokoriErabu(namae, nowMs, ikiteru, kigenMs = 6 * 3600 * 1000) {
   const out = [];
   namae.forEach((n) => {
-    const m = String(n).match(/^om-(\d+)-([0-9a-z]+)$/);
+    const m = String(n).match(/^om-(\d+)-([0-9a-z]+)(?:_[A-Za-z0-9-]+)?$/);   /* ★押し3＝道ごとの 作業木 om-<pid>-<36進>_<道名> も 拾う（設計前 taiketsu 止1）★ */
     if (!m) return;
     const pid = Number(m[1]), t = parseInt(m[2], 36);
     if (!ikiteru(pid)) out.push({ n, naze: 'pid ' + pid + ' が 居ない' });
     else if (!(t > 0) || nowMs - t > kigenMs) out.push({ n, naze: '古い（' + ((nowMs - t) / 3600000).toFixed(1) + '時間）' });
   });
   return out;
+}
+
+/* ★★試験口（test@test.com・共有の 倉庫）に 触る 段か★★（2026-11-03・網の 4つ割り 押し3＝設計前 taiketsu 止2）
+   ★なぜ★ … 試験口は CI・WebKit・他の 席と 共有＝同じ 時刻に 書くと ぶつかる。道を 並べる 時、
+     試験口に 触る 段が 2本 以上の 道に 分かれると 手元で ぶつかる。★job の 名前で 決めない★（名前が 変わる・段が 移る）。
+   ★見方（2つ・どちらか で 触る）★
+     ⑴ job の 印（kuchiJobYomu）… yml の job に `SHIKEN_KUCHI_PASS: ${{ secrets.… }}`（合言葉を 渡す）か
+        concurrency の 組 webkit-shared-account が 在る＝CI 自身が「試験口を 叩く」と 書いた job
+     ⑵ 段の 中身（kuchiKa）… 段の 命令に 出る .mjs/.js の ファイルが 試験口の 道具（_shiken-kuchi・_souko-kazoeru）を
+        ★import する 行★ を 持つ。読めない ファイルは 触る 側に 数える（★分からないを 安全側へ★）。
+     ★字に 出るだけ（説明・門の 見張りの 字）は 数えない★＝11-03 初回で「字に 出る」で 数えたら 21段・4 job が 1本に 繋がり 並べる 意味が 無くなった */
+export const KUCHI_IMPORT_RE = /\bimport\b[^\n]*_(?:shiken-kuchi|souko-kazoeru)\.mjs/;
+export function kuchiKa(cmd, yomu) {
+  const fa = [...String(cmd || '').matchAll(/(?:^|\s)([\w./-]+\.(?:mjs|js|cjs))(?=\s|$)/g)].map((m) => m[1]);
+  return fa.some((f) => {
+    if (/(^|\/)_(shiken-kuchi|souko-kazoeru)\.mjs$/.test(f)) return false;   /* ★道具 自身の 自己確認＝外へ 出ない★ */
+    const t = yomu(f); return t === null ? true : KUCHI_IMPORT_RE.test(t);
+  });
+}
+export function kuchiJobYomu(ymlJi) {
+  const out = []; let cur = null;
+  String(ymlJi || '').split(String.fromCharCode(10)).forEach((l) => {
+    const m = l.match(/^  ([A-Za-z0-9_-]+):\s*$/);
+    if (m) cur = m[1];
+    if (cur && (/^\s+SHIKEN_KUCHI_PASS:\s*\$\{\{\s*secrets\./.test(l) || /^\s+group:\s*webkit-shared-account\s*$/.test(l))
+      && out.indexOf(cur) < 0) out.push(cur);
+  });
+  return out;
+}
+
+/* ★★道（同時に 回す 組）を 作る★★（2026-11-03・網の 4つ割り 押し3）
+   ★組は CI の job そのまま★（yml から 機械で 作る＝人が 選ばない・設計前 taiketsu 11-02 止2）。
+   ★試験口に 触る 段を 持つ job は 全部 1本の 道に 繋ぐ（yml の 順）★＝手元で 試験口を 2本 同時に 叩かない（11-03 止2）。
+   ★入力★ … hashiru（[{i,c}]）・jobNo（段の 番号 1から → job 名 の 配列）・kuchi（i → 真偽）・kuchiJobs（job の 印で 試験口を 叩く job 名）
+   ★返す★ … { michi: [{ na, jobs, dan:[{i,c}] }], naze: 止める 訳 か null }
+   ★止める★ … job の 無い 段／道に 入らない 段・2つの 道に 入る 段／試験口の 段が 2本 以上の 道に 在る */
+export function michiTsukuru(hashiru, jobNo, kuchi, kuchiJobs = []) {
+  const jobJun = [], jobDan = {};
+  let nashi = 0;
+  hashiru.forEach((d) => {
+    const j = jobNo[d.i - 1];
+    if (!j) { nashi++; return; }
+    if (!jobDan[j]) { jobDan[j] = []; jobJun.push(j); }
+    jobDan[j].push(d);
+  });
+  if (nashi) return { michi: [], naze: 'job の 無い 段が ' + nashi + '段' };
+  const kuchiJob = jobJun.filter((j) => kuchiJobs.indexOf(j) >= 0 || jobDan[j].some((d) => kuchi(d.i)));
+  const michi = [];
+  if (kuchiJob.length) {
+    const dan = []; kuchiJob.forEach((j) => jobDan[j].forEach((d) => dan.push(d)));
+    dan.sort((a, b) => a.i - b.i);
+    michi.push({ na: kuchiJob.join('+'), jobs: kuchiJob, dan, kuchi: true });
+  }
+  jobJun.filter((j) => kuchiJob.indexOf(j) < 0).forEach((j) => michi.push({ na: j, jobs: [j], dan: jobDan[j], kuchi: false }));
+  /* ★照らす★＝段の 番号の 集合で（数の 和では なく）。重なり・抜け を 赤 */
+  const mita = {}; let kasa = 0;
+  michi.forEach((m) => m.dan.forEach((d) => { if (mita[d.i]) kasa++; mita[d.i] = true; }));
+  const nuke = hashiru.filter((d) => !mita[d.i]).length;
+  const kuchiMichi = michi.filter((m) => m.dan.some((d) => kuchi(d.i))).length;
+  let naze = null;
+  if (kasa) naze = '2つの 道に 入る 段が ' + kasa + '段';
+  else if (nuke) naze = 'どの 道にも 入らない 段が ' + nuke + '段';
+  else if (kuchiMichi > 1) naze = '試験口に 触る 段が ' + kuchiMichi + '本の 道に 分かれた';
+  return { michi, naze };
+}
+
+/* ★★並べる 数★★（OSHU_MAE_HEIRETSU）＝数で ない・0 以下は 止める（道 0本で 0件＝合格 に しない・taiketsu 任3） */
+export function heiretsuYomu(v) {
+  if (v === undefined || v === '') return { n: 6, naze: null };
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 1) return { n: 0, naze: 'OSHU_MAE_HEIRETSU=' + v + ' は 1 以上の 整数で ない' };
+  return { n, naze: null };
 }
