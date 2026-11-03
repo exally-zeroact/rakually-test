@@ -1822,6 +1822,82 @@ await TA('7-c. ★一覧が 読めない 時は 赤字でなく 知らせの 箱
   }
 });
 
+/* ═══ 7-c2. ★入金の 記録だけが 読めない 時★（2026-11-04 taiketsu 設計前）═══
+   receipts.list は 落ちても null を 返す＝一覧は 読めた 顔の まま（listReadOk=true）。
+   前は 黙って 発行でき、繰越「未確認」・ご請求金額 null の 紙が 写しに 固まった（後で 読めても 直らない）。
+   ★止めるのは 前回の ある 請求書だけ★（初回・繰越を 切った 会社は 額が 入金に 依らない＝止めない）。 */
+await TA('7-c2. ★入金が 読めない 時は 前回の ある 請求書を 発行しない・直す 手を 出す・初回と 繰越切りは 止めない', async () => {
+  const app = win.SeikyuApp, st = app._state;
+  db.pay_partners.push({ id: 'pt_ny_mae', account_id: 'u1', sort: 91, data: { name: '入金読み前回あり', keisho: '御中' }, deleted_at: null });
+  db.pay_partners.push({ id: 'pt_ny_hatsu', account_id: 'u1', sort: 92, data: { name: '入金読み初回', keisho: '御中' }, deleted_at: null });
+  db.pay_invoices.push({
+    id: 'iv_ny_mae', account_id: 'u1', doc_type: 'invoice', no: 'NYMAE-001', partner_id: 'pt_ny_mae', status: 'issued',
+    issue_ymd: '2026-09-30', issued_at: '2026-09-30T00:00:00.000Z',
+    totals: { grandTotal: 50000 }, lines: [], data: {}, snapshot: {}, deleted_at: null,
+  });
+  db.pay_receipts.push({ id: 'rc_ny_mae', account_id: 'u1', invoice_id: 'iv_ny_mae', invoice_no: 'NYMAE-001', ymd: '2026-10-10', amount: 50000, deleted_at: null });
+  const keepOrgD = Object.assign({}, db.pay_org[0].data);
+  db.pay_org[0].data = Object.assign({}, db.pay_org[0].data, { invoiceCarry: true });
+  const utsu = (pid) => {
+    $('b-new').click();
+    setVal('e-partner', pid);
+    const tr = $('lines-body').querySelector('tr');
+    tr.querySelector('[data-f="name"]').value = '工事代金'; tr.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+    tr.querySelector('[data-f="amount"]').value = '10000'; tr.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+  };
+  try {
+    await app._loadMasters(); await sleep(20);
+    eq(!!st.org.invoiceCarry, true, '前提：繰越が「入」に なっていない');
+    doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(10);
+    sb._failNext('pay_receipts', 'select');
+    await app._loadList(); await sleep(30);
+    eq(st.listReadOk, true, '前提：一覧は 読めている');
+    eq(st.receipts, null, '前提：入金だけが 読めていない');
+
+    /* ① 前回の ある 請求書＝止める */
+    utsu('pt_ny_mae'); await sleep(60);
+    eq($('b-issue').disabled, true, '★入金が 読めないのに「発行する」が 押せる（繰越「未確認」の 紙が 固まる）★');
+    ok(/入金が読めません/.test($('b-issue').textContent), '★押せない 訳が ボタンに 無い★: ' + $('b-issue').textContent);
+    ok($('edit-yomenai').style.display !== 'none' && /入金の 記録/.test($('edit-yomenai').textContent),
+      '★直す 手（もう一度読み込む）が 入力の 画面に 出ていない★: ' + $('edit-yomenai').textContent);
+    ok($('b-yomikomi2').style.display !== 'none', '★「もう一度読み込む」の ボタンが 隠れている★');
+    /* ★歯止め★＝灰色を 通らずに 発行を 呼んでも 止まる */
+    const n0 = db.pay_invoices.filter((x) => x.status === 'issued').length;
+    await app._issue(); await sleep(60);
+    eq(db.pay_invoices.filter((x) => x.status === 'issued').length, n0, '★入金が 読めないのに 発行の 中身が 走って 発行された★');
+    ok(/入金の 記録が 読めていない/.test($('edit-err').textContent), '★止めた 訳を 言っていない★: ' + $('edit-err').textContent);
+
+    /* ② 前回の 無い 取引先（初回）＝止めない（額は 入金に 依らない） */
+    utsu('pt_ny_hatsu'); await sleep(60);
+    ok(!/入金/.test($('b-issue').textContent), '★初回なのに 入金で 止めている★: ' + $('b-issue').textContent);
+    ok(!/入金の 記録/.test($('edit-yomenai').textContent) || $('edit-yomenai').style.display === 'none', '★初回なのに「発行は 止めて います」と 言う★');
+
+    /* ③ 繰越を 切った 会社＝止めない（紙に 繰越が 出ない） */
+    st.org.invoiceCarry = false;
+    utsu('pt_ny_mae'); await sleep(60);
+    ok(!/入金/.test($('b-issue').textContent), '★繰越を 切った 会社まで 入金で 止めている★: ' + $('b-issue').textContent);
+    eq($('edit-yomenai').style.display, 'none', '★繰越を 切った 会社に「発行は 止めて います」と 嘘を 言う★');
+    st.org.invoiceCarry = true;
+
+    /* ④ 知らせの 中の ボタンで 直る→発行でき、写しの 繰越は 数えた 額（未確認で ない） */
+    utsu('pt_ny_mae'); await sleep(60);
+    $('b-yomikomi2').click(); await sleep(150);
+    ok(Array.isArray(st.receipts), '★「もう一度読み込む」で 入金が 読めない まま★');
+    app._recalcForTest(); await sleep(30);
+    ok(!/入金/.test($('b-issue').textContent), '★読めたのに 止まった まま★: ' + $('b-issue').textContent);
+    await app._issue(); await sleep(120);
+    const hk = db.pay_invoices.filter((x) => x.partner_id === 'pt_ny_mae' && x.status === 'issued' && x.id !== 'iv_ny_mae');
+    eq(hk.length, 1, '★読めたのに 発行できない★');
+    const sc = hk[0] && hk[0].snapshot && hk[0].snapshot.carry;
+    ok(sc && sc.state !== 'unknown' && Number.isFinite(Number(sc.grandTotal)) && sc.grandTotal !== null,
+      '★読めた 後の 発行でも 繰越が 未確認で 固まった★: ' + JSON.stringify(sc));
+  } finally {
+    db.pay_org[0].data = keepOrgD;
+    await app._loadMasters(); await sleep(20);
+    await app._loadList(); await sleep(30);
+  }
+});
+
 await TA('7-d. ★「保存は できています」は 後の 保存が 落ちたら 消える（嘘の 安心を 残さない）', async () => {
   /* ★2026-10-14 taiketsu（本番前）★＝一覧の 読みだけ 落ちた 後、次の 保存が 落ちても「保存は できています」が 残り、
      倉庫は 5000・画面は 7000 のまま 客が 閉じ得た */
@@ -1931,6 +2007,14 @@ await TA('7-g. ★繰越の在る 1通は 自社 Excel に 入れず 止めて �
     try { await app._bookExcelForTest('a.xlsx'); } catch (e) { e2 = e; }
     ok(e2 && e2.carryStop && /入金/.test(e2.message) && !/繰越が あります/.test(e2.message),
       '★入金が 未確認なのに「繰越が あります」と 言う（直し方に たどり着けない）★: ' + (e2 && e2.message));
+    /* ★発行済みで 未確認が 写しに 固まった 1通★（2026-11-04 taiketsu 止2）＝読み直しても 写しは 変わらない・PDF も（未確認）
+       ＝「読み直して」「PDF で 出して」と 言わず、取り消して 作り直す 道へ 導く */
+    const maeSt = st.cur.status;
+    st.cur.status = 'issued';
+    let e3 = null;
+    try { await app._bookExcelForTest('a.xlsx'); } catch (e) { e3 = e; } finally { st.cur.status = maeSt; }
+    ok(e3 && e3.carryStop && /取り消して 作り直して/.test(e3.message) && !/読み直して/.test(e3.message) && !/PDF で 出して/.test(e3.message),
+      '★発行済みで 固まった 未確認に「読み直して」「PDF で」と 言う（直らない・合計の 無い 紙を 送らせる）★: ' + (e3 && e3.message));
     /* ★画面に 字が 出る★（入力の画面の Excel ボタン＝edit-err） */
     put({ state: 'ok', carry: 3000, prevTotal: 5500, paid: 2500, thisTotal: 5500, grandTotal: 8500 });
     $('edit-err').textContent = '';

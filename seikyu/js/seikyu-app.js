@@ -1496,6 +1496,19 @@
     return (S.listKind === k) ? null : 'shurui';
   }
   function listOkFor(v) { return !listWhy(v); }
+  /* ★繰越を 数えられない 下書きは 発行しない★（2026-11-04 taiketsu 設計前 止3＝ボタンの 灰色と 発行の 両方が この 1本を 呼ぶ）
+     ・取り消した 紙の 入金と 返金が 両方 ある＝voidWarn（司さん 10-25）
+     ・★入金の 記録が 読めていない★（receipts.list は 落ちても null を 返す＝一覧は 読めた 顔の まま）
+       前は 黙って 発行でき、繰越「未確認」・ご請求金額 null の 紙が 写しに 固まった（後で 読めても 直らない）
+     初回（first）・見積・繰越を 切った 会社は currentCarry が unknown を 返さない＝止めない。
+     戻り：null（通す）／{ kind:'void'|'nyukin', short:ボタンの 字, long:押した 後の 字 } */
+  var NYUKIN_YOMENAI = '入金の 記録が 読めていないので 発行できません（前回の 請求からの 繰越を 数えられないため）。「もう一度読み込む」を 押してから、もう一度 お試しください。';
+  function carryBlock() {
+    var cw = currentCarry();
+    if (!cw || cw.state !== 'unknown') return null;
+    if (cw.voidWarn) return { kind: 'void', short: '繰越を数えられません', long: cw.why };
+    return { kind: 'nyukin', short: '入金が読めません', long: NYUKIN_YOMENAI };
+  }
   function drawYomenai() {
     ['edit-yomenai'].forEach(function (id) { drawYomenaiIn(id, id + '-t'); });
     var el = $('list-yomenai'); if (!el) return;
@@ -1524,6 +1537,12 @@
     var btn = el.querySelector('button');
     /* ★発行済み・取り消し済みの 紙には 発行の 理由を 出さない★（taiketsu 10-14＝「発行できます」と 嘘に なった） */
     var shitagaki = S.cur && (!S.cur.status || S.cur.status === 'draft');
+    /* ★入金だけが 読めない 時も 直す 手（もう一度読み込む）を 出す★（2026-11-04 taiketsu 止1）
+       ★この 1通が 止まる 時だけ★＝繰越を 切った 会社・初回・見積に「発行は 止めて います」と 嘘を 言わない */
+    if (shitagaki && !na.length && !listWhy(S.cur)) {
+      var cbk = carryBlock();
+      if (cbk && cbk.kind === 'nyukin') na.push('入金の 記録');
+    }
     var why = (shitagaki && !na.length) ? listWhy(S.cur) : null;
     if (why === 'shurui' || why === 'yomikomi') {
       /* ★押しても 直らない ボタンは 出さない★（種類違いは 読み直しでは 直らない・taiketsu 10-13） */
@@ -4276,6 +4295,8 @@
     var t;
     try { t = currentTax(); } catch (e) { return '計算できません'; }
     if (!t || !t.ok) return '明細を直してください';
+    var cb = carryBlock();                          /* ★押した 後の issue() と 同じ 判じ★（taiketsu 11-04 止3） */
+    if (cb) return cb.short;
     var chk = DOC.validateInvoice({
       inv: Object.assign({}, v, { lines: cleanLines(v.lines) }),
       /* ★打たれたそのままの行も渡す★＝品名だけ空の行を「黙って捨てる」のをやめる */
@@ -4328,8 +4349,9 @@
       return Promise.resolve();
     }
     /* ★止めて 警告★（司さん 10-25）＝取り消した 紙の 入金と 返金が 両方 ある 取引先は、繰越を 数えられないので 発行しない */
-    var cw = currentCarry();
-    if (cw && cw.voidWarn) { box('edit-err', cw.why); return Promise.resolve(); }
+    /* ★入金が 読めていない 時も 止める★（2026-11-04）＝判じは carryBlock 1本（ボタンの 灰色と 同じ） */
+    var cb = carryBlock();
+    if (cb) { box('edit-err', cb.long); return Promise.resolve(); }
     /* ★発行は 生きている 相手だけ★（taiketsu 10-23 止1・上の issueBlockReason と 同じ 判じ） */
     var p = ptLive(v.partner_id);
     var chk = DOC.validateInvoice({ inv: Object.assign({}, v, { lines: cleanLines(v.lines) }), rawLines: v.lines, partner: p, org: { data: S.org || {} } });
@@ -4995,8 +5017,16 @@
   function bookCarryMsg(pi) {
     var c = (pi && pi.carry) || {};
     if (c.state === 'unknown') {
-      return c.why ? c.why
-        : '入金が まだ 確かめられていないので、前回からの 繰越の 額が 決まりません。入金の 記録を 読み直してから 出してください（自社の Excel にも Rakunally の Excel にも 額を 入れません）。';
+      if (c.why) return c.why;
+      /* ★発行済みで 未確認が 写しに 固まった 1通★（11-04 より 前に 入金が 読めない まま 発行できた）
+         読み直しても 写しは 変わらない＝「読み直して」は 嘘。PDF も 同じ 写し＝ご請求金額が（未確認）の 紙に なる（taiketsu 11-04 止2）
+         ＝取り消して 作り直す 道へ 導く（作り直せば 今の 入金で 数える）。出した 紙を 書き換える 道は 作らない（お金の 決め＝司さん） */
+      var inv = pi && pi.inv;
+      if (inv && inv.status && inv.status !== 'draft') {
+        return 'この請求書は 入金が 確かめられない まま 発行され、前回からの 繰越が「未確認」で 固まっています。'
+          + 'PDF でも ご請求金額が 決まらないので、取り消して 作り直してください（作り直すと 今の 入金で 繰越を 数えます）。';
+      }
+      return '入金が まだ 確かめられていないので、前回からの 繰越の 額が 決まりません。入金の 記録を 読み直してから 出してください（自社の Excel にも Rakunally の Excel にも 額を 入れません）。';
     }
     return BOOK_CARRY_MSG;
   }
