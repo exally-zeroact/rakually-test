@@ -255,7 +255,8 @@ if (process.argv.includes('--self-test')) {
     const b4 = (Date.now() - t4) / 1000;
     let mago4 = 0; try { mago4 = Number(fs.readFileSync(pf4, 'utf8')); } catch (err) { mago4 = 0; }
     if (mago4 > 0) kiTomeru(mago4);
-    iu('★管を 持った 孫が 残っても 猶予の 後に 解ける＝走らせられない（赤）（' + b4.toFixed(1) + '秒・孫 pid ' + mago4 + '）★', r4 !== null && r4.status === null && /管が 閉じない/.test(r4.mi || '') && mago4 > 0);
+    iu('★管を 持った 孫が 残っても 猶予の 後に 解ける＝走らせられない（赤）（' + b4.toFixed(1) + '秒・孫 pid ' + mago4 + '）★', r4 !== null && r4.status === null && /切った/.test(r4.mi || '') && mago4 > 0);
+    /* ★見るのは「いつまでも 待たずに 赤で 解ける」★＝Linux は 孫の 止まり方が 違い 字が「切った」だけに なり得る（taiketsu 次の 確かめ1）。r4===null（15秒で 解けない）は 赤 */
     /* ★子の 道を 本当に 回す★（緑 1・赤 1）→ 結果の 行を 段の 番号で 読める */
     const meibo = path.join(tmp3, 'm.json'), kek = path.join(tmp3, 'k.jsonl');
     fs.writeFileSync(meibo, JSON.stringify({ cwd: tmp3, dan: [{ i: 7, c: 'node -e "console.log(\'✓ a\')"' }, { i: 9, c: 'node -e "console.log(\'X\');process.exit(4)"' }] }));
