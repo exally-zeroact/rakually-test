@@ -2544,6 +2544,11 @@ await TA('11-i. ★★繰越が実額で出る（1通 出す → 入金を入れ
   eq(c.carry, 40000, '繰越額');
   eq(c.thisTotal, 55000, '今回請求額');
   eq(c.grandTotal, 95000, '合計請求額');
+  // ★写しに 入金・返金の 合計（rcIn・rcOut）が 刻まれる★＝次の 紙の ご入金額は これより 後に 増えた 分（taiketsu N1）
+  eq(c.rcIn, 70000, '★発行の 写しに rcIn が 入っていない（次の 紙が 日付の 割り方に 落ちる）★');
+  eq(c.rcOut, 0, '★発行の 写しに rcOut が 入っていない★');
+  // ★初回の 紙（9月）の 写しにも 0 が 刻まれる★＝一番 よく 通る「初回の 次の 紙」の 道（taiketsu 任意1）
+  eq(sep.snapshot.carry && sep.snapshot.carry.rcIn, 0, '★初回の 紙の 写しに rcIn 0 が 無い（9/25 の 穴が 黙って 戻る）★');
   // 画面にも実額で出ている
   const tot = $('tot-box').textContent;
   ok(tot.includes(yenS(70000)), '画面の入金額が実額でない: ' + tot.replace(/\s+/g, ' '));
@@ -2577,6 +2582,70 @@ await TA('11-j. ★★あとから入金を記録しても、もう出した紙�
   const row = db.pay_invoices.find((x) => x.id === oct.id);
   eq(row.snapshot.carry.paid, 70000, '倉庫の写しが動いた');
   eq(row.totals.grandTotal, 55000, '倉庫の合計が動いた');
+});
+
+await TA('11-j2. ★繰越の紙の ご入金額＝前回の紙を 出した 後に 増えた 入金（入金の 日付で 割らない・2026-11-03）', async () => {
+  /* 前は 入金の 日付が 前回の 紙の 発行日より 前だと 前回請求額から 黙って 引いた＝
+     9月 11,000（9/30 発行）を 9/25 付けで 払うと 10月の 紙が「前回請求額 0／ご入金額 0」と 刷った（前回の 紙は 11,000）。 */
+  const A = win.SeikyuApp, st = A._state;
+  const keep = { inv: st.invoices, rc: st.receipts, lk: st.listKind, lr: st.listReadOk, cur: st.cur };
+  const mkPrev = (snapCarry) => ({ id: 'iv_z9', doc_type: 'invoice', status: 'issued', partner_id: 'pt_z', no: 'Z-9', issue_ymd: '2026-09-30',
+    lines: [], data: {}, totals: { grandTotal: 11000 }, snapshot: snapCarry ? { carry: snapCarry } : {} });
+  const nov = { id: 'iv_z10', doc_type: 'invoice', status: 'draft', partner_id: 'pt_z', no: 'Z-10', issue_ymd: '2026-10-31', lines: [], data: {} };
+  const run = (prev, rcs) => {
+    st.invoices = [prev, nov]; st.receipts = rcs.slice(); st.listKind = 'invoice'; st.listReadOk = true;
+    return A._carryFromLedgerForTest(nov, 5500);
+  };
+  try {
+    const first = { state: 'first', carry: null, prevTotal: null, paid: null, thisTotal: 11000, grandTotal: 11000, rcIn: 0, rcOut: 0 };
+    // A：全額を 発行日より 前の 日付で 払った
+    let c = run(mkPrev(first), [{ id: 'rc1', invoice_id: 'iv_z9', ymd: '2026-09-25', amount: 11000 }]);
+    eq(c.carry, 0, '繰越の 額が 変わった（ここは 前と 同じ はず）');
+    eq(c.paid, 11000, '★9/25 付けの 入金が ご入金額に 入らない（前回請求額から 黙って 引いている）★');
+    eq(c.prevTotal, 11000, '★前回請求額が 前回の 紙（11,000）と 違う★');
+    // A2：一部を 発行日より 前の 日付で 払った
+    c = run(mkPrev(first), [{ id: 'rc1', invoice_id: 'iv_z9', ymd: '2026-09-25', amount: 5000 }]);
+    eq(c.carry, 6000, '繰越 6,000 でない');
+    eq(c.paid, 5000, '★一部入金が ご入金額に 入らない★');
+    eq(c.prevTotal, 11000, '★前回請求額が 前回の 紙と 違う★');
+    eq(c.rcIn, 5000, '次の 紙の 為の 入金の 合計を 持っていない');
+    // ★前回の 紙が 出た 時に もう 在った 入金（rcIn に 入っている）は ご入金額に 二度 入れない★
+    c = run(mkPrev(Object.assign({}, first, { rcIn: 3000 })), [{ id: 'rc1', invoice_id: 'iv_z9', ymd: '2026-09-25', amount: 5000 }]);
+    eq(c.paid, 2000, '★前回の 紙で もう 数えた 入金を 二度 数えた★');
+    eq(c.prevTotal, c.carry + c.paid, '★前回請求額＝繰越＋ご入金額 が 合わない★');
+    // ★返金で 説明できない マイナスを 刷らない★：前回の 紙の 後に 入金を 消した（rcIn 11,000 が 残る・入金は 0）
+    c = run(mkPrev(Object.assign({}, first, { rcIn: 11000 })), []);
+    ok(c.paid >= 0, '★受け取っていない 返金（ご入金額 ' + c.paid + '）を 刷る★');
+    eq(c.prevTotal, c.carry + c.paid, '★前回請求額＝繰越＋ご入金額 が 合わない（消した 入金）★');
+    eq(c.carry, 11000, '繰越の 額が 変わった（消した 入金）');
+    // 本当の 返金は ご入金額の マイナスとして 出す（前回の 紙で 11,000 もらい、その後 3,000 返した）
+    c = run(mkPrev(Object.assign({}, first, { rcIn: 11000 })),
+      [{ id: 'rc1', invoice_id: 'iv_z9', ymd: '2026-09-25', amount: 11000 }, { id: 'rc2', invoice_id: 'iv_z9', ymd: '2026-10-10', amount: -3000 }]);
+    eq(c.paid, -3000, '本当の 返金が ご入金額に 出ない');
+    eq(c.carry, 3000, '返金の 後の 繰越');
+    // ★前から 返金の ある 取引先で 後で 入金を 消す★（taiketsu 止1・2回目）＝返していない お金を 刷らない
+    c = run(mkPrev(Object.assign({}, first, { rcIn: 11000, rcOut: -3000 })),
+      [{ id: 'rc1', invoice_id: 'iv_z9', ymd: '2026-09-25', amount: 10000 }, { id: 'rc3', invoice_id: 'iv_z9', ymd: '2026-09-28', amount: -3000 }]);
+    ok(c.paid >= 0, '★入金を 消しただけ なのに 返金（ご入金額 ' + c.paid + '）を 刷る★');
+    eq(c.prevTotal, c.carry + c.paid, '★前回請求額＝繰越＋ご入金額 が 合わない（返金＋消した 入金）★');
+    // 打ち間違いの 直し（10,000 を 消して 8,000 を 入れ直した）
+    c = run(mkPrev(Object.assign({}, first, { rcIn: 10000, rcOut: 0 })), [{ id: 'rc4', invoice_id: 'iv_z9', ymd: '2026-09-25', amount: 8000 }]);
+    ok(c.paid >= 0, '★打ち直しで 返金（ご入金額 ' + c.paid + '）を 刷る★');
+    // 返金を 消した（受け取っていない 入金を 刷らない）
+    c = run(mkPrev(Object.assign({}, first, { rcIn: 11000, rcOut: -3000 })), [{ id: 'rc1', invoice_id: 'iv_z9', ymd: '2026-09-25', amount: 11000 }]);
+    eq(c.paid, 0, '★返金を 消しただけ なのに 入金（ご入金額 ' + c.paid + '）を 刷る★');
+    // ★写しの 合計が 字（''）なら 読まない★＝0 と 見て 二度 数えない（taiketsu 任意2）
+    // （発行日より 前の 9/25 付け＝字を 0 と 読むと 新しい 割り方で 11,000、読まなければ 前の 割り方で 0）
+    c = run(mkPrev(Object.assign({}, first, { rcIn: '', rcOut: '' })), [{ id: 'rc1', invoice_id: 'iv_z9', ymd: '2026-09-25', amount: 11000 }]);
+    eq(c.paid, 0, '★写しの 字を 0 と 読んで 新しい 割り方に 入った★');
+    // ★rcIn の 無い 古い 紙★は 前の 日付の 割り方の まま（悪くは ならない）
+    const old = Object.assign({}, first); delete old.rcIn; delete old.rcOut;
+    c = run(mkPrev(old), [{ id: 'rc1', invoice_id: 'iv_z9', ymd: '2026-10-05', amount: 11000 }]);
+    eq(c.paid, 11000, '古い 紙で 前の 割り方（発行日 以後の 入金）に 落ちていない');
+    eq(c.prevTotal, 11000, '古い 紙で 前回請求額が 変わった');
+  } finally {
+    st.invoices = keep.inv; st.receipts = keep.rc; st.listKind = keep.lk; st.listReadOk = keep.lr; st.cur = keep.cur;
+  }
 });
 
 T('11-k. ★取り消した請求書には記録させない（理由はボタンの中）', () => {

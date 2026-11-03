@@ -607,7 +607,7 @@
     }).sort(choubo_jun);
     if (!mae.length) {
       return { state: 'first', prevNo: '', prevTotal: null, paid: null, carry: null,
-        thisTotal: thisTotal, grandTotal: thisTotal, label: CARRY.STATE_LABEL.first };
+        thisTotal: thisTotal, grandTotal: thisTotal, label: CARRY.STATE_LABEL.first, rcIn: 0, rcOut: 0 };
     }
     var prev = mae[mae.length - 1];
     if (S.receipts === null || S.receipts === undefined) {
@@ -621,7 +621,7 @@
     }
     var ids = {}, sumG = 0;
     mae.forEach(function (x) { ids[x.id] = 1; sumG += (gakuOf(x) || 0); });
-    var before = 0, since = 0;
+    var before = 0, since = 0, rcIn = 0, rcOut = 0;
     /* その 取引先の 入金（この 紙 自身に 記録した 物だけ 除く） */
     var p = L.parts[pid] || { rcs: [] };
     p.rcs.forEach(function (r) {
@@ -629,10 +629,27 @@
       if (!on || on.id === v.id) return;
       var amt = Number(r.amount) || 0;
       if (r.ymd && prev.issue_ymd && r.ymd < prev.issue_ymd) before += amt; else since += amt;
+      if (amt < 0) rcOut += amt; else rcIn += amt;     // 入金（プラス）と 返金（マイナス）を 分けて 数える（★1つの 輪で 数える＝同じ 輪を 2つ 作らない★）
     });
     var prevTotal = sumG - before;
     var carry = prevTotal - since;
-    return { state: carry < 0 ? 'over' : 'ok', prevNo: prev.no || '', prevTotal: prevTotal, paid: since, carry: carry,
+    /* ★ご入金額＝前回の 紙を 出した 後に 増えた 入金★（2026-11-03 taiketsu 設計前）
+       発行の 時に その 時 数えた 入金の 合計（rcIn）と 返金の 合計（rcOut）を 写しに 刻み、次の 紙では「その 後に 増えた 入金＋返金」を ご入金額に する。
+       前は 入金の 日付で 割っていた＝前回の 紙の 発行日より 前の 日付の 入金は 前回請求額から 黙って 引かれ、
+       9月 11,000 を 9/25 付けで 払うと 10月の 紙が「前回請求額 0／ご入金額 0」（前回の 紙は 11,000）と 刷った。
+       前回請求額＝繰越＋ご入金額（足し引きは 必ず 合う）。繰越の 額そのものは 前と 1円も 変わらない。
+       rcIn・rcOut の 無い 古い 紙が 前回の 時は 前の 日付の 割り方の まま（悪くは ならない）。 */
+    var pc = prev.snapshot && prev.snapshot.carry;
+    var num = function (x) { return (typeof x === 'number' && Number.isFinite(x)) ? x : NaN; };
+    var pIn = pc ? num(pc.rcIn) : NaN, pOut = pc ? num(pc.rcOut) : NaN;
+    /* ★新しい 割り方は「前回の 紙の 後に 入金が 減っていない・返金が 消えていない」時だけ★（taiketsu 止1・2回）
+       入金を 消した／打ち直した・返金を 消した・取り消して 充てない 設定に した 時は 写しの 合計だけが 残り、
+       受け取っていない 返金や 受け取っていない 入金を 刷る＝その 時は 前の 日付の 割り方に 戻す（繰越の 額は どちらでも 同じ）。 */
+    if (Number.isFinite(pIn) && Number.isFinite(pOut) && rcIn >= pIn && rcOut <= pOut) {
+      since = (rcIn - pIn) + (rcOut - pOut);
+      prevTotal = carry + since;
+    }
+    return { state: carry < 0 ? 'over' : 'ok', prevNo: prev.no || '', prevTotal: prevTotal, paid: since, carry: carry, rcIn: rcIn, rcOut: rcOut,
       thisTotal: thisTotal, grandTotal: (thisTotal === null || thisTotal === undefined) ? null : carry + thisTotal,   // ★null に 足すと 繰越だけが 合計に なる★
       label: carry < 0 ? CARRY.STATE_LABEL.over : '' };
   }
@@ -7419,6 +7436,7 @@
     _loadList: function (o) { return loadList(o); },
     _issue: function () { return issue(); },
     _bookDedStopForTest: function () { var pi = paperInput(); return pi ? bookDedStop(pi) : null; },
+    _carryFromLedgerForTest: function (v, t) { return carryFromLedger(v, t); },   // テスト用: 繰越の 紙の 5項目を 直に 数える
     _bookCarryStopForTest: function () { var pi = paperInput(); return pi ? bookCarryStop(pi) : null; },
     _bookExcelForTest: function (name) { return bookExcel(name); },   // テスト用: 控除の在る 1通で 自社 Excel が 止まるか
     _bookValsForTest: function () { var pi = paperInput(); return pi ? bookVals(pi) : null; },   // テスト用: 自社 Excel に 入れる 値（番号を 出さない 時に 空か）                    // テスト用: ボタンの 灰色を 通らずに 発行の 歯止めを 見る           // テスト用: 一覧だけ 読ませる（読めない 時の 知らせを 見る）

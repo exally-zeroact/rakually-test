@@ -125,6 +125,9 @@
     return {
       state: r.state, prevNo: r.prevNo || '', prevTotal: r.prevTotal, paid: r.paid,
       carry: r.carry, thisTotal: r.thisTotal, grandTotal: r.grandTotal,
+      /* ★発行の 時に 数えた 入金・返金の 合計（分けて）★＝次の 紙の ご入金額を「これより 後に 増えた 分」で 出す為（2026-11-03） */
+      rcIn: (r.rcIn === undefined) ? null : r.rcIn,
+      rcOut: (r.rcOut === undefined) ? null : r.rcOut,
     };
   }
   function fromSnapshot(s) {
@@ -132,6 +135,8 @@
     return {
       state: s.state, prevNo: s.prevNo || '', prevTotal: s.prevTotal, paid: s.paid,
       carry: s.carry, thisTotal: s.thisTotal, grandTotal: s.grandTotal,
+      rcIn: (s.rcIn === undefined) ? null : s.rcIn,
+      rcOut: (s.rcOut === undefined) ? null : s.rcOut,
       label: STATE_LABEL[s.state] || '',
     };
   }
