@@ -52,7 +52,8 @@ export function danHashiru(c, cwd, jogenMs = JOGEN_MS, yuuyoMs = YUUYO_MS) {
     let yuuyo = null;
     const tm = setTimeout(() => {
       /* ★殻が もう 終わって いたら 止めない★＝終わった pid は Windows が 使い回す＝関係ない 木を 止め得る（taiketsu 任意1） */
-      kireta = true; if (ch.exitCode === null && ch.signalCode === null) kiTomeru(ch.pid);
+      /* ★Windows だけ★＝Linux は 組に 人が 残る 間は 番号を 使い回さない＝kill(-pid) で 同じ 組の 孫まで 止める（taiketsu 任意1） */
+      kireta = true; if (process.platform !== 'win32' || (ch.exitCode === null && ch.signalCode === null)) kiTomeru(ch.pid);
       yuuyo = setTimeout(() => {
         try { ch.stdout.destroy(); ch.stderr.destroy(); } catch (err) { /* ★もう 閉じた★ */ }
         owaru(null, '★' + (jogenMs / 1000) + '秒で 切ったが 管が 閉じない（孫が 残った 見込み）★');
