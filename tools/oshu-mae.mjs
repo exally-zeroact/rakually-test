@@ -245,6 +245,17 @@ if (process.argv.includes('--self-test')) {
     const magoIkiteru = magoPid > 0 && (() => { try { process.kill(magoPid, 0); return true; } catch (err) { return err.code === 'EPERM'; } })();
     iu('★時間切れ＝走らせられない（赤）・孫の node も 止まる（孫 pid ' + magoPid + '）★', r3.mi !== null && r3.status === null && magoPid > 0 && !magoIkiteru);
     if (magoIkiteru) kiTomeru(magoPid);
+    /* ★管を 持った 孫が 親より 長く 残る★＝親は すぐ 死に 孫が stdout を 持って 眠る→1.5秒で 切る→猶予 1秒で 解けるか
+       （直す 前は close が 来ず ここで いつまでも 待った） */
+    const pf4 = path.join(tmp3, 'mago4.pid');
+    fs.writeFileSync(path.join(tmp3, 'mago4.cjs'), 'require("fs").writeFileSync(' + JSON.stringify(pf4) + ',String(process.pid));setTimeout(()=>{},30000);');
+    fs.writeFileSync(path.join(tmp3, 'oya4.cjs'), 'require("child_process").spawn(process.execPath,[' + JSON.stringify(path.join(tmp3, 'mago4.cjs')) + '],{stdio:["ignore","inherit","inherit"],detached:true}).unref();');
+    const t4 = Date.now();
+    const r4 = await Promise.race([danHashiru('node oya4.cjs', tmp3, 1500, 1000), new Promise((rr) => setTimeout(() => rr(null), 15000))]);
+    const b4 = (Date.now() - t4) / 1000;
+    let mago4 = 0; try { mago4 = Number(fs.readFileSync(pf4, 'utf8')); } catch (err) { mago4 = 0; }
+    if (mago4 > 0) kiTomeru(mago4);
+    iu('★管を 持った 孫が 残っても 猶予の 後に 解ける＝走らせられない（赤）（' + b4.toFixed(1) + '秒・孫 pid ' + mago4 + '）★', r4 !== null && r4.status === null && /管が 閉じない/.test(r4.mi || '') && mago4 > 0);
     /* ★子の 道を 本当に 回す★（緑 1・赤 1）→ 結果の 行を 段の 番号で 読める */
     const meibo = path.join(tmp3, 'm.json'), kek = path.join(tmp3, 'k.jsonl');
     fs.writeFileSync(meibo, JSON.stringify({ cwd: tmp3, dan: [{ i: 7, c: 'node -e "console.log(\'✓ a\')"' }, { i: 9, c: 'node -e "console.log(\'X\');process.exit(4)"' }] }));

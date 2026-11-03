@@ -30,7 +30,11 @@ export function kiTomeru(pid) {
 }
 
 /* ★1段を 回す★＝{ status, mi, so, se, byou } */
-export function danHashiru(c, cwd, jogenMs = JOGEN_MS) {
+/* ★切った 後の 猶予★（11-03 本番前 taiketsu 任意①）＝止めても 管（stdout/stderr）を 持った 孫が 残ると close が 来ず
+   網が いつまでも 終わらない（親が 先に 死んで taskkill /T が 木を 辿れない 時）。切って この 秒 待っても 閉じなければ
+   こちらの 管を 壊して 走らせられない（赤）で 解く。★180秒 より 前に 閉じた 段の 扱いは 変えない★ */
+export const YUUYO_MS = 10000;
+export function danHashiru(c, cwd, jogenMs = JOGEN_MS, yuuyoMs = YUUYO_MS) {
   return new Promise((res) => {
     const t0 = Date.now();
     let so = '', se = '', owari = false, kireta = false, ookii = false;
@@ -45,9 +49,16 @@ export function danHashiru(c, cwd, jogenMs = JOGEN_MS) {
     ch.stdout.setEncoding('utf8'); ch.stderr.setEncoding('utf8');
     ch.stdout.on('data', (b) => { if (so.length < MAX) so += b; else ookii = true; });
     ch.stderr.on('data', (b) => { if (se.length < MAX) se += b; else ookii = true; });
-    const tm = setTimeout(() => { kireta = true; kiTomeru(ch.pid); }, jogenMs);
+    let yuuyo = null;
+    const tm = setTimeout(() => {
+      kireta = true; kiTomeru(ch.pid);
+      yuuyo = setTimeout(() => {
+        try { ch.stdout.destroy(); ch.stderr.destroy(); } catch (err) { /* ★もう 閉じた★ */ }
+        owaru(null, '★' + (jogenMs / 1000) + '秒で 切ったが 管が 閉じない（孫が 残った 見込み）★');
+      }, yuuyoMs);
+    }, jogenMs);
     const owaru = (status, mi) => {
-      if (owari) return; owari = true; clearTimeout(tm);
+      if (owari) return; owari = true; clearTimeout(tm); if (yuuyo) clearTimeout(yuuyo);
       res({ status, mi, so, se, byou: (Date.now() - t0) / 1000 });
     };
     ch.on('error', (err) => owaru(null, '起こせない（' + err.message + '）'));
