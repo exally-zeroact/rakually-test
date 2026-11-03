@@ -1542,6 +1542,14 @@
     if (shitagaki && !na.length && !listWhy(S.cur)) {
       var cbk = carryBlock();
       if (cbk && cbk.kind === 'nyukin') na.push('入金の 記録');
+      else if (cbk && cbk.kind === 'void') {
+        /* ★取り消した 紙の 入金と 返金＝直し方（設定 か 返金の 記録）を ここで 言う★（taiketsu 11-04 2回目 止2）
+           ボタンは 灰色で 押せない＝押した 後の 字は 出ない。読み直しでは 直らない＝「もう一度読み込む」は 隠す */
+        if (btn) btn.style.display = 'none';
+        el.style.display = '';
+        setText(tid, cbk.long);
+        return;
+      }
     }
     var why = (shitagaki && !na.length) ? listWhy(S.cur) : null;
     if (why === 'shurui' || why === 'yomikomi') {

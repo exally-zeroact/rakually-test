@@ -558,6 +558,11 @@ async function run(label, appSrc, repSrc) {
       A._new(); const ep = doc.getElementById('e-partner'); ep.value = 'pZR';
       ok(ep.value === 'pZR', '★相手の 選びに pZR が 無い★（空振り）');
       ep.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true })); await new Promise((r) => setTimeout(r, 40));
+      /* ★押す 前から 灰色・入力の 画面に 直し方・読み直しの ボタンは 出さない★（2026-11-04 taiketsu 2回目 止2） */
+      const bi = doc.getElementById('b-issue'), ey = doc.getElementById('edit-yomenai'), by2 = doc.getElementById('b-yomikomi2');
+      ok(bi && bi.disabled === true && /繰越を数えられません/.test(bi.textContent), '★充てない＋返金 で「発行する」が 押せる 顔の まま★ ' + (bi && bi.textContent));
+      ok(ey && ey.style.display !== 'none' && /取り消した請求書に入金や返金の記録が残っていて/.test(ey.textContent), '★入力の 画面に 直し方が 出ない★ ' + (ey && ey.textContent.slice(0, 80)));
+      ok(by2 && by2.style.display === 'none', '★読み直しでは 直らないのに「もう一度読み込む」を 出す★');
       try { await A._issue(); } catch (e) { /* 止まれば よい */ }
       const err = (doc.getElementById('edit-err') || {}).textContent || '';
       S.cur = null; S.store.invoices = keepSt;
@@ -612,7 +617,9 @@ if (!SELF) {
     { na: '⑨止2 引ける 紙の 無い 赤伝を 過入金に しない', pairs: [["    if (st.remain < 0) st.state = 'over';\n", '']] },
     { na: '⑨別件 見積にも 繰越を 乗せる', pairs: [["    if ((v.doc_type || 'invoice') !== 'invoice') return null;\n", '']] },
     { na: '⑦止B 状態を 入金＋貸しの 和で 決める', pairs: [["      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : (st.paid === 0 ? 'unpaid' : 'partial');\n    }\n    /* ★引ける", "      st.state = (st.paid + c.credit) === 0 ? 'unpaid' : st.remain > 0 ? 'partial' : st.remain === 0 ? 'paid' : 'over';\n    }\n    /* ★引ける"], ["    if (st.remain < 0) st.state = 'over';\n", '']] },
-    { na: '⑧ 充てない＋返金 でも 発行を 止めない', pairs: [["    if (cw && cw.voidWarn) { box('edit-err', cw.why); return Promise.resolve(); }", '']] },
+    { na: '⑧ 充てない＋返金 でも 発行を 止めない', pairs: [["    if (cb) { box('edit-err', cb.long); return Promise.resolve(); }", '']] },
+    { na: '⑧ 充てない＋返金 で 入力の 画面に 直し方を 出さない', pairs: [["        setText(tid, cbk.long);\n        return;", "        el.style.display = 'none';\n        return;"]] },
+    { na: '⑧ 充てない＋返金 でも ボタンを 灰色に しない', pairs: [["    if (cb) return cb.short;", "    if (cb && cb.kind !== 'void') return cb.short;"]] },
     { na: '⑧ 充てない＋返金 で 止めずに 数える', pairs: [['      p.voidWarn = Object.keys(vn)', '      p.voidWarn = false && Object.keys(vn)']] },
     { na: '⑧ 取り消した 紙の 正味 マイナスを 見ない', pairs: [['      p.voidWarn = Object.keys(vn).some(function (id) { return vn[id] < 0; })\n        ||', '      p.voidWarn = false\n        ||']] },
     { na: '⑧ 正味 0 の 取り消した 紙でも 止める（広すぎ）', pairs: [['(Object.keys(vn).some(function (id) { return vn[id] > 0; })', '(Object.keys(vn).some(function (id) { return true; })']] },
