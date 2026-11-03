@@ -78,9 +78,18 @@
       var to = (n.to.length === 7) ? (n.to + '-31') : n.to;
       if (!ymd || ymd > to) return false;
     }
-    /* ── ★取引金額（範囲）★ … 金額の無い下書きは 範囲を決めた時だけ 落とす */
-    var g = (v.totals && v.totals.grandTotal);
-    var amt = (g === undefined || g === null || g === '') ? null : Number(g);
+    /* ── ★取引金額（範囲）★ … 金額の無い下書きは 範囲を決めた時だけ 落とす
+       ★当てる額＝一覧に 出す 額★（ctx.amountOf・2026-11-03）。倉庫の grandTotal は 源泉を 引く前、
+         控除が 読めない 下書きでは 控除を 引く前の 額＝一覧の 額と 割れて 違う紙が 当たっていた。
+         amountOf が null（一覧が 額を 出さない）なら 範囲を 決めた時は 落とす。 */
+    var amt;
+    if (typeof c.amountOf === 'function') {
+      var a = c.amountOf(v);
+      amt = (typeof a === 'number' && Number.isFinite(a)) ? a : null;
+    } else {
+      var g = (v.totals && v.totals.grandTotal);
+      amt = (g === undefined || g === null || g === '') ? null : Number(g);
+    }
     if (n.min !== null) { if (amt === null || amt < n.min) return false; }
     if (n.max !== null) { if (amt === null || amt > n.max) return false; }
     return true;

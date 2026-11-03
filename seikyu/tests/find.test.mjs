@@ -99,6 +99,15 @@ await T('★⑩ 日付が まだ無い紙も 同じ（範囲を決めた時だ�
   eq(ids({ from: '2000-01-01' }).indexOf('4'), -1, '★日付の無い紙を 拾っている★');
 });
 
+await T('★⑩b 金額の範囲は ctx.amountOf（一覧の 額）で 当てる・null は 範囲を決めた時だけ 落とす', () => {
+  const C2 = Object.assign({}, CTX, { amountOf: (v) => (v.id === '1' ? 30000 : v.id === '2' ? null : (v.totals && v.totals.grandTotal) ?? null) });
+  const ids2 = (q) => F.filter(LIST, q, C2).map((v) => v.id).join(',');
+  eq(ids2({ min: '31000' }), '', '★倉庫の 33000 で 当てている（一覧は 30000）★');
+  eq(ids2({ min: '30000', max: '30000' }), '1', '一覧の 額で 当たらない');
+  eq(ids2({ min: '0' }), '1,3', '★一覧が 額を 出さない 紙を 拾っている★');
+  eq(ids2({ text: '空調' }), '2', '額の無い紙が 文字で 出ない');
+});
+
 /* ★実UIで 打つ★ */
 let JSDOM; try { ({ JSDOM } = await import('jsdom')); } catch { JSDOM = null; }
 if (JSDOM) {
@@ -157,6 +166,41 @@ if (JSDOM) {
     doc.getElementById('q-min').dispatchEvent(new win.Event('input', { bubbles: true }));
     eq(rows(), 1, '日付＋金額で 絞れない');
     doc.getElementById('b-q-clear').click();
+  });
+
+  await T('★⑮ 金額の範囲は 一覧に 出す 額で 当たる（源泉の後・控除が 読めない 下書きは 当たらない・実UI）', () => {
+    const keep = St.invoices;
+    try {
+      St.invoices = [
+        { id: 'G1', doc_type: 'invoice', status: 'issued', no: 'T-GEN', issue_ymd: '2026-09-01', partner_id: 'p1',
+          totals: { grandTotal: 110000 }, data: {}, lines: [],
+          snapshot: { partner: { name: '例野工業' }, gensen: { base: 100000, amount: 10210, net: 99790 } } },
+        { id: 'D1', doc_type: 'invoice', status: 'draft', no: 'T-DED-BAD', issue_ymd: '2026-09-02', partner_id: 'p1',
+          totals: { grandTotal: 110000 }, data: { deductions: [{ name: '弁当代', amount: 'abc' }] },
+          lines: [{ name: '工事', qty: 1, price: 100000, tax_rate: 10 }], snapshot: {} },
+        /* ★金額まだの 行が ある 下書き★（grandTotal は 数＝前は これで 当たっていた） */
+        { id: 'W1', doc_type: 'invoice', status: 'draft', no: 'T-MADA', issue_ymd: '2026-09-03', partner_id: 'p1',
+          totals: { grandTotal: 120000 }, data: {},
+          lines: [{ name: '工事', qty: 1, price: 120000, tax_rate: 10 }, { name: '追加', qty: 1, price: '', tax_rate: 10 }], snapshot: {} },
+      ];
+      A._renderListForTest();
+      const body = () => (doc.getElementById('list-body').textContent || '');
+      ok(body().indexOf('99,790') >= 0, '一覧に 源泉の後の 額が 出ていない（前提）');
+      ok(body().indexOf('控除（未確認）') >= 0, '★D1 が 控除（未確認）として 出ていない（前提）★');
+      ok(body().indexOf('金額まだ 1行') >= 0, '★W1 が 金額まだ として 出ていない（前提）★');
+      doc.getElementById('q-min').value = '100000';
+      doc.getElementById('q-min').dispatchEvent(new win.Event('input', { bubbles: true }));
+      eq(rows(), 0, '★一覧で 99,790 の 紙・額を 出さない 下書きが 10万以上で 当たる★');
+      doc.getElementById('q-min').value = '99790';
+      doc.getElementById('q-min').dispatchEvent(new win.Event('input', { bubbles: true }));
+      doc.getElementById('q-max').value = '99790';
+      doc.getElementById('q-max').dispatchEvent(new win.Event('input', { bubbles: true }));
+      eq(rows(), 1, '★一覧の 額 99,790 で 当たらない★');
+      ok(body().indexOf('T-GEN') >= 0, '当たったのが 源泉の 紙でない');
+    } finally {
+      doc.getElementById('b-q-clear').click();
+      St.invoices = keep; A._renderListForTest();
+    }
   });
 } else {
   console.log('  ※ jsdom が無いので 実UIの4本は 走っていません（★0件ではありません★）');

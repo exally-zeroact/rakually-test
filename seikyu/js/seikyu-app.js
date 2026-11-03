@@ -1239,6 +1239,25 @@
      ★billList / billYm は 残す★＝一覧の 月の しぼり込みが 使っている
        （★月の 読み方は 1本★＝2か所で 別々に 切らない）。 */
 
+  /** ★一覧の 右端に 出す 額★（数で 出す時だけ 数・出さない時は null）＝★探す の 金額の 範囲も これで 当てる★
+   *  金額まだの 行が ある 下書き・控除が 読めない 下書きは 額を 出さない（null）。それ以外は gakuOf（源泉・控除の 後）。 */
+  function listGakuOf(v) {
+    if (!v) return null;
+    if (v.status === 'draft') {
+      if (madaOf(v)) return null;
+      if (DOC.deductTotalOf(v) === null) return null;
+    }
+    return gakuOf(v);
+  }
+  /** ★下書きで 金額を まだ 入れていない 行の 数★（下書き 以外は 0）＝一覧の 右端と 探す の 両方が これ1本を 使う */
+  function madaOf(v) {
+    var waiting = 0;
+    if (v && v.status === 'draft') {
+      try { waiting = DOC.rowIssuesOf(v.lines || []).noAmount.length; } catch (e) { waiting = 0; }
+    }
+    return waiting;
+  }
+
   /** ★一覧の 合計★＝発行済みの 請求書だけ（下書き・取り消し・見積は 足さない）。
    *  soto＝合計に 入れなかった 物を 字で（「下書き 2件・取り消し 1件」）＝黙って 減らさない。 */
   function listSumOf(rows) {
@@ -1281,7 +1300,7 @@
        ★何件から 何件に 絞ったかを 必ず出す★＝「消えた」と 思わせない。 */
     var FIND = global.SeikyuFind, before = rows.length, q = findQuery();
     if (FIND && !FIND.isEmpty(q)) {
-      rows = FIND.filter(rows, q, { partnerName: partnerName });
+      rows = FIND.filter(rows, q, { partnerName: partnerName, amountOf: listGakuOf });
       setText('q-hint', before + '通のうち ' + rows.length + '通が 当てはまりました。'
         + (rows.length ? '' : '（言葉を減らすか、範囲を広げてみてください）'));
       var fb = $('find-box'); if (fb) fb.open = true;
@@ -1323,10 +1342,7 @@
           ★0円★と出ていて ★入れ忘れと 本当の0円が 見分けられなかった★）。
          ★数え方は DOC.rowIssuesOf 1本★＝発行の時に止める判定と 同じ物を使う
          （2か所で 別々に数えると 片方だけ直った時に 食い違う）。 */
-      var waiting = 0;
-      if (v.status === 'draft') {
-        try { waiting = DOC.rowIssuesOf(v.lines || []).noAmount.length; } catch (e) { waiting = 0; }
-      }
+      var waiting = madaOf(v);
       /* ★2026-09-08 司さん「取引先のところに 確認や修正と削除のボタン作って
            押したらPDFが見えたり修正できたりでええやろ」★
          ＝行そのものを 押す（どこへ行くか 分からない）のを やめて、
