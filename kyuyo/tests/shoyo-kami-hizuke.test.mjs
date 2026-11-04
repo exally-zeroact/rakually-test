@@ -20,7 +20,11 @@
  * ★ここで 見る事★
  *   ① 支給日が 年-月-日 なら ★和暦★で 出す（月次と 同じ 書き方）
  *   ② 支給日が 自由文（「12月10日ごろ」等）なら ★そのまま 残す★（消さない）
- *   ③ 支給日が 空なら ★会社の 支給日★に 落ちる（月次と 同じ）
+ *   ③ 支給日が 空なら ★紙の 支給日も 空★（推した 日を 出さない）
+ *      ★2026-11-04 深夜に 変えた★：前は「会社の 支給日に 落ちる（月次と 同じ）」で ★月次の 対象月（state.month）の 支払日★を 出していた。
+ *      支給 2028-01・対象月 2026-11 の 紙に「支給日 令和8年11月25日」（chromium で 実測）／翌月払いの 会社は 月が 同じでも 翌月の 日（設計前 taiketsu 止め1）。
+ *      賞与支払届（app.js 賞与支払日を入力）・振込（支給日を 入れる へ 案内）は 空を「分からない」と 扱う＝紙だけ 推すと 出す物の 間で 食い違う（止め2）。
+ *      ⇒ 空の 時は 紙・Excel・Web明細とも 空で 出し、賞与の 画面と 印刷の 賞与の 紙に 黄色で 入れてもらう。
  *   ④ 賞与支給月が 壊れていても ★おかしな 年月を 紙に 出さない★
  *   ⑤ ★空振りしていない★（紙の 中身が 本当に 作れている）
  *
@@ -69,6 +73,7 @@ async function hakaru(appSrc) {
   S.month = '2026-09';
   S.employees = [Object.assign(A.defEmp ? A.defEmp() : {},
     { id: 'e1', name: '試し 太郎', joinYmd: '2020-04-01', pref: '愛媛県', fuyou: 0, taxClass: 'ko', base: 250000 })];
+  let zure;
   const oku = (payYm, payDay) => {
     S.bonus = { payYm: payYm, payDay: payDay, byEmp: { e1: { amount: 300000, prevAfter: 250000, ytd: '', addShikyu: [], addKojo: [] } } };
     const p = A.buildBonusPeople(S.employees)[0];
@@ -77,7 +82,8 @@ async function hakaru(appSrc) {
   return {
     hi:   oku('2026-09', '2026-12-10'),   /* 年-月-日 */
     jiyu: oku('2026-09', '12月10日ごろ'),  /* 自由文 */
-    kara: oku('2026-09', ''),             /* 空 */
+    kara: oku('2026-09', ''),             /* 空（翌月払いの 会社・対象月と 同じ 月） */
+    karaZure: ((S.month = '2026-11'), (zure = oku('2028-01', '')), (S.month = '2026-09'), zure),   /* 空・★支給月と 対象月が ずれる★（実測した 形） */
     kowa: oku('300000', '2026-12-10'),    /* ★壊れた 賞与支給月★（実際に 起きた 値） */
     tsuki: A.payDateStr(),
   };
@@ -96,8 +102,10 @@ iu(/^令和\d+年\d+月\d+日$/.test(String(r.hi.payDate)),
   '① 年-月-日 は 和暦で 出す（月次と 同じ 書き方） … 「' + r.hi.payDate + '」');
 iu(r.jiyu.payDate === '12月10日ごろ',
   '② 自由文は そのまま 残す（入れてもらった 字を 消さない） … 「' + r.jiyu.payDate + '」');
-iu(r.kara.payDate === r.tsuki,
-  '③ 空なら 会社の 支給日に 落ちる … 「' + r.kara.payDate + '」');
+iu(r.kara.payDate === '',
+  '③ 空なら 紙の 支給日も 空（月次の 支給日「' + r.tsuki + '」を 出さない） … 「' + r.kara.payDate + '」');
+iu(r.karaZure.payDate === '',
+  '③b 空で 支給月 2028-01・対象月 2026-11 でも 紙の 支給日は 空（違う 月の 日を 出さない） … 「' + r.karaZure.payDate + '」');
 iu(!/令 和 \d{3}|0 月|NaN/.test(String(r.kowa.label)) && /令 和 8 年/.test(String(r.kowa.label)),
   '④ 賞与支給月が 壊れていても おかしな 年月を 紙に 出さない … 「' + r.kowa.label + '」');
 iu(typeof r.hi.net === 'number' && r.hi.net > 0,
@@ -121,6 +129,15 @@ if (process.argv.includes('--self-test')) {
   if (ak2) aka++;
   console.log('  ' + (ak2 ? '✓' : '✗') + ' 自由文は どちらの 姿でも 消えない（誤って 赤に しない） … '
     + (ak2 ? '正しく 読めた' : '★読み違えた★'));
+  /* ★③を 守る 1行★（2026-11-04 深夜）＝空の 時に 月次の 支給日へ 落とす 姿に 戻すと ③③b が 赤 */
+  const M3 = "if(!v) return '';", A3 = 'if(!v) return payDateStr();';
+  if (keep.indexOf(M3) < 0) { console.log('  ★③の 壊す場所が 見つからない★'); process.exit(2); }
+  const c = await hakaru(keep.replace(M3, A3));
+  kowashita++;
+  const ak4 = c.kara.payDate !== '' && c.karaZure.payDate !== '';
+  if (ak4) aka++;
+  console.log('  ' + (ak4 ? '✓' : '✗') + ' 空なら 月次の 支給日へ 落とす（直す前の 姿） … '
+    + (ak4 ? '赤に なる（見張りが 気づく）' : '★気づけない★') + '  出た字「' + c.kara.payDate + '」「' + c.karaZure.payDate + '」');
   /* ④を 守る 1行 */
   const M4 = 'function bonusMonthLabel(){ var ym=bonusYmSafe();';
   const A4 = 'function bonusMonthLabel(){ var ym=bonusYmOf();';

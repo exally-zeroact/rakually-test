@@ -317,6 +317,14 @@
   function statutoryStaleWarn(){ return PW().statutoryStaleWarn(staleCtx()); }
   // 賞与は 支給月で 見る（2026-11-04 夜・lib payroll-warnings の ⑦-1b）
   function bonusStaleWarn(){ return PW().bonusStaleWarn({ month:bonusYmOf(), payDay:(state.bonus&&state.bonus.payDay)||'' }); }
+  /* ★賞与の 支給日が 空＝黄色で 入れてもらう★（2026-11-04 深夜）。紙・Excel・Web明細の 支給日は 空で 出す（bonusPayDateStr）＝推した 日を 出さない。
+     賞与支払届・振込は 前から 空を「入れてください」で 止めている＝同じ 扱いに 揃えた（設計前 taiketsu 止め1・2）。止めはしない（紙は 空欄で 出せる）。 */
+  /* ★金額が 1人も 無い 月は 出さない★（差分 taiketsu 任意1・司さん 11-04「いちいち出すなや」）＝作りたての 支給日は 空なので 賞与を 払わない 月に 開くだけで 出ていた。
+     金額は state.bonus.byEmp を 直に 読む（bonusEntry は 読むと 書き足す）。追加支給だけの 賞与も 数える。 */
+  function bonusPayDayEmptyWarn(){ var v=String((state.bonus&&state.bonus.payDay)||'').trim(); if(v) return '';
+    var be=(state.bonus&&state.bonus.byEmp)||{}, aru=Object.keys(be).some(function(id){ var en=be[id]||{}; return num(en.amount)>0 || (en.addShikyu||[]).some(function(it){ return num(it&&it.value)>0; }); });
+    if(!aru) return '';
+    return '<div class="cr-warn" style="margin:0 0 10px">⚠ 賞与の 支給日が 空です。賞与の 紙・Excel・Web明細の <b>支給日は 空欄</b>で 出ます。入力 ▸ 賞与 の「支給日」に 入れてください（賞与支払届・振込にも 要ります）。</div>'; }
   /* ★過去の残業履歴(36協定の複数月/年チェックの材料)が 読めなかった時だけ 出す警告（2026-10-08 (a)3）★
      ＝読めないと チェックが 発火せず「問題なし」に 見える＝黙らせない。赤で止めない（loadBonusYtd と同形）。 */
   function otHistErrWarn(){ return state._otHistErr ? '<div class="cr-warn" style="margin:0 2px 10px">⚠ <b>過去の残業時間の履歴</b>を読めませんでした（36協定の複数月／年の上限チェックに使います）。通信が戻ってから開き直すと再確認できます（このまま保存・計算はできます）。</div>' : ''; }
@@ -3042,7 +3050,7 @@
         +shoyoCsvBox(bonusHarauRows())
         +'<p class="hint" style="margin:8px 0 0">確定すると、この賞与（'+esc(ym)+'）を年末調整の自動集計と賃金台帳に反映します。あとで直せます。<b>定時決定（4〜6月の標準報酬）や前月比には賞与は含めません</b>（法令どおり）。<br>「賞与支払届」＝年金機構提出用（標準賞与額＝1,000円未満切捨・健保 年度573万／厚年1回150万上限）。被保険者整理番号は 従業員マスタ ▸ 詳細設定 ▸ 社会保険 に入れた番号が出ます（未入力なら空欄）。</p></div>'
       : '';
-    host.innerHTML=bonusStaleWarn()+bonusItemSuggestHTML()+head+(cards||'<p class="hint">対象の従業員がいません。</p>')+footer;
+    host.innerHTML=bonusStaleWarn()+bonusPayDayEmptyWarn()+bonusItemSuggestHTML()+head+(cards||'<p class="hint">対象の従業員がいません。</p>')+footer;
   }
   // 賞与を pay_payslips に kind='bonus' で保存(年末調整の年集計・賃金台帳が拾う)。賞与額0は保存しない。
   //  ★定時決定/前月比は賞与を除外して集計する(取得側フィルタ)ので、この保存は法令上の月額報酬に混入しない。
@@ -4723,8 +4731,10 @@
      その後 賞与の紙だけが 生の「2026-12-10」のままに なっていた。
      月次の紙は「令和8年10月25日」――★同じ会社の 紙で 書き方が 食い違っていた★。
      ★入れてもらった 自由文は 消さない★＝日付と 読めた時だけ 和暦にする。 */
+  /* ★空なら 空★（2026-11-04 深夜）＝前は payDateStr()＝★月次の 対象月（state.month）の 支払日★を 出していた＝支給 2028-01 の 紙に「令和8年11月25日」・
+     翌月払いの 会社は 月が 同じでも 翌月の 日（chromium で 実測・設計前 taiketsu 止め1）。黄色は bonusPayDayEmptyWarn。 */
   function bonusPayDateStr(){ var v=String((state.bonus&&state.bonus.payDay)||'').trim();
-    if(!v) return payDateStr();
+    if(!v) return '';
     var d=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v);
     return d?('令和'+(Number(d[1])-2018)+'年'+Number(d[2])+'月'+Number(d[3])+'日'):v; }
   function buildBonusPeople(emps){ return emps.map(function(e){ var c=computeBonus(e);
@@ -4836,7 +4846,7 @@
     b.disabled=!g.enabled;
     b.textContent=g.enabled?'印刷 / PDF保存':('印刷 / PDF保存（'+g.short+'）');
   }
-  function printStaleUI(){ var pst=$('#p-stale'); if(pst) pst.innerHTML=((state.printMode||'monthly')==='monthly')?statutoryStaleWarn():bonusStaleWarn(); } // 賞与の 紙は 支給月で 見る（2026-11-04 夜）
+  function printStaleUI(){ var pst=$('#p-stale'); if(pst) pst.innerHTML=((state.printMode||'monthly')==='monthly')?statutoryStaleWarn():(bonusStaleWarn()+bonusPayDayEmptyWarn()); } // 賞与の 紙は 支給月で 見る（2026-11-04 夜）
   function renderPrint(){
     $('#p-month').value=state.month;
     $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===(state.printMode||'monthly')); });

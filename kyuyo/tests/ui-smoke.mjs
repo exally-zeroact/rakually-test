@@ -921,7 +921,7 @@ T('印刷の画面：日払い 2027-12 の紙に 2028-01 の日（所得税の�
   const e = A.state.employees[0];
   try {
     co.payCycle = 'daily'; co.paydayRel = 'current'; A.state.month = '2027-12'; A.state.printMode = 'monthly';
-    A.state.bonus = { payYm: '2027-12', payDay: '', byEmp: {} }; // 賞与の 紙で 出ない 訳を 明示（支給 2027-12＝収録済み・前の 試験の 残りに 頼らない＝設計前 taiketsu N6）
+    A.state.bonus = { payYm: '2027-12', payDay: '2027-12-10', byEmp: {} }; // 支給日は 同じ 月で 入れる（空だと「支給日が 空」の 黄色が 出る・2026-11-04 深夜）。賞与の 紙で 出ない 訳を 明示（支給 2027-12＝収録済み・前の 試験の 残りに 頼らない＝設計前 taiketsu N6）
     e.dailyEntries = [{ ymd: '2027-12-27', hm: '8:00', amount: '12000' }, { ymd: '', hm: '', amount: '' }];
     const ins = () => [...doc.querySelectorAll('[data-dl$=":ymd"]')];
     const toPrint = () => { q('.bn[data-scr="scr-settings"]').click(); q('.bn[data-scr="scr-print"]').click(); return (q('#p-stale') || {}).innerHTML || ''; };
@@ -968,7 +968,7 @@ T('賞与の画面と印刷：支給 2028-01（賞与の所得税の表が未収
     q('.bn[data-scr="scr-print"]').click(); q('.pmode[data-pmode="bonus"]').click();
     ok(/賞与の所得税の表の 2028年分（支給月の年）/.test(ji('#p-stale')), '印刷の 賞与の 紙に 黄警告が 出ない＝' + ji('#p-stale'));
     q('.pmode[data-pmode="monthly"]').click(); ok(ji('#p-stale') === '', '月次の 紙（対象月 2027-12 当月払い＝収録済み）は 出ない＝' + ji('#p-stale'));
-    A.state.bonus.payYm = '2027-12';
+    A.state.bonus.payYm = '2027-12'; A.state.bonus.payDay = '2027-12-10'; // 同じ 月の 支給日（空の 黄色を 混ぜない）
     q('.pmode[data-pmode="bonus"]').click(); ok(ji('#p-stale') === '', '支給 2027-12（収録済み）の 賞与の 紙は 出ない');
     q('.bn[data-scr="scr-input"]').click(); ok(!/未収録/.test(ji('#bonus-view')), '支給 2027-12 の 賞与の 画面は 出ない');
     // 支給日の 欄に 翌年の 日を 打つ（支給月の 箱は 触らない）＝ずれの 黄警告が 賞与の 画面と 印刷の 賞与の 紙に 出る（設計前 taiketsu S2）
@@ -983,6 +983,38 @@ T('賞与の画面と印刷：支給 2028-01（賞与の所得税の表が未収
     const mb = q('.imode[data-imode="' + (keepIn || 'monthly') + '"]'); if (mb) mb.click();
     const pm = q('.pmode[data-pmode="' + (keepMode || 'monthly') + '"]'); if (pm) pm.click();
     win.eval("SHAKAIHOKEN_HYO.getKenko=__keepStale.k;SHAKAIHOKEN_HYO.getKaigo=__keepStale.g;SAITEI_CHINGIN.saiteiStale=__keepStale.s;delete window.__keepStale;");
+  }
+});
+
+/* ★賞与の 支給日が 空＝紙の 支給日は 空・黄色で 入れてもらう★（2026-11-04 深夜）
+   前は 空だと 月次の 対象月の 支払日（令和8年11月25日 等）が 賞与の 紙・Excel・Web明細に 出ていた（shoyo-kami-hizuke ③）。
+   紙を 空に した 代わりに、賞与の 画面と 印刷の 賞与の 紙で 気づけるように する（設計前 taiketsu 任意2）。 */
+T('賞与の画面と印刷：支給日が空→黄色「賞与の支給日が空です」・金額0の月は出ない・入れたら消える・月次の紙は出ない', function () {
+  const q = s => doc.querySelector(s);
+  const ji = (sel) => String((q(sel) || {}).innerHTML || '').replace(/<[^>]+>/g, '');
+  const keepMon = A.state.month, keepMode = A.state.printMode, keepIn = A.state.inputMode, keepB = A.state.bonus;
+  const JI = /賞与の 支給日が 空です/;
+  try {
+    A.state.month = '2026-06'; A.state.bonus = { payYm: '2026-06', payDay: '', byEmp: {} };
+    /* ★賞与を 払わない 月（金額が 1人も 無い）は 出さない★（差分 taiketsu 任意1・司さん 11-04「いちいち出すなや」）＝作りたての 支給日は 空 */
+    q('.bn[data-scr="scr-input"]').click(); q('.imode[data-imode="bonus"]').click();
+    ok(!JI.test(ji('#bonus-view')), '金額が 1人も 無いのに 賞与の 画面に 空の 黄色が 出た');
+    q('.bn[data-scr="scr-print"]').click(); q('.pmode[data-pmode="bonus"]').click();
+    ok(!JI.test(ji('#p-stale')), '金額が 1人も 無いのに 印刷の 賞与の 紙に 空の 黄色が 出た');
+    A.state.bonus.byEmp[A.state.employees[0].id] = { amount: '300000', prevAfter: '', ytd: '', addShikyu: [], addKojo: [] };
+    q('.bn[data-scr="scr-input"]').click(); q('.imode[data-imode="monthly"]').click(); q('.imode[data-imode="bonus"]').click();
+    ok(JI.test(ji('#bonus-view')), '賞与の 画面に 空の 黄色が 出ない＝' + ji('#bonus-view').slice(0, 120));
+    q('.bn[data-scr="scr-print"]').click(); q('.pmode[data-pmode="bonus"]').click();
+    ok(JI.test(ji('#p-stale')), '印刷の 賞与の 紙に 空の 黄色が 出ない＝' + ji('#p-stale'));
+    ok(A.buildBonusPeople(A.state.employees)[0].payDate === '', '紙の 支給日は 空');
+    q('.pmode[data-pmode="monthly"]').click(); ok(!JI.test(ji('#p-stale')), '月次の 紙には 出さない');
+    A.state.bonus.payDay = '2026-06-30';
+    q('.pmode[data-pmode="bonus"]').click(); ok(!JI.test(ji('#p-stale')), '入れたら 印刷の 黄色は 消える');
+    q('.bn[data-scr="scr-input"]').click(); ok(!JI.test(ji('#bonus-view')), '入れたら 画面の 黄色は 消える');
+  } finally {
+    A.state.month = keepMon; A.state.printMode = keepMode; A.state.bonus = keepB;
+    const mb = q('.imode[data-imode="' + (keepIn || 'monthly') + '"]'); if (mb) mb.click();
+    const pm = q('.pmode[data-pmode="' + (keepMode || 'monthly') + '"]'); if (pm) pm.click();
   }
 });
 
