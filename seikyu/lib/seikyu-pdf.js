@@ -140,13 +140,31 @@
       rg.selectNodeContents(n);
       var rects = rg.getClientRects();
       if (!rects.length) continue;
-      /* 1行ごとに 切る（折り返した所で 別の行として 置く） */
-      var lines = splitByLine(n, rects.length);
-      for (var j = 0; j < rects.length; j++) {
-        var rr = rects[j];
-        if (rr.width < 0.5 || rr.height < 0.5) continue;
+      /* 1行ごとに 切る（折り返した所で 別の行として 置く）
+         ★1行が 何個の 塊で 返っても 1行は 1回だけ 置く★（司さん 2026-11-04「住所が 被ってる」）
+         iPhone（WebKit）は 字体の 変わり目などで 同じ行を ★いくつかの 塊★で 返す。
+         ★直す前★は 塊ごとに「行の 字 全部」を 置いていた＝★同じ 住所が ずれて 2回 刷られた★。
+         ⇒ 塊を 行ごとに まとめ（左端〜右端を 足し合わせる）、字も 行ごとに 切って 対にする。 */
+      var rows = mergeRectsByLine(rects);
+      var lines = splitByLine(n, rows.length);
+      var noFit = false;
+      /* ★行と 字の 数が 合わない 時★（taiketsu 11-04 止2）＝塊を 全部 合わせた 箱に ★字 全部を 1回だけ★ 置く。
+         字を 落とさず 2重にも しない。箱の 幅は 字の 幅と 合わない＝★この字は 縮めない★（noFit）。 */
+      if (rows.length > 1 && lines.length !== rows.length) {
+        _mismatch++;
+        var all = mergeRectsByLine(rects).reduce(function (a, r) {
+          return a ? { left: Math.min(a.left, r.left), right: Math.max(a.right, r.right), top: a.top, bottom: a.bottom } : r;
+        }, null);
+        all.width = all.right - all.left; all.height = all.bottom - all.top;
+        rows = [all]; noFit = true;
+      }
+      for (var j = 0; j < rows.length; j++) {
+        var rr = rows[j];
+        var sj = (rows.length === 1) ? v.trim() : lines[j];
+        if (sj === undefined || sj === '') continue;
         out.texts.push({
-          s: lines[j] !== undefined ? lines[j] : v.trim(),
+          noFit: noFit,
+          s: sj,
           x: rr.left - base.left,
           /* ★右端も 持つ★（司さん 2026-08-30「なんでここが揃ってないんど／右揃えか左揃えかやろが」）
              ★紙は きっちり右揃え（右端が 全部 同じ）★なのに、写す時に ★左端で置いていた★。
@@ -167,19 +185,65 @@
     return out;
   }
 
+  /** 隣の 字に 被らずに 使える 幅（px）。隣が 無ければ 0＝縮めない。
+   *  同じ行＝縦の 真ん中が 相手の 上端〜下端に 入る。左揃え（と 中央）は 右隣、右揃えは 左隣を 見る。 */
+  var GAP_PX = 1;
+  function roomOf(texts, t) {
+    var top = t.y - t.h, mid = t.y - t.h / 2, best = null;
+    for (var i = 0; i < texts.length; i++) {
+      var o = texts[i];
+      if (o === t) continue;
+      if (!(mid >= o.y - o.h && mid <= o.y) && !((o.y - o.h / 2) >= top && (o.y - o.h / 2) <= t.y)) continue;
+      if (t.align === 'right') {
+        if (o.x < t.x - 0.5 && o.xr <= t.xr - 0.5) { var r1 = t.xr - o.xr - GAP_PX; if (best === null || r1 < best) best = r1; }
+      } else if (t.align !== 'center') {
+        if (o.x >= t.x + 0.5) { var r2 = o.x - t.x - GAP_PX; if (best === null || r2 < best) best = r2; }
+      }
+    }
+    return (best === null || best <= 0) ? 0 : best;
+  }
+
+  /** 同じ行の 塊を 1つに まとめる（縦の 真ん中が 前の 行の 上端〜下端に 入れば 同じ行）。
+   *  返す物は 上から 順の { left, right, top, bottom, width, height }。縦は 最初の 塊の まま。 */
+  function mergeRectsByLine(rects) {
+    var list = [];
+    for (var i = 0; i < rects.length; i++) {
+      var r = rects[i];
+      if (r.width < 0.5 || r.height < 0.5) continue;
+      list.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+    }
+    list.sort(function (a, b) { return a.top - b.top || a.left - b.left; });
+    var out = [];
+    list.forEach(function (r) {
+      var mid = (r.top + r.bottom) / 2;
+      var cur = out[out.length - 1];
+      if (cur && mid >= cur.top && mid <= cur.bottom) {
+        cur.left = Math.min(cur.left, r.left); cur.right = Math.max(cur.right, r.right);
+      } else {
+        out.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+      }
+    });
+    out.forEach(function (r) { r.width = r.right - r.left; r.height = r.bottom - r.top; });
+    return out;
+  }
+
   /** 折り返した行ごとの文字（Range を 1文字ずつ 進めて 行の変わり目で 切る） */
   function splitByLine(node, lineCount) {
     var v = node.nodeValue;
     if (lineCount <= 1) return [v.trim()];
-    var out = [], cur = '', lastTop = null;
+    /* ★行の 変わり目＝字の 縦の 真ん中が 前の字の 下端より 下★（2026-11-04）
+       字体が 混ざると 同じ行でも 上端が 1〜2px ずれる＝上端の 一致で 見ると 同じ行を 割ってしまう。 */
+    var out = [], cur = '', lastBottom = null;
     var rg = node.ownerDocument.createRange();
     for (var i = 0; i < v.length; i++) {
       rg.setStart(node, i); rg.setEnd(node, i + 1);
       var r = rg.getBoundingClientRect();
-      var top = Math.round(r.top);
-      if (lastTop !== null && top !== lastTop) { out.push(cur); cur = ''; }
+      if (r.height >= 0.5) {
+        var mid = (r.top + r.bottom) / 2;
+        if (lastBottom !== null && mid > lastBottom) { out.push(cur); cur = ''; }
+        lastBottom = r.bottom;
+      }
       cur += v[i];
-      lastTop = top;
     }
     if (cur) out.push(cur);
     return out.map(function (s) { return s.replace(/^\s+|\s+$/g, ''); });
@@ -244,6 +308,7 @@
           if (!pages.length) pages = d.body ? [d.body] : [];
           if (!pages.length) throw new Error('紙の中身が 見つかりません（.sheet が 0個）');
           var read = [];
+          _mismatch = 0;
           for (var i = 0; i < pages.length; i++) read.push(readPage(pages[i]));
           var total = read.reduce(function (n, r) { return n + r.texts.length; }, 0);
           if (!total) throw new Error('紙に 字が 1つも ありません（測れていません）');
@@ -287,6 +352,9 @@
   /* ★実際に 置いた所★（見張りが 数で 確かめる為に 取っておく） */
   var _placed = [];
   function lastPlaced() { return _placed.slice(); }
+  /* ★行と 字の 数が 合わなかった 回数★（試験が 0 を 見る・合わない 時は 1回だけ 縮めずに 置いた） */
+  var _mismatch = 0;
+  function lastMismatch() { return _mismatch; }
   /** ★字体を どれだけ 軽く できたか★（報告と 見張りが 読む） */
   var _slimInfo = null;
   function lastSlim() { return _slimInfo; }
@@ -409,6 +477,17 @@
             /* ★揃え方のとおりに 置く★（左端で置くと 右揃えが ばらける） */
             var size = t.size * K;
             var wpt = font.widthOfTextAtSize(s, size);
+            /* ★画面で 測った 幅に 収める★（司さん 2026-11-04「振込先の 数字と 名前も 被っとる」）
+               PDF の 字体は 画面の 字体（DM Mono 等）より 幅が 広い 事が ある＝★隣の 字に 被る★。
+               ⇒ 測った 幅より 広い 時だけ その 字を 小さく して 同じ 幅に 収める（狭い 時は 触らない）。 */
+            /* ★縮めるのは 同じ行の 隣の 字に 届く 時だけ★（taiketsu 11-04 止1＝被らない 字まで 紙の 半分を 縮めていた）
+               ・左揃え＝右隣の 字の 左端まで／右揃え＝左隣の 字の 右端まで が 使える 幅
+               ・★下限 0.85 倍★（額が 読めない 大きさに ならない）・行と 字が 合わなかった 字（noFit）は 触らない */
+            var room = t.noFit ? 0 : roomOf(pg.texts, t) * K;
+            if (room > 0 && wpt > room) {
+              size = Math.max(size * room / wpt, t.size * K * 0.85);
+              wpt = font.widthOfTextAtSize(s, size);
+            }
             var x = t.x * K;
             if (t.align === 'right') x = t.xr * K - wpt;
             else if (t.align === 'center') x = (t.x + t.xr) / 2 * K - wpt / 2;
@@ -416,7 +495,7 @@
               size: size, font: font, color: rgbOf(t.color, rgb) };
             page.drawText(s, at);
             _placed.push({ s: s, align: t.align, x: at.x, right: at.x + wpt,
-              wantRight: t.xr * K, wantLeft: t.x * K, size: at.size });
+              wantRight: t.xr * K, wantLeft: t.x * K, size: at.size, size0: t.size * K });
             /* ★太字＝少しずらして もう1度★（代行と同じやり方）
                ★取り出すと その字だけ 二重に見える★が、★紙は 正しい★。
                字体を もう1つ 埋めると PDFが 倍（5.9MB）になるので こちらを 取る。 */
@@ -465,8 +544,8 @@
   }
   function lastMissing() { return (_missing || []).slice(); }
 
-  return { build: build, lastMissing: lastMissing, lastPlaced: lastPlaced, lastSlim: lastSlim,
+  return { build: build, lastMissing: lastMissing, lastPlaced: lastPlaced, lastMismatch: lastMismatch, lastSlim: lastSlim,
     lastBadImages: lastBadImages,
     PX_W: PX_W, PX_H: PX_H, PT_W: PT_W, PT_H: PT_H, K: K, ASSETS: ASSETS,
-    _readPage: readPage, _splitByLine: splitByLine, _rgbOf: rgbOf, _alphaOf: alphaOf };
+    _readPage: readPage, _splitByLine: splitByLine, _mergeRectsByLine: mergeRectsByLine, _roomOf: roomOf, _rgbOf: rgbOf, _alphaOf: alphaOf };
 });
