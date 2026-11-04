@@ -315,6 +315,8 @@
   /* ★古い表の 黄警告に 日払い/週払いの 日の 年も 渡す★（2026-11-04 候補③）＝在籍者の 日別の 紙を lib（daily-pay maxTaxYearOf＝buildDailyData と 同じ 決まり）で 回す。月次の 会社は 0。 */
   function staleCtx(){ var c=ctxOf(), dp=DP(); c.dayTaxYear=(dp&&dp.maxTaxYearOf)?dp.maxTaxYearOf((state.employees||[]).filter(function(e){ return isActiveInMonth(e,state.month); }).map(function(e){ return e.dailyEntries||[]; }),{ cycle:(state.company&&state.company.payCycle)||'monthly', fallbackYear:parseInt(String(state.month||'').slice(0,4),10)||2026 }):0; return c; }
   function statutoryStaleWarn(){ return PW().statutoryStaleWarn(staleCtx()); }
+  // 賞与は 支給月で 見る（2026-11-04 夜・lib payroll-warnings の ⑦-1b）
+  function bonusStaleWarn(){ return PW().bonusStaleWarn({ month:bonusYmOf(), payDay:(state.bonus&&state.bonus.payDay)||'' }); }
   /* ★過去の残業履歴(36協定の複数月/年チェックの材料)が 読めなかった時だけ 出す警告（2026-10-08 (a)3）★
      ＝読めないと チェックが 発火せず「問題なし」に 見える＝黙らせない。赤で止めない（loadBonusYtd と同形）。 */
   function otHistErrWarn(){ return state._otHistErr ? '<div class="cr-warn" style="margin:0 2px 10px">⚠ <b>過去の残業時間の履歴</b>を読めませんでした（36協定の複数月／年の上限チェックに使います）。通信が戻ってから開き直すと再確認できます（このまま保存・計算はできます）。</div>' : ''; }
@@ -3040,7 +3042,7 @@
         +shoyoCsvBox(bonusHarauRows())
         +'<p class="hint" style="margin:8px 0 0">確定すると、この賞与（'+esc(ym)+'）を年末調整の自動集計と賃金台帳に反映します。あとで直せます。<b>定時決定（4〜6月の標準報酬）や前月比には賞与は含めません</b>（法令どおり）。<br>「賞与支払届」＝年金機構提出用（標準賞与額＝1,000円未満切捨・健保 年度573万／厚年1回150万上限）。被保険者整理番号は 従業員マスタ ▸ 詳細設定 ▸ 社会保険 に入れた番号が出ます（未入力なら空欄）。</p></div>'
       : '';
-    host.innerHTML=bonusItemSuggestHTML()+head+(cards||'<p class="hint">対象の従業員がいません。</p>')+footer;
+    host.innerHTML=bonusStaleWarn()+bonusItemSuggestHTML()+head+(cards||'<p class="hint">対象の従業員がいません。</p>')+footer;
   }
   // 賞与を pay_payslips に kind='bonus' で保存(年末調整の年集計・賃金台帳が拾う)。賞与額0は保存しない。
   //  ★定時決定/前月比は賞与を除外して集計する(取得側フィルタ)ので、この保存は法令上の月額報酬に混入しない。
@@ -4834,14 +4836,14 @@
     b.disabled=!g.enabled;
     b.textContent=g.enabled?'印刷 / PDF保存':('印刷 / PDF保存（'+g.short+'）');
   }
-  function printStaleUI(){ var pst=$('#p-stale'); if(pst) pst.innerHTML=((state.printMode||'monthly')==='monthly')?statutoryStaleWarn():''; } // 月次給与の 紙の 時だけ（賞与の 年は 支給月＝別件）
+  function printStaleUI(){ var pst=$('#p-stale'); if(pst) pst.innerHTML=((state.printMode||'monthly')==='monthly')?statutoryStaleWarn():bonusStaleWarn(); } // 賞与の 紙は 支給月で 見る（2026-11-04 夜）
   function renderPrint(){
     $('#p-month').value=state.month;
     $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===(state.printMode||'monthly')); });
     updatePrintMonthUI();
     updateDailyLayoutUI();
     /* ★印刷の 画面にも 古い表の 黄警告★（2026-11-04 候補③ taiketsu 止め1）＝日別の 欄は 打っても 描き直さない（下の input）ので
-       最後の 日に 翌年の 日付を 打って そのまま 印刷へ 来ると 一度も 見えなかった。月次給与の 紙の 時だけ（賞与の 年は 支給月＝別件）。 */
+       最後の 日に 翌年の 日付を 打って そのまま 印刷へ 来ると 一度も 見えなかった。賞与の 紙は 支給月で 見る（bonusStaleWarn・2026-11-04 夜）。 */
     printStaleUI();
     var sel=$('#p-emp'); sel.innerHTML='<option value="__all">全員</option>'+state.employees.map(function(e,i){return isActiveInMonth(e,state.month)?'<option value="'+i+'">'+esc(e.name)+'</option>':'';}).join('');
     /* ★選んだ人を 描き直しで 失わない★（2026-10-25 司さん「画面変えると また戻ってる 他の所も 確認して直せ」）

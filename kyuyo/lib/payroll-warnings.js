@@ -16,7 +16,7 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory(require('./payroll-monthly.js'), require('./payroll-calc.js'), require('./warimashi.js'),
       require('./saitei-chingin.js'), require('./shaho-kanyu.js'), require('./pay-rule.js'), require('./shakaihoken-hyo.js'),
-      require('./shotokuzei-densan.js'));
+      require('./shotokuzei-densan.js'), require('./shoyo-zei.js'));
   } else {
     // 所得税(ShotokuzeiDensan)は 渡さない＝読み込み順に 頼らず 使う時に window から 拾う（下の DN()）。
     // ★SAITEI_CHINGIN / SHAKAIHOKEN_HYO は `const` 宣言でwindowに付かない。UMDラッパはグローバル
@@ -25,7 +25,7 @@
       (typeof SAITEI_CHINGIN !== 'undefined' ? SAITEI_CHINGIN : root.SAITEI_CHINGIN), root.ShahoKanyu, root.PayRule,
       (typeof SHAKAIHOKEN_HYO !== 'undefined' ? SHAKAIHOKEN_HYO : root.SHAKAIHOKEN_HYO));
   }
-})(typeof self !== 'undefined' ? self : this, function (_PM, _PayrollCalc, _Warimashi, _SAI, _ShahoKanyu, _PayRule, _SHH, _DN) {
+})(typeof self !== 'undefined' ? self : this, function (_PM, _PayrollCalc, _Warimashi, _SAI, _ShahoKanyu, _PayRule, _SHH, _DN, _SZ) {
   'use strict';
 
   var G = (typeof globalThis !== 'undefined') ? globalThis : (typeof window !== 'undefined' ? window : {});
@@ -37,6 +37,7 @@
   function PR() { return _PayRule || G.PayRule; }
   function SHH() { return _SHH || G.SHAKAIHOKEN_HYO || null; }
   function DN() { return _DN || G.ShotokuzeiDensan || null; }
+  function SZ() { return _SZ || G.ShoyoZei || null; } // 賞与の 所得税の 表（ブラウザは 使う 時に window から 拾う＝DN と 同じ）
 
   var num = function (v) { return PM().num(v); };
   // app.js と同じ文字列ユーティリティ（文言をバイト単位で一致させるために必要・業務ロジックではない）
@@ -271,6 +272,59 @@
     return '<div class="cr-warn" style="margin:0 0 10px">⚠ ' + parts.join('、') + ' は未収録の年度です。直近の収録年度の値で<b>暫定計算</b>しています（公式値が公表されたらデータ更新が必要）。</div>';
   }
 
+  /* ★⑦-1b 賞与の 古い表の 黄警告＝支給月（payYm）で 見る★（2026-11-04 夜）
+     賞与の 計算（app.js computeBonus）は ym＝支給月（bonusYmOf）で 健保・介護（支給月の 社保年度）と
+     賞与の 所得税（shoyo-zei shoyoYearOf＝支給月の 年：甲乙の 算出率表 KOU/OTSU_BY_YEAR・前月なし等の 特例は 月額表＝densan PARAMS）を 選ぶ。
+     前は 警告が 対象月（state.month）でしか 無く、賞与の 画面にも 印刷の 賞与の 紙にも 出なかった＝支給 2028-01 で 黙って 令和9の 表。
+     ・税は 表ごとに「その年が 在るか」で 見る（最新との 比べでは ない）＝収録より 古い 年（支給 2025-12 → pickYear が 2026 へ 寄せる）も
+       年の 抜け（中央から 甲だけ 新しい 年が 来た 日）も 拾う（設計前 taiketsu S1）。月額表が 読めない 時は 甲乙だけで 見る（黙る 側へ 倒さない・N2）。
+     ・最賃は 賞与に 効かない＝見ない。雇用保険（koyo-hoken が 黙って 2026 へ 寄せる）は 月次も 同じ＝別件（候補⑥）。
+     ・ctx.payDay が 年-月-日で 読めて 月が 支給月と 違う 時は「表は 支給月で 選んでいる」と 別の 黄色で 言う（式は 変えない・S2）。
+       計算の 年を 支給日へ 移すかは お金の 決め＝司さんに 訊く 物。 */
+  function bonusZeiAru(y) {
+    var Z = SZ(), D = DN(); if (!Z || !y) return true; // 賞与の lib が 無い 時は 計算側（szMissing）が 確定を 止める
+    var aru = !!(Z.KOU_BY_YEAR && Z.KOU_BY_YEAR[y]) && !!(Z.OTSU_BY_YEAR && Z.OTSU_BY_YEAR[y]);
+    if (D && D.PARAMS) aru = aru && !!D.PARAMS[y];
+    return aru;
+  }
+  function bonusStaleWarn(ctx) {
+    var S = SHH(), ym = YM(ctx), furui = false, parts = [], out = '';
+    if (S && S.getKenko) { var k = S.getKenko('tokyo', ym); if (k && k.stale) furui = true; }
+    if (S && S.getKaigo) { var g = S.getKaigo(ym); if (g && g.stale) furui = true; }
+    if (furui) parts.push('支給月（' + esc(ym) + '）の <b>社会保険料率</b>');
+    var y = parseInt(String(ym).slice(0, 4), 10);
+    if (y && !bonusZeiAru(y)) parts.push('<b>賞与の所得税の表の ' + y + '年分（支給月の年）</b>');
+    // 締めの 字は 古い 年（もう 公表済み）にも 新しい 年にも 合う 言い方（差分 taiketsu 任意1）。「は未収録の年度です」は 月次と 揃えて 残す
+    if (parts.length) out += '<div class="cr-warn" style="margin:0 0 10px">⚠ ' + parts.join('、') + ' は未収録の年度です。直近の収録年度の値で<b>暫定計算</b>しています（その年の公式値をデータに入れる必要があります）。</div>';
+    var pd = String((ctx && ctx.payDay) || '').trim(), pym = shikyubiYm(pd, ym);
+    if (pym && ym && pym !== String(ym)) {
+      out += '<div class="cr-warn" style="margin:0 0 10px">⚠ 支給日（' + esc(pd) + '）と 賞与支給月（' + esc(ym) + '）の 月が 違います。社会保険料率・賞与の所得税の表は <b>賞与支給月</b>で 選んでいます。支給日の 月で 払うなら 賞与支給月を 直してください。</div>';
+    }
+    return out;
+  }
+  /* 支給日の 欄（自由文）→ 'YYYY-MM'。読めなければ ''（読めない 物で 決めない）。
+     客が 打つ 書き方を 読む（差分 taiketsu 止め1）：2028-01-08・2028/1/8・2028.1.8・2028年1月8日・令和10年1月8日・全角数字。
+     年の 無い 1月8日・1/8 は 月だけ 読み、年は 支給月の 年（支給月より 前の 月なら 翌年）＝月が 違えば ずれ。
+     ★曜日「（土）」・「予定」「支給」・R10.1.8・令和10.1.8・全角の 区切り（．－／）・8桁 も 読む★（差分 taiketsu 2回目 任意1＝振込を 使わない 会社は ここでしか 気づけない）。
+     ★付いた 語は 名簿で 消さず、日付の 字（数字・/ . - ・年月日・令和元・R）以外を 全部 空白に する★（4回目 任意1〜3＝名簿の 漏れ
+       「支払い日」「振込日」が 毎回 出た）。頭に 残る「日」（支払い日 → 日）は 落とす。読みは ^…$＝字 全体が 日付の 形の 時だけ。 */
+  function shikyubiYm(v, ym) {
+    var s = String(v == null ? '' : v).replace(/[０-９．－／（）：　]/g, function (c) { return c === '　' ? ' ' : String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+      .replace(/[ー−‐–―ｰ]/g, '-').replace(/\([^)]*\)/g, ' ').replace(/[^0-9\/\.\-年月日令和元Rr\s]/g, ' ').replace(/^[\s日\-\/\.]+/, '').trim(); // 頭の「日」「-」（ボーナス の ー 等）を 落とす
+    if (!s) return '';
+    var p2 = function (n) { return ('0' + n).slice(-2); }, m;
+    var ok = function (y, mo) { y = +y; mo = +mo; return (y >= 1900 && mo >= 1 && mo <= 12) ? (y + '-' + p2(mo)) : ''; };
+    if ((m = s.match(/^(\d{4})\s*[\/\.\-年]\s*(\d{1,2})\s*[\/\.\-月]\s*(\d{1,2})\s*日?$/))) return ok(m[1], m[2]);
+    if ((m = s.match(/^(\d{4})(\d{2})(\d{2})$/))) return ok(m[1], m[2]);
+    if ((m = s.match(/^(?:令和|R)\s*(\d{1,2}|元)\s*[年\.\/\-]\s*(\d{1,2})\s*[月\.\/\-]\s*(\d{1,2})\s*日?$/i))) return ok(2018 + (m[1] === '元' ? 1 : +m[1]), m[2]);
+    if ((m = s.match(/^(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?$/))) {
+      var by = parseInt(String(ym || '').slice(0, 4), 10), bm = parseInt(String(ym || '').slice(5, 7), 10), mo = +m[1];
+      if (!by || !bm) return '';
+      return ok(mo < bm ? by + 1 : by, mo);
+    }
+    return '';
+  }
+
   /* ── ⑦-2 ★都道府県の未選択（黙って東京で計算されるのを止める）★ ──────────────
    * 【2026-08-09 実測】従業員の都道府県が空だと:
    *   ・健康保険料率 … ★黙って東京の率で計算され、名前も「東京都」と出る★(getKenkoのフォールバック)
@@ -424,7 +478,7 @@
     annualHoursInfo: annualHoursInfo, annualHoursWarnText: annualHoursWarnText,
     laborLimitItems: laborLimitItems, laborLimitWarn: laborLimitWarn, laborLimitText: laborLimitText,
     shahoOffWarn: shahoOffWarn, fullTimeWeeklyH: fullTimeWeeklyH, shoteiMonthlyWage: shoteiMonthlyWage, shahoKanyuWarn: shahoKanyuWarn,
-    statutoryStaleWarn: statutoryStaleWarn, empWarnings: empWarnings, prorateNote: prorateNote,
+    statutoryStaleWarn: statutoryStaleWarn, bonusStaleWarn: bonusStaleWarn, _shikyubiYm: shikyubiYm, empWarnings: empWarnings, prorateNote: prorateNote,
     prefStats: prefStats, prefMissingWarn: prefMissingWarn, prefMissingText: prefMissingText, prefTokyoNote: prefTokyoNote, kariKeisanNote: kariKeisanNote,
     collect: collect, collectCompany: collectCompany,
   };

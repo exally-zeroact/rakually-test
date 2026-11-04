@@ -269,5 +269,72 @@ T('警告の字：所得税だけ古い＝所得税額表の 年分と 基準を
   if (!/対象月（2028-01）の 社会保険料率/.test(ryo) || !/所得税額表の 2028年分（支払日の年）/.test(ryo)) throw new Error('両方 古い：字が 違う＝' + ryo);
 });
 
+/* ★賞与の 古い表の 黄警告は 支給月（payYm）で 見る★（2026-11-04 夜）
+   賞与の 計算は ym＝支給月（app.js bonusYmOf）で 健保・介護（支給月の 年度）と 賞与の 所得税（shoyo-zei shoyoYearOf＝支給月の 年・
+   甲乙の 算出率表 KOU/OTSU_BY_YEAR、前月なし等の 特例は 月額表＝densan PARAMS）を 選ぶ。
+   前は 賞与の 画面にも 印刷にも 警告が 無かった＝対象月 2027-12・支給 2028-01 で 黙って 令和9の 表。 */
+T('警告：賞与は 支給月で 見る（社保＝支給月・所得税＝支給月の年の 賞与の表）', () => {
+  const SHH = require(path.join(ROOT, 'lib/shakaihoken-hyo.js'));
+  const SAI = require(path.join(ROOT, 'lib/saitei-chingin.js'));
+  const SZ = require(path.join(ROOT, 'lib/shoyo-zei.js'));
+  const PW = require(path.join(ROOT, 'lib/payroll-warnings.js'));
+  if (typeof PW.bonusStaleWarn !== 'function') throw new Error('PW.bonusStaleWarn が無い');
+  const mx = (o) => Math.max(...Object.keys(o).filter(k => /^\d{4}$/.test(k)).map(Number));
+  eq(mx(SZ.KOU_BY_YEAR), 2027, '前提：賞与 甲の 収録の 最新＝2027'); eq(mx(SZ.OTSU_BY_YEAR), 2027, '前提：賞与 乙の 収録の 最新＝2027');
+  const txt = (h) => String(h || '').replace(/<[^>]+>/g, '');
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale };
+  try {
+    SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
+    SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+    SAI.saiteiStale = function () { return true; }; // 最賃は 賞与に 効かない＝古くても 言わない
+    const t28 = txt(PW.bonusStaleWarn({ month: '2028-01' }));
+    if (!/賞与の所得税の表の 2028年分（支給月の年）/.test(t28)) throw new Error('支給 2028-01：「賞与の所得税の表の 2028年分（支給月の年）」が無い＝' + t28);
+    if (/社会保険料率|最低賃金|対象月/.test(t28)) throw new Error('支給 2028-01：古くない 社保・最賃・対象月を 言っている＝' + t28);
+    if (!/は未収録の年度です/.test(t28)) throw new Error('「は未収録の年度です」が 消えた');
+    eq(PW.bonusStaleWarn({ month: '2027-12' }), '', '支給 2027-12（収録済み）＝出ない');
+    // 収録より 古い 年（支給 2025-12）＝甲乙の 算出率表は 2026 へ 寄せる（pickYear）＝黙って 令和8の 表＝出す（設計前 taiketsu S1・支給月の 箱は 24か月 前まで 選べる）
+    eq(SZ.bonusRate(100000, 0, { year: 2025 }).stale, true, '前提：2025 の 賞与の 表は 無い（2026 へ 寄せる）');
+    const t25 = txt(PW.bonusStaleWarn({ month: '2025-12' }));
+    if (!/賞与の所得税の表の 2025年分（支給月の年）/.test(t25)) throw new Error('支給 2025-12（収録より 古い）：出ない＝' + t25);
+    if (/公表されたら/.test(t25)) throw new Error('古い 年（もう 公表済み）に「公表されたら」と 言っている（差分 taiketsu 任意1）＝' + t25);
+    // 支給日の 月が 支給月と 違う（年を またぐ）＝表は 支給月で 選んでいる と 黄色で 言う（式は 変えない・設計前 taiketsu S2）
+    const gap = txt(PW.bonusStaleWarn({ month: '2027-12', payDay: '2028-01-08' }));
+    if (!/支給日（2028-01-08）と 賞与支給月（2027-12）の 月が 違います/.test(gap)) throw new Error('支給日と 支給月の ずれ：出ない＝' + gap);
+    if (/未収録/.test(gap)) throw new Error('ずれだけ なのに 未収録と 言っている＝' + gap);
+    eq(PW.bonusStaleWarn({ month: '2027-12', payDay: '2027-12-10' }), '', '支給日が 支給月の 中＝出ない');
+    // 客が よく 打つ 書き方でも 読む（差分 taiketsu 止め1：前は 2028-01-08 の 形だけ＝8通り中 2通り）
+    for (const w of ['2028/01/08', '2028/1/8', '2028-1-8', '2028.1.8', '2028年1月8日', '2028 年 1 月 8 日', '令和10年1月8日', '令和１０年１月８日', '２０２８-０１-０８', ' 2028/1/8 ', '1月8日', '1/8',
+      // 曜日・「予定」「支給」・R略記・全角の区切り（差分 taiketsu 2回目 任意1＝振込を 使わない 会社は ここでしか 気づけない）
+      '2028年1月8日（土）', '2028/01/08(土)', '1月8日(土)', '1月8日支給', '2028/1/8 予定', 'R10.1.8', '令和10.1.8', '２０２８．１．８', '2028－01－08', '20280108',
+      // 「支払」・コロン・後ろの「振込」・長音や − ‐ の区切り（差分 taiketsu 3回目 任意3）
+      '支払日 2028/1/8', '2028年1月8日支払', '支給日：2028/1/8', '支給日:2028/1/8', '2028/1/8 振込', '2028ー01ー08', '2028−01−08', '2028‐01‐08',
+      // 名簿に 無い 語が 付いても 読む（差分 taiketsu 4回目 任意1〜3＝語を 足す 形を やめ 日付の 字 以外を 落とす）
+      '支払い日 2028/1/8', '2028年1月8日支払い', '振込日 2028/1/8', '2028–01–08', '2028―01―08', '2028ｰ01ｰ08', 'ボーナス 2028/1/8']) {
+      const t = txt(PW.bonusStaleWarn({ month: '2027-12', payDay: w }));
+      if (!/月が 違います/.test(t)) throw new Error('支給日「' + w + '」（2028-01）で ずれが 出ない＝' + t);
+    }
+    // 黙る 側は「読めて 支給月の 中」を 直に 見る（読めずに 黙るのと 区別する＝差分 taiketsu 3回目 任意1 の 空振り）
+    if (typeof PW._shikyubiYm !== 'function') throw new Error('PW._shikyubiYm が 無い（読みを 直に 試せない）');
+    for (const w of ['2027/12/10', '令和9年12月10日', '12月10日', '１２月１０日', '12/10', '2027年12月10日（金）', '12/10 支給予定', 'R9.12.10', '支払日：2027/12/10']) {
+      eq(PW._shikyubiYm(w, '2027-12'), '2027-12', '支給日「' + w + '」を 2027-12 と 読む');
+      eq(PW.bonusStaleWarn({ month: '2027-12', payDay: w }), '', '支給日「' + w + '」は 支給月の 中＝出ない');
+    }
+    eq(PW._shikyubiYm('末日', '2027-12'), '', '「末日」は 読めない（空）');
+    eq(PW.bonusStaleWarn({ month: '2027-12', payDay: '末日' }), '', '日付と 読めない 自由文＝ずれは 言わない（読めない 物で 決めない）');
+    // 甲乙・月額表の どれか 1つでも その年が 無ければ 出す（乙だけ 入れ忘れた 日・特例の 月額表だけ 古い 日）
+    const o27 = SZ.OTSU_BY_YEAR[2027];
+    try { delete SZ.OTSU_BY_YEAR[2027]; if (!/2027年分（支給月の年）/.test(txt(PW.bonusStaleWarn({ month: '2027-12' })))) throw new Error('乙の 2027 が 無いのに 出ない'); }
+    finally { SZ.OTSU_BY_YEAR[2027] = o27; }
+    const p27 = D.PARAMS[2027];
+    try { delete D.PARAMS[2027]; if (!/2027年分（支給月の年）/.test(txt(PW.bonusStaleWarn({ month: '2027-12' })))) throw new Error('月額表（特例）の 2027 が 無いのに 出ない'); }
+    finally { D.PARAMS[2027] = p27; }
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
+  // 本物の lib のまま：支給 2027-06＝健保だけ 古い（所得税 2027 は 収録済み）
+  const sh = txt(PW.bonusStaleWarn({ month: '2027-06' }));
+  if (!/支給月（2027-06）の 社会保険料率 は未収録の年度です/.test(sh)) throw new Error('支給 2027-06：字が 違う＝' + sh);
+  if (/所得税/.test(sh)) throw new Error('支給 2027-06：収録済みの 所得税を 言っている＝' + sh);
+  eq(PW.bonusStaleWarn({ month: '2026-12' }), '', '支給 2026-12（全部 収録済み）＝出ない');
+});
+
 console.log(`\n  ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -124,7 +124,7 @@ T('★app.js に計算式が残っていない（委譲ラッパ以外で lib �
   const src = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
   // 移設した関数は「1行の委譲」だけであること
   const MOVED = ['compute', 'warimashiOf', 'syncBasePay', 'syncCommute', 'minWageInfo', 'laborLimitItems',
-    'shahoOffWarn', 'shahoKanyuWarn', 'statutoryStaleWarn', 'empWarnings', 'prorateNote', 'residentTaxOf',
+    'shahoOffWarn', 'shahoKanyuWarn', 'statutoryStaleWarn', 'bonusStaleWarn', 'empWarnings', 'prorateNote', 'residentTaxOf',
     'leaveNoWorkInfo', 'jintekiOf', 'prefRate', 'applyNenchoAdj', 'shahoBasisOf', 'warimashiBasis'];
   MOVED.forEach(function (fn) {
     const re = new RegExp('^\\s*function\\s+' + fn + '\\s*\\([^)]*\\)\\s*\\{\\s*return\\s+P[MW]\\(\\)\\.[\\w$]+\\([^;]*\\);\\s*\\}\\s*$', 'm');
