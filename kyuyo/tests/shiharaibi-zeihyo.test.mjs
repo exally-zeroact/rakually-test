@@ -165,5 +165,33 @@ T('警告：2027-12 分 翌月払い（2028 払い＝未収録）は出る・当
   } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
 });
 
+// ★丙欄の 字の 年（社員の 画面）＝支払日の 年★ app.js の heiNenOf を 取り出して 本物の taxYearOf で 回す
+T('丙欄の字：2026-12 分 翌月払い＝令和9年分・当月払い＝令和8年分・読めない時は 対象月の年', () => {
+  const s = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+  const m = s.match(/  function heiNenOf\(\)\{[^\n]*\n/);
+  if (!m) throw new Error('heiNenOf が無い');
+  if (s.includes('日額表 丙欄（令和8年分）')) throw new Error('令和8年分 の 決め打ちが 残っている');
+  if (!s.includes("日額表 丙欄（令和'+heiNenOf()+'年分）")) throw new Error('丙欄の 字が heiNenOf を 使っていない');
+  const PMo = require(path.join(ROOT, 'lib/payroll-monthly.js'));
+  const HEIo = require(path.join(ROOT, 'lib/shotokuzei-hei.js'));
+  const mk = (pm, month, company, hei = HEIo) => new Function('PM', 'HEI', 'state', 'ctxOf', m[0] + 'return heiNenOf();')(
+    () => pm, () => hei, { month }, () => ({ month, company }));
+  eq(mk(PMo, '2026-12', { paydayRel: 'next', paydayDay: '25' }), 9, '翌月払い');
+  eq(mk(PMo, '2026-12', { paydayRel: 'current', paydayDay: '25' }), 8, '当月払い');
+  eq(mk(null, '2027-03', {}), 9, 'PM が 読めない＝対象月の年');
+  // 収録の無い年＝実際に 使う 表の 年（tableFor と 同じ）。字の年と 表が 同じ物かを 本物の 表で 見る
+  const nen = (month, company) => mk(PMo, month, company);
+  for (const [month, company] of [['2027-12', { paydayRel: 'next' }], ['2028-03', {}], ['2025-06', { paydayRel: 'current' }], ['2026-12', { paydayRel: 'next' }]]) {
+    const y = PMo.taxYearOf({ month, company });
+    if (HEIo.tableFor(nen(month, company) + 2018) !== HEIo.tableFor(y)) throw new Error(month + ' 字の年の表と 使う表が 違う');
+  }
+  eq(nen('2027-12', { paydayRel: 'next' }), 9, '2028 払い＝未収録＝令和9 の表を 使う');
+  eq(nen('2025-06', { paydayRel: 'current' }), 8, '2025＝収録より前＝令和8 の表を 使う');
+  eq(mk(PMo, '2026-12', { paydayRel: 'next' }, null), 9, '丙の lib が 読めない時は 支払日の年');
+  // 同じ 画面の 💡（taxclass）も 対象月で なく 支払日の 年と 書く
+  const help = (s.match(/taxclass:\{[^\n]*/) || [''])[0];
+  if (!/支払日の年/.test(help) || /対象月から自動/.test(help)) throw new Error('💡 taxclass が 支払日の年 に なっていない');
+});
+
 console.log(`\n  ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
