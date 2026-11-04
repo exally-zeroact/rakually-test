@@ -907,6 +907,45 @@ T('K2 期間分割: 従業員は概算の黄警告・業務委託は警告なし
   A.state.company.shimeMethod = 'monthly'; e.dailyEntries = []; e.employmentType = 'employee';
 });
 
+/* ★日払いの 最後の 日に 翌年の 日付を 打って そのまま 印刷へ＝古い表の 黄警告が 印刷の 画面に 見える★（2026-11-04 候補③ taiketsu 止め1）
+   日別の 欄は 打っても 描き直さない＝前は 印刷へ 来ても 一度も 見えなかった。社保・最賃の 古さを 外して 所得税の 年だけで 判じる。 */
+T('印刷の画面：日払い 2027-12 の紙に 2028-01 の日（所得税の表が未収録）→黄警告・月次/同じ年/賞与の紙は出ない', function () {
+  const zl = win.eval("Math.max.apply(null,Object.keys(ShotokuzeiDensan.PARAMS).filter(function(k){return /^\\d{4}$/.test(k);}).map(Number))");
+  const q = s => doc.querySelector(s);
+  ok(zl === 2027, '前提：所得税の 収録の 最新＝2027（変わったら 年を 直す）＝' + zl);
+  win.eval("window.__keepStale={k:SHAKAIHOKEN_HYO.getKenko,g:SHAKAIHOKEN_HYO.getKaigo,s:SAITEI_CHINGIN.saiteiStale};"
+    + "SHAKAIHOKEN_HYO.getKenko=function(){return Object.assign({},__keepStale.k.apply(this,arguments),{stale:false});};"
+    + "SHAKAIHOKEN_HYO.getKaigo=function(){return Object.assign({},__keepStale.g.apply(this,arguments),{stale:false});};"
+    + "SAITEI_CHINGIN.saiteiStale=function(){return false;};");
+  const co = A.state.company, keepCyc = co.payCycle, keepRel = co.paydayRel, keepMon = A.state.month, keepMode = A.state.printMode;
+  const e = A.state.employees[0];
+  try {
+    co.payCycle = 'daily'; co.paydayRel = 'current'; A.state.month = '2027-12'; A.state.printMode = 'monthly';
+    e.dailyEntries = [{ ymd: '2027-12-27', hm: '8:00', amount: '12000' }, { ymd: '', hm: '', amount: '' }];
+    const ins = () => [...doc.querySelectorAll('[data-dl$=":ymd"]')];
+    const toPrint = () => { q('.bn[data-scr="scr-settings"]').click(); q('.bn[data-scr="scr-print"]').click(); return (q('#p-stale') || {}).innerHTML || ''; };
+    ok(toPrint() === '', '前提：同じ年の 日だけ＝出ない');
+    // 入力の 画面で 最後の 欄に 打つ（描き直さない 道）→ そのまま 印刷へ
+    q('.bn[data-scr="scr-input"]').click();
+    const box = ins().pop(); ok(box, '日別の 日付の 欄');
+    // 金額と 時間も 打つ＝その日は 本当に 税で 表を 引く 行（金額0の 行で 出る 出しすぎ（taiketsu 任意A）に 頼らない）
+    const put = (sel, v) => { const el = [...doc.querySelectorAll(sel)].pop(); ok(el, sel); el.value = v; el.dispatchEvent(new win.Event('input', { bubbles: true })); };
+    put('[data-dl$=":hm"]', '8:00'); put('[data-dl$=":amount"]', '12000');
+    box.value = '2028-01-04'; box.dispatchEvent(new win.Event('input', { bubbles: true }));
+    ok(e.dailyEntries[1].ymd === '2028-01-04' && e.dailyEntries[1].amount === '12000' && e.dailyEntries[1].hm === '8:00', '打った 日付・金額・時間が 入った');
+    ok(A.buildDailyData(e).days.length === 2, '2028-01-04 の 日も 税の 紙に 載る（＝表を 引く 行）');
+    q('.bn[data-scr="scr-print"]').click();
+    ok(/所得税額表/.test((q('#p-stale') || {}).innerHTML || ''), '印刷の 画面に 黄警告が 出ない');
+    q('.pmode[data-pmode="bonus"]').click(); ok(q('#p-stale').innerHTML === '', '賞与の 紙では 出さない（賞与の 年は 支給月）');
+    q('.pmode[data-pmode="monthly"]').click(); ok(/所得税額表/.test(q('#p-stale').innerHTML), '月次に 戻すと また 出る');
+    e.dailyEntries[1].ymd = '2062-01-01'; ok(toPrint() === '', '対象月の 年±1 の 外＝打ち間違い＝表も 動かない＝出ない');
+    e.dailyEntries[1].ymd = '2028-01-04'; co.payCycle = 'monthly'; ok(toPrint() === '', '月次の 会社は 日の 年を 見ない');
+  } finally {
+    co.payCycle = keepCyc; co.paydayRel = keepRel; A.state.month = keepMon; A.state.printMode = keepMode; e.dailyEntries = [];
+    win.eval("SHAKAIHOKEN_HYO.getKenko=__keepStale.k;SHAKAIHOKEN_HYO.getKaigo=__keepStale.g;SAITEI_CHINGIN.saiteiStale=__keepStale.s;delete window.__keepStale;");
+  }
+});
+
 T('K3 源泉区分の配線: 業務委託で該当区分=明細に源泉・非該当(代行)=控除ゼロ', function () {
   const e = A.state.employees[0];
   e.employmentType = 'contractor'; e.houshuKubun = 'none'; A.state.month = '2026-06';

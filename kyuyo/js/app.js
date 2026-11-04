@@ -312,7 +312,9 @@
   function fullTimeWeeklyH(){ return PW().fullTimeWeeklyH(ctxOf()); }
   function shoteiMonthlyWage(e){ return PW().shoteiMonthlyWage(e, ctxOf()); }
   function shahoKanyuWarn(e){ return PW().shahoKanyuWarn(e, ctxOf()); }
-  function statutoryStaleWarn(){ return PW().statutoryStaleWarn(ctxOf()); }
+  /* ★古い表の 黄警告に 日払い/週払いの 日の 年も 渡す★（2026-11-04 候補③）＝在籍者の 日別の 紙を lib（daily-pay maxTaxYearOf＝buildDailyData と 同じ 決まり）で 回す。月次の 会社は 0。 */
+  function staleCtx(){ var c=ctxOf(), dp=DP(); c.dayTaxYear=(dp&&dp.maxTaxYearOf)?dp.maxTaxYearOf((state.employees||[]).filter(function(e){ return isActiveInMonth(e,state.month); }).map(function(e){ return e.dailyEntries||[]; }),{ cycle:(state.company&&state.company.payCycle)||'monthly', fallbackYear:parseInt(String(state.month||'').slice(0,4),10)||2026 }):0; return c; }
+  function statutoryStaleWarn(){ return PW().statutoryStaleWarn(staleCtx()); }
   /* ★過去の残業履歴(36協定の複数月/年チェックの材料)が 読めなかった時だけ 出す警告（2026-10-08 (a)3）★
      ＝読めないと チェックが 発火せず「問題なし」に 見える＝黙らせない。赤で止めない（loadBonusYtd と同形）。 */
   function otHistErrWarn(){ return state._otHistErr ? '<div class="cr-warn" style="margin:0 2px 10px">⚠ <b>過去の残業時間の履歴</b>を読めませんでした（36協定の複数月／年の上限チェックに使います）。通信が戻ってから開き直すと再確認できます（このまま保存・計算はできます）。</div>' : ''; }
@@ -4832,11 +4834,15 @@
     b.disabled=!g.enabled;
     b.textContent=g.enabled?'印刷 / PDF保存':('印刷 / PDF保存（'+g.short+'）');
   }
+  function printStaleUI(){ var pst=$('#p-stale'); if(pst) pst.innerHTML=((state.printMode||'monthly')==='monthly')?statutoryStaleWarn():''; } // 月次給与の 紙の 時だけ（賞与の 年は 支給月＝別件）
   function renderPrint(){
     $('#p-month').value=state.month;
     $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===(state.printMode||'monthly')); });
     updatePrintMonthUI();
     updateDailyLayoutUI();
+    /* ★印刷の 画面にも 古い表の 黄警告★（2026-11-04 候補③ taiketsu 止め1）＝日別の 欄は 打っても 描き直さない（下の input）ので
+       最後の 日に 翌年の 日付を 打って そのまま 印刷へ 来ると 一度も 見えなかった。月次給与の 紙の 時だけ（賞与の 年は 支給月＝別件）。 */
+    printStaleUI();
     var sel=$('#p-emp'); sel.innerHTML='<option value="__all">全員</option>'+state.employees.map(function(e,i){return isActiveInMonth(e,state.month)?'<option value="'+i+'">'+esc(e.name)+'</option>':'';}).join('');
     /* ★選んだ人を 描き直しで 失わない★（2026-10-25 司さん「画面変えると また戻ってる 他の所も 確認して直せ」）
        前は 描くたびに「全員」へ 戻った＝1人を 選んで 他の 画面へ 行き 戻ると 全員の 明細に なっていた。
@@ -6399,7 +6405,7 @@
     // 印刷
     $('#p-emp').addEventListener('change',function(){ var v=$('#p-emp').value, pe=(v==='__all')?null:state.employees[+v]; state._printEmpId=pe?pe.id:null; doPreview(); });   /* ★選んだ人を 覚える（renderPrint が 戻す）★ */
     // #p-monthは.scr-monthに統合(P1-18)→共通ハンドラ(対象月change)が state.month同期＋renderPrint（選ぶ欄から作り直す）を行う
-    $('#print-mode-seg').addEventListener('click',function(e){ var b=e.target.closest('.pmode'); if(!b)return; state.printMode=b.dataset.pmode==='bonus'?'bonus':'monthly'; $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===state.printMode); }); updatePrintMonthUI(); updateDailyLayoutUI(); doPreview(); });
+    $('#print-mode-seg').addEventListener('click',function(e){ var b=e.target.closest('.pmode'); if(!b)return; state.printMode=b.dataset.pmode==='bonus'?'bonus':'monthly'; $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===state.printMode); }); updatePrintMonthUI(); updateDailyLayoutUI(); printStaleUI(); doPreview(); });
     $('#daily-layout-seg').addEventListener('click',function(e){ var b=e.target.closest('.dls'); if(!b)return; state.dailySlipLayout=b.dataset.dls==='2col'?'2col':'1col'; $$('.dls').forEach(function(x){ x.classList.toggle('on', x.dataset.dls===state.dailySlipLayout); }); doPreview(); });
     function afterDesign(){ renderDesign(); if($('#scr-print')&&$('#scr-print').classList.contains('active')) doPreview(); }
     $('#tpl-row').addEventListener('click',function(e){ var b=e.target.closest('[data-tpl]'); if(!b)return; state.prefer=b.dataset.tpl; afterDesign(); });

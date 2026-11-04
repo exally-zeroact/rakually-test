@@ -56,5 +56,19 @@
     return yOf(ymd) || fy;
   }
 
-  return { computeDaily: computeDaily, hhmm: hhmm, taxYearForDay: taxYearForDay };
+  /* ★日別の 紙（人ごとの 日の 並び）が 引く 所得税の 表の 年の 最大★（2026-11-04 候補③）
+     ＝buildDailyData と 同じ 決まり（上の taxYearForDay）を 紙ごとに 回す。古い表の 黄警告（payroll-warnings statutoryStaleWarn の ctx.dayTaxYear）に 渡す。
+     日払い/週払い 以外は 0（月次の 会社は 日の 年を 見ない）。 */
+  function maxTaxYearOf(entryLists, opts) {
+    opts = opts || {};
+    if (opts.cycle !== 'daily' && opts.cycle !== 'weekly') return 0;
+    var mx = 0;
+    (entryLists || []).forEach(function (list) {
+      var ents = (list || []).map(function (x) { return { ymd: x && x.ymd }; });
+      ents.forEach(function (x) { var y = taxYearForDay(x.ymd, { cycle: opts.cycle, entries: ents, fallbackYear: opts.fallbackYear }); if (y > mx) mx = y; });
+    });
+    return mx;
+  }
+
+  return { computeDaily: computeDaily, hhmm: hhmm, taxYearForDay: taxYearForDay, maxTaxYearOf: maxTaxYearOf };
 });

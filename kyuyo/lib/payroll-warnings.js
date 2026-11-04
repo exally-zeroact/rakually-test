@@ -251,6 +251,11 @@
     // 所得税は 支払日の 年で 表を 選ぶ（payroll-monthly taxYearOf と 同じ年で 比べる・11-04）
     var _pm = PM(), zy = (_pm && _pm.taxYearOf) ? _pm.taxYearOf(ctx) : parseInt(String(ym).slice(0, 4), 10), zl = zeiSaishinNen();
     if (zy && zl != null && zy > zl) furui = true;
+    /* ★日払い・週払いの 日別の 紙は 日ごとの 年で 表を 選ぶ（daily-pay taxYearForDay）★（2026-11-04 候補③）
+       ＝12月の 紙に 翌年1月の 日が 入ると その年の 表が 無くても 黙って 最新の 表（tableFor）。taxYearOf は 日払い/週払いで 対象月の 年なので 見えなかった。
+       ctx.dayTaxYear＝呼ぶ側（app.js）が taxYearForDay で 回した 紙の 年の 最大（決まりは lib の 1か所・ここで 年を 推し直さない）。無ければ 前と 同じ。 */
+    var cyc = C(ctx).payCycle, dty = parseInt(ctx && ctx.dayTaxYear, 10);
+    if ((cyc === 'daily' || cyc === 'weekly') && dty && zl != null && dty > zl) furui = true;
     if (furui) msgs.push('社会保険料率・所得税額表');
     var SA = SAI();
     if (SA && SA.saiteiStale && SA.saiteiStale(YM(ctx))) msgs.push('最低賃金');

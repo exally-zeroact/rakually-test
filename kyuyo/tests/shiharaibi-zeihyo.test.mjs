@@ -193,5 +193,36 @@ T('丙欄の字：2026-12 分 翌月払い＝令和9年分・当月払い＝令�
   if (!/支払日の年/.test(help) || /対象月から自動/.test(help)) throw new Error('💡 taxclass が 支払日の年 に なっていない');
 });
 
+/* ★日払い・週払いの 紙は 日ごとの 年で 表を 選ぶ＝黄警告も その日の 年で 見る★（2026-11-04 候補③）
+   前は statutoryStaleWarn が daily/weekly で 対象月の 年だけ を 見た＝2027-12 の 紙に 2028-01 の 日が 入ると
+   表は 黙って 令和9（tableFor の 最新）・警告なし。上の 試験と 同じく 社保・最賃の 古さを 外して 所得税の 年だけで 判じる。 */
+T('警告：日払い/週払い 2027-12 の 紙に 2028-01 の 日（未収録）は出る・同じ年の日だけ／±1外／月次は出ない', () => {
+  const SHH = require(path.join(ROOT, 'lib/shakaihoken-hyo.js'));
+  const SAI = require(path.join(ROOT, 'lib/saitei-chingin.js'));
+  const PW = require(path.join(ROOT, 'lib/payroll-warnings.js'));
+  const zl = Math.max(...Object.keys(D.PARAMS).filter(k => /^\d{4}$/.test(k)).map(Number));
+  eq(zl, 2027, '前提：所得税の 収録の 最新＝2027（変わったら 年を 直す）');
+  eq(DP.taxYearForDay('2028-01-04', { cycle: 'daily', fallbackYear: 2027 }), 2028, '前提：日払いの 表の 年');
+  eq(DP.taxYearForDay('2027-12-28', { cycle: 'weekly', entries: [{ ymd: '2027-12-28' }, { ymd: '2028-01-04' }], fallbackYear: 2027 }), 2028, '前提：週払いの 表の 年');
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale };
+  try {
+    SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
+    SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+    SAI.saiteiStale = function () { return false; };
+    // 日の 年は 呼ぶ側（app.js staleCtx）が lib daily-pay maxTaxYearOf（taxYearForDay を 紙ごとに）で 回して 渡す＝ここでは その 決まりで 作る（年を 打ち込まない）
+    const dty = (cycle, ymds) => DP.maxTaxYearOf([ymds.map((ymd) => ({ ymd }))], { cycle, fallbackYear: 2027 });
+    const w = (company, ymds) => PW.statutoryStaleWarn(ymds ? { month: '2027-12', company, dayTaxYear: dty(company.payCycle, ymds) } : { month: '2027-12', company });
+    eq(w({ payCycle: 'daily' }), '', '前提：日の 年を 渡さなければ 出ない（前と 同じ）');
+    if (!/所得税額表/.test(w({ payCycle: 'daily' }, ['2027-12-28', '2028-01-04']))) throw new Error('日払い：2028-01 の 日が 有るのに 出ない');
+    if (!/所得税額表/.test(w({ payCycle: 'weekly' }, ['2027-12-28', '2028-01-04']))) throw new Error('週払い：2028-01 の 日が 有るのに 出ない');
+    eq(w({ payCycle: 'daily' }, ['2027-12-28', '', null]), '', '同じ年の 日と 空の 日だけ');
+    eq(w({ payCycle: 'daily' }, ['2062-01-01']), '', '対象月の 年±1 の 外＝打ち間違い＝表も 動かない');
+    eq(w({ payCycle: 'monthly', paydayRel: 'current', paydayDay: '25' }, ['2028-01-04']), '', '月次は 日の 年を 見ない（月次の 年は taxYearOf）');
+    eq(DP.maxTaxYearOf([[{ ymd: '2028-01-04' }]], { cycle: 'monthly', fallbackYear: 2027 }), 0, '月次の 会社は 日の 年を 0');
+    eq(DP.maxTaxYearOf([[{ ymd: '2027-12-27' }], [{ ymd: '2027-12-28' }, { ymd: '2028-01-04' }]], { cycle: 'daily', fallbackYear: 2027 }), 2028, '人を またいで 最大');
+    eq(PW.statutoryStaleWarn({ month: '2027-12', company: { payCycle: 'daily' }, dayTaxYear: 2027 }), '', '収録の 内の 年＝出ない');
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
+});
+
 console.log(`\n  ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
