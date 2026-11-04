@@ -238,29 +238,37 @@
        介護を 入れ忘れると 介護は 前年度の 率で 黙って 計算され、この 警告も 出なかった。
      ・所得税：額は 支払日の 年で 選ぶ（payroll-monthly taxYearOf と 同じ・11-04 から。前は 対象月の 年）。収録（PARAMS）より 新しい 年分は
        直近の 表で 計算するのに、社保年度が 3月から なので 1・2月分（例 2027-01）は 健保が 古く ならず 警告が 出なかった。
-     文言は 変えない（「社会保険料率・所得税額表」の まま）。 */
+     ★2026-11-04 候補④ 字を 分けた★ 前は「対象月（ym）の 社会保険料率・所得税額表」の 1種類＝
+       2027-12 分 翌月払い（税は 2028 の表）でも 対象月・社保と 書き、社保だけ 古い 月（2027-06）でも 所得税額表と 書いた。
+       ⇒ 社保（健保・介護）と 最賃は「対象月（ym）の …」、所得税は「所得税額表の YYYY年分（支払日の年／日払い・週払いの日の年／対象月の年）」。
+       「は未収録の年度です」は 残す（ops-golden-parity・make-golden が この字で STATUTORY_STALE を 拾う）。 */
   function zeiSaishinNen() {
     var D = DN(); if (!D || !D.PARAMS) return null;
     var ks = Object.keys(D.PARAMS).filter(function (k) { return /^\d{4}$/.test(k); });
     return ks.length ? Math.max.apply(null, ks.map(Number)) : null;
   }
   function statutoryStaleWarn(ctx) {
-    var msgs = []; var S = SHH(); var ym = YM(ctx); var furui = false;
-    if (S && S.getKenko) { var k = S.getKenko('tokyo', ym); if (k && k.stale) furui = true; }
-    if (S && S.getKaigo) { var g = S.getKaigo(ym); if (g && g.stale) furui = true; }
+    var msgs = []; var S = SHH(); var ym = YM(ctx); var shahoFurui = false;
+    if (S && S.getKenko) { var k = S.getKenko('tokyo', ym); if (k && k.stale) shahoFurui = true; }
+    if (S && S.getKaigo) { var g = S.getKaigo(ym); if (g && g.stale) shahoFurui = true; }
     // 所得税は 支払日の 年で 表を 選ぶ（payroll-monthly taxYearOf と 同じ年で 比べる・11-04）
     var _pm = PM(), zy = (_pm && _pm.taxYearOf) ? _pm.taxYearOf(ctx) : parseInt(String(ym).slice(0, 4), 10), zl = zeiSaishinNen();
-    if (zy && zl != null && zy > zl) furui = true;
+    var cyc = C(ctx).payCycle, hibetsu = (cyc === 'daily' || cyc === 'weekly');
+    var zei = []; // 古い 所得税の 年分（年＋基準）。年を またぐ 紙は 2年分とも 古い 事が ある＝両方 書く
+    if (zy && zl != null && zy > zl) zei.push(zy + '年分（' + (hibetsu ? '対象月の年' : '支払日の年') + '）');
     /* ★日払い・週払いの 日別の 紙は 日ごとの 年で 表を 選ぶ（daily-pay taxYearForDay）★（2026-11-04 候補③）
        ＝12月の 紙に 翌年1月の 日が 入ると その年の 表が 無くても 黙って 最新の 表（tableFor）。taxYearOf は 日払い/週払いで 対象月の 年なので 見えなかった。
        ctx.dayTaxYear＝呼ぶ側（app.js）が taxYearForDay で 回した 紙の 年の 最大（決まりは lib の 1か所・ここで 年を 推し直さない）。無ければ 前と 同じ。 */
-    var cyc = C(ctx).payCycle, dty = parseInt(ctx && ctx.dayTaxYear, 10);
-    if ((cyc === 'daily' || cyc === 'weekly') && dty && zl != null && dty > zl) furui = true;
-    if (furui) msgs.push('社会保険料率・所得税額表');
+    var dty = parseInt(ctx && ctx.dayTaxYear, 10);
+    if (hibetsu && dty && zl != null && dty > zl && dty > zy) zei.push(dty + '年分（日払い・週払いの日の年）');
+    if (shahoFurui) msgs.push('社会保険料率');
     var SA = SAI();
     if (SA && SA.saiteiStale && SA.saiteiStale(YM(ctx))) msgs.push('最低賃金');
-    if (!msgs.length) return '';
-    return '<div class="cr-warn" style="margin:0 0 10px">⚠ 対象月（' + esc(YM(ctx)) + '）の <b>' + msgs.join('・') + '</b> は未収録の年度です。直近の収録年度の値で<b>暫定計算</b>しています（公式値が公表されたらデータ更新が必要）。</div>';
+    var parts = [];
+    if (msgs.length) parts.push('対象月（' + esc(YM(ctx)) + '）の <b>' + msgs.join('・') + '</b>');
+    if (zei.length) parts.push('<b>所得税額表の ' + zei.join('・') + '</b>');
+    if (!parts.length) return '';
+    return '<div class="cr-warn" style="margin:0 0 10px">⚠ ' + parts.join('、') + ' は未収録の年度です。直近の収録年度の値で<b>暫定計算</b>しています（公式値が公表されたらデータ更新が必要）。</div>';
   }
 
   /* ── ⑦-2 ★都道府県の未選択（黙って東京で計算されるのを止める）★ ──────────────
