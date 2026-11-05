@@ -43,9 +43,9 @@ console.log('\n[insatsu-url] 紙に URL を 刷り込まない' + (SELF ? '（�
 
 if (SELF) {
   const kowasu = [
-    ['紙を 出す 道', app, '  function pdfDase(html, name, how, yobi, okId, errId) {'],
-    ['印刷が その道を 通る', app, "    doPdf(name, 'open', null, '印刷');"],
-    ['領収書が その道を 通る', app, "    pdfDase(built.html, name, 'open', '領収書', 'pay-ok', 'pay-err');"],
+    ['紙を 出す 道', app, '  function pdfDase(html, name, how, yobi, okId, errId, okuriJi, sumi, miruJi) {'],
+    ['印刷が その道を 通る', app, "    doPdf(name, 'open', null, '印刷', sumi);"],
+    ['領収書が その道を 通る', app, "    pdfDase(built.html, name, 'open', '領収書', 'pay-ok', 'pay-err', shareTextFor(pi, '領収書'));"],
   ];
   kowasu.forEach(([na, src, x]) => ok(src.split(x).length === 2, '★壊す所が 1つ 見つからない★ ' + na + ' … ' + x));
   console.log('     壊す所 ' + kowasu.length + '箇所（本当に コードに 在る事を 見た）');
