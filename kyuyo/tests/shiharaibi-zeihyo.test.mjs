@@ -20,6 +20,7 @@ const D = require(path.join(ROOT, 'lib/shotokuzei-densan.js'));
 const HEI = require(path.join(ROOT, 'lib/shotokuzei-hei.js'));
 const NICHI = require(path.join(ROOT, 'lib/shotokuzei-nichi.js'));
 const DP = require(path.join(ROOT, 'lib/daily-pay.js'));
+const KOYO_ = require(path.join(ROOT, 'lib/koyo-hoken.js'));
 
 let pass = 0, fail = 0;
 function T(n, fn) { try { fn(); pass++; console.log('  ✓ ' + n); } catch (e) { fail++; console.log('  ✗ ' + n + ' — ' + (e && e.message)); } }
@@ -153,16 +154,17 @@ T('警告：2027-12 分 翌月払い（2028 払い＝未収録）は出る・当
   const SHH = require(path.join(ROOT, 'lib/shakaihoken-hyo.js'));
   const SAI = require(path.join(ROOT, 'lib/saitei-chingin.js'));
   const PW = require(path.join(ROOT, 'lib/payroll-warnings.js'));
-  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale };
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale, e: KOYO_.employStale };
   try {
     SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
     SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+    KOYO_.employStale = function () { return false; }; // 雇用保険（11-06 候補⑥）も 古くない 事に＝ここは 所得税の 字だけを 見る
     SAI.saiteiStale = function () { return false; };
     const next = PW.statutoryStaleWarn({ month: '2027-12', company: { paydayRel: 'next', paydayDay: '25' } });
     const cur = PW.statutoryStaleWarn({ month: '2027-12', company: { paydayRel: 'current', paydayDay: '25' } });
     if (!/所得税額表/.test(next)) throw new Error('翌月払いで 警告が 出ない');
     eq(cur, '', '当月払い');
-  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; KOYO_.employStale = keep.e; }
 });
 
 // ★丙欄の 字の 年（社員の 画面）＝支払日の 年★ app.js の heiNenOf を 取り出して 本物の taxYearOf で 回す
@@ -204,10 +206,11 @@ T('警告：日払い/週払い 2027-12 の 紙に 2028-01 の 日（未収録�
   eq(zl, 2027, '前提：所得税の 収録の 最新＝2027（変わったら 年を 直す）');
   eq(DP.taxYearForDay('2028-01-04', { cycle: 'daily', fallbackYear: 2027 }), 2028, '前提：日払いの 表の 年');
   eq(DP.taxYearForDay('2027-12-28', { cycle: 'weekly', entries: [{ ymd: '2027-12-28' }, { ymd: '2028-01-04' }], fallbackYear: 2027 }), 2028, '前提：週払いの 表の 年');
-  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale };
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale, e: KOYO_.employStale };
   try {
     SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
     SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+    KOYO_.employStale = function () { return false; }; // 雇用保険（11-06 候補⑥）も 古くない 事に＝ここは 所得税の 字だけを 見る
     SAI.saiteiStale = function () { return false; };
     // 日の 年は 呼ぶ側（app.js staleCtx）が lib daily-pay maxTaxYearOf（taxYearForDay を 紙ごとに）で 回して 渡す＝ここでは その 決まりで 作る（年を 打ち込まない）
     const dty = (cycle, ymds) => DP.maxTaxYearOf([ymds.map((ymd) => ({ ymd }))], { cycle, fallbackYear: 2027 });
@@ -221,7 +224,7 @@ T('警告：日払い/週払い 2027-12 の 紙に 2028-01 の 日（未収録�
     eq(DP.maxTaxYearOf([[{ ymd: '2028-01-04' }]], { cycle: 'monthly', fallbackYear: 2027 }), 0, '月次の 会社は 日の 年を 0');
     eq(DP.maxTaxYearOf([[{ ymd: '2027-12-27' }], [{ ymd: '2027-12-28' }, { ymd: '2028-01-04' }]], { cycle: 'daily', fallbackYear: 2027 }), 2028, '人を またいで 最大');
     eq(PW.statutoryStaleWarn({ month: '2027-12', company: { payCycle: 'daily' }, dayTaxYear: 2027 }), '', '収録の 内の 年＝出ない');
-  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; KOYO_.employStale = keep.e; }
 });
 
 /* ★古い表の 警告の 字＝何が・どの年で 古いかを 正しく 言う★（2026-11-04 候補④）
@@ -237,10 +240,11 @@ T('警告の字：所得税だけ古い＝所得税額表の 年分と 基準を
   const zl = Math.max(...Object.keys(D.PARAMS).filter(k => /^\d{4}$/.test(k)).map(Number));
   eq(zl, 2027, '前提：所得税の 収録の 最新＝2027（変わったら 年を 直す）');
   const txt = (h) => String(h || '').replace(/<[^>]+>/g, '');
-  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale };
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale, e: KOYO_.employStale };
   try {
     SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
     SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+    KOYO_.employStale = function () { return false; }; // 雇用保険（11-06 候補⑥）も 古くない 事に＝ここは 所得税の 字だけを 見る
     SAI.saiteiStale = function () { return false; };
     const tsugi = txt(PW.statutoryStaleWarn({ month: '2027-12', company: { paydayRel: 'next', paydayDay: '25' } }));
     if (!/所得税額表の 2028年分（支払日の年）/.test(tsugi)) throw new Error('月次 翌月払い：「所得税額表の 2028年分（支払日の年）」が無い＝' + tsugi);
@@ -257,16 +261,35 @@ T('警告の字：所得税だけ古い＝所得税額表の 年分と 基準を
     // 年を またぐ 紙で 2年分とも 古い（2028-12 の 紙に 2029-01 の 日）＝両方の 年を 書く（差分 taiketsu 任意1）
     const futa = txt(PW.statutoryStaleWarn({ month: '2028-12', company: { payCycle: 'daily' }, dayTaxYear: 2029 }));
     if (!/所得税額表の 2028年分（対象月の年）・2029年分（日払い・週払いの日の年）/.test(futa)) throw new Error('2年分とも 古い：片方の 年が 落ちた＝' + futa);
-  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
-  // 本物の lib のまま：2027-06 当月払い＝健保だけ 古い（社保は 2027-02 まで 収録・所得税 2027 は 収録済み・最賃 令和8年度は 2027-09 まで）
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; KOYO_.employStale = keep.e; }
+  // 本物の lib のまま：2027-06 当月払い＝健保と 雇用保険が 古い（社保は 2027-02 まで・雇用は 2027-03 まで 収録・所得税 2027 は 収録済み・最賃 令和8年度は 2027-09 まで）
   eq(SHH.getKenko('tokyo', '2027-06').stale, true, '前提：2027-06 の 健保は 古い');
   eq(SAI.saiteiStale('2027-06'), false, '前提：2027-06 の 最賃は 収録済み');
   const shaho = txt(PW.statutoryStaleWarn({ month: '2027-06', company: { paydayRel: 'current', paydayDay: '25' } }));
-  if (!/対象月（2027-06）の 社会保険料率 は未収録の年度です/.test(shaho)) throw new Error('社保だけ 古い：字が 違う＝' + shaho);
+  if (!/対象月（2027-06）の 社会保険料率・雇用保険料率 は未収録の年度です/.test(shaho)) throw new Error('社保だけ 古い：字が 違う＝' + shaho);
   if (/所得税額表/.test(shaho)) throw new Error('社保だけ 古い のに 所得税額表と 言っている＝' + shaho);
   // 両方 古い：2028-01 当月払い
   const ryo = txt(PW.statutoryStaleWarn({ month: '2028-01', company: { paydayRel: 'current', paydayDay: '25' } }));
   if (!/対象月（2028-01）の 社会保険料率/.test(ryo) || !/所得税額表の 2028年分（支払日の年）/.test(ryo)) throw new Error('両方 古い：字が 違う＝' + ryo);
+});
+
+/* ★2026-11-06 候補⑥ 賞与も 雇用保険の 古さを 支給月で 見る★（賞与の 雇用保険料は app.js computeBonus の employYearOfYm(支給月)） */
+T('警告：賞与の 雇用保険料率が 未収録（支給 2027-06＝令和9年度）なら 黄警告・2027-03 支給は 出ない', () => {
+  const SHH = require(path.join(ROOT, 'lib/shakaihoken-hyo.js'));
+  const KH = require(path.join(ROOT, 'lib/koyo-hoken.js'));
+  const PW = require(path.join(ROOT, 'lib/payroll-warnings.js'));
+  const txt = (h) => String(h || '').replace(/<[^>]+>/g, '');
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo };
+  try {
+    SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
+    SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+    eq(KH.employStale('2027-06'), true, '前提：令和9年度の 雇用保険料率は 未収録');
+    const t = txt(PW.bonusStaleWarn({ month: '2027-06' }));
+    if (!/支給月（2027-06）の 雇用保険料率/.test(t)) throw new Error('支給 2027-06：「支給月（2027-06）の 雇用保険料率」が無い＝' + t);
+    if (/社会保険料率/.test(t)) throw new Error('支給 2027-06：古く ない 社保と 言っている＝' + t);
+    if (!/は未収録の年度です/.test(t)) throw new Error('「は未収録の年度です」が 消えた');
+    eq(PW.bonusStaleWarn({ month: '2027-03' }), '', '支給 2027-03（令和8年度）＝出ない');
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; }
 });
 
 /* ★賞与の 古い表の 黄警告は 支給月（payYm）で 見る★（2026-11-04 夜）
@@ -282,10 +305,11 @@ T('警告：賞与は 支給月で 見る（社保＝支給月・所得税＝支
   const mx = (o) => Math.max(...Object.keys(o).filter(k => /^\d{4}$/.test(k)).map(Number));
   eq(mx(SZ.KOU_BY_YEAR), 2027, '前提：賞与 甲の 収録の 最新＝2027'); eq(mx(SZ.OTSU_BY_YEAR), 2027, '前提：賞与 乙の 収録の 最新＝2027');
   const txt = (h) => String(h || '').replace(/<[^>]+>/g, '');
-  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale };
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale, e: KOYO_.employStale };
   try {
     SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
     SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+    KOYO_.employStale = function () { return false; }; // 雇用保険（11-06 候補⑥）も 古くない 事に＝ここは 所得税の 字だけを 見る
     SAI.saiteiStale = function () { return true; }; // 最賃は 賞与に 効かない＝古くても 言わない
     const t28 = txt(PW.bonusStaleWarn({ month: '2028-01' }));
     if (!/賞与の所得税の表の 2028年分（支給月の年）/.test(t28)) throw new Error('支給 2028-01：「賞与の所得税の表の 2028年分（支給月の年）」が無い＝' + t28);
@@ -328,10 +352,10 @@ T('警告：賞与は 支給月で 見る（社保＝支給月・所得税＝支
     const p27 = D.PARAMS[2027];
     try { delete D.PARAMS[2027]; if (!/2027年分（支給月の年）/.test(txt(PW.bonusStaleWarn({ month: '2027-12' })))) throw new Error('月額表（特例）の 2027 が 無いのに 出ない'); }
     finally { D.PARAMS[2027] = p27; }
-  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
-  // 本物の lib のまま：支給 2027-06＝健保だけ 古い（所得税 2027 は 収録済み）
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; KOYO_.employStale = keep.e; }
+  // 本物の lib のまま：支給 2027-06＝健保と 雇用保険が 古い（所得税 2027 は 収録済み）
   const sh = txt(PW.bonusStaleWarn({ month: '2027-06' }));
-  if (!/支給月（2027-06）の 社会保険料率 は未収録の年度です/.test(sh)) throw new Error('支給 2027-06：字が 違う＝' + sh);
+  if (!/支給月（2027-06）の 社会保険料率・雇用保険料率 は未収録の年度です/.test(sh)) throw new Error('支給 2027-06：字が 違う＝' + sh);
   if (/所得税/.test(sh)) throw new Error('支給 2027-06：収録済みの 所得税を 言っている＝' + sh);
   eq(PW.bonusStaleWarn({ month: '2026-12' }), '', '支給 2026-12（全部 収録済み）＝出ない');
 });

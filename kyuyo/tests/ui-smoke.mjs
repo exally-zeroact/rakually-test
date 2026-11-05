@@ -913,10 +913,10 @@ T('印刷の画面：日払い 2027-12 の紙に 2028-01 の日（所得税の�
   const zl = win.eval("Math.max.apply(null,Object.keys(ShotokuzeiDensan.PARAMS).filter(function(k){return /^\\d{4}$/.test(k);}).map(Number))");
   const q = s => doc.querySelector(s);
   ok(zl === 2027, '前提：所得税の 収録の 最新＝2027（変わったら 年を 直す）＝' + zl);
-  win.eval("window.__keepStale={k:SHAKAIHOKEN_HYO.getKenko,g:SHAKAIHOKEN_HYO.getKaigo,s:SAITEI_CHINGIN.saiteiStale};"
+  win.eval("window.__keepStale={k:SHAKAIHOKEN_HYO.getKenko,g:SHAKAIHOKEN_HYO.getKaigo,s:SAITEI_CHINGIN.saiteiStale,e:KoyoHoken.employStale};"
     + "SHAKAIHOKEN_HYO.getKenko=function(){return Object.assign({},__keepStale.k.apply(this,arguments),{stale:false});};"
     + "SHAKAIHOKEN_HYO.getKaigo=function(){return Object.assign({},__keepStale.g.apply(this,arguments),{stale:false});};"
-    + "SAITEI_CHINGIN.saiteiStale=function(){return false;};");
+    + "SAITEI_CHINGIN.saiteiStale=function(){return false;};KoyoHoken.employStale=function(){return false;};"); // 雇用保険（11-06 候補⑥）も 古くない 事に＝所得税の 字だけを 見る
   const co = A.state.company, keepCyc = co.payCycle, keepRel = co.paydayRel, keepMon = A.state.month, keepMode = A.state.printMode, keepB = A.state.bonus;
   const e = A.state.employees[0];
   try {
@@ -943,7 +943,7 @@ T('印刷の画面：日払い 2027-12 の紙に 2028-01 の日（所得税の�
     e.dailyEntries[1].ymd = '2028-01-04'; co.payCycle = 'monthly'; ok(toPrint() === '', '月次の 会社は 日の 年を 見ない');
   } finally {
     co.payCycle = keepCyc; co.paydayRel = keepRel; A.state.month = keepMon; A.state.printMode = keepMode; A.state.bonus = keepB; e.dailyEntries = [];
-    win.eval("SHAKAIHOKEN_HYO.getKenko=__keepStale.k;SHAKAIHOKEN_HYO.getKaigo=__keepStale.g;SAITEI_CHINGIN.saiteiStale=__keepStale.s;delete window.__keepStale;");
+    win.eval("SHAKAIHOKEN_HYO.getKenko=__keepStale.k;SHAKAIHOKEN_HYO.getKaigo=__keepStale.g;SAITEI_CHINGIN.saiteiStale=__keepStale.s;KoyoHoken.employStale=__keepStale.e;delete window.__keepStale;");
   }
 });
 
@@ -953,10 +953,10 @@ T('印刷の画面：日払い 2027-12 の紙に 2028-01 の日（所得税の�
 T('賞与の画面と印刷：支給 2028-01（賞与の所得税の表が未収録）→黄警告・支給 2027-12 と月次の紙は出ない', function () {
   const q = s => doc.querySelector(s);
   ok(win.eval("Math.max.apply(null,Object.keys(ShoyoZei.KOU_BY_YEAR).map(Number))") === 2027, '前提：賞与の 表の 収録の 最新＝2027（変わったら 年を 直す）');
-  win.eval("window.__keepStale={k:SHAKAIHOKEN_HYO.getKenko,g:SHAKAIHOKEN_HYO.getKaigo,s:SAITEI_CHINGIN.saiteiStale};"
+  win.eval("window.__keepStale={k:SHAKAIHOKEN_HYO.getKenko,g:SHAKAIHOKEN_HYO.getKaigo,s:SAITEI_CHINGIN.saiteiStale,e:KoyoHoken.employStale};"
     + "SHAKAIHOKEN_HYO.getKenko=function(){return Object.assign({},__keepStale.k.apply(this,arguments),{stale:false});};"
     + "SHAKAIHOKEN_HYO.getKaigo=function(){return Object.assign({},__keepStale.g.apply(this,arguments),{stale:false});};"
-    + "SAITEI_CHINGIN.saiteiStale=function(){return false;};");
+    + "SAITEI_CHINGIN.saiteiStale=function(){return false;};KoyoHoken.employStale=function(){return false;};"); // 雇用保険（11-06 候補⑥）も 古くない 事に＝所得税の 字だけを 見る
   const co = A.state.company, keepRel = co.paydayRel, keepCyc = co.payCycle, keepMon = A.state.month, keepMode = A.state.printMode, keepIn = A.state.inputMode, keepB = A.state.bonus;
   const ji = (sel) => String((q(sel) || {}).innerHTML || '').replace(/<[^>]+>/g, '');
   try {
@@ -982,7 +982,7 @@ T('賞与の画面と印刷：支給 2028-01（賞与の所得税の表が未収
     co.paydayRel = keepRel; co.payCycle = keepCyc; A.state.month = keepMon; A.state.printMode = keepMode; A.state.bonus = keepB;
     const mb = q('.imode[data-imode="' + (keepIn || 'monthly') + '"]'); if (mb) mb.click();
     const pm = q('.pmode[data-pmode="' + (keepMode || 'monthly') + '"]'); if (pm) pm.click();
-    win.eval("SHAKAIHOKEN_HYO.getKenko=__keepStale.k;SHAKAIHOKEN_HYO.getKaigo=__keepStale.g;SAITEI_CHINGIN.saiteiStale=__keepStale.s;delete window.__keepStale;");
+    win.eval("SHAKAIHOKEN_HYO.getKenko=__keepStale.k;SHAKAIHOKEN_HYO.getKaigo=__keepStale.g;SAITEI_CHINGIN.saiteiStale=__keepStale.s;KoyoHoken.employStale=__keepStale.e;delete window.__keepStale;");
   }
 });
 

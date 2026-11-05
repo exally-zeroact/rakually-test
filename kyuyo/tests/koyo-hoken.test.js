@@ -16,6 +16,33 @@ T('雇用 年度: 収録外はクランプ(2027-01→2026 / 2024-06→2025)', fu
   eq(KH.employYearOfYm('2024-06'), 2025);
 });
 
+/* ★2026-11-06 候補⑥ 年を 決め打ちで 寄せない＝RATES の キーで 選ぶ★
+   前は employYearOfYm が `fy>=2026?2026:2025`＝令和9年度の 率を lib に 足しても 中央から 来ても 2027-04〜 は 令和8の 率のまま・黄警告も 無し。 */
+T('雇用 年度: RATES に 2027 を 足すと 2027-04 は 2027（決め打ちで 2026 に 寄せない）', function () {
+  KH.RATES[2027] = { ippan: 0.0041, kensetsu: 0.0051, norin: 0.0051 };
+  try {
+    eq(KH.employYearOfYm('2027-04'), 2027);
+    eq(KH.employYearOfYm('2027-03'), 2026);
+    eq(KH.employRateByYm('ippan', '2027-04'), 0.0041);
+    eq(KH.employRate('ippan', 2099), 0.0041, '未知年度＝キーの 最新');
+    eq(KH.employStale('2027-04'), false);
+  } finally { delete KH.RATES[2027]; }
+});
+T('雇用 年度: 中央の hydrate(2027) でも 2027-04 に 届く', function () {
+  KH.hydrate(2027, { ippan: 0.0042, kensetsu: 0.0052, norin: 0.0052 });
+  try {
+    eq(KH.employRateByYm('ippan', '2027-04'), 0.0042);
+    eq(KH.employRateByYm('ippan', '2026-04'), 0.005, '令和8の 月は 変わらない');
+  } finally { delete KH.RATES[2027]; }
+});
+T('雇用 employStale: 収録の 外（2027-04・2024-06）＝true／内（2026-04・2026-03）＝false', function () {
+  eq(KH.employStale('2027-04'), true);
+  eq(KH.employStale('2024-06'), true);
+  eq(KH.employStale('2026-04'), false);
+  eq(KH.employStale('2026-03'), false);
+  eq(KH.employStale('2027-03'), false, '2027-03＝令和8年度');
+});
+
 /* --- 料率(厚労省照合済・実数リテラル) --- */
 T('雇用 料率 令和7(2025): 一般0.55%/建設・農林0.65%', function () {
   eq(KH.employRate('ippan', 2025), 0.0055);

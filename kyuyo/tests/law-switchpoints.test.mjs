@@ -162,6 +162,23 @@ T('★介護だけ 古い（健保は 収録済み）時も 黄警告', function
   } finally { SHH.getKaigo = orig; }
 });
 
+/* ★2026-11-06 候補⑥ 雇用保険だけ 古い（労働保険年度が 収録の 外）時も 黄警告★
+   前は 雇用保険を 見ず、2027-04〜 は 黙って 令和8年度の 雇用保険料率で 計算していた。健保・介護・最賃は 一時 古くない 事に して 雇用だけを 見る。 */
+T('★雇用保険だけ 古い（2027-04＝令和9年度 未収録）時も 黄警告・収録の 内（2027-03）は 出ない', function () {
+  const keep = { k: SHH.getKenko, g: SHH.getKaigo, s: SAI.saiteiStale };
+  SHH.getKenko = function () { return Object.assign({}, keep.k.apply(this, arguments), { stale: false }); };
+  SHH.getKaigo = function () { return Object.assign({}, keep.g.apply(this, arguments), { stale: false }); };
+  SAI.saiteiStale = function () { return false; };
+  try {
+    eq(KOYO.employStale('2027-04'), true, '前提：令和9年度の 雇用保険料率は 未収録');
+    const w = warnOf('2027-04');
+    if (w.indexOf('雇用保険料率') < 0) throw new Error('2027-04：雇用保険が 未収録なのに 黄警告に 雇用保険料率が 出ない＝' + w);
+    if (w.indexOf(SHAHO) >= 0) throw new Error('2027-04：古く ない 社保と 言っている＝' + w);
+    if (w.indexOf('は未収録の年度です') < 0) throw new Error('「は未収録の年度です」が 消えた');
+    if (warnOf('2027-03').indexOf('雇用保険料率') >= 0) throw new Error('2027-03（令和8年度）なのに 雇用保険料率と 言っている');
+  } finally { SHH.getKenko = keep.k; SHH.getKaigo = keep.g; SAI.saiteiStale = keep.s; }
+});
+
 // ── provenance に「実際に選ばれた年度」が出ること ──
 T('provenance に実行時に選ばれた年度/率が出る（切替が効いているか出力で確認できる）', function () {
   const s = snap('2026-06');
