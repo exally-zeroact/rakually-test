@@ -6430,6 +6430,18 @@
     // 印刷/PDF保存 = ★jsPDFで自前生成(A4ぴったり・iOSのURL/日付フッター無し・新窓を開かないので戻れる)。
     //   iOSのwebページ印刷(window.print/window.open)はフッターが必ず付き余白で2ページ化+戻れないため不採用。
     //   プレビューiframe内の各ページ(.sheet/.page)をhtml2canvasでA4寸法固定(潰れ防止)で焼き、複数人=複数ページに対応。
+    /* ★共有に 添える 字と 名前★（11-06「B」）＝1人なら「給与明細 2026年10月分 山田 太郎様」・全員は 人数。★金額は 入れない★ */
+    function kyuyoOkuriJi(){
+      var bonus=state.printMode==='bonus', kind=bonus?'賞与明細':'給与明細';
+      var ym=bonus?bonusYmSafe():String(state.month||''), mm=/^(\d{4})-(\d{2})$/.exec(ym);
+      var tuki=mm?(Number(mm[1])+'年'+Number(mm[2])+'月分'):'';
+      var v=$('#p-emp')?$('#p-emp').value:'__all', e=(v==='__all')?null:state.employees[+v];
+      var who=e?(String(e.name||'').trim()+'様'):'';
+      if(!e){ var n=state.employees.filter(function(x){ return isActiveInMonth(x,state.month); }).length; who=n?(n+'人'):''; }
+      var text=[kind,tuki,who].filter(function(x){ return x && x!=='様'; }).join(' ');
+      var name=[kind,tuki,who].filter(function(x){ return x && x!=='様'; }).join('_').replace(/[\\\/:*?"<>|\s]+/g,'_')+'.pdf';
+      return { text:text, name:name };
+    }
     $('#b-print').addEventListener('click',function(){
       /* ★刷る物が0枚なら、ここから先へ行かせない★（行くと白紙の印刷ダイアログが開いて「固まった」になる）。
          ボタンは押せない見た目にしてあるが、その見た目が壊れても最後にここで止める。 */
@@ -6438,6 +6450,7 @@
       var pg=printGate((pages&&pages.length)||0);
       if(!pg.enabled){ updatePrintBtn(); uiAlert('刷る物がまだありません（'+pg.short+'）。'); return; }
       markOutput();
+      var okuriAtPress=kyuyoOkuriJi();   /* ★押した 時の 人と 月★（PDF を 作る 数秒の 間に 選びを 変えても ずれない・taiketsu 任3） */
       if(!(window.html2canvas)||!(window.jspdf&&window.jspdf.jsPDF)){
         try{f.contentWindow.focus();f.contentWindow.print();}catch(err){window.print();} return; // 保険=ライブラリ未読込ならブラウザ印刷
       }
@@ -6453,7 +6466,11 @@
              ⇒ 欠けた人数を 必ず 出す／全員失敗なら 空PDFを 開かず 知らせる。★金額・保存・焼くページは1つも変えない＝抜けを黙らせないだけ★。 */
           if(wrote<=0){ uiAlert('PDFを作成できませんでした（'+ng+'人分すべて失敗）。時間をおいて もう一度お試しください。'); return; }
           // ★blobを新しいタブで開く(代行請求書と同じ・iOSのWebKitBlobResourceエラー回避)。ポップアップ不可時のみsave。
-          try{ var url=URL.createObjectURL(doc.output('blob')); var w=window.open(url,'_blank'); if(!w){ doc.save('給与明細.pdf'); } setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(_){} },60000); }catch(e){ try{ doc.save('給与明細.pdf'); }catch(_){} }
+          /* ★2026-11-06 司さん「B」★ iPhone・iPad は 共有に PDF と 字1行（「給与明細 2026年10月分 〇〇様」）を 渡す・url は 付けない
+             （blob の 窓を 開いて その 共有から 送ると LINE に 開けない URL が 届く）。他の 端末は 下の 今までの 開き方の まま。 */
+          var pdfBlob=doc.output('blob'), okuri=okuriAtPress;
+          var hiraku=function(){ try{ var url=URL.createObjectURL(pdfBlob); var w=window.open(url,'_blank'); if(!w){ doc.save(okuri.name); } setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(_){} },60000); }catch(e){ try{ doc.save(okuri.name); }catch(_){} } return { how:'open' }; };
+          if(window.FileOut && window.FileOut.sharePdf){ window.FileOut.sharePdf(pdfBlob, okuri.name, { text:okuri.text, open:hiraku }).catch(function(){ hiraku(); }); } else { hiraku(); }
           if(ng>0){ uiAlert('⚠ '+ng+'人分の明細をPDFにできませんでした（その分は抜けています）。時間をおいて もう一度お試しください。'); }
           return;
         }

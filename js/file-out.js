@@ -34,6 +34,11 @@
  *
  * 【利用】window.FileOut.deliver(bytes, 'name.xlsx') → Promise<{how:'download'}>
  *        window.FileOut.openInViewer(bytes, 'name.pdf') → Promise<{how:'open'}>
+ *        window.FileOut.sharePdf(bytes, 'name.pdf', { text: '請求書 2026年10月分 〇〇 御中' }) → Promise<{how:'share'|'need-tap'|'open'}>
+ *
+ * ★2026-11-04 追記★ 決まり②（端末で分けない）は ★落とす口（deliver）だけ★の 決まりに した。
+ *   PDF を 送る 口（sharePdf・@share-begin〜end の 間）だけは 指で 触る 端末を 見て 共有に PDF と 字1行を 渡す（url は 付けない・11-06 司さん「B」）
+ *   （司さん「LINE に 訳わからん URL も 送られる」）。共有へ 渡すのは iPhone・iPad だけ（他は 今まで通り 開く）。
  */
 (function (global) {
   'use strict';
@@ -121,6 +126,108 @@
     return Promise.resolve({ how: 'open', type: blob.type, filename: filename });
   }
 
+  /* @share-begin ★PDF を 送る 口だけは 共有を 使う★（kyuyo/tests/file-out.test.mjs が この 間だけ 許す・deliver には 入れない） */
+  /* ★PDFを 送る（iPhone の 共有に ★ファイルだけ★ 渡す）★（司さん 2026-11-04
+     「請求書を LINE で 転送したら 訳わからん URL みたいなのも 送られる・開けんやつや・こんな作りにすんなや」）
+     ・直す前＝openInViewer で blob の URL を Safari で 開き、その 共有から 送っていた
+       ＝Safari は ★開いている 頁の URL（blob:https://…）も 一緒に 渡す★ → LINE に 開けない URL が 届いた。
+     ・直した後＝navigator.share に ★files と text★ を 渡す（★url は 付けない★）＝届くのは 字1行と PDF 1つ。
+       ★2026-11-06 司さん「B」★＝files だけ（11-04 の 1回目）は 10-30 に ホーム画面の アプリで 共有に LINE が 並ばなかった 形。
+         text を 足した B は 司さんの 実機で LINE に 字と PDF が 両方 届いた（コンサル 11-06 01:5x）。
+         ＝text は ★必ず 付ける★（呼ぶ側が 渡さない時は ファイル名から 作る・空の text で 送らない）。
+       共有の 画面には LINE・メール・プリント・「ファイル」に保存 が 並ぶ＝印刷も ここから できる。
+     ・指で 触らない 端末（パソコン）と ファイルを 共有できない 端末＝今まで通り openInViewer（開く）。
+     ・iPhone は PDF を 作る 数秒の 間に「指で 押した」扱いが 切れて 断る 事が ある（NotAllowedError）
+       ＝★黙らず★ 画面に「送る」ボタンを 1つ 出し、それを 押した 時に 共有を 開く。 */
+  function shareFileOf(data, filename, mime) {
+    var blob = toBlob(data, mime);
+    if (!blob || typeof global.File !== 'function') return null;
+    try { return new global.File([blob], filename, { type: mime }); } catch (e) { return null; }
+  }
+  /* ★指で 触る 端末だけ★（taiketsu 11-04 止2）＝パソコンの Chrome も canShare は true を 返す（08-04 の 実測）。
+     パソコンで 共有の 画面を 出すと「印刷」が できなくなる＝パソコンは 今まで通り 開く。 */
+  function touchDevice() {
+    try { return !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
+  }
+  function appleTouch() {
+    var nv = global.navigator || {};
+    var ua = String(nv.userAgent || '');
+    return /iPhone|iPad|iPod/.test(ua) || (nv.platform === 'MacIntel' && Number(nv.maxTouchPoints) > 1);
+  }
+  function canShareFile(file) {
+    var nv = global.navigator;
+    if (!touchDevice()) return false;
+    try { return !!(file && nv && typeof nv.share === 'function' && typeof nv.canShare === 'function' && nv.canShare({ files: [file] })); }
+    catch (e) { return false; }
+  }
+  /* ★共有に 添える 字★＝呼ぶ側の 字（例「請求書 2026年10月分 〇〇株式会社 御中」）。無ければ ファイル名（拡張子を 外す）。
+     ★URL に 見える 字は 入れない★（blob: http: を 落とす＝LINE に 開けない URL を 届けない）。 */
+  function shareTextOf(text, filename) {
+    var t = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+    if (!t) t = String(filename || '').replace(/\.[A-Za-z0-9]+$/, '').replace(/_/g, ' ').trim();
+    t = t.replace(/(?:blob:|https?:\/\/)\S*/gi, '').replace(/\s+/g, ' ').trim();
+    return t || 'PDF';
+  }
+  function sharePdf(data, filename, opts) {
+    opts = opts || {};
+    var mime = opts.type || mimeOf(filename);
+    if (!mime) return Promise.reject(new Error('ファイルの種類が分かりません（' + filename + '）。'));
+    /* ★共有へ 渡すのは iPhone・iPad だけ★（taiketsu 11-04 止め3回＝ボタンごとに 分けると 印刷・納品書・領収書が 漏れた）
+       iPhone・iPad の 共有の 画面には プリント と「ファイル」に保存 が 在る＝印刷も 保存も 送るも ここで 足りる。
+       Android・Windows の タブレット・パソコンは ★今までと 全く 同じ★ 開く（共有の 画面に 印刷が 無い 端末が 在る）。 */
+    /* ★opts.open＝共有しない 時の 道を 呼ぶ側が 持っている 時★（給与＝前から window.open で 開く・11-06）。無ければ openInViewer */
+    var hiraku = function () { return (typeof opts.open === 'function') ? Promise.resolve(opts.open()) : openInViewer(data, filename, opts); };
+    if (!appleTouch()) return hiraku();
+    var file = shareFileOf(data, filename, mime);
+    if (!canShareFile(file)) return hiraku();
+    var text = shareTextOf(opts.text, filename);
+    var go = function () { return global.navigator.share({ files: [file], text: text }); };   // ★files と text・url は 付けない★
+    return go().then(function () {
+      /* ★送れた 時の 知らせは 呼ぶ側が 返りで 見る★（onShared は 帯で 押し直して 送れた 時だけ 呼ぶ＝二重に 付けない） */
+      return { how: 'share', filename: filename };
+    }, function (e) {
+      var nm = e && e.name;
+      if (nm === 'AbortError') return { how: 'share', cancelled: true, filename: filename };
+      if (nm === 'NotAllowedError') return tapToShare(go, filename, opts.onShared);
+      return hiraku();
+    });
+  }
+  /* ★押し直しの「送る」ボタン★（共有は 指で 押した 時にしか 開けない）。確認の 画面（z-index 100）より 上に 出す */
+  /* onShared＝帯から 押し直して ★送れた 時だけ★ 呼ぶ（「送った」印を ここで 付ける・やめた 時は 呼ばない・taiketsu 11-06 止3） */
+  function tapToShare(go, filename, onShared) {
+    var doc = global.document;
+    if (!doc || !doc.body) return Promise.resolve({ how: 'need-tap', filename: filename });
+    var old = doc.getElementById('fo-share');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var bar = doc.createElement('div');
+    bar.id = 'fo-share';
+    bar.setAttribute('role', 'dialog');
+    bar.style.cssText = 'position:fixed;left:12px;right:12px;bottom:16px;z-index:1000;background:#fff;'
+      + 'border:1px solid #c9d6cf;border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.18);'
+      + 'display:flex;gap:8px;align-items:center;';
+    var msg = doc.createElement('div');
+    msg.style.cssText = 'flex:1;font-size:14px;';
+    msg.textContent = 'PDF が できました（' + filename + '）。';   /* ★どの 紙か 見える★（前の 紙を 送らない・taiketsu 任2） */
+    var b = doc.createElement('button');
+    b.type = 'button'; b.id = 'fo-share-go'; b.className = 'btn';
+    b.textContent = '送る・印刷する';
+    var x = doc.createElement('button');
+    x.type = 'button'; x.className = 'btn'; x.textContent = '閉じる';
+    var close = function () { if (bar.parentNode) bar.parentNode.removeChild(bar); };
+    b.onclick = function () {
+      go().then(function () { close(); if (typeof onShared === 'function') { try { onShared(); } catch (e2) {} } }, function (e) {
+        if (e && e.name === 'AbortError') { close(); return; }
+        msg.textContent = '送れませんでした（' + ((e && e.name) || '不明') + '）。閉じて もう一度 お試しください。';   /* ★黙らない★（taiketsu 任1） */
+      });
+    };
+    x.onclick = close;
+    bar.appendChild(msg); bar.appendChild(b); bar.appendChild(x);
+    doc.body.appendChild(bar);
+    return Promise.resolve({ how: 'need-tap', filename: filename });
+  }
+
+  /* @share-end */
+
   /* ファイル名の日時（YYYYMMDD_HHmm）。★毎回違う名前＝古いダウンロードと見分けがつく。
      代行請求アプリと同じ形。使うかどうかは呼ぶ側が決める。 */
   function stamp(d) {
@@ -129,6 +236,6 @@
     return d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '_' + z(d.getHours()) + z(d.getMinutes());
   }
 
-  global.FileOut = { deliver: deliver, openInViewer: openInViewer,
+  global.FileOut = { deliver: deliver, openInViewer: openInViewer, sharePdf: sharePdf, shareTextOf: shareTextOf,
     mimeOf: mimeOf, MIME: MIME, stamp: stamp, extOf: extOf };
 })(typeof window !== 'undefined' ? window : globalThis);

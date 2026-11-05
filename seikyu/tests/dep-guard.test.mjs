@@ -97,7 +97,8 @@ const GLOBALS_FROM_NET = ['SUPA', 'XLSX', 'PDFLib', 'fontkit'];
 /* ★ブラウザ自身が 作る名前★（どの ファイルも 作らない＝作っている所を 探すと 必ず 0）
    supabase-js が 中で「この ブラウザに 在るか」を 見ている 2つ（2026-10-20 手元へ 移して 視界に 入った）。
    ★名前を 1つずつ 書く★＝ここに 無い 名前は 今まで どおり 赤。 */
-const GLOBALS_FROM_BROWSER = ['PublicKeyCredential', 'Worker'];
+/* ★File★（2026-11-04）＝PDF を 送る 時に 共有へ ファイルを 渡す（js/file-out.js の sharePdf・司さん「LINE に 開けない URL も 送られる」） */
+const GLOBALS_FROM_BROWSER = ['PublicKeyCredential', 'Worker', 'File'];
 
 console.log('\n[請求書 呼ばれる側の見張り]');
 const r = count('seikyu/index.html', ROOT);

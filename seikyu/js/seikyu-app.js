@@ -1093,6 +1093,11 @@
       });
     }).then(function (bytes) { return { bytes: bytes, miss: miss, bad: bad }; });
   }
+  /** 「2026-10」→「2026年10月分」（共有の 字を 他の 紙と 揃える・taiketsu 11-06 任7） */
+  function ymJi(ym) {
+    var m = /^(\d{4})-(\d{2})$/.exec(String(ym || ''));
+    return m ? (Number(m[1]) + '年' + Number(m[2]) + '月分') : String(ym || '');
+  }
   /** yobi＝'PDF'／'印刷'（どちらも 開く＝そこの 共有ボタンから 送る・印刷する。★ブラウザの 印刷は 使わない★） */
   function billPdf(made, name, yobi) {
     box('bk-err', '');
@@ -1102,12 +1107,17 @@
     var hitori = made.every(function (x) { return String(x.v.partner_id || '') === String(made[0].v.partner_id || ''); });
     var shirushi = (yobi === '印刷') || hitori;
     billPdfBytes(made, name).then(function (r) {
-      return OUT.pdfOpen(r.bytes, name).then(function (o) {
-        if (shirushi) billOkutta(made);
-        box('bk-ok', ((o && o.fellBack)
+      /* ★共有に 添える 字★（11-06「B」）＝1社なら その紙の 字・全社の まとめは 月と 通数 */
+      var okuriJi = hitori
+        ? shareTextFor(made[0].pi) + (made.length > 1 ? '（' + made.length + '通）' : '')
+        : ['請求書', ymJi(billPick.ym), '全社（' + made.length + '通）'].filter(function (x) { return x; }).join(' ');
+      return OUT.pdfOpen(r.bytes, name, okuriJi, function () { if (shirushi) billOkutta(made); box('bk-ok', shareMsg({ how: 'share' }, yobi)); }).then(function (o) {
+        /* ★共有を やめた 時・帯で 押し直しを 待つ 時は「渡した」印を 付けない★（帯で 送れたら onShared で 付く・taiketsu 11-06 止3） */
+        if (shirushi && !(o && (o.cancelled || o.how === 'need-tap'))) billOkutta(made);
+        box('bk-ok', (shareMsg(o, yobi) || ((o && o.fellBack)
           ? 'この端末では 新しい窓が開けなかったので、' + yobi + 'を 落としました。（ブラウザの ポップアップの設定を 見てください）'
           : yobi + 'を 別の窓で 開きました（' + made.length + '通）。その画面の 共有ボタンから'
-            + (yobi === '印刷' ? ' 印刷できます（プリンタを 選びます）。' : ' 保存・メールなどで 送れます。'))
+            + (yobi === '印刷' ? ' 印刷できます（プリンタを 選びます）。' : ' 保存・メールなどで 送れます。')))
           + (r.miss.length ? 'この字は 字体に無いので 〓 で出しました：' + r.miss.join('') : '')
           + (r.bad ? '出せなかった絵が ' + r.bad + '件 あります' : '')
           + (shirushi ? '' : '（全社の まとめは 取引先ごとに 送れないので「渡した」印は 付けません。取引先を 選んで 出すと 付きます）'));
@@ -1691,8 +1701,8 @@
        ＝送り漏れを 目で 数えるしか なく、催促の 時に「そもそも 送ったか」に 答えられない。
      ★出した紙を 渡す 道（PDFで保存・PDFを開く・印刷）を 通ったら 記録する★。
      ★sent_at は 固まる列では ない★（発行後でも 入る＝seikyu-doc.js の註）。 */
-  function okutta() {
-    var v = S.cur;
+  function okutta(v0) {
+    var v = v0 || S.cur;
     if (!v || !v.id) return;
     if (DOC.statusOf(v) !== 'issued') return;      /* 下書きの 下見は 送ったに しない */
     if (v.sent_at) return;                          /* 何度 押しても 最初の1回だけ */
@@ -1703,6 +1713,13 @@
       if (!r || !r.ok) { v.sent_at = ''; return; }  /* しまえなければ 印も 戻す（嘘を 残さない） */
       return loadList();   /* ★裏で 付ける 印＝客の 操作で ない★ので「できています」は 言わない（taiketsu 10-14） */
     }).catch(function () { v.sent_at = ''; });
+  }
+
+  /* ★押した 時の 1通に 印を 付ける 手★（taiketsu 11-06 止A）
+     印を 付けるのが 遅れる（PDF を 作り終えた 後・帯から 送れた 時）＝その 間に 確認を 閉じる・別の 1通を 開くと
+     S.cur が 入れ替わり、送っていない 1通に 印が 付いた。押した 時の v を 掴んでおく。 */
+  function okuttaWo(v) {
+    return v ? function () { okutta(v); } : function () {};   /* ★空なら 何もしない★（後の S.cur に 付けない・taiketsu 3回目 任1） */
   }
 
   function lookPaper(id) {
@@ -2893,12 +2910,12 @@
     box('pay-ok', '領収書のPDFを作っています…（字を紙に埋め込むので 少し待ちます）');
     PDF.build(built.html, { base: '../' }).then(function (bytes) {
       var miss = PDF.lastMissing ? PDF.lastMissing() : [];
-      return (open ? OUT.pdfOpen(bytes, name) : OUT.pdf(bytes, name)).then(function (r) {
+      return (open ? OUT.pdfOpen(bytes, name, shareTextFor(pi, '領収書')) : OUT.pdf(bytes, name)).then(function (r) {
         box('pay-ok', (open
-          ? ((r && r.fellBack)
+          ? (shareMsg(r, '領収書 ' + pi.receipt.no + ' のPDF') || ((r && r.fellBack)
             ? '新しい窓が開けなかったので、領収書 ' + pi.receipt.no + ' のPDFを 落としました。'
             : '領収書 ' + pi.receipt.no + ' のPDFを 別の窓で 開きました。'
-              + 'その画面の 共有ボタンから メールなどで 送れます。')
+              + 'その画面の 共有ボタンから メールなどで 送れます。'))
           : '領収書 ' + pi.receipt.no + ' のPDFを作りました。')
           + (miss.length ? 'この字は 字体に無いので 〓 で出しました：' + miss.join('') : ''));
       });
@@ -2924,7 +2941,7 @@
     var pi = receiptPaperInput(rcId);
     if (!pi) return;
     var built = PAPER.build(Object.assign({}, pi, { title: name }));
-    pdfDase(built.html, name, 'open', '領収書', 'pay-ok', 'pay-err');
+    pdfDase(built.html, name, 'open', '領収書', 'pay-ok', 'pay-err', shareTextFor(pi, '領収書'));
   }
 
   /* ═══ ★入金（1回＝1行。上書きしない）★ ═══
@@ -3877,8 +3894,8 @@
          iOSのwebページ印刷は必ずURL/日付フッターが付き…ため不使用。」
      ⇒ ★うちも 自前の PDF を 開く★（PDFは もう 自前で 作れている＝doPdf）。
        印刷は その PDF の 共有ボタンから する。 */
-  function doPrint(name) {
-    doPdf(name, 'open', null, '印刷');
+  function doPrint(name, sumi) {
+    doPdf(name, 'open', null, '印刷', sumi);
   }
 
   /* ★自作PDF★（司さん 2026-08-30「自作PDFのやり方しか指示してないわ」）
@@ -3892,23 +3909,60 @@
    *    ★ブラウザの 印刷は 使わない★＝紙に URL と 日付が 刷り込まれる（司さんの 実物で 確認）。
    *  html … PAPER.build が 作った 紙 ／ how … 'open'（開く）/'save'（落とす）
    *  yobi … 画面に 出す 呼び名 ／ okId・errId … 知らせを 出す 箱 */
+  /** ★共有に ファイルだけ 渡した 時の 知らせ★（司さん 2026-11-04「LINE に 開けん URL も 送られる」＝FileOut.sharePdf）
+   *  共有で 出していない（開いた・落とした）時は null＝今までの 字を 使う */
+  function shareMsg(o, yobi) {
+    if (!o) return null;
+    if (o.how === 'share') return o.cancelled
+      ? (yobi + 'の 送り先を 選ぶ 画面を 閉じました（送っていません）。')
+      : (yobi + 'を 渡しました（選んだ 先へ PDF と 何の紙かの 1行が 届きます）。');
+    if (o.how === 'need-tap') return yobi + 'が できました。下の「送る・印刷する」を 押すと LINE・メール・プリントを 選べます。';
+    return null;
+  }
   var lastPaperHtml = '';        /* ★最後に PDF に した 紙★（見張りが 中身を 見る為） */
-  function pdfDase(html, name, how, yobi, okId, errId) {
+  /** ★共有に 添える 字1行★（司さん 11-06「B」＝「請求書 2026年10月分 〇〇株式会社 御中」）
+   *  紙の 種類（納品書・領収書は 呼び名を 上書き）＋「◯年◯月分」の 行（打った字・無ければ 請求日の 前月）＋ あて先（敬称は 紙と 同じ addresseeOf）。
+   *  ★金額は 入れない★（LINE の 一覧に 出る＝見られて 困る 人が 居る）。 */
+  function shareTextFor(pi, kindLabel) {
+    if (!pi || !pi.inv) return '';
+    var inv = pi.inv;
+    var label = kindLabel || DOC.docLabel(inv.doc_type || 'invoice');
+    var lead = String((inv.data && inv.data.lead) || DOC.periodLabelOf(inv.issue_ymd) || '').trim();
+    var a = DOC.addresseeOf(pi.partner || {});
+    var ate = a.line2 ? (a.line1 ? a.line1 + ' ' : '') + a.line2 + a.honor2 : (a.line1 ? a.line1 + (a.honor1 ? ' ' + a.honor1 : '') : '');
+    return [label, lead, ate].filter(function (x) { return x; }).join(' ');
+  }
+  function pdfDase(html, name, how, yobi, okId, errId, okuriJi, sumi, miruJi) {
     lastPaperHtml = String(html || '');
     var PDF = global.SeikyuPdf;
     if (!PDF) { box(errId, 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
-    var open = (how === 'open');
+    /* how＝'open'（送る＝共有）／'view'（★未発行の 紙を 見るだけ＝共有に 渡さない★ 11-06）／'save'（落とす） */
+    var open = (how === 'open' || how === 'view');
     box(okId, yobi + 'を作っています…（字を紙に埋め込むので 少し待ちます）');
     PDF.build(html, { base: '../' }).then(function (bytes) {
       var bad = PDF.lastBadImages ? PDF.lastBadImages() : [];
       var miss = PDF.lastMissing ? PDF.lastMissing() : [];
-      return (open ? OUT.pdfOpen(bytes, name) : OUT.pdf(bytes, name)).then(function (r) {
+      /* 帯から 送れた 時＝印を 付けて 箱の 字も「渡しました」に（任a） */
+      var tabiSumi = function () { if (typeof sumi === 'function') sumi(); box(okId, shareMsg({ how: 'share' }, yobi)); };
+      return (how === 'view' ? OUT.pdfView(bytes, name) : open ? OUT.pdfOpen(bytes, name, okuriJi, tabiSumi) : OUT.pdf(bytes, name)).then(function (r) {
+        /* ★「送った」印は 済んだ 時だけ★（見るだけ・やめた・帯で 待つ 時は 付けない＝帯で 送れたら onShared で 付く） */
+        if (how !== 'view' && typeof sumi === 'function' && !(r && (r.cancelled || r.how === 'need-tap'))) sumi();
+        /* ★見るだけ（未発行）の 知らせ★＝共有ボタンから 送れ とは 言わない（blob の 窓から 送ると LINE に 開けない URL が 届く・taiketsu 11-06 止4） */
+        if (how === 'view') {
+          box(okId, ((r && r.fellBack)
+            ? 'この端末では 新しい窓が開けなかったので、' + yobi + '（' + (miruJi || '見るだけの 紙') + '）を 落としました。'
+            : yobi + '（' + (miruJi || '見るだけの 紙') + '）を 開きました。')
+            + (/取り消/.test(miruJi || '') ? '取り消した 紙は 送れません。' : '送る時は「発行する」を 押してから「PDFを開く（送る）」で 送ってください。')
+            + (miss.length ? 'この字は 字体に無いので 〓 で出しました：' + miss.join('') : '')
+            + (bad.length ? '出せなかった絵が ' + bad.length + '件 あります' : ''));
+          return;
+        }
         box(okId, (open
-          ? ((r && r.fellBack)
+          ? (shareMsg(r, yobi) || ((r && r.fellBack)
             ? 'この端末では 新しい窓が開けなかったので、' + yobi + 'を 落としました。'
               + '（ブラウザの ポップアップの設定を 見てください）'
             : yobi + 'を 別の窓で 開きました。その画面の 共有ボタンから'
-              + (yobi === '印刷' ? ' 印刷できます（プリンタを 選びます）。' : ' メールなどで 送れます。'))
+              + (yobi === '印刷' ? ' 印刷できます（プリンタを 選びます）。' : ' メールなどで 送れます。')))
           : yobi + 'を作りました。')
           + (miss.length ? 'この字は 字体に無いので 〓 で出しました：' + miss.join('') : '')
           + (bad.length ? '出せなかった絵が ' + bad.length + '件 あります' : ''));
@@ -3920,14 +3974,20 @@
     });
   }
 
-  function doPdf(name, how, docKind, yobi) {
+  /* sumi＝共有（か 開く）が 済んだ 後に 呼ぶ（「送った」印）。やめた・帯で 待つ・作れなかった 時は 呼ばない */
+  function doPdf(name, how, docKind, yobi, sumi) {
     var pi = paperInput();
     if (!pi) { box('edit-err', '中身がまだ整っていないので、PDFが作れません。上の赤い印を直してください。'); return; }
     /* ★納品書は 同じ1通を 別の顔で出すだけ★（棚は増やさない） */
     var built = PAPER.build(Object.assign({}, pi, { title: name },
       docKind ? { docKind: docKind } : {}));
+    /* ★未発行（下書き）の 1通は 送らず 見るだけ★（2026-11-06 コンサル談＝ダイコメの「確認」と 揃える）
+       ＝「PDFを開く（送る）」「印刷」「納品書」でも 共有に 渡さず 今まで通り 開く。発行した 1通だけ 共有（LINE・メール・プリント）へ */
+    /* ★「発行した」と 分かる 時だけ 送る★（下書き・取り消し・分からない 状態は 見るだけ＝止まる 側へ・taiketsu 11-06 任2） */
+    if (how === 'open' && DOC.statusOf(S.cur) !== 'issued') how = 'view';
+    var miruJi = (DOC.statusOf(S.cur) === 'void') ? '取り消した 見るだけの 紙' : 'まだ 発行していない 見るだけの 紙';
     pdfDase(built.html, name, how, yobi || (docKind === 'delivery' ? '納品書' : 'PDF'),
-      'edit-ok', 'edit-err');
+      'edit-ok', 'edit-err', shareTextFor(pi, docKind === 'delivery' ? '納品書' : null), sumi, miruJi);
   }
 
   function doExcel(name) {
@@ -7165,9 +7225,10 @@
        ★それでも 名前は 付ける★＝iPhoneで 印刷から「PDFで保存」した時の 名前が この title になる。
        ⇒ ★勧める名前を そのまま 使い、人には 聞かない★（PDFで保存の ボタンは 今までどおり 聞く）。 */
     $('b-print').onclick = function () {
+      var te = okuttaWo(S.cur);   /* ★押した 時の 1通★ */
       var n = suggestName('pdf');
       if (!n) { box('edit-err', 'この' + DOC.docLabel((S.cur && S.cur.doc_type) || S.docType || 'invoice') + 'は 中身がまだ整っていないので 印刷できません。'); return; }
-      doPrint(n);
+      doPrint(n, te);   /* ★印刷も「出した」うち★＝印は 出来て 渡した 後（やめたら 付けない・taiketsu 11-06 止3） */
     };
     $('b-xlsx').onclick = function () { askName('xlsx', doExcel); };
     $('fn-ok').onclick = function () {
@@ -7180,22 +7241,16 @@
     $('fn-cancel').onclick = fnClose;
 
     $('b-save').onclick = function () { return saveDraft(); };
-    if ($('b-pdf')) $('b-pdf').onclick = function () { askName('pdf', function (n) { doPdf(n, 'save'); okutta(); }); };
+    if ($('b-pdf')) $('b-pdf').onclick = function () { var te = okuttaWo(S.cur); askName('pdf', function (n) { doPdf(n, 'save', null, null, te); }); };
     /* ★開く★＝iPhoneのビューアへ渡す（そこの共有ボタンで メールに乗る） */
-    if ($('b-pdfopen')) $('b-pdfopen').onclick = function () { askName('pdf', function (n) { doPdf(n, 'open'); okutta(); }); };
+    /* ★「送った」印は 共有が 済んだ 後★（押した 瞬間に 付けない＝やめた・作れなかった 時に 付いていた・taiketsu 11-06 止3） */
+    if ($('b-pdfopen')) $('b-pdfopen').onclick = function () { var te = okuttaWo(S.cur); askName('pdf', function (n) { doPdf(n, 'open', null, null, te); }); };
     /* ★納品書★＝同じ1通を 納品書の顔で PDFにして 開く（送るところまで 同じ道） */
     /* ★納品書は 納品書の 名前で 落とす★（2026-09-05 実測＝「請求書」の名前で 落ちていた） */
     if ($('b-delivery')) $('b-delivery').onclick = function () {
       askName('pdf', function (n) { doPdf(n, 'open', 'delivery'); }, 'delivery');
     };
-    /* ★印刷も「出した」うち★＝紙で 渡す 会社も 在る */
-    if ($('b-print')) {
-      var motoPrint = $('b-print').onclick;
-      $('b-print').onclick = function (e) {
-        if (motoPrint) motoPrint.call(this, e);
-        okutta();
-      };
-    }
+    /* ★印刷も「出した」うち★＝紙で 渡す 会社も 在る。印は doPrint に 渡した okutta が 済んだ 後に 付ける（11-06） */
     $('b-issue').onclick = function () { return issue(); };
 
     /* ★入金★ 打つたびに「押せる/押せない」を塗り直す（黙って無反応にしない） */

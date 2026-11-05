@@ -106,11 +106,36 @@ await TA('共有シートが無い端末でも同じ（分岐が無いので当�
   eq(downloaded.length, 1, '1回落とした');
 });
 
-T('★渡し口のコードに共有シートの分岐が残っていない', () => {
-  const code = SRC.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+T('★渡し口のコードに共有シートの分岐が残っていない（PDF を 送る 口 @share-begin〜end の 間だけ 許す・2026-11-04）', () => {
+  /* ★司さん 11-04「LINE に 開けない URL も 送られる」★＝PDF を 送る 時だけ 共有に ファイルを 渡す（FileOut.sharePdf）。
+     ★落とす 口（deliver）には 入れない★＝08-04 の 決まり（Excel で 開く）は そのまま。間の 外に 在れば 赤。 */
+  const bg = SRC.indexOf('@share-begin'), ed = SRC.indexOf('@share-end');
+  if (bg < 0 || ed < bg) throw new Error('★@share-begin／@share-end が 無い（間を 決められない）');
+  const inner = SRC.slice(bg, ed);
+  if (inner.indexOf("'(pointer: coarse)'") < 0) throw new Error('★PDF を 送る 口に 指の 端末の 判定が 無い（パソコンで 印刷が 消える）');
+  const code = (SRC.slice(0, bg) + SRC.slice(ed)).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   for (const bad of ['navigator.share', 'canShare', 'pointer: coarse', 'prefersShare']) {
     if (code.indexOf(bad) >= 0) throw new Error('★まだ残っています: ' + bad);
   }
+});
+
+await TA('★落とす口（deliver）に PDF を 渡しても 共有に 行かない（指の 端末・共有あり でも 落とす）', async () => {
+  const t = load({ coarse: true, share: true });
+  const r = await t.FileOut.deliver(new Uint8Array([0x25, 0x50]), '見本_請求書.pdf');
+  eq(r.how, 'download', '落とした');
+  eq(t.shared.length, 0, '★落とす口が 共有の 画面を 出した');
+});
+
+await TA('★PDF を 送る 口：iPhone は 共有に ファイルだけ・パソコンは 共有に 行かない（2026-11-04）', async () => {
+  const t = load({ coarse: true, share: true });
+  Object.defineProperty(t.win.navigator, 'userAgent', { value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', configurable: true });
+  const r = await t.FileOut.sharePdf(new Uint8Array([0x25, 0x50]), '見本_請求書.pdf');
+  eq(r.how, 'share', '指の 端末は 共有');
+  eq(t.shared.length, 1, '共有 1回');
+  eq(t.shared[0].type, 'application/pdf', 'PDF');
+  const p = load({ coarse: false, share: true });
+  await p.FileOut.sharePdf(new Uint8Array([0x25, 0x50]), '見本_請求書.pdf');
+  eq(p.shared.length, 0, '★パソコンで 共有の 画面を 出した（印刷が 消える）');
 });
 
 /* ★ホーム画面から開いたアプリ（standalone）で、押したあとアプリに戻れること（2026-08-09）

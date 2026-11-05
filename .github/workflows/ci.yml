@@ -152,6 +152,8 @@ jobs:
         run: node kyuyo/tests/furikomi-tab.test.mjs && node kyuyo/tests/furikomi-tab.test.mjs --self-test
       - name: ★iPhoneで動かない書き方ガード (type=month / octet-stream / writeFile / Blob散在)
         run: node tests/ios-unsupported.test.mjs && node tests/ios-unsupported.test.mjs --self-test
+      - name: ★PDF を 送る 時は 共有に ファイルだけ（LINE に blob の URL を 乗せない・断られたら 押し直しの ボタン）
+        run: node tests/file-out-share.test.mjs && node tests/file-out-share.test.mjs --self-test
       - name: ★契約v0 (レジストリ / 契約の線=呼ばれているか・面を呼び返していないか)
         run: node tests/op-registry.test.mjs && node tests/op-boundary.test.mjs && node tests/op-boundary.test.mjs --self-test
       - name: ★最低賃金 47県が公式の実額と一致 (前科のある行・1円単位)

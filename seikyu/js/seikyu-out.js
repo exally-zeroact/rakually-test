@@ -70,10 +70,21 @@
   }
   /* ★PDFを その場で開く★＝iPhoneのビューアに渡す。そこの共有ボタンで メールに乗る。
      （司さん 2026-08-30「代行では メールなど選べる」＝代行と同じ道を こちらにも付けた） */
-  function pdfOpen(bytes, filename) {
+  /* ★2026-11-04★ 開く → ★共有に PDF だけ 渡す★（司さん「LINE に 訳わからん URL も 送られる」）
+     ＝FileOut.sharePdf。共有できない 端末は 中で 今まで通り openInViewer に 落ちる。 */
+  /* ★2026-11-06 司さん「B」★ 共有に PDF と ★字1行★（text＝「請求書 2026年10月分 〇〇 御中」）を 渡す・url は 付けない
+     ＝files だけ だと ホーム画面の アプリで LINE が 並ばない（10-30）。 */
+  /* onShared＝帯から 押し直して 送れた 時に 呼ぶ（「送った」印・11-06 taiketsu 止3） */
+  function pdfOpen(bytes, filename, text, onShared) {
+    return global.FileOut.sharePdf(bytes, filename, { text: text, onShared: onShared });
+  }
+
+  /* ★未発行（下書き）の 紙は 見るだけ★（2026-11-06 コンサル談＝ダイコメと 揃える）
+     ＝まだ 送る 物では ない＝共有に 渡さず 今まで通り 開く（openInViewer）。 */
+  function pdfView(bytes, filename) {
     return global.FileOut.openInViewer(bytes, filename);
   }
 
   global.SeikyuOut = { preview: preview, excel: excel, openPaper: openPaper,
-    pdf: pdf, pdfOpen: pdfOpen };
+    pdf: pdf, pdfOpen: pdfOpen, pdfView: pdfView };
 })(typeof window !== 'undefined' ? window : globalThis);

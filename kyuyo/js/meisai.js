@@ -131,8 +131,18 @@
   //   ベクター描画なのでピンチズームで鮮明。iframeは確実に描画される(html2canvasの画像化はiOSで不安定なため不使用)。
   //   保存/印刷は代行請求書アプリと同じ「新窓に明細HTMLを書いて window.print」方式(A4いっぱいにくっきり)。
   var _isLand=false, _psHtml='', _psW=794, _psH=1123;
+  /* ★共有に 添える 字と 名前★（司さん 11-06「B」＝「給与明細 2026年10月分 山田 太郎様」・★金額は 入れない★） */
+  var _okuri={ text:'', name:'給与明細.pdf' };
+  function okuriOf(d){
+    var data=(d&&d.data)||{}, kind=(d&&d.kind==='gensen')?'源泉徴収票':((d&&d.kind==='bonus')?'賞与明細':'給与明細');
+    var ym=String((d&&d.ym)||''), y=ym.slice(0,4), m=parseInt(ym.slice(5,7),10)||0;
+    var tuki=/^\d{4}$/.test(y)?((d&&d.kind==='gensen')?(y+'年分'):(m?(y+'年'+m+'月分'):'')):'';
+    var nm=String((data.person&&data.person.name)||'').trim(), who=nm?(nm+'様'):'';
+    var parts=[kind,tuki,who].filter(function(x){ return x; });
+    return { text:parts.join(' '), name:parts.join('_').replace(/[\\\/:*?"<>|\s]+/g,'_')+'.pdf' };
+  }
   function openDoc(i){
-    var d=docs[i]; if(!d) return; var data=d.data||{};
+    var d=docs[i]; if(!d) return; var data=d.data||{}; _okuri=okuriOf(d);
     if(d.openedAt==null){ Store.markMeisaiOpened(d.id, token, cred).then(function(){ d.openedAt=new Date().toISOString(); }).catch(function(e){ oops('開いた記録', e); }); }
     var pw=794, ph=1123, html; _isLand=false;
     try{
@@ -216,10 +226,11 @@
         doc.addImage(canvas.toDataURL('image/jpeg',0.92), 'JPEG', 0, 0, pw, pw*ih/iw);
         // ★PDFの受け渡し=代行請求書アプリと同じ「blobを新しいタブで開く」方式。
         //   doc.save()(ダウンロード)はiOSで WebKitBlobResourceエラー が出るため不使用。ポップアップ不可時のみsaveにフォールバック。
-        var url=URL.createObjectURL(doc.output('blob'));
-        var w=window.open(url,'_blank');
-        if(!w){ try{ doc.save('給与明細.pdf'); }catch(e){} }
-        setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
+        /* ★2026-11-06 司さん「B」★ iPhone・iPad は 共有に PDF と 字1行を 渡す（url は 付けない＝LINE に 開けない URL を 届けない）。
+           他の 端末は 下の 今までの 開き方の まま（hiraku）。 */
+        var pdfBlob=doc.output('blob'), okuri=_okuri;
+        var hiraku=function(){ try{ var url=URL.createObjectURL(pdfBlob); var w=window.open(url,'_blank'); if(!w){ try{ doc.save(okuri.name); }catch(e){} } setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000); }catch(e){ try{ doc.save(okuri.name); }catch(_){} } return { how:'open' }; };
+        if(window.FileOut && window.FileOut.sharePdf){ window.FileOut.sharePdf(pdfBlob, okuri.name, { text:okuri.text, open:hiraku }).catch(function(){ hiraku(); }); } else { hiraku(); }
         if(load){ load.style.display='none'; }
       }catch(e){ if(load){ load.textContent='PDFの作成に失敗しました。時間をおいて再度お試しください。'; setTimeout(function(){ if(load)load.style.display='none'; },2200); } }
     }).catch(function(){ if(load){ load.textContent='PDFの作成に失敗しました。時間をおいて再度お試しください。'; setTimeout(function(){ if(load)load.style.display='none'; },2200); } });
