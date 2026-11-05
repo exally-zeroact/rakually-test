@@ -117,6 +117,15 @@ const SHAKAIHOKEN_HYO = {
   // 介護保険料率(全国一律・折半前) 年度別。出典=協会けんぽ公式(kyoukaikenpo.or.jp)で照合済:
   //  令和7年度(2025)=1.59%(従業員0.795%) / 令和8年度(2026)=1.62%(従業員0.81%・R8で1.59%→1.62%引上げ)。従業員=÷2。
   KAIGO_NENDO: { 2025: { total: 0.0159, jugyoin: 0.00795 }, 2026: { total: 0.0162, jugyoin: 0.0081 } },
+  /* ★2026-11-06 令和9年度〜 の 健保（47県 折半前）＝年度を キーに 足す 置き場★（令和8＝KENKO_2026・令和7＝KENKO_RITSU は そのまま）
+     前は hydrate(year>=2026) が KENKO_2026 を 上書き＝中央に 2027 を 入れると 令和8年度の 月の 額まで 黙って 変わり、2027 の 月は 古い 印の まま。
+     ⇒ 新しい 年度は ここへ（lib に 足す 時も ここへ 2027: {...} と 書く）。表は kenkoTableOf(年度) で 引く。 */
+  KENKO_NENDO: {},
+  // 年度の 健保の 表（{県:折半前}）。令和8＝KENKO_2026・令和9〜＝KENKO_NENDO。令和7 以前は KENKO_RITSU（形が 違う）＝null
+  kenkoTableOf: function (y) { if (y === 2026) return this.KENKO_2026; return (y > 2026 && this.KENKO_NENDO[y]) || null; },
+  // 収録の 年の 中で y 以下の 一番 新しい 年（無ければ 一番 古い 年）。keys＝年の 一覧
+  _nendoErabi: function (keys, y) { var ys = keys.map(Number).filter(function (n) { return n > 0; }).sort(function (a, b) { return a - b; }); var pick = null; ys.forEach(function (n) { if (n <= y) pick = n; }); return pick != null ? pick : ys[0]; },
+  _kenkoNendoKeys: function () { return [2025, 2026].concat(Object.keys(this.KENKO_NENDO).filter(function (k) { return /^\d{4}$/.test(k); }).map(Number)); },
   // 子ども・子育て支援金率(折半前・令和8年4月分〜・健保に追加)
   SHIENKIN_TOTAL_FROM_2026_04: 0.0023,
   // 社保年度(3月起算): 'YYYY-MM' で month>=3→その年, <3→前年(令和8年度=2026年3月〜2027年2月)
@@ -130,12 +139,15 @@ const SHAKAIHOKEN_HYO = {
   DAIYO_PREF: 'tokyo',
   getKenko: function (pref, ym) {
     var y = this.shahoYearOf(ym); var key = String(pref || '');
-    var aru = !!(y >= 2026 ? this.KENKO_2026[key] != null : this.KENKO_RITSU[key]);
+    var ty = this._nendoErabi(this._kenkoNendoKeys(), y); // 計算に 使う 表の 年度（収録に 在れば y）
+    var tbl = this.kenkoTableOf(ty);
+    var aru = !!(tbl ? tbl[key] != null : this.KENKO_RITSU[key]);
     var daiyo = !aru;                       // ★空・表に無い＝代用★
     if (daiyo) key = this.DAIYO_PREF;
     var base = this.KENKO_RITSU[key] || this.KENKO_RITSU.tokyo; var total, nendo, stale = false;
-    if (y >= 2026) { var t = this.KENKO_2026[key]; total = (t != null ? t : this.KENKO_2026.tokyo); nendo = '令和' + (y - 2018) + '年度'; if (y > 2026) stale = true; }
-    else { total = base.total; nendo = '令和7年度'; if (y < 2025) stale = true; }
+    if (tbl) { var t = tbl[key]; total = (t != null ? t : (tbl.tokyo != null ? tbl.tokyo : this.KENKO_2026.tokyo)); nendo = '令和' + (y - 2018) + '年度'; }
+    else { total = base.total; nendo = '令和7年度'; }
+    if (ty !== y) stale = true; // 収録に 無い 年度＝直近の 収録年の 率で 暫定
     var r = { name: base.name, total: total, jugyoin: total / 2, nendo: nendo, stale: stale };
     if (daiyo) {
       r.daiyo = true;
@@ -150,20 +162,29 @@ const SHAKAIHOKEN_HYO = {
     return this.getKenko('', ym).jugyoin + (this.getShienkin ? this.getShienkin(ym) : 0);
   },
   // 介護保険料率(対象月の社保年度で選択)。{total,jugyoin,stale}
-  getKaigo: function (ym) { var y = this.shahoYearOf(ym); var k = this.KAIGO_NENDO[y]; var stale = false; if (!k) { k = this.KAIGO_NENDO[2026]; stale = true; } return { total: k.total, jugyoin: k.jugyoin, stale: stale }; },
+  // 収録に 無い 年度は y 以下の 直近の 収録年（前は 決め打ちの 2026）＝中央・lib で 足した 年に 届く。
+  // ★収録より 古い 年（社保年度 2024 以前）は 前と 同じ「収録の 一番 新しい 年」★（差分 taiketsu 止1＝一番 古い 年に すると 2025-02 以前の 介護が 0.0162→0.0159 に 黙って 変わる＝お金の 決め＝別件）
+  getKaigo: function (ym) { var y = this.shahoYearOf(ym); var k = this.KAIGO_NENDO[y]; var stale = false; if (!k) { var ks = Object.keys(this.KAIGO_NENDO).filter(function (s) { return /^\d{4}$/.test(s); }).map(Number); k = this.KAIGO_NENDO[y < Math.min.apply(null, ks) ? Math.max.apply(null, ks) : this._nendoErabi(ks, y)]; stale = true; } return { total: k.total, jugyoin: k.jugyoin, stale: stale }; },
   // 子育て支援金 従業員負担率(令和8年4月分〜=total/2。月<4や令和7以前は0)
   getShienkin: function (ym) { ym = String(ym || ''); return (ym >= '2026-04') ? this.SHIENKIN_TOTAL_FROM_2026_04 / 2 : 0; },
   // 中央(Supabase statutory kind=shakaihoken)の値で年度別に上書き。健保はtotalのみ(jugyoin=total/2はgetKenkoが都度計算)。
   // 47県そろってる時だけ上書き=壊れた部分データで既存を潰さない。不正なら何もしない=ハードコードのまま(フォールバック)。
   hydrate: function (year, data) {
+    year = parseInt(year, 10); if (!year) return; // 中央の 年が 字（"2027"）でも 同じに（=== で 比べる 為）
     if (!data || typeof data !== 'object') return;
     var kt = data.kenko_total;
     if (kt && typeof kt === 'object' && Object.keys(kt).length >= 40) {
       var self = this;
-      if (year >= 2026) { Object.keys(kt).forEach(function (p) { self.KENKO_2026[p] = kt[p]; }); }
-      else { Object.keys(kt).forEach(function (p) { if (self.KENKO_RITSU[p]) self.KENKO_RITSU[p].total = kt[p]; }); }
+      // ★年度ごとに 自分の 表だけ 書く★（前は year>=2026 を 全部 KENKO_2026 へ・2025 以前を 全部 KENKO_RITSU へ＝別の 年度の 額を 書き換えた）
+      if (year === 2026) { Object.keys(kt).forEach(function (p) { self.KENKO_2026[p] = kt[p]; }); }
+      else if (year > 2026) { var nt = {}; Object.keys(kt).forEach(function (p) { nt[p] = kt[p]; }); self.KENKO_NENDO[year] = nt; }
+      else if (year === 2025) { Object.keys(kt).forEach(function (p) { if (self.KENKO_RITSU[p]) self.KENKO_RITSU[p].total = kt[p]; }); }
+      // 2024 以前＝持つ 表が 無い＝何も しない（令和7の 表を 潰さない）
     }
-    if (data.kaigo_total != null && this.KAIGO_NENDO[year]) { this.KAIGO_NENDO[year].total = data.kaigo_total; this.KAIGO_NENDO[year].jugyoin = data.kaigo_total / 2; }
+    // 介護＝無い 年度も 足す（前は KAIGO_NENDO[year] が 無いと 捨てた＝令和9の 介護が 中央から 届かなかった）
+    var kg = Number(data.kaigo_total);
+    // 0.05 未満＝% のまま（1.62）・true（=1）を 率として 入れない 守り（差分 taiketsu 任1）
+    if (data.kaigo_total != null && typeof data.kaigo_total !== 'boolean' && isFinite(kg) && kg > 0 && kg < 0.05 && year) { this.KAIGO_NENDO[year] = { total: kg, jugyoin: kg / 2 }; }
   },
 
   // ----------------------------------------------------------------

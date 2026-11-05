@@ -16,8 +16,9 @@
 
   // 社保: 各年度を1行に束ねる(健保47県total/介護total/支援金total/厚年total)
   function shakaihokenRow(SHH, year) {
+    // 年度の 表を 引く（前は year>=2026 は 全部 KENKO_2026＝令和9の 行に 令和8の 値を 載せた）。無い 年度は 前と 同じ KENKO_2026
     var kenko = year >= 2026
-      ? SHH.KENKO_2026
+      ? ((SHH.kenkoTableOf && SHH.kenkoTableOf(year)) || SHH.KENKO_2026)
       : Object.keys(SHH.KENKO_RITSU).reduce(function (o, k) { o[k] = SHH.KENKO_RITSU[k].total; return o; }, {});
     var ym = year + '-06';
     return {

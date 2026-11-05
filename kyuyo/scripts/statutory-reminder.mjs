@@ -63,7 +63,7 @@ function saishinNen(obj, what) {
   const k = SHH.getKenko('tokyo', need + '-06');
   if (!k || typeof k !== 'object') kowareta('getKenko の 返りが 物で ない');
   if (bool(k.stale, 'getKenko の stale'))
-    reminders.push('健康保険料率 ' + reikan(need) + '(' + need + ')が未収録。協会けんぽ料率表を確認 → kyuyo/lib/shakaihoken-hyo.js（47県の健保の表 と getKenko の年度の決め打ち）更新 → 管理画面の[反映]。');
+    reminders.push('健康保険料率 ' + reikan(need) + '(' + need + ')が未収録。協会けんぽ料率表を確認 → kyuyo/lib/shakaihoken-hyo.js の KENKO_NENDO に その年度の 47県の表を 足す（KENKO_2026 は 書き換えない）＋ statutory-rows.js に shakaihoken の その年の 行（出典つき） → 管理画面の[反映]。');
   if (typeof SHH.getKaigo !== 'function') kowareta('shakaihoken-hyo.js の getKaigo が 無い');
   const g = SHH.getKaigo(need + '-06');
   if (!g || typeof g !== 'object') kowareta('getKaigo の 返りが 物で ない');

@@ -142,3 +142,59 @@ T('健保 lib自己選択: computePayslip(emp.pref)経由でも年度導出・em
   var hE = rE.kojo.filter(function (x) { return x.label === '健康保険'; })[0].value;
   eq(hE, SH.han50(hyHealth * 0.05));
 });
+
+/* ★2026-11-06 中央から 新しい 年度の 健保・介護が 来ても 令和8の 月を 書き換えない・新しい 年度の 月に 届く★
+   前は hydrate(year>=2026) が KENKO_2026 を 上書き＝47県の 2027 を 入れると 令和8年度の 月（2026-06）の 額まで 黙って 変わり、
+   2027-06 は 古い 印（stale）の まま。介護は KAIGO_NENDO[year] が 無いと 捨てていた。試験で 足した 年は finally で 消す（run.js は 1プロセス）。 */
+function kenko47(v) { var o = {}; Object.keys(SH.KENKO_2026).forEach(function (p) { o[p] = v; }); return o; }
+function cleanup2027() { if (SH.KENKO_NENDO) delete SH.KENKO_NENDO[2027]; delete SH.KAIGO_NENDO[2027]; }
+T('★中央の hydrate(2027) は 令和8年度の 月（2026-06・2027-02）の 健保を 書き換えない', function () {
+  var before = SH.getKenko('tokyo', '2026-06').total, b2 = SH.getKenko('osaka', '2027-02').total;
+  try {
+    SH.hydrate(2027, { kenko_total: kenko47(0.111) });
+    eq(SH.getKenko('tokyo', '2026-06').total, before, '2026-06 東京');
+    eq(SH.getKenko('osaka', '2027-02').total, b2, '2027-02 大阪（令和8年度の 終わり）');
+    eq(SH.KENKO_2026.tokyo, 0.0985, '令和8の 表');
+  } finally { cleanup2027(); }
+});
+T('★中央の hydrate(2027) の 健保は 2027-03〜 に 届き、古い 印が 消える', function () {
+  eq(SH.getKenko('tokyo', '2027-06').stale, true, '前提：2027 は 未収録');
+  try {
+    SH.hydrate(2027, { kenko_total: kenko47(0.111) });
+    var k = SH.getKenko('tokyo', '2027-06');
+    eq(k.total, 0.111); eq(k.stale, false);
+    eq(SH.getKenko('tokyo', '2027-03').total, 0.111, '年度初め');
+    eq(SH.getKenko('tokyo', '2028-06').stale, true, '2028 は 未収録のまま');
+    eq(SH.getKenko('tokyo', '2028-06').total, 0.111, '未収録の 年は 直近の 収録年（2027）');
+  } finally { cleanup2027(); }
+  eq(SH.getKenko('tokyo', '2027-06').total, 0.0985, '消した後は 令和8の 表に 戻る');
+});
+T('★中央の hydrate(2027) の 介護は 捨てずに 2027-03〜 に 届く（令和8は 変えない）', function () {
+  try {
+    SH.hydrate(2027, { kaigo_total: 0.017 });
+    var g = SH.getKaigo('2027-06');
+    eq(g.total, 0.017); eq(g.jugyoin, 0.0085); eq(g.stale, false);
+    eq(SH.getKaigo('2026-06').total, 0.0162, '令和8');
+    eq(SH.getKaigo('2028-06').total, 0.017, '未収録の 年は 直近の 収録年');
+    eq(SH.getKaigo('2028-06').stale, true);
+  } finally { cleanup2027(); }
+});
+T('★古い 年の hydrate(2024) は 令和7の 表を 書き換えない', function () {
+  var before = SH.KENKO_RITSU.tokyo.total;
+  var keep = {}; Object.keys(SH.KENKO_RITSU).forEach(function (p) { keep[p] = SH.KENKO_RITSU[p].total; });
+  try {
+    SH.hydrate(2024, { kenko_total: kenko47(0.2) });
+    eq(SH.KENKO_RITSU.tokyo.total, before);
+  } finally { Object.keys(keep).forEach(function (p) { SH.KENKO_RITSU[p].total = keep[p]; }); if (SH.KENKO_NENDO) delete SH.KENKO_NENDO[2024]; }
+});
+T('★収録より 古い 年（2025-02・2024-06）の 介護は 前と 同じ 0.0162（一番 古い 年 0.0159 に 黙って 変えない）', function () {
+  eq(SH.getKaigo('2025-02').total, 0.0162, '2025-02');
+  eq(SH.getKaigo('2025-02').stale, true);
+  eq(SH.getKaigo('2024-06').total, 0.0162, '2024-06');
+  eq(SH.getKaigo('2025-03').total, 0.0159, '2025-03＝令和7');
+});
+T('★中央の 介護の 壊れた 値（% のまま 1.62・true・0・字）は 入れない', function () {
+  try {
+    [1.62, true, 0, 'abc', null].forEach(function (v) { SH.hydrate(2027, { kaigo_total: v }); eq(SH.KAIGO_NENDO[2027], undefined, '値 ' + v); });
+  } finally { cleanup2027(); }
+});
