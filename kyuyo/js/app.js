@@ -5340,21 +5340,28 @@
   }
   function doPreview(){
     var emps=printEmps($('#p-emp').value);
+    /* ★紙に 実際に 並べた 人数★（LINE で 添える 字の「n人」は これを 読む＝日払い・週払い・締め分割は 日の 無い 人を 紙から 落とすので
+       在籍の 数とは 合わない・taiketsu 11-06 止1）。下の 3つの 道で 1回ずつ 入れる。 */
+    state._printPeopleN=null;
     var isBonus=state.printMode==='bonus';
     var cyc=(state.company&&state.company.payCycle)||'monthly';
     if(!isBonus && (cyc==='daily'||cyc==='weekly')){ // 日払い/週払い=スリップ明細(日別)。全員選択なら全員分を並べる(M2修正)
       var ddList=emps.map(function(e){ return buildDailyData(e); }).filter(function(d){ return d && d.days && d.days.length; }); var fr=$('#frame');
+      state._printPeopleN=ddList.length;
       fr.srcdoc=dailySlipDoc(ddList, state.dailySlipLayout||'1col');
       fitFrameToPages(fr, 794, 1123); return; // 全員分のページを表示
     }
     if(!isBonus && shimeSplit()){ // K2 締め方=期間分割。期間×従業員 の報酬明細を並べる(期間の若い順→従業員順)
       var periods=shimePeriods(), pList=[];
-      periods.forEach(function(p){ emps.forEach(function(e){ var d=buildDailyData(e, p); if(d && d.days && d.days.length) pList.push(d); }); });
+      var hito={};   /* 期間×人＝同じ人が 何枚も 出る＝人で 数える。★id で 数えない★＝移行の 取り込みは 同じ 1ms に uid が 重なる 事が 在る（taiketsu 11-06 2回目 止1）＝emps の 中の 番号で 数える（全部の 期間で 同じ 並び） */
+      periods.forEach(function(p){ emps.forEach(function(e,i){ var d=buildDailyData(e, p); if(d && d.days && d.days.length){ pList.push(d); hito[i]=1; } }); });
+      state._printPeopleN=Object.keys(hito).length;
       var frp=$('#frame');
       frp.srcdoc=dailySlipDoc(pList, state.dailySlipLayout||'1col');
       fitFrameToPages(frp, 794, 1123); return; // 全期間×全員のページを表示
     }
     var people=isBonus?buildBonusPeople(emps):buildPeople(emps);
+    state._printPeopleN=people.length;
     var doc=isBonus?{month:bonusMonthLabel(),kind:'bonus'}:{month:monthLabel()};
     // ★1人だけの時は必ず1人用・縦向き(全幅)で。会社の複数人テンプレ(例:col1_3=3人横)のままだと1人が横幅の1/3しか
     //   埋めず両側が白(縮んで見える)ため。複数人の時は会社が選んだテンプレ(state.prefer)を使う。
@@ -6453,7 +6460,8 @@
       var tuki=mm?(Number(mm[1])+'年'+Number(mm[2])+'月分'):'';
       var v=$('#p-emp')?$('#p-emp').value:'__all', e=(v==='__all')?null:state.employees[+v];
       var who=e?(String(e.name||'').trim()+'様'):'';
-      if(!e){ var n=state.employees.filter(function(x){ return isActiveInMonth(x,state.month); }).length; who=n?(n+'人'):''; }
+      /* ★全員の 人数は 刷る 紙と 同じ 数え方★（printEmps＝賞与は 支給月の 在籍・月次は 対象月）。前は 対象月で 数え、賞与の 字の n人が 紙の 枚数と ずれた（Rakunally 11-06 渡し） */
+      if(!e){ var n=(state._printPeopleN!=null)?state._printPeopleN:printEmps('__all').length; who=n?(n+'人'):''; }   /* 紙に 並べた 人数（doPreview）が 先 */
       var text=[kind,tuki,who].filter(function(x){ return x && x!=='様'; }).join(' ');
       var name=[kind,tuki,who].filter(function(x){ return x && x!=='様'; }).join('_').replace(/[\\\/:*?"<>|\s]+/g,'_')+'.pdf';
       return { text:text, name:name };

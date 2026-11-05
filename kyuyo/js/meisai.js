@@ -236,7 +236,10 @@
     if(fuda){ fuda.style.display='none'; }   // 作れる時は 前の 止めの 札を 下げる
     if(load){ load.style.display=''; load.textContent='PDFを作成中…'; }
     // ★A4寸法を固定で焼く(width/height両方指定)=iOSでも必ずA4比率のcanvasになる(縦潰れ防止)。
-    var CW=_isLand?1123:794, CH=_isLand?794:1123;
+    /* ★押した 時の 明細の 向きと 添える 字を 固める★（焼く 数秒の 間に 一覧へ 戻って 別の 明細を 開くと、then の 中で 読む _okuri・_isLand が
+       ★後の 明細の 物★に なり、前の 明細の PDF に 後の 人の 名前が 付いた＝会社側 b-print の okuriAtPress と 揃える・taiketsu 11-06 任1） */
+    var landAtPress=_isLand, okuriAtPress=_okuri;
+    var CW=landAtPress?1123:794, CH=landAtPress?794:1123;
     /* ★焼く間だけ 外の字体の link を 外す★（2026-11-06）＝倉庫の 源泉徴収票（app.js nenGensenDoc）は fonts.googleapis の link を持つ。
        返事が来ないと html2canvas の写しが 読み終わらず「作成中…」のまま 永久に止まる（chromium・webkit とも 20秒 0枚／外すと 0.1〜0.7秒 を測った）。
        古い紙も 倉庫に在る＝作る側でなく 焼く所で外す。焼き終わったら（成功でも失敗でも）元の場所へ戻す。手元の link は触らない。 */
@@ -249,8 +252,8 @@
     yaki.then(function(canvas){
       try{
         var jsPDF=window.jspdf.jsPDF;
-        var pw=_isLand?842:595, ph=_isLand?595:842; // ★A4ページ(印刷がちゃんとA4になる)
-        var doc=new jsPDF({ orientation:_isLand?'landscape':'portrait', unit:'pt', format:[pw,ph] });
+        var pw=landAtPress?842:595, ph=landAtPress?595:842; // ★A4ページ(印刷がちゃんとA4になる)
+        var doc=new jsPDF({ orientation:landAtPress?'landscape':'portrait', unit:'pt', format:[pw,ph] });
         // ★A4ページのまま明細を横幅いっぱいに(比率維持=潰さない・左右余白ゼロ)。canvasがA4比より縦長でも
         //   幅いっぱいで載せ、はみ出た下端(明細の空白部分)はA4ページで自然に収まる=環境差でも常に幅いっぱい。
         var iw=canvas.width, ih=canvas.height;
@@ -259,7 +262,7 @@
         //   doc.save()(ダウンロード)はiOSで WebKitBlobResourceエラー が出るため不使用。ポップアップ不可時のみsaveにフォールバック。
         /* ★2026-11-06 司さん「B」★ iPhone・iPad は 共有に PDF と 字1行を 渡す（url は 付けない＝LINE に 開けない URL を 届けない）。
            他の 端末は 下の 今までの 開き方の まま（hiraku）。 */
-        var pdfBlob=doc.output('blob'), okuri=_okuri;
+        var pdfBlob=doc.output('blob'), okuri=okuriAtPress;
         var hiraku=function(){ try{ var url=URL.createObjectURL(pdfBlob); var w=window.open(url,'_blank'); if(!w){ try{ doc.save(okuri.name); }catch(e){} } setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000); }catch(e){ try{ doc.save(okuri.name); }catch(_){} } return { how:'open' }; };
         if(window.FileOut && window.FileOut.sharePdf){ window.FileOut.sharePdf(pdfBlob, okuri.name, { text:okuri.text, open:hiraku }).catch(function(){ hiraku(); }); } else { hiraku(); }
         if(load){ load.style.display='none'; }

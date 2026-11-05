@@ -44,6 +44,15 @@ const BREAKS = {
   'okuttaWo-naka': ['seikyu/js/seikyu-app.js', 'return v ? function () { okutta(v); } : function () {};', 'return function () { okutta(); };'],
   'okutta-scur': ['seikyu/js/seikyu-app.js', 'var v = v0 || S.cur;', 'var v = S.cur;'],
   'kingaku': ['kyuyo/js/app.js', 'var text=[kind,tuki,who].filter', 'var text=[kind,tuki,who,String(sashihiki)].filter'],
+  /* ★全員の 人数を 対象月で 数える 前の 形（賞与で 紙の 枚数と ずれた・Rakunally 11-06 渡し） */
+  'ninzu-taishou': ['kyuyo/js/app.js', "if(!e){ var n=(state._printPeopleN!=null)?state._printPeopleN:printEmps('__all').length;", "if(!e){ var n=state.employees.filter(function(x){ return isActiveInMonth(x,state.month); }).length;"],
+  /* ★Web明細で then の 中で _okuri・_isLand を 読む 前の 形（戻って 別の 明細を 開くと 後の 人の 名前が 付いた） */
+  /* ★日払いで 日の 無い 人を 落とした 数を 字に 渡さない 形（紙と 字の 人数が ずれる）★ */
+  'ninzu-nikkyu': ['kyuyo/js/app.js', 'state._printPeopleN=ddList.length;', ''],
+  /* ★締め分割で 人を id で 数える 形（id が 重なった 人が 1人に 潰れる）★ */
+  'ninzu-id': ['kyuyo/js/app.js', 'pList.push(d); hito[i]=1;', "pList.push(d); hito[e&&e.id!=null?e.id:('#'+i)]=1;"],
+  'mei-okuri-then': ['kyuyo/js/meisai.js', 'okuri=okuriAtPress;', 'okuri=_okuri;'],
+  'mei-land-then': ['kyuyo/js/meisai.js', "orientation:landAtPress?'landscape':'portrait'", "orientation:_isLand?'landscape':'portrait'"],
 };
 const BRK = (process.argv.find((a) => a.startsWith('--break=')) || '').slice(8);
 function rd(rel) {
@@ -256,6 +265,19 @@ const JI = '請求書 2026年10月分 見本工業株式会社 御中';
     && /var parts=\[kind,tuki,who\]\.filter/.test(mb)
     && /return \[label, lead, ate\]\.filter/.test(shs), '並びが 違う');
   T('⑫ 給与の 字1行は 押した 時に 作る（作る 間に 選びを 変えても ずれない）', kapp.indexOf('var okuriAtPress=kyuyoOkuriJi();') > 0 && kapp.indexOf('okuri=okuriAtPress') > kapp.indexOf('var okuriAtPress=kyuyoOkuriJi();'), '押した 時に 作っていない');
+  /* ★全員の 人数は 刷る 紙と 同じ 数え方（printEmps）★＝賞与は 支給月の 在籍。kyuyoOkuriJi の 中で 対象月（state.month）で 在籍を 数えない */
+  const kbNoCm = kb.replace(/\/\*[\s\S]*?\*\//g, '');
+  T('⑫ 給与の「全員 n人」は 刷る 紙と 同じ printEmps(全員) で 数える（賞与で 対象月の 在籍に しない）', /printEmps\('__all'\)\.length/.test(kbNoCm) && !/isActiveInMonth\([^)]*state\.month\)/.test(kbNoCm), '数え方が 違う');
+  /* ★紙に 実際に 並べた 人数が 先★（日払い・週払い・締め分割は 日の 無い 人を 紙から 落とす＝doPreview の 3つの 道 全部で 入れる・taiketsu 11-06 止1） */
+  const dp = kapp.slice(kapp.indexOf('function doPreview(){'), kapp.indexOf('function fitPreview(){'));
+  T('⑫ 「全員 n人」は doPreview が 紙に 並べた 人数（日払い・締め分割・月次/賞与の 3つの 道 全部で 入れる）',
+    /var n=\(state\._printPeopleN!=null\)\?state\._printPeopleN:/.test(kbNoCm)
+    && dp.indexOf('state._printPeopleN=null;') > 0 && dp.indexOf('state._printPeopleN=ddList.length;') > 0
+    && dp.indexOf('state._printPeopleN=Object.keys(hito).length;') > 0 && dp.indexOf('pList.push(d); hito[i]=1;') > 0 && dp.indexOf('state._printPeopleN=people.length;') > 0, '入れていない 道が 在る');
+  /* ★Web明細も 押した 時に 字と 向きを 固める★（then の 中で _okuri・_isLand を 読まない） */
+  const vp = mei.slice(mei.indexOf("$('v-pdf').addEventListener"), mei.indexOf('// ⑥ 年末調整'));
+  const vth = vp.slice(vp.indexOf('.then(function(canvas)')).replace(/\/\*[\s\S]*?\*\//g, '');
+  T('⑫ Web明細の 字と 向きは 押した 時に 固める（焼く 間に 別の 明細を 開いても 前の 人の 名前の まま）', vp.indexOf('var landAtPress=_isLand, okuriAtPress=_okuri;') > 0 && vp.indexOf('var landAtPress=_isLand, okuriAtPress=_okuri;') < vp.indexOf('.then(function(canvas)') && vth.length > 0 && !/_okuri\b|_isLand\b/.test(vth), 'then の 中で 読んでいる');
   const sf = (h) => h.indexOf('js/file-out.js'), sm = meiHtml.indexOf('js/meisai.js');
   T('⑫ meisai.html は file-out.js を meisai.js より 先に 読む', sf(meiHtml) > 0 && sf(meiHtml) < sm, 'file-out ' + sf(meiHtml) + ' meisai ' + sm);
   T('⑫ 給与の 画面（kyuyo/index.html）も file-out.js を 読む', sf(kidx) > 0, '読んでいない');
