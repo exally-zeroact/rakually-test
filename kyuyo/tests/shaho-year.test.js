@@ -198,3 +198,18 @@ T('★中央の 介護の 壊れた 値（% のまま 1.62・true・0・字）�
     [1.62, true, 0, 'abc', null].forEach(function (v) { SH.hydrate(2027, { kaigo_total: v }); eq(SH.KAIGO_NENDO[2027], undefined, '値 ' + v); });
   } finally { cleanup2027(); }
 });
+T('★中央の 年が 字（"2026"）でも 令和8の 健保に 届く（叩き直し 任2）', function () {
+  var keep = SH.KENKO_2026.tokyo;
+  try {
+    var kt = {}; Object.keys(SH.KENKO_2026).forEach(function (p) { kt[p] = SH.KENKO_2026[p]; }); kt.tokyo = 0.0999;
+    SH.hydrate('2026', { kenko_total: kt });
+    eq(SH.getKenko('tokyo', '2026-06').total, 0.0999);
+  } finally { SH.KENKO_2026.tokyo = keep; }
+});
+T('★中央の 古い 年（2024）の 介護は 入れない＝2025-02 以前の 介護を 変えない（叩き直し 任3）', function () {
+  try {
+    SH.hydrate(2024, { kaigo_total: 0.016 });
+    eq(SH.KAIGO_NENDO[2024], undefined);
+    eq(SH.getKaigo('2025-02').total, 0.0162);
+  } finally { delete SH.KAIGO_NENDO[2024]; }
+});

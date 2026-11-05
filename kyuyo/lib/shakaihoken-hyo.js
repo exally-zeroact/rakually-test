@@ -184,7 +184,8 @@ const SHAKAIHOKEN_HYO = {
     // 介護＝無い 年度も 足す（前は KAIGO_NENDO[year] が 無いと 捨てた＝令和9の 介護が 中央から 届かなかった）
     var kg = Number(data.kaigo_total);
     // 0.05 未満＝% のまま（1.62）・true（=1）を 率として 入れない 守り（差分 taiketsu 任1）
-    if (data.kaigo_total != null && typeof data.kaigo_total !== 'boolean' && isFinite(kg) && kg > 0 && kg < 0.05 && year) { this.KAIGO_NENDO[year] = { total: kg, jugyoin: kg / 2 }; }
+    // 2024 以前は 健保と 同じく 入れない（叩き直し 任3＝古い 年が 入ると 収録より 古い 月の 選びが 変わり 2025-02 以前の 介護が 黙って 変わる）
+    if (data.kaigo_total != null && typeof data.kaigo_total !== 'boolean' && isFinite(kg) && kg > 0 && kg < 0.05 && year >= 2025) { this.KAIGO_NENDO[year] = { total: kg, jugyoin: kg / 2 }; }
   },
 
   // ----------------------------------------------------------------
