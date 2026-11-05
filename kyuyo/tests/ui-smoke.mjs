@@ -1064,6 +1064,32 @@ T('賞与の印刷・Excel・人の選び：支給月の在籍で選ぶ（12月�
   }
 });
 
+/* ★人の id は 続けて 作っても 重ならない★（2026-11-06）
+   前は uid が 時刻（ミリ秒）だけ＝CSV の 一括取込（applyMigrationRows）で 何人 入れても 全員 同じ id（chromium で 2・5・30行 とも 1通り）。
+   賞与（bonus.byEmp）・確定（confirmed）・明細の employee_id が 人ごとに 分かれず、倉庫の upsert（id が キー）も 同じ キーが 重なる。 */
+T('CSV の一括取込：30人を入れても id は30通り・給与パターンの id も重ならない', function () {
+  const keep = A.state.employees, keepP = A.state.payPatterns;
+  try {
+    A.state.employees = [];
+    const rows = []; for (let i = 0; i < 30; i++) rows.push({ name: '取込 ' + i, no: '', birthYmd: '', fuyou: '', hourly: '', base: '200000', commute: '', residentTax: '', pref: '', shikyu: [], prev: null });
+    A.applyMigrationRows(rows);
+    const ids = A.state.employees.map(e => e.id);
+    ok(ids.length === 30 && new Set(ids).size === 30, '取り込んだ 30人の id が ' + new Set(ids).size + '通り');
+    const many = []; for (let i = 0; i < 50; i++) many.push(A.defEmp('x').id);
+    ok(new Set(many).size === 50, 'defEmp を 続けて 50回＝id ' + new Set(many).size + '通り');
+    const pats = []; for (let i = 0; i < 20; i++) pats.push(A.makePayPattern(A.defEmp('p'), 'パ' + i).id);
+    ok(new Set(pats).size === 20, '給与パターンを 続けて 20回＝id ' + new Set(pats).size + '通り');
+  } finally { A.state.employees = keep; A.state.payPatterns = keepP; }
+  /* ★お金の 道★＝先月つきの 行を 取り込むと 先月の 明細を 保存する（行キー ps_年月_id）＝id が 重なると 倉庫で 1行に 上書き（taiketsu 11-06 で 測った） */
+  const keepE = A.state.employees, keepS = win.Store, rec = [];
+  try {
+    A.state.employees = [];
+    win.Store = { savePayslip: (ym, eid, d) => { rec.push('ps_' + ym + '_' + eid); return Promise.resolve(); } };
+    A.applyMigrationRows([0, 1, 2].map(i => ({ name: '先月 ' + i, no: '', birthYmd: '', fuyou: '', hourly: '', base: '200000', commute: '', residentTax: '', pref: '', shikyu: [], prev: { net: String(100000 + i * 1111), gross: '0', kojoTotal: '0', kojo: [] } })));
+    ok(rec.length === 3 && new Set(rec).size === 3, '先月の 明細の 行キーが ' + new Set(rec).size + '通り（' + rec.length + '回）');
+  } finally { A.state.employees = keepE; win.Store = keepS; }
+});
+
 T('K3 源泉区分の配線: 業務委託で該当区分=明細に源泉・非該当(代行)=控除ゼロ', function () {
   const e = A.state.employees[0];
   e.employmentType = 'contractor'; e.houshuKubun = 'none'; A.state.month = '2026-06';

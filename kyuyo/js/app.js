@@ -49,7 +49,12 @@
   function activeEmps(){ return state.employees.filter(function(e){return !e.retired;}); } // 稼働中(退職を除く)
   var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
   var attr=function(s){return String(s==null?'':s).replace(/"/g,'&quot;');};
-  var uid=function(){return 'e'+Math.abs(Date.now()%1e7).toString(36)+Math.floor(performance.now()).toString(36);};
+  /* ★id は 続けて 作っても 重ならない★（2026-11-06）＝前は 時刻（ミリ秒）だけ＝CSV の 一括取込で 何人 入れても 全員 同じ id・
+     先月の 明細（ps_年月_id）が 倉庫で 1行に 上書きされ、人の upsert（id が 主キー）も 落ちた。
+     時刻の 全桁＋その場で 増える 数＋乱数6字（別の 端末・別の 会社と 同じ ミリ秒でも 重ならない 為）。
+     ★crypto.randomUUID は 使わない★＝secure でない 所・古い Safari で 投げる＝人の 追加と 読み込み（mergeEmp）が 落ちる（taiketsu 11-06）。 */
+  var _uidN=0;
+  var uid=function(){ _uidN++; return 'e'+Date.now().toString(36)+'_'+_uidN.toString(36)+'_'+(Math.random().toString(36).slice(2)+'000000').slice(0,6); }; // 区切り＋乱数は 必ず 6字（taiketsu 任意2）
 
   /* ★★CSVの文字コードを決める(勤怠CSV取込／他ソフト移行の★2か所とも★ここを通す)★★(2026-09-19)
      ★前★ 「UTF-8で読んで ★日本語らしい字(ぁ-ん ァ-ヴ 一-龠)が 無ければ★ Shift-JISで読み直す」
