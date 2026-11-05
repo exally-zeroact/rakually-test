@@ -1018,6 +1018,52 @@ T('賞与の画面と印刷：支給日が空→黄色「賞与の支給日が�
   }
 });
 
+/* ★賞与の 印刷・Excel・人の 選びは 支給月（payYm）の 在籍で 選ぶ★（2026-11-06 止め5）
+   前は 対象月（state.month）で 選んでいた＝対象月 2026-11・支給 2026-12 だと、12月入社の 人の 賞与の 紙が 出ず、
+   11月退職の 人の 賞与の 紙が 出た（Web明細・振込・賞与の 画面は 前から 支給月）。 */
+T('賞与の印刷・Excel・人の選び：支給月の在籍で選ぶ（12月入社は出る・11月退職は出ない）・月次は対象月のまま', function () {
+  const q = s => doc.querySelector(s);
+  const e0 = A.defEmp('支給月 入社'), e1 = A.defEmp('対象月 退職'); e0.base = '300000'; e1.base = '300000';
+  e0.id = 'sk5-nyusha'; e1.id = 'sk5-taishoku'; // ★uid は 同じ ミリ秒だと 重なる（別の 件）＝試験では 分けて 置く★
+  const keep = { mon: A.state.month, mode: A.state.printMode, b: A.state.bonus, emps: A.state.employees, x: win.PayslipXlsx, pid: A.state._printEmpId };
+  const opts = () => Array.from(q('#p-emp').options).map(o => o.textContent);
+  const frame = () => String(q('#frame').srcdoc || '');
+  let xl = null;
+  try {
+    A.state.employees = [e0, e1]; A.state.month = '2026-11'; A.state._printEmpId = null;
+    e0.joinYmd = '2026-12-01'; e1.taishokuYmd = '2026-11-20';
+    A.state.bonus = { payYm: '2026-12', payDay: '2026-12-10', byEmp: {} };
+    A.state.bonus.byEmp[e0.id] = { amount: '300000', prevAfter: '', ytd: '', addShikyu: [], addKojo: [] };
+    A.state.bonus.byEmp[e1.id] = { amount: '200000', prevAfter: '', ytd: '', addShikyu: [], addKojo: [] };
+    win.PayslipXlsx = { download: function (people) { xl = people.map(p => p.name); } };
+    q('.bn[data-scr="scr-print"]').click(); q('.pmode[data-pmode="bonus"]').click();
+    ok(opts().includes(e0.name) && !opts().includes(e1.name), '賞与の 人の 選びが 支給月の 在籍で ない＝' + opts().join('/'));
+    ok(!q('#b-webpub').disabled, '賞与に 切り替えても「Web明細で公開」が 月次の 未確定の まま 押せない＝' + q('#b-webpub').textContent); // 差分 taiketsu 任意1＝切り替えで 描き直さない 同じ形
+    ok(frame().includes(e0.name) && !frame().includes(e1.name), '賞与の 紙が 支給月の 在籍で ない（12月入社が 出る・11月退職が 出ない）');
+    q('#b-xlsx').click();
+    ok(xl && xl.includes(e0.name) && !xl.includes(e1.name), '賞与の Excel が 支給月の 在籍で ない＝' + JSON.stringify(xl));
+    q('.pmode[data-pmode="monthly"]').click();
+    ok(!opts().includes(e0.name) && opts().includes(e1.name), '月次の 人の 選びは 対象月の 在籍＝' + opts().join('/'));
+    ok(q('#b-webpub').disabled && /先に今月を確定/.test(q('#b-webpub').textContent), '月次に 戻すと 未確定の 月は 公開を 押せない＝' + q('#b-webpub').textContent);
+    ok(!frame().includes(e0.name) && frame().includes(e1.name), '月次の 紙は 対象月の 在籍');
+    /* 1人を 選んだまま 切り替える（taiketsu 任意2）＝支給月に 居ない 人なら「全員」に 落ちて 覚えを 捨てる（黙って 別の人に ならない） */
+    const sel = q('#p-emp'); sel.value = '1'; sel.dispatchEvent(new win.Event('change', { bubbles: true }));
+    ok(A.state._printEmpId === e1.id && frame().includes(e1.name), '月次で 11月退職の 人を 選べた');
+    q('.pmode[data-pmode="bonus"]').click();
+    ok(sel.value === '__all' && A.state._printEmpId === null, '支給月に 居ない 人の 選びが 残った＝' + sel.value + '/' + A.state._printEmpId);
+    ok(frame().includes(e0.name) && !frame().includes(e1.name), '切り替えた 後の 賞与の 紙が 支給月の 在籍で ない');
+    /* 0枚の 門（taiketsu 任意1）＝支給月に 誰も 居ない 賞与は「対象者なし」（対象月に 居ても） */
+    A.state.bonus.payYm = '2026-10'; e0.joinYmd = '2027-06-01'; A.state.bonus.byEmp = {}; // 支給 2026-10＝入社 2027-06 も 9月退職も 居ない（対象月 2026-09 には 9月退職が 居る）
+    e1.taishokuYmd = '2026-09-30'; A.state.month = '2026-09';
+    q('.pmode[data-pmode="bonus"]').click(); q('.bn[data-scr="scr-input"]').click(); q('.bn[data-scr="scr-print"]').click(); // 印刷の 画面を 描き直す（ボタンの 字は ここで 同期に 決まる）
+    ok(/対象者なし/.test(q('#b-print').textContent), '支給月に 誰も 居ない 賞与の 印刷の 理由＝' + q('#b-print').textContent);
+  } finally {
+    A.state.month = keep.mon; A.state.printMode = keep.mode; A.state.bonus = keep.b; A.state._printEmpId = keep.pid;
+    A.state.employees = keep.emps; win.PayslipXlsx = keep.x;
+    const pm = q('.pmode[data-pmode="' + (keep.mode || 'monthly') + '"]'); if (pm) pm.click();
+  }
+});
+
 T('K3 源泉区分の配線: 業務委託で該当区分=明細に源泉・非該当(代行)=控除ゼロ', function () {
   const e = A.state.employees[0];
   e.employmentType = 'contractor'; e.houshuKubun = 'none'; A.state.month = '2026-06';

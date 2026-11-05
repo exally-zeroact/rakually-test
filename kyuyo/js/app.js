@@ -4826,7 +4826,7 @@
        （刷る物があるのにライブラリが無い時は、ブラウザ印刷に落ちるのが正しい）。 */
   function printGate(pages){
     if(pages>0) return { enabled:true, pages:pages, short:'' };
-    var actives=state.employees.filter(function(e){ return isActiveInMonth(e,state.month); });
+    var actives=printEmps('__all');
     if(!actives.length) return { enabled:false, pages:0, short:'対象者なし' };
     var isBonus=(state.printMode==='bonus');
     var cyc=(state.company&&state.company.payCycle)||'monthly';
@@ -4847,6 +4847,23 @@
     b.textContent=g.enabled?'印刷 / PDF保存':('印刷 / PDF保存（'+g.short+'）');
   }
   function printStaleUI(){ var pst=$('#p-stale'); if(pst) pst.innerHTML=((state.printMode||'monthly')==='monthly')?statutoryStaleWarn():(bonusStaleWarn()+bonusPayDayEmptyWarn()); } // 賞与の 紙は 支給月で 見る（2026-11-04 夜）
+  /* ★印刷の 人は 紙の 月の 在籍で 選ぶ★（2026-11-06 止め5）＝月次は 対象月（state.month）・賞与は 支給月（bonusYmOf）。
+     前は 賞与でも 対象月で 選んだ＝対象月 2026-11・支給 2026-12 で 12月入社の 人の 賞与の 紙・Excel が 出ず、11月退職の 人のが 出た
+     （Web明細 publishMeisaiNow・振込・賞与の 画面は 前から 支給月）。印刷・Excel・人の 選び・0枚の 門を この1か所から 読む。 */
+  function printYm(){ return (state.printMode==='bonus')?bonusYmOf():state.month; }
+  function printEmps(v){ var ym=printYm(); return (v==null||v==='__all')?state.employees.filter(function(e){return isActiveInMonth(e,ym);}):[state.employees[+v]]; }
+  function fillPrintEmpSel(){
+    var ym=printYm(); var sel=$('#p-emp'); if(!sel) return; sel.innerHTML='<option value="__all">全員</option>'+state.employees.map(function(e,i){return isActiveInMonth(e,ym)?'<option value="'+i+'">'+esc(e.name)+'</option>':'';}).join('');
+    /* ★選んだ人を 描き直しで 失わない★（2026-10-25 司さん「画面変えると また戻ってる 他の所も 確認して直せ」）
+       前は 描くたびに「全員」へ 戻った＝1人を 選んで 他の 画面へ 行き 戻ると 全員の 明細に なっていた。
+       ⇒ 人の id で 覚える（並びが 変わっても 別の人に ならない）。その月に 居ない人なら「全員」にして 覚えを 捨てる（下の else）。 */
+    if(state._printEmpId){ var _pi=-1; state.employees.forEach(function(e,i){ if(e.id===state._printEmpId) _pi=i; });
+      if(_pi>=0 && sel.querySelector('option[value="'+_pi+'"]')) sel.value=String(_pi);
+      else state._printEmpId=null; }   /* ★「全員」に 落ちたら 覚えを 捨てる★＝後で 黙って その人に 戻らない（taiketsu 任意-2） */
+  }
+  /* ★「Web明細で公開」の 押せる/押せない を 描く★＝月次⇄賞与の 切り替えでも 呼ぶ（2026-11-06 差分 taiketsu 任意1）
+     前は renderPrint だけ＝月次の 未確定の 月に 賞与へ 切り替えると「先に今月を確定」のまま 押せず、賞与の Web明細が 出せないように 見えた。 */
+  function webPubBtnUI(){ var wp=$('#b-webpub'), g=webPubGate(); if(wp){ wp.disabled=!g.enabled; wp.textContent=g.enabled?'Web明細で公開':('Web明細で公開（'+g.short+'）'); } }
   function renderPrint(){
     $('#p-month').value=state.month;
     $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===(state.printMode||'monthly')); });
@@ -4855,16 +4872,9 @@
     /* ★印刷の 画面にも 古い表の 黄警告★（2026-11-04 候補③ taiketsu 止め1）＝日別の 欄は 打っても 描き直さない（下の input）ので
        最後の 日に 翌年の 日付を 打って そのまま 印刷へ 来ると 一度も 見えなかった。賞与の 紙は 支給月で 見る（bonusStaleWarn・2026-11-04 夜）。 */
     printStaleUI();
-    var sel=$('#p-emp'); sel.innerHTML='<option value="__all">全員</option>'+state.employees.map(function(e,i){return isActiveInMonth(e,state.month)?'<option value="'+i+'">'+esc(e.name)+'</option>':'';}).join('');
-    /* ★選んだ人を 描き直しで 失わない★（2026-10-25 司さん「画面変えると また戻ってる 他の所も 確認して直せ」）
-       前は 描くたびに「全員」へ 戻った＝1人を 選んで 他の 画面へ 行き 戻ると 全員の 明細に なっていた。
-       ⇒ 人の id で 覚える（並びが 変わっても 別の人に ならない）。その月に 居ない人なら「全員」にして 覚えを 捨てる（下の else）。 */
-    if(state._printEmpId){ var _pi=-1; state.employees.forEach(function(e,i){ if(e.id===state._printEmpId) _pi=i; });
-      if(_pi>=0 && sel.querySelector('option[value="'+_pi+'"]')) sel.value=String(_pi);
-      else state._printEmpId=null; }   /* ★「全員」に 落ちたら 覚えを 捨てる★＝後で 黙って その人に 戻らない（taiketsu 任意-2） */
+    fillPrintEmpSel();
     // ★押せない時は理由をボタンの中に（下に小さく置くと読まれない）
-    var wp=$('#b-webpub'), g=webPubGate();
-    if(wp){ wp.disabled=!g.enabled; wp.textContent=g.enabled?'Web明細で公開':('Web明細で公開（'+g.short+'）'); }
+    webPubBtnUI();
     renderWebMeisai();
     doPreview();
     updatePrintBtn();   // 下絵が入る前の見た目。読み込み後に fitFrameToPages から数え直す
@@ -5323,7 +5333,7 @@
     fr.onload=apply; setTimeout(apply, 80); // srcdoc読込後に測る(onload未発火の保険にsetTimeoutも)
   }
   function doPreview(){
-    var v=$('#p-emp').value; var emps=v==='__all'?state.employees.filter(function(e){return isActiveInMonth(e,state.month);}):[state.employees[+v]];
+    var emps=printEmps($('#p-emp').value);
     var isBonus=state.printMode==='bonus';
     var cyc=(state.company&&state.company.payCycle)||'monthly';
     if(!isBonus && (cyc==='daily'||cyc==='weekly')){ // 日払い/週払い=スリップ明細(日別)。全員選択なら全員分を並べる(M2修正)
@@ -6417,7 +6427,7 @@
     // 印刷
     $('#p-emp').addEventListener('change',function(){ var v=$('#p-emp').value, pe=(v==='__all')?null:state.employees[+v]; state._printEmpId=pe?pe.id:null; doPreview(); });   /* ★選んだ人を 覚える（renderPrint が 戻す）★ */
     // #p-monthは.scr-monthに統合(P1-18)→共通ハンドラ(対象月change)が state.month同期＋renderPrint（選ぶ欄から作り直す）を行う
-    $('#print-mode-seg').addEventListener('click',function(e){ var b=e.target.closest('.pmode'); if(!b)return; state.printMode=b.dataset.pmode==='bonus'?'bonus':'monthly'; $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===state.printMode); }); updatePrintMonthUI(); updateDailyLayoutUI(); printStaleUI(); doPreview(); });
+    $('#print-mode-seg').addEventListener('click',function(e){ var b=e.target.closest('.pmode'); if(!b)return; state.printMode=b.dataset.pmode==='bonus'?'bonus':'monthly'; $$('.pmode').forEach(function(x){ x.classList.toggle('on', x.dataset.pmode===state.printMode); }); updatePrintMonthUI(); updateDailyLayoutUI(); printStaleUI(); fillPrintEmpSel(); webPubBtnUI(); doPreview(); });   /* ★月次⇄賞与で 在籍の 月が 変わる＝人の 選びも 作り直す（止め5）・公開の 可否も 描き直す★ */
     $('#daily-layout-seg').addEventListener('click',function(e){ var b=e.target.closest('.dls'); if(!b)return; state.dailySlipLayout=b.dataset.dls==='2col'?'2col':'1col'; $$('.dls').forEach(function(x){ x.classList.toggle('on', x.dataset.dls===state.dailySlipLayout); }); doPreview(); });
     function afterDesign(){ renderDesign(); if($('#scr-print')&&$('#scr-print').classList.contains('active')) doPreview(); }
     $('#tpl-row').addEventListener('click',function(e){ var b=e.target.closest('[data-tpl]'); if(!b)return; state.prefer=b.dataset.tpl; afterDesign(); });
@@ -6550,7 +6560,7 @@
     })();
     // モバイルの回転/リサイズでプレビューを再フィット(再描画せず軽く)
     var _fitT; window.addEventListener('resize',function(){ if(!$('#scr-print')||!$('#scr-print').classList.contains('active'))return; clearTimeout(_fitT); _fitT=setTimeout(fitPreview,120); });
-    $('#b-xlsx').addEventListener('click',function(){ if(!window.PayslipXlsx)return; markOutput(); var v=$('#p-emp').value; var emps=(v==='__all')?state.employees.filter(function(e){return isActiveInMonth(e,state.month);}):[state.employees[+v]];
+    $('#b-xlsx').addEventListener('click',function(){ if(!window.PayslipXlsx)return; markOutput(); var emps=printEmps($('#p-emp').value);
       var isBonus=state.printMode==='bonus'; // 印刷の月次/賞与トグルに合わせる(賞与で月次が出る不具合を修正)
       // ★月次は契約(オペレーション)経由で出す。セルを決めるのはエンジン側だけ＝画面とファイルがズレようがない。
       //   賞与はまだオペ化していないので従来の道（オペ化したらここも契約経由にする）。
