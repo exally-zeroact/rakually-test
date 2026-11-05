@@ -775,6 +775,8 @@ jobs:
         run: node kyuyo/tests/ui-smoke.mjs
       - name: ★会社の一括PDFで1人分の描画失敗を黙って抜けさせない（欠けた人数を警告・全失敗なら空PDFを開かない）
         run: node kyuyo/tests/bulk-pdf-skip.mjs
+      - name: ★PDFで保存からブラウザ印刷へ逃げない（Web明細の源泉徴収票・部品が読めない時・会社の一括PDF）
+        run: node kyuyo/tests/print-nigenai.mjs && node kyuyo/tests/print-nigenai.mjs --waza
       - name: ★過去の残業履歴が読めない時に36協定チェックを黙らせない（読めませんでしたを出す・無限ループしない）
         run: node kyuyo/tests/othist-warn.mjs
       - name: ★締め方の白名簿を固定（UIの締め方を periods.js METHODS に足し忘れると黙ってmonthlyに倒れる将来穴を赤に）

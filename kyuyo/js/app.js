@@ -4827,8 +4827,9 @@
      ★0枚だと保険の道に落ちて iframe.contentWindow.print() ＝【白紙のまま】ブラウザの印刷ダイアログが開く★。
      ダイアログは画面を全部ふさぐので、スマホでもパソコンでも「固まった」ようにしか見えない
      （指示役の環境で実際に固まり、原因の切り分けに時間を取らせた）。
-     ★0枚かどうかだけで止める★＝html2canvas/jsPDF が読めていない時の保険の道は残す
-       （刷る物があるのにライブラリが無い時は、ブラウザ印刷に落ちるのが正しい）。 */
+     ★0枚かどうかだけで止める★（ここは押せるかの見た目だけ）。
+       ★2026-11-06 改め★ html2canvas/jsPDF が読めていない時も ブラウザ印刷へは落とさない＝b-print の中で止めて字で言う
+       （前の「ライブラリが無い時はブラウザ印刷に落ちるのが正しい」は取り消し＝iOS は URL・日付が付き、白紙の2枚目が出て、戻れない）。 */
   function printGate(pages){
     if(pages>0) return { enabled:true, pages:pages, short:'' };
     var actives=printEmps('__all');
@@ -6464,11 +6465,14 @@
       var pages=idoc?idoc.querySelectorAll('.sheet,.page'):null;
       var pg=printGate((pages&&pages.length)||0);
       if(!pg.enabled){ updatePrintBtn(); uiAlert('刷る物がまだありません（'+pg.short+'）。'); return; }
+      /* ★2026-11-06★ 部品（html2canvas/jsPDF）が読めない時も ★ブラウザ印刷へは逃げない★（前は contentWindow.print()＝
+         iOS は URL・日付が紙に付き、白紙の2枚目が出て、戻れない＝6431 の注）。止めて字で言う。
+         ★markOutput より前で止める★＝作れなかったのに「はじめかた④ 出した」を済みにしない。 */
+      if(!(window.html2canvas)||!(window.jspdf&&window.jspdf.jsPDF)){
+        uiAlert('PDFを作る部品が読み込めていません。アプリ（画面）を閉じて開き直してから、もう一度押してください。'); return;
+      }
       markOutput();
       var okuriAtPress=kyuyoOkuriJi();   /* ★押した 時の 人と 月★（PDF を 作る 数秒の 間に 選びを 変えても ずれない・taiketsu 任3） */
-      if(!(window.html2canvas)||!(window.jspdf&&window.jspdf.jsPDF)){
-        try{f.contentWindow.focus();f.contentWindow.print();}catch(err){window.print();} return; // 保険=ライブラリ未読込ならブラウザ印刷
-      }
       var isLand=(+(f.dataset.pw||794))>900; // pw=1123→A4横
       var CW=isLand?1123:794, CH=isLand?794:1123, pw=isLand?842:595, ph=isLand?595:842; // ★A4ページ
       var doc=new window.jspdf.jsPDF({ orientation:isLand?'landscape':'portrait', unit:'pt', format:[pw,ph] });

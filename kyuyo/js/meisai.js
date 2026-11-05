@@ -6,7 +6,10 @@
   'use strict';
   var $=function(id){ return document.getElementById(id); };
   var SCREENS=['sc-bad','sc-setup','sc-login','sc-consent','sc-list','sc-view','sc-nencho','sc-furikomi'];
-  function show(id){ SCREENS.forEach(function(s){ var el=$(s); if(el)el.classList.toggle('hidden', s!==id); }); }
+  function show(id){ SCREENS.forEach(function(s){ var el=$(s); if(el)el.classList.toggle('hidden', s!==id); });
+    /* ★画面が 替わったら PDF の 止めの 札を 下げる★（札は body 直下の fixed＝下げないと 一覧や 別の明細の上に「この紙は…」が 残って 嘘になる・taiketsu 3回目 止1） */
+    var ft=document.getElementById('m-pdf-tome'); if(ft){ ft.style.display='none'; } _pdfBan++; }
+  var _pdfBan=0;   /* 画面替えの 番号（PDF を 作る 途中で 画面を 替えたら、後から 来た 失敗の 札を 出さない・taiketsu 4回目 止め1） */
   function yen(n){ n=Math.round(Number(n)||0); return '¥'+n.toLocaleString('en-US'); }
   /* ★直しの 日付を ★短く★ 出す★（例：9月22日）
      ★時刻は 出さない★＝従業員に 要るのは「いつ 直ったか」だけ
@@ -27,10 +30,11 @@
   /* ★つながらない時に 何も出ないまま止めない★（2026-08-21）
      倉庫を呼ぶ所には ★1か所ずつ★ 受け皿を付ける。ここは その知らせ（1か所にまとめる）。
      ★「リンクが正しくありません」は使わない★＝つながらないのとは別の事（嘘になる）。 */
-  function oops(what, err){
-    var t=document.getElementById('m-oops');
+  /* 画面の下に 貼り付く 赤い 知らせ（自分では 消えない）。id ごとに 1つ＝つながらない知らせ（m-oops）と PDF の止め（m-pdf-tome）を 別に持つ */
+  function akaiFuda(id){
+    var t=document.getElementById(id);
     if(!t){
-      t=document.createElement('div'); t.id='m-oops';
+      t=document.createElement('div'); t.id=id;
       t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);'
         +'max-width:calc(100vw - 32px);width:max-content;box-sizing:border-box;'
         +'white-space:normal;overflow-wrap:anywhere;line-height:1.6;text-align:center;'
@@ -38,6 +42,10 @@
         +'box-shadow:0 4px 16px rgba(0,0,0,.22);z-index:9999';
       document.body.appendChild(t);
     }
+    return t;
+  }
+  function oops(what, err){
+    var t=akaiFuda('m-oops');
     t.textContent = what + 'ができませんでした（' + ((err && (err.message||err.reason)) || 'つながりません') + '）。電波の良い所で もう一度 開いてください。';
     t.style.display='';
   }
@@ -207,15 +215,38 @@
   // PDFで保存 = ★jsPDFで自前生成(A4ぴったり1ページ・ブラウザのURL/日付フッター無し)。
   //   iOSのwebページ印刷(window.print)はURL/日付フッターが必ず付き、その余白ぶんで2ページ目(空白)が出るため不使用。
   //   明細をhtml2canvasで高精細(scale3=約288dpi)に焼き、A4 1枚に載せる→doc.save。iOSは標準PDFビューアで開く(戻れる)。
+  /* PDF の 止め＝「作成中…」を 下げて 画面の下の 赤い札（自分では 消えない・画面が 替わるか 作れたら 下がる）。
+     ★作る途中の 失敗も 同じ札★（前は 明細の上に 小さく 2.2秒＝読めずに「何も起きない」と同じ・taiketsu 3回目 止2） */
+  function pdfTome(load, ji, ban){ if(load){ load.style.display='none'; } if(ban!=null && ban!==_pdfBan) return;   /* 押した後に 画面が 替わった＝別の画面に 嘘を 出さない */
+    var t=akaiFuda('m-pdf-tome'); t.textContent=ji; t.style.display=''; }
   $('v-pdf').addEventListener('click', function(){
     var load=$('ps-loading');
     var f=$('frame'), idoc=f&&(f.contentDocument||f.contentWindow.document);
-    var target=idoc&&idoc.querySelector('.sheet,.page');
-    if(!target || !(window.html2canvas) || !(window.jspdf&&window.jspdf.jsPDF)){ try{ window.print(); }catch(e){} return; } // 保険=ライブラリ未読込ならブラウザ印刷
+    /* ★2026-11-06★ 源泉徴収票（nenGensenDoc）は .sheet/.page でなく body の中の .gensen 1つ＝前は target が null で
+       必ず下の window.print()（★外側の頁ごと★ブラウザ印刷）へ落ちていた。.gensen が在る時だけ body を焼く
+       （body は padding 込みで 794 幅＝見た通りの A4。kind で決めない＝「表示できませんでした」の頁を PDF にしない）。 */
+    var target=idoc&&(idoc.querySelector('.sheet,.page')||(idoc.querySelector('.gensen')?idoc.body:null));
+    /* ★ブラウザ印刷へは逃げない★（iOS は URL・日付が紙に付き、白紙の2枚目が出て、戻れない＝上の注）。止めて字で言う。
+       字は 画面の下の 赤い 札（oops と 同じ形・自分では 消えない）＝明細の上に 小さく 重ねて 4秒で 消すと 読めずに「何も起きない」になる（taiketsu）。
+       紙が無いのは 開き直しても 直らない＝会社へ。部品は ホーム画面の アプリに 読み込み直しの 釦が 無い＝「閉じて 開き直す」。 */
+    var nanika=!target ? 'この紙はPDFにできません（紙の中身が読めていません）。会社へお知らせください。'
+      : (!(window.html2canvas) || !(window.jspdf&&window.jspdf.jsPDF)) ? 'PDFを作る部品が読み込めていません。アプリ（画面）を閉じて開き直してから、もう一度押してください。' : '';
+    var fuda=document.getElementById('m-pdf-tome'), banAtPress=_pdfBan;
+    if(nanika){ pdfTome(load, nanika); return; }
+    if(fuda){ fuda.style.display='none'; }   // 作れる時は 前の 止めの 札を 下げる
     if(load){ load.style.display=''; load.textContent='PDFを作成中…'; }
     // ★A4寸法を固定で焼く(width/height両方指定)=iOSでも必ずA4比率のcanvasになる(縦潰れ防止)。
     var CW=_isLand?1123:794, CH=_isLand?794:1123;
-    window.html2canvas(target, { scale:3, backgroundColor:'#ffffff', useCORS:true, width:CW, height:CH, windowWidth:CW, windowHeight:CH }).then(function(canvas){
+    /* ★焼く間だけ 外の字体の link を 外す★（2026-11-06）＝倉庫の 源泉徴収票（app.js nenGensenDoc）は fonts.googleapis の link を持つ。
+       返事が来ないと html2canvas の写しが 読み終わらず「作成中…」のまま 永久に止まる（chromium・webkit とも 20秒 0枚／外すと 0.1〜0.7秒 を測った）。
+       古い紙も 倉庫に在る＝作る側でなく 焼く所で外す。焼き終わったら（成功でも失敗でも）元の場所へ戻す。手元の link は触らない。 */
+    var sotoLink=[];
+    try{ Array.prototype.forEach.call(idoc.querySelectorAll('link[rel~="stylesheet"]'), function(l){
+      if(/^\s*(https?:)?\/\//i.test(l.getAttribute('href')||'')){ sotoLink.push([l, l.parentNode, l.nextSibling]); l.parentNode.removeChild(l); } }); }catch(_){}
+    var linkModosu=function(){ sotoLink.forEach(function(x){ try{ x[1].insertBefore(x[0], x[2]); }catch(_){} }); sotoLink=[]; };
+    var yaki=window.html2canvas(target, { scale:3, backgroundColor:'#ffffff', useCORS:true, width:CW, height:CH, windowWidth:CW, windowHeight:CH });
+    yaki.then(linkModosu, linkModosu);   // 先に 登録＝下の 続きより 先に 戻る
+    yaki.then(function(canvas){
       try{
         var jsPDF=window.jspdf.jsPDF;
         var pw=_isLand?842:595, ph=_isLand?595:842; // ★A4ページ(印刷がちゃんとA4になる)
@@ -232,8 +263,8 @@
         var hiraku=function(){ try{ var url=URL.createObjectURL(pdfBlob); var w=window.open(url,'_blank'); if(!w){ try{ doc.save(okuri.name); }catch(e){} } setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 60000); }catch(e){ try{ doc.save(okuri.name); }catch(_){} } return { how:'open' }; };
         if(window.FileOut && window.FileOut.sharePdf){ window.FileOut.sharePdf(pdfBlob, okuri.name, { text:okuri.text, open:hiraku }).catch(function(){ hiraku(); }); } else { hiraku(); }
         if(load){ load.style.display='none'; }
-      }catch(e){ if(load){ load.textContent='PDFの作成に失敗しました。時間をおいて再度お試しください。'; setTimeout(function(){ if(load)load.style.display='none'; },2200); } }
-    }).catch(function(){ if(load){ load.textContent='PDFの作成に失敗しました。時間をおいて再度お試しください。'; setTimeout(function(){ if(load)load.style.display='none'; },2200); } });
+      }catch(e){ pdfTome(load, 'PDFの作成に失敗しました。時間をおいて、もう一度押してください。', banAtPress); }
+    }).catch(function(){ pdfTome(load, 'PDFの作成に失敗しました。時間をおいて、もう一度押してください。', banAtPress); });
   });
 
   // ⑥ 年末調整 従業員セルフ申告(平易な質問→保存。会社が取り込む)
