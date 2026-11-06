@@ -673,6 +673,20 @@ T('給与支払報告書: 市区町村抽出＋源泉徴収票と同じ集計で
   const goukei = sou.find(r => r[0] === '合計');
   ok(goukei && goukei[1] === 1 && goukei[4] === 3600000, '総括表 合計行');
 });
+/* ★住宅ローン控除の 表示＝計算と 同じ 値★（2026-11-06 叩きの 止め1＝全角で 入れると 源泉徴収票・報告書が 0・Excel は 負や 小数が そのまま） */
+T('年調 住宅ローン控除: 全角・負・小数でも 源泉徴収票・報告書が 計算と 同じ 値（Excel は 同じ nenLoanKojo）', function () {
+  A.state.month = '2026-06';
+  const e = A.defEmp('住宅 太郎'); e.address = '東京都新宿区西新宿2-8-1'; e.birthYmd = '1990-04-01';
+  A.state._nenEmps = [e]; A.state.nencho = {}; A.state._nenRecs = [];
+  for (let m = 1; m <= 12; m++) A.state._nenRecs.push({ ym: '2026-' + ('0' + m).slice(-2), employee_id: e.id, data: { shikyuTotal: 500000, tax: 8000, si: { health: 25000, pension: 45000, employ: 3000 }, kind: 'monthly', confirmed: true } });
+  [['８３７４１', 83741], ['-50000', 0], ['83741.43', 83741]].forEach(function (c) {
+    A.nenStore(e.id).jutakuLoan = c[0];
+    const rows = A.gyoyoRows(A.state._nenRecs, 2026, A.state._nenEmps);
+    ok(rows[0].jutaku === c[1], '報告書 ' + c[0] + ' → ' + rows[0].jutaku + '（正 ' + c[1] + '）');
+    const g = A.nenGensenHTML(e, 2026), m = g.match(/住宅借入金等特別控除の額[\s\S]{0,200}?([¥￥]?[\d,]+)/);
+    ok(m && Number(m[1].replace(/[¥￥,]/g, '')) === c[1], '源泉徴収票 ' + c[0] + ' → ' + (m && m[1]) + '（正 ' + c[1] + '）');
+  });
+});
 
 T('★給与支払報告書 完成度UP★ 16歳未満扶養/本人区分/徴収区分の内訳', function () {
   A.state.month = '2026-06';
