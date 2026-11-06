@@ -9,10 +9,12 @@
  *   直し＝print を抜き、止めて 字で言う。源泉徴収票は .gensen が在る時だけ body を焼く。
  * ★この歯★
  *   (a) 字の見張り … kyuyo/js と js/ の全 .js で `.print(` を数える。許すのは 紙に刷る為の QR カード（printQRCards の中）と、
- *       会社の源泉徴収票 nenPrintGensen の中（★次の押しで PDF へ 作り替えて ここから外す★）だけ。名前でなく 関数の中に在るかで許す。
+ *       （会社の源泉徴収票 nenPrintGensen は 2026-11-06 に PDF へ 作り替えて 許しから外した）。名前でなく 関数の中に在るかで許す。
  *   (b) 会社 b-print を jsdom で押す … 部品を消す→ print 0・字が出る・「出した」印を付けない。
  *   (c) Web明細 v-pdf を jsdom で押す … 源泉徴収票の頁で body を焼く・print 0／部品無し→print 0・字／紙無し→print 0・字／
  *       外の字体の link（倉庫の源泉徴収票）は焼く間だけ外して済んだら戻す（返事なしで永久に止まらない）。
+ *   (d) 会社の源泉徴収票 nenPrintGensen を jsdom で呼ぶ … print 0・幅794の包みを人数分焼く・計算できない人と焼けない人を数えて言う・
+ *       全員だめなら共有しない・部品無しは字・見えない iframe は済んだら消す。
  * ★わざと(--waza)★ … 直す前の形を差し込み、(a) が その字を拾う事、(b)(c) が print≥1 を見る事を確かめる（歯が新旧を見分ける証し）。
  * 依存: jsdom。使い方: node kyuyo/tests/print-nigenai.mjs   ／   --waza
  */
@@ -31,6 +33,19 @@ const T = (n, c, m) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fa
 const sleep = (win, ms) => new Promise((r) => win.setTimeout(r, ms));
 
 /* ★直す前の形（--waza で差し込む）★ */
+/* 会社の源泉徴収票の 直す前（新しい窓に書いて onload で window.print） */
+const OLD_NEN = String.raw`  function nenPrintGensen(){
+    var year=nenYear(); var emps=state._nenEmps||[];
+    if(!emps.length){ uiAlert('対象の従業員がいません。'); return; }
+    var body=emps.map(function(e){ return nenGensenHTML(e, year); }).join('');
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>源泉徴収票 '+year+'</title>'
+      +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">'
+      +'<style>'+gensenCss()+'</style></head><body>'+body
+      +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);}</scr'+'ipt></body></html>';
+    var w=window.open('', '_blank'); if(!w){ uiAlert('ポップアップがブロックされました。ブラウザの設定で許可してください。'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+`;
 const OLD_APP_NEW = "uiAlert('PDFを作る部品が読み込めていません。アプリ（画面）を閉じて開き直してから、もう一度押してください。'); return;";
 const OLD_APP_OLD = 'try{f.contentWindow.focus();f.contentWindow.print();}catch(err){window.print();} return;';
 const OLD_MEI_TGT_NEW = "var target=idoc&&(idoc.querySelector('.sheet,.page')||(idoc.querySelector('.gensen')?idoc.body:null));";
@@ -49,8 +64,14 @@ const OLD_MEI_CATCH_OLD = ".catch(function(){ if(load){ load.textContent='PDFの
 function readSrc(rel) {
   let code = fs.readFileSync(path.join(REPO, rel), 'utf8');
   if (WAZA && /kyuyo[\\/]js[\\/]app\.js$/.test(rel)) {
-    if (code.indexOf(OLD_APP_NEW) < 0) { console.log('✗ ★--waza の差し込み先（app.js b-print）が見つからない＝字がずれた★'); process.exit(1); }
-    code = code.replace(OLD_APP_NEW, OLD_APP_OLD);
+    /* ★b-print の 中の 物だけを 差し替える★（同じ字が 源泉徴収票 nenPrintGensen にも 在る＝前から1つ目を 替えると 外れる） */
+    const bp = code.indexOf("$('#b-print').addEventListener"), at = bp < 0 ? -1 : code.indexOf(OLD_APP_NEW, bp);
+    if (at < 0) { console.log('✗ ★--waza の差し込み先（app.js b-print）が見つからない＝字がずれた★'); process.exit(1); }
+    code = code.slice(0, at) + OLD_APP_OLD + code.slice(at + OLD_APP_NEW.length);
+    /* 源泉徴収票 nenPrintGensen を 直す前の 新窓＋print に 戻す（(d) が print≥1 を 見る） */
+    const ns = code.indexOf('  function nenPrintGensen(){'), ne = code.indexOf('  // 源泉徴収票を従業員へWeb交付');
+    if (ns < 0 || ne < 0) { console.log('✗ ★--waza の差し込み先（app.js nenPrintGensen）が見つからない＝字がずれた★'); process.exit(1); }
+    code = code.slice(0, ns) + OLD_NEN + code.slice(ne);
   }
   if (WAZA && /kyuyo[\\/]js[\\/]meisai\.js$/.test(rel)) {
     if (code.indexOf(OLD_MEI_TGT_NEW) < 0 || code.indexOf(OLD_MEI_STOP_NEW) < 0) { console.log('✗ ★--waza の差し込み先（meisai.js v-pdf）が見つからない＝字がずれた★'); process.exit(1); }
@@ -87,7 +108,7 @@ function inComment(code, i) {
   const before = pre.slice(0, k);
   return ((before.match(/'/g) || []).length % 2 === 0) && ((before.match(/"/g) || []).length % 2 === 0) && !/:\s*$/.test(before);
 }
-const YURUSU = { 'kyuyo/js/app.js': ['printQRCards', 'nenPrintGensen'] };
+const YURUSU = { 'kyuyo/js/app.js': ['printQRCards'] };
 const files = [];
 for (const dir of ['kyuyo/js', 'js']) {
   for (const f of fs.readdirSync(path.join(REPO, dir))) if (/\.js$/.test(f)) files.push(dir + '/' + f);
@@ -252,6 +273,86 @@ console.log('\n[print-nigenai] (c) Web明細の PDFで保存（源泉徴収票�
   await sleep(win, 30);
   if (WAZA) T('(c)⑧ --waza＝番号の 確かめを 抜くと 一覧に 札が 出る（歯が 見分ける）', /作成に失敗しました/.test(fudaJi()), 'fuda=' + fudaJi());
   else T('(c)⑧ ★押した後に 一覧へ 戻ってから 失敗しても 一覧に 札を 出さない★', fudaJi() === '' && !!otosu && load.style.display === 'none', 'fuda=' + fudaJi() + ' otosu=' + !!otosu + ' load=' + load.style.display);
+}
+
+/* ── (d) 会社の 源泉徴収票 nenPrintGensen ── */
+console.log('\n[print-nigenai] (d) 会社の 源泉徴収票（PDF へ・print へ 逃げない）');
+{
+  const code = readSrc('kyuyo/js/app.js');
+  const take = (n) => { const r = fnRange(code, n); if (!r) { console.log('✗ ★' + n + ' が app.js に 無い★'); process.exit(1); } return code.slice(r[0], r[1] + 1); };
+  const fns = [take('gensenCss'), take('nenPrintGensen')];
+  const pr = fnRange(code, 'pagesToPdf'); if (pr) fns.push(code.slice(pr[0], pr[1] + 1)); else if (!WAZA) T('(d) pagesToPdf が app.js に 在る', false);
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'dangerously', url: 'http://localhost/', pretendToBeVisual: true });
+  const win = dom.window, doc = win.document;
+  let printed = 0; const ji = []; const share = []; const yaku = [];
+  win.print = () => { printed++; };
+  win.__ji = ji;
+  const el = doc.createElement('script');
+  el.textContent = 'var state={}; var nenPdfBusy=false; function nenYear(){ return 2025; } function nenGensenHTML(e){ return e.kake ? "" : "<div class=\\"gensen\\">"+e.name+"</div>"; }'
+    + 'function uiAlert(m){ window.__ji.push(m); } function toast(){} ' + fns.join('\n')
+    + '\nwindow.__nen=function(emps){ state._nenEmps=emps; nenPrintGensen(); };'
+    + '\nwindow.__p2p=(typeof pagesToPdf==="function")?pagesToPdf:null;';
+  doc.body.appendChild(el);
+  /* 直す前は 新しい窓に 書いて onload で print＝書かれた字に window.print が 在れば 逃げたと 数える */
+  win.open = () => ({ document: { open() {}, write(h) { if (/window\.print\(\)/.test(h)) printed++; }, close() {} } });
+  const libs = (failAll) => {
+    win.html2canvas = (e, op) => { yaku.push({ cls: e.className, w: op && op.width, h: op && op.height }); return (failAll || /失敗/.test(e.textContent || '')) ? Promise.reject(new Error('わざと')) : Promise.resolve({ width: 794, height: 600, toDataURL: () => 'data:image/jpeg;base64,xx' }); };
+    win.jspdf = { jsPDF: function () { this.addPage = () => {}; this.addImage = () => {}; this.output = () => 'BLOB'; this.save = () => {}; } };
+    win.FileOut = { sharePdf: (b, name, o) => { share.push({ name, text: o && o.text }); return Promise.resolve({ how: 'share' }); } };
+  };
+  const reset = () => { printed = 0; ji.length = 0; share.length = 0; yaku.length = 0; };
+  const waitDone = async () => { for (let k = 0; k < 80; k++) { await sleep(win, 100); if (share.length || ji.length || printed) { await sleep(win, 50); return; } } };
+  const iframes = () => doc.querySelectorAll('iframe').length;
+  /* ① 3人・1人は 計算できない */
+  reset(); libs(false);
+  win.__nen([{ name: '山田' }, { name: '佐藤', kake: true }, { name: '鈴木' }]);
+  await waitDone();
+  if (WAZA) T('(d)① --waza＝直す前は 源泉徴収票で print へ 落ちる（歯が 見分ける）', printed >= 1, 'printed=' + printed);
+  else {
+    T('(d)① ★源泉徴収票で print を 呼ばない★', printed === 0, 'printed=' + printed);
+    T('(d)① 計算できた 2人分の 包み（.gwrap）を 焼く', yaku.length === 2 && yaku.every((y) => y.cls === 'gwrap'), JSON.stringify(yaku));
+    T('(d)① 共有へ 1回・字と 名前は 2人', share.length === 1 && share[0].text === '源泉徴収票 2025年分 2人' && share[0].name === '源泉徴収票_2025年分_2人.pdf', JSON.stringify(share));
+    T('(d)① ★計算できない 1人を 黙って 抜かない★', ji.some((m) => /⚠ 1人分/.test(m)), JSON.stringify(ji));
+    T('(d)① 見えない iframe は 済んだら 消す', iframes() === 0, 'iframe=' + iframes());
+  }
+  if (!WAZA) {
+    /* ② 1人＝名前に 様 */
+    reset(); libs(false); win.__nen([{ name: '山田 太郎' }]); await waitDone();
+    T('(d)② 1人なら「〇〇様」', share.length === 1 && share[0].text === '源泉徴収票 2025年分 山田 太郎様' && share[0].name === '源泉徴収票_2025年分_山田_太郎様.pdf', JSON.stringify(share));
+    /* ③ 全員 焼けない＝共有しない・字で言う */
+    reset(); libs(true); win.__nen([{ name: 'A' }, { name: 'B' }]); await waitDone();
+    T('(d)③ ★全員 焼けなければ 共有しない・「すべて失敗」★', share.length === 0 && ji.some((m) => /すべて失敗/.test(m)) && printed === 0, JSON.stringify({ share, ji, printed }));
+    T('(d)③ 失敗でも iframe は 消す', iframes() === 0, 'iframe=' + iframes());
+    /* ④ 全員 計算できない */
+    reset(); libs(false); win.__nen([{ name: 'A', kake: true }]); await waitDone();
+    T('(d)④ 計算できる人が 0 なら 作らず 字で言う', share.length === 0 && yaku.length === 0 && ji.some((m) => /計算できませんでした/.test(m)), JSON.stringify(ji));
+
+    /* ⑥ 一部だけ 焼けない＝⚠ と 字は 載せた人数（taiketsu 任1・任4） */
+    reset(); libs(false); win.__nen([{ name: 'A' }, { name: 'B失敗' }, { name: 'C' }]); await waitDone();
+    T('(d)⑥ ★一部 焼けない人を 黙って 抜かない★', ji.some((m) => /⚠ 1人分/.test(m)), JSON.stringify(ji));
+    T('(d)⑥ 共有の 字は 実際に 載せた 2人（3人と 言わない）', share.length === 1 && share[0].text === '源泉徴収票 2025年分 2人', JSON.stringify(share));
+    /* ⑦ 外の字体を 読ませない（返事が来ないと 永久に 出来ない＝taiketsu 止1） */
+    { const r = fnRange(code, 'nenPrintGensen'); const src = r ? code.slice(r[0], r[1] + 1) : '';
+      T('(d)⑦ ★源泉の iframe に 外の URL（字体の CSS 等）を 書かない★', !!src && !/https?:\/\//.test(src), (src.match(/https?:\/\/[^'" ]+/) || [''])[0]); }
+    /* ⑧ 作っている間の 2度押し＝PDF は 1つ */
+    reset(); libs(false); win.__nen([{ name: 'A' }]); win.__nen([{ name: 'A' }]); await waitDone(); await sleep(win, 200);
+    T('(d)⑧ 作っている間の 2度押しで PDF を 2つ 作らない', share.length === 1, 'share=' + share.length);
+    reset(); libs(false); win.__nen([{ name: 'A' }]); await waitDone();
+    T('(d)⑧ 済んだら また 押せる', share.length === 1, 'share=' + share.length);
+    /* ⑨ 明細（b-print）は 決まった大きさで 焼く＝fix を 効かせる */
+    reset(); libs(false);
+    { const d2 = doc.createElement('div'); d2.textContent = '明細'; doc.body.appendChild(d2);
+      const r = win.__p2p ? await win.__p2p([d2], { isLand: true, fix: { w: 1123, h: 794 } }) : null; d2.remove();
+      T('(d)⑨ pagesToPdf は fix の 大きさ（横 1123×794）で 焼く', !!r && r.wrote === 1 && yaku.length === 1 && yaku[0].w === 1123 && yaku[0].h === 794, JSON.stringify(yaku)); }
+    /* ⑩ jsPDF を 作る所が 転んでも 投げっぱなしにしない＝Promise が 落ちる */
+    { const keep = win.jspdf; win.jspdf = { jsPDF: function () { throw new Error('わざと'); } };
+      let how = 'none'; try { await win.__p2p([doc.body], {}).then(() => { how = 'ok'; }, () => { how = 'reject'; }); } catch (_) { how = 'throw'; }
+      win.jspdf = keep;
+      T('(d)⑩ jsPDF が 転ぶと 呼ぶ側の catch へ 落ちる（同期で 投げない）', how === 'reject', 'how=' + how); }
+    /* ⑤ 部品無し */
+    reset(); win.html2canvas = undefined; win.jspdf = undefined; win.__nen([{ name: 'A' }]); await sleep(win, 30);
+    T('(d)⑤ ★部品が無くても print を 呼ばない・字で言う・iframe を 作らない★', printed === 0 && ji.some((m) => /部品が読み込めていません/.test(m)) && iframes() === 0, JSON.stringify({ ji, printed }));
+  }
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed' + (WAZA ? '（--waza）' : ''));

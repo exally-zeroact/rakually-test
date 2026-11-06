@@ -4529,16 +4529,81 @@
       +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">'
       +'<style>'+gensenCss()+'</style></head><body>'+nenGensenHTML(e, year)+'</body></html>';
   }
+  /* ★紙を PDF に焼く輪（1か所）★＝明細の b-print と 源泉徴収票 nenPrintGensen が使う（2026-11-06 b-print から抜き出した・中身は同じ）。
+     o.isLand＝A4横／o.fix＝{w,h}＝毎頁 同じ大きさで焼く（明細）・無ければ 要素の幅と高さで焼く（源泉の包み）。
+     1枚 焼けなくても ★黙って飛ばさず ng に数える★／addPage は wrote>0（前の人が失敗しても 空白の先頭頁を作らない）。
+     返す＝Promise{doc, wrote, ng} */
+  function pagesToPdf(pages, o){
+    o=o||{};
+    var isLand=!!o.isLand, pw=isLand?842:595, ph=isLand?595:842; // ★A4ページ
+    /* jsPDF を作る所が転んでも 黙らせない＝Promise の中で作る（呼ぶ側の catch へ落ちる・taiketsu 任2） */
+    return new Promise(function(resolve){
+      var doc=new window.jspdf.jsPDF({ orientation:isLand?'landscape':'portrait', unit:'pt', format:[pw,ph] });
+      var i=0, ng=0, wrote=0;
+      (function next(){
+        if(i>=pages.length){ resolve({ doc:doc, wrote:wrote, ng:ng }); return; }
+        var el=pages[i], fx=o.fix;
+        var w=fx?fx.w:(el.offsetWidth||794), h=fx?fx.h:(el.offsetHeight||1123);
+        window.html2canvas(el, { scale:3, backgroundColor:'#ffffff', useCORS:true, width:w, height:h, windowWidth:w, windowHeight:h }).then(function(canvas){
+          if(wrote>0){ doc.addPage([pw,ph], isLand?'landscape':'portrait'); }
+          // ★A4ページのまま横幅いっぱい(比率維持=潰さない・左右余白ゼロ)。縦長でも幅いっぱいで載せ下端の空白はA4で自然に収まる
+          var iw=canvas.width, ih=canvas.height;
+          doc.addImage(canvas.toDataURL('image/jpeg',0.92), 'JPEG', 0, 0, pw, pw*ih/iw);
+          wrote++; i++; next();
+        }).catch(function(){ ng++; i++; next(); });   // ★黙って飛ばさず 欠けた人数を 数える
+      })();
+    });
+  }
+  /* ★2026-11-06★ 会社の源泉徴収票も ★ブラウザ印刷へ逃げず PDF に★（前は 新しい窓＋window.print＝iOS は URL・日付が紙に付き、
+     白紙の頁が出て、戻れない）。明細の b-print と同じ 焼く輪（pagesToPdf）で焼いて、同じ 共有／開き方へ渡す。
+     ・1人ずつ 幅794・padding12 の包み（.gensen をそのまま焼くと 左に寄る＝設計前 taiketsu 止1）を 見えない iframe に置いて焼く
+     ・★iframe に 外の字体（fonts.googleapis 等）を 読ませない★＝返事が来ないと html2canvas の写しが 読み終わらず、
+       「作成中…」のまま 永久に出来ない（taiketsu 止1・chromium/webkit で 60秒 0枚 を測った）。明細の b-print の下絵と同じく 端末の字で焼く
+     ・計算できない人（nenGensenHTML が ''）と 焼けなかった人は ★黙って抜かず 人数を出す★（全員だめなら PDF を開かない）
+     ・iframe は 済んだら 必ず消す／作っている間の 2度押しは 受けない */
+  var nenPdfBusy=false;
   function nenPrintGensen(){
+    if(nenPdfBusy) return;
     var year=nenYear(); var emps=state._nenEmps||[];
     if(!emps.length){ uiAlert('対象の従業員がいません。'); return; }
-    var body=emps.map(function(e){ return nenGensenHTML(e, year); }).join('');
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>源泉徴収票 '+year+'</title>'
-      +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">'
-      +'<style>'+gensenCss()+'</style></head><body>'+body
-      +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);}</scr'+'ipt></body></html>';
-    var w=window.open('', '_blank'); if(!w){ uiAlert('ポップアップがブロックされました。ブラウザの設定で許可してください。'); return; }
-    w.document.open(); w.document.write(html); w.document.close();
+    if(!(window.html2canvas)||!(window.jspdf&&window.jspdf.jsPDF)){
+      uiAlert('PDFを作る部品が読み込めていません。アプリ（画面）を閉じて開き直してから、もう一度押してください。'); return;
+    }
+    /* ★押した時の 人と 年★（作る数秒の間に 年や人を 変えても 中身と字がずれない） */
+    var kake=0, parts=[], names=[];
+    emps.forEach(function(e){ var h=nenGensenHTML(e, year); if(h){ parts.push(h); names.push(String(e.name||'').trim()); } else kake++; });
+    /* nenGensenHTML が '' になるのは 年末調整の計算の部品が無い時（入力の誤りではない）＝開き直しを言う */
+    var kakeJi='年末調整の計算ができませんでした。アプリ（画面）を閉じて開き直してから、もう一度押してください。';
+    if(!parts.length){ uiAlert('源泉徴収票を作れる人がいません（'+emps.length+'人すべて 計算できませんでした）。'+kakeJi); return; }
+    nenPdfBusy=true;
+    try{ toast('PDFを作成中…'); }catch(_){}
+    var fr=document.createElement('iframe');
+    fr.setAttribute('aria-hidden','true'); fr.setAttribute('tabindex','-1');
+    fr.style.cssText='position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;visibility:hidden;';
+    document.body.appendChild(fr);
+    var keshi=function(){ nenPdfBusy=false; try{ fr.remove(); }catch(_){} };
+    var idoc=fr.contentDocument||(fr.contentWindow&&fr.contentWindow.document);
+    if(!idoc){ keshi(); uiAlert('PDFを作成できませんでした。時間をおいて もう一度お試しください。'); return; }
+    idoc.open();
+    idoc.write('<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+      +'<style>'+gensenCss()+'body{padding:0;background:#fff}.gwrap{width:794px;box-sizing:border-box;padding:12px;background:#fff}.gwrap .gensen{margin:0}</style></head><body>'
+      +parts.map(function(h){ return '<div class="gwrap">'+h+'</div>'; }).join('')+'</body></html>');
+    idoc.close();
+    var yomi=new Promise(function(r){ if(idoc.readyState==='complete') r(); else { fr.addEventListener('load',function(){ r(); }); } });
+    Promise.race([yomi, new Promise(function(r){ setTimeout(r,3000); })]).then(function(){
+      return pagesToPdf(Array.prototype.slice.call(idoc.querySelectorAll('.gwrap')), { isLand:false });
+    }).then(function(r){
+      keshi();
+      var nuke=kake+r.ng;
+      if(r.wrote<=0){ uiAlert('PDFを作成できませんでした（'+parts.length+'人分すべて失敗）。時間をおいて もう一度お試しください。'); return; }
+      /* 字と名前は ★実際に載せた人数★（焼けなかった人が居ても「3人」と言わない・taiketsu 任4） */
+      var who=(r.wrote===1&&parts.length===1&&names[0])?(names[0]+'様'):(r.wrote+'人');
+      var okuri={ text:'源泉徴収票 '+year+'年分 '+who, name:('源泉徴収票_'+year+'年分_'+who).replace(/[\\\/:*?"<>|\s]+/g,'_')+'.pdf' };
+      var pdfBlob=r.doc.output('blob');
+      var hiraku=function(){ try{ var url=URL.createObjectURL(pdfBlob); var w=window.open(url,'_blank'); if(!w){ r.doc.save(okuri.name); } setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(_){} },60000); }catch(e){ try{ r.doc.save(okuri.name); }catch(_){} } return { how:'open' }; };
+      if(window.FileOut && window.FileOut.sharePdf){ window.FileOut.sharePdf(pdfBlob, okuri.name, { text:okuri.text, open:hiraku }).catch(function(){ hiraku(); }); } else { hiraku(); }
+      if(nuke>0){ uiAlert('⚠ '+nuke+'人分の源泉徴収票をPDFにできませんでした（その分は抜けています）。'+(kake>0?kakeJi:'時間をおいて もう一度お試しください。')); }
+    }).catch(function(){ keshi(); uiAlert('PDFを作成できませんでした。時間をおいて もう一度お試しください。'); });
   }
   // 源泉徴収票を従業員へWeb交付(明細と同じpay_meisai_docsにkind=gensenで公開・電子交付同意ゲートは明細と共通)
   function nenPublishGensen(){
@@ -6482,33 +6547,23 @@
       markOutput();
       var okuriAtPress=kyuyoOkuriJi();   /* ★押した 時の 人と 月★（PDF を 作る 数秒の 間に 選びを 変えても ずれない・taiketsu 任3） */
       var isLand=(+(f.dataset.pw||794))>900; // pw=1123→A4横
-      var CW=isLand?1123:794, CH=isLand?794:1123, pw=isLand?842:595, ph=isLand?595:842; // ★A4ページ
-      var doc=new window.jspdf.jsPDF({ orientation:isLand?'landscape':'portrait', unit:'pt', format:[pw,ph] });
+      var CW=isLand?1123:794, CH=isLand?794:1123; // ★A4寸法固定で焼く（潰れ防止）
       try{ toast('PDFを作成中…'); }catch(e){}
-      var i=0, ng=0, wrote=0;   // ★ng=焼けなかった人数／wrote=実際に載せた枚数（2026-10-08 ダイコメ横断(b)5）
-      (function next(){
-        if(i>=pages.length){
-          /* ★前は1人分のhtml2canvasが失敗すると catch で黙って飛ばし、会社が ★1人欠けたPDF★ を 気づかず 配っていた★
-             （顧客側 meisai.js は 失敗を出すのに 会社一括側だけ 無警告＝非対称）。
-             ⇒ 欠けた人数を 必ず 出す／全員失敗なら 空PDFを 開かず 知らせる。★金額・保存・焼くページは1つも変えない＝抜けを黙らせないだけ★。 */
-          if(wrote<=0){ uiAlert('PDFを作成できませんでした（'+ng+'人分すべて失敗）。時間をおいて もう一度お試しください。'); return; }
-          // ★blobを新しいタブで開く(代行請求書と同じ・iOSのWebKitBlobResourceエラー回避)。ポップアップ不可時のみsave。
-          /* ★2026-11-06 司さん「B」★ iPhone・iPad は 共有に PDF と 字1行（「給与明細 2026年10月分 〇〇様」）を 渡す・url は 付けない
-             （blob の 窓を 開いて その 共有から 送ると LINE に 開けない URL が 届く）。他の 端末は 下の 今までの 開き方の まま。 */
-          var pdfBlob=doc.output('blob'), okuri=okuriAtPress;
-          var hiraku=function(){ try{ var url=URL.createObjectURL(pdfBlob); var w=window.open(url,'_blank'); if(!w){ doc.save(okuri.name); } setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(_){} },60000); }catch(e){ try{ doc.save(okuri.name); }catch(_){} } return { how:'open' }; };
-          if(window.FileOut && window.FileOut.sharePdf){ window.FileOut.sharePdf(pdfBlob, okuri.name, { text:okuri.text, open:hiraku }).catch(function(){ hiraku(); }); } else { hiraku(); }
-          if(ng>0){ uiAlert('⚠ '+ng+'人分の明細をPDFにできませんでした（その分は抜けています）。時間をおいて もう一度お試しください。'); }
-          return;
-        }
-        window.html2canvas(pages[i], { scale:3, backgroundColor:'#ffffff', useCORS:true, width:CW, height:CH, windowWidth:CW, windowHeight:CH }).then(function(canvas){
-          if(wrote>0){ doc.addPage([pw,ph], isLand?'landscape':'portrait'); }   // ★i>0でなくwrote>0＝前の人が失敗しても空白の先頭ページを作らない
-          // ★A4ページのまま横幅いっぱい(比率維持=潰さない・左右余白ゼロ)。縦長でも幅いっぱいで載せ下端の空白はA4で自然に収まる
-          var iw=canvas.width, ih=canvas.height;
-          doc.addImage(canvas.toDataURL('image/jpeg',0.92), 'JPEG', 0, 0, pw, pw*ih/iw);
-          wrote++; i++; next();
-        }).catch(function(){ ng++; i++; next(); });   // ★黙って飛ばさず 欠けた人数を 数える
-      })();
+      /* ★焼く輪は pagesToPdf（源泉徴収票と1か所）★ ng=焼けなかった人数／wrote=実際に載せた枚数（2026-10-08 ダイコメ横断(b)5） */
+      pagesToPdf(Array.prototype.slice.call(pages), { isLand:isLand, fix:{ w:CW, h:CH } }).then(function(r){
+        var doc=r.doc, ng=r.ng, wrote=r.wrote;
+        /* ★前は1人分のhtml2canvasが失敗すると catch で黙って飛ばし、会社が ★1人欠けたPDF★ を 気づかず 配っていた★
+           （顧客側 meisai.js は 失敗を出すのに 会社一括側だけ 無警告＝非対称）。
+           ⇒ 欠けた人数を 必ず 出す／全員失敗なら 空PDFを 開かず 知らせる。★金額・保存・焼くページは1つも変えない＝抜けを黙らせないだけ★。 */
+        if(wrote<=0){ uiAlert('PDFを作成できませんでした（'+ng+'人分すべて失敗）。時間をおいて もう一度お試しください。'); return; }
+        // ★blobを新しいタブで開く(代行請求書と同じ・iOSのWebKitBlobResourceエラー回避)。ポップアップ不可時のみsave。
+        /* ★2026-11-06 司さん「B」★ iPhone・iPad は 共有に PDF と 字1行（「給与明細 2026年10月分 〇〇様」）を 渡す・url は 付けない
+           （blob の 窓を 開いて その 共有から 送ると LINE に 開けない URL が 届く）。他の 端末は 下の 今までの 開き方の まま。 */
+        var pdfBlob=doc.output('blob'), okuri=okuriAtPress;
+        var hiraku=function(){ try{ var url=URL.createObjectURL(pdfBlob); var w=window.open(url,'_blank'); if(!w){ doc.save(okuri.name); } setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(_){} },60000); }catch(e){ try{ doc.save(okuri.name); }catch(_){} } return { how:'open' }; };
+        if(window.FileOut && window.FileOut.sharePdf){ window.FileOut.sharePdf(pdfBlob, okuri.name, { text:okuri.text, open:hiraku }).catch(function(){ hiraku(); }); } else { hiraku(); }
+        if(ng>0){ uiAlert('⚠ '+ng+'人分の明細をPDFにできませんでした（その分は抜けています）。時間をおいて もう一度お試しください。'); }
+      }).catch(function(){ uiAlert('PDFを作成できませんでした。時間をおいて もう一度お試しください。'); });   /* ★最後の段が転んでも 黙らない（taiketsu 任2）★ */
     });
     // 総合振込データ(委託者入力の保存 + 全銀/Excel ダウンロード)。#furi-boxは静的なので委譲で1回だけ配線。
     (function(){ var fb=$('#furi-box'); if(!fb) return;
