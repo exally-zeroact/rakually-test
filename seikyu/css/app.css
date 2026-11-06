@@ -193,10 +193,13 @@
 #kami-obi {
   display: none; position: fixed; left: 0; right: 0; z-index: 29;
   bottom: calc(54px + env(safe-area-inset-bottom));
-  height: 44px; width: 100%; border: 0; border-top: 1px solid #D4EAE0;
-  background: #F0FAF4; color: #2E7D54; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  height: 44px; width: 100%; border: 0; border-top: 1px solid #C8ECD8;
+  background: #FFFFFF; color: #2E7D54; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
 }
-#kami-obi:disabled { color: #6E6E6E; cursor: default; }
+/* ★押す物の 顔は 台帳（tests/button-uniform.test.mjs の ALLOW）の 中から★（11-06 WebKit 42205773283 で 台帳に無い顔＝赤）
+   押せる時＝白地・字 #2E7D54・枠 #C8ECD8 1px ／ 押せない時＝★請求書の 押せない ボタンと 同じ★＝色は そのまま opacity .5
+   （.btn-primary:disabled・.l-del:disabled と 同じ書き方・皮に 無い 色を 足さない＝seikyu-ui 1-b） */
+#kami-obi:disabled { opacity: .5; cursor: default; }
 #kami-obi span { display: block; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 1099px) {
   #kami-obi { display: block; }
