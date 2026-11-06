@@ -454,6 +454,21 @@ T('給与パターン 一括適用(ロジック): 選んだ人だけに構造が
   ok(!(pat.pay.base) && !(pat.pay.hourly), 'パターンに給与額は含まれない');
 });
 
+/* ★カスタム給の 部品の 金額・固定給を 入力中に 数字以外を 消していた★（2026-11-06＝前は replace(/[^0-9]/g) で "0.7"→"07"＝売上×率 0.7% が 入力中だけ 7%・
+     全角「３０００００」は "" に なる。離れた 時（change）は num で 戻るが、離れずに 閉じると 保存は 07 の まま） */
+T('カスタム給: 部品の 率「0.7」・全角の 固定給を 入力中も そのままの 値で 持つ（07 や 空に しない）', function () {
+  const e = A.defEmp('率 太郎'); e.payType = 'カスタム';
+  const pr = A.ensurePayRule(e); pr.variable.mode = 'one'; pr.variable.parts = [{ type: 'rate', amount: '' }];
+  A.state.employees = [e]; A.state.open = A.state.open || {}; A.state.open[e.id] = true; A.renderEmpMaster();
+  const amt = doc.querySelector('[data-pramt="0:0"]'), fx = doc.querySelector('[data-prfixed="0"]');
+  ok(amt && fx, '部品の 金額欄と 固定給の 欄が 在る');
+  amt.value = '0.7'; amt.dispatchEvent(new win.Event('input', { bubbles: true }));
+  ok(Number(pr.variable.parts[0].amount) === 0.7, '率 0.7 → ' + pr.variable.parts[0].amount);
+  fx.value = '３００，０００'; fx.dispatchEvent(new win.Event('input', { bubbles: true }));
+  ok(Number(pr.fixed) === 300000, '固定給 全角 → ' + pr.fixed);
+  ok(amt.getAttribute('inputmode') === 'decimal', '率の 欄は 小数点の 打てる 鍵盤（inputmode=decimal）→ ' + amt.getAttribute('inputmode'));
+});
+
 T('給与パターン 一括適用(モーダル): 全員チェックで選んだ人数に適用', function () {
   A.state.payPatterns = [A.makePayPattern((() => { const e = A.defEmp('原'); e.payType = '日給'; e.shikyu = [{ label: '基本給', value: '0' }, { label: '危険手当', value: '3000' }]; return e; })(), '現場')];
   A.state.employees = [A.defEmp('甲'), A.defEmp('乙'), A.defEmp('丙')];

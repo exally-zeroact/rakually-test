@@ -1119,7 +1119,7 @@
     var partsHtml=(v.parts||[]).map(function(p,idx){ var isCom=(p.type==='commission'), isTiered=(p.type==='tiered');
       var head='<div class="bx-row">'
         +'<select class="finput pr-type" data-prtype="'+i+':'+idx+'" style="flex:1.3;min-width:0">'+TYPES.map(function(t){return '<option value="'+t[0]+'"'+(p.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('')+'</select>'
-        +(isTiered?'':(isCom?'<span style="font-size:10px;color:#6E6E6E;flex:1">歩合額は毎月「入力」で</span>':'<input class="finput num pr-amt" data-pramt="'+i+':'+idx+'" inputmode="numeric" value="'+attr(fmtN(p.amount))+'" placeholder="'+amtPh(p.type)+'" style="width:90px">'))
+        +(isTiered?'':(isCom?'<span style="font-size:10px;color:#6E6E6E;flex:1">歩合額は毎月「入力」で</span>':'<input class="finput num pr-amt" data-pramt="'+i+':'+idx+'" inputmode="decimal" value="'+attr(fmtN(p.amount))+'" placeholder="'+amtPh(p.type)+'" style="width:90px">'))
         +'<button class="btn-ghost bx-del" data-prdel="'+i+':'+idx+'" aria-label="この項目を削除">×</button></div>';
       if(!isTiered) return head;
       var tiers=(p.tiers&&p.tiers.length)?p.tiers:[{from:0,rate:''}];
@@ -6283,8 +6283,8 @@
     el.addEventListener('input',function(ev){ var card=ev.target.closest('.mco'); if(!card)return; var i=+card.dataset.i; var emp=state.employees[i]; var t=ev.target;
       if(!emp.shaho)emp.shaho={mode:'teiji',months:[]};
       // カスタム給の固定給/部品金額を入力中に反映(再描画せずフォーカス維持)+社保ヒーロー更新
-      if(t.dataset.prfixed!=null){ ensurePayRule(emp).fixed=t.value.replace(/[^0-9]/g,''); refreshShaho(i); return; }
-      var _prai=t.closest('[data-pramt]'); if(_prai){ var _pav=ensurePayRule(emp).variable.parts[+String(_prai.dataset.pramt).split(':')[1]]; if(_pav)_pav.amount=t.value.replace(/[^0-9]/g,''); refreshShaho(i); return; }
+      if(t.dataset.prfixed!=null){ ensurePayRule(emp).fixed=(t.value===''?'':String(num(t.value))); refreshShaho(i); return; } // ★入力中も num（2026-11-06＝前は 数字以外を 消して 全角が 空・小数点が 消えた＝離れずに 閉じると その まま 保存）
+      var _prai=t.closest('[data-pramt]'); if(_prai){ var _pav=ensurePayRule(emp).variable.parts[+String(_prai.dataset.pramt).split(':')[1]]; if(_pav)_pav.amount=(t.value===''?'':String(num(t.value))); refreshShaho(i); return; } // ★率 0.7 が 07＝7% に なっていた（2026-11-06）
       var _prti=t.closest('[data-prtier]'); if(_prti){ prTierSet(emp,_prti.dataset.prtier,t.value); refreshShaho(i); return; } // 段の下限/率(入力中・フォーカス維持)
       if(t.classList.contains('sh-pay')||t.classList.contains('sh-days')){ var k=+t.dataset.k; emp.shaho.months[k]=emp.shaho.months[k]||{}; emp.shaho.months[k][t.classList.contains('sh-pay')?'pay':'days']=t.value; refreshShaho(i); return; }
       if(t.classList.contains('sh-mikomi')){ emp.shaho.mikomi=t.value; refreshShaho(i); return; }
