@@ -800,10 +800,58 @@ T('★振込: 番号の 字が 違う人は ファイルに 入れず 名指し�
     ok(w && /丙/.test(w.textContent) && !/甲/.test(w.textContent), '★案内の 名前が 違う: ' + (w && w.textContent));
     ok(w && w.querySelector('[data-fix-emp-id]'), '★案内が 押せない（その人の 欄へ 行けない）');
     ok(![...win.document.querySelectorAll('#furi-box .cr-warn')].some(e => /振込先が未入力/.test(e.textContent) && /乙/.test(e.textContent)), '★入れてあるのに「未入力」と 言う');
-    /* ★字の 違う人が 1人でも 居れば 全銀は 押せない★（叩きの 止め1＝前は 甲だけの「1件」で 押せた＝乙・丙の 給料が 黙って 抜けた・司さん 10-04 の 止めて 警告） */
-    const b = win.document.getElementById('b-zengin');
-    ok(b && b.disabled && /2名の番号の字が違う/.test(b.textContent), '★字の 違う人を 抜いて 全銀が 押せる: ' + (b && b.textContent));
   } finally { st.employees = keep; win.document.querySelector('[data-scr="scr-furikomi"]').click(); }
+});
+
+/* ★振込先に 直す所が 在る人が 1人でも 居れば 全銀は 作らない★（2026-11-06 92b730e の 叩きの 止め1・止め2）
+   ★委託者情報と 支給日を 埋めた 会社で 見る★＝空の 会社だと「委託者コードなし」で 元から 押せない＝門を 外しても 緑（空振り＝止め1）。
+   見る所は 2つ＝①ボタンが 押せない（短い字つき） ②押す所（downloadZengin）を 直に 呼んでも ファイルが 1回も 渡らない＋名指し。
+   ★対照★＝直す所を 直すと 押せて 1回 渡る（同じ 会社・同じ 人数）＝止まるのが 委託者や 日付の せいでない 事を 確かめる。 */
+function furiTomaru(emps) {
+  const A = win.__PAYSLIP_TEST, st = A.state;
+  const keepEmps = st.employees.slice(), keepCo = st.company, keepMode = st.printMode, keepDeliver = win.FileOut.deliver;
+  let n = 0, btnTxt = '', disabled = null, shown = '', warns = '';
+  try {
+    st.printMode = 'monthly';
+    st.company = Object.assign({}, keepCo, { furiCode: '0123456789', furiName: 'ｶ)ｾﾞﾛｱｸﾄ', furiBankNo: '0001', furiBankName: 'ﾐｽﾞﾎ', furiBranchNo: '001', furiBranchName: 'ﾎﾝﾃﾝ', furiYokin: '普通', furiAccount: '1234567', furiDate: '2026-08-25' });
+    st.employees = emps;
+    win.FileOut.deliver = function () { n++; return Promise.resolve(); };
+    win.document.querySelector('[data-scr="scr-furikomi"]').click();
+    const b = win.document.getElementById('b-zengin');
+    disabled = !!(b && b.disabled); btnTxt = b ? b.textContent : '';
+    warns = [...win.document.querySelectorAll('#furi-box .cr-warn')].map(e => e.textContent).join('｜');
+    A.downloadZengin();                                    // ★ボタンが 押せなくても 押す所を 直に 呼ぶ（門と 押す所を 別々に 確かめる）
+    const body = win.document.querySelector('.ui-modal-ov .ui-modal-b'); shown = body ? body.textContent : '';
+    const ov = win.document.querySelector('.ui-modal-ov'); if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+  } finally {
+    win.FileOut.deliver = keepDeliver; st.employees = keepEmps; st.company = keepCo; st.printMode = keepMode;
+    win.document.querySelector('[data-scr="scr-furikomi"]').click();
+  }
+  return { n, btnTxt, disabled, shown, warns };
+}
+const furiMk = (n, o) => Object.assign(win.__PAYSLIP_TEST.defEmp(n), { payType: '月給', base: '250000', joinYmd: '2020-04-01', furiKana: 'ｺｳ', furiBankNo: '0001', furiBranchNo: '001', furiAccount: '1234567' }, o);
+T('★振込: 番号の 字が 違う人が 1人でも 居れば 全銀は 押せない＋押す所でも 作らない（委託者と 支給日を 埋めた 会社で）', () => {
+  const r0 = furiTomaru([furiMk('甲', { furiBankNo: '０００５', furiBranchNo: '０１２', furiAccount: '７６５４３２１' }), furiMk('乙'), furiMk('丙')]);
+  ok(!r0.disabled && r0.n === 1, '★対照が 崩れた（直した 3人で 押せない／渡らない）: ' + r0.btnTxt + ' n=' + r0.n + ' ' + r0.shown);
+  const r = furiTomaru([furiMk('甲', { furiBankNo: '０００５', furiBranchNo: '０１２', furiAccount: '７６５４３２１' }), furiMk('乙', { furiAccount: '765-4321' }), furiMk('丙', { furiBankNo: '00051' })]);
+  ok(r.disabled && /2名の番号の字が違う/.test(r.btnTxt), '★字の 違う人を 抜いて 全銀が 押せる: ' + r.btnTxt);
+  eq(r.n, 0, '★押す所で 字の 違う人を 抜いた ファイルが 渡った');
+  ok(/乙/.test(r.shown) && /丙/.test(r.shown) && !/甲/.test(r.shown), '★押す所の 名指しが 違う: ' + r.shown);
+});
+T('★振込: 振込先を 途中まで 入れた人（口座だけ空・銀行が空で 口座が 字違い・カナが 出せない）が 居れば 全銀は 作らない', () => {
+  [[{ furiAccount: '' }, /口座番号が空/],
+   [{ furiBankNo: '', furiAccount: '765-4321' }, /銀行コードが空/],
+   [{ furiKana: '', name: '乙山' }, /受取人名\(半角ｶﾅ\)が空/]].forEach(([o, ji]) => {
+    const r = furiTomaru([furiMk('甲'), furiMk('乙', o)]);
+    const who = o.name || '乙';
+    ok(r.disabled && /1名の振込先が途中/.test(r.btnTxt), '★' + JSON.stringify(o) + ' の人を 抜いて 全銀が 押せる: ' + r.btnTxt);
+    eq(r.n, 0, '★' + JSON.stringify(o) + ' の人を 抜いた ファイルが 押す所で 渡った');
+    ok(r.shown.indexOf(who) >= 0 && ji.test(r.shown), '★押す所の 名指し／何が 空かが 違う: ' + r.shown);
+    ok(r.warns.indexOf(who) >= 0 && ji.test(r.warns) && !/振込先が未入力/.test(r.warns), '★画面の 案内が「未入力」のまま／何が 空か 言わない: ' + r.warns);
+  });
+  /* ★3つとも 空の 人（現金払いかも）は 今まで 通り＝その人を 除いて 作れる・案内は「未入力」（止めるかは 司さんの 決め待ち） */
+  const r = furiTomaru([furiMk('甲'), furiMk('乙', { furiBankNo: '', furiBranchNo: '', furiAccount: '', furiKana: '' })]);
+  ok(!r.disabled && r.n === 1 && /振込先が未入力/.test(r.warns), '★全部 空の 人の 扱いが 変わった（司さんの 決め待ち）: ' + r.btnTxt + ' n=' + r.n + ' ' + r.warns);
 });
 T('★振込: 自社の 口座の 番号が 空・字違いなら 全銀は 押せない＋ボタンに 理由（0000 の 見出しを 出さない）', () => {
   const A = win.__PAYSLIP_TEST, st = A.state;

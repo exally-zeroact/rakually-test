@@ -5001,15 +5001,18 @@
        ＝その人を 抜いて 作ると、番号を 入れ間違えた 人の 給料が 銀行へ 出す ファイルから 黙って 抜ける（未払い）。
        司さん 2026-10-04「1人でも 払えない人が 居れば 作らずに 止めて 警告」（計算落ちと 同じ 扱い）。 */
     var bangoNg=rows.filter(function(t){return t.amount>0 && !t.keisanOchi && t.bangoNg;});
+    /* ★振込先を 途中まで 入れた 人（口座だけ 空・カナが 出せない 等）も 1人でも 居れば 作らない★（2026-11-06 叩きの 止め2・同じ 扱い） */
+    var tochuu=rows.filter(function(t){return t.amount>0 && !t.keisanOchi && !t.bangoNg && t.tochuu;});
     return {
-      zengin:{ enabled:ready.length>0 && !cm && !noDate && !bangoNg.length, count:ready.length,
+      zengin:{ enabled:ready.length>0 && !cm && !noDate && !bangoNg.length && !tochuu.length, count:ready.length,
         /* ★理由は 手前の物から言う★＝①人がいない ②振込先が無い ③委託者情報が無い。
            （★奥の設定より先に 手前を言う★＝埋める順番を伝える） */
         reason: noDate ? (furiMode()==='bonus' ? '賞与の支給日が 年-月-日 の形ではありません' : 'この月の振込指定日を決められません')
           : bangoNg.length ? (bangoNg.length+'名の 振込先の 番号の 字が 違います（直すまで 全銀ファイルは 作りません）')
+          : tochuu.length ? (tochuu.length+'名の 振込先が 途中までしか 入っていません（直すまで 全銀ファイルは 作りません）')
           : (ready.length ? (cm || '') : (listed.length ? '振込先(銀行・支店・口座)が入っていません' : '対象月に振込む人がいません')),
         // ★短い理由＝ボタンの中に入れる用。押せない理由を下まで読ませない。
-        short: noDate ? '振込指定日なし' : bangoNg.length ? (bangoNg.length+'名の番号の字が違う') : (ready.length ? (cm ? cp.short : '') : (listed.length ? '振込先なし' : '対象者なし')) },
+        short: noDate ? '振込指定日なし' : bangoNg.length ? (bangoNg.length+'名の番号の字が違う') : tochuu.length ? (tochuu.length+'名の振込先が途中') : (ready.length ? (cm ? cp.short : '') : (listed.length ? '振込先なし' : '対象者なし')) },
       xlsx:{ enabled:listed.length>0, count:listed.length,
         reason: listed.length ? '' : '対象月に振込む人がいません',
         short: listed.length ? '' : '対象者なし' }
@@ -5096,7 +5099,16 @@
          入れてあるのに 字が 違う 人は bangoNg に 理由を 持たせて 名指しで 出す（renderFuri）。 */
       var bp=(typeof Zengin!=='undefined'&&Zengin.bangoProblem)?Zengin.bangoProblem({ bankNo:e.furiBankNo, branchNo:e.furiBranchNo, account:e.furiAccount }):{ long:'', short:'', kara:false };
       var ready=!!(String(e.furiBankNo||'').trim() && String(e.furiBranchNo||'').trim() && String(e.furiAccount||'').trim() && !bp.long && String(kana).trim() && net>0 && !keisanOchi);
-      return { emp:e, name:(e.furiKana||e.name), kanaOk:!!String(kana).trim(), bankNo:e.furiBankNo, bankName:e.furiBankName, branchNo:e.furiBranchNo, branchName:e.furiBranchName, yokin:e.furiYokin, account:e.furiAccount, amount:net, ready:ready, keisanOchi:keisanOchi, bangoNg:(bp.long&&!bp.kara)?bp.short:'' };
+      /* ★振込先を 途中まで 入れた 人＝入れ間違い★（2026-11-06 ac2d5ce/92b730e の 叩きの 止め2・司さん 10-04「1人でも 払えない人が 居れば 作らずに 止めて 警告」）
+         ＝銀行・支店・口座の どれかは 入れてあるのに 残りが 空、または 番号は 揃っているのに 受取人名が 銀行の 字に ならない（漢字の 氏名だけ）。
+         前は「未入力」の 道に 落ちて その人を 抜いた ファイルが 出来た（カナ抜けは「未入力」と 嘘も 言った）。
+         ★3つとも 空の 人は ここに 入れない★（現金払いかも＝お金の 出方の 決め＝司さんに 訊く・今まで 通り「未入力」の 案内）。 */
+      var hasBango=!!(String(e.furiBankNo||'').trim() || String(e.furiBranchNo||'').trim() || String(e.furiAccount||'').trim());
+      var kara=[]; if(!String(e.furiBankNo||'').trim()) kara.push('銀行コード'); if(!String(e.furiBranchNo||'').trim()) kara.push('支店コード'); if(!String(e.furiAccount||'').trim()) kara.push('口座番号');
+      if(!String(kana).trim()) kara.push('受取人名(半角ｶﾅ)');
+      var bangoNg=(bp.long&&!bp.kara)?bp.short:'';
+      var tochuu=(hasBango && !bangoNg && kara.length && net>0 && !keisanOchi)?(kara.join('・')+'が空'):'';
+      return { emp:e, name:(e.furiKana||e.name), kanaOk:!!String(kana).trim(), bankNo:e.furiBankNo, bankName:e.furiBankName, branchNo:e.furiBranchNo, branchName:e.furiBranchName, yokin:e.furiYokin, account:e.furiAccount, amount:net, ready:ready, keisanOchi:keisanOchi, bangoNg:bangoNg, tochuu:tochuu };
     });
   }
   /* ── 「銀行に取り込めなかった時」の中身（普段は閉じている） ────────────────
@@ -5245,7 +5257,8 @@
     var box=$('#furi-box'); if(!box) return;
     /* ★賞与も 作れるように した★（2026-09-03 裁定＝甲）＝前は ここで「月次給与で作成します」と 断っていた */
     var c=state.company, tr=buildTransfers();
-    var ready=tr.filter(function(t){return t.ready;}), notReady=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi && !t.bangoNg;});
+    var ready=tr.filter(function(t){return t.ready;}), notReady=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi && !t.bangoNg && !t.tochuu;});
+    var tochuu=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi && !t.bangoNg && t.tochuu;});   /* ★途中まで 入れた 人＝「未入力」と 言わず 何が 空かで 名指し・直すまで 作らない★（2026-11-06 止め2） */
     var bangoNg=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi && t.bangoNg;});   /* ★入れてあるのに 番号の 字が 違う 人＝「未入力」と 言わず 理由で 名指し★（2026-11-06） */
     var keisanOchi=tr.filter(function(t){return t.keisanOchi;});   /* ★計算が転んだ人＝黙って落とさない（⑧a）★ */
     var taiTomeru=taishokuTomeruHito();   /* ★退職の 扱いが 決められない 人＝名指しで 出す★ */
@@ -5302,7 +5315,7 @@
              （2つ目の 仕組みを 作らない）。開く所まで 連れて行くのは
              data-fix-sub＝その 小見出しも 開く印。 */
         var nm=notReady.map(function(t){
-          return '<b class="mw-fix" data-fix-emp-id="'+attr(t.emp.id)+'" >'+esc(t.emp.name)+' ▸</b>'; });
+          return '<b class="mw-fix" data-fix-emp-id="'+attr(t.emp.id)+'" data-fix-sub="teate">'+esc(t.emp.name)+' ▸</b>'; });
         var who=nm.length<=2?nm.join('・'):(nm[0]+'<b class="mw-fix" data-fix-emp-id="'+attr(notReady[1].emp.id)+'" data-fix-sub="teate">ほか'+(nm.length-1)+'名 ▸</b>');
         listHTML+='<div class="cr-warn" style="margin:8px 0 0">⚠ '+who+' は振込先が未入力（押すと その欄を 開きます）</div>';
       }
@@ -5311,6 +5324,11 @@
         var bnm=bangoNg.map(function(t){
           return '<b class="mw-fix" data-fix-emp-id="'+attr(t.emp.id)+'" data-fix-sub="teate">'+esc(t.emp.name)+'（'+esc(t.bangoNg)+'）▸</b>'; });
         listHTML+='<div class="cr-warn" style="margin:8px 0 0">⚠ '+bnm.join('・')+' は振込先の番号の字が違うので、直すまで 全銀ファイルは 作りません（銀行4桁・支店3桁・口座7桁の数字）</div>';
+      }
+      if(tochuu.length){
+        var tnm=tochuu.map(function(t){
+          return '<b class="mw-fix" data-fix-emp-id="'+attr(t.emp.id)+'" data-fix-sub="teate">'+esc(t.emp.name)+'（'+esc(t.tochuu)+'）▸</b>'; });
+        listHTML+='<div class="cr-warn" style="margin:8px 0 0">⚠ '+tnm.join('・')+' は振込先が 途中までしか 入っていないので、直すまで 全銀ファイルは 作りません</div>';
       }
       /* ★計算が 転んだ人を 名指しで 出す（黙って ファイルから 落とさない・⑧a）★
          ＝compute/computeBonus が 転ぶと 金額0＝ファイルの amount>0 絞りで 消える＝未払いの まま 銀行へ、を 防ぐ。 */
@@ -5412,6 +5430,10 @@
     var bng=trAll.filter(function(t){return t.amount>0 && !t.keisanOchi && t.bangoNg;});
     if(bng.length){ uiAlert('振込先の 番号の 字が 違う人が 居るので、全銀ファイルは 作りません（その人を 抜いた ファイルは 出しません）。\n'
       +bng.map(function(t){ return '・'+t.emp.name+'（'+t.bangoNg+'）'; }).join('\n')+'\n従業員マスタの「総合振込データ用」を 直してください。'); return; }
+    /* ★振込先を 途中まで 入れた 人が 1人でも 居れば 作らない（門と 同じ・叩きの 止め2＝2026-11-06）★ */
+    var tch=trAll.filter(function(t){return t.amount>0 && !t.keisanOchi && !t.bangoNg && t.tochuu;});
+    if(tch.length){ uiAlert('振込先が 途中までしか 入っていない人が 居るので、全銀ファイルは 作りません（その人を 抜いた ファイルは 出しません）。\n'
+      +tch.map(function(t){ return '・'+t.emp.name+'（'+t.tochuu+'）'; }).join('\n')+'\n従業員マスタの「総合振込データ用」を 直してください。'); return; }
     var tr=trAll.filter(function(t){return t.ready;});
     if(!tr.length){ uiAlert('振込対象がありません。従業員マスタの「総合振込データ用」に銀行/支店/口座を入力してください。'); return; }
     /* ★lib の門番で止まったら 1バイトも作らない★（黙って 0000 を出さない）
