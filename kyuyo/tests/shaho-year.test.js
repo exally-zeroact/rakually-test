@@ -193,6 +193,26 @@ T('★収録より 古い 年（2025-02・2024-06）の 介護は 前と 同じ 
   eq(SH.getKaigo('2024-06').total, 0.0162, '2024-06');
   eq(SH.getKaigo('2025-03').total, 0.0159, '2025-03＝令和7');
 });
+T('★中央に 2027 の 介護が 入っても 収録より 古い 年（2025-02・2024-06）の 介護は 0.0162 のまま（rebase 後 taiketsu 止1）', function () {
+  try {
+    SH.hydrate(2027, { kaigo_total: 0.017 });
+    eq(SH.getKaigo('2025-02').total, 0.0162, '2025-02');
+    eq(SH.getKaigo('2024-06').total, 0.0162, '2024-06');
+    eq(SH.getKaigo('2024-06').stale, true);
+    eq(SH.getKaigo('2027-06').total, 0.017, '2027 には 届く');
+  } finally { cleanup2027(); }
+});
+T('★中央の 2027 の 健保が 47県 そろわない（大阪 抜け）なら 受け取らない＝大阪の 人を 黙って 東京の 率に しない（rebase 後 taiketsu 止2）', function () {
+  try {
+    var kt = kenko47(0.111); delete kt.osaka;
+    SH.hydrate(2027, { kenko_total: kt });
+    var k = SH.getKenko('osaka', '2027-06');
+    eq(k.daiyo, undefined, '代用に しない');
+    eq(k.total, SH.KENKO_2026.osaka, '令和8の 大阪の 率');
+    eq(k.stale, true, '黄警告の 印');
+    eq(SH.getKenko('tokyo', '2027-06').stale, true, '欠けた 表は 丸ごと 入れない');
+  } finally { cleanup2027(); }
+});
 T('★中央の 介護の 壊れた 値（% のまま 1.62・true・0・字）は 入れない', function () {
   try {
     [1.62, true, 0, 'abc', null].forEach(function (v) { SH.hydrate(2027, { kaigo_total: v }); eq(SH.KAIGO_NENDO[2027], undefined, '値 ' + v); });

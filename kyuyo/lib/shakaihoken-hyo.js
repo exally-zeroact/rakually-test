@@ -163,8 +163,10 @@ const SHAKAIHOKEN_HYO = {
   },
   // 介護保険料率(対象月の社保年度で選択)。{total,jugyoin,stale}
   // 収録に 無い 年度は y 以下の 直近の 収録年（前は 決め打ちの 2026）＝中央・lib で 足した 年に 届く。
-  // ★収録より 古い 年（社保年度 2024 以前）は 前と 同じ「収録の 一番 新しい 年」★（差分 taiketsu 止1＝一番 古い 年に すると 2025-02 以前の 介護が 0.0162→0.0159 に 黙って 変わる＝お金の 決め＝別件）
-  getKaigo: function (ym) { var y = this.shahoYearOf(ym); var k = this.KAIGO_NENDO[y]; var stale = false; if (!k) { var ks = Object.keys(this.KAIGO_NENDO).filter(function (s) { return /^\d{4}$/.test(s); }).map(Number); k = this.KAIGO_NENDO[y < Math.min.apply(null, ks) ? Math.max.apply(null, ks) : this._nendoErabi(ks, y)]; stale = true; } return { total: k.total, jugyoin: k.jugyoin, stale: stale }; },
+  // ★収録より 古い 年（社保年度 2024 以前）は 前と 同じ 令和8（lib に 書いた 年 KAIGO_FURUI_NEN に 固定）★
+  //  （差分 taiketsu 止1＝一番 古い 年に すると 0.0162→0.0159／rebase 後 taiketsu 止1＝「収録の 一番 新しい 年」だと 中央に 2027 が 入った 日に 0.0162→0.017＝どちらも 黙って 変わる＝古い 年を どうするかは お金の 決め＝別件）
+  KAIGO_FURUI_NEN: 2026,
+  getKaigo: function (ym) { var y = this.shahoYearOf(ym); var k = this.KAIGO_NENDO[y]; var stale = false; if (!k) { var ks = Object.keys(this.KAIGO_NENDO).filter(function (s) { return /^\d{4}$/.test(s); }).map(Number); k = this.KAIGO_NENDO[y < Math.min.apply(null, ks) ? this.KAIGO_FURUI_NEN : this._nendoErabi(ks, y)]; stale = true; } return { total: k.total, jugyoin: k.jugyoin, stale: stale }; },
   // 子育て支援金 従業員負担率(令和8年4月分〜=total/2。月<4や令和7以前は0)
   getShienkin: function (ym) { ym = String(ym || ''); return (ym >= '2026-04') ? this.SHIENKIN_TOTAL_FROM_2026_04 / 2 : 0; },
   // 中央(Supabase statutory kind=shakaihoken)の値で年度別に上書き。健保はtotalのみ(jugyoin=total/2はgetKenkoが都度計算)。
@@ -177,7 +179,12 @@ const SHAKAIHOKEN_HYO = {
       var self = this;
       // ★年度ごとに 自分の 表だけ 書く★（前は year>=2026 を 全部 KENKO_2026 へ・2025 以前を 全部 KENKO_RITSU へ＝別の 年度の 額を 書き換えた）
       if (year === 2026) { Object.keys(kt).forEach(function (p) { self.KENKO_2026[p] = kt[p]; }); }
-      else if (year > 2026) { var nt = {}; Object.keys(kt).forEach(function (p) { nt[p] = kt[p]; }); self.KENKO_NENDO[year] = nt; }
+      // ★新しい 年度は 令和8の 表の 県が 全部 そろった 時だけ★（rebase 後 taiketsu 止2＝40〜46県で 受け取ると 欠けた 県の 人が 黙って 東京の 新しい 率＝daiyo・黄警告 無し）
+      //  そろわない＝丸ごと 入れない＝その 年度の 月は 前と 同じ「直近の 収録年の 率＋stale（黄警告）」
+      else if (year > 2026) {
+        var zen = Object.keys(self.KENKO_2026).every(function (p) { var v = kt[p]; return typeof v === 'number' && isFinite(v) && v > 0; });
+        if (zen) { var nt = {}; Object.keys(kt).forEach(function (p) { nt[p] = kt[p]; }); self.KENKO_NENDO[year] = nt; }
+      }
       else if (year === 2025) { Object.keys(kt).forEach(function (p) { if (self.KENKO_RITSU[p]) self.KENKO_RITSU[p].total = kt[p]; }); }
       // 2024 以前＝持つ 表が 無い＝何も しない（令和7の 表を 潰さない）
     }
