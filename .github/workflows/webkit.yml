@@ -282,6 +282,14 @@ jobs:
       - name: ★口座は1つずつ別の箱・選んだ札だけが光る（375/390/430で実測／赤は中身を残す）
         if: ${{ !cancelled() }}
         run: node tools/aka-kiroku.mjs -- node seikyu/tests/ask-look-webkit.mjs
+      # ★生きた紙が 枠に 収まるか★（試験㋕・2026-11-06 taiketsu 10回目 B）＝表と 裏の id を 入れ替える 作り＝
+      #   入れ替えの 後に 縮め直さないと スマホで 紙の 右が 切れる。jsdom では 縮みも 幅も 0＝ここ（本物のブラウザ）で 測る。
+      - name: ★生きた紙が 枠に収まる（Chromium と WebKit・320/390/1280・load すぐ/400ms 遅れ・一覧から戻った後）
+        if: ${{ !cancelled() }}
+        run: node seikyu/tests/kami-chijimi.mjs
+      - name: ★同 縮め直しを外すと 赤になるか（空振り止め）
+        if: ${{ !cancelled() }}
+        run: node seikyu/tests/kami-chijimi.mjs --waza
       # ★倉庫の 答えが 遅れても 画面が 動かない／押させない／黙らない★（2026-09-05 指示役の裁定・案D）
       #   ★犯人は 1つずつ 遅らせて 測って 突き止めた★＝倉庫の状態(cloudLoadState) だけが 3737px 動かした。
       #   ★人の一覧は 答えが来るまで描かない／その間は確定を押させない／失敗は失敗と言う★
