@@ -343,17 +343,34 @@ T('lib の num: 全角の 数字・全角カンマ・読点を 読む（全部�
   var fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'lib'), mita = 0, dame = [];
   fs.readdirSync(dir).filter(function (f) { return /\.js$/.test(f); }).forEach(function (f) {
     var src = fs.readFileSync(path.join(dir, f), 'utf8');
-    var m = /^[ \t]*function num\s*\(v\)[^\n]*$/m.exec(src); // 1行の 定義
-    if (m) m = [m[0].replace(/\}\s*\/\/[^\n]*$/, '}')]; // 行末の 注を 外す
-    if (!m || /Number\(v\)/.test(m[0]) || f === 'zengin.js') return; // 型の 数だけを 受ける 物（ledger-agg 等）と 全銀（番号は 別の 試験）は 外す
-    mita++;
-    var num = new Function(m[0] + '; return num;')();
-    [['２０，０００', 20000], ['２７、６００', 27600], ['８３７４１', 83741], ['1,234', 1234], ['300000', 300000], ['', 0], [null, 0]].forEach(function (c) {
-      if (num(c[0]) !== c[1]) dame.push(f + ' ' + JSON.stringify(c[0]) + '→' + num(c[0]));
-    });
+    if (f === 'zengin.js') return; // 全銀（番号は 別の 試験）は 外す
+    /* ★1ファイルの 中の 写しを 全部・`var num = function (v)` の 形も 拾う★（2026-11-06 ⑰の 叩きの 止め1＝
+       前は `function num(v)` の 字の 1本目だけ＝payroll-calc.js の 関数の 中の 2本・payroll-monthly.js を 見ていなかった） */
+    var re = /^[ \t]*(function num\s*\(v\)|var num = function\s*\(v\))[^\n]*$/mg, m;
+    while ((m = re.exec(src))) {
+      var line = m[0].replace(/\}\s*;?\s*\/\/[^\n]*$/, '}'); // 行末の 注を 外す
+      if (/Number\(v\)/.test(line)) continue; // 型の 数だけを 受ける 物（ledger-agg 等）
+      if (/PM\(\)\.num\(v\)/.test(line)) continue; // payroll-monthly の num へ 渡すだけ（写しでない＝payroll-warnings）
+      mita++;
+      var num = new Function(line + '; return num;')();
+      [['２０，０００', 20000], ['２７、６００', 27600], ['８３７４１', 83741], ['1,234', 1234], ['300000', 300000], ['', 0], [null, 0]].forEach(function (c) {
+        if (num(c[0]) !== c[1]) dame.push(f + ':' + (src.slice(0, m.index).split('\n').length) + ' ' + JSON.stringify(c[0]) + '→' + num(c[0]));
+      });
+    }
   });
-  ok(mita >= 13, 'num の 写しを 見た 数 ' + mita);
+  ok(mita >= 17, 'num の 写しを 見た 数 ' + mita);
   eq(dame.length, 0, '全角を 読まない ' + dame.join(' / '));
   var r = PayslipCalc.computePayslip({ shikyu: [{ label: '基本給', value: 300000 }, { label: '住宅手当', value: '２００００' }], kojo: [{ label: '旅行積立', value: '５０００' }], birthYmd: '1990-01-01', payYm: '2026-06', fuyou: 0, taxClass: '甲', healthRate: 0.04955, hyojunBase: 320000 });
   eq(r.shikyuTotal, 320000, '総支給に 全角の 手当');
+});
+/* ★支払基礎日数も 全角を 読む★（2026-11-06 ⑰の 叩きの 止め1）＝前は 勤怠の「出勤日数 ２０」で 給与は 20日・
+   支払基礎日数は 0（月給の「欠勤 ３」は 控除は 3日・基礎日数は 暦日の 30）＝算定の 17日の 判定が ずれた。 */
+T('支払基礎日数: 勤怠と 所定日数が 全角でも 半角と 同じ', function () {
+  var PC = require('../lib/payroll-calc.js');
+  var kt = function (o) { return Object.keys(o).map(function (k) { return { label: k, value: o[k] }; }); };
+  eq(PC.calcPaymentDays({ payType: '時給', kintai: kt({ '出勤日数': '２０' }) }, '2026-06', ''), 20, '時給の 出勤 ２０');
+  eq(PC.calcPaymentDays({ payType: '時給', kintai: kt({ '出勤日数': '20' }) }, '2026-06', ''), 20, '時給の 出勤 20（前の まま）');
+  eq(PC.calcPaymentDays({ payType: '月給', scheduledDays: '２１', kintai: kt({ '欠勤日数': '３' }) }, '2026-06', ''),
+     PC.calcPaymentDays({ payType: '月給', scheduledDays: '21', kintai: kt({ '欠勤日数': '3' }) }, '2026-06', ''), '月給の 欠勤 ３・所定 ２１');
+  eq(PC.calcPaymentDays({ payType: '月給', scheduledDays: '21', kintai: kt({ '欠勤日数': '3' }) }, '2026-06', ''), 18, '所定21−欠勤3');
 });

@@ -32,6 +32,10 @@
   }
 })(typeof self !== "undefined" ? self : this, function (SHAKAIHOKEN_HYO, KOYO_HOKEN) {
   "use strict";
+  /* ★数の 読み方は payroll-monthly.js の num と 同じ（全角の 数字・全角カンマ・読点を 読む）★（2026-11-06 ⑰の 叩きの 止め1）
+     前は zuijiKaitei・calcKekkin の 中の 写し 2本と kintaiNum・scheduledDays が 全角を 読まなかった＝
+     勤怠「出勤日数 ２０」で 給与は 20日・支払基礎日数は 0（算定の 17日の 判定が ずれる）。写しは ここの 1本だけ。 */
+  var num = function (v) { var s = String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, ''); var n = Number(s); return isNaN(n) ? 0 : n; };
 
   // 厚生年金(従業員負担・全国一律18.3%/折半9.15%)。単一ソース=shakaihoken-hyo(法改正時はそこだけ変更)。
   var KOSEI_NENKIN_RITSU = (SHAKAIHOKEN_HYO && SHAKAIHOKEN_HYO.KOSEI_NENKIN_RITSU_JUGYOIN != null) ? SHAKAIHOKEN_HYO.KOSEI_NENKIN_RITSU_JUGYOIN : 0.0915;
@@ -88,7 +92,6 @@
    */
   function zuijiKaitei(opts) {
     opts = opts || {};
-    var num = function (v) { var n = Number(String(v == null ? 0 : v).replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; };
     var SH = SHAKAIHOKEN_HYO, ms = opts.months || [], th = opts.threshold || 17;
     var have3 = ms.length === 3;
     var allDays = have3 && ms.every(function (m) { return num(m.days) >= th; });
@@ -259,7 +262,7 @@
   function kintaiNum(emp, re) {
     var k = (emp && emp.kintai) || [];
     for (var i = 0; i < k.length; i++) {
-      if (re.test(k[i].label || '')) { var n = Number(String(k[i].value == null ? 0 : k[i].value).replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+      if (re.test(k[i].label || '')) return num(k[i].value);
     }
     return 0;
   }
@@ -272,7 +275,7 @@
     emp = emp || {};
     var y = +String(ym == null ? '' : ym).slice(0, 4), m = +String(ym == null ? '' : ym).slice(5, 7);
     var cal = (y && m) ? daysInMonth(y, m) : 30;
-    var sched = (emp.scheduledDays != null && emp.scheduledDays !== '') ? (+emp.scheduledDays || 0) : cal;
+    var sched = (emp.scheduledDays != null && emp.scheduledDays !== '') ? num(emp.scheduledDays) : cal;
     var kekkin = kintaiNum(emp, /欠勤/);
     var shukkin = kintaiNum(emp, /出勤/);
     var pt = emp.payType || '月給';
@@ -292,7 +295,6 @@
   //  根拠: 民法624条(ノーワーク・ノーペイ)・労基法24条。日給月給制が月給の標準。
   function calcKekkin(opts) {
     opts = opts || {};
-    var num = function (v) { var n = Number(String(v == null ? 0 : v).replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; };
     var base = num(opts.base); if (!(base > 0)) return 0;
     var y = +String(opts.ym == null ? '' : opts.ym).slice(0, 4), m = +String(opts.ym == null ? '' : opts.ym).slice(5, 7);
     var leap = (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
