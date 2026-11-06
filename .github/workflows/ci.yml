@@ -973,6 +973,8 @@ jobs:
         run: node tests/hairu-erabo.test.mjs
       - name: ★押す前の 網の 選び方（★名簿を 人が 選ばない★／回した ＋ 回さない ＝ 全）★
         run: node tools/oshu-mae.mjs --self-test
+      - name: ★CI の 緑を 割る 道具（ci-3tsu）の 引数＝頼んだ run を 数えるか（11-06 `--run 123` を 黙って 捨て 最新を 数えていた）★
+        run: node tools/ci-3tsu.mjs --self-test
       - name: ★古い 名前（exally_*）を 使って いる 所を 数える（覗き窓を 外せる 日を 機械で 決める）★
         run: node tests/furui-namae.test.mjs --self-test
       - name: ★社保の 率の 読み取りの 自己確認（★外に 出ない★・漢数字と 幅の 取り方）★

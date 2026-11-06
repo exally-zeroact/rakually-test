@@ -2,7 +2,7 @@
  * ============================================================================
  * ★なぜ★ … 「CI success・256段」は ★中で 抜けた段（未測定）を 割っていない 盛り★。
  *   同じ _bunrui を GitHub の ログに 当てて、測った/一部抜け/丸ごと抜け/読めない/exit0failed に 割る。
- * ★使い方★ … node tools/ci-3tsu.mjs [--run=<id>]   （--run 無しは main の 最新 CI）
+ * ★使い方★ … node tools/ci-3tsu.mjs [--run=<id>|--run <id>|<id>] [-R <owner/repo>]   （run 無しは main の 最新 CI・読めない 引数は exit 2）
  * ★注★ … ブラウザ/倉庫の 段は CI では 抜ける（鍵が 無い）＝★この 本数には 入らない★
  *   （網の 側の 本数は bunrui を oshu-mae に 配線した 後の 押しで 出る）。
  */
@@ -15,22 +15,59 @@ const gh = (args) => {
   return r.stdout || '';
 };
 
-const runArg = process.argv.find((x) => x.indexOf('--run=') === 0);
-let runId = runArg ? runArg.split('=')[1] : null;
+/* ★引数の 読み方★（11-06 kensan の 宿題＝`--run 123` や `123` を 渡すと 黙って 捨て、main の 最新を 数えていた
+ *   ＝頼んだ run と 違う run の 数を 返す）。読めない 引数は 止める（exit 2）。 */
+function hikisuu(argv) {
+  let runId = null; let repo = null; const bad = [];
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    let m;
+    if ((m = /^--run=(\d+)$/.exec(a))) runId = m[1];
+    else if (a === '--run' && /^\d+$/.test(argv[i + 1] || '')) runId = argv[++i];
+    else if (/^\d+$/.test(a)) runId = a;
+    else if ((m = /^(?:--repo=|-R=)([\w.-]+\/[\w.-]+)$/.exec(a))) repo = m[1];
+    else if ((a === '--repo' || a === '-R') && /^[\w.-]+\/[\w.-]+$/.test(argv[i + 1] || '')) repo = argv[++i];
+    else if (a === '--self-test') { /* 下で 見る */ }
+    else bad.push(a);
+  }
+  return { runId, repo, bad };
+}
+
+if (process.argv.includes('--self-test')) {
+  const tame = [
+    [['--run=42'], '42', null, 0], [['--run', '42'], '42', null, 0], [['42'], '42', null, 0],
+    [[], null, null, 0], [['--run'], null, null, 1], [['--run=abc'], null, null, 1], [['--rn=42'], null, null, 1],
+    [['-R', 'a/b', '--run=7'], '7', 'a/b', 0], [['--repo=a/b', '7'], '7', 'a/b', 0], [['-R'], null, null, 1],
+  ];
+  let aka = 0;
+  for (const [args, run, repo, nBad] of tame) {
+    const r = hikisuu(args);
+    const ok = r.runId === run && r.repo === repo && r.bad.length === nBad;
+    if (!ok) aka++;
+    console.log((ok ? '  ✓ ' : '  ✗ ') + JSON.stringify(args) + ' → run=' + r.runId + ' repo=' + r.repo + ' 読めない=' + r.bad.length);
+  }
+  console.log((tame.length - aka) + ' passed, ' + aka + ' failed');
+  process.exit(aka ? 1 : 0);
+}
+
+const H = hikisuu(process.argv.slice(2));
+if (H.bad.length) { console.error('[ci-3tsu] 読めない 引数: ' + H.bad.join(' ') + '（使い方 [--run=<id>|--run <id>|<id>] [-R <owner/repo>]）'); process.exit(2); }
+const R = H.repo ? ['-R', H.repo] : [];
+let runId = H.runId;
 if (!runId) {
-  const j = JSON.parse(gh(['run', 'list', '--branch', 'main', '--limit', '10', '--json', 'databaseId,name,headSha,conclusion']));
+  const j = JSON.parse(gh(['run', 'list', ...R, '--branch', 'main', '--limit', '10', '--json', 'databaseId,name,headSha,conclusion']));
   const ci = j.find((x) => x.name === 'CI');
   if (!ci) { console.error('main の CI run が 見つかりません'); process.exit(2); }
   runId = String(ci.databaseId);
 }
 
 /* 段の 結論（success/failure/skipped）… job+step で 引く */
-const jobs = JSON.parse(gh(['run', 'view', runId, '--json', 'jobs,headSha,displayTitle']));
+const jobs = JSON.parse(gh(['run', 'view', runId, ...R, '--json', 'jobs,headSha,displayTitle']));
 const ketsuron = new Map();   /* key: job\tstep → conclusion */
 jobs.jobs.forEach((jb) => jb.steps.forEach((st) => ketsuron.set(jb.name + '\t' + st.name, st.conclusion)));
 
 /* ログを 段ごとに 束ねる（行頭＝job<TAB>step<TAB>時刻 本文） */
-const log = gh(['run', 'view', runId, '--log']);
+const log = gh(['run', 'view', runId, ...R, '--log']);
 const NL = String.fromCharCode(10);
 const dan = new Map();   /* key: job\tstep → 本文(連結) */
 log.split(NL).forEach((line) => {
