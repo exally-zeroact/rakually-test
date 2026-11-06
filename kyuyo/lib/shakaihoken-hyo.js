@@ -265,7 +265,8 @@ const SHAKAIHOKEN_HYO = {
   ],
 
   // 端数処理：50銭以下切捨て・50銭超切上げ（法定）。FP誤差対策で銭まで丸めてから判定
-  han50: function(x) { var n = Math.round(x * 100) / 100; var f = n - Math.floor(n); return f <= 0.5 ? Math.floor(n) : Math.ceil(n); },
+  /* ★50銭以下は 切り捨て・50銭1厘以上は 切り上げ★（2026-11-06＝前は 銭に 丸めてから 見ていた＝端数 0.5010〜0.5049 円を 切り捨てていた・例 273円×0.55%＝1.5015 が 1 円。1e-6 に 丸めて 浮動小数の 誤差だけ 消し、厘で 見る。0.5001〜0.5009 円は 今まで 通り 切り捨て） */
+  han50: function(x) { var n = Math.round(x * 1e6) / 1e6, y = Math.floor(n), f = Math.round((n - y) * 1e6); return f >= 501000 ? y + 1 : y; },
 
   // 標準報酬月額：厚生年金(上限650,000) / 健康保険(上限1,390,000) を分離
   getHyojunPension: function(pay) {

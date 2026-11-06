@@ -220,7 +220,7 @@
     var hyHealth = SHAKAIHOKEN_HYO.getHyojunHealth ? SHAKAIHOKEN_HYO.getHyojunHealth(basis) : SHAKAIHOKEN_HYO.getHyojunHoshu(basis);
     var hyPension = SHAKAIHOKEN_HYO.getHyojunPension ? SHAKAIHOKEN_HYO.getHyojunPension(basis) : SHAKAIHOKEN_HYO.getHyojunHoshu(basis);
     // 端数：50銭以下切捨・超切上（Math.round=.5切上 は誤り）
-    var han50 = SHAKAIHOKEN_HYO.han50 ? SHAKAIHOKEN_HYO.han50.bind(SHAKAIHOKEN_HYO) : function (x) { var n = Math.round(x * 100) / 100; var f = n - Math.floor(n); return f <= 0.5 ? Math.floor(n) : Math.ceil(n); };
+    var han50 = SHAKAIHOKEN_HYO.han50 ? SHAKAIHOKEN_HYO.han50.bind(SHAKAIHOKEN_HYO) : function (x) { var n = Math.round(x * 1e6) / 1e6, y = Math.floor(n), f = Math.round((n - y) * 1e6); return f >= 501000 ? y + 1 : y; };  // shakaihoken-hyo.js han50 と 同じ（2026-11-06）
     // 介護保険料率(対象月の社保年度で自動選択。getKaigo無ければ令和7スカラー→既定)
     var kaigoRate = SHAKAIHOKEN_HYO.getKaigo ? SHAKAIHOKEN_HYO.getKaigo(opts.payYm).jugyoin
       : (SHAKAIHOKEN_HYO.KAIGO_RITSU_JUGYOIN != null ? SHAKAIHOKEN_HYO.KAIGO_RITSU_JUGYOIN : 0.00795);

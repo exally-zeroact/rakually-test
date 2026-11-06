@@ -17,8 +17,7 @@
   // 社保用：50銭"以下"切捨・超切上（ちょうど50銭は切捨）
   function han50(x) {
     if (SH && SH.han50) return SH.han50(x);
-    var n = Math.round(x * 100) / 100; var f = n - Math.floor(n);
-    return f <= 0.5 ? Math.floor(n) : Math.ceil(n);
+    var n = Math.round(x * 1e6) / 1e6, y = Math.floor(n), f = Math.round((n - y) * 1e6); return f >= 501000 ? y + 1 : y;  // shakaihoken-hyo.js han50 と 同じ（2026-11-06）
   }
   // 割増用(基発150号)：50銭"未満"切捨・以上切上（ちょうど50銭は切上）
   function han50Up(x) {
