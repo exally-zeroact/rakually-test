@@ -174,6 +174,51 @@
   background: #FFFFFF; margin-top: 10px;
 }
 .pv { display: block; border: 0; background: #FFFFFF; transform-origin: top left; }
+/* ── ★入力したら 紙が その場で 映る（2026-11-06）★ ──────────────────
+   ★裏の 紙は id で 書く★＝表と 裏は id を 入れ替えるので、class で 書くと 入れ替えに ついて来ない。
+   ★裏は display:none に しない★（幅 0 で 組むと 縮みが 1倍・320px で 切れる＝taiketsu 4回目）。 */
+#pv-wrap { position: relative; }
+#pv-ura { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; }
+#pv-maku {
+  position: absolute; inset: 0; z-index: 2;
+  background: rgba(255, 255, 255, .72);
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 28px;
+}
+#pv-maku span {
+  font-size: 13px; font-weight: 700; color: #333333; background: #FFFFFF;   /* ★押せない字は #333333★（緑は押せる物だけ＝text-colors の網で止まった 11-06） */
+  border: 1px solid #C8ECD8; border-radius: 999px; padding: 6px 14px;
+}
+#kami-waku #paper-gate { margin: 12px 0 0; }
+/* ★帯「紙を見る」★＝狭い 画面だけ・下の タブ（約 54px）の すぐ上に 貼り付く 44px */
+#kami-obi {
+  display: none; position: fixed; left: 0; right: 0; z-index: 29;
+  bottom: calc(54px + env(safe-area-inset-bottom));
+  height: 44px; width: 100%; border: 0; border-top: 1px solid #D4EAE0;
+  background: #F0FAF4; color: #2E7D54; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+#kami-obi:disabled { color: #6E6E6E; cursor: default; }
+#kami-obi span { display: block; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1099px) {
+  #kami-obi { display: block; }
+  /* ★紙の 枠が 画面に 入っている 間は 帯を 隠す★（同じ 物を 2つ 見せない・JS が 印を 付ける） */
+  #kami-obi.kami-obi-mieru { display: none; }
+  /* ★帯の 分だけ 下を 空ける★（最後の 欄が 帯の 裏に 隠れない・画面ごとの 余白は 書かない決まり＝紙の 枠の 下に 付ける） */
+  #kami-waku { padding-bottom: 44px; }
+}
+/* ★広い 画面（1100px〜）は 入力の 右に 紙★（入力の 画面に 居る 間だけ・給与と 共通の .main 900px は 印の 無い時 そのまま）
+   ★fixed に しない★＝上の 帯（テスト線は 茶色の 帯も）の 高さが 線で 違い、fixed だと 紙の 頭が 帯の 裏に 隠れた（2026-11-06 1280 の 絵で 25px）。
+   ＝右の 列に 置いて 転がした 時だけ 上に 貼り付く（sticky）。 */
+@media (min-width: 1100px) {
+  body.kami-yoko .main { max-width: 1340px; }
+  body.kami-yoko #scr-edit.active { display: grid; grid-template-columns: minmax(0, 1fr) 496px; column-gap: 20px; align-items: start; }
+  body.kami-yoko #scr-edit.active > * { grid-column: 1; }
+  body.kami-yoko #scr-edit.active > #kami-waku {
+    grid-column: 2; grid-row: 1 / span 80;
+    position: sticky; top: 64px; align-self: start;
+    max-height: calc(100vh - 80px); overflow-y: auto;
+  }
+  body.kami-yoko #kami-waku #pv-wrap { margin-top: 0; }
+}
 
 /* 保存する名前の小窓の添え書き */
 .ov-ext { font-size: 12px; color: #6E6E6E; margin-top: 4px; }

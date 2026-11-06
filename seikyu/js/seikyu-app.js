@@ -87,8 +87,16 @@
      見本＝Exally-test/daikou-seikyu.html:3490（modal-ov / modal）と closeModal()。
      ★画面（screen）では ない★＝一覧の 上に かぶせるので、
        閉じれば ★一覧が そのまま 残っている★（描き直さない・場所も そのまま）。 */
-  function lookOpen() {
+  function lookOpen(obi) {
     var ov = $('lv-ov'); if (!ov) return;
+    /* ★帯「紙を見る」から 開いた 時は ファイルを 作る ボタンと その 添え書きを 出さない★
+       （09-08 司さん「中身見るやら印刷やらここにいらんやろ」＝入力に ファイルの ボタンを 戻さない）。
+       一覧の「確認」から 開く 時は 今まで どおり 出す（毎回 ここで 決め直す＝前の 開き方を 持ち越さない） */
+    kamiObiAku = !!obi;
+    var md0 = ov.querySelector('.lv-modal');
+    if (md0) Array.prototype.forEach.call(md0.children, function (c) {
+      if (c.classList.contains('btn-row') || (c.tagName === 'P' && c.classList.contains('hint'))) c.style.display = obi ? 'none' : '';   /* hidden は .btn-row の display:flex に 負ける */
+    });
     ov.classList.add('open');
     /* ★いつも 頭から 見せる★＝前に 開いた 時の 転がした 場所が 残ると
        ★出す ボタンが 貼り付いた 頭の 下に 隠れる★（実測で そうなった） */
@@ -100,6 +108,7 @@
   function lookClose() {
     var ov = $('lv-ov'); if (!ov) return;
     ov.classList.remove('open');
+    kamiObiAku = false;
     if (S.lookMae) {
       var lm = S.lookMae;
       S.cur = lm.cur; S.dirty = lm.dirty; S.lookMae = null;
@@ -138,6 +147,9 @@
     var hikaru = id;
     /* ★画面を 変えたら かぶせは 閉じる★（後ろだけ 変わって かぶさったまま、を 作らない） */
     lookClose();
+    /* ★入力に 入ったら 待たずに 紙を 描く★（外に 居た 間は 描いていない＝道1）・縮みも 合わせ直す（外で 描くと 幅 0 で 1倍に なる） */
+    try { global.document.body.classList.toggle('kami-yoko', id === 'scr-edit'); } catch (e) { /* 端末差 */ }
+    if (id === 'scr-edit') { kamiIma(); fitPreview(); }
     Array.prototype.forEach.call(document.querySelectorAll('.bn'), function (b) {
       b.classList.toggle('on', b.getAttribute('data-scr') === hikaru);
     });
@@ -883,6 +895,7 @@
     return p.then(function (r) {
       if (my !== _billNo) return;
       S.billInv = r || []; S.billOk = true; billRedraw();
+      kamiYoyaku();      /* ★繰越の 元が 読めた＝生きた 紙も 描き直す★（見積の 一覧を 見ている 時・taiketsu 9回目 任3） */
     }, function (e) {
       if (my !== _billNo) return;
       console.error('★請求/集計：請求書を 取って来られませんでした★', e);
@@ -1477,6 +1490,7 @@
       /* ★請求/集計の 棚★（taiketsu 10-24 止1）＝請求書を 読めたら それを 持つ・見積なら 請求書を 別に 読む */
       if (kind === 'invoice') { S.billInv = S.invoices; S.billOk = true; _billNo++; } else loadBillInv();
       billRedraw();
+      kamiYoyaku();      /* ★繰越は 一覧から 数える＝読めたら 紙も 描き直す★ */
       drawKind();
       renderList();
       drawYomenai();
@@ -1873,7 +1887,9 @@
     var _lb = DOC.docLabel(v.doc_type || S.docType || 'invoice');
     setText('edit-h', v.id ? ((v.no || '（未採番）') + '　' + (v.status === 'issued' ? '発行済' : v.status === 'void' ? '取り消し済' : '下書き')) : ('新しい' + _lb));
     // ★別の1通に切り替えたら、前の紙の下見は消す（違う請求書の紙を出したままにしない）
-    show($('pv-wrap'), false);
+    /* ★2026-11-06 生きた紙★＝★別の 1通の 時だけ★ 表も裏も 空に する（同じ 1通の 保存・発行・取り消しの 描き直しで 紙を 消さない）。
+       新しい 1通の 紙は fillEdit の 終わりで すぐ 描く */
+    kamiBetsuNoIttsuu(v);
 
     /* ★いつでも新しい相手を作れる★（2026-08-18 DB-testの1周で判明）
        前は「その場で作る」を ★0社の時だけ★出していたので、1社でも在ると
@@ -1937,6 +1953,7 @@
     // ★入金は「発行した1通」にだけ出す（下書きには請求そのものが無い）
     resetPayForm();
     renderPay();
+    kamiIma();           /* ★関所A＝欄を 描き直したら 待たずに 紙も（別の 1通に 替えても すぐ 新しい 紙）★ */
   }
 
   /* ═══ ★前回から当てて確かめる★ ═══
@@ -3535,7 +3552,13 @@
     return g;
   }
 
+  /* ★recalc の 出口は 4つ（S.cur 無し・数えられない・明細が 崩れた・正常）★＝どの 出口からでも 生きた紙を 予約する（taiketsu 3回目 止め1）
+     ＝壊れた 明細では 生きた紙が 理由を 出し、古い 合計の 紙を 残さない */
   function recalc() {
+    try { return recalcHontai(); }
+    finally { if (S.cur && S.cur === S.gamen) kamiYoyaku(); }
+  }
+  function recalcHontai() {
     var v = S.cur; if (!v) return null;
     drawYomenaiIn('edit-yomenai', 'edit-yomenai-t');   /* ★明細が 崩れて 早く 返る 時も 古い 知らせを 残さない★（taiketsu 10-13） */
     var t;
@@ -3721,6 +3744,7 @@
       v.no = '';
       setText('e-no-view', '（作れません）');
       setText('e-no-hint', errs.join(' '));
+      kamiYoyaku();
       return Promise.resolve();
     }
     return S.store.invoices.usedNos(v.doc_type || 'invoice').then(function (used) {
@@ -3737,6 +3761,7 @@
          番号は入っているのに押せない＝人には ★壊れているようにしか見えない★。
          （2026-08-15 実測：見積から請求書を作った直後に発生。取引先を選んだ直後も同じ形） */
       drawIssueButton();
+      kamiYoyaku();      /* ★番号も 紙に 載る★（非同期で 決まる＝then で 描き直す） */
     }).catch(function () {
       setText('e-no-hint', '使用済みの番号が読めませんでした。番号は手で入れてください。');
       drawIssueButton();
@@ -3782,6 +3807,13 @@
     var v = S.cur;
     var t = recalc();
     if (!t || !t.ok) return null;
+    return paperInputOf(v, t);
+  }
+  /** ★紙に渡す物を 組むだけ★（DOM に 触らない・recalc を 呼ばない）
+   *  ＝生きた紙（kamiIkiru）が 打つたびに 呼ぶ。recalc を 呼ぶと 予約→recalc→予約 の 輪になり、
+   *    edit-err も 消える（taiketsu 止14-2）。v は S.cur そのもの・t は v から 数えた 税。 */
+  function paperInputOf(v, t) {
+    if (!v || v !== S.cur || !t || !t.ok) return null;
     var op = orgPartnerOf(v), partner = op.partner, org = op.org;
     var inv = Object.assign({}, v, { lines: cleanLines(v.lines) });
     /* ★控除も紙へ渡す★
@@ -3867,16 +3899,155 @@
   function fitPreview() { fitPreviewOf('pv', 'pv-wrap'); }
   function fitLook() { fitPreviewOf('lv', 'lv-wrap'); }
 
+  /* ═══ ★★入力したら 紙が その場で 映る（生きた紙）★★ ═══
+     司さん 2026-11-04「完成形の PDF が見えないまま入力するのでイメージ湧かない」。
+     ★設計の正本★＝記憶 project_rakunally_sonoba_no_kami_taiketsu_2026-11-06.md（taiketsu 止14＋2〜8回目）。
+     ★持つ物は 3つだけ★：kamiOmoteHtml（表に 出ている 全文・空可）／kamiMachi（裏で 待っている {n, html} か null）／kamiN（番号）。
+       「覚えた 全文」は 別に 持たない＝いつも「machi ? machi.html : omote」から 出す（ずれようが ない）。
+     ★n++ と machi の 代入は kamiBan の 中だけ★・★表の srcdoc を 書くのは kamiOmote だけ★・★画面を 塗るのは kamiNuri だけ★。
+     道1 画面の外・S.cur!==S.gamen＝何もしない（戻った時の goScreen('scr-edit') で 必ず 描く）
+     道2 止まる（paperGate・税・組めない）＝n++・machi=null・表も裏も 空・理由
+     道3 組んだ 全文 ＝ machi か omote＝何もしない（待っている 入れ替えを 生かす）
+     道4 裏に 書いて load か 260ms の 早い方で「machi が その番」の 時だけ id を 入れ替える（光らない）
+     道5 「中身を見る」＝待ちを 消して 今すぐ 表へ（同期）
+     ★edit-ok/edit-err は 触らない★（発行した・前回と 同じ 等の 知らせを 消さない＝止14-1）。 */
+  var KAMI_MATSU = 220, KAMI_KAE = 260;
+  var kamiOmoteHtml = '', kamiMachi = null, kamiN = 0, kamiWhy = '', kamiTokei = null, kamiNo = null, kamiObiAku = false;
+  function kamiBan(machiNew) { kamiN++; kamiMachi = machiNew; return kamiN; }
+  function kamiOmote(html) { var f = $('pv'); if (f) f.srcdoc = html; kamiOmoteHtml = html; }
+  function kamiUra(html) { var f = $('pv-ura'); if (f) f.srcdoc = html; }
+  function kamiTokeiKesu() { if (kamiTokei) { global.clearTimeout(kamiTokei); kamiTokei = null; } }
+  /** ★予約★（打つたび・recalc の 出口・非同期の 返事）＝220ms 打つ手が 止まったら 描く */
+  function kamiYoyaku() {
+    kamiTokeiKesu();
+    kamiTokei = global.setTimeout(function () { kamiTokei = null; kamiIkiru(); }, KAMI_MATSU);
+  }
+  /** ★今すぐ★（別の 1通に 替えた・入力の 画面に 入った）＝待っている 時計を 消してから */
+  function kamiIma() { kamiTokeiKesu(); kamiIkiru(); }
+  function kamiGamenNi() { var e = $('scr-edit'); return !!(e && e.classList.contains('active')); }
+  /** 道2＝止める：表も裏も 前の 紙を 持たない・理由は 1つの 字 */
+  function kamiTomeru(why) {
+    kamiBan(null);
+    kamiOmote(''); kamiUra('');
+    kamiWhy = why || '紙が組めませんでした。';
+    kamiNuri();
+  }
+  /** ★(omote, machi, kamiWhy) から 画面を 塗る 関数は これ 1つ★（taiketsu 7回目 止2） */
+  function kamiNuri() {
+    show($('pv-maku'), kamiMachi !== null);
+    show($('pv-wrap'), kamiOmoteHtml !== '' || kamiMachi !== null);
+    var p = $('paper-gate');
+    if (p) {
+      var g = kamiWhy ? { ok: false, why: kamiWhy } : paperGate();
+      show(p, !g.ok); p.textContent = g.ok ? '' : g.why;
+    }
+    var obi = $('kami-obi');
+    if (obi) {
+      obi.disabled = kamiOmoteHtml === '';
+      var t = $('kami-obi-t');
+      if (t) t.textContent = kamiOmoteHtml !== '' ? '紙を見る ▲'
+        : (kamiMachi !== null ? 'プレビュー作成中…'
+          : '紙はまだ出ません' + ((p && p.textContent) ? '：' + p.textContent : ''));   /* ★止まった 理由も 帯に★（作成中とは 分ける） */
+    }
+    /* ★帯から 開いている 間に 描き直したら 窓も 同じ 全文へ★ */
+    if (kamiObiAku && lookOpened() && kamiOmoteHtml !== '') {
+      var lv = $('lv');
+      if (lv && lv.srcdoc !== kamiOmoteHtml) { lv.onload = fitLook; lv.srcdoc = kamiOmoteHtml; global.setTimeout(fitLook, KAMI_KAE); }
+    }
+  }
+  /** ★裏で 待っている 紙を 表へ★＝load と 260ms の どちらが 来ても、その番が まだ 待っている 時だけ 1回 */
+  function kamiKaeru(n) {
+    if (!kamiMachi || kamiMachi.n !== n) return;
+    var omoteF = $('pv'), uraF = $('pv-ura');
+    if (!omoteF || !uraF) return;
+    var html = kamiMachi.html;
+    /* ★中身を 入れ直さず id を 入れ替える★＝光らない（止14-8）。title・aria-hidden・tabindex も 一緒に */
+    omoteF.id = 'pv-ura'; uraF.id = 'pv';
+    var t0 = omoteF.getAttribute('title') || '', t1 = uraF.getAttribute('title') || '';
+    omoteF.setAttribute('title', t1); uraF.setAttribute('title', t0);
+    omoteF.setAttribute('aria-hidden', 'true'); omoteF.setAttribute('tabindex', '-1');
+    uraF.removeAttribute('aria-hidden'); uraF.removeAttribute('tabindex');
+    uraF.onload = kamiOnload; omoteF.onload = kamiOnload;
+    kamiOmoteHtml = html;
+    kamiBan(null);
+    kamiUra('');                     /* ★入れ替えた 後の 新しい 裏は 空★ */
+    kamiNuri();
+    fitPreview();                    /* ★入れ替えの 直後にも 1回 縮め直す★（taiketsu 8回目 任3） */
+  }
+  function kamiOnload() {
+    /* ★表の load では いつも 縮め直す★（id を 入れ替えると 表に なった 方にも 効く） */
+    if (this.id === 'pv') { fitPreview(); return; }
+    if (this.id === 'pv-ura' && kamiMachi && this.srcdoc === kamiMachi.html) kamiKaeru(kamiMachi.n);
+  }
+  function kamiIkiru() {
+    var v = S.cur;
+    if (!v || v !== S.gamen || !kamiGamenNi()) return;              /* 道1 */
+    var html;
+    try {
+      var g = paperGate();
+      if (!g.ok) { kamiTomeru(g.why); return; }                      /* 道2 */
+      var t = currentTax();
+      if (!t || !t.ok) { kamiTomeru('中身がまだ整っていないので 紙は出せません。'); return; }
+      var pi = paperInputOf(v, t);
+      if (!pi) { kamiTomeru('中身がまだ整っていないので 紙は出せません。'); return; }
+      var built = PAPER.build(pi);
+      html = (typeof built === 'string') ? built : ((built && built.html) || '');
+    } catch (e) { kamiTomeru('紙が組めませんでした（' + ((e && e.message) || e) + '）。'); return; }
+    if (!html) { kamiTomeru('紙が組めませんでした。'); return; }
+    kamiWhy = '';
+    /* 道3＝★比べる 相手は 最後に 頼んだ 全文★（出ている 紙では ない・字の 長さで 比べない＝止14-6） */
+    if (html === (kamiMachi ? kamiMachi.html : kamiOmoteHtml)) { kamiNuri(); return; }
+    /* 道4 */
+    var m = { n: 0, html: html };
+    var n = kamiBan(m);
+    m.n = n;
+    var ura = $('pv-ura');
+    if (ura) ura.onload = kamiOnload;
+    kamiUra(html);
+    kamiNuri();
+    global.setTimeout(function () { kamiKaeru(n); }, KAMI_KAE);
+  }
+  /** ★別の 1通に 替えた 時だけ★ 表も裏も 空に する（fillEdit から・同じ 1通の 保存・発行では 消さない＝紙が 跳ばない） */
+  function kamiBetsuNoIttsuu(v) {
+    if (v === kamiNo) return;
+    kamiNo = v;                      /* ★kamiNo を 書くのは ここ 1か所★ */
+    kamiBan(null);
+    kamiOmote(''); kamiUra('');
+    kamiWhy = '';
+    kamiNuri();
+  }
+  /** 帯「紙を見る」＝★lookPaper を 通さない★（今の 全文を そのまま 窓へ・ファイルを 作る ボタンは 出さない＝09-08 司さん「ここにいらん」） */
+  function kamiObiHiraku() {
+    if (kamiOmoteHtml === '') return;
+    var v = S.cur;
+    setText('lv-h', v ? ((v.no || '（未採番）') + '　' + partnerName(v)) : '紙の中身');
+    box('lv-err', ''); box('lv-ok', '');
+    var lv = $('lv');
+    if (lv) { lv.onload = fitLook; lv.srcdoc = kamiOmoteHtml; }
+    lookOpen(true);
+    global.setTimeout(fitLook, KAMI_KAE);
+  }
+
   function doPreview() {
+    /* 道5＝★今すぐ 表へ★（帯で 待っている 間に 押した 時も 同じ） */
+    kamiTokeiKesu();
     var pi = paperInput();
-    if (!pi) { box('edit-err', '中身がまだ整っていないので、下見が出せません。上の赤い印を直してください。'); return; }
+    kamiTokeiKesu();                 /* paperInput の recalc が 置いた 予約も 消す（今 描くので 要らない） */
+    kamiBan(null);
+    kamiUra('');
+    if (!pi) {
+      var g = paperGate();
+      kamiTomeru(g.ok ? '中身がまだ整っていないので 紙は出せません。' : g.why);   /* ★前の 紙を 残さない★（taiketsu 8回目 任4） */
+      box('edit-err', '中身がまだ整っていないので、下見が出せません。上の赤い印を直してください。'); return;
+    }
     var built = PAPER.build(pi);
     var f = $('pv');
-    f.onload = fitPreview;
-    f.srcdoc = built.html;
-    show($('pv-wrap'), true);
+    if (f) f.onload = kamiOnload;
+    kamiOmote(built.html);
+    kamiWhy = '';
+    kamiNuri();
     // srcdoc は端末によって load が来ないことがあるので、時間でも1度合わせる
-    global.setTimeout(fitPreview, 260);
+    global.setTimeout(fitPreview, KAMI_KAE);
     box('edit-ok', '下の枠が、そのまま刷られる紙です（画面に収まるよう小さくして出しています）。');
   }
 
@@ -6107,9 +6278,9 @@
     return S.store.partners.patch(id, patch).then(function (r) {
       if (!r || !r.ok) {
         box('pt-err', '保存できませんでした（' + ((r && r.reason) || '理由不明') + '）。もう一度 押してください。');
-        return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); });
+        return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); kamiYoyaku(); });
       }
-      return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); });
+      return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); kamiYoyaku(); });
     }).catch(function (e) {
       box('pt-err', '保存できませんでした（' + ((e && e.message) || 'error') + '）。もう一度 押してください。');
     });
@@ -6958,7 +7129,7 @@
     return S.store.partners.patch(id, add).then(function (r) {
       if (!r.ok) { box('pt-err', '保存できませんでした（' + r.reason + '）'); return; }
       box('pt-ok', '保存しました。' + (chk.level === 'digit' ? '（' + chk.msg + '）' : ''));
-      return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); });
+      return S.store.partners.list().then(function (list) { S.partners = list; renderPtAsk(); kamiYoyaku(); });
     });
   }
 
@@ -7220,6 +7391,24 @@
        ＝聞かずに 引き継ぐ（renderGuess が その場で applyGuess を 呼ぶ）。 */
     bindSetPv();
     if ($('b-preview')) $('b-preview').onclick = function () { doPreview(); };
+    /* ★関所B＝入力の 画面の 欄は ぜんぶ ここ 1本で 拾う★（id を 並べない＝並べると 足した 欄が 漏れる・taiketsu 7回目 止3）
+       ＝予約だけ（同期で 描かない）。recalc を 呼ばない 欄（支払期限・◯月分・件名・メモ・番号・請求日）も 拾う */
+    if ($('scr-edit')) {
+      $('scr-edit').addEventListener('input', kamiYoyaku, true);
+      $('scr-edit').addEventListener('change', kamiYoyaku, true);
+    }
+    if ($('kami-obi')) $('kami-obi').onclick = function () { kamiObiHiraku(); };
+    ['pv', 'pv-ura'].forEach(function (id) { var f = $(id); if (f) f.onload = kamiOnload; });
+    try { global.document.body.classList.toggle('kami-yoko', kamiGamenNi()); } catch (e) { /* 端末差 */ }
+    /* ★紙の 枠が 画面に 入っている 間は 帯を 隠す★（無い 端末では 帯を 出したまま＝押せば 見られる） */
+    if ($('kami-obi') && $('pv-wrap') && typeof global.IntersectionObserver === 'function') {
+      try {
+        new global.IntersectionObserver(function (ents) {
+          var e = ents[ents.length - 1];
+          $('kami-obi').classList.toggle('kami-obi-mieru', !!(e && e.isIntersecting));
+        }).observe($('pv-wrap'));
+      } catch (e) { /* 帯を 出したまま */ }
+    }
     /* ★印刷は 名前を 聞かない★（司さん 2026-09-05「印刷押すだけ これはいらんやろが」）
        ＝聞いた名前の 使い道は seikyu-out.js:31 の w.document.title だけ＝★ファイルは 落ちない★。
        ★それでも 名前は 付ける★＝iPhoneで 印刷から「PDFで保存」した時の 名前が この title になる。
@@ -7462,6 +7651,7 @@
           if (!rows.length) return false;
           rows.sort(function (a, b) { return (b.year || 0) - (a.year || 0); });
           SR.hydrate(rows[0].data);
+          kamiYoyaku();      /* ★中央の 消費税＝S.cur は 変わらず 紙の 率が 変わる★ */
           return true;
         })
         .catch(function () { return false; });

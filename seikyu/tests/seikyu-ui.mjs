@@ -354,7 +354,10 @@ T('2-a. ★出すボタンは1つだけ大きく・ほかは畳む（7個 横並
     && !b.closest('.pask')
     /* ★読めない 時の 知らせの 中の「もう一度読み込む」も 出す口ではない★（2026-10-13）
        ＝読み直す 為の 物・読めれば 箱ごと 消える（7-c が 消える事を 見る）。 */
-    && !b.closest('#edit-yomenai'));
+    && !b.closest('#edit-yomenai')
+    /* ★帯「紙を見る」も 出す口ではない★（2026-11-06 入力したら 紙が その場で 映る）
+       ＝下に 貼り付いた 1本の 帯で、押すと 今の 紙を 大きく 見せるだけ（ファイルは 作らない・並ばない）。 */
+    && b.id !== 'kami-obi');
   eq(outside.map((b) => b.id).join(','), 'b-issue', '畳みの外にボタンが多い: ' + outside.map((b) => b.id));
   eq(shown($('b-pay-add')), false, '★下書きなのに「入金を記録」が出ている（まだ請求していない）★');
 });
@@ -1329,10 +1332,45 @@ await TA('3. ★「中身を見る」で紙の下見が出る（アプリの画�
   ok($('pv-wrap').style.display !== 'none', '下見の枠が出ていない');
 });
 
+/* ★2026-11-06 入力したら 紙が その場で 映る★＝別の 1通に 替えると その 1通の 紙が すぐ 出る作りに なった。
+   ★意図は 同じ「違う請求書の紙を出したままにしない」★＝枠が 消えたかでなく、
+   ★表 #pv にも 裏 #pv-ura にも 前の1通の 番号・金額が 0回★かを 20ms と 300ms の 両方で 見る（緩めない・強く 見る）。 */
+const kamiBoth = () => ($('pv').srcdoc || '') + '\n' + (($('pv-ura') && $('pv-ura').srcdoc) || '');
+const gakuOf = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 await TA('3. ★別の1通に切り替えたら、前の紙の下見は消える（違う紙を出したままにしない）', async () => {
+  const mae = win.SeikyuApp._state.cur;
+  const maeNo = String(mae.no || ''), maeGaku = gakuOf(mae.totals && mae.totals.grandTotal);
+  ok(maeNo && kamiBoth().includes(maeNo), '前置き：前の1通の 紙が 出ていない');
   $('b-new').click();
+  for (const w of [20, 280]) {
+    await sleep(w);
+    const both = kamiBoth();
+    ok(!both.includes(maeNo), (w === 20 ? 20 : 300) + 'ms：前の1通の 番号 ' + maeNo + ' が 紙に 残っている');
+    ok(!both.replace(/\s+/g, '').includes(maeGaku), (w === 20 ? 20 : 300) + 'ms：前の1通の 金額 ' + maeGaku + ' が 紙に 残っている');
+    ok($('paper-gate').style.display !== 'none' && /だれに|明細|整って/.test($('paper-gate').textContent), (w === 20 ? 20 : 300) + 'ms：紙が 出ない 理由が 出ていない: ' + $('paper-gate').textContent);
+  }
+  // ★発行済み→別の 発行済み でも 同じ★（別の 1通の 紙が 出るまでの 間に 前の 紙を 見せない）
+  //   この 倉庫の 発行済みは 1通だけ＝1通目を 開いてから、番号の 違う 発行済みの 写しへ 欄ごと 替える（fillEdit＝一覧から 開くのと 同じ 道）
+  doc.querySelector('.bn[data-scr="scr-list"]').click();
   await sleep(20);
-  eq($('pv-wrap').style.display, 'none', '前の紙が残っている');
+  doc.querySelector('#fil-seg [data-fil="issued"]').click();
+  await sleep(10);
+  $('list-body').querySelector('[data-open]').click();
+  await sleep(400);
+  const a = win.SeikyuApp._state.cur;
+  const aNo = String(a.no || '');
+  ok(aNo && ($('pv').srcdoc || '').includes(aNo), '前置き：1通目の 発行済みの 紙が 出ていない');
+  const bb = JSON.parse(JSON.stringify(a));
+  bb.id = 'iv_kami_betsu'; bb.no = 'KAMI-777';
+  if (bb.snapshot && bb.snapshot.inv) bb.snapshot.inv.no = 'KAMI-777';
+  win.SeikyuApp._state.cur = bb;
+  win.SeikyuApp._fillEdit();
+  for (const w of [20, 280]) {
+    await sleep(w);
+    ok(!($('pv').srcdoc || '').includes(aNo), (w === 20 ? 20 : 300) + 'ms：別の発行済みに 替えたのに 前の 番号 ' + aNo + ' が 表に 残っている');
+  }
+  await sleep(400);
+  ok(($('pv').srcdoc || '').includes('KAMI-777'), '落ち着いても 新しい 発行済みの 紙が 出ない');
   // 元の発行済みに戻す
   doc.querySelector('.bn[data-scr="scr-list"]').click();
   await sleep(20);

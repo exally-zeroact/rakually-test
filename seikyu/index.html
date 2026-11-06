@@ -14,10 +14,10 @@
 <link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png?v=c6856bdb">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- ★字体の CSS は給与と同じ手元の1枚（外の CSS を待って画面が止まっていた・中の訳は kyuyo/css/fonts-google.css の頭） -->
-<link rel="stylesheet" href="../kyuyo/css/fonts-google.css?v=1476d685">
+<link rel="stylesheet" href="../kyuyo/css/fonts-google.css?v=ec0df8f4">
 <!-- ★見た目の本体はスイート共通の皮。請求書の app.css は差分だけ（読む順は皮が先） -->
-<link rel="stylesheet" href="../css/rakunally-ui.css?v=1476d685">
-<link rel="stylesheet" href="css/app.css?v=1476d685">
+<link rel="stylesheet" href="../css/rakunally-ui.css?v=ec0df8f4">
+<link rel="stylesheet" href="css/app.css?v=ec0df8f4">
 </head>
 <body>
 
@@ -442,8 +442,6 @@
         </div>
         <p class="hint">出来た紙を <b>印刷する・PDFにする・納品書にする・Excelにする</b>のは
           <b>「一覧」タブの「確認」</b>から できます。</p>
-        <!-- ★押せない時は なぜ押せないかを1行★（黙って何も起きない作りにしない） -->
-        <p class="hint" id="paper-gate" style="display:none"></p>
         <!-- ★紙はA4 1枚に収まるよう「実際に測って」組んである★
              印刷の画面で「用紙に合わせる／縮小」を選ぶと その寸法が崩れる。 -->
         <p class="hint" id="print-scale-note">印刷するときは、拡大・縮小を「実際のサイズ（100%）」にしてください。A4 1枚に収まるよう寸法を測って作っています。</p>
@@ -459,8 +457,20 @@
       <div class="btn-row" id="after-issue" style="display:none">
         <button class="btn-primary" type="button" id="b-after-look">出来た紙を見る（PDF・印刷）</button>
       </div>
-      <div class="pv-wrap" id="pv-wrap" style="display:none"><iframe class="pv" id="pv" title="請求書の下見"></iframe></div>
     </div>
+    <!-- ★★入力したら 紙が その場で 映る（2026-11-06）★★
+         司さん 11-04「完成形の PDF が見えないまま入力するのでイメージ湧かない」。
+         ・表 #pv と 裏 #pv-ura の 2枚＝裏で 組み終わってから id を 入れ替える（白く 光らない）
+         ・#pv-maku＝作り直している 間だけ 前の 紙に かける 白い 膜（見本＝代行請求書の「プレビュー作成中」）
+         ・#paper-gate＝出せない 理由（★畳む 箱の 外★＝畳んでいても 見える・紙の 枠の すぐ上に 1つだけ）
+         ・広い 画面（1100px〜）は 右に 並べる／狭い 画面は 入力の 下＋下の 帯「紙を見る」 -->
+    <div id="kami-waku">
+      <!-- ★押せない時は なぜ押せないかを1行★（黙って何も起きない作りにしない） -->
+      <p class="hint" id="paper-gate" style="display:none"></p>
+      <div class="pv-wrap" id="pv-wrap" style="display:none"><iframe class="pv" id="pv" title="請求書の下見"></iframe><iframe class="pv" id="pv-ura" title="請求書の下見（裏）" aria-hidden="true" tabindex="-1"></iframe><div id="pv-maku" style="display:none"><span>プレビュー作成中</span></div></div>
+    </div>
+    <!-- ★帯「紙を見る」★（狭い 画面だけ・下の タブの 上）＝押すと 紙を 大きく（ファイルを 作る ボタンは 出さない＝09-08 司さん「ここにいらん」） -->
+    <button type="button" id="kami-obi" disabled><span id="kami-obi-t">紙はまだ出ません</span></button>
   </section>
 
   <!-- ═══ ③ 設定 ═══ -->
@@ -1072,62 +1082,62 @@
 
 </div>
 
-<script src="../lib/supabase-js-2.112.4.min.js?v=1476d685"></script>
-<script src="../js/supa-config.js?v=1476d685"></script>
-<script src="../lib/xlsx.full.min.js?v=1476d685"></script>
-<script src="../js/file-out.js?v=1476d685"></script>
-<script src="../js/suite-data.js?v=1476d685"></script>
-<script src="../kyuyo/lib/shouhizei-ritsu.js?v=1476d685"></script>
+<script src="../lib/supabase-js-2.112.4.min.js?v=ec0df8f4"></script>
+<script src="../js/supa-config.js?v=ec0df8f4"></script>
+<script src="../lib/xlsx.full.min.js?v=ec0df8f4"></script>
+<script src="../js/file-out.js?v=ec0df8f4"></script>
+<script src="../js/suite-data.js?v=ec0df8f4"></script>
+<script src="../kyuyo/lib/shouhizei-ritsu.js?v=ec0df8f4"></script>
 <!-- ★源泉徴収の率と式は【給与の lib】が持つ＝請求書側には率を1つも書かない★
      （国税庁 No.2798。100万円の境目も、1円未満の切り捨ても、あちらの gensenA が唯一の正） -->
-<script src="../kyuyo/lib/shiharai-chosho.js?v=1476d685"></script>
-<script src="lib/seikyu-tax.js?v=1476d685"></script>
-<script src="lib/seikyu-gensen.js?v=1476d685"></script>
-<script src="lib/seikyu-carry.js?v=1476d685"></script>
-<script src="lib/seikyu-cols.js?v=1476d685"></script>
-<script src="lib/seikyu-templates.js?v=1476d685"></script>
-<script src="../lib/toroku-no.js?v=1476d685"></script>
-<script src="lib/seikyu-doc.js?v=1476d685"></script>
-<script src="lib/seikyu-partner-ask.js?v=1476d685"></script>
+<script src="../kyuyo/lib/shiharai-chosho.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-tax.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-gensen.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-carry.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-cols.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-templates.js?v=ec0df8f4"></script>
+<script src="../lib/toroku-no.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-doc.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-partner-ask.js?v=ec0df8f4"></script>
 <!-- ★字体を 軽くする（使う字だけ 形を 残す）★（司さん 2026-09-05「重すぎるやろが」）
      ★seikyu-pdf.js より 先に 読む★＝後だと 1通目だけ 丸ごとの 重い紙が 出る -->
-<script src="../lib/font-slim.js?v=1476d685"></script>
-<script src="lib/seikyu-pdf.js?v=1476d685"></script>
+<script src="../lib/font-slim.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-pdf.js?v=ec0df8f4"></script>
 <!-- ★入れた判子が 会社の角印か 個人の丸い印かを 見分ける（大きさを 当てて見せる）★ -->
 <!-- ★判子の白抜き★＝代行請求／Exally の hanko.js を ★1文字も変えずに★ 借りた道具。
      白い紙に押した判子を そのまま入れると 白い四角が 社名の上に かぶさる。 -->
-<script src="../js/hanko.js?v=1476d685"></script>
-<script src="lib/seikyu-seal.js?v=1476d685"></script>
+<script src="../js/hanko.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-seal.js?v=ec0df8f4"></script>
 <!-- ★月ごと・取引先ごとの集計（数え方は seikyu-doc が正・ここは まとめるだけ）★ -->
-<script src="lib/seikyu-report.js?v=1476d685"></script>
+<script src="lib/seikyu-report.js?v=ec0df8f4"></script>
 <!-- ★よく使う品目（過去の紙から覚える。登録させない）★ -->
-<script src="lib/seikyu-items.js?v=1476d685"></script>
+<script src="lib/seikyu-items.js?v=ec0df8f4"></script>
 <!-- ★毎月の請求（今月まだの相手を 当てて見せる。勝手に作らない）★ -->
-<script src="lib/seikyu-recurring.js?v=1476d685"></script>
+<script src="lib/seikyu-recurring.js?v=ec0df8f4"></script>
 <!-- ★探す（相手・請求日・金額。電子帳簿保存法の検索要件と同じ形）★ -->
-<script src="lib/seikyu-find.js?v=1476d685"></script>
+<script src="lib/seikyu-find.js?v=ec0df8f4"></script>
 <!-- ★自社のExcelを そのまま使う★（読む・当てる・書く）
      ＝2026-08-12 に作ってあったのに ★画面から1度も呼ばれていなかった★（司さん 2026-08-31） -->
-<script src="../lib/zip-surgeon.js?v=1476d685"></script>
-<script src="../lib/xlsx-edit.js?v=1476d685"></script>
-<script src="lib/seikyu-book.js?v=1476d685"></script>
-<script src="lib/seikyu-scope.js?v=1476d685"></script>
-<script src="../lib/kikan.js?v=1476d685"></script>
-<script src="lib/seikyu-invoice-ask.js?v=1476d685"></script>
-<script src="lib/seikyu-paper-ask.js?v=1476d685"></script>
-<script src="lib/seikyu-name.js?v=1476d685"></script>
-<script src="lib/seikyu-paper.js?v=1476d685"></script>
-<script src="lib/seikyu-aoa.js?v=1476d685"></script>
-<script src="js/seikyu-store.js?v=1476d685"></script>
-<script src="js/seikyu-out.js?v=1476d685"></script>
-<script src="js/seikyu-app.js?v=1476d685"></script>
-<script src="../js/rakunally-login.js?v=1476d685"></script>
-<script src="js/auth.js?v=1476d685"></script>
+<script src="../lib/zip-surgeon.js?v=ec0df8f4"></script>
+<script src="../lib/xlsx-edit.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-book.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-scope.js?v=ec0df8f4"></script>
+<script src="../lib/kikan.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-invoice-ask.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-paper-ask.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-name.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-paper.js?v=ec0df8f4"></script>
+<script src="lib/seikyu-aoa.js?v=ec0df8f4"></script>
+<script src="js/seikyu-store.js?v=ec0df8f4"></script>
+<script src="js/seikyu-out.js?v=ec0df8f4"></script>
+<script src="js/seikyu-app.js?v=ec0df8f4"></script>
+<script src="../js/rakunally-login.js?v=ec0df8f4"></script>
+<script src="js/auth.js?v=ec0df8f4"></script>
 <!-- ★Service Worker は登録しない＝キャッシュで古い版が居座る問題を根絶。
      開くたびに既存SWを登録解除＋全キャッシュ削除して常に最新にする（給与と同じ）。 -->
 <script>try{if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}}catch(e){}</script>
 <!-- ★テスト環境の帯★ 本番の倉庫では出ない。今どの倉庫かは js/supa-config.js が唯一の正。
      ホスト名では決めない（配り方は変わるが「本番のデータか」は変わらないため）。 -->
-<script src="../js/env-badge.js?v=1476d685"></script>
+<script src="../js/env-badge.js?v=ec0df8f4"></script>
 </body>
 </html>
