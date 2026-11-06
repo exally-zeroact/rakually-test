@@ -376,6 +376,14 @@ jobs:
       - name: ★従業員が 自分の 明細を 開く 道（実ブラウザ・09-19＝ここを 見る 試験が 1本も 無かった／幅と 転がりだけ 見て いた）
         if: ${{ !cancelled() }}
         run: node kyuyo/tests/meisai-ui.mjs
+      # ★11-06 押しD★ 倉庫の 源泉徴収票の 外の 字体の 返事が 来ないと 従業員の 画面が 真っ白で「読み込み中」の まま 止まった（iPhone の 話＝ここで webkit を 測る）
+      #   毎回の CI（ci.yml test-4）には ブラウザが 無い＝未測定で 緑＝★ここが 本当の 測り★（taiketsu 11-06 止1）
+      - name: ★Web明細の 紙が 外の物の 返事待ちで「読み込み中」の まま 止まらない（実ブラウザ webkit・返事を 一切 返さない 形）★
+        if: ${{ !cancelled() }}
+        run: node kyuyo/tests/gensen-soto-tomeru.mjs --kind=webkit
+      - name: ★わざと 外さない 形に 戻したら 赤に なるか（gensen-soto-tomeru の 空振り止め）★
+        if: ${{ !cancelled() }}
+        run: node kyuyo/tests/gensen-soto-tomeru.mjs --kind=webkit --waza
       - name: ★管理者で ない 人に 他人の 一覧が 出ないか（実ブラウザ・09-19＝この紙の 中身を 見る 試験が 0本だった／守りの 本体は サーバ側の RLS）★
         if: ${{ !cancelled() }}
         run: node kyuyo/tests/admin-ui.mjs

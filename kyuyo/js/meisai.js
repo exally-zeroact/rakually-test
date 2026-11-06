@@ -56,6 +56,8 @@
   var DEVKEY='meisai_dev_'+token;                 // この端末に記憶したdeviceToken
   var cred=null, docs=[];                          // 認証後の資格情報(deviceToken or password)
 
+  // ★試験の口★（kyuyo/tests/gensen-soto-tomeru.mjs が 本物の 描き方を 呼ぶ）＝鍵が 無くて 次の 行で return しても 届く 所に 置く
+  window.MeisaiMiseru={ renderPayslip:renderPayslip, sotoWoTomeru:sotoWoTomeru };
   if(!token){ show('sc-bad'); return; }
 
   // 起動: 端末記憶があれば認証スキップ
@@ -168,28 +170,50 @@
     renderPayslip(html, pw, ph);
     window.scrollTo(0,0);
   }
+  /* ★紙の中から 外の物を 一切 読ませない★（2026-11-06）
+     倉庫の 源泉徴収票（app.js nenGensenDoc が 11-06 まで 作った 紙）は head に Google Fonts の link が在る。
+     返事が 来ない 回線だと iframe は 描かれず（真っ白）onload も 来ない＝「明細を読み込み中…」のまま 止まった
+     （chromium・webkit とも 20秒 onload 無し・4秒 真っ白 を 測った）。古い 紙は 倉庫に 残るので 見せる側で 止める。
+     字で link を 外す 形は 大文字・一重引用符・@import・@font-face・img を 取りこぼす ⇒ ★<head> の 直後に CSP を 1つ 差す★
+     （8形 すべて load が 来るのを 測った）。紙の 中の script も 止まる。meta は doctype より 前に 置くと 描き方が 崩れるので head の 中。 */
+  function sotoWoTomeru(html){
+    // ★定数も 関数の 中★＝鍵 無しの 時は 上の if(!token){…return;} で 終わる＝それより 後の var は 入らない（試験の口から 呼ばれる 時）
+    var SOTO_TOMERU='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:">';
+    html=String(html||'');
+    // ★<head> と <html> だけに 当てる★（<header>・<html5…> に 当たると meta が body に 入り CSP が 効かない）
+    if(/<head(\s[^>]*)?>/i.test(html)) return html.replace(/<head(\s[^>]*)?>/i, function(h){ return h+SOTO_TOMERU; });
+    if(/<html(\s[^>]*)?>/i.test(html)) return html.replace(/<html(\s[^>]*)?>/i, function(h){ return h+'<head>'+SOTO_TOMERU+'</head>'; });
+    return '<!doctype html><html><head>'+SOTO_TOMERU+'</head><body>'+html+'</body></html>';
+  }
+  var _psBan=0;
   // 原寸iframeに明細を描画→実際の高さを測り→画面幅にフィットするようtransform:scale。
   function renderPayslip(html, pw, ph){
     var f=$('frame'), load=$('ps-loading');
     _psW=pw; _psH=ph;
     if(load){ load.style.display=''; load.textContent='明細を読み込み中…'; }
     f.style.width=pw+'px'; f.style.height=ph+'px'; f.style.transform='none';
-    f.onload=function(){
-      setTimeout(function(){
-        try{
-          var idoc=f.contentDocument||f.contentWindow.document;
-          var sheet=idoc.querySelector('.sheet,.page');
-          var natH=Math.max(ph, sheet?sheet.scrollHeight:ph);
-          _psH=natH; f.style.height=natH+'px';
-          fitFrame();
-          if(load){ load.style.display='none'; }
-          // ★レイアウト確定のタイミングがiOSで遅れることがあるので複数回フィット(幅0で空振りした分を拾う)
-          try{ requestAnimationFrame(fitFrame); }catch(e){}
-          setTimeout(fitFrame, 250); setTimeout(fitFrame, 600);
-        }catch(e){ fitFrame(); if(load){ load.style.display='none'; } }
-      }, 120);
+    /* ★onload が 来ない 端末の 受け皿★（seikyu-app.js と 同じ 考え）＝3秒で 合わせて 札を 下げる。
+       別の 紙を 開き直したら 前の 受け皿は 何も しない（番号で 見分ける）。 */
+    var ban=_psBan=(_psBan|0)+1, sumi=false;   // (_psBan|0)＝試験の口から 呼ばれて var が まだ 入っていない 時も 数になる
+    var awaseru=function(kara){
+      if(ban!==_psBan) return;                 // 別の 紙を 開いた 後＝何も しない
+      if(kara==='matsu' && sumi) return;       // onload が 先に 来た＝受け皿は 要らない（onload は 遅れて 来ても 測り直す）
+      sumi=true;
+      try{
+        var idoc=f.contentDocument||f.contentWindow.document;
+        var sheet=idoc.querySelector('.sheet,.page');
+        var natH=Math.max(ph, sheet?sheet.scrollHeight:ph);
+        _psH=natH; f.style.height=natH+'px';
+        fitFrame();
+        if(load){ load.style.display='none'; }
+        // ★レイアウト確定のタイミングがiOSで遅れることがあるので複数回フィット(幅0で空振りした分を拾う)
+        try{ requestAnimationFrame(fitFrame); }catch(e){}
+        setTimeout(fitFrame, 250); setTimeout(fitFrame, 600);
+      }catch(e){ fitFrame(); if(load){ load.style.display='none'; } }
     };
-    f.srcdoc=html;
+    f.onload=function(){ setTimeout(function(){ awaseru('load'); }, 120); };
+    setTimeout(function(){ awaseru('matsu'); }, 3000);
+    f.srcdoc=sotoWoTomeru(html);
   }
   // iframe(原寸_psW×_psH)を preview-wrap の内幅にフィットさせる。
   //   ★transformは「見た目」だけ縮小しレイアウトの箱は原寸のまま=横にはみ出て横スクロール+巨大余白になる。

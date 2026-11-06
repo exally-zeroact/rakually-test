@@ -758,6 +758,8 @@ jobs:
         run: node kyuyo/tests/kazoku-sei-mei.test.mjs --self-test
       - name: ★2つ並びの入力欄が左右で揃っているか (実際にplaceを測る・戻すと赤)
         run: node kyuyo/tests/frow2-soroi.test.mjs
+      - name: ★Web明細の紙が外の物（倉庫の源泉徴収票の外の字体）の返事待ちで「読み込み中」のまま止まらない（返事を一切返さない形で測る・戻すと赤）
+        run: node kyuyo/tests/gensen-soto-tomeru.mjs && node kyuyo/tests/gensen-soto-tomeru.mjs --waza
       - name: ★最賃の客に出る1行 (47県ぜんぶ・額と日付が別々の物になっていない/予定が出る)
         run: node kyuyo/tests/saitei-ask-bun.test.mjs
       - name: ★最賃の客に出る1行 (わざと戻して赤になるかの自己確認・4通り)

@@ -4524,9 +4524,10 @@
       +'@media print{.gensen{margin:0;border-color:#000;}}';
   }
   // 1名分の源泉徴収票を単独HTML化(Web明細ビューアのiframeにそのまま表示できる自己完結HTML)
+  //   ★外の字体（Google Fonts）の link は 置かない★（2026-11-06）＝返事が 来ない 回線で 従業員の 画面が 真っ白の まま 止まった。
+  //   字は 端末の 字（gensenCss の sans-serif・monospace）。11-06 より 前の 紙は 倉庫に 残る＝meisai.js sotoWoTomeru が 見せる 時に 止める。
   function nenGensenDoc(e, year){
     return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-      +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">'
       +'<style>'+gensenCss()+'</style></head><body>'+nenGensenHTML(e, year)+'</body></html>';
   }
   /* ★紙を PDF に焼く輪（1か所）★＝明細の b-print と 源泉徴収票 nenPrintGensen が使う（2026-11-06 b-print から抜き出した・中身は同じ）。
