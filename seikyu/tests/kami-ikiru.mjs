@@ -11,8 +11,8 @@
  *   ・帯「紙を見る」から開く窓は 今の1通の 見出しで、ファイルを作るボタンは 出さない（09-08 司さん「ここにいらん」）
  *
  * ★--waza★ … 決まりを 1つずつ 外した 本体で 回し直し、どれも ★狙った 試験で★ 赤に なるか（空振り止め）
- *   壊しは 下の WAZA の 11個（n の比べ・止める時の kamiBan・別の1通で空にする・道3・帯のボタン2つ・同じ1通・
- *   白の帯・帯の窓の描き直し・確認の窓の守り kamiObiAku・設定の紙の全文比べ）。各々に「赤に なるべき 試験の 名」を 持たせる
+ *   壊しは 下の WAZA の 12個（n の比べ・止める時の kamiBan・別の1通で空にする・道3・帯のボタン2つ・同じ1通・
+ *   白の帯・帯の窓の描き直し・確認の窓の守り kamiObiAku・設定の紙と印の紙の全文比べ）。各々に「赤に なるべき 試験の 名」を 持たせる
  *
  * 使い方: node seikyu/tests/kami-ikiru.mjs   ／   --waza
  */
@@ -39,6 +39,7 @@ const WAZA = {
   '帯の窓を 描き直さない': ["if (kamiObiAku && lookOpened() && kamiOmoteHtml !== '') {", 'if (false) {', '帯で 開いている 間に 打つ'],
   '確認の窓にも 入力の紙を 入れる': ["if (kamiObiAku && lookOpened() && kamiOmoteHtml !== '') {", "if (lookOpened() && kamiOmoteHtml !== '') {", '㋖ 一覧で 別の1通'],
   '設定の紙を 長さで 比べる': ["    if (fr.getAttribute('data-h') === '1' && fr.srcdoc === html) return;", "    if (fr.getAttribute('data-h') === '1' && fr.srcdoc.length === html.length) return;", '設定の 紙の下見'],
+  '印の紙を 長さで 比べる': ["    if (!(fr.getAttribute('data-h') === '1' && fr.srcdoc === html)) {", "    if (!(fr.getAttribute('data-h') === '1' && fr.srcdoc.length === html.length)) {", '印の紙の下見'],
 };
 const wazaArg = process.argv.find((a) => a === '--waza' || a === '--self-test' || /^--waza=[12]$/.test(a));
 if (wazaArg) {
@@ -385,6 +386,32 @@ await TA('設定の 紙の下見＝長さが 同じで 中身の 違う 紙も �
   await sleep(SETTLE);
 });
 
+await TA('印の紙の下見＝長さが 同じで 中身の 違う 紙も 描き直す（印の 絵を 同じ 長さの 別の 絵に 替える）', async () => {
+  /* 印の 大きさの 欄は つまむ印（img）だけを 変え、紙は 倉庫の 大きさで 描く＝紙の 中身を 変えるのは 印の 絵 */
+  const motoOrg = A()._state.org;
+  const E1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const E2 = E1.replace('mP8z8BQDw', 'mNkYPhfDw');
+  ok(E2 !== E1 && E2.length === E1.length, '前置き：同じ 長さの 別の 絵が 作れていない');
+  /* ★赤でも org と 印の 紙を 戻す★（後ろの 試験へ E2 を 漏らさない・taiketsu 任意1・2） */
+  try {
+    doc.querySelector('.bn[data-scr="scr-set"]').click();
+    await sleep(60);
+    A()._state.org = Object.assign({}, motoOrg || {}, { sealDataUrl: E1, sealSizeMm: 17 });
+    A()._sealStageForTest();
+    const mae = $('seal-paper').srcdoc || '';
+    ok(mae.includes(E1), '前置き：印の 紙に 1つ目の 印が 描かれていない');
+    A()._state.org = Object.assign({}, motoOrg || {}, { sealDataUrl: E2, sealSizeMm: 17 });
+    A()._sealStageForTest();
+    const ato = $('seal-paper').srcdoc || '';
+    ok(ato.length === mae.length, '前置き：長さが 変わった（' + mae.length + '→' + ato.length + '）＝この 試験で 見たい 形に なっていない');
+    ok(ato.includes(E2), '印の 絵を 替えても 印の 紙が 描き直されない（長さで 比べている）');
+  } finally {
+    A()._state.org = motoOrg;
+    A()._sealStageForTest();
+    doc.querySelector('.bn[data-scr="scr-edit"]').click();
+    await sleep(SETTLE);
+  }
+});
 await TA('帯で 開いて 閉じた 後、一覧の「確認」では ファイルの ボタンが 出直す', async () => {
   ok(mieru($('b-pdf')) === false || !$('lv-ov').classList.contains('open'), '前置き');
   $('b-save').click();
