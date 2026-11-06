@@ -45,7 +45,8 @@
     return out;
   }
 
-  function num(v) { var s = String(v == null ? '' : v).replace(/[^0-9\-]/g, ''); var n = parseInt(s, 10); return isNaN(n) ? 0 : n; } // 符号保持(負額が正の振込に化けるのを防ぐ)
+  /* ★全角の 数字は 半角に 直してから 読む★（2026-11-06＝前は「０００５」が 0 に なり 銀行 0000 で 書き出した） */
+  function num(v) { var s = z2hAscii(String(v == null ? '' : v)).replace(/[^0-9\-]/g, ''); var n = parseInt(s, 10); return isNaN(n) ? 0 : n; } // 符号保持(負額が正の振込に化けるのを防ぐ)
   // N: 数字・右詰・前0埋・超過は下位len桁
   function padN(v, len) { var s = String(Math.max(0, num(v))); if (s.length > len) s = s.slice(s.length - len); while (s.length < len) s = '0' + s; return s; }
   // C: 半角文字・左詰・後スペース・超過はlen文字で切詰(半角=1文字1バイト前提)
@@ -217,7 +218,32 @@
     if (!/^\d{1,10}$/.test(code)) return { long: '委託者コードが数字ではありません: ' + JSON.stringify(code), short: '委託者コードが数字でない' };
     if (/^0+$/.test(code)) return { long: '委託者コードが 0 だけです: ' + JSON.stringify(code), short: '委託者コードが0だけ' };
     if (!toHankaku((c || {}).name).trim()) return { long: '委託者名が空です（半角カナで入れてください）', short: '委託者名なし' };
+    /* ★自社の 口座の 番号★（2026-11-06）＝前は 見ていなかった＝空でも 全角でも ★仕向銀行 0000・口座 0000000★ の 見出しを 銀行へ 出した
+       （画面は「まず下の委託者情報を埋めて」と 案内するのに ボタンは 押せた）。仕向銀行・支店・口座は 見出しに 要る 欄＝空も 作らない。 */
+    var bp = bangoProblem(c, { who: '自社の' });
+    if (bp.long) return { long: bp.long, short: '自社の' + bp.short };
     return { long: '', short: '' };
+  }
+  /* ★振込先の 番号（銀行4桁・支店3桁・口座7桁）を 1か所で 確かめる★（2026-11-06）
+     前は padN が 数字以外を 黙って 消して 0 で 埋めた＝全角の「０００５」が 銀行 0000・
+     口座「７６５４３２１」が 0000000、口座 8桁は 下7桁に 黙って 切られて ★別の 口座へ 振り込む 形★だった。
+     ⇒ 全角の 数字は 半角に 直して 読む（前後の 空白は 読み飛ばす・短い 番号は 今までどおり 前を 0 埋め）。
+       空・数字以外の 字・桁の 超え・銀行や口座が 0 だけ は ★作らない★（支店 000 は 在り得るので 止めない）。
+     ★画面（buildTransfers の ready・名指しの 案内）と build（最後の 砦）は ★この 関数だけ★を 見る★＝食い違わない。
+     返り＝{ long: 詳しい字（'' なら 良い）, short: 短い字, kara: 空の 欄が 在る }。 */
+  var BANGO = [['bankNo', 4, '銀行コード', true], ['branchNo', 3, '支店コード', false], ['account', 7, '口座番号', true]];
+  function bangoStr(v) { return z2hAscii(String(v == null ? '' : v)).trim(); }
+  function bangoProblem(t, opts) {
+    t = t || {}; opts = opts || {};
+    var who = opts.who || '';
+    for (var i = 0; i < BANGO.length; i++) {
+      var k = BANGO[i][0], len = BANGO[i][1], nm = BANGO[i][2], lb = who + nm, raw = t[k], s = bangoStr(raw);
+      if (!s) { if (opts.karaOk) continue; return { long: lb + 'が空です', short: nm + 'なし', kara: true }; }
+      if (!/^[0-9]+$/.test(s)) return { long: lb + 'に数字以外の字が在ります（' + len + '桁までの数字で入れてください）: ' + JSON.stringify(String(raw)), short: nm + 'の字が違う', kara: false };
+      if (s.length > len) return { long: lb + 'が' + len + '桁を超えています（' + s.length + '桁）: ' + JSON.stringify(String(raw)), short: nm + 'の桁が違う', kara: false };
+      if (BANGO[i][3] && /^0+$/.test(s)) return { long: lb + 'が 0 だけです: ' + JSON.stringify(String(raw)), short: nm + 'が0だけ', kara: false };
+    }
+    return { long: '', short: '', kara: false };
   }
   function checkCommitter(c) { return committerProblem(c).long; }
   function checkName(t, i) {
@@ -233,6 +259,8 @@
     for (var i = 0; i < list.length; i++) {
       var nb = checkName(list[i], i);
       if (nb) throw new Error('全銀ファイルを作れません ' + nb);
+      var bp = bangoProblem(list[i]);
+      if (bp.long) throw new Error('全銀ファイルを作れません ' + (i + 1) + '件目の' + bp.long);
     }
     var recs = [header(committer)];
     var total = 0;
@@ -248,7 +276,7 @@
 
   return {
     shubetsuOf: shubetsuOf, SHUBETSU_OK: SHUBETSU_OK,
-    build: build, checkTorikumi: checkTorikumi, checkCommitter: checkCommitter, committerProblem: committerProblem, checkName: checkName, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
+    build: build, checkTorikumi: checkTorikumi, checkCommitter: checkCommitter, committerProblem: committerProblem, checkName: checkName, bangoProblem: bangoProblem, header: header, dataRec: dataRec, trailer: trailer, endRec: endRec,
     toHankaku: toHankaku, padN: padN, padC: padC, yokinCode: yokinCode, toShiftJisBytes: toShiftJisBytes,
     newlineKey: newlineKey, resolveNewlineKey: resolveNewlineKey, bankOf: bankOf,
     NEWLINES: NEWLINES, NEWLINE_DEFAULT: NEWLINE_DEFAULT, BANKS: BANKS

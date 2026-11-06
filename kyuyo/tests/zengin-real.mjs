@@ -280,7 +280,10 @@ await TA('★⑥ 委託者コードが空なら 押せない＋理由（1バイ�
   /* ★最後の砦（lib）も 止める★ */
   ok(Z.checkCommitter({ code: '', name: 'ｱ' }), 'lib が 空の委託者コードを通す');
   ok(Z.checkCommitter({ code: '0000000000', name: 'ｱ' }), 'lib が 0だけの委託者コードを通す');
-  ok(!Z.checkCommitter({ code: '1234567890', name: 'ｱ' }), 'lib が 正しい委託者コードを止める');
+  /* ★2026-11-06〜 自社の 銀行・支店・口座の 番号も 見る★（空・字違いの 見出しを 銀行へ 出さない）＝正しい委託者には 番号も 入れる */
+  const BANGO_OK = { bankNo: '0174', branchNo: '001', account: '7654321' };
+  ok(!Z.checkCommitter(Object.assign({ code: '1234567890', name: 'ｱ' }, BANGO_OK)), 'lib が 正しい委託者コードを止める');
+  ok(/自社の銀行コードが空/.test(Z.checkCommitter({ code: '1234567890', name: 'ｱ' })), 'lib が 自社の 番号の 無い 委託者を 通す');
   /* ★4通りが ちゃんと 分かれているか★＝1つでも 同じ字なら「どこを直すか」が 伝わらない。
      ★long（下の説明）は 1文字も 変えていない★事も ここで 押さえる。 */
   const YOTSU = [
@@ -298,7 +301,7 @@ await TA('★⑥ 委託者コードが空なら 押せない＋理由（1バイ�
     mita[p2.short] = (mita[p2.short] || 0) + 1;
   });
   eq(Object.keys(mita).length, 4, '★4通りが 同じ字に なっている（どこを直すか 伝わらない）★');
-  eq(Z.committerProblem({ code: '1234567890', name: 'ｱ' }).short, '', '正しい時は 何も言わない');
+  eq(Z.committerProblem(Object.assign({ code: '1234567890', name: 'ｱ' }, BANGO_OK)).short, '', '正しい時は 何も言わない');
   console.log('     4通りの ボタンの字 … ' + Object.keys(mita).join(' / '));
   console.log('     ボタンの字「' + String(b.zb.textContent).trim() + '」／画面「'
     + String((b.doc.querySelector('#furi-box .cr-warn') || {}).textContent || '').trim().slice(0, 30) + '…」');

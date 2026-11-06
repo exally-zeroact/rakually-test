@@ -781,6 +781,45 @@ T('★振込: 振込先が未入力の人の警告が1行（3行にしない）'
   } finally { st.employees = keep; win.document.querySelector('[data-scr="scr-furikomi"]').click(); }
 });
 
+/* ★振込先の 番号の 字が 違う人は ready に しない＋名指しで 理由を 出す★（2026-11-06）
+   前は「空でない」だけ 見て ready＝全角の 番号は 銀行 0000 で 書き出し、口座「765-4321」は 押してから 中で 止まった。 */
+T('★振込: 番号の 字が 違う人は ファイルに 入れず 名指しで 理由（全角の 番号は 入れる）', () => {
+  const A = win.__PAYSLIP_TEST, st = A.state;
+  const keep = st.employees.slice();
+  try {
+    const mk = (n, o) => Object.assign(A.defEmp(n), { payType: '月給', base: '250000', joinYmd: '2020-04-01', furiKana: 'ｺｳ', furiBankNo: '0001', furiBranchNo: '001', furiAccount: '1234567' }, o);
+    st.employees = [mk('甲', { furiBankNo: '０００５', furiBranchNo: '０１２', furiAccount: '７６５４３２１' }), mk('乙', { furiAccount: '765-4321' }), mk('丙', { furiBankNo: '00051' })];
+    const tr = A.buildTransfers('monthly');
+    const by = n => tr.find(t => t.emp.name === n);
+    ok(by('甲') && by('甲').ready === true, '★全角の 番号の 人が 入らない: ' + JSON.stringify(by('甲') && by('甲').bangoNg));
+    ok(by('乙') && by('乙').ready === false, '★字の 違う 口座の 人が ready のまま（押してから 止まる）');
+    ok(by('丙') && by('丙').ready === false, '★5桁の 銀行の 人が ready のまま');
+    win.document.querySelector('[data-scr="scr-furikomi"]').click();
+    const w = [...win.document.querySelectorAll('#furi-box .cr-warn')].find(e => /番号/.test(e.textContent) && /乙/.test(e.textContent));
+    ok(w, '★字の 違う人の 案内が 出ていない');
+    ok(w && /丙/.test(w.textContent) && !/甲/.test(w.textContent), '★案内の 名前が 違う: ' + (w && w.textContent));
+    ok(w && w.querySelector('[data-fix-emp-id]'), '★案内が 押せない（その人の 欄へ 行けない）');
+    ok(![...win.document.querySelectorAll('#furi-box .cr-warn')].some(e => /振込先が未入力/.test(e.textContent) && /乙/.test(e.textContent)), '★入れてあるのに「未入力」と 言う');
+  } finally { st.employees = keep; win.document.querySelector('[data-scr="scr-furikomi"]').click(); }
+});
+T('★振込: 自社の 口座の 番号が 空・字違いなら 全銀は 押せない＋ボタンに 理由（0000 の 見出しを 出さない）', () => {
+  const A = win.__PAYSLIP_TEST, st = A.state;
+  const keep = st.employees.slice(), keepCo = st.company;
+  try {
+    st.employees = [Object.assign(A.defEmp('甲'), { payType: '月給', base: '250000', joinYmd: '2020-04-01', furiKana: 'ｺｳ', furiBankNo: '0005', furiBranchNo: '012', furiAccount: '7654321' })];
+    const base = { furiCode: '0123456789', furiName: 'ｶ)ｾﾞﾛｱｸﾄ', furiBankNo: '0001', furiBranchNo: '001', furiAccount: '1234567', furiDate: '2026-08-25' };
+    const btnOf = (o) => { st.company = Object.assign({}, keepCo, base, o); win.document.querySelector('[data-scr="scr-furikomi"]').click(); return win.document.getElementById('b-zengin'); };
+    const b0 = btnOf({});
+    ok(b0 && !b0.disabled, '★番号が 揃っているのに 押せない: ' + (b0 && b0.textContent));
+    [[{ furiBankNo: '' }, '自社の銀行コードなし'], [{ furiAccount: '123-4567' }, '自社の口座番号の字が違う'], [{ furiBranchNo: '0012' }, '自社の支店コードの桁が違う']].forEach(([o, ji]) => {
+      const b = btnOf(o);
+      ok(b && b.disabled && b.textContent.indexOf(ji) >= 0, '★' + JSON.stringify(o) + ' で 止まらない／理由が 違う: ' + (b && b.textContent));
+    });
+    const b1 = btnOf({ furiBankNo: '０００１', furiBranchNo: '００１', furiAccount: '１２３４５６７' });
+    ok(b1 && !b1.disabled, '★全角の 自社の 番号で 止まる（読めるのに）: ' + (b1 && b1.textContent));
+  } finally { st.employees = keep; st.company = keepCo; win.document.querySelector('[data-scr="scr-furikomi"]').click(); }
+});
+
 /* ★都道府県の未選択を、わざと作って画面で確かめる（2026-08-09）
    県が空だと 健保が黙って東京の率になり、最賃の判定も動かない（lib側で実測済み）。
    だから ①黄色が出る ②「今月を確定」が押せない ③選んだら押せる を実物の画面で見る。 */

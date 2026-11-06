@@ -228,3 +228,65 @@ T('★改行: 中身(120桁のレコード)は改行を変えても1文字も変
     eq(Z.build(committer, [t1, t2n], { newline: k }).records.join('|'), a, k + ': レコード本体が変わっている');
   });
 });
+
+/* ★振込先の 番号（銀行4桁・支店3桁・口座7桁）は 字を 確かめてから 出す★（2026-11-06）
+   前は padN が 数字以外を 黙って 消して 0 で 埋めた＝全角の「０００５」が 銀行 0000、
+   口座「７６５４３２１」が 0000000 で 書き出され、口座 8桁は 下7桁に 黙って 切られて 別の 口座へ 振り込む 形だった。
+   ⇒ 全角の 数字は 半角に 直して 読む／それ以外の 字・桁の 超え・空・銀行や口座が 0 だけ は ★作らない（止めて 理由を 言う）★。 */
+function zBuildErr(c, list) { try { Z.build(c, list); return ''; } catch (e) { return String(e && e.message || e); } }
+function zWith(o) { return Object.assign({}, t1, o); }
+T('★全銀 番号: 全角の 数字は 半角に 直して 書く（0000 に しない）', function () {
+  var r = Z.build(committer, [zWith({ bankNo: '０００５', branchNo: '０１２', account: '７６５４３２１' })]);
+  var d = r.records[1];
+  eq(d.slice(1, 5), '0005', '被仕向銀行番号'); eq(d.slice(20, 23), '012', '被仕向支店番号'); eq(d.slice(43, 50), '7654321', '口座番号');
+  eq(r.records.join(''), Z.build(committer, [t1]).records.join(''), '★半角で 入れた時と 1字も 同じ');
+});
+T('★全銀 番号: 前後の 空白は 読み飛ばす・短い 番号は 前を 0 で 埋める（今までどおり）', function () {
+  var d = Z.build(committer, [zWith({ bankNo: ' 5 ', branchNo: '12', account: '54321' })]).records[1];
+  eq(d.slice(1, 5), '0005'); eq(d.slice(20, 23), '012'); eq(d.slice(43, 50), '0054321');
+});
+T('★全銀 番号: 数字以外の 字が 在れば 作らない（黙って 消して 別の 番号に しない）', function () {
+  [['bankNo', '00-5'], ['branchNo', '01a'], ['account', '765-4321'], ['account', '76５4ー321'], ['bankNo', '０００５銀行']].forEach(function (p) {
+    var o = {}; o[p[0]] = p[1];
+    var m = zBuildErr(committer, [zWith(o)]);
+    ok(/作れません/.test(m) && /1件目/.test(m) && /数字以外/.test(m), p[0] + '=' + p[1] + ' で 止まらない: ' + m);
+  });
+});
+T('★全銀 番号: 桁を 超えたら 作らない（口座 8桁を 下7桁に 切って 別の 口座へ 振り込まない）', function () {
+  [['bankNo', '00051'], ['branchNo', '0123'], ['account', '12345678'], ['account', '１２３４５６７８']].forEach(function (p) {
+    var o = {}; o[p[0]] = p[1];
+    var m = zBuildErr(committer, [zWith(o)]);
+    ok(/作れません/.test(m) && /桁/.test(m), p[0] + '=' + p[1] + ' で 止まらない: ' + m);
+  });
+});
+T('★全銀 番号: 空・銀行や口座が 0 だけ は 作らない（2件目なら 2件目と 言う）', function () {
+  [['bankNo', ''], ['branchNo', '  '], ['account', null], ['bankNo', '0000'], ['account', '０００００００']].forEach(function (p) {
+    var o = {}; o[p[0]] = p[1];
+    var m = zBuildErr(committer, [t1, zWith(o)]);
+    ok(/作れません/.test(m) && /2件目/.test(m), p[0] + '=' + JSON.stringify(p[1]) + ' で 止まらない: ' + m);
+  });
+  eq(zBuildErr(committer, [zWith({ branchNo: '000' })]), '', '支店 000 は 在り得る（止めない）');
+});
+T('★全銀 番号: 金額 0 の 人は 番号を 見ない（ファイルに 入らない人で 止めない）', function () {
+  eq(zBuildErr(committer, [t1, zWith({ bankNo: '', amount: 0 })]), '');
+});
+T('★全銀 番号: bangoProblem が 画面と build の 1か所（短い字と 長い字を 返す）', function () {
+  eq(typeof Z.bangoProblem, 'function', 'bangoProblem が 無い');
+  eq(Z.bangoProblem(t1).long, ''); eq(Z.bangoProblem(t1).short, '');
+  var p = Z.bangoProblem(zWith({ account: '765-4321' }));
+  ok(/口座番号/.test(p.long) && /765-4321/.test(p.long), p.long); ok(p.short && p.short.length <= 12, '短い字: ' + p.short);
+  eq(Z.bangoProblem(zWith({ bankNo: '' })).kara, true, '空は kara'); eq(Z.bangoProblem(zWith({ bankNo: 'x' })).kara, false);
+});
+T('★全銀 委託者の 番号: 入れてある 番号が 全角なら 半角で 書く・字が 違えば 委託者の 問題に する', function () {
+  var h = Z.header(Object.assign({}, committer, { bankNo: '０００１', branchNo: '００１', account: '１２３４５６７' }));
+  eq(h.slice(58, 62), '0001'); eq(h.slice(77, 80), '001'); eq(h.slice(96, 103), '1234567');
+  var cp = Z.committerProblem(Object.assign({}, committer, { account: '123-4567' }));
+  ok(/自社/.test(cp.long) && /口座番号/.test(cp.long), cp.long);
+  ok(/作れません/.test(zBuildErr(Object.assign({}, committer, { bankNo: '00012' }), [t1])), '委託者の 銀行 5桁で 止まらない');
+  ['bankNo', 'branchNo', 'account'].forEach(function (k) {
+    var o = Object.assign({}, committer); o[k] = '';
+    var p = Z.committerProblem(o);
+    ok(/自社の/.test(p.long) && /空/.test(p.long) && /^自社の/.test(p.short), k + ' が空の 委託者で 止まらない（0 埋めの 見出しを 出す）: ' + JSON.stringify(p));
+    ok(/作れません/.test(zBuildErr(o, [t1])), k + ' が空でも build が 作る');
+  });
+});

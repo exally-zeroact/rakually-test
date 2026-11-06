@@ -5086,8 +5086,12 @@
          カナが空だと ★漢字の氏名で代わりを埋めていた★ので、全銀に直す時に
          ★全部スペース＝名前の無い振込★になっていた。★出せない物は ready にしない★。 */
       var kana=(typeof Zengin!=='undefined'&&Zengin.toHankaku)?Zengin.toHankaku(e.furiKana||e.name):String(e.furiKana||'');
-      var ready=!!(String(e.furiBankNo||'').trim() && String(e.furiBranchNo||'').trim() && String(e.furiAccount||'').trim() && String(kana).trim() && net>0 && !keisanOchi);
-      return { emp:e, name:(e.furiKana||e.name), kanaOk:!!String(kana).trim(), bankNo:e.furiBankNo, bankName:e.furiBankName, branchNo:e.furiBranchNo, branchName:e.furiBranchName, yokin:e.furiYokin, account:e.furiAccount, amount:net, ready:ready, keisanOchi:keisanOchi };
+      /* ★番号の 字も lib の 1か所（Zengin.bangoProblem）で 見る★（2026-11-06）＝前は「空でない」だけ 見て ready＝
+         全角の 番号は 銀行 0000 で 書き出し、口座「765-4321」は 押してから 中で 止まった。空は 下の「未入力」の 案内のまま、
+         入れてあるのに 字が 違う 人は bangoNg に 理由を 持たせて 名指しで 出す（renderFuri）。 */
+      var bp=(typeof Zengin!=='undefined'&&Zengin.bangoProblem)?Zengin.bangoProblem({ bankNo:e.furiBankNo, branchNo:e.furiBranchNo, account:e.furiAccount }):{ long:'', short:'', kara:false };
+      var ready=!!(String(e.furiBankNo||'').trim() && String(e.furiBranchNo||'').trim() && String(e.furiAccount||'').trim() && !bp.long && String(kana).trim() && net>0 && !keisanOchi);
+      return { emp:e, name:(e.furiKana||e.name), kanaOk:!!String(kana).trim(), bankNo:e.furiBankNo, bankName:e.furiBankName, branchNo:e.furiBranchNo, branchName:e.furiBranchName, yokin:e.furiYokin, account:e.furiAccount, amount:net, ready:ready, keisanOchi:keisanOchi, bangoNg:(bp.long&&!bp.kara)?bp.short:'' };
     });
   }
   /* ── 「銀行に取り込めなかった時」の中身（普段は閉じている） ────────────────
@@ -5236,7 +5240,8 @@
     var box=$('#furi-box'); if(!box) return;
     /* ★賞与も 作れるように した★（2026-09-03 裁定＝甲）＝前は ここで「月次給与で作成します」と 断っていた */
     var c=state.company, tr=buildTransfers();
-    var ready=tr.filter(function(t){return t.ready;}), notReady=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi;});
+    var ready=tr.filter(function(t){return t.ready;}), notReady=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi && !t.bangoNg;});
+    var bangoNg=tr.filter(function(t){return !t.ready && t.amount>0 && !t.keisanOchi && t.bangoNg;});   /* ★入れてあるのに 番号の 字が 違う 人＝「未入力」と 言わず 理由で 名指し★（2026-11-06） */
     var keisanOchi=tr.filter(function(t){return t.keisanOchi;});   /* ★計算が転んだ人＝黙って落とさない（⑧a）★ */
     var taiTomeru=taishokuTomeruHito();   /* ★退職の 扱いが 決められない 人＝名指しで 出す★ */
     function fi(k,ph,extra){ return '<input class="finput" data-fc="'+k+'" value="'+attr(c[k])+'" placeholder="'+ph+'" '+(extra||'')+'>'; }
@@ -5296,6 +5301,12 @@
         var who=nm.length<=2?nm.join('・'):(nm[0]+'<b class="mw-fix" data-fix-emp-id="'+attr(notReady[1].emp.id)+'" data-fix-sub="teate">ほか'+(nm.length-1)+'名 ▸</b>');
         listHTML+='<div class="cr-warn" style="margin:8px 0 0">⚠ '+who+' は振込先が未入力（押すと その欄を 開きます）</div>';
       }
+      if(bangoNg.length){
+        /* ★番号の 字が 違う 人★＝入れない（銀行へ 違う 番号を 出さない）＋人ごとに 理由（lib の 短い字）＋押すと その欄へ（未入力と 同じ 仕組み） */
+        var bnm=bangoNg.map(function(t){
+          return '<b class="mw-fix" data-fix-emp-id="'+attr(t.emp.id)+'" data-fix-sub="teate">'+esc(t.emp.name)+'（'+esc(t.bangoNg)+'）▸</b>'; });
+        listHTML+='<div class="cr-warn" style="margin:8px 0 0">⚠ '+bnm.join('・')+' は振込先の番号を直すまで ファイルに 入れません（銀行4桁・支店3桁・口座7桁の数字）</div>';
+      }
       /* ★計算が 転んだ人を 名指しで 出す（黙って ファイルから 落とさない・⑧a）★
          ＝compute/computeBonus が 転ぶと 金額0＝ファイルの amount>0 絞りで 消える＝未払いの まま 銀行へ、を 防ぐ。 */
       if(keisanOchi.length){
@@ -5307,7 +5318,7 @@
     var total=ready.reduce(function(a,t){return a+t.amount;},0);
     /* ★押せるかは furikomiGate が決める。押せない理由は【ボタンの中】に出す。
        （下に小さく置くと読まれない。横に置くと幅360で折り返してボタンが崩れる＝実測） */
-    var gate=furikomiGate(tr, { code:c.furiCode, name:c.furiName });
+    var gate=furikomiGate(tr, { code:c.furiCode, name:c.furiName, bankNo:c.furiBankNo, branchNo:c.furiBranchNo, account:c.furiAccount });   /* ★自社の 番号も 門へ（2026-11-06＝空・字違いの 見出しを 押させない・downloadZengin の committer と 同じ 欄）★ */
     var btns='<div class="btn-row" style="margin-top:10px;align-items:center">'
       +'<button class="btn-primary" id="b-zengin"'+(gate.zengin.enabled?'':' disabled')+'>全銀ファイル（'
         +(gate.zengin.enabled?(gate.zengin.count+'件 '+yen(total)):esc(gate.zengin.short))+'）</button>'
