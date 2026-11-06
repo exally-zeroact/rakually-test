@@ -2,6 +2,24 @@
 'use strict';
 var P = require('../lib/pay-rule.js');
 
+/* ★歩合（売上×率）の 四捨五入が 小数の 誤差で 0.5 を 切り下げていた★（2026-11-06 実測で 直した）
+     前は Math.round(売上×率/100)＝5,500×0.7%＝38.5 が 38.4999… で 38（正 39）。
+     数えた＝売上 1〜100万円×率 8種の 800万組中 187組。答えは 整数（率を 10倍した 整数で (2×売上×率10＋1000)÷2000 の 切り捨て）で 出した物。 */
+T('evalPart 売上×率・段階率: 0.5 ちょうどは 切り上げ（5,500×0.7%→39・率 8種×売上 1〜20万円で 整数と 照合）', function () {
+  eq(P.evalPart({ type: 'rate', amount: 0.7 }, { sales: 5500 }), 39, '売上×率 5,500×0.7%');
+  eq(P.evalPart({ type: 'tiered', tiers: [{ from: 0, rate: 0.7 }] }, { sales: 5500 }), 39, '段階率 5,500×0.7%');
+  var kumi = 0, chigau = 0, rei = '';
+  [0.5, 0.7, 1.5, 2.5, 3.3, 5.5, 7.5, 12.5].forEach(function (a) {
+    var a10 = Math.round(a * 10);
+    for (var s = 1; s <= 200000; s++) {
+      kumi++;
+      var want = Math.floor((2 * s * a10 + 1000) / 2000), got = P.evalPart({ type: 'rate', amount: a }, { sales: s });
+      if (got !== want) { chigau++; if (!rei) rei = s + '×' + a + '%→' + got + '（正 ' + want + '）'; }
+    }
+  });
+  eq(chigau, 0, '整数の 答えと 違う（' + kumi + '組中）例 ' + rei);
+});
+
 /* ── 部品の評価 ── */
 T('evalPart 時給×時間: 1200×160h(9600分)=192000', function () {
   eq(P.evalPart({ type: 'hourly', amount: 1200 }, { workMin: 9600 }), 192000);

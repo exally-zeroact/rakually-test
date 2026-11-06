@@ -23,7 +23,9 @@
   else root.PayRule = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   function num(v) { v = (v == null || v === '') ? 0 : +String(v).replace(/[^0-9.\-]/g, ''); return isFinite(v) ? v : 0; }
-  function r0(v) { return Math.round(v); } // 円未満は四捨五入(基本給の丸め)
+  /* ★1e-6 に 丸めてから 四捨五入★（2026-11-06＝前は 5,500×0.7%＝38.5 が 38.4999… で 38・正 39。売上 1〜100万円×率 8種の 800万組中 187組。
+     時給×分÷60・売上×率 の 端数は 1/60・1/1000 刻み＝1e-6 の 丸めで 0.5 以外は 動かない） */
+  function r0(v) { return Math.round(Math.round(v * 1e6) / 1e6); } // 円未満は四捨五入(基本給の丸め)
 
   // 1つの部品の金額を評価
   function evalPart(part, ctx) {
