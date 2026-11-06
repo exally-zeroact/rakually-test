@@ -9,7 +9,8 @@
   else { root.NenchoDecl = factory(); }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  // 全角数字/全角カンマ/読点も 数値化（2026-11-06＝前は 全角「８３７４１」が 0 で 保存され「申告を反映」で 管理者の 値まで 0 に 上書き＝税を 多く 取っていた。payroll-monthly.js の num と 同じ 作り）
+  function num(v) { var s = String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, ''); var n = Number(s); return isNaN(n) ? 0 : n; }
   function cnt(v) { return Math.max(0, Math.floor(num(v))); } // 人数=0以上整数
 
   // 申告できる項目(給与収入/源泉/社保は履歴から自動なので"含めない")。key は年調(nencho n.*)と同名=取り込みが1:1。

@@ -149,5 +149,18 @@ await T('申告の控えが壊れている時: 上書きせず 断る（壊れ�
   eq(a, 'ことわった', '断る'); eq(ato, kowa, '壊れた控えが そのまま');
 });
 
+/* ★従業員の 申告で 全角の 数字が 0 に なっていた★（2026-11-06 叩きで 見つけた・直した）
+     前は nencho-declaration.js の num が 全角を 半角に しない＝「８３７４１」「８３，７４１」が 0 で 保存→
+     会社が「申告を反映」で 管理者の 正しい 値まで 0 で 上書き（年税額が 多く 取られる・収入600万の 例で 85,500円）。
+     管理者の 側（payroll-monthly.js の num）と 同じ 作りに 揃えた。 */
+await T('申告: 全角の 数字・全角カンマ・読点も 読む（住宅ローン 83,741・生命保険 80,000・扶養 2人）→ 反映でも 同じ 値', async () => {
+  const d = ND.normalize({ jutakuLoan: '８３７４１', seiGeneralNew: '８０，０００', shokibo: '２７、６００', fuyoIppan: '２', haiEnabled: true, haiShotoku: '４８００００' });
+  eq(d.jutakuLoan, 83741, '住宅ローン 全角'); eq(d.seiGeneralNew, 80000, '生命保険 全角カンマ'); eq(d.shokibo, 27600, 'iDeCo 読点');
+  eq(d.fuyoIppan, 2, '扶養 全角'); eq(d.haiShotoku, 480000, '配偶者の 所得 全角');
+  const n = ND.applyToNencho({ jutakuLoan: 83741 }, { jutakuLoan: '８３，７４１' });
+  eq(n.jutakuLoan, 83741, '反映で 0 に 上書きしない');
+  eq(ND.normalize({ jutakuLoan: '83,741' }).jutakuLoan, 83741, '半角は 前の まま');
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
