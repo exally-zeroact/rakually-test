@@ -685,6 +685,16 @@ T('年調 住宅ローン控除: 全角・負・小数でも 源泉徴収票・�
     ok(rows[0].jutaku === c[1], '報告書 ' + c[0] + ' → ' + rows[0].jutaku + '（正 ' + c[1] + '）');
     const g = A.nenGensenHTML(e, 2026), m = g.match(/住宅借入金等特別控除の額[\s\S]{0,200}?([¥￥]?[\d,]+)/);
     ok(m && Number(m[1].replace(/[¥￥,]/g, '')) === c[1], '源泉徴収票 ' + c[0] + ' → ' + (m && m[1]) + '（正 ' + c[1] + '）');
+    /* Excel の 一覧（nenDownloadXlsx）の 住宅借入金等特別控除＝列 11（2026-11-06 叩きの 任意＝題だけで 守っていなかった） */
+    let aoa = null; const keepX = win.PayslipXlsx;
+    win.PayslipXlsx = Object.assign({}, keepX, { downloadSheets: function (sheets) { aoa = sheets[0].aoa; } });
+    try { A.nenDownloadXlsx(); } finally { win.PayslipXlsx = keepX; }
+    const xr = aoa && aoa.find(r => r[0] === '住宅 太郎');
+    ok(xr && xr[11] === c[1], 'Excel ' + c[0] + ' → ' + (xr && xr[11]) + '（正 ' + c[1] + '）');
+    /* 年税額にも 効いているか＝数字で 入れた 時と 同じ 年税額 */
+    const agg = A.nenAggregate(A.state._nenRecs, e.id), zei = A.nenCompute(agg, A.nenStore(e.id)).res.nenchouNenzei;
+    const s2 = Object.assign({}, A.nenStore(e.id), { jutakuLoan: c[1] }), zei2 = A.nenCompute(agg, s2).res.nenchouNenzei;
+    ok(zei === zei2, '年税額 ' + c[0] + ' → ' + zei + '（数字で 入れた 時 ' + zei2 + '）');
   });
 });
 
