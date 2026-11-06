@@ -153,9 +153,14 @@
     return 0;
   }
   // 年調年税額 = (算出所得税額 − 住宅借入金等特別控除) × 102.1%、100円未満切捨。
+  /* ★×102.1% は 1e-6 に 丸めてから 切り捨てる★（2026-11-06＝前は 100,000×1.021 が 102,099.99… に なり 100円 少なかった・
+     算出税額 0〜1,000万円の 1,000万通り中 64通り。額×1021÷100000 は 小数5桁までなので 1e-6 の 丸めで 値は 変わらない） */
+  function fukkoNenzei(afterLoan) {
+    return Math.floor(Math.round(afterLoan * P.fukkoRate / 100 * 1e6) / 1e6) * 100;
+  }
   function nenchouNenzei(kazeiKyuyoShotoku, jutakuLoan) {
     var afterLoan = Math.max(0, sanshutuShotokuZei(kazeiKyuyoShotoku) - num(jutakuLoan));
-    return Math.floor(afterLoan * P.fukkoRate / 100) * 100;
+    return fukkoNenzei(afterLoan);
   }
 
   // ── 年末調整 総合計算 ──
@@ -182,7 +187,7 @@
     var kazei = Math.max(0, Math.floor((goukeiShotoku - kojoGoukei) / 1000) * 1000);
     var sanshutu = sanshutuShotokuZei(kazei);
     var afterLoan = Math.max(0, sanshutu - num(o.jutakuLoan));
-    var nenzei = Math.floor(afterLoan * P.fukkoRate / 100) * 100;
+    var nenzei = fukkoNenzei(afterLoan);
     return {
       kyuyoShotoku: kyuyoShotoku, goukeiShotoku: goukeiShotoku, kojoList: kojoList, kojoGoukei: kojoGoukei,
       kazeiKyuyoShotoku: kazei, sanshutuZei: sanshutu, nenchouShotokuZei: afterLoan, nenchouNenzei: nenzei,
