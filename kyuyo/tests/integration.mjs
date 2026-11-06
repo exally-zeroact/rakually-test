@@ -1545,7 +1545,7 @@ T('★申告書の 数字（一般拠出金・概算・延納・期別）が 集
   const keep = { c: st.company, e: st.employees, m: st.month };
   try {
     st.company = Object.assign({}, st.company, { name: '株式会社テスト', gyoshu: 'ippan', rousaiShurui: '林業' });
-    st.month = '2026-07';
+    st.month = '2026-03';   /* ★fy2025＝概算（fy+1＝2026）の 率が 在る 年★（2026-11-06＝概算は fy+1 の 率・fy2026 だと 2027 が 未収録で 概算が 出ない） */
     st.employees = [{ id: 1, name: '年金　太郎', kana: 'ﾈﾝｷﾝ ﾀﾛｳ', birthYmd: '1985-05-05', payType: '月給' }];
     const fy = A.roudouFYof();
     const recs = [];
@@ -1561,6 +1561,9 @@ T('★申告書の 数字（一般拠出金・概算・延納・期別）が 集
     eq(sum.ippan.gaisanNashi, true, '★概算払いは 無い★');
     eq(sum.awaseta, true, '★算定基礎額が 同額なのに 合わせていない★');
     ok(sum.gokeiRyo > 600000, '★確定保険料が 小さすぎる★ … ' + sum.gokeiRyo);
+    eq(sum.gokeiRyo, 797867, '★確定＝11,998,000×(林業52‰＋令和7 雇用14.5‰)★');
+    eq(sum.gaisan && sum.gaisan.gaku, 785869, '★概算＝11,998,000×(林業52‰＋令和8 雇用13.5‰)＝fy+1 の 率★');
+    ok(sum.gaisan.gaku !== sum.gokeiRyo, '★概算が 確定と 同じ 額（確定の 率で 出している）★');
     ok(sum.enno && sum.enno.ok === true, '★延納できるはずが できない★ … ' + (sum.enno && sum.enno.riyu));
     ok(sum.kibetsu && sum.kibetsu.ki.length === 3, '★3期に 分けていない★');
     eq(sum.kibetsu.ki[0] + sum.kibetsu.ki[1] + sum.kibetsu.ki[2], sum.gaisan.gaku, '★分けた 合計が 元と 違う★');

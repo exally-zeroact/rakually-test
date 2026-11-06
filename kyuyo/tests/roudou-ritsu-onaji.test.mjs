@@ -63,7 +63,7 @@ for (const fy of [2025, 2026]) for (const g of ['ippan', 'kensetsu', 'norin']) f
       const p = Number(A.state.company.rousaiRate) || 0;
       s.rousaiPermil = p; s.rousaiRyo = (p > 0) ? Math.floor(Math.floor(s.rousaiWageTotal / 1000) * 1000 * (p / 1000)) : null;
     } else {
-      const rk = A.roudouRitsuKeisan(s.rousaiWageTotal, s.koyoWageTotal, s.koyoFull);   /* ㋑ 打った 時の 道 */
+      const rk = A.roudouRitsuKeisan(s.rousaiWageTotal, s.koyoWageTotal, s.koyoFull, s.gaisanRitsu);   /* ㋑ 打った 時の 道 */
       Object.keys(rk).forEach((k) => { s[k] = rk[k]; });
     }
     kumi++; const a = sortJ(ichikara), b = sortJ(s); iro.add(a);

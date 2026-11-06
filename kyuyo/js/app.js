@@ -3675,12 +3675,22 @@
        ＝率の 欄の 受け手も 同じ 物を 呼ぶ（★打った 時と 描き直した 時で 計算が 割れない★） */
     var RS=window.RoudouShinkoku;
     var ippan=RS?RS.ippanKyoshutsukin(rousaiWageTotal):null;
-    var rk=roudouRitsuKeisan(rousaiWageTotal, koyoWageTotal, koyoFull);
-    return { rows:rows, fy:fy, rousaiWageTotal:rousaiWageTotal, koyoWageTotal:koyoWageTotal, gyoshu:gyoshu, koyoFull:koyoFull, koyoRyo:koyoRyo, rousaiPermil:rk.rousaiPermil, rousaiRyo:rk.rousaiRyo , gokeiRyo:rk.gokeiRyo, awaseta:rk.awaseta, ippan:ippan, gaisan:rk.gaisan, enno:rk.enno, kibetsu:rk.kibetsu, seisan:rk.seisan };
+    /* ★概算は「その 保険年度＝fy+1」の 率★（2026-11-06）
+       徴収法 第十五条第一項第一号「…その保険年度に使用するすべての労働者に係る賃金総額の見込額（…直前の保険年度に
+       使用したすべての労働者に係る賃金総額）に当該事業についての一般保険料に係る保険料率を乗じて…」
+       ⇒ 基礎額は fy の 賃金（見込を 聞いていない）・★率は fy+1★。前は 確定と 同じ fy の 率＝例 fy2025 の 概算を 14.5‰ で 出していた（令和8 は 13.5‰）。
+       ★fy+1 の 雇用の 率が 未収録なら null★（数を 作らない＝概算・延納・期別は「—」と 訳） */
+    var gaisanRitsu={ fy:fy+1, koyoFull:(k&&k.fullRate)?k.fullRate(gyoshu, fy+1):null };
+    var rk=roudouRitsuKeisan(rousaiWageTotal, koyoWageTotal, koyoFull, gaisanRitsu);
+    return { rows:rows, fy:fy, rousaiWageTotal:rousaiWageTotal, koyoWageTotal:koyoWageTotal, gyoshu:gyoshu, koyoFull:koyoFull, koyoRyo:koyoRyo, gaisanRitsu:gaisanRitsu, rousaiPermil:rk.rousaiPermil, rousaiRyo:rk.rousaiRyo , gokeiRyo:rk.gokeiRyo, awaseta:rk.awaseta, ippan:ippan, gaisan:rk.gaisan, gaisanRiyu:rk.gaisanRiyu, enno:rk.enno, kibetsu:rk.kibetsu, seisan:rk.seisan };
   }
+  /* ★概算の 年に 労災の 表が 効くか★（2026-11-06 叩きの 止2）
+     労災保険率の 表（rousai-ritsu.js）は 令和6年度（NENDO_YEAR）から の 一枚で 年を 持たない。改定は 3年ごと（平成30・令和6）の 見立て＝次は 令和9（2027）。
+     ⇒ ★NENDO_YEAR＋2 を 超える 年の 概算は 数を 作らない★（新しい 表を 中央から hydrate で 入れれば NENDO_YEAR が 進んで 解ける）。 */
+  function rousaiHyoKikanGai(year){ var RR=window.RousaiRitsu; var y0=RR?Number(RR.NENDO_YEAR):NaN; return !(y0>0) || year>y0+2; }
   /* ★率に 依る 6つを 出す 1か所★（roudouSummary の 中から 字を 変えずに 移した・2026-10-02）
      入れる 物＝労災の 賃金総額・雇用の 賃金総額・雇用の 全体率（率に 依らない 物）／率は state.company から 読む */
-  function roudouRitsuKeisan(rousaiWageTotal, koyoWageTotal, koyoFull){
+  function roudouRitsuKeisan(rousaiWageTotal, koyoWageTotal, koyoFull, gaisanRitsu){
     var RS=window.RoudouShinkoku;
     var rousaiPermil=rousaiPermilOf(state.company)||0;                          /* ★業種から 出す★（無ければ 手入力・それも 無ければ 0＝出さない） */
     var rousaiRyo=(rousaiPermil>0)?roudouRyo(rousaiWageTotal, rousaiPermil/1000):null;
@@ -3691,18 +3701,26 @@
          ★どの 賃金総額を 使うかは 原文を 読み切れていない★ので ★労災の 算定基礎額★を 渡し、画面に そう 書く
        ・概算＝見込が 前年度の 50%〜200% なら 前年度の 額（今は 見込を 聞いていない＝前年度の 額）
        ・延納＝概算「のみ」で 40万円以上（片方だけなら 20万円）・3期・★端数は 1期に 合算★ */
-    var gaisan=null, enno=null, kibetsu=null;
-    if(RS && g.gokei!=null){
-      gaisan={ base:RS.gaisanBase(null, rousaiWageTotal), gaku:g.gokei };   /* 見込を 聞いていない＝前年度と 同じ 賃金で 置く */
-      var katahou=!(rousaiPermil>0 && koyoFull!=null);
-      enno=RS.ennoDekiruka(gaisan.gaku, katahou);
-      if(enno.ok) kibetsu=RS.ennoKibetsu(gaisan.gaku, 3);
+    /* ★概算は gaisanRitsu（fy+1 の 率）で 出す★＝確定の g を 使わない（roudouSummary の 注） */
+    var gaisan=null, enno=null, kibetsu=null, gaisanRiyu=null, gr=gaisanRitsu||null;
+    if(!gr || !(gr.fy>0)) gaisanRiyu='概算の 年度が 分かりません';
+    else if(gr.koyoFull==null) gaisanRiyu=gr.fy+'年度の 雇用保険料率が まだ 入っていません（申告書で ご確認ください）';
+    else if(rousaiHyoKikanGai(gr.fy)) gaisanRiyu=gr.fy+'年度の 労災保険率が まだ 入っていません（今の 表は '+(window.RousaiRitsu?window.RousaiRitsu.NENDO_YEAR:'?')+'年度からの 物・申告書で ご確認ください）';
+    else if(!(rousaiPermil>0)) gaisanRiyu='労災保険率が 入っていません';
+    if(RS && !gaisanRiyu){
+      var gg=roudouGokei(rousaiWageTotal, koyoWageTotal, rousaiPermil/1000, gr.koyoFull);
+      if(gg.gokei!=null){
+        gaisan={ base:RS.gaisanBase(null, rousaiWageTotal), gaku:gg.gokei, fy:gr.fy, koyoFull:gr.koyoFull, rousaiPermil:rousaiPermil, awaseta:gg.awaseta };   /* 見込を 聞いていない＝前年度と 同じ 賃金で 置く */
+        var katahou=!(rousaiPermil>0 && gr.koyoFull!=null);
+        enno=RS.ennoDekiruka(gaisan.gaku, katahou);
+        if(enno.ok) kibetsu=RS.ennoKibetsu(gaisan.gaku, 3);
+      }
     }
     /* ★精算＝確定 −（前年度に 納めた 概算）★
        ★額は 会社に 聞く★（申告書の 控え・領収済通知書に 書いてある）。
        ★入れていない時は 数字を 作らない★（seisan.measured=false） */
     var seisan=roudouSeisan(g.gokei);
-    return { rousaiPermil:rousaiPermil, rousaiRyo:rousaiRyo, gokeiRyo:g.gokei, awaseta:g.awaseta, gaisan:gaisan, enno:enno, kibetsu:kibetsu, seisan:seisan };
+    return { rousaiPermil:rousaiPermil, rousaiRyo:rousaiRyo, gokeiRyo:g.gokei, awaseta:g.awaseta, gaisan:gaisan, gaisanRiyu:gaisanRiyu, enno:enno, kibetsu:kibetsu, seisan:seisan };
   }
   function roudouAoa(sum, fy){
     var aoa=[['労働保険 算定基礎賃金集計表　'+fy+'年度（労働保険年度 '+fy+'-04〜'+(fy+1)+'-03）'], [(state.company||{}).name||''], [], ROUDOU_COLS.slice()];
@@ -3724,8 +3742,9 @@
     aoa.push(['① 確定保険料（労災＋雇用）', sum.gokeiRyo!=null?sum.gokeiRyo:'（率が そろっていません）']);
     aoa.push(['② 一般拠出金（賃金総額×0.02/1000・確定のみ）', sum.ippan?sum.ippan.gaku:'—']);
     aoa.push(['', '※ 一般拠出金の 賃金総額は 労災の 算定基礎額を 使っています（申告書の 該当ページが 画像で 読めていません）']);
-    aoa.push(['③ 概算保険料（今年度）', sum.gaisan?sum.gaisan.gaku:'—']);
-    aoa.push(['', sum.gaisan?('※ '+sum.gaisan.base.riyu+'／見込額を 別に 出す 場合は 労働局の 用紙で ご確認ください'):'']);
+    aoa.push(['③ 概算保険料（'+(fy+1)+'年度）', sum.gaisan?sum.gaisan.gaku:'—']);
+    aoa.push(['', sum.gaisan?('※ '+(fy+1)+'年度の 率（労災 '+sum.gaisan.rousaiPermil+'‰＋雇用 全体 '+Math.round(sum.gaisan.koyoFull*1e5)/100+'‰）× '+fy+'年度の 賃金（'+sum.gaisan.base.riyu+'）／見込額を 別に 出す 場合は 労働局の 用紙で ご確認ください')
+      :('※ '+(sum.gaisanRiyu||'概算は 出せません'))]);
     aoa.push(['④ 延納（3回に 分ける）', sum.enno?(sum.enno.ok?'できます':'できません'):'—']);
     if(sum.enno) aoa.push(['', '※ '+sum.enno.riyu]);
     if(sum.kibetsu){
@@ -6499,7 +6518,7 @@
          前は 労災保険料 だけ 直していた ⇒ ★打っている 間の 精算は「—」のまま★（実測：開き直すと ¥22,780）
          ＋★Excel は state._roudouSum を 読む★＝合計・概算・延納・期別・精算が 古い まま 出ていた
          画面は 作り直さない（焦点を 外さない）＝字の 在る 2つ（労災保険料・精算）だけ 書き換える */
-      var s=state._roudouSum; if(s){ var rk=roudouRitsuKeisan(s.rousaiWageTotal, s.koyoWageTotal, s.koyoFull); Object.keys(rk).forEach(function(k){ s[k]=rk[k]; });
+      var s=state._roudouSum; if(s){ var rk=roudouRitsuKeisan(s.rousaiWageTotal, s.koyoWageTotal, s.koyoFull, s.gaisanRitsu); Object.keys(rk).forEach(function(k){ s[k]=rk[k]; });
         var b=$('#roudou-rousai-ryo'); if(b) b.textContent=(s.rousaiRyo!=null?yen(s.rousaiRyo):'—');
         var sj=$('#roudou-seisan'); if(sj) sj.textContent=roudouSeisanJi(s.seisan); } });
     $('#view-list').addEventListener('click',function(e){ var tg=e.target.closest('[data-ltoggle]'); if(!tg)return; var id=tg.dataset.ltoggle; state.open['L'+id]=!state.open['L'+id]; $('#view-list .acc[data-lid="'+id+'"]').classList.toggle('open'); });
