@@ -374,3 +374,21 @@ T('支払基礎日数: 勤怠と 所定日数が 全角でも 半角と 同じ',
      PC.calcPaymentDays({ payType: '月給', scheduledDays: '21', kintai: kt({ '欠勤日数': '3' }) }, '2026-06', ''), '月給の 欠勤 ３・所定 ２１');
   eq(PC.calcPaymentDays({ payType: '月給', scheduledDays: '21', kintai: kt({ '欠勤日数': '3' }) }, '2026-06', ''), 18, '所定21−欠勤3');
 });
+
+/* ★欠勤控除の 年間所定休日も 全角を 読む★（2026-11-06 ⑱の 叩きの 止め2＝額が 変わる 道を 押さえる）
+   payroll-monthly.js は 年間所定休日を 字の まま calcKekkin へ 渡す。⑱ の 前は 全角「１０５」を 0 と 読み 既定の 120 に 戻っていた
+   ＝月給 30万・欠勤1日で 控除 14,694（正しくは 105日の 13,846）。今は 入れた 日数どおり＝半角と 同じ 額。 */
+T('欠勤控除: 従業員の 年間所定休日が 全角でも 半角と 同じ 額（１０５→105・前は 120 に 戻って 848円 多く 引いた）', function () {
+  if (typeof global.PayrollCalc === 'undefined') global.PayrollCalc = require('../lib/payroll-calc.js');
+  if (typeof global.Warimashi === 'undefined') { try { global.Warimashi = require('../lib/warimashi.js'); } catch (_) {} }
+  var PMk = require('../lib/payroll-monthly.js');
+  var kek = function (ah) {
+    var e = { payType: '月給', base: '300000', shikyu: [{ label: '基本給', value: 300000 }], kojo: [], kintai: [{ label: '欠勤日数', value: '1' }], annualHolidays: ah, birthYmd: '1990-01-01', joinYmd: '2020-04-01', workStatus: 'normal' };
+    var r = PMk.compute(e, { month: '2026-06', company: { annualHolidays: '120', dailyWorkH: '8', dailyWorkM: '0', prefecture: '東京都' } });
+    var k = (r.shikyu || []).filter(function (x) { return /欠勤控除/.test(x.label); })[0];
+    return { k: k && k.value, net: r.net };
+  };
+  var z = kek('１０５'), h = kek('105'), d = kek('120');
+  eq(z.k, h.k, '全角 １０５ と 半角 105 の 欠勤控除'); eq(z.net, h.net, '手取り');
+  ok(h.k !== d.k, '105 と 120 で 控除が 変わらない＝この 試験が 道を 見ていない（' + h.k + '/' + d.k + '）');
+});
