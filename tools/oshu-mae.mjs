@@ -30,7 +30,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { erabu, omoiKa, hirouDan, byouMatome, danNoJob, oshuShaYomu, nokoriErabu, kuchiKa, kuchiJobYomu, michiTsukuru, heiretsuYomu } from './_dan-hirou.mjs';
-import { kiTomeru, danHashiru, kekkaGyou, tometeYoi } from './_oshu-michi.mjs';
+import { kiTomeru, danHashiru, kekkaGyou, tometeYoi, yureKa, YURE_CODE } from './_oshu-michi.mjs';
 import { bunrui, OKE_JUN } from './_bunrui.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -265,6 +265,30 @@ if (process.argv.includes('--self-test')) {
     const gy = fs.readFileSync(kek, 'utf8').split(NL).filter(Boolean).map((l) => JSON.parse(l));
     iu('★子の 道＝終わり値 0・結果 2行（7 緑・9 赤 終わり値 4・赤の 出し 1行）★', rk.status === 0 && gy.length === 2 && gy[0].i === 7 && gy[0].status === 0 && !!gy[0].oke
       && gy[1].i === 9 && gy[1].status === 4 && gy[1].so.join() === 'X');
+    /* ★揺れ（0xC0000409）の 回し直しは 狭く★（11-06 設計前 taiketsu 任2・任4）＝字なし・その 終わり値 ちょうど・試験口に 触らない 段 だけ */
+    const yr = { status: YURE_CODE, mi: null, so: '', se: '' };
+    iu('★揺れ と 見る＝終わり値 3221226505・出しも 叫びも 空・kuchi===false の 時だけ★', yureKa(yr, false) === true
+      && yureKa({ ...yr, so: 'x' }, false) === false && yureKa({ ...yr, se: 'x' }, false) === false
+      && yureKa({ ...yr, status: 1 }, false) === false && yureKa({ ...yr, status: 3221225477 }, false) === false
+      && yureKa(yr, true) === false && yureKa(yr, undefined) === false && yureKa({ ...yr, mi: '切った' }, false) === false && yureKa(null, false) === false);
+    if (process.platform === 'win32') {
+      /* ★本当に 子の 道で 落とす★（process.reallyExit(-1073740791)＝終わり値 3221226505・字なし を taiketsu が 測った 形） */
+      const tm = tmp3.replace(/\\/g, '/');
+      const ochiru = (shirushi, ato) => 'node -e "const f=require(\'fs\'),p=\'' + tm + '/' + shirushi + '\';if(!f.existsSync(p)){f.writeFileSync(p,\'1\');process.reallyExit(-1073740791)}' + ato + '"';
+      fs.writeFileSync(meibo, JSON.stringify({ cwd: tmp3, dan: [
+        { i: 21, c: ochiru('y1', 'console.log(\'1 passed, 0 failed\')'), kuchi: false },
+        { i: 22, c: 'node -e "process.reallyExit(-1073740791)"', kuchi: false },
+        { i: 23, c: 'node -e "console.log(\'x\');process.reallyExit(-1073740791)"', kuchi: false },
+        { i: 24, c: ochiru('y4', 'console.log(\'1 passed, 0 failed\')'), kuchi: true },
+      ] }));
+      fs.writeFileSync(kek, '');
+      const ry = spawnSync(process.execPath, [path.join(ROOT, 'tools', '_oshu-michi.mjs'), meibo, kek], { encoding: 'utf8' });
+      const g = {}; fs.readFileSync(kek, 'utf8').split(NL).filter(Boolean).forEach((l) => { const o = JSON.parse(l); g[o.i] = o; });
+      iu('★1回目だけ 落ちる 段＝回し直して 緑・yure が 残る★', ry.status === 0 && g[21] && g[21].status === 0 && !!g[21].yure && g[21].yure.status === YURE_CODE);
+      iu('★2回とも 落ちる 段＝赤（回し直しは 1回だけ）★', g[22] && g[22].status === YURE_CODE && !!g[22].yure);
+      iu('★字を 出してから 落ちた 段＝回し直さず 赤★', g[23] && g[23].status === YURE_CODE && !g[23].yure);
+      iu('★試験口に 触る 段＝回し直さず 赤★', g[24] && g[24].status === YURE_CODE && !g[24].yure);
+    }
     fs.writeFileSync(meibo, JSON.stringify({ cwd: tmp3, dan: [] }));
     iu('★空の 名簿＝子は 終わり値 2（0件＝合格に しない）★', spawnSync(process.execPath, [path.join(ROOT, 'tools', '_oshu-michi.mjs'), meibo, kek], { encoding: 'utf8' }).status === 2);
     /* ★止めて よいか（時間切れ・Ctrl-C で 同じ）★＝Windows は 殻が 終わって いたら 止めない（使い回しの 番号）・Linux は 組ごと 止める */
@@ -419,7 +443,7 @@ michi.forEach((m) => console.log('    道 ' + m.na + ' … ' + m.dan.length + '�
 let aka = 0, mi = 0;
 let tometa = 0;               /* ★空き不足で 止めた＝1★ */
 let kuukiSaigo = null, kuukiSoko = null;
-const akaDan = [], miDan = [];
+const akaDan = [], miDan = [], yureDan = [];
 /* ★★回った 緑を 4つ組に 割る★★（2026-10-03・⑤）＝「回った N＝赤0」でなく 中で 測ったかを 出す */
 const tally = {}; OKE_JUN.forEach((k) => (tally[k] = []));
 const yomikata = { 約束: 0, 目印: 0 };
@@ -457,7 +481,8 @@ async function michiHashiru(k) {
     cwd = w.dir; michiWt.push(w.dir);
   }
   const meibo = path.join(michiTmp, 'm' + k + '.json'), kekka = path.join(michiTmp, 'k' + k + '.jsonl');
-  fs.writeFileSync(meibo, JSON.stringify({ cwd, dan: m.dan }));
+  /* ★kuchi★＝試験口に 触るか（分からない＝触る 側）。子は kuchi===false の 段だけ 揺れを 1回 回し直す（_oshu-michi.mjs yureKa） */
+  fs.writeFileSync(meibo, JSON.stringify({ cwd, dan: m.dan.map((d) => ({ ...d, kuchi: kuchiMap[d.i] !== false })) }));
   fs.writeFileSync(kekka, '');
   const owari = await new Promise((res) => {
     const ch = spawn(process.execPath, [KO, meibo, kekka], { cwd, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
@@ -497,10 +522,12 @@ e.hashiru.forEach((d) => {
     return;
   }
   byouList.push({ i: d.i, c: d.c, job: JOB_NO[d.i - 1], byou: o.byou });
+  /* ★揺れ（1回目が 0xC0000409 で 字なし）＝回し直した 段は 緑でも 赤でも 名指しで 数える★ */
+  if (o.yure) yureDan.push({ d: d, yure: o.yure, nido: o.mi ? 'mi' : o.status });
   if (o.mi) { mi++; miDan.push({ d: d, naze: o.mi }); return; }
   if (o.status !== 0) {
     aka++;
-    akaDan.push({ d: d, status: o.status, soZen: o.soZen, seZen: o.seZen, so: o.so, se: o.se });
+    akaDan.push({ d: d, status: o.status, byou: o.byou, soZen: o.soZen, seZen: o.seZen, so: o.so, se: o.se });
     console.log('  ✗ ' + d.i + '段 … ' + d.c.slice(0, 90));
     return;
   }
@@ -540,7 +567,7 @@ console.log('  ★赤 ' + aka + '段★ ／ ★走らせられない ' + mi + '�
 /* ★★赤は ★字つきで★ 出す★★＝★『何が 赤か』でなく『★何と 言って 赤か★』★
    （★出しを 捨てると 網の 赤と 単独の 緑を 並べられない★＝09-28 に 踏んだ） */
 akaDan.forEach((x) => {
-  console.log('     ★赤★ ' + x.d.c.slice(0, 120) + '  ★終わり値 ' + x.status + '★');
+  console.log('     ★赤★ ' + x.d.c.slice(0, 120) + '  ★終わり値 ' + x.status + '★（' + (typeof x.byou === 'number' ? x.byou.toFixed(2) : '?') + '秒）');
   if (!x.soZen && !x.seZen) console.log('        ★★何も 言わずに 赤★★（★出しも 叫びも 空★）');
   /* ★★何行の うち 何行 出したかを 書く★★＝★自分で 切ったら 書く★
      ⇒ ★次に 足りなければ ★字で 分かる★（また 見立てで 決めない） */
@@ -555,10 +582,21 @@ akaDan.forEach((x) => {
     x.se.forEach((g) => console.log('        ！ ' + g.slice(0, 200)));
   }
 });
+/* ★★揺れ★★＝回し直した 段を 名指し＋消えない 控え（git の 共通 dir の oshu-mae-yure.log）に 書き足す＝率を 数えられる形（taiketsu 任3） */
+if (yureDan.length) {
+  let hikae = null;
+  try { const g = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd: ROOT, encoding: 'utf8' }); if (g.status === 0) hikae = path.resolve(ROOT, g.stdout.trim(), 'oshu-mae-yure.log'); } catch (err) { /* ★下で 書けないと 出す★ */ }
+  yureDan.forEach((x) => {
+    console.log('     ★揺れ★ ' + x.d.i + '段 ' + x.d.c.slice(0, 100) + '  1回目 終わり値 ' + x.yure.status + '（' + Number(x.yure.byou).toFixed(2) + '秒・字なし）→ 回し直し ' + (x.nido === 0 ? '緑' : '★赤（' + x.nido + '）★'));
+    try { if (!hikae) throw new Error('控えの 場所が 無い'); fs.appendFileSync(hikae, [new Date().toISOString(), OSHU_SHA, x.d.i, x.yure.status, Number(x.yure.byou).toFixed(2), x.nido, x.d.c].join('\t') + String.fromCharCode(10)); }
+    catch (err) { console.log('        ★揺れの 控えに 書けない★ ' + err.message); }
+  });
+  if (hikae) console.log('     （揺れの 控え … ' + hikae + '）');
+}
 miDan.slice(0, 5).forEach((x) => console.log('     ★走らせられない★ ' + x.d.i + '段 … ' + x.naze.slice(0, 80)));
 if (miDan.length > 5) console.log('     （他 ' + (miDan.length - 5) + '段）');
-if (aka) console.log(String.fromCharCode(10) + '★★押す前に 止めました＝赤 ' + aka + '段★★');
+if (aka) console.log(String.fromCharCode(10) + '★★押す前に 止めました＝赤 ' + aka + '段★★' + (yureDan.length ? '（揺れ ' + yureDan.length + '）' : ''));
 else if (mi) console.log(String.fromCharCode(10) + '★★★「赤 0」とは 書けません＝走らせられない ' + mi + '段★★★');
 else console.log(String.fromCharCode(10) + '★押す前の 網 … 回した ' + (e.hashiru.length - mi)
-  + '段 ／ 赤 0（但し「回った＝測った」では ない＝上の 中身を 見る／測った ' + tally['測った'].length + '段）★');
+  + '段 ／ 赤 0 ／ 揺れ ' + yureDan.length + '（回し直して 緑）（但し「回った＝測った」では ない＝上の 中身を 見る／測った ' + tally['測った'].length + '段）★');
 process.exitCode = (aka || mi) ? 1 : 0;

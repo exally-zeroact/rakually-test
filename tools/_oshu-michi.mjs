@@ -2,7 +2,7 @@
  * ============================================================================
  * ★呼ぶのは tools/oshu-mae.mjs だけ★（親と 同じ ROOT の 此の ファイルを 起こす＝押す sha に 此の ファイルが 無くても 動く・taiketsu 任4）
  *   node tools/_oshu-michi.mjs <名簿.json> <結果.jsonl>
- *   名簿＝{ cwd: 回す 作業木, dan: [{ i, c }] }
+ *   名簿＝{ cwd: 回す 作業木, dan: [{ i, c, kuchi }] }（kuchi＝試験口に 触るか・揺れの 回し直しに 使う）
  *   結果＝1段 ごとに 1行の JSON（★途中で 止められても それまでの 段は 読める★）
  *     { i, status, mi, byou, soZen, seZen, so, se, oke, how, b }
  *       status … 終わり値（時間切れ・起こせない＝null）
@@ -79,6 +79,16 @@ export function danHashiru(c, cwd, jogenMs = JOGEN_MS, yuuyoMs = YUUYO_MS) {
   });
 }
 
+/* ★揺れ（Windows の 0xC0000409）は 1回だけ 回し直す★（11-06・設計前 taiketsu 止め0 の 案B を 狭めた形）
+ *   pull-statutory --check が 網の 中でだけ 字を 1つも 出さずに 3221226505 で 落ちた（11-03・11-06 の 2回・単独 100回は 0）。
+ *   ★回し直すのは 次の 全部が 揃う 時だけ★：終わり値が ちょうど 3221226505／出しも 叫びも 空／★試験口に 触らない 段（kuchi===false）★
+ *   ＝字を 出してから 落ちた 段・他の 終わり値・試験口に 触る 段（分からない も 触る 側）は 回し直さず 赤。2回目も 落ちたら 赤。
+ *   ★回し直した 段は 結果の 行に yure を 残す★＝親が まとめの 最後の 行に「揺れ N」と 並べ、消えない 控えに 書き足す（隠さない）。 */
+export const YURE_CODE = 3221226505;
+export function yureKa(r, kuchi) {
+  return !!r && !r.mi && r.status === YURE_CODE && !String(r.so || '').trim() && !String(r.se || '').trim() && kuchi === false;
+}
+
 /* ★結果の 1行を 作る★ */
 export function kekkaGyou(d, r) {
   const o = { i: d.i, status: r.status, mi: r.mi, byou: r.byou, soZen: 0, seZen: 0, so: [], se: [] };
@@ -104,8 +114,12 @@ if (ware) {
   const yame = () => { const c = danHashiru.imaCh; if (tometeYoi(c)) kiTomeru(c.pid); process.exit(1); };
   ['SIGINT', 'SIGTERM', 'SIGHUP'].forEach((sg) => process.on(sg, yame));
   for (const d of m.dan) {
-    const r = await danHashiru(d.c, m.cwd);
-    fs.appendFileSync(kekka, JSON.stringify(kekkaGyou(d, r)) + NL);
+    let r = await danHashiru(d.c, m.cwd);
+    let yure = null;
+    if (yureKa(r, d.kuchi)) { yure = { status: r.status, byou: r.byou }; r = await danHashiru(d.c, m.cwd); }
+    const o = kekkaGyou(d, r);
+    if (yure) o.yure = yure;
+    fs.appendFileSync(kekka, JSON.stringify(o) + NL);
   }
   process.exit(0);
 }
