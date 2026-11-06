@@ -29,7 +29,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { erabu, omoiKa, hirouDan, byouMatome, danNoJob, oshuShaYomu, nokoriErabu, kuchiKa, kuchiJobYomu, michiTsukuru, heiretsuYomu } from './_dan-hirou.mjs';
+import { erabu, omoiKa, hirouDan, byouMatome, danNoJob, oshuShaYomu, nokoriErabu, kuchiKa, kuchiJobYomu, michiTsukuru, heiretsuYomu, danKuchi } from './_dan-hirou.mjs';
 import { kiTomeru, danHashiru, kekkaGyou, tometeYoi, yureKa, YURE_CODE } from './_oshu-michi.mjs';
 import { bunrui, OKE_JUN } from './_bunrui.mjs';
 
@@ -221,6 +221,9 @@ if (process.argv.includes('--self-test')) {
     iu('★試験口の 段を 持つ job（j2＝中身・j3＝印）は 1本の 道に 繋ぐ★', !m2.naze && m2.michi[0].na === 'j2+j3' && m2.michi[0].dan.map((d) => d.i).join(',') === '3,4' && m2.michi.length === 2);
     const m3 = michiTsukuru(hs, ['j1', 'j1', 'j2', 'j3'], (i) => i === 1 || i === 4, []);
     iu('★試験口の 段が 移っても（j1 と j3）名前で なく 中身で 1本に★', !m3.naze && m3.michi.filter((x) => x.dan.some((d) => d.i === 1 || d.i === 4)).length === 1);
+    const dk = danKuchi(m2.michi, (i) => (i === 3 ? true : false));
+    iu('★段の kuchi＝試験口の 道（j3＝印・中身は 直の import 無し）の 段も 触る・他の 道は 触らない★（11-07 止め1・_hairu.mjs 経由）', dk(3) === true && dk(4) === true && dk(1) === false && dk(2) === false);
+    iu('★段の kuchi＝分からない（undefined）は 触る・道が 無くても 直の import は 触る★', danKuchi([], () => undefined)(9) === true && danKuchi(null, (i) => i === 5)(5) === true && danKuchi([], () => false)(5) === false);
     iu('★job の 無い 段＝止める★', michiTsukuru(hs, ['j1', null, 'j2', 'j3'], () => false, []).naze !== null);
     iu('★並べる 数＝既定 6・3・0 と 字 と 小数 は 止める★', heiretsuYomu(undefined).n === 6 && heiretsuYomu('3').n === 3
       && heiretsuYomu('0').naze !== null && heiretsuYomu('x').naze !== null && heiretsuYomu('1.5').naze !== null);
@@ -434,6 +437,8 @@ if (mt.naze) {
   console.log('  ★「赤 0」とは 書きません＝★何も 測って いません★★');
   process.exit(1);
 }
+/* ★段の kuchi は 並べるか に 関わらず 道で 決める★（11-07 本番前 taiketsu 止め1） */
+const danKuchiKa = danKuchi(mt.michi, (i) => kuchiMap[i]);
 const NARABE = !!OSHU_SHA && HEIRETSU > 1;
 const michi = NARABE ? mt.michi : [{ na: '1本順', jobs: [], dan: e.hashiru.slice(), kuchi: false }];
 console.log('  ★道 ' + michi.length + '本★（同時に ' + (NARABE ? Math.min(HEIRETSU, michi.length) : 1) + '本・'
@@ -482,7 +487,7 @@ async function michiHashiru(k) {
   }
   const meibo = path.join(michiTmp, 'm' + k + '.json'), kekka = path.join(michiTmp, 'k' + k + '.jsonl');
   /* ★kuchi★＝試験口に 触るか（分からない＝触る 側）。子は kuchi===false の 段だけ 揺れを 1回 回し直す（_oshu-michi.mjs yureKa） */
-  fs.writeFileSync(meibo, JSON.stringify({ cwd, dan: m.dan.map((d) => ({ ...d, kuchi: kuchiMap[d.i] !== false })) }));
+  fs.writeFileSync(meibo, JSON.stringify({ cwd, dan: m.dan.map((d) => ({ ...d, kuchi: danKuchiKa(d.i) })) }));
   fs.writeFileSync(kekka, '');
   const owari = await new Promise((res) => {
     const ch = spawn(process.execPath, [KO, meibo, kekka], { cwd, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });

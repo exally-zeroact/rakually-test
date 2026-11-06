@@ -182,6 +182,16 @@ export function michiTsukuru(hashiru, jobNo, kuchi, kuchiJobs = []) {
   return { michi, naze };
 }
 
+/* ★★段の kuchi（揺れの 回し直しに 使う）★★（11-07 本番前 taiketsu 止め1）
+   kuchiKa は 段が 直に 走らせる ファイルの import しか 見ない＝tests/_hairu.mjs 経由で 試験口に 入る 段を「触らない」と 見ていた（試験口の job に 16段）。
+   ★試験口の 道（job の 印 か 同じ job に 触る 段が 居る＝michiTsukuru の kuchi:true）に 居る 段は 全部 触る 側★。並べない（1本順）時も 同じ 判じ方。
+   どちらでも 無く kuchi(i)===false の 段だけ false（分からない＝触る 側） */
+export function danKuchi(michi, kuchi) {
+  const kd = {};
+  (michi || []).forEach((m) => { if (m.kuchi) m.dan.forEach((d) => { kd[d.i] = true; }); });
+  return (i) => kd[i] === true || kuchi(i) !== false;
+}
+
 /* ★★並べる 数★★（OSHU_MAE_HEIRETSU）＝数で ない・0 以下は 止める（道 0本で 0件＝合格 に しない・taiketsu 任3） */
 export function heiretsuYomu(v) {
   if (v === undefined || v === '') return { n: 6, naze: null };
