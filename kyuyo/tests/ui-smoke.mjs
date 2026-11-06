@@ -688,6 +688,20 @@ T('年調 住宅ローン控除: 全角・負・小数でも 源泉徴収票・�
   });
 });
 
+/* ★画面の「基本給（自動）」＝計算と 同じ 値★（2026-11-06＝前は 画面が Math.round(時給×(分/60)) で 計算と 順番違い＝整数でも 903円×130分 で 支給 1,957・画面 1,956。
+     数えた＝時給 整数×分 721万組中 10,462組で 1円 ずれ。画面も lib の jikyuBase／nikkyuBase から 出す） */
+T('基本給（自動）の 注: 時給・日給とも 計算の 基本給と 同じ 額（903円×130分＝1,957・1024.1円×105h＝107,531・日給 8192.22×25日＝204,806）', function () {
+  A.state.month = '2026-06';
+  [[{ payType: '時給', hourly: '903', workedH: '2', workedM: '10' }, 1957], [{ payType: '時給', hourly: '1024.1', workedH: '105' }, 107531],
+   [{ payType: '日給', base: '8192.22', kintai: [{ label: '出勤日数', value: '25' }] }, 204806]].forEach(function (c) {
+    const e = Object.assign(A.defEmp('自動 太郎'), c[0]);
+    const r = A.compute(e), b = (r.shikyu.find(x => x.label === '基本給') || {}).value;
+    const m = A.basePayNoteOnly(e).match(/<b>¥([\d,]+)<\/b>/);
+    ok(b === c[1], '計算の 基本給 ' + b + '（正 ' + c[1] + '）');
+    ok(m && Number(m[1].replace(/,/g, '')) === c[1], '画面の 注 ' + (m && m[1]) + '（正 ' + c[1] + '）');
+  });
+});
+
 T('★給与支払報告書 完成度UP★ 16歳未満扶養/本人区分/徴収区分の内訳', function () {
   A.state.month = '2026-06';
   const e = A.defEmp('鈴木 花子'); e.id = 'E_gyoyo2'; e.address = '大阪府大阪市北区梅田1-1'; e.birthYmd = '1988-03-03';

@@ -181,12 +181,15 @@
 
   // 時給=時給単価×労働時間 / 日給=日給額×出勤日数 で基本給を自動算出(月給は手入力のまま)
   // 基本給を状態から導出(単一ソース)。休暇中=休暇中の金額・時給=時給×労働時間・日給=日給×出勤・月給/役員=基本給。復職/再就職で自動的に元へ戻る
+  // 時給・日給の 基本給（自動）＝計算と 画面の 注（app.js basePayNoteOnly）の 単一ソース（2026-11-06＝前は 画面が 時給×(分/60) で 順番違い＝903円×130分 で 1円 ずれ）
+  function jikyuBase(e) { return yenRound(num(e.hourly) * workedMin(e) / 60); }
+  function nikkyuBase(e, ctx) { return yenRound(num(e.base) * effShukkin(e, ctx)); }
   function syncBasePay(e, ctx) {
     if (!e.shikyu) e.shikyu = [];
     var amt;
     if (e.workStatus && e.workStatus !== 'normal') { var _lwi = leaveNoWorkInfo(e, YM(ctx), ctx); amt = (_lwi && _lwi.partial) ? num(e.base) : num(e.leavePay); } // 部分月の産育休=満額(compute側で不就労を欠勤控除)/それ以外=休業中の金額を手入力
-    else if (e.payType === '時給') amt = yenRound(num(e.hourly) * workedMin(e) / 60);
-    else if (e.payType === '日給') amt = yenRound(num(e.base) * effShukkin(e, ctx));
+    else if (e.payType === '時給') amt = jikyuBase(e);
+    else if (e.payType === '日給') amt = nikkyuBase(e, ctx);
     else if (e.payType === '歩合') amt = W() ? W().commissionBasePay(e.commissionAmt, e.hourlyGuarantee, workedMin(e)) : Math.max(num(e.commissionAmt), yenRound(num(e.hourlyGuarantee) * workedMin(e) / 60)); // 歩合実績と保障給(時給×総労働時間)の高い方=労基27条
     else if (e.payType === 'カスタム') { var _pr = payRuleResult(e); amt = _pr ? _pr.base : 0; } // 固定+変動{なし/単一/高い方}をPayRuleで評価
     else amt = num(e.base);
@@ -421,7 +424,7 @@
   }
 
   return {
-    num: num, hiwariYen: hiwariYen, yenRound: yenRound,
+    num: num, hiwariYen: hiwariYen, yenRound: yenRound, jikyuBase: jikyuBase, nikkyuBase: nikkyuBase,
     furikomiDateObj: furikomiDateObj, furikomiMMDD: furikomiMMDD, furikomiShiftOf: furikomiShiftOf, payDayReadable: payDayReadable, bonusDateObj: bonusDateObj, bonusMMDD: bonusMMDD,
     defPayRule: defPayRule, ensurePayRule: ensurePayRule, payRuleCtx: payRuleCtx, payRuleResult: payRuleResult,
     employRateOf: employRateOf, prefRate: prefRate,
