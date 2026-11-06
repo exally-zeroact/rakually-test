@@ -14,7 +14,7 @@
 })(this, function () {
   'use strict';
 
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
   var R1 = 0.1021, R2 = 0.2042; // 10.21% / 20.42%(復興込)
 
   // 報酬区分の器。gensen=204条該当(源泉対象&支払調書対象)か。threshold=支払調書 提出金額基準(超で提出)。

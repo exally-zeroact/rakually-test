@@ -20,7 +20,7 @@
   else { root.ShoyoZei = factory(root.ShotokuzeiDensan); }
 })(typeof self !== "undefined" ? self : this, function (Densan) {
   "use strict";
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[, ]/g, "")); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, "")); return isNaN(n) ? 0 : n; }
   // 端数: 50銭以下切捨・超切上(社保と同じ han50)。賞与社保もこの丸め。
   /* ★50銭以下は 切り捨て・50銭1厘以上は 切り上げ★（2026-11-06＝前は 銭に 丸めてから 見ていた＝端数 0.5010〜0.5049 円を 切り捨てていた・例 273円×0.55%＝1.5015 が 1 円。1e-6 に 丸めて 浮動小数の 誤差だけ 消し、厘で 見る。0.5001〜0.5009 円は 今まで 通り 切り捨て） */
   function han50(x) { var n = Math.round(x * 1e6) / 1e6, y = Math.floor(n), f = Math.round((n - y) * 1e6); return f >= 501000 ? y + 1 : y; }

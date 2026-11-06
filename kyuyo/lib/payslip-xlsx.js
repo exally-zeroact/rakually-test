@@ -9,7 +9,7 @@
   else { root.PayslipXlsx = factory(); }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  function num(v){ var n=Number(String(v==null?0:v).replace(/[, ]/g,'')); return isNaN(n)?0:n; }
+  function num(v){ var n=Number(String(v==null?0:v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g,'')); return isNaN(n)?0:n; }
 
   // 集計シート: 氏名・支給合計・控除合計・差引支給額 + 合計行
   function shukeiAOA(people, opts){

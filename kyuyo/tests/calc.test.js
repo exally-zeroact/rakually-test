@@ -334,3 +334,26 @@ T('36協定: 空/1ヶ月は複数月・年とも違反なし(材料不足で誤�
   eq(r.over80, null); eq(r.over720, null); eq(r.over45count, 1);
   var e = W2.overtime36Check([]); eq(e.over80, null); eq(e.over720, null); eq(e.over45count, 0);
 });
+
+/* ★全角の 数字が 0 に なっていた（lib の num の 写し 14本）★（2026-11-06 叩きで 見つけた・直した）
+     前は calc.js 等の num が 全角を 半角に しない＝支給・控除の 行「住宅手当 ２００００」が 総支給から 黙って 抜けた（総支給 300,000 正 320,000）・
+     社保の 報酬月額「３０００００」が 読めず 当月の 支給で 計算・pay-rule／daily-pay は 全角を 消した。payroll-monthly.js の num と 同じく 全角を 読む。
+     各 lib の num の 定義を 字から 取り出して 呼ぶ（写しが 増えても 1本ずつ 見る）。 */
+T('lib の num: 全角の 数字・全角カンマ・読点を 読む（全部の 写しで ２０，０００→20000・半角は 前の まま）', function () {
+  var fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'lib'), mita = 0, dame = [];
+  fs.readdirSync(dir).filter(function (f) { return /\.js$/.test(f); }).forEach(function (f) {
+    var src = fs.readFileSync(path.join(dir, f), 'utf8');
+    var m = /^[ \t]*function num\s*\(v\)[^\n]*$/m.exec(src); // 1行の 定義
+    if (m) m = [m[0].replace(/\}\s*\/\/[^\n]*$/, '}')]; // 行末の 注を 外す
+    if (!m || /Number\(v\)/.test(m[0]) || f === 'zengin.js') return; // 型の 数だけを 受ける 物（ledger-agg 等）と 全銀（番号は 別の 試験）は 外す
+    mita++;
+    var num = new Function(m[0] + '; return num;')();
+    [['２０，０００', 20000], ['２７、６００', 27600], ['８３７４１', 83741], ['1,234', 1234], ['300000', 300000], ['', 0], [null, 0]].forEach(function (c) {
+      if (num(c[0]) !== c[1]) dame.push(f + ' ' + JSON.stringify(c[0]) + '→' + num(c[0]));
+    });
+  });
+  ok(mita >= 13, 'num の 写しを 見た 数 ' + mita);
+  eq(dame.length, 0, '全角を 読まない ' + dame.join(' / '));
+  var r = PayslipCalc.computePayslip({ shikyu: [{ label: '基本給', value: 300000 }, { label: '住宅手当', value: '２００００' }], kojo: [{ label: '旅行積立', value: '５０００' }], birthYmd: '1990-01-01', payYm: '2026-06', fuyou: 0, taxClass: '甲', healthRate: 0.04955, hyojunBase: 320000 });
+  eq(r.shikyuTotal, 320000, '総支給に 全角の 手当');
+});

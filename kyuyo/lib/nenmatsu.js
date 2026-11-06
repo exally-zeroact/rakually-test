@@ -13,7 +13,7 @@
   else { root.Nenmatsu = factory(); }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
   function ceil1(x) { return Math.ceil(x - 1e-9); } // 1円未満切上
 
   // ── 令和8 数値表パラメータ(既定=ハードコード=フォールバック) ──

@@ -14,7 +14,7 @@
   else root.TaishokuShotoku = factory(root.Nenmatsu);
 })(typeof self !== 'undefined' ? self : this, function (Nenmatsu) {
   'use strict';
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
 
   // 勤続年数(1年未満切上・最低1年)
   function years(y) { return Math.max(1, Math.ceil(num(y))); }
