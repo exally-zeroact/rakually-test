@@ -714,11 +714,14 @@ T('年調 住宅ローン控除: 全角・負・小数でも 源泉徴収票・�
 });
 
 /* ★画面の「基本給（自動）」＝計算と 同じ 値★（2026-11-06＝前は 画面が Math.round(時給×(分/60)) で 計算と 順番違い＝整数でも 903円×130分 で 支給 1,957・画面 1,956。
-     数えた＝時給 整数×分 721万組中 10,462組で 1円 ずれ。画面も lib の jikyuBase／nikkyuBase から 出す） */
-T('基本給（自動）の 注: 時給・日給とも 計算の 基本給と 同じ 額（903円×130分＝1,957・1024.1円×105h＝107,531・日給 8192.22×25日＝204,806）', function () {
+     数えた＝時給 1〜3,000円（整数）×1〜2,400分の 720万組中 12,974組で 1円 ずれ（範囲で 変わる・1〜2,000円×1〜3,600分なら 10,971）。画面も lib の 同じ 関数から 出す。
+     ★休業中（産休・休職 等）も★＝前は 注が 時給・日給の 式の まま（時給 1000円×100h・休職・休暇中の 支給額 5,000 で 注 ¥100,000・明細 5,000）＝lib の basePayAmt から 出す） */
+T('基本給（自動）の 注: 時給・日給・休業中とも 計算の 基本給と 同じ 額（903円×130分＝1,957・1024.1円×105h＝107,531・日給 8192.22×25日＝204,806・休職 5,000・産休 0）', function () {
   A.state.month = '2026-06';
   [[{ payType: '時給', hourly: '903', workedH: '2', workedM: '10' }, 1957], [{ payType: '時給', hourly: '1024.1', workedH: '105' }, 107531],
-   [{ payType: '日給', base: '8192.22', kintai: [{ label: '出勤日数', value: '25' }] }, 204806]].forEach(function (c) {
+   [{ payType: '日給', base: '8192.22', kintai: [{ label: '出勤日数', value: '25' }] }, 204806],
+   [{ payType: '時給', hourly: '1000', workedH: '100', workStatus: 'byoukyu', leavePay: '5000' }, 5000],
+   [{ payType: '日給', base: '10000', kintai: [{ label: '出勤日数', value: '20' }], workStatus: 'sankyu', leavePay: '' }, 0]].forEach(function (c) {
     const e = Object.assign(A.defEmp('自動 太郎'), c[0]);
     const r = A.compute(e), b = (r.shikyu.find(x => x.label === '基本給') || {}).value;
     const m = A.basePayNoteOnly(e).match(/<b>¥([\d,]+)<\/b>/);

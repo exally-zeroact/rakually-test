@@ -2115,6 +2115,8 @@
   }
   // 基本給の「自動計算」ノートだけを返す(入力欄と分離=refreshCardで焦点を飛ばさず更新)
   function basePayNoteOnly(e){
+    if(e.workStatus&&e.workStatus!=='normal'&&(e.payType==='時給'||e.payType==='日給'||e.payType==='歩合'||e.payType==='カスタム')){ // ★休業中＝計算は 休暇中の 支給額（部分月の 産育休は 基本給 満額→欠勤控除）＝同じ basePayAmt から 出す（2026-11-06）
+      return '<div class="hint" style="margin:-4px 2px 8px;color:#3D6B53">基本給（自動）＝ 休業中のため〈休暇中の支給額〉 ＝ <b>'+yen(PM().basePayAmt(e,ctxOf()))+'</b>（〈詳細設定〉→〈在籍・勤務〉で直す）</div>'; }
     if(e.payType==='時給'){ var hrs=workedMin(e)/60;
       return '<div class="hint" style="margin:-4px 2px 8px;color:#3D6B53">基本給（自動）＝ 時給 '+fmtN(e.hourly)+'円 × 労働時間 '+(Math.round(hrs*100)/100)+'h ＝ <b>'+yen(PM().jikyuBase(e))+'</b></div>'; }
     if(e.payType==='日給'){ var d=effShukkin(e); var dd=((state.company.ruleOn||{}).daikyu&&state.company.daikyuDeduct&&kintaiVal(e,/代休取得/)>0);
