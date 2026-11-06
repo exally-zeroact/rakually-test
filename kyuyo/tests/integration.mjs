@@ -800,6 +800,9 @@ T('★振込: 番号の 字が 違う人は ファイルに 入れず 名指し�
     ok(w && /丙/.test(w.textContent) && !/甲/.test(w.textContent), '★案内の 名前が 違う: ' + (w && w.textContent));
     ok(w && w.querySelector('[data-fix-emp-id]'), '★案内が 押せない（その人の 欄へ 行けない）');
     ok(![...win.document.querySelectorAll('#furi-box .cr-warn')].some(e => /振込先が未入力/.test(e.textContent) && /乙/.test(e.textContent)), '★入れてあるのに「未入力」と 言う');
+    /* ★字の 違う人が 1人でも 居れば 全銀は 押せない★（叩きの 止め1＝前は 甲だけの「1件」で 押せた＝乙・丙の 給料が 黙って 抜けた・司さん 10-04 の 止めて 警告） */
+    const b = win.document.getElementById('b-zengin');
+    ok(b && b.disabled && /2名の番号の字が違う/.test(b.textContent), '★字の 違う人を 抜いて 全銀が 押せる: ' + (b && b.textContent));
   } finally { st.employees = keep; win.document.querySelector('[data-scr="scr-furikomi"]').click(); }
 });
 T('★振込: 自社の 口座の 番号が 空・字違いなら 全銀は 押せない＋ボタンに 理由（0000 の 見出しを 出さない）', () => {
