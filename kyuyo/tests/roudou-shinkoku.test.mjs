@@ -36,6 +36,34 @@ T('★② 同額なら 合計率に 乗じてから 切り捨て（厚労省 Ｑ
   eq(r.rousai + r.koyo, 22193, '別々に 切り捨てた 場合（比べる為）');
 });
 
+/* ★率の 小数の 誤差で 1円 落とさない★（2026-11-06 実測で 直した）
+     前は Math.floor(基礎額×率)＝0.0055+0.009 が 0.014499999999999999 に なり、
+     12,000,000円×(3‰＋14.5‰) が 209,999.99… → ★209,999 円★（法の 額は 210,000 円）。
+     数えた＝雇用だけで 27万組中 17,780 組・労災＋雇用の 合計で 10万組超が 1円 少なかった。
+     見る 物＝★整数で 出した 額★（率を 1e7 倍の 整数に して 掛けて 割る）と 全部 同じか。 */
+T('★⑦ 率の 小数の 誤差で 1円 落とさない（整数で 出した 額と 全部 同じ）', () => {
+  const KH = require(path.join(ROOT, 'lib/koyo-hoken.js'));
+  const RR = require(path.join(ROOT, 'lib/rousai-ritsu.js'));
+  const koyo = []; for (const y of [2024, 2025, 2026]) for (const g of ['ippan', 'kensetsu', 'norin']) koyo.push(KH.fullRate(g, y));
+  const perm = [...new Set(RR.list().map((r) => r.permil))].concat([2.5, 0.02, 13.5]);
+  const q = (x) => Math.round(x * 1e7);
+  const exact = (base, ...rs) => Math.floor(base * rs.reduce((a, r) => a + q(r), 0) / 1e7);
+  let kumi = 0, ochi = 0, rei = '';
+  for (let base = 1000; base <= 30000000; base += 3000) {
+    for (const k of koyo) { kumi++; const r = S.hokenryo(base, base, null, k); if (r.koyo !== exact(base, k)) { ochi++; rei = rei || ('雇用 ' + base + '×' + k + '＝' + r.koyo); } }
+    for (const p of perm) {
+      const rr = p / 1000; kumi++;
+      const r = S.hokenryo(base, base, rr, null); if (r.rousai !== exact(base, rr)) { ochi++; rei = rei || ('労災 ' + base + '×' + rr + '＝' + r.rousai); }
+      for (const k of koyo) { kumi++; const g = S.hokenryo(base, base, rr, k); if (g.gokei !== exact(base, rr, k)) { ochi++; rei = rei || ('合計 ' + base + '×(' + rr + '+' + k + ')＝' + g.gokei); } }
+    }
+    kumi++; if (S.ippanKyoshutsukin(base).gaku !== exact(base, 0.02 / 1000)) { ochi++; rei = rei || ('一般拠出金 ' + base); }
+  }
+  eq(S.hokenryo(12000000, 12000000, 0.003, KH.fullRate('ippan', 2025)).gokei, 210000, '★12,000,000×(3‰＋14.5‰)★');
+  eq(S.hokenryo(2000, 2000, null, KH.fullRate('ippan', 2025)).koyo, 29, '★2,000×14.5‰＝29.0★');
+  ok(kumi > 100000, '組が 少なすぎる ' + kumi);
+  eq(ochi, 0, '★整数の 額と 違う 組（' + kumi + '組中）★ 例 ' + rei);
+});
+
 T('★③ 算定基礎額が 違えば 別々に 切り捨てる', () => {
   const r = S.hokenryo(1233400, 1000400, 2.5 / 1000, 15.5 / 1000);
   eq(r.awaseta, false);

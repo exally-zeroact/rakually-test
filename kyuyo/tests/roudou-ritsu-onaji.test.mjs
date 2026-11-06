@@ -78,4 +78,20 @@ if (iro.size < 1000) { ng++; console.log('  ✗ ★返りの 種類が ' + iro.s
 if (WAZA) { if (chigau === 0) { ng++; console.log('  ✗ ★前の 受け手に 戻しても 違いが 出ない＝この 門は 何も 見て いない★'); } else console.log('  ✓ ★前の 受け手に 戻すと 違う 組が 出る（' + chigau + '）＝門は 効いている★'); }
 else if (chigau) { ng++; console.log('  ✗ ★打った 時と 描き直した 時で 数が 違う★'); }
 else console.log('  ✓ ★打った 時と 描き直した 時で 数が 全部 同じ★');
+
+/* ★画面の 雇用保険料・労災保険料も 率の 小数の 誤差で 1円 落とさない★（2026-11-06）
+     前は app.js roudouRyo が Math.floor(基礎額×率)＝例 年 2,000円×14.5‰ が 28 円（法は 29 円）。
+     ★整数で 出した 額★と 同じかを 見る（月給の 1人・1か月だけ 賃金を 入れる） */
+if (!WAZA) {
+  const q = (x) => Math.round(x * 1e7), exact = (b, r) => Math.floor(Math.floor(b / 1000) * 1000 * q(r) / 1e7);
+  let k2 = 0, ochi = 0, rei2 = '';
+  for (const fy of [2025, 2026]) for (const g of ['ippan', 'kensetsu', 'norin']) for (let w = 1000; w <= 3000000; w += 37000) for (const p of ['2.5', '3', '52']) {
+    A.state.company = { gyoshu: g, zennendoGaisan: '', rousaiShurui: '__te__', rousaiRate: p };
+    const s = A.roudouSummary([{ ym: fy + '-04', employee_id: 'a', data: { shikyuTotal: w } }], fy, emps);
+    k2++;
+    if (s.koyoRyo !== exact(s.koyoWageTotal, s.koyoFull) || s.rousaiRyo !== exact(s.rousaiWageTotal, Number(p) / 1000)) { ochi++; rei2 = rei2 || (fy + ' ' + g + ' ' + w + ' ' + p + '‰ 雇用 ' + s.koyoRyo + '／労災 ' + s.rousaiRyo); }
+  }
+  if (ochi) { ng++; console.log('  ✗ ★画面の 保険料が 整数の 額と 違う 組 ' + ochi + '／' + k2 + '★ 例 ' + rei2); }
+  else console.log('  ✓ ★画面の 雇用保険料・労災保険料＝整数の 額（' + k2 + '組）★');
+}
 process.exit(ng ? 1 : 0);

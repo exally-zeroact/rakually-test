@@ -3598,7 +3598,8 @@
     return rows;
   }
   // 労働保険料の端数(労働保険料徴収法)=①賃金総額の1,000円未満切捨→②率を乗じる→③保険料額の1円未満切捨。
-  function roudouRyo(wageTotal, rate){ if(rate==null) return null; var base=Math.floor(wageTotal/1000)*1000; return Math.floor(base*rate); }
+  // ★掛けて 切り捨てるのは lib の kakete 1か所★（2026-11-06＝前は Math.floor(基礎額×率) で 率の 小数の 誤差が 1円 落とした・例 2,000円×14.5‰＝29 が 28）
+  function roudouRyo(wageTotal, rate){ if(rate==null) return null; var RS=window.RoudouShinkoku; return (RS&&RS.kakete) ? RS.kakete(wageTotal, [rate]) : null; }  /* lib が 無い 時は 数を 作らない（roudouGokei と 同じ） */
   /* ★労働保険料の 合計★（★端数の 付け方が 一次情報で 決まっている★）
      ★厚生労働省「令和８年度 労働保険年度更新申告書の書き方（継続事業用）」Ｑ３ 原文★
        「保険料（一般拠出金）の計算をしたら小数点以下が発生しました。切り捨てですか、切り上げですか？

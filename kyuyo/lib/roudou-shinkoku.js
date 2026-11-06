@@ -70,6 +70,19 @@
   /* ② 算定基礎額は 千円未満 切り捨て */
   function santeiKiso(wage) { return Math.floor(n(wage) / 1000) * 1000; }
 
+  /* ★基礎額×率（足した 率も）を 1円未満 切り捨て＝★整数で 掛ける★（2026-11-06 実測で 直した）
+       前は Math.floor(基礎額×率)＝★率の 小数の 誤差で 1円 落ちた★
+         0.0055+0.009 は 0.014499999999999999 ⇒ 12,000,000×(0.003+0.0145) が 209,999.99… ⇒ 209,999 円（法の 額は 210,000 円）
+         数えた＝雇用だけで 27万組中 17,780 組／労災＋雇用の 合計で 10万組超が 1円 少なかった（kyuyo/tests/roudou-shinkoku.test.mjs ⑦）
+       ⇒ 率を 1e7 倍の 整数（‰ で 小数4桁まで）に 丸めてから 掛け、整数の まま 割る。 */
+  var ITTEI = 1e7;
+  function kakete(base, rates) {
+    var q = 0;
+    for (var i = 0; i < rates.length; i++) q += Math.round(Number(rates[i]) * ITTEI);
+    var a = santeiKiso(base) * q;
+    return (a - a % ITTEI) / ITTEI;
+  }
+
   /* ① 労働保険料（労災＋雇用）
        ★算定基礎額（千円未満 切り捨て後）が 同額なら 合計率に 乗じてから 1回だけ 切り捨てる★
        ★率が 分からない時は null★（0を 返さない） */
@@ -77,10 +90,10 @@
     var rb = santeiKiso(rousaiWage), kb = santeiKiso(koyoWage);
     var rr = (rousaiRate == null) ? null : Number(rousaiRate);
     var kr = (koyoRate == null) ? null : Number(koyoRate);
-    var rousai = (rr == null) ? null : Math.floor(rb * rr);
-    var koyo = (kr == null) ? null : Math.floor(kb * kr);
+    var rousai = (rr == null) ? null : kakete(rb, [rr]);
+    var koyo = (kr == null) ? null : kakete(kb, [kr]);
     if (rr == null || kr == null) return { rousaiBase: rb, koyoBase: kb, rousai: rousai, koyo: koyo, gokei: null, awaseta: false };
-    if (rb === kb) return { rousaiBase: rb, koyoBase: kb, rousai: rousai, koyo: koyo, gokei: Math.floor(rb * (rr + kr)), awaseta: true };
+    if (rb === kb) return { rousaiBase: rb, koyoBase: kb, rousai: rousai, koyo: koyo, gokei: kakete(rb, [rr, kr]), awaseta: true };
     return { rousaiBase: rb, koyoBase: kb, rousai: rousai, koyo: koyo, gokei: rousai + koyo, awaseta: false };
   }
 
@@ -88,7 +101,7 @@
        ★概算払いは 無い＝確定のみ★ */
   function ippanKyoshutsukin(wage) {
     var b = santeiKiso(wage);
-    return { base: b, gaku: Math.floor(b * (IPPAN_PERMIL / 1000)), permil: IPPAN_PERMIL, gaisanNashi: true };
+    return { base: b, gaku: kakete(b, [IPPAN_PERMIL / 1000]), permil: IPPAN_PERMIL, gaisanNashi: true };
   }
 
   /* ③ 概算の 算定基礎額＝見込が 前年度の 50%〜200% なら ★前年度の 額★
@@ -141,7 +154,7 @@
   return {
     IPPAN_PERMIL: IPPAN_PERMIL, ENNO_YEN: ENNO_YEN, ENNO_YEN_KATAHOU: ENNO_YEN_KATAHOU,
     MIKOMI_MIN: MIKOMI_MIN, MIKOMI_MAX: MIKOMI_MAX,
-    santeiKiso: santeiKiso, hokenryo: hokenryo, ippanKyoshutsukin: ippanKyoshutsukin,
+    santeiKiso: santeiKiso, kakete: kakete, hokenryo: hokenryo, ippanKyoshutsukin: ippanKyoshutsukin,
     gaisanBase: gaisanBase, ennoDekiruka: ennoDekiruka, ennoKibetsu: ennoKibetsu, seisan: seisan
   };
 }));
