@@ -4482,7 +4482,7 @@
       return { emp:e, city:extractCity(e.address), collect:(e.juminCollect==='ordinary'?'普通徴収':'特別徴収'), name:e.name||'', birthYmd:e.birthYmd||'', zip:e.zip||'', address:e.address||'',
         shunyu:c.shunyu, kyuyoShotoku:r.kyuyoShotoku, kojoGoukei:r.kojoGoukei, nenzei:r.nenchouNenzei,
         shakaiHoken:kl.shakaiHoken, seimei:kl.seimei, jishin:kl.jishin, haiGaku:kl.haiguusha+kl.haiTokubetsu,
-        kiso:kl.kiso, tokuteiShinzoku:kl.tokuteiShinzoku, jutaku:num(n.jutakuLoan), fb:fb, nensho:num(e.nenshoFuyo), honnin:honninKubun(e) };
+        kiso:kl.kiso, tokuteiShinzoku:kl.tokuteiShinzoku, jutaku:((Nen_()&&Nen_().loanKojo)?Nen_().loanKojo(n.jutakuLoan):num(n.jutakuLoan)), fb:fb, nensho:num(e.nenshoFuyo), honnin:honninKubun(e) };
     }).filter(Boolean).filter(function(x){ return x.shunyu>0; }); // 年内に支払のあった人のみ
   }
   function gyoyoSoukatsuAoa(rows, year){
@@ -4526,7 +4526,7 @@
       +'<tr>'+cell('源泉徴収税額', r.nenchouNenzei)+'<td class="gl">(源泉)控除対象配偶者の有無</td><td class="gv">'+haiUmu+'</td></tr>'
       +'<tr>'+cell('配偶者(特別)控除の額', haiGaku)+'<td class="gl">控除対象扶養親族の数</td><td class="gv" style="text-align:left">特定'+fbG.tokutei+'人／老人'+fbG.roujinAll+'人／その他'+fbG.ippan+'人</td></tr>'
       +'<tr>'+cell('社会保険料等の金額', kl.shakaiHoken)+cell('生命保険料の控除額', kl.seimei)+'</tr>'
-      +'<tr>'+cell('地震保険料の控除額', kl.jishin)+cell('住宅借入金等特別控除の額', num(n.jutakuLoan))+'</tr>'
+      +'<tr>'+cell('地震保険料の控除額', kl.jishin)+cell('住宅借入金等特別控除の額', ((Nen_()&&Nen_().loanKojo)?Nen_().loanKojo(n.jutakuLoan):num(n.jutakuLoan)))+'</tr>'
       +'<tr>'+cell('基礎控除の額', kl.kiso)+cell('特定親族特別控除の額', kl.tokuteiShinzoku)+'</tr>'
       +'<tr><td class="gl">摘要</td><td colspan="3" style="height:34px"></td></tr>'
       +'<tr><td class="gl">支払者</td><td colspan="3">'+esc((state.company||{}).name||'')+'　'+esc((state.company||{}).addr||'')+'</td></tr>'

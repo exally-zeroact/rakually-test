@@ -158,8 +158,10 @@
   function fukkoNenzei(afterLoan) {
     return Math.floor(Math.round(afterLoan * P.fukkoRate / 100 * 1e6) / 1e6) * 100;
   }
+  /* ★住宅ローン控除（税額控除）は 円未満 切り捨ての 整数・負の 数は 0★（2026-11-06 叩きの 任意1・2＝前は 小数の 控除で 控除後が 小数に なり／"-50000" で 税が 増えた） */
+  function loanKojo(v) { var n = Math.floor(num(v)); return n > 0 ? n : 0; }
   function nenchouNenzei(kazeiKyuyoShotoku, jutakuLoan) {
-    var afterLoan = Math.max(0, sanshutuShotokuZei(kazeiKyuyoShotoku) - num(jutakuLoan));
+    var afterLoan = Math.max(0, sanshutuShotokuZei(kazeiKyuyoShotoku) - loanKojo(jutakuLoan));
     return fukkoNenzei(afterLoan);
   }
 
@@ -186,7 +188,7 @@
     var kojoGoukei = 0; for (var k in kojoList) { if (kojoList.hasOwnProperty(k)) kojoGoukei += kojoList[k]; }
     var kazei = Math.max(0, Math.floor((goukeiShotoku - kojoGoukei) / 1000) * 1000);
     var sanshutu = sanshutuShotokuZei(kazei);
-    var afterLoan = Math.max(0, sanshutu - num(o.jutakuLoan));
+    var afterLoan = Math.max(0, sanshutu - loanKojo(o.jutakuLoan));
     var nenzei = fukkoNenzei(afterLoan);
     return {
       kyuyoShotoku: kyuyoShotoku, goukeiShotoku: goukeiShotoku, kojoList: kojoList, kojoGoukei: kojoGoukei,
@@ -237,7 +239,7 @@
     num: num, seimeiNew: seimeiNew, seimeiOld: seimeiOld, seimeiCategory: seimeiCategory,
     seimeiKojo: seimeiKojo, jishinKojo: jishinKojo,
     shougaiKojo: shougaiKojo, KAFU: KAFU, HITORIOYA: HITORIOYA, KINROU: KINROU,
-    sanshutuShotokuZei: sanshutuShotokuZei, nenchouNenzei: nenchouNenzei, computeNencho: computeNencho,
+    sanshutuShotokuZei: sanshutuShotokuZei, fukkoNenzei: fukkoNenzei, loanKojo: loanKojo, nenchouNenzei: nenchouNenzei, computeNencho: computeNencho,
     kyuyoKojoR8: kyuyoKojoR8, kyuyoShotokuR8: kyuyoShotokuR8, kisoKojoR8: kisoKojoR8,
     fuyoKojo: fuyoKojo, haiguushaKojo: haiguushaKojo,
     haiguushaTokubetsuKojo: haiguushaTokubetsuKojo, tokuteiShinzokuKojo: tokuteiShinzokuKojo,

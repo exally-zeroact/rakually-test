@@ -167,12 +167,22 @@ T('年調年税額: ×102.1% が 小数の 誤差で 100円 落ちない（課�
   eq(r.kazeiKyuyoShotoku, 1975000, '課税給与所得');
   eq(r.nenchouNenzei, 102100, 'computeNencho');
   var chigau = 0, rei = '';
-  for (var a = 0; a <= 3000000; a++) {   /* 住宅ローン控除で 算出税額 − 控除 を 0〜300万の 全部に する */
+  for (var a = 0; a <= 3000000; a++) {   /* 算出税額 − 控除 を 0〜300万の 全部で fukkoNenzei に 直に 当てる */
     var want = Math.floor(a * 1021 / 100000) * 100;
-    var got = N.nenchouNenzei(1975000, 100000 - a);   /* 算出 100,000 − (100,000 − a) ＝ a（a>100,000 は 負の 控除＝試験の ためだけ） */
+    var got = N.fukkoNenzei(a);
     if (got !== want) { chigau++; if (!rei) rei = a + '→' + got + '（正 ' + want + '）'; }
   }
   eq(chigau, 0, '整数の 答えと 違う（300万通り中）例 ' + rei);
+});
+/* ★住宅ローン控除は 円未満 切り捨ての 整数・負の 数は 0★（2026-11-06 叩きの 任意1・2）
+     前は 小数の 控除で 控除後が 16,258.57 に なり 1e-6 の 丸めで 100円 多く 取る 事が あった／"-50000" を 入れると 税が 増えた。 */
+T('年調年税額: 住宅ローン控除の 小数は 円未満 切り捨て・負の 数は 0（算出 100,000）', function () {
+  eq(N.nenchouNenzei(1975000, 83741.43), N.nenchouNenzei(1975000, 83741), '控除 83,741.43＝83,741 と 同じ（控除後 16,259→16,600）');
+  eq(N.nenchouNenzei(1975000, 83741), 16600, '16,259×1.021＝16,600.4→16,600');
+  eq(N.nenchouNenzei(1975000, -50000), 102100, '負の 控除は 0');
+  var X = 3000000, kiso = N.kisoKojoR8(X), o = { kyuyoShunyu: 0, otherShotoku: X, shakaiHoken: X - kiso - 1975000 };
+  eq(N.computeNencho(Object.assign({ jutakuLoan: -50000 }, o)).nenchouNenzei, 102100, 'computeNencho も 負の 控除は 0');
+  eq(N.computeNencho(Object.assign({ jutakuLoan: 83741.43 }, o)).nenchouNenzei, 16600, 'computeNencho も 円未満 切り捨て');
 });
 
 /* ── 年末調整 総合計算(worked example) ── */
