@@ -167,7 +167,9 @@ jobs:
         env:
           SHIKEN_KUCHI_PASS: ''   # ★借り物を 入れる 段には 合言葉を 渡さない★（job の env を 打ち消す・決め2 10-11 taiketsu）
       # ★webkit だけ★ 入れる（chromium/firefox は要らない＝そのぶん速い）
+      # ★取り込みの 段も !cancelled()★（前の 段が 赤でも 入れる＝後ろが「ブラウザ無しの 未測定の 赤」に ならない・門 tests/dan-tobanai.test.mjs・11-06）
       - name: Install WebKit
+        if: ${{ !cancelled() }}
         timeout-minutes: 45
         run: npx playwright install --with-deps webkit
         env:
@@ -192,7 +194,9 @@ jobs:
       # ★自作PDF★（司さん 2026-08-30「自作PDFのやり方しか指示してないわ」）
       #   ★本物のブラウザで 本物の紙から PDFを作って 数で見る★（chromium が要る）。
       #   司さんの指摘「なんでここが揃ってないんど／右揃えか左揃えかやろが」を 数で 押さえた物。
+      #   ★if が 無かった（11-06 まで）＝前の 試験が 1段 赤だと skipped→後ろ 9段が ブラウザ無しで 赤（1つの 赤が 10 に 見えた・run 40164342762）★
       - name: Install Chromium (自作PDFを 本物のブラウザで 作る為)
+        if: ${{ !cancelled() }}
         timeout-minutes: 20
         run: npx playwright install --with-deps chromium
         env:

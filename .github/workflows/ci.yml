@@ -121,6 +121,10 @@ jobs:
         run: node scripts/tests-registered.mjs
       - name: ★同じ見張りを わざと壊して 赤になるか
         run: node scripts/tests-registered.mjs --self-test
+      - name: ★前の 段が 1つ 赤でも 後ろの 段を 黙って 飛ばさない（!cancelled() の 流れの 途中に if の 無い 段が 0・ブラウザを 入れる 2段は 名指し・webkit job は 60段 以上 見張る）
+        run: node tests/dan-tobanai.test.mjs
+      - name: ★同 わざと if を 外す／全部 消す／job を 崩す／注を 付けて 赤になるか・import だけで 走らないか
+        run: node tests/dan-tobanai.test.mjs --self-test
       - name: ★段の分類器 (緑を 測った/一部抜け/丸ごと抜け/読めない に割る・KEKKA優先・✓だけは抜けと言わない)
         run: node tests/bunrui.test.mjs
       - name: ★覚書はがしの正本 (正規表現/文字列/テンプレを消さない・長さ行数不変・node --check・素朴版は赤)
