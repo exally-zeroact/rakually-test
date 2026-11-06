@@ -155,6 +155,27 @@ T('保障給/高い方: 歩合 vs 時給×総時間 の高い方', function () {
   eq(W.higherOf(150000, W.guaranteePay(1200, 160 * 60)), 192000);
   eq(W.higherOf(250000, W.guaranteePay(1200, 160 * 60)), 250000);
 });
+/* ★保障給・時給・日給の 四捨五入が 小数の 誤差で 0.5 を 切り下げていた★（2026-11-06 実測で 直した）
+     前は Math.round(時給×分/60)＝0.7×10500分＝122.5 が 122.4999… で 122（正 123）・1024.1×6300分＝107,530.5 が 107,530（正 107,531）。
+     数えた＝小数の 時給（1〜4桁）約41億組中 25,302組・小数の 日給 1.1億組中 62,782組。答えは 整数（(2×時給×10^d×分＋60×10^d)÷(2×60×10^d) の 切り捨て）で 出した物。 */
+T('保障給: 0.5 ちょうどは 切り上げ（1024.1×6300分→107,531・小数1〜2桁の 時給×分で 整数と 照合）', function () {
+  eq(typeof W.yenRound, 'function', 'yenRound が 在る');
+  eq(W.guaranteePay(1024.1, 6300), 107531, '1024.1×6300分');
+  eq(W.guaranteePay('0.7', 10500), 123, '0.7×10500分');
+  eq(W.yenRound(8192.22 * 25), 204806, '日給 8192.22×25日');
+  var kumi = 0, chigau = 0, rei = '';
+  [[10, 3000, 7], [100, 1500, 13]].forEach(function (z) {
+    var S = z[0];
+    for (var H = 1; H <= z[1] * S; H += (S === 100 ? 7 : 1)) {
+      for (var m = z[2]; m <= 12000; m += z[2] * 11) {
+        kumi++;
+        var den = 60 * S, want = Math.floor((2 * H * m + den) / (2 * den)), got = W.guaranteePay(H / S, m);
+        if (got !== want) { chigau++; if (!rei) rei = (H / S) + '×' + m + '分→' + got + '（正 ' + want + '）'; }
+      }
+    }
+  });
+  eq(chigau, 0, '整数の 答えと 違う（' + kumi + '組中）例 ' + rei);
+});
 /* 歩合の基本給配線(app.js syncBasePay の単一ソース) */
 T('commissionBasePay: 歩合<保障 → 保障給適用 / 歩合>保障 → 歩合実績', function () {
   eq(W.commissionBasePay(150000, 1200, 160 * 60), 192000); // 歩合15万 < 保障192000 → 保障給

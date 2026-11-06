@@ -221,7 +221,10 @@
   }
   // 保障給/「高い方」: 歩合実績 と 時間給ベース保障(時給×総労働時間) の高い方
   function higherOf(a, b) { return Math.max(num(a), num(b)); }
-  function guaranteePay(hourlyGuarantee, totalWorkMin) { return Math.round(num(hourlyGuarantee) * num(totalWorkMin) / 60); }
+  /* ★円の 四捨五入＝1e-6 に 丸めてから★（2026-11-06＝前は Math.round(時給×分/60)＝1024.1×6300分＝107,530.5 が 107,530.4999… で 107,530・正 107,531。
+     小数の 時給（1〜4桁）約41億組中 25,302組・小数の 日給 1.1億組中 62,782組で 1円 少なかった。時給 小数4桁×分 の 端数は 1/600,000 刻み＝1e-6 の 丸めで 0.5 以外は 動かない） */
+  function yenRound(v) { return Math.round(Math.round(v * 1e6) / 1e6); }
+  function guaranteePay(hourlyGuarantee, totalWorkMin) { return yenRound(num(hourlyGuarantee) * num(totalWorkMin) / 60); }
   // 歩合の基本給 = 歩合実績 と 保障給(保障時給×総労働時間) の高い方(労基27条)。app配線の単一ソース
   function commissionBasePay(commissionTotal, hourlyGuarantee, totalWorkMin) { return higherOf(commissionTotal, guaranteePay(hourlyGuarantee, totalWorkMin)); }
   // 最低賃金チェック: (賃金合計 ÷ 総労働時間) ≧ 地域別最賃 か(割増/通勤は分子から除く前提で呼ぶ)
@@ -229,7 +232,7 @@
   function minWageOk(basePayTotal, totalWorkMin, minWage) { return minWageHourly(basePayTotal, totalWorkMin) >= num(minWage) - 1e-9; }
 
   return {
-    num: num, han50: han50, han50Up: han50Up, hm2min: hm2min,
+    num: num, yenRound: yenRound, han50: han50, han50Up: han50Up, hm2min: hm2min,
     commissionUnit: commissionUnit, commissionComponents: commissionComponents, commission: commission,
     higherOf: higherOf, guaranteePay: guaranteePay, commissionBasePay: commissionBasePay, minWageHourly: minWageHourly, minWageOk: minWageOk,
     monthlyStdHours: monthlyStdHours, hourlyUnit: hourlyUnit,

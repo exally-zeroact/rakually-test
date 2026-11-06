@@ -316,6 +316,20 @@ T('入退社: 日割の 0.5 ちょうどは 切り上げ（基本給 280,875・6
   ok(b === 102988, '日割の 基本給 ' + b + '（正 102,988）');
 });
 
+/* ★時給・日給の 基本給の 四捨五入が 小数の 誤差で 0.5 を 切り下げていた★（2026-11-06 実測で 直した）
+     時給 1024.1×105h（6,300分）＝107,530.5 が 107,530・日給 8192.22×25日＝204,805.5 が 204,805。 */
+T('基本給: 小数の 時給・日給の 0.5 ちょうどは 切り上げ（107,531・204,806）', function () {
+  const h = A.compute(emp({ payType: '時給', hourly: '1024.1', kintai: [{ label: '出勤日数', value: '20' }], workedH: '105' }));
+  const hb = (h.shikyu.find(x => x.label === '基本給') || {}).value;
+  ok(hb === 107531, '時給の 基本給 ' + hb + '（正 107,531）');
+  const d = A.compute(emp({ payType: '日給', base: '8192.22', kintai: [{ label: '出勤日数', value: '25' }] }));
+  const db = (d.shikyu.find(x => x.label === '基本給') || {}).value;
+  ok(db === 204806, '日給の 基本給 ' + db + '（正 204,806）');
+  const g = A.compute(emp({ payType: '歩合', commissionAmt: '0', hourlyGuarantee: '1024.1', kintai: [{ label: '出勤日数', value: '20' }], workedH: '105' }));
+  const gb = (g.shikyu.find(x => x.label === '基本給') || {}).value;
+  ok(gb === 107531, '歩合の 保障給 ' + gb + '（正 107,531）');
+});
+
 // ── ⑨b 年末調整: 給与所得控除/基礎控除(令和8)/累進/復興税/各種控除/住宅ローン税額控除 ──
 T('年末調整: 給与所得控除・基礎控除R8・算出税・復興税・過不足が正しい', function () {
   const NM = win.Nenmatsu; ok(NM && NM.computeNencho, 'Nenmatsu露出');

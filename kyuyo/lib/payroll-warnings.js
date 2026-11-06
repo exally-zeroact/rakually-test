@@ -92,7 +92,7 @@
     var hourly = 0;
     if (e.payType === '時給') hourly = num(e.hourly) + teateHourly;
     else if (e.payType === '日給') hourly = (dwh > 0 ? num(e.base) / dwh : 0) + teateHourly;
-    else if (e.payType === '歩合') { var wmw = PM().workedMin(e); var gpw = W() ? W().guaranteePay(e.hourlyGuarantee, wmw) : Math.round(num(e.hourlyGuarantee) * wmw / 60); var bpw = Math.max(num(e.commissionAmt), gpw); hourly = (wmw > 0 ? bpw / (wmw / 60) : 0) + teateHourly; } // 歩合=賃金合計(高い方)÷総労働時間で最賃判定
+    else if (e.payType === '歩合') { var wmw = PM().workedMin(e); var gpw = W() ? W().guaranteePay(e.hourlyGuarantee, wmw) : PM().yenRound(num(e.hourlyGuarantee) * wmw / 60); var bpw = Math.max(num(e.commissionAmt), gpw); hourly = (wmw > 0 ? bpw / (wmw / 60) : 0) + teateHourly; } // 歩合=賃金合計(高い方)÷総労働時間で最賃判定
     else if (e.payType === 'カスタム') { var wmc = PM().payRuleCtx(e).workMin; var prc = PM().payRuleResult(e); var bpc = prc ? prc.base : 0; hourly = (wmc > 0 ? bpc / (wmc / 60) : 0) + teateHourly; } // カスタム=基本給÷総労働時間(★K4:基本給と同じソース=台帳取り込み時は台帳のworkMin。未取り込みはworkedMin(e)と同値)
     else { hourly = (stdH > 0 ? num(e.base) / stdH : 0) + teateHourly; } // 月給=基本給÷月平均所定時間＋算入手当
     hourly = Math.floor(hourly);

@@ -185,9 +185,9 @@
     if (!e.shikyu) e.shikyu = [];
     var amt;
     if (e.workStatus && e.workStatus !== 'normal') { var _lwi = leaveNoWorkInfo(e, YM(ctx), ctx); amt = (_lwi && _lwi.partial) ? num(e.base) : num(e.leavePay); } // 部分月の産育休=満額(compute側で不就労を欠勤控除)/それ以外=休業中の金額を手入力
-    else if (e.payType === '時給') amt = Math.round(num(e.hourly) * workedMin(e) / 60);
-    else if (e.payType === '日給') amt = Math.round(num(e.base) * effShukkin(e, ctx));
-    else if (e.payType === '歩合') amt = W() ? W().commissionBasePay(e.commissionAmt, e.hourlyGuarantee, workedMin(e)) : Math.max(num(e.commissionAmt), Math.round(num(e.hourlyGuarantee) * workedMin(e) / 60)); // 歩合実績と保障給(時給×総労働時間)の高い方=労基27条
+    else if (e.payType === '時給') amt = yenRound(num(e.hourly) * workedMin(e) / 60);
+    else if (e.payType === '日給') amt = yenRound(num(e.base) * effShukkin(e, ctx));
+    else if (e.payType === '歩合') amt = W() ? W().commissionBasePay(e.commissionAmt, e.hourlyGuarantee, workedMin(e)) : Math.max(num(e.commissionAmt), yenRound(num(e.hourlyGuarantee) * workedMin(e) / 60)); // 歩合実績と保障給(時給×総労働時間)の高い方=労基27条
     else if (e.payType === 'カスタム') { var _pr = payRuleResult(e); amt = _pr ? _pr.base : 0; } // 固定+変動{なし/単一/高い方}をPayRuleで評価
     else amt = num(e.base);
     var idx = e.shikyu.findIndex(function (x) { return /基本給/.test(x.label || ''); });
@@ -228,6 +228,8 @@
   /* ★日割の 円＝1e-6 に 丸めてから 四捨五入★（2026-11-06＝前は Math.round(額×係数)＝42×17/28＝25.5 が 25.4999… で 25・正 26。
      額 1〜60万円×暦日 28〜31×在籍日の 約6,800万組中 24,739組。額×在籍日/暦日 の 端数は 1/暦日 刻み＝1e-6 の 丸めで 0.5 以外は 動かない） */
   function hiwariYen(v, factor) { return Math.round(Math.round(v * factor * 1e6) / 1e6); }
+  /* 時給×分/60・日給×日 の 円＝同じく 1e-6 に 丸めてから 四捨五入（2026-11-06・warimashi.js yenRound と 同じ式＝W() が 無い 時も 同じ 値） */
+  function yenRound(v) { return Math.round(Math.round(v * 1e6) / 1e6); }
 
   // ── 月次の本体 ──
   function compute(e, ctx) {
@@ -419,7 +421,7 @@
   }
 
   return {
-    num: num, hiwariYen: hiwariYen,
+    num: num, hiwariYen: hiwariYen, yenRound: yenRound,
     furikomiDateObj: furikomiDateObj, furikomiMMDD: furikomiMMDD, furikomiShiftOf: furikomiShiftOf, payDayReadable: payDayReadable, bonusDateObj: bonusDateObj, bonusMMDD: bonusMMDD,
     defPayRule: defPayRule, ensurePayRule: ensurePayRule, payRuleCtx: payRuleCtx, payRuleResult: payRuleResult,
     employRateOf: employRateOf, prefRate: prefRate,
