@@ -168,7 +168,8 @@ if (process.argv.includes('--self-test')) {
   const kowasu = [
     ['㋐', 'ci.yml', (s) => s.replace(/^    timeout-minutes: \d+\n/m, '')],
     ['㋐', 'ci.yml', (s) => s.replace(/^    timeout-minutes: \d+$/m, '    timeout-minutes: 360')],
-    ['㋑', 'webkit.yml', (s) => s.replace(/(- name: Install WebKit\n)        timeout-minutes: \d+\n/, '$1')],
+    // ★段に if: が 在っても 壊せる★（11-06 Install WebKit に if: !cancelled() を 足したら 壊す所が 見つからず 赤＝4c297db の 網）
+    ['㋑', 'webkit.yml', (s) => s.replace(/(- name: Install WebKit\n(?:        if: [^\n]*\n)?)        timeout-minutes: \d+\n/, '$1')],
     ['㋒', 'source-urls.yml', (s) => s.replace(/^        timeout-minutes: \d+\n/m, '')],
     ['㋓', 'warehouse.yml', (s) => s.replace(/^    timeout-minutes: \d+$/m, '    timeout-minutes: 10')],
     // ★読み落とし★（taiketsu 10-30 2回目 任意1）＝job の 行に 注記を 付けて 上限を 抜く（P1）
