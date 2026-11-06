@@ -115,7 +115,8 @@
       return { tax: tax0, special: true, specialComputed: !!(Densan && Densan.calcByClass), method: "月額表", months: months, otsu: isOtsu, prevAfter: prevAfter, year: year };
     }
     var r = bonusRate(prevAfter, o.fuyou, { taxClass: isOtsu ? "otsu" : "ko", year: year });
-    var tax = Math.floor(taxableBonus * r.rate / 100); // 円未満切捨
+    /* ★1e-6 に 丸めてから 切り捨て★（2026-11-06＝前は 50,000×2.042% が 1,020.99… で 1,020・正 1,021。率 20種×1〜300万円の 6,000万組中 1,302組。額×率は 小数5桁まで＝1e-6 の 丸めで 値は 変わらない） */
+    var tax = Math.floor(Math.round(taxableBonus * r.rate / 100 * 1e6) / 1e6); // 円未満切捨
     return { tax: tax, rate: r.rate, special: false, otsu: isOtsu, prevAfter: prevAfter, year: r.year, stale: r.stale };
   }
 

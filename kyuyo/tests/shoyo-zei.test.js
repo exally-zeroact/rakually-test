@@ -42,6 +42,27 @@ T('賞与源泉: 賞与の社保控除後に率を掛ける', function () {
   var r = SZ.calcBonusTax({ bonus: 600000, bonusSI: 90000, prevSalary: 350000, prevSI: 60000, fuyou: 0, payYm: '2026-12' });
   eq(r.tax, Math.floor(510000 * 0.06126));
 });
+/* ★率を 掛けた 額が 小数の 誤差で 1円 少なかった★（2026-11-06 実測で 直した）
+     前は Math.floor(課税賞与×率/100)＝50,000×2.042% が 1,020.99… に なり 1,020（正 1,021）。
+     数えた＝率 20種×賞与 1〜300万円の 6,000万組中 1,302組。答えは 整数（×率の 1000倍÷100000）で 出した物。 */
+T('賞与源泉: 率を 掛けた 額が 小数の 誤差で 1円 落ちない（50,000×2.042%→1,021・全部の 率で 整数と 照合）', function () {
+  var pOf = {};   /* 率ごとに その 率に なる 前月の 社保後給与を 探す（扶養0・令和8） */
+  for (var p = 1000; p <= 4000000; p += 1000) { var rr = SZ.bonusRate(p, 0, { year: 2026 }).rate; if (rr > 0 && !(rr in pOf)) pOf[rr] = p; }
+  ok(pOf[2.042] > 0, '2.042% の 段が 在る');
+  eq(SZ.calcBonusTax({ bonus: 50000, bonusSI: 0, prevSalary: pOf[2.042], prevSI: 0, fuyou: 0, payYm: '2026-12' }).tax, 1021, '50,000×2.042%');
+  var kumi = 0, chigau = 0, rei = '';
+  Object.keys(pOf).forEach(function (k) {
+    var rate = Number(k), p0 = pOf[k], sen = Math.round(rate * 1000);
+    for (var b = 1; b <= Math.min(200000, p0 * 10); b++) {
+      kumi++;
+      var got = SZ.calcBonusTax({ bonus: b, bonusSI: 0, prevSalary: p0, prevSI: 0, fuyou: 0, payYm: '2026-12' }).tax;
+      var want = Math.floor(b * sen / 100000);
+      if (got !== want) { chigau++; if (!rei) rei = b + '×' + rate + '%→' + got + '（正 ' + want + '）'; }
+    }
+  });
+  eq(Object.keys(pOf).length, 20, '率の 段の 数 ' + Object.keys(pOf).length);
+  eq(chigau, 0, '整数の 答えと 違う（' + kumi + '組中）例 ' + rei);
+});
 var Densan = require('../lib/shotokuzei-densan.js');
 T('特例: 前月給与なし → 月額表で自動計算(手計算に投げない)', function () {
   // 大きめの賞与で非ゼロを確認: 賞与300万・扶養0・甲。式= 月額表(300万÷6)×6
