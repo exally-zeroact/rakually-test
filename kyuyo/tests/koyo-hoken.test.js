@@ -11,9 +11,27 @@ T('雇用 年度: 2026-04→2026 / 2026-03→2025(前年度) / 2025-06→2025', 
   eq(KH.employYearOfYm('2026-03'), 2025);
   eq(KH.employYearOfYm('2025-06'), 2025);
 });
-T('雇用 年度: 収録外はクランプ(2027-01→2026 / 2024-06→2025)', function () {
+T('雇用 年度: 収録外はクランプ(2027-01→2026 / 2023-06→2024)', function () {
   eq(KH.employYearOfYm('2027-01'), 2026);
-  eq(KH.employYearOfYm('2024-06'), 2025);
+  eq(KH.employYearOfYm('2023-06'), 2024);
+});
+/* ★2026-11-06 令和6年度（2024-04〜2025-03）の率を足した★
+   前は 令和6の 月（例 2025-01〜03 の 給与）を 令和7の 5.5‰ で 計算＝本当は 6‰（少なく 取っていた）。
+   出典＝厚労省 LL060215保01 https://www.mhlw.go.jp/content/001211914.pdf（令和5年度と同率） */
+T('雇用 料率 令和6(2024): 一般 労6・事9.5／農林 労7・事10.5／建設 労7・事11.5（‰）', function () {
+  eq(KH.employYearOfYm('2024-04'), 2024);
+  eq(KH.employYearOfYm('2025-03'), 2024, '2025-03＝令和6年度');
+  eq(KH.employYearOfYm('2025-04'), 2025);
+  eq(KH.employRateByYm('ippan', '2025-02'), 0.006);
+  eq(KH.employRate('ippan', 2024), 0.006);
+  eq(KH.employRate('norin', 2024), 0.007);
+  eq(KH.employRate('kensetsu', 2024), 0.007);
+  eq(KH.employerRate('ippan', 2024), 0.0095);
+  eq(KH.employerRate('norin', 2024), 0.0105);
+  eq(KH.employerRate('kensetsu', 2024), 0.0115);
+  eq(Math.round(KH.fullRate('ippan', 2024) * 10000), 155, '全体 15.5‰');
+  eq(KH.employStale('2024-06'), false);
+  eq(KH.employStale('2025-03'), false);
 });
 
 /* ★2026-11-06 候補⑥ 年を 決め打ちで 寄せない＝RATES の キーで 選ぶ★
@@ -35,9 +53,9 @@ T('雇用 年度: 中央の hydrate(2027) でも 2027-04 に 届く', function (
     eq(KH.employRateByYm('ippan', '2026-04'), 0.005, '令和8の 月は 変わらない');
   } finally { delete KH.RATES[2027]; }
 });
-T('雇用 employStale: 収録の 外（2027-04・2024-06）＝true／内（2026-04・2026-03）＝false', function () {
+T('雇用 employStale: 収録の 外（2027-04・2024-03）＝true／内（2026-04・2026-03）＝false', function () {
   eq(KH.employStale('2027-04'), true);
-  eq(KH.employStale('2024-06'), true);
+  eq(KH.employStale('2024-03'), true, '2024-03＝令和5年度＝未収録');
   eq(KH.employStale('2026-04'), false);
   eq(KH.employStale('2026-03'), false);
   eq(KH.employStale('2027-03'), false, '2027-03＝令和8年度');

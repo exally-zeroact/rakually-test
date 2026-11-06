@@ -54,6 +54,15 @@ T('雇用保険 令和8年度 一般の事業: 総支給×5/1000（労働者負�
   const p = one({}, '2026-06');
   eq(p.si.employ, Math.round(p.shikyuTotal * 0.005));
 });
+/* ★2026-11-06 令和6年度（2024-04〜2025-03）＝一般 労6/1000（令和5と同率）★ https://www.mhlw.go.jp/content/001211914.pdf
+   前は 令和6の 月を 令和7の 5.5/1000 で 計算していた（少なく 取る側）。計算の 道（engine）を 通して 額で 見る（叩きの 任意3）。 */
+T('雇用保険 令和6年度 一般の事業: 2025-02・2025-03 は 総支給×6/1000／2025-04 は 5.5/1000', function () {
+  const a = one({}, '2025-02'), b = one({}, '2025-03'), c = one({}, '2025-04');
+  eq(a.si.employ, Math.round(a.shikyuTotal * 0.006), '2025-02＝令和6');
+  eq(b.si.employ, Math.round(b.shikyuTotal * 0.006), '2025-03＝令和6（1〜3月は 前の 年度）');
+  eq(c.si.employ, Math.round(c.shikyuTotal * 0.0055), '2025-04＝令和7');
+  eq(a.si.employ, 1800, '実額リテラル（総支給30万）');
+});
 T('最低賃金 令和7年度 東京=1,226円: 時給1,225円は割れる／1,226円は割れない', function () {
   const w1 = run({ payType: '時給', hourly: '1225', workedH: '160', workedM: '0' }).warnings;
   const w2 = run({ payType: '時給', hourly: '1226', workedH: '160', workedM: '0' }).warnings;
