@@ -58,7 +58,8 @@ const sum = (fy, g) => {
 };
 const aoaRow = (s, fy, label) => (A.roudouAoa(s, fy).find((r) => r[0] === label) || [])[1];
 
-let ng = 0; const ok = (c, msg) => { if (c) console.log('  ✓ ' + msg); else { ng++; console.log('  ✗ ★' + msg + '★'); } };
+/* ★--waza の 回の 赤は わざと＝✗ を 付けない（✗ が 在って 終わり値0 だと ci-3tsu が「赤を 緑と 言う」に 数える）★ */
+let ng = 0, pass = 0; const ok = (c, msg) => { if (c) { pass++; console.log('  ✓ ' + msg); } else { ng++; console.log((WAZA ? '  ● 赤（わざと） ★' : '  ✗ ★') + msg + '★'); } };
 console.log('\n[roudou-gaisan-ritsu] 概算保険料は その 保険年度（fy+1）の 率' + (WAZA ? '  ★★わざと 確定の 率を 概算に 使った 回★★' : ''));
 
 // ①
@@ -113,4 +114,5 @@ if (!WAZA) {
 }
 
 if (WAZA) { if (ng === 0) { console.log('  ✗ ★確定の 率に 戻しても 赤が 出ない＝この 門は 何も 見て いない★'); process.exit(1); } console.log('  ✓ ★確定の 率に 戻すと 赤 ' + ng + '＝門は 効いている★'); process.exit(0); }
+console.log('\n' + pass + ' passed, ' + ng + ' failed');
 process.exit(ng ? 1 : 0);
