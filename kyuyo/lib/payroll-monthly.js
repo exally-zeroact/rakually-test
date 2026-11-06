@@ -225,6 +225,10 @@
     return pc.honninJintekiCount({ shogai: !!e.honninShogai, kafuHitorioya: e.honninKafuHitorioya || '', kinrou: !!e.honninKinrou });
   }
 
+  /* ★日割の 円＝1e-6 に 丸めてから 四捨五入★（2026-11-06＝前は Math.round(額×係数)＝42×17/28＝25.5 が 25.4999… で 25・正 26。
+     額 1〜60万円×暦日 28〜31×在籍日の 約6,800万組中 24,739組。額×在籍日/暦日 の 端数は 1/暦日 刻み＝1e-6 の 丸めで 0.5 以外は 動かない） */
+  function hiwariYen(v, factor) { return Math.round(Math.round(v * factor * 1e6) / 1e6); }
+
   // ── 月次の本体 ──
   function compute(e, ctx) {
     syncCommute(e); syncBasePay(e, ctx);
@@ -241,7 +245,7 @@
     //  local slice に足すだけ=非永続(再取り込みで重複しない)。hikazei:true→源泉/課税には入らず、総支給と手取りには入る。
     if (e._ledgerCtx && num(e._ledgerHikazei) > 0) shikyu = shikyu.concat([{ label: '台帳（非課税支給）', value: num(e._ledgerHikazei), hikazei: true }]);
     // 入社月/退職月の日割: 基本給＋課税手当を在籍日数で日割(通勤/非課税/割増は除外)。標準報酬(hyojunBase)・割増は満額のまま。
-    if (pr.prorate && pr.factor < 1) { shikyu = shikyu.map(function (x) { if (x.hikazei || /通勤|割増/.test(x.label || '')) return x; return { label: x.label, value: Math.round(num(x.value) * pr.factor), hikazei: x.hikazei, nonTaxLimit: x.nonTaxLimit }; }); }
+    if (pr.prorate && pr.factor < 1) { shikyu = shikyu.map(function (x) { if (x.hikazei || /通勤|割増/.test(x.label || '')) return x; return { label: x.label, value: hiwariYen(num(x.value), pr.factor), hikazei: x.hikazei, nonTaxLimit: x.nonTaxLimit }; }); }
     if (w.total > 0) shikyu = shikyu.concat([{ label: '割増賃金', value: w.total }]); // 課税・総支給・雇用保険ベースに算入(日割しない)
     // 欠勤控除(月給・日給月給制): 月給で欠勤があれば不就労分を控除(完全月給制はしない)。割増基礎/標準報酬は満額のまま(=このローカルshikyuにだけ負の行を足す)
     // ★日割する月(入社月/退職月)は欠勤控除を併用しない(二重控除防止)
@@ -415,7 +419,7 @@
   }
 
   return {
-    num: num,
+    num: num, hiwariYen: hiwariYen,
     furikomiDateObj: furikomiDateObj, furikomiMMDD: furikomiMMDD, furikomiShiftOf: furikomiShiftOf, payDayReadable: payDayReadable, bonusDateObj: bonusDateObj, bonusMMDD: bonusMMDD,
     defPayRule: defPayRule, ensurePayRule: ensurePayRule, payRuleCtx: payRuleCtx, payRuleResult: payRuleResult,
     employRateOf: employRateOf, prefRate: prefRate,

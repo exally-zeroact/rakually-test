@@ -3,6 +3,26 @@
 var Z = require('../lib/zaiseki.js');
 var PayslipCalc = require('../lib/calc.js');
 
+/* ★日割の 円＝四捨五入が 小数の 誤差で 0.5 を 切り下げていた★（2026-11-06 実測で 直した）
+     前は Math.round(額×(在籍日/暦日))＝42×17/28＝25.5 が 25.4999… で 25（正 26）。
+     数えた＝額 1〜60万円×暦日 28〜31×在籍日の 約6,800万組中 24,739組。答えは 整数（(2×額×在籍日＋暦日)÷(2×暦日) の 切り捨て）で 出した物。 */
+T('日割の 円: 0.5 ちょうどは 切り上げ（42×17/28→26・額 1〜20万円×全部の 暦日と 在籍日で 整数と 照合）', function () {
+  var PM = require('../lib/payroll-monthly.js');
+  eq(typeof PM.hiwariYen, 'function', 'hiwariYen が 在る');
+  eq(PM.hiwariYen(42, 17 / 28), 26, '42×17/28');
+  var kumi = 0, chigau = 0, rei = '';
+  [28, 29, 30, 31].forEach(function (dim) {
+    for (var zd = 1; zd < dim; zd++) {
+      for (var x = 1; x <= 200000; x++) {
+        kumi++;
+        var want = Math.floor((2 * x * zd + dim) / (2 * dim)), got = PM.hiwariYen(x, zd / dim);
+        if (got !== want) { chigau++; if (!rei) rei = x + '×' + zd + '/' + dim + '→' + got + '（正 ' + want + '）'; }
+      }
+    }
+  });
+  eq(chigau, 0, '整数の 答えと 違う（' + kumi + '組中）例 ' + rei);
+});
+
 /* ── 社保の当月/翌月徴収(月数0/1/2) ── */
 T('社保徴収: current/未指定/日付なし=1(回帰)', function () {
   eq(Z.shahoChargeMonths({ timing: 'current', ym: '2026-06' }), 1);
