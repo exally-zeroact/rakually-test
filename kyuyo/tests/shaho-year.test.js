@@ -213,6 +213,36 @@ T('★中央の 2027 の 健保が 47県 そろわない（大阪 抜け）な�
     eq(SH.getKenko('tokyo', '2027-06').stale, true, '欠けた 表は 丸ごと 入れない');
   } finally { cleanup2027(); }
 });
+T('★中央の 健保の 壊れた 値（% のまま 9.85・字・true）は 入れない（叩き直し 任意1＝介護と 同じ 守り）', function () {
+  var keep = {}; Object.keys(SH.KENKO_2026).forEach(function (p) { keep[p] = SH.KENKO_2026[p]; });
+  var keep25 = SH.KENKO_RITSU.osaka.total, keepR = {}; Object.keys(SH.KENKO_RITSU).forEach(function (p) { keepR[p] = SH.KENKO_RITSU[p].total; });
+  try {
+    SH.hydrate(2027, { kenko_total: kenko47(9.85) });
+    eq(SH.getKenko('tokyo', '2027-06').stale, true, '% のままの 2027 は 丸ごと 入れない');
+    var kt = kenko47(0.111); kt.osaka = '0.111';
+    SH.hydrate(2027, { kenko_total: kt });
+    eq(SH.KENKO_NENDO[2027], undefined, '字が 混ざった 2027 は 丸ごと 入れない');
+    var kx = kenko47(0.111); kx.zenkoku = 9.85;
+    SH.hydrate(2027, { kenko_total: kx });
+    eq(SH.KENKO_NENDO[2027], undefined, '余分な キーが % のままの 2027 も 丸ごと 入れない（最後の 叩き 任意2）');
+    var kz = kenko47(0.111); kz.tokyo = 0;
+    SH.hydrate(2027, { kenko_total: kz });
+    eq(SH.KENKO_NENDO[2027], undefined, '0 が 混ざった 2027 も 丸ごと 入れない（下限）');
+    var km = {}; Object.keys(keep).forEach(function (p) { km[p] = keep[p]; }); km.tokyo = -0.01;
+    SH.hydrate(2026, { kenko_total: km });
+    eq(SH.KENKO_2026.tokyo, keep.tokyo, '2026 の 負の 県は lib の 値を 残す（下限）');
+    var k6 = {}; Object.keys(keep).forEach(function (p) { k6[p] = keep[p]; }); k6.tokyo = 9.85; k6.osaka = true;
+    SH.hydrate(2026, { kenko_total: k6 });
+    eq(SH.KENKO_2026.tokyo, keep.tokyo, '2026 の % のままの 県は lib の 値を 残す');
+    eq(SH.KENKO_2026.osaka, keep.osaka, '2026 の true の 県は lib の 値を 残す');
+    var k5 = kenko47(0.1); k5.osaka = 10.13;
+    SH.hydrate(2025, { kenko_total: k5 });
+    eq(SH.KENKO_RITSU.osaka.total, keep25, '2025 の % のままの 県は lib の 値を 残す');
+  } finally {
+    cleanup2027(); Object.keys(keep).forEach(function (p) { SH.KENKO_2026[p] = keep[p]; });
+    Object.keys(keepR).forEach(function (p) { SH.KENKO_RITSU[p].total = keepR[p]; });
+  }
+});
 T('★中央の 介護の 壊れた 値（% のまま 1.62・true・0・字）は 入れない', function () {
   try {
     [1.62, true, 0, 'abc', null].forEach(function (v) { SH.hydrate(2027, { kaigo_total: v }); eq(SH.KAIGO_NENDO[2027], undefined, '値 ' + v); });

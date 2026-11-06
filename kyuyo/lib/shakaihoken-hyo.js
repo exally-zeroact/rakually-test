@@ -178,14 +178,19 @@ const SHAKAIHOKEN_HYO = {
     if (kt && typeof kt === 'object' && Object.keys(kt).length >= 40) {
       var self = this;
       // ★年度ごとに 自分の 表だけ 書く★（前は year>=2026 を 全部 KENKO_2026 へ・2025 以前を 全部 KENKO_RITSU へ＝別の 年度の 額を 書き換えた）
-      if (year === 2026) { Object.keys(kt).forEach(function (p) { self.KENKO_2026[p] = kt[p]; }); }
+      // ★率として 正しい 形＝数・0 より 大きく 0.2 未満★（叩き直し 任意1＝介護の <0.05 と 同じ 守り。% のまま 9.85・字・true を 率に しない）
+      var ritsu = function (v) { return typeof v === 'number' && isFinite(v) && v > 0 && v < 0.2; };
+      // 弾いた 県は 黙らない（最後の 叩き 任意1＝console に 県と 値を 出す）
+      var hajiki = Object.keys(kt).filter(function (p) { return !ritsu(kt[p]); });
+      if (hajiki.length && typeof console !== 'undefined' && console.warn) console.warn('[shakaihoken-hyo] 中央の 健保 ' + year + ' 年度 の 率として 読めない 値を 入れなかった: ' + hajiki.map(function (p) { return p + '=' + JSON.stringify(kt[p]); }).join(', '));
+      if (year === 2026) { Object.keys(kt).forEach(function (p) { if (ritsu(kt[p])) self.KENKO_2026[p] = kt[p]; }); }
       // ★新しい 年度は 令和8の 表の 県が 全部 そろった 時だけ★（rebase 後 taiketsu 止2＝40〜46県で 受け取ると 欠けた 県の 人が 黙って 東京の 新しい 率＝daiyo・黄警告 無し）
-      //  そろわない＝丸ごと 入れない＝その 年度の 月は 前と 同じ「直近の 収録年の 率＋stale（黄警告）」
+      //  そろわない・壊れた 値が 1つでも ある＝丸ごと 入れない＝その 年度の 月は 前と 同じ「直近の 収録年の 率＋stale（黄警告）」
       else if (year > 2026) {
-        var zen = Object.keys(self.KENKO_2026).every(function (p) { var v = kt[p]; return typeof v === 'number' && isFinite(v) && v > 0; });
+        var zen = Object.keys(self.KENKO_2026).every(function (p) { return ritsu(kt[p]); }) && Object.keys(kt).every(function (p) { return ritsu(kt[p]); });
         if (zen) { var nt = {}; Object.keys(kt).forEach(function (p) { nt[p] = kt[p]; }); self.KENKO_NENDO[year] = nt; }
       }
-      else if (year === 2025) { Object.keys(kt).forEach(function (p) { if (self.KENKO_RITSU[p]) self.KENKO_RITSU[p].total = kt[p]; }); }
+      else if (year === 2025) { Object.keys(kt).forEach(function (p) { if (self.KENKO_RITSU[p] && ritsu(kt[p])) self.KENKO_RITSU[p].total = kt[p]; }); }
       // 2024 以前＝持つ 表が 無い＝何も しない（令和7の 表を 潰さない）
     }
     // 介護＝無い 年度も 足す（前は KAIGO_NENDO[year] が 無いと 捨てた＝令和9の 介護が 中央から 届かなかった）
