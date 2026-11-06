@@ -704,7 +704,8 @@ T('労働保険 年度更新: 労災/雇用の賃金を年度集計＋雇用保�
   ok(Math.abs(K.fullRate('ippan', 2026) - 0.0135) < 1e-9, '令和8 一般 全体13.5‰(厚労省照合): ' + (K.fullRate('ippan', 2026) * 1000));
   ok(Math.abs(K.fullRate('kensetsu', 2026) - 0.0165) < 1e-9, '令和8 建設 全体16.5‰');
   ok(Math.abs(K.fullRate('ippan', 2025) - 0.0145) < 1e-9, '令和7 一般 全体14.5‰');
-  ok(K.fullRate('ippan', 2024) === null, '未収録年度=null(捏造しない)');
+  ok(Math.abs(K.fullRate('ippan', 2024) - 0.0155) < 1e-9, '令和6 一般 全体15.5‰(厚労省 LL060215保01)');
+  ok(K.fullRate('ippan', 2023) === null, '未収録年度=null(捏造しない)');
   A.state.month = '2026-07'; A.state.company.gyoshu = 'ippan'; A.state.company.rousaiRate = '3';
   const lab = A.defEmp('労働 太郎'), part = A.defEmp('パート 花子'), yaku = A.defEmp('役員 一郎');
   lab.id = 'E_lab'; part.id = 'E_part'; yaku.id = 'E_yaku'; // 明示id(uidは同一ミリ秒で衝突しうる)
