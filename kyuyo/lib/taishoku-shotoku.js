@@ -44,7 +44,8 @@
     if (opts.noReport) return Math.floor(num(gross) * 0.2042);
     var kazei = kazeiTaishoku(gross, y, opts);
     var base = (Nenmatsu && Nenmatsu.sanshutuShotokuZei) ? Nenmatsu.sanshutuShotokuZei(kazei) : 0;
-    return Math.floor(base * 1.021);
+    /* ★1e-6 に 丸めてから 切り捨て★（2026-11-06＝前は 1,000×1.021 が 1,020.99… で 1,020・正 1,021。税額 1〜2,000万円の 2,000万通り中 12,704通り。整数×1.021 は 小数3桁まで＝1e-6 の 丸めで 値は 変わらない） */
+    return Math.floor(Math.round(base * 1.021 * 1e6) / 1e6);
   }
 
   // 住民税(分離・課税退職所得金額×10%)。市町村6%+道府県4%を各1円未満切捨。

@@ -37,6 +37,20 @@ T('所得税(源泉)=速算表×1.021・1円未満切捨', function () {
   // 課税0 → 税0
   eq(TS.incomeTax(3000000, 10), 0);
 });
+/* ★×1.021 が 小数の 誤差で 1円 少なかった★（2026-11-06 実測で 直した）
+     前は Math.floor(速算の 税額×1.021)＝1,000×1.021 が 1,020.99… で 1,020（正 1,021）。
+     数えた＝税額 1〜2,000万円の 2,000万通り中 12,704通り。答えは 整数（×1021÷1000）で 出した物。 */
+T('所得税(源泉): ×1.021 が 小数の 誤差で 1円 落ちない（退職金84万・勤続1年→速算 1,000→1,021・課税 1,000円刻み 1,000万円まで 整数と 照合）', function () {
+  eq(TS.incomeTax(840000, 1, {}), 1021, '84万・1年');
+  var N = require('../lib/nenmatsu.js'), kumi = 0, chigau = 0, rei = '';
+  for (var kazei = 1000; kazei <= 10000000; kazei += 1000) {
+    kumi++;
+    var gross = 800000 + kazei * 2;   /* 勤続1年＝控除80万・×1/2 */
+    var got = TS.incomeTax(gross, 1, {}), want = Math.floor(N.sanshutuShotokuZei(kazei) * 1021 / 1000);
+    if (got !== want) { chigau++; if (!rei) rei = '課税' + kazei + '→' + got + '（正 ' + want + '）'; }
+  }
+  eq(chigau, 0, '整数の 答えと 違う（' + kumi + '通り中）例 ' + rei);
+});
 T('申告書なし=退職金×20.42%(一律)', function () {
   eq(TS.incomeTax(5000000, 10, { noReport: true }), 1021000);
 });
