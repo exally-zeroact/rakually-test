@@ -11,8 +11,8 @@
  *   ・帯「紙を見る」から開く窓は 今の1通の 見出しで、ファイルを作るボタンは 出さない（09-08 司さん「ここにいらん」）
  *
  * ★--waza★ … 決まりを 1つずつ 外した 本体で 回し直し、どれも ★狙った 試験で★ 赤に なるか（空振り止め）
- *   壊しは 下の WAZA の 10個（n の比べ・止める時の kamiBan・別の1通で空にする・道3・帯のボタン2つ・同じ1通・
- *   白の帯・帯の窓の描き直し・確認の窓の守り kamiObiAku）。各々に「赤に なるべき 試験の 名」を 持たせる
+ *   壊しは 下の WAZA の 11個（n の比べ・止める時の kamiBan・別の1通で空にする・道3・帯のボタン2つ・同じ1通・
+ *   白の帯・帯の窓の描き直し・確認の窓の守り kamiObiAku・設定の紙の全文比べ）。各々に「赤に なるべき 試験の 名」を 持たせる
  *
  * 使い方: node seikyu/tests/kami-ikiru.mjs   ／   --waza
  */
@@ -38,6 +38,7 @@ const WAZA = {
   '白でも 帯を 押せる': ["obi.disabled = kamiOmoteHtml === '';", 'obi.disabled = false;', '白の時は 帯'],
   '帯の窓を 描き直さない': ["if (kamiObiAku && lookOpened() && kamiOmoteHtml !== '') {", 'if (false) {', '帯で 開いている 間に 打つ'],
   '確認の窓にも 入力の紙を 入れる': ["if (kamiObiAku && lookOpened() && kamiOmoteHtml !== '') {", "if (lookOpened() && kamiOmoteHtml !== '') {", '㋖ 一覧で 別の1通'],
+  '設定の紙を 長さで 比べる': ["    if (fr.getAttribute('data-h') === '1' && fr.srcdoc === html) return;", "    if (fr.getAttribute('data-h') === '1' && fr.srcdoc.length === html.length) return;", '設定の 紙の下見'],
 };
 const wazaArg = process.argv.find((a) => a === '--waza' || a === '--self-test' || /^--waza=[12]$/.test(a));
 if (wazaArg) {
@@ -364,6 +365,25 @@ await TA('㋔2 中身の整った 別の1通に 替えた＝20ms で 前の1通�
   ok(/8,800/.test(omote()) && /しまなみ/.test(omote()), '新しい1通の 紙が 出ていない');
 });
 
+await TA('設定の 紙の下見＝長さが 同じで 中身の 違う 紙も 描き直す（列の 幅を 1段 広げる＝桁は 同じ）', async () => {
+  doc.querySelector('.bn[data-scr="scr-set"]').click();
+  await sleep(60);
+  const mae = $('set-paper').srcdoc || '';
+  ok(mae, '前置き：設定の 紙が 描かれていない');
+  const rows = [...doc.querySelectorAll('#col-list .col-row')];
+  const row = rows[1] || rows[0];
+  const btn = row && [...row.querySelectorAll('[data-w]')].find((e) => Number(e.getAttribute('data-w')) > 0);
+  ok(btn, '前置き：幅を 広げる ボタンが 無い');
+  btn.click();
+  await sleep(30);
+  const ato = $('set-paper').srcdoc || '';
+  ok(ato.length === mae.length, '前置き：長さが 変わった（' + mae.length + '→' + ato.length + '）＝この 試験で 見たい 形に なっていない');
+  ok(ato !== mae, '幅を 変えても 設定の 紙が 描き直されない（長さで 比べている）');
+  const semai = [...row.querySelectorAll('[data-w]')].find((e) => Number(e.getAttribute('data-w')) < 0);
+  if (semai) semai.click();
+  doc.querySelector('.bn[data-scr="scr-edit"]').click();
+  await sleep(SETTLE);
+});
 
 await TA('帯で 開いて 閉じた 後、一覧の「確認」では ファイルの ボタンが 出直す', async () => {
   ok(mieru($('b-pdf')) === false || !$('lv-ov').classList.contains('open'), '前置き');

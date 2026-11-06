@@ -5008,8 +5008,10 @@
       sealPending ? { sealDataUrl: sealPending } : {},
       free ? { sealDataUrl: '' } : {});
     var html = sealPaperHtml(org);
-    if (fr.getAttribute('data-h') !== String(html.length)) {
-      fr.setAttribute('data-h', String(html.length));
+    /* ★同じ物かは 全文で 比べる★（字の 長さで 比べると、長さが 同じで 中身の 違う 紙を「同じ」として 描かなかった＝taiketsu 止14-6）
+       data-h は「描いた」印だけ（消すと 次は 必ず 描く） */
+    if (!(fr.getAttribute('data-h') === '1' && fr.srcdoc === html)) {
+      fr.setAttribute('data-h', '1');
       fr.srcdoc = html;
     }
     show(img, free);
@@ -5488,8 +5490,9 @@
     ex.theme = ex.template.theme;      /* ★紙は o.theme を 見る★（上と 同じ理由） */
     var html = sealPaperHtml(Object.assign({}, S.org || {}, { bank: settings().bank },
       sealPending ? { sealDataUrl: sealPending } : {}), ex);
-    if (fr.getAttribute('data-h') === String(html.length)) return;   // 同じ物は 描き直さない
-    fr.setAttribute('data-h', String(html.length));
+    /* ★同じ物は 描き直さない★＝★全文で 比べる★（長さで 比べると 長さが 同じで 中身の 違う 紙を 描かなかった＝止14-6）。data-h は「描いた」印だけ */
+    if (fr.getAttribute('data-h') === '1' && fr.srcdoc === html) return;
+    fr.setAttribute('data-h', '1');
     fr.srcdoc = html;
   }
 
