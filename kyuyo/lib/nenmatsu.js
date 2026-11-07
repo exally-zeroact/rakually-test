@@ -56,8 +56,12 @@
     // 算出所得税額の速算表(標準所得税率)。A<=upto の段で floor(A*rate - sub)。
     sanshutu: [
       { upto: 1950000, rate: 0.05, sub: 0 }, { upto: 3300000, rate: 0.10, sub: 97500 }, { upto: 6950000, rate: 0.20, sub: 427500 },
-      { upto: 9000000, rate: 0.23, sub: 636000 }, { upto: 18000000, rate: 0.33, sub: 1536000 }, { upto: Infinity, rate: 0.40, sub: 2796000 }
+      { upto: 9000000, rate: 0.23, sub: 636000 }, { upto: 18000000, rate: 0.33, sub: 1536000 }, { upto: 40000000, rate: 0.40, sub: 2796000 },
+      { upto: Infinity, rate: 0.45, sub: 4796000 }
     ],
+    /* ★45% の 段（4,000万円超・控除 4,796,000円）が 抜けていた★（2026-11-07＝前は 40% が 上限なしで 続き、課税 4,000万円超で 税が 少なかった＝
+       例 40,001,000→13,204,400（正 13,204,450）・退職金 1億／勤続20年で 源泉 306,300円 少ない）。出典＝国税庁 No.2260 所得税の税率（速算表 7段）。
+       ★倉庫（statutory nenmatsu 2026）の sanshutu も 同じ 6段＝hydrate が 丸ごと 上書きするので scripts/apply-statutory-central.mjs で 倉庫も 合わせる★ */
     fukkoRate: 1.021 // 復興特別所得税(2037年まで)
   };
   function evalBracket(X, table) {

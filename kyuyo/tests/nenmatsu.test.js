@@ -150,6 +150,12 @@ T('算出所得税額: 各ブラケット(標準速算表)', function () {
   eq(N.sanshutuShotokuZei(8000000), 1204000);       // 23%-636000
   eq(N.sanshutuShotokuZei(10000000), 1764000);      // 33%-1536000
   eq(N.sanshutuShotokuZei(1734500), 86700);         // 1000円未満切捨: 1,734,500→1,734,000×5%=86,700
+  /* ★40%・45% の 段★（2026-11-07＝前は 45% の 段が 無かった）。答えは 国税庁 No.2260 の 速算表の 字から 手で 出した 物 */
+  eq(N.sanshutuShotokuZei(20000000), 5204000);      // 40%＝8,000,000−2,796,000
+  eq(N.sanshutuShotokuZei(40000000), 13204000);     // 40%境界＝16,000,000−2,796,000
+  eq(N.sanshutuShotokuZei(40001000), 13204450);     // 45%＝18,000,450−4,796,000（前は 13,204,400）
+  eq(N.sanshutuShotokuZei(46000000), 15904000);     // 45%＝20,700,000−4,796,000
+  eq(N.sanshutuShotokuZei(100000000), 40204000);    // 45%＝45,000,000−4,796,000
 });
 T('年調年税額: 復興税込1.021・100円未満切捨', function () {
   // 課税173万→算出86,500→×1.021=88,316.5→100円未満切捨=88,300
@@ -225,8 +231,10 @@ T('nenmatsu hydrate: 速算表を上書き→sanshutuShotokuZeiに反映、復�
   eq(before, 86500);
   N.hydrate(2026, { sanshutu: [{ upto: null, rate: 0.10, sub: 0 }] }); // 全域10%
   eq(N.sanshutuShotokuZei(1730000), Math.floor(1730000 * 0.10));
-  N.hydrate(2026, { sanshutu: [{ upto: 1950000, rate: 0.05, sub: 0 }, { upto: 3300000, rate: 0.10, sub: 97500 }, { upto: 6950000, rate: 0.20, sub: 427500 }, { upto: 9000000, rate: 0.23, sub: 636000 }, { upto: 18000000, rate: 0.33, sub: 1536000 }, { upto: null, rate: 0.40, sub: 2796000 }] });
+  /* ★戻すのは 国税庁の 速算表 7段★（2026-11-07＝前は 45% の 段の 無い 6段で 戻していた＝後に 走る 退職金の 試験まで 40% の まま 計算していた） */
+  N.hydrate(2026, { sanshutu: [{ upto: 1950000, rate: 0.05, sub: 0 }, { upto: 3300000, rate: 0.10, sub: 97500 }, { upto: 6950000, rate: 0.20, sub: 427500 }, { upto: 9000000, rate: 0.23, sub: 636000 }, { upto: 18000000, rate: 0.33, sub: 1536000 }, { upto: 40000000, rate: 0.40, sub: 2796000 }, { upto: null, rate: 0.45, sub: 4796000 }] });
   eq(N.sanshutuShotokuZei(1730000), before);
+  eq(N.sanshutuShotokuZei(40001000), 13204450, '戻した後も 45% の 段が 在る');
 });
 T('nenmatsu hydrate: 不正/部分/令和7以前は無視=フォールバック維持', function () {
   var before = N.kisoKojoR8(3560000);
