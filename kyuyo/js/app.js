@@ -107,7 +107,7 @@
   function ensurePayRule(e){ return PM().ensurePayRule(e); }
   /* ★全角の 数字・点・読点を 半角へ（㉓・2026-11-08）★＝入力中に `[^0-9]` で 消すと IME の「１２３」が 黙って 空/0 で 保存された。
      数字以外を 消す 前に 必ず 通す（半角で 打つ 人の 値は 1字も 変わらない）。 */
-  function hanSuji(v){ return String(v==null?'':v).replace(/[０-９．，]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}); }
+  function hanSuji(v){ return String(v==null?'':v).replace(/[０-９．，]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}).replace(/。/g,'.'); } // 「。」＝IME で「.」を押した時の句点＝小数の点として読む（整数の欄では後で消える）
   // 段階制の段(下限/率)を設定。key='i:idx:tidx:from|rate'。from=整数円 / rate=小数%許容。
   function prTierSet(e,key,val){ var p=String(key).split(':'); var part=ensurePayRule(e).variable.parts[+p[1]]; if(!part)return; if(!part.tiers)part.tiers=[]; var tr=part.tiers[+p[2]]; if(!tr){ tr={from:'',rate:''}; part.tiers[+p[2]]=tr; }
     if(p[3]==='rate'){ var v=hanSuji(val).replace(/[^0-9.]/g,''); var dot=v.indexOf('.'); if(dot>=0)v=v.slice(0,dot+1)+v.slice(dot+1).replace(/\./g,''); tr.rate=v; }

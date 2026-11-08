@@ -70,8 +70,8 @@ T('③ 割増率・みなし時間は 小数を 残す（data-dec）・他の �
   const mk = (f, dec) => { const el = doc.createElement('input'); el.dataset.cf = f; if (dec) el.setAttribute('data-dec', ''); host.appendChild(el); return el; };
   const c = A.state.company;
   const r = mk('rateOt', true);
-  for (const [ji, want] of [['137.5', '137.5'], ['１３７．５', '137.5'], ['125', '125'], ['１２５', '125'], ['1.2.5', '1.25']]) { typeIn(r, ji); eq(c.rateOt, want, '残業の 率 ' + ji); }
-  const m = mk('minashiH', true); typeIn(m, '２２．５'); eq(c.minashiH, '22.5', 'みなし時間');
+  for (const [ji, want] of [['137.5', '137.5'], ['１３７．５', '137.5'], ['125', '125'], ['１２５', '125'], ['1.2.5', '1.25'], ['１３７。５', '137.5'], ['137。5', '137.5']]) { typeIn(r, ji); eq(c.rateOt, want, '残業の 率 ' + ji); }
+  const m = mk('minashiH', true); typeIn(m, '２２．５'); eq(c.minashiH, '22.5', 'みなし時間'); typeIn(m, '２２。５'); eq(c.minashiH, '22.5', 'みなし時間（句点）');
   const z = mk('zzTest', false); typeIn(z, '１２．５'); eq(c.zzTest, '125', 'data-dec の 無い 欄は 整数のまま（前と 同じ）');
   delete c.zzTest; c.rateOt = ''; c.minashiH = ''; r.remove(); m.remove(); z.remove();
 });
