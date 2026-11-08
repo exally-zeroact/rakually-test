@@ -339,6 +339,20 @@
      ＝読めないと チェックが 発火せず「問題なし」に 見える＝黙らせない。赤で止めない（loadBonusYtd と同形）。 */
   function otHistErrWarn(){ return state._otHistErr ? '<div class="cr-warn" style="margin:0 2px 10px">⚠ <b>過去の残業時間の履歴</b>を読めませんでした（36協定の複数月／年の上限チェックに使います）。通信が戻ってから開き直すと再確認できます（このまま保存・計算はできます）。</div>' : ''; }
   function empWarnings(e){ return PW().empWarnings(e, ctxOf()); }
+  /* ★読めない金額（2026-11-09 ㉔）★＝判定と 文は lib（payroll-warnings.js yomenaiGyou/yomenaiText）1か所。ここは 出す・止めるだけ。
+     ★止める所★＝確認済みの 門・一括「今月を確定」（灰色＋押した時の 歯止め）・振込（keisanOchi）・確定済みの 記録の 書き直し・印刷・Excel。 */
+  function yomenaiOf(e){ var p=PW(); return (p&&p.yomenaiGyou)?p.yomenaiGyou(e):[]; }
+  function yomenaiHito(emps){ return (emps||[]).filter(function(e){ return e && yomenaiOf(e).length>0; }); }
+  function yomenaiTsukiHito(){ return yomenaiHito(state.employees.filter(function(e){ return isActiveInMonth(e,state.month); })); }
+  function yomenaiWarn(){ var h=yomenaiTsukiHito(); if(!h.length) return '';
+    return '<div class="cr-warn" style="margin:0 0 10px">⚠ <b>金額が読めない行</b>がある人が '+h.length+'名 います（'+h.slice(0,5).map(function(e){ return esc(e.name||'名前なし'); }).join('・')+(h.length>5?' ほか':'')+'）。'
+      +'今は <b>0として計算</b>されています。赤い枠の欄を 半角の数字（例 5000・-5000）で入れ直してください（入れ直すまで 今月の確定・振込・印刷・Excel は止めます）。</div>'; }
+  /* 欄に 赤枠＋aria-invalid（カードも 表も 同じ 道＝描いた 後に 印を 付ける。描く 所が 5か所 あるので 1か所に まとめた） */
+  function markYomenaiBox(box, e){ if(!box||!e) return; var set={}; yomenaiOf(e).forEach(function(x){ set[x.g+':'+x.ri]=1; });
+    box.querySelectorAll('input[data-g][data-ri][data-f="value"]').forEach(function(inp){
+      if(set[inp.dataset.g+':'+inp.dataset.ri]){ inp.setAttribute('aria-invalid','true'); inp.style.borderColor='#C0392B'; inp.style.background='#FDECEA'; inp.title='数として読めません（0として計算されています）'; }
+      else if(inp.getAttribute('aria-invalid')==='true'){ inp.removeAttribute('aria-invalid'); inp.style.borderColor=''; inp.style.background=''; inp.removeAttribute('title'); } }); }
+  function markYomenai(host){ if(!host) return; host.querySelectorAll('.acc[data-i], .trow[data-i]').forEach(function(box){ markYomenaiBox(box, state.employees[+box.dataset.i]); }); }
   /* 都道府県の選択肢。★先頭に「未選択」を置く★＝新しい人を勝手に東京にしない。
      空のままだと健保が黙って東京の率で計算され、最賃の判定も動かないので、
      未選択の間は黄色で知らせて「今月を確定」を止める（lib/payroll-warnings.js）。 */
@@ -2107,7 +2121,8 @@
   function calcBoxHTML(e){
     var r=compute(e);
     var lines=r.kojo.map(function(k){return '<div class="calc-line"><span>'+esc(k.label)+'</span><span class="v">'+yen(k.value)+'</span></div>';}).join('');
-    return '<div class="calc-box"><div class="ch">自動計算（法定控除＋差引）標準報酬 '+yen(r.hyojun)+(r.netNegative?' ⚠差引マイナス':'')+'</div>'
+    var _yt=PW().yomenaiText?PW().yomenaiText(yomenaiOf(e)):'';   /* ★㉔ 読めない金額＝カードの 中にも（打つ たびに refreshCard で 描き直る）★ */
+    return (_yt?'<div class="cr-warn" role="status" style="margin:0 0 8px">⚠ '+_yt+'</div>':'')+'<div class="calc-box"><div class="ch">自動計算（法定控除＋差引）標準報酬 '+yen(r.hyojun)+(r.netNegative?' ⚠差引マイナス':'')+'</div>'
       +'<div class="calc-line"><span>支給合計</span><span class="v">'+yen(r.shikyuTotal)+'</span></div>'+lines
       +'<div class="calc-line tot"><span>控除合計</span><span class="v">'+yen(r.kojoTotal)+'</span></div>'
       +'<div class="calc-line net tot"><span>差引支給額</span><span class="v">'+yen(r.net)+'</span></div></div>';
@@ -2727,6 +2742,7 @@
        ★都道府県が未選択の人が1人でもいたら押せない★＝黙って東京の率で確定させない。
          理由はボタンの中に入れる（下に小さく置くと読まれない・昨日の振込タブと同じ形）。 */
     var prefMiss=PW().prefStats(activeEmployees(), ctxOf());
+    var yomeN=yomenaiTsukiHito().length;   /* ★㉔ 金額が 読めない 人が 1人でも 居たら 押せない★（0として 確定させない） */
     /* ★スマホ幅では折り返す★。折り返さないと、説明文が1文字ずつの縦帯になって読めない
        （幅390で 行の高さ421px・説明の幅36px＝実測して直した）。 */
     /* ★倉庫の 答えが 来るまで 押せない★（2026-09-05 指示役の裁定・案Dの ②）
@@ -2736,7 +2752,7 @@
     /* ★★「今月を確定」も 下に 貼り付く★★（2026-09-25 司さんの 条件・上の 帯と 同じ 訳）
        ★背景を 必ず 持たせる★＝持たせないと ★下の 札が 透けて 字が 重なる★
        ★`bottom:0`★＝窓の 一番 下／`z-index` は 上の 帯と 同じ 30 */
-    var confirmBtn='<div style="position:sticky;bottom:calc(var(--bn-h,0px) + var(--sa-h,0px));z-index:29;background:#F0FAF4;border-top:1px solid #C8ECD8;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 0;padding:10px 0 8px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':'台帳・年調に反映'))+'）</button>'
+    var confirmBtn='<div style="position:sticky;bottom:calc(var(--bn-h,0px) + var(--sa-h,0px));z-index:29;background:#F0FAF4;border-top:1px solid #C8ECD8;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 0;padding:10px 0 8px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru||yomeN)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':(yomeN?'金額が読めない'+yomeN+'名':'台帳・年調に反映')))+'）</button>'
       +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700;white-space:nowrap">✓ 確認済</span>')
       /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
          ★確定済みの 月にだけ 出す★＝押せない物を 並べない。
@@ -2768,7 +2784,7 @@
          ⇒ 出すのは ★お知らせと 確定ボタン（押せない）★だけ。答えが 来たら 一度で 描く。 */
       host.innerHTML=statutoryStaleWarn()+soukoHTML()+confirmBtn; return;
     }
-    if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+pagerHTML+renderInputTableHTML(reviewOnly,showSet)+pagerFootHTML(miseru.length,page,pageN)+confirmBtn; return; }
+    if(view==='table' && activeCount>1){ host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+yomenaiWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+pagerHTML+renderInputTableHTML(reviewOnly,showSet)+pagerFootHTML(miseru.length,page,pageN)+confirmBtn; markYomenai(host); return; }
     var cards=state.employees.map(function(e,i){
       if(!showSet[i]) return '';
       ensureKintai(e);
@@ -2802,7 +2818,8 @@
       return;
     }
     var emptyMsg=!cards ? '<p class="hint" style="text-align:center;padding:18px 0">'+(inputQ?'「'+esc(inputQ)+'」に当たる'+(reviewOnly?'要確認の':'')+'人はいません。':(reviewOnly?'要確認の人はいません（全員確認済み）。':''))+'</p>' : '';
-    host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+pagerHTML+cards+emptyMsg+pagerFootHTML(miseru.length,page,pageN)+confirmBtn;
+    host.innerHTML=statutoryStaleWarn()+otHistErrWarn()+prefMissingWarn()+yomenaiWarn()+ledgerImportBanner()+calHTML+progHTML+viewToggle+pagerHTML+cards+emptyMsg+pagerFootHTML(miseru.length,page,pageN)+confirmBtn;
+    markYomenai(host);
   }
   // 表でまとめて入力(全従業員1画面・弥生の弱点/Exallyモデル)。列は既存と同じdata属性を再利用=同じハンドラで書ける。
   function renderInputTableHTML(reviewOnly,showSet){
@@ -2857,8 +2874,9 @@
     var trow=$('#input-list .trow[data-i="'+i+'"]'); if(trow){ var rt=compute(e); var nv=trow.querySelector('.tnet-v'); if(nv) nv.textContent=yen(rt.net); var td=trow.querySelector('.tdiff'); if(td) td.innerHTML=diffBadge(e,rt);
       var nmc=trow.querySelector('.tnm'); if(nmc){ var mw=minWageInfo(e); var mwc=nmc.querySelector('.tmw'); if(mw&&!mw.ok){ if(!mwc){ var sp=document.createElement('span'); sp.className='tmw'; sp.title=mwWarnText(mw); sp.textContent=' ⚠'; nmc.appendChild(sp); } else { mwc.title=mwWarnText(mw); } } else if(mwc){ mwc.remove(); }
         var llt=laborLimitText(e); var llc=nmc.querySelector('.tlw'); if(llt){ if(!llc){ var sp2=document.createElement('span'); sp2.className='tlw'; sp2.textContent=' ⚠'; nmc.appendChild(sp2); llc=sp2; } llc.title=llt; } else if(llc){ llc.remove(); } } // B7: 最賃⚠＋労働時間⚠(L-4)も即時更新
+      markYomenaiBox(trow,e);   /* ★㉔ 読めない金額の 赤枠も 打つ たびに★ */
       return; } // 表モードは手取り/前月比/最賃⚠セルを更新(フォーカス維持)
-    var card=$('#input-list .acc[data-i="'+i+'"]'); if(!card) return; var r=compute(e); card.querySelector('.acc-net').textContent=yen(r.net); var dw=card.querySelector('.diffb-wrap'); if(dw) dw.innerHTML=diffBadge(e,r); var bn=card.querySelector('.basepay-note'); if(bn) bn.innerHTML=basePayNoteOnly(e); var cw=card.querySelector('.calc-wrap'); if(cw) cw.innerHTML=calcBoxHTML(e); var wr=card.querySelector('.wi-resw'); if(wr) wr.innerHTML=wiResHTML(e); var lw=card.querySelector('.wi-limitw'); if(lw) lw.innerHTML=laborLimitWarn(e); } // ④⑤労働時間の黄警告もライブ更新
+    var card=$('#input-list .acc[data-i="'+i+'"]'); if(!card) return; var r=compute(e); card.querySelector('.acc-net').textContent=yen(r.net); var dw=card.querySelector('.diffb-wrap'); if(dw) dw.innerHTML=diffBadge(e,r); var bn=card.querySelector('.basepay-note'); if(bn) bn.innerHTML=basePayNoteOnly(e); var cw=card.querySelector('.calc-wrap'); if(cw) cw.innerHTML=calcBoxHTML(e); var wr=card.querySelector('.wi-resw'); if(wr) wr.innerHTML=wiResHTML(e); var lw=card.querySelector('.wi-limitw'); if(lw) lw.innerHTML=laborLimitWarn(e); markYomenaiBox(card,e); } // ④⑤労働時間の黄警告もライブ更新＋㉔ 読めない金額の 赤枠
 
   // ───────── 賞与(ボーナス)モード ─────────
   function SZ(){ try{ if(typeof ShoyoZei!=='undefined'&&ShoyoZei) return ShoyoZei; }catch(e){} return (typeof window!=='undefined'&&window.ShoyoZei)||null; }
@@ -4926,8 +4944,10 @@
        ★2026-11-06 改め★ html2canvas/jsPDF が読めていない時も ブラウザ印刷へは落とさない＝b-print の中で止めて字で言う
        （前の「ライブラリが無い時はブラウザ印刷に落ちるのが正しい」は取り消し＝iOS は URL・日付が付き、白紙の2枚目が出て、戻れない）。 */
   function printGate(pages){
-    if(pages>0) return { enabled:true, pages:pages, short:'' };
     var actives=printEmps('__all');
+    /* ★㉔ 月の 金額が 読めない 人が 居たら 刷らせない★（0円の 明細を 渡させない・2026-11-09）＝枚数より 先に 見る */
+    if(state.printMode!=='bonus'){ var _yn=yomenaiHito(actives).length; if(_yn) return { enabled:false, pages:pages||0, short:'金額が読めない'+_yn+'名' }; }
+    if(pages>0) return { enabled:true, pages:pages, short:'' };
     if(!actives.length) return { enabled:false, pages:0, short:'対象者なし' };
     var isBonus=(state.printMode==='bonus');
     var cyc=(state.company&&state.company.payCycle)||'monthly';
@@ -5095,6 +5115,9 @@
          ＝lib欠落だと 社保0・源泉0の フル総支給が 止まらず 銀行へ出得る（taiketsu実測）ので keisanOchi に倒す。
          既存の furiKeisanOchiKaku が「作らず 止めて警告」する（司さん 2026-10-04 原則）。noPrev の現挙動は 変えない（szMissing だけ）。 */
       var net=0, keisanOchi=false; try{ if(bonus){ var _cb=computeBonus(e); net=_cb.net; if(_cb.szMissing) keisanOchi=true; } else { net=compute(e).net; } }catch(_){ keisanOchi=true; }
+      /* ★㉔（2026-11-09）★ 月の 金額が 読めない 人・差引が 数で ない（Infinity/NaN）人も 計算落ち＝作らず 名指し（司さん 10-04 原則） */
+      var yomenai=!bonus && yomenaiOf(e).length>0;
+      if(yomenai || !isFinite(net)) keisanOchi=true;
       /* ★受取人名が 銀行に出せる字になるか まで見る★（2026-08-28 実際に動かして見つけた）
          カナが空だと ★漢字の氏名で代わりを埋めていた★ので、全銀に直す時に
          ★全部スペース＝名前の無い振込★になっていた。★出せない物は ready にしない★。 */
@@ -6366,6 +6389,9 @@
           e.target.checked=false;
           uiAlert(PW().prefMissingText());   /* ★文は lib 1か所★（同じ事を 2か所に 書かない・2026-09-03） */
           return; }
+        /* ★㉔ 金額が 読めない 人は 確認済みに しない★（0円で 凍結させない）＝文は lib 1か所 */
+        var _ymc=yomenaiOf(emc);
+        if(_ymc.length){ e.target.checked=false; uiAlert(PW().yomenaiText(_ymc)); return; }
         /* ★★2026-09-25 直した（司さん「1人だけ修正の時も わざわざ 全員確定せないかんのか？」）★★
            ★前★ … `saveMonthlyPayslips()`（★force 無し★）→ `setConfirm(true)` の順
              ⇒ ★1回目は まだ 確定前なので `confirmed:false` で 書き★、
@@ -6420,6 +6446,10 @@
       var cmb=e.target.closest('[data-confirm-month]');
       /* ★歯止め★（2026-10-14 taiketsu）＝灰色（soukoTomeru）だけで 守らない。賞与・取り消しと 同じ 形 */
       if(cmb && (soukoMachi()||soukoNG())){ toast('クラウドに つながらないので、今月は まだ 確定していません。「もう一度 読み込む」を 押してください。'); return; }
+      /* ★歯止め（㉔・2026-11-09）★＝県が未選択・金額が読めない も 灰色だけで 守らない（前は 押した 時に 見ていなかった） */
+      if(cmb){ var _pm=PW().prefStats(activeEmployees(), ctxOf()); var _yh=yomenaiTsukiHito();
+        if(_pm.missingCount){ uiAlert(PW().prefMissingText()); return; }
+        if(_yh.length){ uiAlert(_yh.length+'名の 金額が 読めないので、今月は まだ 確定していません（'+_yh.slice(0,5).map(function(x){ return x.name||'名前なし'; }).join('・')+(_yh.length>5?' ほか':'')+'）。\n'+PW().yomenaiText(yomenaiOf(_yh[0]))); return; } }
       /* ★確定＝その場で従業員に公開される。月ごとに取り消す道が無いので、確認を1枚 挟む。
          「取り消せる」と誤解させない＝取り消せないことを、そのまま書く。 */
       if(cmb){ uiConfirm(CONFIRM_MONTH_MSG).then(function(ok){
@@ -6614,7 +6644,7 @@
       var f=$('#frame'), idoc=f&&(f.contentDocument||f.contentWindow.document);
       var pages=idoc?idoc.querySelectorAll('.sheet,.page'):null;
       var pg=printGate((pages&&pages.length)||0);
-      if(!pg.enabled){ updatePrintBtn(); uiAlert('刷る物がまだありません（'+pg.short+'）。'); return; }
+      if(!pg.enabled){ updatePrintBtn(); uiAlert(/読めない/.test(pg.short)?('金額が読めない人が居るので刷りません（'+pg.short+'）。入力の画面の赤い枠の欄を 半角の数字で入れ直してください。'):('刷る物がまだありません（'+pg.short+'）。')); return; }
       /* ★2026-11-06★ 部品（html2canvas/jsPDF）が読めない時も ★ブラウザ印刷へは逃げない★（前は contentWindow.print()＝
          iOS は URL・日付が紙に付き、白紙の2枚目が出て、戻れない＝6431 の注）。止めて字で言う。
          ★markOutput より前で止める★＝作れなかったのに「はじめかた④ 出した」を済みにしない。 */
@@ -6709,8 +6739,11 @@
     })();
     // モバイルの回転/リサイズでプレビューを再フィット(再描画せず軽く)
     var _fitT; window.addEventListener('resize',function(){ if(!$('#scr-print')||!$('#scr-print').classList.contains('active'))return; clearTimeout(_fitT); _fitT=setTimeout(fitPreview,120); });
-    $('#b-xlsx').addEventListener('click',function(){ if(!window.PayslipXlsx)return; markOutput(); var emps=printEmps($('#p-emp').value);
+    $('#b-xlsx').addEventListener('click',function(){ if(!window.PayslipXlsx)return; var emps=printEmps($('#p-emp').value);
       var isBonus=state.printMode==='bonus'; // 印刷の月次/賞与トグルに合わせる(賞与で月次が出る不具合を修正)
+      /* ★㉔ 月の 金額が 読めない 人が 居たら 出さない★（2026-11-09）＝markOutput より 前で 止める（出していないのに「出した」に しない） */
+      if(!isBonus){ var _yx=yomenaiHito(emps); if(_yx.length){ uiAlert(_yx.length+'名の 金額が 読めないので、Excel は 出していません（'+_yx.slice(0,5).map(function(x){ return x.name||'名前なし'; }).join('・')+'）。\n'+PW().yomenaiText(yomenaiOf(_yx[0]))); return; } }
+      markOutput();
       // ★月次は契約(オペレーション)経由で出す。セルを決めるのはエンジン側だけ＝画面とファイルがズレようがない。
       //   賞与はまだオペ化していないので従来の道（オペ化したらここも契約経由にする）。
       if(!isBonus && exportMonthlyViaOp(emps)) return;
@@ -6844,7 +6877,14 @@
     if(!(window.Store&&Store.publishMeisai)) return Promise.resolve(0);
     var ym=isBonus?bonusYmOf():state.month; if(!ym) return Promise.resolve(0);
     var emps=state.employees.filter(function(e){return isActiveInMonth(e,ym);});
-    if(!emps.length) return Promise.resolve(0);
+    /* ★㉔ 月の 金額が 読めない 人の Web明細は 出さない（出し直さない）★（2026-11-09 本番前の叩き S1・S2）
+       ＝確定後に「ー５０００」等を 打つと、記録は 書かないのに 明細だけ 0円で 出し直され、従業員に 未読で 届いた。
+       ⇒ その人は 外して 前の 明細を 残し、名指しで 知らせる（公開ボタン・確定の 自動公開・直しの 出し直しの 3本とも ここを 通る）。 */
+    var _ymKeep=isBonus?[]:yomenaiHito(emps);
+    /* ★名指しは 最後に 残る 札に 混ぜる★（toast は 1枚を 上書き＝別に 出すと「公開しました」に 消される・叩き直し T1） */
+    var _ymTail=_ymKeep.length?('（'+_ymKeep.slice(0,3).map(function(x){ return x.name||'名前なし'; }).join('・')+(_ymKeep.length>3?' ほか':'')+' は 金額が 読めないので Web明細を 出していません＝前のまま。半角の数字で入れ直してください）'):'';
+    if(_ymKeep.length) emps=emps.filter(function(e){ return _ymKeep.indexOf(e)<0; });
+    if(!emps.length){ if(_ymTail) toast('Web明細は 出していません'+_ymTail); return Promise.resolve(0); }
     var kind=isBonus?'bonus':'monthly';
     var items=emps.map(function(e){ var person=(isBonus?buildBonusPeople([e]):buildPeople([e]))[0];
         /* ★★直しなら ★紙に そう 書く★★（2026-09-22 司さん「気づくように しろや」）
@@ -6852,7 +6892,7 @@
            ⇒ ★印（気づく）★と ★訳（分かる）★の 2つを 出す */
       return { employeeId:e.id, name:e.name, ym:ym, kind:kind,
           data:naoshiTsuki({ person:person, doc:isBonus?{month:bonusMonthLabel(),kind:'bonus'}:{month:monthLabel()}, prefer:state.prefer, theme:state.theme }, opts) }; });
-    return Store.publishMeisai(items, { naoshi:!!opts.naoshi }).then(function(){ renderWebMeisai(); if(!opts.silent) toast(emps.length+'名の'+(isBonus?'賞与':'給与')+'明細をWeb公開しました'); return emps.length; }).catch(function(err){
+    return Store.publishMeisai(items, { naoshi:!!opts.naoshi }).then(function(){ renderWebMeisai(); if(!opts.silent) toast(emps.length+'名の'+(isBonus?'賞与':'給与')+'明細をWeb公開しました'+_ymTail); return emps.length; }).catch(function(err){
       /* ★失敗を0にしない★（0を返すと「0名 公開した」に見えて、
          従業員に届いていない事が 誰にも伝わらない＝前科の型）。
          ★言って★から ★投げ直す★（呼び手の失敗の道に入れる）。 */
@@ -7007,6 +7047,7 @@
     /* ★`_machi` は ★賞与の 確定★で 既に 使って いる名前（app.js:2785）なので 避ける★
        （別の 関数なので 壊れませんが ★次に 見る 人が 間違える★） */
     var _naoshiHito=[], _todoita=[];   /* ★確定済みを 打った 人／記録に 届いた 人★ */
+    var _yomenaiNokoshi=[];            /* ★㉔ 金額が 読めないので 確定の 記録を 書き直さなかった 人★ */
     var _slipRetsu=[];                 /* ★順番待ちの 列★（★一斉に 投げない★・2026-09-28） */
     state.employees.filter(function(e){return isActiveInMonth(e,ym);}).forEach(function(e){ try{ // 母集合を入力/印刷/集計/賃金台帳と統一(退職後/入社前の月を保存しない)
       /* ★★確定した 後に 直したら ★紙にも 記録にも 届く★★★（2026-09-21 司さん「直したなら 直らないかん やろ」）
@@ -7020,6 +7061,10 @@
       if(hitoriId && e.id!==hitoriId) return;   // ★1人だけ 書く時は その人 以外に 触らない★
       if(!force && !(hitoriId && e.id===hitoriId) && conf && conf[e.id] && !naoshitaKa(ym, e.id)) return; // 確定済み=凍結。★但し 人が 打った 人／名指しの 1人だけ 解く★
       var _nao = !!(conf && conf[e.id] && naoshitaKa(ym, e.id));   /* ★確定済みを 人が 打った 人★ */
+      /* ★㉔ 確定の 記録（confirmed:true）を 読めない 金額＝0円で 書き直さない★（2026-11-09）
+         ＝確定済みの 人が 後から「ー５０００」等を 打つと、凍結が 解けて 0円の まま confirmed で 書かれ、紙も 出し直された。
+         ⇒ 書かずに 前の 記録を 残し、下で 1行 知らせる（下書き＝confirmed:false は 台帳・年調に 入らないので 今まで通り 書く）。 */
+      if((force || (conf && conf[e.id])) && yomenaiOf(e).length){ _yomenaiNokoshi.push(e.name||'名前なし'); return; }
       var r=compute(e);
       var days=(window.PayrollCalc&&PayrollCalc.calcPaymentDays)?PayrollCalc.calcPaymentDays(e,ym,method):0;
       // 賃金台帳＋36協定履歴用の内訳(後方互換=読む側は無くても壊れない)。★かんたん/詳細 両モードを warimashiMins で統一算出
@@ -7056,6 +7101,7 @@
       _slipRetsu.push({ id:e.id, slip:_slip, nao:_nao });
       if(_nao) _naoshiHito.push(e.id);
     }catch(_e){} });
+    if(_yomenaiNokoshi.length) toast(_yomenaiNokoshi.slice(0,3).join('・')+(_yomenaiNokoshi.length>3?' ほか':'')+' は 金額が 読めないので、確定の 記録（台帳・年調・明細）は 前のままです。半角の数字で入れ直してください。');
     /* ★列を ★上限つき★ で 流す★（★測る 口は `window.PayslipDojiNoKazu`★）
        ★この 約束を ★下で 返します★★＝★呼ぶ 側が『全部 届いた』を 待てる ように なる★ */
     var _okuriP = _slipRetsuOkuru(ym, _slipRetsu, _todoita);
@@ -7092,7 +7138,8 @@
         if(!_todoita.length) return;                       /* ★記録に 届いて いなければ 紙も 出さない★ */
         publishMeisaiNow(false, { silent:true, naoshi:true }).then(function(){
           _todoita.forEach(function(id){ naoshitaKesu(ym, id); });
-          toast('確定ずみの ' + _todoita.length + '名を 直したので、賃金台帳と 従業員のWeb明細も 新しくしました。');
+          toast('確定ずみの ' + _todoita.length + '名を 直したので、賃金台帳と 従業員のWeb明細も 新しくしました。'
+            + (_yomenaiNokoshi.length ? '（' + _yomenaiNokoshi.slice(0,3).join('・') + (_yomenaiNokoshi.length>3?' ほか':'') + ' は 金額が 読めないので 前のまま＝半角の数字で入れ直してください）' : ''));   /* ★㉔ T1＝最後の 札に 名指しを 残す★ */
         }).catch(function(){
           /* ★印は 消さない★＝★次の 保存で もう一度 出す★（★黙って 諦めない★） */
           toast('直した内容を 従業員のWeb明細に 出し直せませんでした。もう一度 直すか「今月を確定」を 押してください。');

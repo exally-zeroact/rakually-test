@@ -422,6 +422,48 @@
       + '（初期値のままかもしれません。健康保険料率は県ごとに違います）</p>';
   }
 
+  // ── ⑦b 読めない金額（2026-11-09 ㉔）──
+  /* ★支給・控除・勤怠の 値が 数として 読めないと、計算（PayrollMonthly.num）は ★黙って 0★ に する★
+     （「ー５０００」「－５０００」「▲5000」「５０００円」「￥５０００」「５　０００」等＝打った 人は 入れた つもり）
+     ⇒ その人は 支給が 消えた／控除が 消えた まま 確定・振込・印刷・Excel に 進めた。
+     ★判定★＝num と ★同じ 正規化★（全角の数字と「．」を半角へ・「，」「、」「,」半角の空白を消す）の 後、
+       「符号＋数字（＋小数）」で 無ければ 読めない。★isNaN だけでは 足りない★＝Infinity・1e400 は 数に なって
+       net が Infinity/NaN に なり 振込で 黙って 払われない。5e3・0x10 も 人が 打つ 形で ないので 止める。
+     ★空（null/undefined/空白だけ）は 読めない で ない★（0 として 読むのが 今までの 決まり）。
+     ★対象★＝支給・法定外控除の 全行＋勤怠は 計算が 引く 行だけ（kintaiVal と 同じ「最初に 当たる 行」）。
+       勤怠の 自由な 行（メモ代わり）は 計算に 入らないので 止めない。★読み方は 1つも 増やさない★（額は 変えない）。 */
+  function yomenaiVal(v) {
+    if (v == null) return false;
+    var s = String(v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); })
+      .replace(/[，、]/g, '').replace(/[, ]/g, '').trim();
+    if (!s) return false;
+    return !/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s);
+  }
+  var YOMENAI_KINTAI = [/出勤/, /欠勤/, /代休取得/];   // ★payroll-monthly.js の kintaiVal の 呼び（59・180・264）と 同じ★
+  var YOMENAI_GUN = { shikyu: '支給', extraKojo: '控除', kintai: '勤怠' };
+  function yomenaiGyou(e) {
+    var out = []; if (!e) return out;
+    ['shikyu', 'extraKojo'].forEach(function (g) {
+      (e[g] || []).forEach(function (it, ri) { if (it && yomenaiVal(it.value)) out.push({ g: g, ri: ri, label: String(it.label || ''), value: String(it.value) }); });
+    });
+    var kt = e.kintai || [];
+    YOMENAI_KINTAI.forEach(function (re) {
+      var ri = -1; for (var i = 0; i < kt.length; i++) { if (re.test((kt[i] && kt[i].label) || '')) { ri = i; break; } }
+      if (ri < 0 || !yomenaiVal(kt[ri].value)) return;
+      if (out.some(function (x) { return x.g === 'kintai' && x.ri === ri; })) return;
+      out.push({ g: 'kintai', ri: ri, label: String(kt[ri].label || ''), value: String(kt[ri].value) });
+    });
+    return out;
+  }
+  // ★文は ここ 1か所★（画面の 札・確認済みの 門・集計・Excel・ops で 同じ 言い方）。「金額が読めない」で 始める＝collect の 枝分けの 目印
+  function yomenaiText(list) {
+    if (!list || !list.length) return '';
+    var MAX = 3;
+    var ji = list.slice(0, MAX).map(function (x) { return (YOMENAI_GUN[x.g] || '') + '「' + esc(x.label || '項目名なし') + '」＝「' + esc(x.value) + '」'; }).join('、')
+      + (list.length > MAX ? ' ほか' + (list.length - MAX) + '行' : '');
+    return '金額が読めない行があります（' + ji + '）。今は0として計算されています。半角の数字（例 5000・-5000）で入れ直してください（入れ直すまで 確定・振込・印刷・Excel は止めます）';
+  }
+
   // ── ⑧ 経理向けサマリ（Excel/集計に出す） ──
   // 経理向け警告(最賃割れ/差引マイナス/休業手当未入力)。従業員に渡す明細でなく集計/Excelに出す。
   function empWarnings(e, ctx) {
@@ -431,6 +473,7 @@
     else if (e.workStatus === 'kyugyo' && e.payType === '月給' && num(e.leavePay) > 0 && num(e.leavePay) < 0.4 * num(e.base)) w.push('休業手当が平均賃金の60%を下回る可能性（労基26条・要確認）'); // 全月休業の下限≒平均賃金(月給/30.4)×0.6×所定20日≒0.4×基本給。誤警告を避け0.4未満のみ検知
     var h = hoshoInfo(e); if (h && !h.ok) w.push('保障給なし（完全歩合・労基27条の恐れ）');
     ceilItems(e, ctx).forEach(function (x) { w.push(x.text); });
+    var yt = yomenaiText(yomenaiGyou(e)); if (yt) w.push(yt);
     return w;
   }
 
@@ -469,7 +512,8 @@
     // 経理サマリ由来(差引マイナス・休業手当)。最賃/保障給は上で出しているので重複を避ける
     empWarnings(e, ctx).forEach(function (t) {
       if (/^最低賃金/.test(t) || /^保障給なし/.test(t) || /^割増の率が高すぎ/.test(t) || /^固定残業（みなし）.*を超えています/.test(t)) return;
-      push(/マイナス/.test(t) ? 'NET_NEGATIVE' : /未入力/.test(t) ? 'KYUGYO_TEATE_MISSING' : 'KYUGYO_TEATE_LOW', 'warn', t);
+      // ★読めない金額は ★先に★ 枝分け★（後ろの 枝は「未入力」→休業手当・残りは KYUGYO_TEATE_LOW に 化ける）
+      push(/^金額が読めない/.test(t) ? 'KINGAKU_YOMENAI' : /マイナス/.test(t) ? 'NET_NEGATIVE' : /未入力/.test(t) ? 'KYUGYO_TEATE_MISSING' : 'KYUGYO_TEATE_LOW', 'warn', t);
     });
     // info(計算の注記)
     var pr = e._prorate, lw = e._leaveNoWork;
@@ -510,6 +554,7 @@
     laborLimitItems: laborLimitItems, laborLimitWarn: laborLimitWarn, laborLimitText: laborLimitText,
     shahoOffWarn: shahoOffWarn, fullTimeWeeklyH: fullTimeWeeklyH, shoteiMonthlyWage: shoteiMonthlyWage, shahoKanyuWarn: shahoKanyuWarn,
     statutoryStaleWarn: statutoryStaleWarn, bonusStaleWarn: bonusStaleWarn, _shikyubiYm: shikyubiYm, empWarnings: empWarnings, prorateNote: prorateNote,
+    yomenaiVal: yomenaiVal, yomenaiGyou: yomenaiGyou, yomenaiText: yomenaiText,
     prefStats: prefStats, prefMissingWarn: prefMissingWarn, prefMissingText: prefMissingText, prefTokyoNote: prefTokyoNote, kariKeisanNote: kariKeisanNote,
     collect: collect, collectCompany: collectCompany,
   };
