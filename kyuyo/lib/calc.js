@@ -16,7 +16,7 @@
   // 非課税は項目名から自動判定(通勤/出張/旅費/宿泊/日当)。手動フラグ(hikazei)があれば尊重。
   var NONTAX_RE = /通勤|出張|旅費|宿泊|日当/;
   var JIHIBENSHO_RE = /出張|旅費|宿泊|日当/; // 実費弁償(通勤を除く)=非課税なら社保/雇用の基礎から除外。通勤は報酬なので含む。
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
   // 非課税判定: 明示hikazei(true/false)があれば尊重・無ければ名称で自動。
   //  ★名称一致は"既定"であって強制でない=課税の日当/出張手当をユーザーが課税に戻せる(hikazei:false)。未指定は後方互換で名称自動。
   function isHikazei(it) { return (it && it.hikazei != null) ? !!it.hikazei : NONTAX_RE.test((it && it.label) || ''); }

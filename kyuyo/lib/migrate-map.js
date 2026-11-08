@@ -40,7 +40,7 @@
 
   // 生年月日を YYYY-MM-DD へ正規化(YYYY/M/D・YYYY.M.D・YYYY-M-D・YYYY年M月D日・8桁)。不明/和暦は ''(勝手に埋めない)。
   function toYmd(v) {
-    var s = String(v == null ? '' : v).trim().replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+    var s = String(v == null ? '' : v).trim().replace(/[０-９．]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
     if (!s) return '';
     var m = s.match(/(\d{4})\s*[\/\.\-年]\s*(\d{1,2})\s*[\/\.\-月]\s*(\d{1,2})/);
     if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);

@@ -353,7 +353,7 @@ T('lib の num: 全角の 数字・全角カンマ・読点を 読む（全部�
       if (/PM\(\)\.num\(v\)/.test(line)) continue; // payroll-monthly の num へ 渡すだけ（写しでない＝payroll-warnings）
       mita++;
       var num = new Function(line + '; return num;')();
-      [['２０，０００', 20000], ['２７、６００', 27600], ['８３７４１', 83741], ['1,234', 1234], ['300000', 300000], ['', 0], [null, 0]].forEach(function (c) {
+      [['２０，０００', 20000], ['２７、６００', 27600], ['１２．５', 12.5], ['８３７４１', 83741], ['1,234', 1234], ['300000', 300000], ['', 0], [null, 0]].forEach(function (c) {
         if (num(c[0]) !== c[1]) dame.push(f + ':' + (src.slice(0, m.index).split('\n').length) + ' ' + JSON.stringify(c[0]) + '→' + num(c[0]));
       });
     }

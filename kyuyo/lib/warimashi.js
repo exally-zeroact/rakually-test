@@ -13,7 +13,7 @@
   }
 })(typeof self !== 'undefined' ? self : this, function (SH) {
   'use strict';
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
   // 社保用：50銭"以下"切捨・超切上（ちょうど50銭は切捨）
   function han50(x) {
     if (SH && SH.han50) return SH.han50(x);

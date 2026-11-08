@@ -105,10 +105,13 @@
     if(!Array.isArray(e.kintai)) e.kintai=d.kintai; if(!Array.isArray(e.shikyu)) e.shikyu=d.shikyu; if(!Array.isArray(e.extraKojo)) e.extraKojo=[];
     return e; }
   function ensurePayRule(e){ return PM().ensurePayRule(e); }
+  /* ★全角の 数字・点・読点を 半角へ（㉓・2026-11-08）★＝入力中に `[^0-9]` で 消すと IME の「１２３」が 黙って 空/0 で 保存された。
+     数字以外を 消す 前に 必ず 通す（半角で 打つ 人の 値は 1字も 変わらない）。 */
+  function hanSuji(v){ return String(v==null?'':v).replace(/[０-９．，]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}); }
   // 段階制の段(下限/率)を設定。key='i:idx:tidx:from|rate'。from=整数円 / rate=小数%許容。
   function prTierSet(e,key,val){ var p=String(key).split(':'); var part=ensurePayRule(e).variable.parts[+p[1]]; if(!part)return; if(!part.tiers)part.tiers=[]; var tr=part.tiers[+p[2]]; if(!tr){ tr={from:'',rate:''}; part.tiers[+p[2]]=tr; }
-    if(p[3]==='rate'){ var v=String(val).replace(/[^0-9.]/g,''); var dot=v.indexOf('.'); if(dot>=0)v=v.slice(0,dot+1)+v.slice(dot+1).replace(/\./g,''); tr.rate=v; }
-    else { tr.from=String(val).replace(/[^0-9]/g,''); } }
+    if(p[3]==='rate'){ var v=hanSuji(val).replace(/[^0-9.]/g,''); var dot=v.indexOf('.'); if(dot>=0)v=v.slice(0,dot+1)+v.slice(dot+1).replace(/\./g,''); tr.rate=v; }
+    else { tr.from=hanSuji(val).replace(/[^0-9]/g,''); } }
   function PPARSE(){ return (typeof PayParse!=='undefined')?PayParse:(window&&window.PayParse); }
   // 雑入力の解釈結果を従業員に反映(payType+base/hourly/payRule)
   function applyParse(e,r){ if(!r||!r.ok)return; if(r.payType) e.payType=r.payType; // payType=null=手当のみ反映(給与形態は据え置き)
@@ -1045,10 +1048,10 @@
       h+=ruleItemHTML('companyHol','会社独自の休日','年末年始・夏季休暇など','','<div>'+cohRows+'</div><button class="mini add" data-coh-add="1" style="margin-top:4px">＋ 休日を追加</button><div class="ri-note">国民の祝日は<b>自動</b>です。ここは会社が独自に決めた休み（創立記念日・年末年始・夏季休暇など）だけ。当月の所定労働日数に反映します。</div>'); }
     if(on.warimashiRate){
       var rr='<div class="rate-grid">'
-        +'<div><div class="mini-l">残業</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateOt" inputmode="numeric" value="'+attr(c.rateOt)+'" placeholder="125"><i>%</i></span></div>'
-        +'<div><div class="mini-l">法定休日</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateHoliday" inputmode="numeric" value="'+attr(c.rateHoliday)+'" placeholder="135"><i>%</i></span></div>'
-        +'<div><div class="mini-l">深夜（上乗せ）</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateNight" inputmode="numeric" value="'+attr(c.rateNight)+'" placeholder="25"><i>+%</i></span></div>'
-        +'<div><div class="mini-l">月60時間超（上乗せ）</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateOver60" inputmode="numeric" value="'+attr(c.rateOver60)+'" placeholder="25"><i>+%</i></span></div>'
+        +'<div><div class="mini-l">残業</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateOt" data-dec inputmode="decimal" value="'+attr(c.rateOt)+'" placeholder="125"><i>%</i></span></div>'
+        +'<div><div class="mini-l">法定休日</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateHoliday" data-dec inputmode="decimal" value="'+attr(c.rateHoliday)+'" placeholder="135"><i>%</i></span></div>'
+        +'<div><div class="mini-l">深夜（上乗せ）</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateNight" data-dec inputmode="decimal" value="'+attr(c.rateNight)+'" placeholder="25"><i>+%</i></span></div>'
+        +'<div><div class="mini-l">月60時間超（上乗せ）</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateOver60" data-dec inputmode="decimal" value="'+attr(c.rateOver60)+'" placeholder="25"><i>+%</i></span></div>'
         +'</div><div class="ri-note">空欄＝法定どおり自動（残業125%・休日135%・深夜+25%）。会社は上げられます（詳しくは💡）。</div>'
         +rateFloorWarn(c);
       h+=ruleItemHTML('warimashiRate','割増の率','残業・休日・深夜','warimashi',rr); }
@@ -1064,7 +1067,7 @@
       var kmo=[['','月平均所定労働日数（既定）'],['calendar','当月の暦日数'],['scheduled','当月の所定労働日数']]
         .map(function(o){return '<option value="'+o[0]+'"'+((c.kekkinMethod||'')===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('');
       h+=ruleItemHTML('kekkin','欠勤控除の計算','月給の欠勤・不就労','kekkin','<label class="cr-chk" style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" data-cf="kanzenGekkyu"'+(c.kanzenGekkyu?' checked':'')+'>完全月給制（欠勤しても控除しない）</label><div style="margin-top:6px;font-size:12px">1日あたりの分母：<select class="cr-sel" data-cf="kekkinMethod">'+kmo+'</select></div><div class="ri-note">月給は欠勤分を控除（日給月給制）が標準。役員等のみ完全月給制に（詳しくは💡）。</div>'); }
-    if(on.minashi){ h+=ruleItemHTML('minashi','固定残業（みなし）','時間','','<input class="cr-f cr-wide" data-cf="minashiH" inputmode="numeric" value="'+attr(c.minashiH)+'" placeholder="0">'); }
+    if(on.minashi){ h+=ruleItemHTML('minashi','固定残業（みなし）','時間','','<input class="cr-f cr-wide" data-cf="minashiH" data-dec inputmode="decimal" value="'+attr(c.minashiH)+'" placeholder="0">'); }
     if(on.daikyu){ h+=ruleItemHTML('daikyu','代休・振替休日','使い分け','daikyu',
       '<div class="ri-note">振替休日＝割増なし（通常の労働時間へ）／代休＝割増あり＋休む日は入力の「代休取得」へ（詳しくは💡）。</div>'
       +'<label class="cr-chk" style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:8px"><input type="checkbox" data-cf="daikyuDeduct"'+(c.daikyuDeduct?' checked':'')+'>代休で休んだ日を出勤から差し引く（無給代休・日給制向け）</label>'); }
@@ -3120,7 +3123,7 @@
     return {
       jimusho:{ todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
         gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
-        zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+        zipOya:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(0,3), zipKo:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||x.kana||'', kanji:e.name||x.name||'', birthYmd:e.birthYmd||x.birthYmd||'' },
@@ -3388,7 +3391,7 @@
     return {
       jimusho:{ todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
         gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
-        zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+        zipOya:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(0,3), zipKo:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
@@ -3417,7 +3420,7 @@
     var sk=(window.TodokedeCsv&&TodokedeCsv.splitSeiriKigou)?TodokedeCsv.splitSeiriKigou(c.seiriKigou):null;
     return { todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
       gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
-      zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+      zipOya:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(0,3), zipKo:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(3,7),
       address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
       tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' };
   }
@@ -3538,7 +3541,7 @@
     return {
       jimusho:{ todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
         gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
-        zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+        zipOya:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(0,3), zipKo:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'' },
@@ -3853,7 +3856,7 @@
     return {
       jimusho:{ todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
         gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
-        zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+        zipOya:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(0,3), zipKo:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'',
@@ -3903,7 +3906,7 @@
     return {
       jimusho:{ todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
         gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
-        zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+        zipOya:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(0,3), zipKo:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(3,7),
         address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
         tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' },
       emp:{ seiriNo:e.hokenshaNo||'', kana:e.kana||e.furiKana||'', kanji:e.name||'', birthYmd:e.birthYmd||'',
@@ -3963,7 +3966,7 @@
     var sk=(window.TodokedeCsv&&TodokedeCsv.splitSeiriKigou)?TodokedeCsv.splitSeiriKigou(c.seiriKigou):null;
     return { todofuken:(window.TodokedeCsv?TodokedeCsv.KEN_CODE[c.pref]:'')||'',
       gunshiku:sk?sk.gunshiku:'', kigou:sk?sk.kigou:'', jigyoshoNo:c.jigyoshoNo||'',
-      zipOya:String(c.zip||'').replace(/[^0-9]/g,'').slice(0,3), zipKo:String(c.zip||'').replace(/[^0-9]/g,'').slice(3,7),
+      zipOya:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(0,3), zipKo:hanSuji(c.zip).replace(/[^0-9]/g,'').slice(3,7),
       address:c.addr||'', name:c.name||'', nushi:c.nushi||'',
       tel1:String(c.tel||'').split('-')[0]||'', tel2:String(c.tel||'').split('-')[1]||'', tel3:String(c.tel||'').split('-')[2]||'' };
   }
@@ -5807,10 +5810,10 @@
       // 入力中は値を保存のみ(再描画しない=フォーカス維持)。結果はblur(change)で更新。
       inScr.addEventListener('input',function(ev){
         var bsl=ev.target.closest('[data-bsl]'), bsv=ev.target.closest('[data-bsv]'), bkl=ev.target.closest('[data-bkl]'), bkv=ev.target.closest('[data-bkv]');
-        if(bsl||bsv||bkl||bkv){ var t=bsl||bsv||bkl||bkv, isS=!!(bsl||bsv), isLbl=!!(bsl||bkl); var r=bxParse(t.dataset[bsl?'bsl':bsv?'bsv':bkl?'bkl':'bkv'], isS?'addShikyu':'addKojo'); if(r&&r.arr[r.idx]){ if(isLbl) r.arr[r.idx].label=t.value; else r.arr[r.idx].value=t.value.replace(/[^0-9]/g,''); } return; }
+        if(bsl||bsv||bkl||bkv){ var t=bsl||bsv||bkl||bkv, isS=!!(bsl||bsv), isLbl=!!(bsl||bkl); var r=bxParse(t.dataset[bsl?'bsl':bsv?'bsv':bkl?'bkl':'bkv'], isS?'addShikyu':'addKojo'); if(r&&r.arr[r.idx]){ if(isLbl) r.arr[r.idx].label=t.value; else r.arr[r.idx].value=hanSuji(t.value).replace(/[^0-9]/g,''); } return; }
         var ba=ev.target.closest('[data-ba]'), bp=ev.target.closest('[data-bp]'), by=ev.target.closest('[data-by]'); if(!ba&&!bp&&!by)return;
         var e=bonusEmpOf(ba||bp||by); if(!e)return; var en=bonusEntry(e);
-        if(ba) en.amount=ba.value.replace(/[^0-9]/g,''); else if(bp) en.prevAfter=bp.value.replace(/[^0-9]/g,''); else en.ytd=by.value.replace(/[^0-9]/g,'');
+        if(ba) en.amount=hanSuji(ba.value).replace(/[^0-9]/g,''); else if(bp) en.prevAfter=hanSuji(bp.value).replace(/[^0-9]/g,''); else en.ytd=hanSuji(by.value).replace(/[^0-9]/g,'');
  });
       inScr.addEventListener('change',function(ev){
         var bsh=ev.target.closest('[data-bsh]'); if(bsh){ var rh=bxParse(bsh.dataset.bsh,'addShikyu'); if(rh&&rh.arr[rh.idx]) rh.arr[rh.idx].hikazei=bsh.checked; renderBonus(); return; }
@@ -5818,7 +5821,7 @@
         var bn=ev.target.closest('[data-bn]');
         if(bn){ if(!state.bonus)state.bonus={byEmp:{}}; if(bn.dataset.bn==='payYm'){ state.bonus.payYm=bn.value; state._bonusPrevYm=null; state._bonusYtdYm=null; } else { state.bonus.payDay=bn.value; } renderBonus(); return; }
         var ba=ev.target.closest('[data-ba]'), bp=ev.target.closest('[data-bp]'), by=ev.target.closest('[data-by]');
-        if(ba||bp||by){ var e=bonusEmpOf(ba||bp||by); if(e){ var en=bonusEntry(e); if(ba) en.amount=ba.value.replace(/[^0-9]/g,''); else if(bp) en.prevAfter=bp.value.replace(/[^0-9]/g,''); else en.ytd=by.value.replace(/[^0-9]/g,''); } renderBonus(); }
+        if(ba||bp||by){ var e=bonusEmpOf(ba||bp||by); if(e){ var en=bonusEntry(e); if(ba) en.amount=hanSuji(ba.value).replace(/[^0-9]/g,''); else if(bp) en.prevAfter=hanSuji(bp.value).replace(/[^0-9]/g,''); else en.ytd=hanSuji(by.value).replace(/[^0-9]/g,''); } renderBonus(); }
       });
     }
 
@@ -5872,7 +5875,7 @@
         if(askComposing()) return;
         var v=ev.target.value;
         if(f==='paydayDay'||f==='dailyWorkH'||f==='dailyWorkM'){
-          var only=v.replace(/[^0-9]/g,'');
+          var only=hanSuji(v).replace(/[^0-9]/g,'');
           if(only!==v){ v=only; ev.target.value=only; }   // 数字だけの欄は その場で直す（描き直さない）
         }
         state.company[f]=v;
@@ -5896,10 +5899,10 @@
        欄そのものを 読むだけの箱にしたので、ここで拾う物も 無い。 */
     ['close'].forEach(function(k){ var el=$('#c-'+k); if(el) el.addEventListener('input',function(){ state.company[k]=this.value; }); });
     var pr=$('#c-payrel'); if(pr) pr.addEventListener('change',function(){ state.company.paydayRel=this.value; updatePaydayPreview(); });
-    var pd=$('#c-payday-day'); if(pd) pd.addEventListener('input',function(){ state.company.paydayDay=this.value.replace(/[^0-9末]/g,''); updatePaydayPreview(); });
+    var pd=$('#c-payday-day'); if(pd) pd.addEventListener('input',function(){ state.company.paydayDay=hanSuji(this.value).replace(/[^0-9末]/g,''); updatePaydayPreview(); });
     var pcy=$('#c-paycycle'); if(pcy) pcy.addEventListener('change',function(){ state.company.payCycle=this.value; payCycleNote(); renderAsk(); });
     /* ★N週の欄★（締め方の c-shimen と 同じ作り） */
-    var pcn=$('#c-paycyclen'); if(pcn) pcn.addEventListener('input',function(){ state.company.payCycleN=this.value.replace(/[^0-9]/g,''); this.value=state.company.payCycleN; payCycleNote(); renderAsk(); });
+    var pcn=$('#c-paycyclen'); if(pcn) pcn.addEventListener('input',function(){ state.company.payCycleN=hanSuji(this.value).replace(/[^0-9]/g,''); this.value=state.company.payCycleN; payCycleNote(); renderAsk(); });
     /* ★支給日（10,25 のように , で区切る）★＝数と , だけ通す（打っている途中は 直さない） */
     /* ★入れたら その場で 追いつく★（穴②と 同じ考え＝丸ごと 描き直さない） */
     var kp=$('#c-pref');
@@ -5908,7 +5911,7 @@
       renderAsk();                       /* 問いの 進み具合も その場で */
       var cho=$('#view-cho'); if(cho && cho.offsetParent) renderChoView();   /* ★名前は renderChoView★（renderCho は 無い＝実物で 確かめた） */
     });
-    var pdy=$('#c-paydays'); if(pdy) pdy.addEventListener('input',function(){ var v=this.value.replace(/[^0-9,]/g,''); if(v!==this.value) this.value=v; state.company.payDays=v; payCycleNote(); renderAsk(); });
+    var pdy=$('#c-paydays'); if(pdy) pdy.addEventListener('input',function(){ var v=hanSuji(this.value).replace(/、/g,',').replace(/[^0-9,]/g,''); if(v!==this.value) this.value=v; state.company.payDays=v; payCycleNote(); renderAsk(); });
     var shm=$('#c-shime'); if(shm) shm.addEventListener('change',function(){ state.company.shimeMethod=this.value; shimeNote(); if(state.employees)renderInput(); });
     var shn=$('#c-shimen'); if(shn) shn.addEventListener('input',function(){ state.company.shimeN=this.value; shimeNote(); if(state.employees)renderInput(); });
     // 会社の決まり：項目チップ
@@ -5924,7 +5927,11 @@
       var cd=ev.target.closest('[data-coh-del]'); if(cd){ (state.company.companyHolidays||[]).splice(+cd.dataset.cohDel,1); renderCompanyRules(); return; }
       var x=ev.target.closest('[data-rule-x]'); if(x){ state.company.ruleOn[x.dataset.ruleX]=false; renderRuleChips(); renderCompanyRules(); return; }
     });
-    rh.addEventListener('input',function(ev){ if(ev.target.tagName==='SELECT'||ev.target.type==='checkbox')return; var f=ev.target.dataset.cf; if(f) state.company[f]=ev.target.value.replace(/[^0-9]/g,''); });
+    rh.addEventListener('input',function(ev){ if(ev.target.tagName==='SELECT'||ev.target.type==='checkbox')return; var f=ev.target.dataset.cf; if(!f) return;
+      /* ★割増率・みなし時間は 小数を 残す（data-dec の 欄）★＝前は「137.5」が 1375 で 保存された（㉓）。点の 2つ目からは 捨てる（prTierSet と 同じ）。 */
+      var dec=ev.target.hasAttribute('data-dec'), v=hanSuji(ev.target.value).replace(dec?/[^0-9.]/g:/[^0-9]/g,'');
+      if(dec){ var dot=v.indexOf('.'); if(dot>=0) v=v.slice(0,dot+1)+v.slice(dot+1).replace(/\./g,''); }
+      state.company[f]=v; });
     rh.addEventListener('change',function(ev){ if(ev.target.dataset.coh!=null){ state.company.companyHolidays=(state.company.companyHolidays||[]); state.company.companyHolidays[+ev.target.dataset.coh]=ev.target.value; return; } var f=ev.target.dataset.cf; if(f==='gyoshu'){ state.company.gyoshu=ev.target.value; return; } if(f==='shahoTiming'){ state.company.shahoTiming=ev.target.value; return; } if(f==='paymentDaysMethod'){ state.company.paymentDaysMethod=ev.target.value; return; } if(f==='kekkinMethod'){ state.company.kekkinMethod=ev.target.value; return; } if(f==='kanzenGekkyu'){ state.company.kanzenGekkyu=ev.target.checked; renderCompanyRules(); return; } if(f==='daikyuDeduct'){ state.company.daikyuDeduct=ev.target.checked; return; } if(f==='shakaTokutei'){ state.company.shakaTokutei=ev.target.checked; return; } if(f==='annualHolidays'||f==='dailyWorkH'||f==='dailyWorkM'||f==='rateOt'||f==='rateHoliday'||f==='rateNight'||f==='rateOver60') renderCompanyRules(); }); // 年間労働時間(32条)/割増率(37条)の黄警告をライブ更新
     /* ═══ 従業員マスタ7問（1人ずつ聞く）の押し込み ═══
        ★1問ごとに保存★／★給料の決め方は「これで」を押すまで入れない★ */
@@ -5985,7 +5992,7 @@
         if (f === 'payText') { state._empAskText = state._empAskText || {}; state._empAskText[e.id] = v; }
         else {
           if (f === 'commute' || f === 'commuteKm' || f === 'fuyou') {
-            var only = v.replace(/[^0-9]/g, '');
+            var only = hanSuji(v).replace(/[^0-9]/g, '');
             if (only !== v) { v = only; ev.target.value = only; }
           }
           e[f] = v;
@@ -6269,7 +6276,7 @@
       if(kzf){ var kp=String(kzf.dataset.kz).split(':'); var ke=state.employees[+kp[0]];
         if(ke&&ke.kazoku&&ke.kazoku[+kp[1]]){ var fld=kp[2], v=ev.target.value;
           if(fld==='doukyo') ke.kazoku[+kp[1]].doukyo = (v==='')?null:(v==='1');
-          else if(fld==='shunyu') ke.kazoku[+kp[1]].shunyu = String(v).replace(/[^0-9]/g,'');
+          else if(fld==='shunyu') ke.kazoku[+kp[1]].shunyu = hanSuji(v).replace(/[^0-9]/g,'');
           else ke.kazoku[+kp[1]][fld]=v;
           /* ★★姓と 名を こちらで 繋ぐ（2026-09-14 司さん）★★
              届出の 決まり＝漢字は ★全角スペース 1個★・カナは ★半角スペース 1個★。
@@ -6476,11 +6483,11 @@
       iqKaku(e.target);
     });
     il.addEventListener('input',function(e){ var card=e.target.closest('.acc,.trow'); if(!card)return; var ci=+card.dataset.i; var emp=state.employees[ci];
-      var dl=e.target.closest('[data-dl]'); if(dl){ var dpp=String(dl.dataset.dl).split(':'); if(emp.dailyEntries&&emp.dailyEntries[+dpp[1]]){ var f2=dpp[2]; emp.dailyEntries[+dpp[1]][f2]=(f2==='amount')?e.target.value.replace(/[^0-9]/g,''):e.target.value; } return; } // 日別入力(再描画せずフォーカス維持)
-      if(e.target.classList.contains('wk-f')){ emp[e.target.dataset.wkf]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
-      if(e.target.classList.contains('cm-f')){ emp[e.target.dataset.cmf]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
-      if(e.target.classList.contains('wi-f')){ if(!emp.warimashi)emp.warimashi={}; emp.warimashi[e.target.dataset.wk]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
-      if(e.target.classList.contains('wi-df')){ if(!emp.warimashi)emp.warimashi={}; if(!emp.warimashi.detail)emp.warimashi.detail={}; var wd=e.target.dataset.wd; emp.warimashi.detail[wd]=emp.warimashi.detail[wd]||{h:'',m:''}; emp.warimashi.detail[wd][e.target.dataset.dp]=e.target.value.replace(/[^0-9]/g,''); refreshCard(ci); return; }
+      var dl=e.target.closest('[data-dl]'); if(dl){ var dpp=String(dl.dataset.dl).split(':'); if(emp.dailyEntries&&emp.dailyEntries[+dpp[1]]){ var f2=dpp[2]; emp.dailyEntries[+dpp[1]][f2]=(f2==='amount')?hanSuji(e.target.value).replace(/[^0-9]/g,''):e.target.value; } return; } // 日別入力(再描画せずフォーカス維持)
+      if(e.target.classList.contains('wk-f')){ emp[e.target.dataset.wkf]=hanSuji(e.target.value).replace(/[^0-9]/g,''); refreshCard(ci); return; }
+      if(e.target.classList.contains('cm-f')){ emp[e.target.dataset.cmf]=hanSuji(e.target.value).replace(/[^0-9]/g,''); refreshCard(ci); return; }
+      if(e.target.classList.contains('wi-f')){ if(!emp.warimashi)emp.warimashi={}; emp.warimashi[e.target.dataset.wk]=hanSuji(e.target.value).replace(/[^0-9]/g,''); refreshCard(ci); return; }
+      if(e.target.classList.contains('wi-df')){ if(!emp.warimashi)emp.warimashi={}; if(!emp.warimashi.detail)emp.warimashi.detail={}; var wd=e.target.dataset.wd; emp.warimashi.detail[wd]=emp.warimashi.detail[wd]||{h:'',m:''}; emp.warimashi.detail[wd][e.target.dataset.dp]=hanSuji(e.target.value).replace(/[^0-9]/g,''); refreshCard(ci); return; }
       var g=e.target.dataset.g, ri=+e.target.dataset.ri, f=e.target.dataset.f;
       /* ★★自動計算の 行に 打たれた★★（2026-09-20 司さんの 決め＝「注意文 出せや」）
          ★前★ … 打てる／字は 残る／合計は 動かない／画面を 出て 戻るまで ★食い違ったまま★
@@ -6545,7 +6552,7 @@
       var dl=e.target.closest('[data-choxlsx]'); if(dl){ downloadChoXlsx(dl.dataset.choxlsx); return; } });
     if(vcho) vcho.addEventListener('input',function(e){ var zg=e.target.closest('[data-zennendo-gaisan]'); if(!zg)return;
       /* ★前年度に 納めた 概算＝精算（不足／充当）の 元★ */
-      if(!state.company)state.company={}; state.company.zennendoGaisan=zg.value.replace(/[^0-9]/g,'');
+      if(!state.company)state.company={}; state.company.zennendoGaisan=hanSuji(zg.value).replace(/[^0-9]/g,'');
       /* ★精算の 字だけ その場で 書き換える★（2026-10-02）＝★画面を 作り直さない★
          前は ここで renderChoView() を 呼んでいた ⇒ 労働保険は「読込中…」に 作り直してから 描く ⇒ ★打っている 欄が 消える★
          ⇒ ★1文字 打つと 焦点が 外れ、2桁以上 続けて 打てなかった★（WebKit 実測：打った値「」・焦点 BODY／954欄中 この1欄だけ）
@@ -6557,7 +6564,7 @@
       if(sh.value!=='__te__') state.company.rousaiRate='';
       renderChoView(); });
     if(vcho) vcho.addEventListener('input',function(e){ var rr=e.target.closest('[data-rousai-rate]'); if(!rr)return; // 労災率(‰)入力→労災保険料だけ即時再計算(集計は再取得しない=入力フォーカス維持)
-      if(!state.company)state.company={}; state.company.rousaiRate=rr.value.replace(/[^0-9.]/g,'');
+      if(!state.company)state.company={}; state.company.rousaiRate=hanSuji(rr.value).replace(/[^0-9.]/g,'');
       /* ★札も 打った値に 更新（⑧c・2026-10-03）★＝rousaiRate を 新値にした「後」に 書き換える（前だと 1文字 遅れる）。
          ＝全描画せず（焦点を外さない）札だけ textContent で。業種の change は renderChoView で丸ごと描き直す＝此処は手入力(input)の穴。 */
       var fj=$('#rousai-fuda'); if(fj) fj.textContent='労災（'+rousaiFudaJi(state.company)+'）';

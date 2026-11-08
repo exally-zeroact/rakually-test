@@ -8,7 +8,7 @@
   else { root.ChinginDaicho = factory(); }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
 
   // records:[{ym:'YYYY-MM',employee_id,data}], year:number, employees:[{id,name}]
   // → [{id,name,monthly:{1..12: data|null}}]（保存済み月だけ値・未保存はnull）

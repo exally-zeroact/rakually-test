@@ -13,7 +13,7 @@
   else root.Juminzei = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
   // 特別徴収の徴収順(6月=0番目 … 翌5月=11番目)。6→0,7→1,…,12→6,1→7,…,5→11
   function collectionIndex(month) { month = num(month); return month >= 6 ? month - 6 : month + 6; }
   // 月割額: base=floor(年税額/12/100)*100(100円未満切捨)・6月=年税額-base*11(端数を初月合算)・他=base

@@ -35,7 +35,7 @@
   /* ★数の 読み方は payroll-monthly.js の num と 同じ（全角の 数字・全角カンマ・読点を 読む）★（2026-11-06 ⑰の 叩きの 止め1）
      前は zuijiKaitei・calcKekkin の 中の 写し 2本と kintaiNum・scheduledDays が 全角を 読まなかった＝
      勤怠「出勤日数 ２０」で 給与は 20日・支払基礎日数は 0（算定の 17日の 判定が ずれる）。写しは ここの 1本だけ。 */
-  var num = function (v) { var s = String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, ''); var n = Number(s); return isNaN(n) ? 0 : n; };
+  var num = function (v) { var s = String(v == null ? 0 : v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, ''); var n = Number(s); return isNaN(n) ? 0 : n; };
 
   // 厚生年金(従業員負担・全国一律18.3%/折半9.15%)。単一ソース=shakaihoken-hyo(法改正時はそこだけ変更)。
   var KOSEI_NENKIN_RITSU = (SHAKAIHOKEN_HYO && SHAKAIHOKEN_HYO.KOSEI_NENKIN_RITSU_JUGYOIN != null) ? SHAKAIHOKEN_HYO.KOSEI_NENKIN_RITSU_JUGYOIN : 0.0915;

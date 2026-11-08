@@ -746,8 +746,10 @@
      ★性別とは 別に 持つ★（otto/tsuma/otto-todokede-nashi/tsuma-todokede-nashi） */
   var HAI_ZOKU = { otto: '1', tsuma: '2', ottoMitodoke: '3', tsumaMitodoke: '4',
     '1': '1', '2': '2', '3': '3', '4': '4' };
-  function zip3(v) { return String(v || '').replace(/[^0-9]/g, '').slice(0, 3); }
-  function zip4(v) { return String(v || '').replace(/[^0-9]/g, '').slice(3, 7); }
+  /* ★全角の 数字も 読む（㉓・2026-11-08）★＝前は 全角の 郵便番号が 空で 届出に 出た／「まだです」と 誤って 止めた */
+  function hanSuji(v) { return String(v == null ? '' : v).replace(/[０-９．]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }); }
+  function zip3(v) { return hanSuji(v).replace(/[^0-9]/g, '').slice(0, 3); }
+  function zip4(v) { return hanSuji(v).replace(/[^0-9]/g, '').slice(3, 7); }
   /* ★日付は 今日より 後に できない★（今日は 呼ぶ側が 渡す＝libは 時計を 持たない） */
   function shutokuHiOk(ymd, kyou) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd || ''))) return false;
@@ -897,7 +899,7 @@
   function splitKisoNenkin(text) {
     var s2 = String(text == null ? '' : text).trim();
     if (!s2) return null;
-    s2 = s2.replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+    s2 = s2.replace(/[０-９．]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
       .replace(/[－ー―‐]/g, '-').replace(/\s+/g, '');
     var m = /^([0-9]{4})-?([0-9]{6})$/.exec(s2);
     if (!m) return null;
@@ -1238,8 +1240,8 @@
        「項番13・15・18・19・20 が 入力されていない」と 5件 断られた。
        ★出せない物の ボタンを 見せない★＝同じ物を ここでも 見る。 */
     if (!String(e.seibetsu || '').trim()) naze.push('本人の 性別が まだです');
-    if (!String(e.kisoNenkin || '').replace(/[^0-9]/g, '')) naze.push('本人の 基礎年金番号が まだです（マイナンバーを お預かりしない為）');
-    if (String(e.zip || '').replace(/[^0-9]/g, '').length < 7) naze.push('本人の 郵便番号が まだです');
+    if (!hanSuji(e.kisoNenkin).replace(/[^0-9]/g, '')) naze.push('本人の 基礎年金番号が まだです（マイナンバーを お預かりしない為）');
+    if (hanSuji(e.zip).replace(/[^0-9]/g, '').length < 7) naze.push('本人の 郵便番号が まだです');
     if (!String(e.jushoKanji || '').trim()) naze.push('本人の 住所が まだです');
     if (!String(inp.idou || '').trim()) naze.push('異動の別（増えた／減った／変更）が まだです');
     [].concat(hai ? [{ x: hai, na: '配偶者' }] : [], sono.map(function (x, k) { return { x: x, na: '家族' + (k + 1) }; }))
@@ -1249,7 +1251,7 @@
         if (o.na !== '配偶者' && !String(o.x.zokugara || '').trim()) naze.push(o.na + 'の 続柄が まだです');
         /* ★原文 項番37-39／80-82★「個人番号の有無、同居・別居の別の区分の
            設定に関わらず、省略不可とする」＝★同居でも 要る★ */
-        if (String(o.x.zip || '').replace(/[^0-9]/g, '').length < 7) naze.push(o.na + 'の 郵便番号が まだです（同居でも 要ります）');
+        if (hanSuji(o.x.zip).replace(/[^0-9]/g, '').length < 7) naze.push(o.na + 'の 郵便番号が まだです（同居でも 要ります）');
         if (!String(o.x.jusho || '').trim()) naze.push(o.na + 'の 住所が まだです（同居でも 要ります）');
         /* ★職業・同居／別居・年間収入は ★増えた（該当）の時だけ★ 要る（2026-09-14）★
            2/3 では 紙に 出ない（この lib が 空に する＝検める側が そう 言っている）。

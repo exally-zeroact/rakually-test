@@ -47,7 +47,7 @@
   function KH() { return _KoyoHoken || G.KoyoHoken; }
 
   // 全角数字/読点も数値化(M3: 全角123が0に化けるのを防ぐ)
-  var num = function (v) { var s = String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, ''); var n = Number(s); return isNaN(n) ? 0 : n; };
+  var num = function (v) { var s = String(v == null ? 0 : v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, ''); var n = Number(s); return isNaN(n) ? 0 : n; };
 
   function C(ctx) { return (ctx && ctx.company) || {}; }
   function YM(ctx) { return (ctx && ctx.month) || ''; }

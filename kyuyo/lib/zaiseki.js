@@ -81,7 +81,7 @@
     }
     return true;                                                       // 産休=1か月超要件なし
   }
-  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
+  function num(v) { var n = Number(String(v == null ? 0 : v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[, ]/g, '')); return isNaN(n) ? 0 : n; }
   // ── 社保の当月/翌月徴収 → その月の給与から控除する社保の「月数」(0/1/2) ──
   // 根拠(一次情報): 法定原則=翌月徴収(前月分を報酬から控除・健保法167条/厚年法84条)。資格取得月から・喪失(退職日翌日)の前月分まで。
   //  翌月徴収の月末退職=最終給与で2か月分(前月分＋当月分)/月中退職=1か月分(前月分)/入社月=控除なし(翌月から)。当月徴収=常に当月分1。

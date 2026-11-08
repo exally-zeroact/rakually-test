@@ -379,7 +379,7 @@
   if(fSave) fSave.addEventListener('click', function(){
     var errEl=$('furi-err'); if(errEl)errEl.textContent='';
     var host=$('furi-form'), data={};
-    PROFILE_FIELDS.forEach(function(f){ var el=host.querySelector('[data-pk="'+f.k+'"]'); var v=el?(''+el.value).trim():''; if(f.num) v=v.replace(/[^0-9]/g,''); data[f.k]=v; }); // コード/口座番号は数字のみ
+    PROFILE_FIELDS.forEach(function(f){ var el=host.querySelector('[data-pk="'+f.k+'"]'); var v=el?(''+el.value).trim():''; if(f.num) v=v.replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}).replace(/[^0-9]/g,''); /* ★全角の 数字も 番号に（㉓）★ */ data[f.k]=v; }); // コード/口座番号は数字のみ
     Store.saveEmpProfile(token, cred, data).then(function(r){
       if(!r || !r.ok){ if(errEl)errEl.textContent=(r&&r.unauth)?'ログインが必要です。もう一度開き直してください。':'保存できませんでした。通信環境をご確認ください。'; return; }
       profState=JSON.parse(JSON.stringify(data)); renderProfForm();

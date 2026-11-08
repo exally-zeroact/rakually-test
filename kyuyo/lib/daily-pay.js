@@ -10,7 +10,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = factory();
   else root.DailyPay = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
-  function num(v) { v = (v == null || v === '') ? 0 : +String(v).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[^0-9.\-]/g, ''); return isFinite(v) ? v : 0; }
+  function num(v) { v = (v == null || v === '') ? 0 : +String(v).replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[，、]/g, '').replace(/[^0-9.\-]/g, ''); return isFinite(v) ? v : 0; }
 
   function computeDaily(entries, opts) {
     opts = opts || {}; entries = (entries || []).filter(function (e) { return e && (num(e.amount) !== 0 || num(e.min) !== 0); });

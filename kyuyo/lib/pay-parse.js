@@ -11,7 +11,7 @@
   // 全角数字→半角・記号ゆらぎ正規化
   function norm(s) {
     return String(s || '')
-      .replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); })
+      .replace(/[０-９．]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); })
       .replace(/[，、]/g, ',').replace(/[％]/g, '%').replace(/[／]/g, '/').replace(/[＋]/g, '+')
       .replace(/パーセント/g, '%').replace(/[\s　]/g, '');
   }
