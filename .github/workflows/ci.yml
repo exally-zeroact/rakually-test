@@ -870,6 +870,8 @@ jobs:
         run: node kyuyo/tests/rousai-fuda-live.test.mjs && node kyuyo/tests/rousai-fuda-live.test.mjs --waza
       - name: ★数字以外を 消す 欄で 全角の 数字が 消えない（門＝寄せない 行 0本・支給日／割増率の 小数・lib num の 全角の 点・jsdom）
         run: node kyuyo/tests/zenkaku-input.test.mjs
+      - name: ★割増率・みなし時間が 高すぎる（桁が1つ多い＝前の欄で 1375%・225時間 で 保存された）時に 毎月の 欄・要確認・ops に 黄の 警告（jsdom）
+        run: node kyuyo/tests/rate-ceil.test.mjs
       - name: ★年金機構の検査をこちらで再現（公式の項目表 csv225/csv221・出す前の門）
         run: node kyuyo/tests/todokede-check.test.mjs && node kyuyo/tests/todokede-check.test.mjs --self-test
       - name: ★賞与支払届の電子申請CSV（様式2265700・21項目／標準賞与額は1,000円未満切捨・支払日は未来不可）

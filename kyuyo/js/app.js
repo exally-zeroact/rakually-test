@@ -310,6 +310,8 @@
   function hoshoInfo(e){ return PW().hoshoInfo(e); }
   function hoshoWarnText(){ return PW().hoshoWarnText(); }
   function rateFloorWarn(co){ return PW().rateFloorWarn(co); }
+  function rateCeilWarn(co){ return PW().rateCeilWarn(co); }
+  function ceilWarn(e){ return PW().ceilWarn(e, ctxOf()); }
   function annualHoursInfo(e){ return PW().annualHoursInfo(e, ctxOf()); }
   function annualHoursWarnText(r){ return PW().annualHoursWarnText(r); }
   function warimashiMins(w){ return PM().warimashiMins(w); }
@@ -1053,7 +1055,7 @@
         +'<div><div class="mini-l">深夜（上乗せ）</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateNight" data-dec inputmode="decimal" value="'+attr(c.rateNight)+'" placeholder="25"><i>+%</i></span></div>'
         +'<div><div class="mini-l">月60時間超（上乗せ）</div><span class="dur"><input class="cr-f cr-rate" data-cf="rateOver60" data-dec inputmode="decimal" value="'+attr(c.rateOver60)+'" placeholder="25"><i>+%</i></span></div>'
         +'</div><div class="ri-note">空欄＝法定どおり自動（残業125%・休日135%・深夜+25%）。会社は上げられます（詳しくは💡）。</div>'
-        +rateFloorWarn(c);
+        +rateFloorWarn(c)+rateCeilWarn(c);
       h+=ruleItemHTML('warimashiRate','割増の率','残業・休日・深夜','warimashi',rr); }
     if(on.paymentDays){
       var pm=c.paymentDaysMethod||'';
@@ -2082,7 +2084,7 @@
       return '<div class="grp"><div class="grp-h">割増<span class="help-i" data-help="warimashi">💡</span></div>'
         +'<div class="wi-note2">'+wnote+'</div>'
         +durc('ot','残業した時間','＋25%')+durc('night','深夜の時間','夜22時〜朝5時＋25%')+durc('holiday','休日に出た時間','法定休日＋35%')
-        +'<div class="wi-limitw">'+laborLimitWarn(e)+'</div><div class="wi-resw">'+wiResHTML(e)+'</div></div>'; }
+        +ceilWarn(e)+'<div class="wi-limitw">'+laborLimitWarn(e)+'</div><div class="wi-resw">'+wiResHTML(e)+'</div></div>'; }
     var seg='<div class="wi-seg"><b class="wi-mode'+(mode==='easy'?' on':'')+'" data-wm="easy">かんたん</b><b class="wi-mode'+(mode==='detail'?' on':'')+'" data-wm="detail">詳細（区分・検算）</b></div>';
     var body='';
     if(mode==='easy'){
@@ -2100,7 +2102,7 @@
     var co=state.company||{}; var mh=(e.minashiH!=null&&e.minashiH!=='')?e.minashiH:co.minashiH; var minashiH=num(mh);
     var minashiNote=minashiH>0?'<div class="wi-note2">⚠ 固定残業（みなし）<b>'+minashiH+'時間</b>を控除して計算中（超過分のみ）。固定残業代の金額は基本給/手当に含めて。</div>':'';
     return '<div class="grp"><div class="grp-h">割増（残業・深夜・休日）<span class="help-i" data-help="warimashi">💡</span></div>'
-      +seg+body+minashiNote+'<div class="wi-limitw">'+laborLimitWarn(e)+'</div><div class="wi-resw">'+wiResHTML(e)+'</div></div>';
+      +seg+body+minashiNote+ceilWarn(e)+'<div class="wi-limitw">'+laborLimitWarn(e)+'</div><div class="wi-resw">'+wiResHTML(e)+'</div></div>';
   }
   function calcBoxHTML(e){
     var r=compute(e);

@@ -148,6 +148,29 @@
     return '<div class="cr-warn" style="margin:6px 2px 0">⚠ 割増の率が<b>法定下限</b>を下回っています：' + names + '。労基法37条の下限（時間外25%／休日35％／深夜+25%／月60時間超+25%）以上が必要です（このまま保存・計算はできます）。</div>';
   }
 
+  // ── ③b 割増率・みなし時間が高すぎる（桁が1つ多い恐れ） ──
+  // 前の入力欄は点を消したので「137.5」→1375%・「22.5」時間→225時間 で保存された会社が残る＝黙って多く/少なく払う。警告だけ（保存・計算は止めない）。
+  //  ★毎月の入力の欄・集計の要確認・ops に出す（設定画面だけだと設定を開かない人に届かない）。みなしは月45時間（36協定の原則の上限）超。
+  var MINASHI_CEIL_H = 45;
+  function rateCeilItems(co) {
+    if (!co || !W() || !W().aboveSaneRates) return [];
+    var pr = function (v) { return (v != null && v !== '') ? num(v) / 100 : undefined; };
+    return W().aboveSaneRates({ ot: pr(co.rateOt), holiday: pr(co.rateHoliday), night: pr(co.rateNight), over60Add: pr(co.rateOver60) }).map(function (x) {
+      var code = x.key === 'ot' ? 'RATE_TOO_HIGH_OT' : x.key === 'holiday' ? 'RATE_TOO_HIGH_HOLIDAY' : x.key === 'night' ? 'RATE_TOO_HIGH_NIGHT' : 'RATE_TOO_HIGH_OVER60';
+      var pct = Math.round(x.value * 1000) / 10;
+      return { code: code, text: '割増の率が高すぎます：' + x.label + ' ' + pct + '%（桁が1つ多い恐れ・' + (pct / 10) + '% のつもりなら 会社の設定の「割増の率」を直してください）' };
+    });
+  }
+  function minashiCeilItem(e, ctx) {
+    if (!e || e.payType === '役員') return null; var co = C(ctx);
+    var mh = (e.minashiH != null && e.minashiH !== '') ? e.minashiH : co.minashiH; var h = num(mh);
+    if (!(h > MINASHI_CEIL_H)) return null;
+    return { code: 'MINASHI_TOO_HIGH', text: '固定残業（みなし）' + h + '時間が月' + MINASHI_CEIL_H + '時間を超えています（桁が1つ多い恐れ・' + (h / 10) + '時間 のつもりなら直してください）' };
+  }
+  function ceilItems(e, ctx) { if (!e || e.payType === '役員') return []; var a = rateCeilItems(C(ctx)); var m = minashiCeilItem(e, ctx); if (m) a.push(m); return a; }
+  function rateCeilWarn(co) { var it = rateCeilItems(co); return it.length ? '<div class="cr-warn" style="margin:6px 2px 0">⚠ ' + it.map(function (x) { return esc(x.text); }).join('<br>⚠ ') + '</div>' : ''; }
+  function ceilWarn(e, ctx) { var it = ceilItems(e, ctx); return it.length ? '<div class="cr-warn" style="margin:6px 0">⚠ ' + it.map(function (x) { return esc(x.text); }).join('<br>⚠ ') + '</div>' : ''; }
+
   // ── ④ 年間労働時間（労基32条） ──
   // 年間所定労働時間が法定(週40h)目安を超える時の黄警告(労基32条)。年間休日過少/長時間所定。役員/休業中は対象外。
   //  ★ヘルプ(annual)で「黄色で教えます」と約束している警告の実体。変形労働時間制なら適法もあり=注意のみ・非ブロック。
@@ -407,6 +430,7 @@
     if (e.workStatus === 'kyugyo' && num(e.leavePay) <= 0) w.push('休業手当が未入力（平均賃金60%以上・労基26条）');
     else if (e.workStatus === 'kyugyo' && e.payType === '月給' && num(e.leavePay) > 0 && num(e.leavePay) < 0.4 * num(e.base)) w.push('休業手当が平均賃金の60%を下回る可能性（労基26条・要確認）'); // 全月休業の下限≒平均賃金(月給/30.4)×0.6×所定20日≒0.4×基本給。誤警告を避け0.4未満のみ検知
     var h = hoshoInfo(e); if (h && !h.ok) w.push('保障給なし（完全歩合・労基27条の恐れ）');
+    ceilItems(e, ctx).forEach(function (x) { w.push(x.text); });
     return w;
   }
 
@@ -429,6 +453,7 @@
     var push = function (code, level, text) { if (text) out.push({ empId: e.id, code: code, level: level, scope: 'employee', text: strip(text) }); };
     var mw = minWageInfo(e, ctx); if (mw && !mw.ok) push('MIN_WAGE_UNDER', 'warn', mwWarnText(mw));
     var h = hoshoInfo(e); if (h && !h.ok) push('NO_GUARANTEE_PAY', 'warn', hoshoWarnText());
+    var mc = minashiCeilItem(e, ctx); if (mc) push(mc.code, 'warn', mc.text);
     var an = annualHoursInfo(e, ctx); if (an && an.over) push('ANNUAL_HOURS_OVER', 'warn', annualHoursWarnText(an));
     laborLimitItems(e, ctx).forEach(function (t) {
       var code = /単月100時間/.test(t) ? 'OT_OVER100' : /月45時間</.test(t) || /月45時間<\/b>を超え/.test(t) ? 'OT_OVER45'
@@ -443,7 +468,7 @@
     if (e.taxClass === 'hei' && e.payType !== '日給') push('HEI_NOT_DAILY', 'warn', '丙は給与形態＝日給が前提です。現在「' + esc(e.payType) + '」なので丙は適用せず甲欄で計算しています');
     // 経理サマリ由来(差引マイナス・休業手当)。最賃/保障給は上で出しているので重複を避ける
     empWarnings(e, ctx).forEach(function (t) {
-      if (/^最低賃金/.test(t) || /^保障給なし/.test(t)) return;
+      if (/^最低賃金/.test(t) || /^保障給なし/.test(t) || /^割増の率が高すぎ/.test(t) || /^固定残業（みなし）.*を超えています/.test(t)) return;
       push(/マイナス/.test(t) ? 'NET_NEGATIVE' : /未入力/.test(t) ? 'KYUGYO_TEATE_MISSING' : 'KYUGYO_TEATE_LOW', 'warn', t);
     });
     // info(計算の注記)
@@ -472,6 +497,7 @@
         push(code, 'warn', x.label + '（' + Math.round(x.value * 100) + '%→法定' + Math.round(x.floor * 100) + '%）が労基法37条の下限を下回っています');
       });
     }
+    rateCeilItems(co).forEach(function (x) { push(x.code, 'warn', x.text); });
     push('STATUTORY_STALE', 'warn', statutoryStaleWarn(ctx));
     return out;
   }
@@ -479,7 +505,7 @@
   return {
     isInMinWage: isInMinWage, minWageTeate: minWageTeate, minWageInfo: minWageInfo, mwWarnText: mwWarnText,
     hoshoInfo: hoshoInfo, hoshoWarnText: hoshoWarnText,
-    rateFloorWarn: rateFloorWarn,
+    rateFloorWarn: rateFloorWarn, rateCeilWarn: rateCeilWarn, ceilWarn: ceilWarn, ceilItems: ceilItems, MINASHI_CEIL_H: MINASHI_CEIL_H,
     annualHoursInfo: annualHoursInfo, annualHoursWarnText: annualHoursWarnText,
     laborLimitItems: laborLimitItems, laborLimitWarn: laborLimitWarn, laborLimitText: laborLimitText,
     shahoOffWarn: shahoOffWarn, fullTimeWeeklyH: fullTimeWeeklyH, shoteiMonthlyWage: shoteiMonthlyWage, shahoKanyuWarn: shahoKanyuWarn,

@@ -77,6 +77,15 @@
     return out;
   }
 
+  // 割増率が高すぎるもの(桁が1つ多い恐れ)を列挙。2026-11 より前は欄が点を消し「137.5」が 1375 で保存された＝10倍の残り物を拾う。
+  //  上限＝時間外・休日 3.0倍(300%)／深夜・60h超の上乗せ 2.0(200%)。法定下限の小数の10倍は全部これを超え、正しい 150〜200% は拾わない。返り[{key,label,ceil,value}]。
+  var SANE_CEIL = { ot: 3, holiday: 3, night: 2, over60Add: 2 };
+  function aboveSaneRates(rates) {
+    var R = resolveRates(rates); var out = [];
+    ['ot', 'holiday', 'night', 'over60Add'].forEach(function (k) { if (R[k] > SANE_CEIL[k] + 1e-9) out.push({ key: k, label: FLOOR_LABELS[k], ceil: SANE_CEIL[k], value: R[k] }); });
+    return out;
+  }
+
   // 36協定の時間外労働 上限(労基36条)。当月の時間外(分)・法定休日労働(分)に対し 'none'|'over45'|'over100'。
   //  ★上限は2本立て: 原則 月45h=「時間外のみ」(休日含まず) / 単月100h未満=「時間外＋休日労働の合計」★。
   //  over45=時間外>45h / over100=(時間外+休日)>=100h。複数月80h平均は履歴要=別途。黄・非ブロック注意向き。
@@ -236,7 +245,7 @@
     commissionUnit: commissionUnit, commissionComponents: commissionComponents, commission: commission,
     higherOf: higherOf, guaranteePay: guaranteePay, commissionBasePay: commissionBasePay, minWageHourly: minWageHourly, minWageOk: minWageOk,
     monthlyStdHours: monthlyStdHours, hourlyUnit: hourlyUnit,
-    RATE: RATE, resolveRates: resolveRates, belowLegalRates: belowLegalRates, annualHoursCheck: annualHoursCheck, overtimeLimitLevel: overtimeLimitLevel, overtime36Check: overtime36Check, hydrate: hydrate, calc: calc, easyComponents: easyComponents, easy: easy,
+    RATE: RATE, resolveRates: resolveRates, belowLegalRates: belowLegalRates, aboveSaneRates: aboveSaneRates, SANE_CEIL: SANE_CEIL, annualHoursCheck: annualHoursCheck, overtimeLimitLevel: overtimeLimitLevel, overtime36Check: overtime36Check, hydrate: hydrate, calc: calc, easyComponents: easyComponents, easy: easy,
     DETAIL: DETAIL, detailComponents: detailComponents, detail: detail
   };
 });
