@@ -179,10 +179,13 @@ function shitaku(warui) {
   T('⑦ 普通の 人（y2）は 出す', ids.indexOf('y2') >= 0, JSON.stringify(kami));
 }
 
-console.log('\n  ' + pass + ' passed / ' + fail + ' failed');
 if (WAZA) {
-  /* ★判定を 外すと 止まる 側が 全部 赤＝門が 判定で 守っている 証し（正しい 値の 試しは 緑の まま で よい）★ */
-  if (fail >= 10) { console.log('  ★--waza＝判定を 外すと ' + fail + '本 赤＝門は 空振りで ない（期待通り）★'); process.exit(0); }
-  console.log('  ✗ ★--waza なのに 赤が ' + fail + '本しか 無い＝門が 判定に 頼っていない★'); process.exit(1);
+  /* ★判定を 外すと 止まる 側が 全部 赤＝門が 判定で 守っている 証し（正しい 値の 試しは 緑の まま で よい）★
+     ★約束の行（KEKKA）は「わざと 赤に なったか」の 1本だけを 数える＝上の ✗ は 期待した 赤（tools/_bunrui.mjs が exit0failed と 読まない 様に）★ */
+  console.log('\n  --waza＝判定を 外した回: 赤 ' + fail + '本 ／ 緑の まま ' + pass + '本');
+  if (fail >= 10) { console.log('  ★--waza＝判定を 外すと ' + fail + '本 赤＝門は 空振りで ない（期待通り）★'); console.log('KEKKA {"passed":1,"failed":0,"mimiso":0}'); process.exit(0); }
+  console.log('  ★--waza なのに 赤が ' + fail + '本しか 無い＝門が 判定に 頼っていない★'); console.log('KEKKA {"passed":0,"failed":1,"mimiso":0}'); process.exit(1);
 }
+console.log('\n' + pass + ' passed, ' + fail + ' failed');
+console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');   /* ★約束の行（_bunrui用）★ */
 process.exit(fail ? 1 : 0);
