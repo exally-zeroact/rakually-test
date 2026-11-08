@@ -69,6 +69,10 @@ T('③ ops：会社は RATE_TOO_HIGH_*・人は MINASHI_TOO_HIGH（休業の cod
   ok(ec.includes('MINASHI_TOO_HIGH'), 'collect: ' + ec.join(','));
   ok(!ec.some((c) => /^KYUGYO_/.test(c)), '休業の code に 化けた: ' + ec.join(','));
   ok(!ec.some((c) => /^RATE_TOO_HIGH/.test(c)), '率は 会社の 方だけ（人ごとに 重ねない）: ' + ec.join(','));
+  // 役員は みなしの 対象外＝collect は minashiCeilItem を 直に 呼ぶので、そこの 役員の 門が 外れると ops にだけ 出る（本番前の叩きの 任意1）
+  const oe = emp({ payType: '役員', minashiH: '225' }); try { win.PayrollMonthly.compute(oe, ctx({})); } catch (_) {}
+  const oc = PW.collect(oe, ctx({})).map((x) => x.code);
+  ok(!oc.includes('MINASHI_TOO_HIGH'), '役員に MINASHI_TOO_HIGH が 出た: ' + oc.join(','));
 });
 T('④ 画面の 3か所（設定の 割増の率・かんたん/詳細の 割増）に 差してある', () => {
   const src = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
