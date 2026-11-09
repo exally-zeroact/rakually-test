@@ -109,15 +109,34 @@
      ・★開けなかった時は 黙らない★（ポップアップを止められている端末が在る）
        ＝落とす方へ 自分で切り替えて、切り替えた事を 呼ぶ側に返す
      ・取り消しは60秒後＝ビューアが読み終わる前に 消さない（代行と同じ間） */
+  /* ★スマホ・タブレット・ホーム画面の アプリ★（見本 daikou-seikyu.html insatsuSumaho を そのまま 写した・2026-11-09）
+     分からない 時は 保存の 側 */
+  function sumahoOf() {
+    try {
+      var n = global.navigator || {};
+      if (n.standalone === true) return true;
+      if (global.matchMedia && global.matchMedia('(display-mode: standalone)').matches) return true;
+      var ua = String(n.userAgent || '');
+      if (/iPhone|iPad|iPod|Android|Mobile/i.test(ua)) return true;
+      return /Macintosh/.test(ua) && (n.maxTouchPoints || 0) > 1;   // iPadOS の Safari
+    } catch (e) { return true; }
+  }
   function openInViewer(data, filename, opts) {
     opts = opts || {};
     var mime = opts.type || mimeOf(filename);
     if (!mime) return Promise.reject(new Error('ファイルの種類が分かりません（' + filename + '）。'));
     var blob = toBlob(data, mime);
     if (!blob) return Promise.reject(new Error('この環境ではファイルを作れません'));
+    /* ★スマホ・タブレット・ホーム画面の アプリは 保存★（見本 daikou-seikyu.html insatsuSumaho と 同じ・2026-11-09）
+       ＝新しい 窓は 戻れなく なる 端末が 在る。保存すれば PDF の 画面が 開き そこの 共有から 送る・プリント */
+    if (sumahoOf()) return Promise.resolve(Object.assign(anchorDownload(blob, filename), { saved: true }));
     var url = URL.createObjectURL(blob);
     var w = null;
-    try { w = global.open(url, '_blank', 'noopener'); } catch (e) { w = null; }
+    /* ★noopener を 付けない★（2026-11-09 taiketsu 止1・Chromium 148 で 測った）
+       ＝付けると 窓は 開くのに 返りが null＝毎回「開けなかった」と 思って 同じ PDF も 落とし、嘘の 知らせを 出していた。
+       開いた 後に opener を 切る（見本は window.open(url,"_blank") のまま） */
+    try { w = global.open(url, '_blank'); } catch (e) { w = null; }
+    if (w) { try { w.opener = null; } catch (e) { /* 切れなくても 開いた 事は 変わらない */ } }
     if (!w) {
       URL.revokeObjectURL(url);
       return Promise.resolve(Object.assign(anchorDownload(blob, filename), { fellBack: true }));

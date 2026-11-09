@@ -262,6 +262,12 @@ jobs:
       - name: 同 わざと壊して赤になるか
         if: ${{ !cancelled() }}
         run: node seikyu/tests/maisuu.mjs --self-test
+      - name: ★「📄 印刷 / 送る」＝パソコンは 窓 1・落とし 0／iPhone・Android は 窓 0・保存 1（本物の Chromium・taiketsu 11-09 止1止2）
+        if: ${{ !cancelled() }}
+        run: node seikyu/tests/okuru-mado.mjs
+      - name: 同 わざと壊して赤になるか（noopener を 戻す／スマホの 分けを 外す）
+        if: ${{ !cancelled() }}
+        run: node seikyu/tests/okuru-mado.mjs --self-test
       - name: ★備考の枠を出しても 紙から はみ出さない（18通り 実測・A4 1122.5px）
         if: ${{ !cancelled() }}
         run: node seikyu/tests/memo-waku.mjs

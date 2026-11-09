@@ -400,7 +400,7 @@ T('2-a. ★畳みの見出しに 中の出し口が ぜんぶ 書いてある（
   ok(!miss.length, '★中に在るのに 見出しに書いていない★ ' + miss.join(' / ') + ' … 見出し「' + sum + '」');
   ok(inside.length >= 1, '★中の出し口が ' + inside.length + '個＝数えられていない（空振り）★');
   /* ★移した先に 本当に 在るか★＝移した と 言って 消えていたら 一番 悪い */
-  const UTSUSHITA = ['b-pdf', 'b-pdfopen', 'b-print', 'b-delivery', 'b-xlsx'];   /* ★中身を見る は 入力に 残した★ */
+  const UTSUSHITA = ['b-pdfopen', 'b-delivery', 'b-xlsx'];   /* ★11-09 PDFで保存・印刷は「印刷 / 送る」(b-pdfopen) 1つに★ */   /* ★中身を見る は 入力に 残した★ */
   const nai = UTSUSHITA.filter((id) => !$(id));
   ok(!nai.length, '★入力から 移した 出し口が どこにも 無い★ ' + nai.join(' / '));
   const soto = UTSUSHITA.filter((id) => $('out-box').contains($(id)));
@@ -1395,9 +1395,9 @@ await TA('3. ★印刷は ブラウザの印刷を 使わない（紙に URL が
        ★CSS では 消せない★（端末の 印刷の 設定）。
      ⇒ 給与（kyuyo/meisai.html の註）と 同じに ★自前の PDF★ を 開く。
      ★見たい事は 同じ★＝名前を 聞かず、紙の 中身が 正しく、アプリの 画面が 混ざらない。 */
-  $('b-print').click();
+  $('b-pdfopen').click();
   await sleep(10);
-  ok(!$('fn-ov').classList.contains('open'), '★印刷なのに 名前を 聞いている★');
+  ok(!$('fn-ov').classList.contains('open'), '★印刷 / 送る なのに 名前を 聞いている★');
   await sleep(1200);
   const html = win.SeikyuApp._lastPaperHtmlForTest();
   ok(/<!DOCTYPE html>/.test(html), '紙が作られていない');

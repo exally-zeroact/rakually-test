@@ -171,9 +171,10 @@ await T('★⑨ 紙が 出る（中身が 本物）', () => {
   console.log('     紙 ' + h.length + '字（あて名・合計・自社 とも 出ている）');
 });
 
-await T('★⑩ 「PDFで保存」のボタンが 画面に 在る（押す物が 実在する）', () => {
-  ok($('b-pdf'), '★PDFのボタンが 無い★');
-  ok($('b-print'), '★印刷のボタンが 無い★');
+await T('★⑩ 「印刷 / 送る」のボタンが 画面に 1つ 在る（押す物が 実在する・11-09 3つを 1つに）', () => {
+  ok($('b-pdfopen'), '★印刷 / 送る のボタンが 無い★');
+  ok(/印刷 \/ 送る/.test($('b-pdfopen').textContent), '★字が「印刷 / 送る」で ない★');
+  ok(!$('b-pdf') && !$('b-print'), '★消したはずの「PDFで保存」「印刷」が 残っている★');
   ok(win.SeikyuPdf, '★PDFを作る部品が 読めていない★');
   ok(typeof win.SeikyuPdf.build === 'function', '★build が 無い★');
 });
@@ -238,10 +239,10 @@ await T('★⑫ 入金を付けると「領収書PDF」が 出て、押すと PD
    ＝うちも ★PDFを その場で開く★口を付けた。開けば iPhone自身のビューアが出て、
      その共有ボタンから メール/メッセージ/AirDrop に乗る。
    ここで見るのは ★落とすのではなく 開いたか★（窓に渡した中身がPDFか）だけ。 */
-await T('★⑬ 「PDFを開く（送る）」は 落とさずに 別の窓で 開く', async () => {
+await T('★⑬ 「印刷 / 送る」は 名前を 聞かず 落とさずに 別の窓で 開く', async () => {
   A._go('scr-edit');
   const btn = $('b-pdfopen');
-  ok(btn, '★「PDFを開く（送る）」のボタンが 無い★');
+  ok(btn, '★「印刷 / 送る」のボタンが 無い★');
   let opened = null, saved = null, madeType = null;
   win.SeikyuPdf = { build: () => Promise.resolve(new Uint8Array([37, 80, 68, 70])),
     lastMissing: () => [], lastPlaced: () => [], lastBadImages: () => [] };
@@ -253,13 +254,12 @@ await T('★⑬ 「PDFを開く（送る）」は 落とさずに 別の窓で �
   A._bindForTest();
   btn.click();
   await new Promise((r) => setTimeout(r, 60));
-  ok($('fn-ov').classList.contains('open'), '★名前を聞く窓が 開いていない★');
-  $('fn-ok').click();
+  ok(!$('fn-ov').classList.contains('open'), '★印刷 / 送る で 名前を 聞いている★（司さん「印刷押すだけ」）');
   await new Promise((r) => setTimeout(r, 200));
   ok(opened === 'blob:test-pdf', '★別の窓で 開いていない★（開いた先: ' + opened + '）');
   ok(!saved, '★開くはずが 落としている★（' + saved + '）');
   eq(madeType, 'application/pdf', '★渡した中身の種類が PDFでない★');
-  ok(/共有|送/.test(txt('edit-ok')), '★どうやって送るかを 言っていない★：' + txt('edit-ok'));
+  ok(/印刷・保存・送る|共有|送/.test(txt('edit-ok')), '★どうやって送るかを 言っていない★：' + txt('edit-ok'));
   console.log('     ' + txt('edit-ok'));
   /* ★納品書も 同じ道で出る★（司さん 2026-08-30「競合が当たり前にしてる事は…」）
      ＝Misoca も freee も 見積→納品→請求→領収 を1押しで出せる。 */

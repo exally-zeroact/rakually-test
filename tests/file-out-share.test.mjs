@@ -37,10 +37,12 @@ const BREAKS = {
   'draft-only': ['seikyu/js/seikyu-app.js', "DOC.statusOf(S.cur) !== 'issued') how = 'view';", "DOC.statusOf(S.cur) === 'draft') how = 'view';"],
   'sumi-cancel': ['seikyu/js/seikyu-app.js', "typeof sumi === 'function' && !(r && (r.cancelled || r.how === 'need-tap'))) sumi();", "typeof sumi === 'function' && !(r && (r.how === 'need-tap'))) sumi();"],
   'bill-needtap': ['seikyu/js/seikyu-app.js', "if (shirushi && !(o && (o.cancelled || o.how === 'need-tap'))) billOkutta(made);", "if (shirushi && !(o && o.cancelled)) billOkutta(made);"],
-  'oshita-shunkan': ['seikyu/js/seikyu-app.js', "doPdf(n, 'open', null, null, te); }); };", "doPdf(n, 'open'); okutta(); }); };"],
-  'view-msg': ['seikyu/js/seikyu-app.js', ": '送る時は「発行する」を 押してから「PDFを開く（送る）」で 送ってください。'", ": 'その画面の 共有ボタンから メールなどで 送れます。'"],
+  'oshita-shunkan': ['seikyu/js/seikyu-app.js', 'doOkuru(n, te);', 'doOkuru(n); okutta();'],
+  'view-msg': ['seikyu/js/seikyu-app.js', ": '送る時は「発行する」を 押してから「印刷 / 送る」で 送ってください。'", ": 'その画面の 共有ボタンから メールなどで 送れます。'"],
   'onshared': ['js/file-out.js', "close(); if (typeof onShared === 'function') { try { onShared(); } catch (e2) {} }", 'close();'],
-  'okutta-hadaka': ['seikyu/js/seikyu-app.js', "doPdf(n, 'open', null, null, te); }); };", "doPdf(n, 'open', null, null, okutta); }); };"],
+  'okutta-hadaka': ['seikyu/js/seikyu-app.js', 'doOkuru(n, te);', 'doOkuru(n, okutta);'],
+  'ryoshu-saved': ['seikyu/js/seikyu-app.js', "|| akeJi(r, '領収書 ' + pi.receipt.no + ' のPDF'))", "|| ('領収書 ' + pi.receipt.no + ' のPDFを 別の窓で 開きました。'))"],
+  'bk-chu': ['seikyu/js/seikyu-app.js', 'if (m) m.d = v; else b.disabled = v;', 'b.disabled = v;'],
   'okuttaWo-naka': ['seikyu/js/seikyu-app.js', 'return v ? function () { okutta(v); } : function () {};', 'return function () { okutta(); };'],
   'okutta-scur': ['seikyu/js/seikyu-app.js', 'var v = v0 || S.cur;', 'var v = S.cur;'],
   'kingaku': ['kyuyo/js/app.js', 'var text=[kind,tuki,who].filter', 'var text=[kind,tuki,who,String(sashihiki)].filter'],
@@ -173,15 +175,15 @@ const JI = '請求書 2026年10月分 見本工業株式会社 御中';
 }
 {
   const t = await run({ share: null });
-  T('⑤ ファイルを 共有できない 端末は 今まで通り 開く', t.r && t.r.how === 'open' && t.opened.length === 1, JSON.stringify(t.r));
+  T('⑤ ファイルを 共有できない iPhone は 保存（見本 insatsuSumaho・新しい 窓は 戻れなく なる）', t.r && t.r.how === 'download' && t.r.saved === true && t.opened.length === 0 && t.anchors.length === 1, JSON.stringify(t.r));
 }
 {
-  const t = await run({ share: () => Promise.resolve(), coarse: false });
-  T('⑤ パソコン（指で 触らない）は canShare が true でも 共有に 行かず 開く（印刷が 消えない）', t.shared.length === 0 && t.r && t.r.how === 'open', JSON.stringify(t.r) + ' 共有' + t.shared.length);
+  const t = await run({ share: () => Promise.resolve(), coarse: false, ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0 Safari/537.36' });
+  T('⑤ パソコン（指で 触らない）は canShare が true でも 共有に 行かず 開く（印刷が 消えない）', t.shared.length === 0 && t.r && t.r.how === 'open' && t.opened.length === 1 && t.anchors.length === 0, JSON.stringify(t.r) + ' 共有' + t.shared.length);
 }
 {
   const t = await run({ share: () => Promise.resolve(), ua: 'Mozilla/5.0 (Linux; Android 14; Pixel 8)' });
-  T('⑦ Android は 共有に 行かず 今まで通り 開く（印刷・納品書・領収書・送る どの ボタンでも）', t.shared.length === 0 && t.r && t.r.how === 'open', JSON.stringify(t.r));
+  T('⑦ Android は 共有に 行かず 保存（印刷・納品書・領収書・送る どの ボタンでも・見本 insatsuSumaho）', t.shared.length === 0 && t.r && t.r.how === 'download' && t.r.saved === true && t.opened.length === 0, JSON.stringify(t.r));
   const i = await run({ share: () => Promise.resolve(), ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', ipadDesk: true });
   T('⑦ iPad の デスクトップ表示（MacIntel・指 5本）は 共有へ', i.shared.length === 1 && i.r && i.r.how === 'share', JSON.stringify(i.r));
   const m = await run({ share: () => Promise.resolve(), ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' });
@@ -229,14 +231,18 @@ const JI = '請求書 2026年10月分 見本工業株式会社 御中';
   const ap = app.replace(/\/\*[\s\S]*?\*\//g, '');
   T('⑮ okuttaWo は 掴んだ 1通だけに 印を 付ける（空なら 何もしない）', ap.indexOf('return v ? function () { okutta(v); } : function () {};') > 0, '中身が 違う');
   T('⑮ okutta は 渡された 1通を 見る（S.cur は 渡されない 時だけ）', /function okutta\(v0\) \{\s*var v = v0 \|\| S\.cur;/.test(ap), '渡された 1通を 見ていない');
-  T('⑮ 送る・保存・印刷は 押した 時に 掴んだ 1通（okuttaWo(S.cur)）を 渡す・okutta を 裸で 渡さない',
-    (ap.match(/var te = okuttaWo\(S\.cur\);/g) || []).length === 3 && !/[,(]\s*okutta\s*\)/.test(ap)
-    && ap.indexOf("doPdf(n, 'open', null, null, te)") > 0 && ap.indexOf("doPdf(n, 'save', null, null, te)") > 0 && ap.indexOf('doPrint(n, te)') > 0, '掴んでいない');
+  T('⑮ 「印刷 / 送る」は 押した 時に 掴んだ 1通（okuttaWo(S.cur)）を 渡す・okutta を 裸で 渡さない（2026-11-09 3つ→1つ）',
+    (ap.match(/var te = okuttaWo\(S\.cur\);/g) || []).length === 1 && !/[,(]\s*okutta\s*\)/.test(ap)
+    && ap.indexOf('doOkuru(n, te);') > 0, '掴んでいない');
   T('⑮ 帯から 送れたら 1通の 箱の 字も「渡しました」に', app.indexOf("var tabiSumi = function () { if (typeof sumi === 'function') sumi(); box(okId, shareMsg({ how: 'share' }, yobi)); };") > 0 && app.indexOf('OUT.pdfOpen(bytes, name, okuriJi, tabiSumi)') > 0, '直していない');
   T('⑭ 取り消した 紙は「取り消した 見るだけの 紙」・送れない と 言う', app.indexOf("(DOC.statusOf(S.cur) === 'void') ? '取り消した 見るだけの 紙'") > 0 && app.indexOf("'取り消した 紙は 送れません。'") > 0, '字が 無い');
   const appCode = app.replace(/\/\*[\s\S]*?\*\//g, '');
-  T('⑬ 押した 瞬間に okutta() を 呼ぶ 口が 無い（送る・印刷・保存）', !/doPdf\([^)]*\);\s*okutta\(\)/.test(appCode) && appCode.indexOf('motoPrint') < 0
-    && appCode.indexOf("doPdf(n, 'open', null, null, te)") > 0 && appCode.indexOf("doPdf(n, 'save', null, null, te)") > 0 && appCode.indexOf('doPrint(n, te)') > 0, '押した 瞬間の 印が 残っている');
+  T('⑬ 押した 瞬間に okutta() を 呼ぶ 口が 無い（印刷 / 送る）', !/(doPdf|doOkuru)\([^)]*\);\s*okutta\(\)/.test(appCode) && appCode.indexOf('motoPrint') < 0
+    && appCode.indexOf('doOkuru(n, te);') > 0, '押した 瞬間の 印が 残っている');
+  T('⑯ 領収書を 開く 知らせも akeJi（保存だけの 時に「別の窓で 開きました」と 言わない・taiketsu 11-09）',
+    appCode.indexOf("|| akeJi(r, '領収書 ' + pi.receipt.no + ' のPDF'))") > 0 && (appCode.match(/別の窓で 開きました/g) || []).length === 1, '字が 違う');
+  T('⑯ 請求/集計の ボタンは PDF を 作る 間 止めた まま（終わった 時に 戻す 値を 書き換える）',
+    appCode.indexOf('if (m) m.d = v; else b.disabled = v;') > 0 && (appCode.match(/billBtnDis\(id, /g) || []).length === 4 && appCode.indexOf("'b-bk-print'") < 0, '戻す 値を 見ていない');
   T('⑬ seikyu-out の pdfOpen は onShared を sharePdf へ 渡す', out.indexOf('return global.FileOut.sharePdf(bytes, filename, { text: text, onShared: onShared });') > 0, '渡していない');
   /* ⑭ 見るだけの 知らせ */
   const vi = app.indexOf("if (how === 'view') {"), vb = app.slice(vi, app.indexOf('return;', vi));

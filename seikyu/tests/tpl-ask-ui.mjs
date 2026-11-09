@@ -329,7 +329,7 @@ const TPL_N = (function () {
 
   await T('⑤ ★紙が出せない時は 押せなくして 理由を出す★（黙って何も起きない を無くす）', async () => {
     const { win, doc } = await boot(appSrc);
-    ok(!doc.getElementById('b-print').disabled, 'はじめから押せない（測れていない）');
+    ok(!doc.getElementById('b-pdfopen').disabled, 'はじめから押せない（測れていない）');
     win.SeikyuApp._state.cur.partner_id = '';
     doc.getElementById('e-partner').value = '';
     win.SeikyuApp._recalcForTest();

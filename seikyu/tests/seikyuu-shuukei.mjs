@@ -3,6 +3,8 @@
  * 司さん 2026-10-23「請求／集計のページを作って、代行請求書と全く同じ作りでやって」
  *   見せた絵＝上に「請求書｜集計」の切り替え／その下に「2026年10月」と「全社」の2つの選び／
  *   その下に「PDFで保存 / 送る」「印刷」「Excelに書き出し」の3つ／その下に 請求書の紙の実物。
+ *   ★2026-11-09★ 見本（daikou-seikyu .invoice-actions）どおり「📄 印刷 / 送る」「📊 Excelに書き出し」の 2つに した
+ *   （司さん 10-29「同じ画面が開かれるんやけん 1つのボタンにして印刷/送るにまとめろ」）。
  * 手本＝Exally-test/daikou-seikyu.html の #scr-billing（3381-3458）・showBillingSeg・renderReport。
  *
  * ★本物の seikyu-app.js を jsdom で 動かして 実際に 押す★（source を 読むだけに しない）
@@ -15,9 +17,9 @@
  *   ④ 取引先の 先頭は「全社」・マスタの 順・マスタに 無い相手も 残す
  *   ⑤ 全社＝その月の 発行した請求書が ★全部★ 紙で 出る（下書き・取り消し・見積は 出ない）
  *   ⑥ 1社を 選ぶと その相手の紙だけに 替わる／月を 替えると 替わる
- *   ⑦ 無い時は ★何が無いかを 字で 出して★ 3つのボタンを 押せなくする（黙って 何も起きない を 作らない）
+ *   ⑦ 無い時は ★何が無いかを 字で 出して★ 2つのボタンを 押せなくする（黙って 何も起きない を 作らない）
  *   ⑧ PDF＝今の PDF の作り（SeikyuPdf.build）を 紙ごとに 通して 1つに まとめる・名前は 請求書_YYYY-MM_全社.pdf
- *   ⑨ 印刷＝同じ PDF を 開く（ブラウザの印刷は 使わない）
+ *   ⑨ 印刷の ボタンは 別に 無い（「印刷 / 送る」1つ＝同じ PDF・ブラウザの印刷は 使わない）
  *   ⑩ Excel＝1通なら 今の出し方（SeikyuOut.excel）／まとめは 1冊に 紙ごとの シート
  *   ⑪ 集計＝表の数が REP.summarize と 1円も 違わない（請求・入金・残り・合計・件数）
  *   ⑫ 入金が 読めていない時は「未確認」（0円と 書かない）／一覧で見積を 見ていても 集計は 請求書だけ
@@ -253,7 +255,7 @@ async function run(label, appSrc) {
     await sleep(30);
   };
   const papers = () => [...doc.querySelectorAll('#bk-papers [data-id]')].map((x) => x.getAttribute('data-id'));
-  const btnIds = ['b-bk-pdf', 'b-bk-print', 'b-bk-xlsx'];
+  const btnIds = ['b-bk-pdf', 'b-bk-xlsx'];
   const REP = win.SeikyuReport;
 
   await T('① 下のタブに「請求/集計」が 在り、押すと その画面が 開く（タブが 光る）', async () => {
@@ -322,7 +324,7 @@ async function run(label, appSrc) {
     eq(papers().length, 4, '★10月に 戻らない★');
   });
 
-  await T('⑦ 無い時は 何が無いかを 字で 出して 3つとも 押せなくする', async () => {
+  await T('⑦ 無い時は 何が無いかを 字で 出して 2つとも 押せなくする', async () => {
     await kaeru('bk-partner', 'p2');            // 10月の p2 は 取り消しだけ
     eq(papers().length, 0, '★取り消しの紙が 出ている★');
     const t = txt('bk-none');
@@ -346,12 +348,10 @@ async function run(label, appSrc) {
     eq(papers().length, 4, '★戻らない★');
   });
 
-  await T('⑧ PDF＝今の PDF の作りを 紙ごとに 通して 1つに まとめる（請求書_2026-10_全社.pdf）', async () => {
+  await T('⑧ 印刷 / 送る＝今の PDF の作りを 紙ごとに 通して 1つに まとめる（請求書_2026-10_全社.pdf・名前は 聞かない）', async () => {
     rec.pdfHtml.length = 0; rec.opened.length = 0;
-    $('b-bk-pdf').click(); await sleep(30);
-    ok($('fn-ov').classList.contains('open'), '★名前を 先に 見せていない★（司さんの 決まり）');
-    eq($('fn-input').value, '請求書_2026-10_全社', '★名前★');
-    $('fn-ok').click(); await sleep(120);
+    $('b-bk-pdf').click(); await sleep(150);
+    ok(!$('fn-ov').classList.contains('open'), '★名前を 聞いている★（見本 btnInvPdf・司さん「印刷押すだけ」）');
     eq(rec.pdfHtml.length, 4, '★紙ごとに PDF の作りを 通していない★');
     ['202610-001', '202610-003', '202610-002', '202610-006'].forEach((no, i) =>
       ok(rec.pdfHtml[i].indexOf(no) >= 0, '★' + (i + 1) + '枚目の PDF に ' + no + ' が 無い★'));
@@ -364,40 +364,40 @@ async function run(label, appSrc) {
     /* 1社・1通＝今の 名前の付け方（seikyu-name）をそのまま */
     await kaeru('bk-partner', 'p1');
     rec.pdfHtml.length = 0; rec.opened.length = 0;
-    $('b-bk-pdf').click(); await sleep(30);
-    const nm = $('fn-input').value;
-    ok(/請求書/.test(nm) && /型見空例商事/.test(nm), '★1通の 名前が 中身から 作られていない★: ' + nm);
-    $('fn-ok').click(); await sleep(120);
+    $('b-bk-pdf').click(); await sleep(150);
+    ok(!$('fn-ov').classList.contains('open'), '★1社でも 名前を 聞いている★');
     eq(rec.pdfHtml.length, 1, '1通の PDF');
     eq(rec.opened.length, 1, '1通を 開いた');
+    const nm = rec.opened[0].name;
+    ok(/請求書/.test(nm) && /型見空例商事/.test(nm) && /\.pdf$/.test(nm), '★1通の 名前が 中身から 作られていない★: ' + nm);
     await sleep(60);
     eq(rec.sent.join(','), 'b', '★1社の PDF が 出来たのに「渡した」印が 付かない★');
     await kaeru('bk-partner', '');
   });
 
-  await T('⑨ 印刷＝同じ PDF を 開く（ブラウザの印刷は 使わない・名前は 聞かない）', async () => {
-    rec.pdfHtml.length = 0; rec.opened.length = 0;
-    $('b-bk-print').click(); await sleep(120);
-    ok(!$('fn-ov').classList.contains('open'), '★印刷で 名前を 聞いている★（司さん「印刷押すだけ」）');
-    eq(rec.pdfHtml.length, 4, '★紙ごとに 通していない★');
-    eq(rec.opened.map((x) => x.name).join(','), '請求書_2026-10_全社.pdf', '★開いた PDF★');
-    ok(/印刷/.test(txt('bk-ok')), '★印刷の 案内が 無い★: ' + txt('bk-ok'));
+  await T('⑨ 印刷の ボタンは 別に 無い（印刷 / 送る 1つ・ブラウザの印刷は 使わない）', async () => {
+    ok(!$('b-bk-print'), '★印刷の ボタンが 残っている★（同じ PDF を 開く 2つ目）');
     ok(!errs.some((e) => /ブラウザの印刷/.test(e)), '★window.print を 呼んだ★');
   });
 
-  await T('⑨-b「渡した」印は PDF・印刷が 本当に 出来た 後だけ（作れなかったら 付けない・taiketsu 10-24 止2）', async () => {
+  await T('⑨-b「渡した」印は 印刷 / 送る が 本当に 出来た 後だけ（作れなかったら 付けない・taiketsu 10-24 止2・全社は 付けない）', async () => {
     await A._loadList(); A._go('scr-bill'); await sleep(60);
+    await kaeru('bk-partner', 'p1');
     const moto = win.SeikyuPdf.build;
     win.SeikyuPdf.build = () => Promise.reject(new Error('作れない'));
     rec.sent.length = 0; rec.opened.length = 0;
-    $('b-bk-print').click(); await sleep(150);
+    $('b-bk-pdf').click(); await sleep(150);
     eq(rec.opened.length, 0, '開いていない 筈');
     eq(rec.sent.length, 0, '★PDF が 作れなかったのに「渡した」印を 付けた★ ' + rec.sent.join(','));
     ok(/作れません/.test(txt('bk-err')), '★作れなかった 事を 言っていない★: ' + txt('bk-err'));
     win.SeikyuPdf.build = moto;
     rec.sent.length = 0;
-    $('b-bk-print').click(); await sleep(200);
-    eq(rec.sent.length, 4, '★印刷が 出来たのに 印が 付かない★ ' + rec.sent.join(','));
+    $('b-bk-pdf').click(); await sleep(200);
+    eq(rec.sent.join(','), 'b', '★1社の 印刷 / 送る が 出来たのに 印が 付かない★ ' + rec.sent.join(','));
+    await kaeru('bk-partner', '');
+    rec.sent.length = 0;
+    $('b-bk-pdf').click(); await sleep(200);
+    eq(rec.sent.length, 0, '★全社の まとめで「渡した」印を 付けた★ ' + rec.sent.join(','));
     await A._loadList(); A._go('scr-bill'); await sleep(60);
   });
 
@@ -510,7 +510,7 @@ async function run(label, appSrc) {
     eq(papers().join(','), 'a,a2,b,g', '戻らない');
   });
 
-  await T('⑫-c 請求書を 読めない時は「読めていません」と 言って 3つとも 止める（「まだ 発行していない」と 嘘を 言わない）', async () => {
+  await T('⑫-c 請求書を 読めない時は「読めていません」と 言って 2つとも 止める（「まだ 発行していない」と 嘘を 言わない）', async () => {
     store.ochiru = true;
     await A._loadList(); await sleep(30);
     eq(S.listReadOk, false, '読めない 姿に なっていない');
@@ -529,11 +529,11 @@ async function run(label, appSrc) {
     eq(papers().length, 4, '★読めたのに 紙が 戻らない★');
   });
 
-  for (const W of [390, 320]) await T('⑬ ' + W + 'px で 横に はみ出さない・3つの ボタンが 横1列で 字が 切れない（本物の Chrome・全社の紙を 出した 姿）', async () => {
+  for (const W of [390, 320]) await T('⑬ ' + W + 'px で 横に はみ出さない・2つの ボタンが 横1列で 字が 切れない（本物の Chrome・全社の紙を 出した 姿）', async () => {
     const j = await measureShape(doc, W);
     eq(j.vw, W, '測った 幅');
-    eq(j.acts.length, 3, 'ボタンの 数');
-    ok(j.acts.every((a) => Math.abs(a[2] - j.acts[0][2]) <= 1), '★3つが 横1列に 並んでいない★ 上端 ' + j.acts.map((a) => a[2]).join('/'));
+    eq(j.acts.length, 2, 'ボタンの 数');
+    ok(j.acts.every((a) => Math.abs(a[2] - j.acts[0][2]) <= 1), '★2つが 横1列に 並んでいない★ 上端 ' + j.acts.map((a) => a[2]).join('/'));
     j.acts.forEach((a, i) => ok(a[3] <= 0 && a[4] <= 0, '★' + (i + 1) + '個目の ボタンの 字が 切れている★ 横' + a[3] + ' 縦' + a[4]));
     j.acts.forEach((a, i) => ok(a[5] <= W, '★' + (i + 1) + '個目の ボタンが はみ出した★ 右端 ' + a[5]));
     /* ★幅は 画面の 幅から 本文の 余白（左右 16px×2）を 引いた 物★＝決め打ちの 300 では 320px の 時（288）に 嘘の 赤に なった */
@@ -546,11 +546,11 @@ async function run(label, appSrc) {
     console.log('     幅 ' + j.sw + 'px ／ 紙 ' + j.papers.map((p) => p.join('×')).join(' ') + ' ／ ボタン ' + j.acts.map((a) => a.slice(0, 2).join('×')).join(' '));
   });
 
-  await T('⑮ 3つの ボタンは 1つの 列（PDF だけ 塗り・印刷／Excel は 枠）／説明の 字は 月・会社の 選びの 上', async () => {
+  await T('⑮ 2つの ボタンは 1つの 列（印刷 / 送る だけ 塗り・Excel は 枠）／説明の 字は 月・会社の 選びの 上', async () => {
     const row = doc.querySelector('#scr-bill .bk-acts');
     const bs = [...row.children];
-    eq(bs.map((b) => b.id).join(','), 'b-bk-pdf,b-bk-print,b-bk-xlsx', '★1つの 列に 3つ★');
-    eq(bs.map((b) => b.className).join(','), 'btn-primary,btn-ghost,btn-ghost', '★塗り／枠★');
+    eq(bs.map((b) => b.id).join(','), 'b-bk-pdf,b-bk-xlsx', '★1つの 列に 2つ★');
+    eq(bs.map((b) => b.className).join(','), 'btn-primary,btn-ghost', '★塗り／枠★');
     const card = row.parentElement, kids = [...card.children];
     const hint = card.querySelector('.hint'), pick = card.querySelector('.bill-pick');
     ok(kids.indexOf(hint) >= 0 && kids.indexOf(hint) < kids.indexOf(pick) && kids.indexOf(pick) < kids.indexOf(row), '★説明→選び→ボタン の 順で ない★');

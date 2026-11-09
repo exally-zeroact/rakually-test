@@ -317,7 +317,7 @@ await TA('帯「紙を見る」＝今の1通の見出し・同じ紙・ファイ
   ok($('lv-ov').classList.contains('open') || shown($('lv-ov')), '窓が 開かない');
   ok(($('lv').srcdoc || '') === omote(), '窓の紙が 表の紙と違う');
   ok(/標様建設株式会社/.test($('lv-h').textContent), '窓の見出しが 今の1通でない: ' + $('lv-h').textContent);
-  const btns = ['b-pdf', 'b-pdfopen', 'b-print', 'b-delivery', 'b-xlsx'].filter((id) => mieru($(id)));
+  const btns = ['b-pdfopen', 'b-delivery', 'b-xlsx'].filter((id) => mieru($(id)));
   ok(btns.length === 0, '帯から開いた窓に ファイルを作るボタンが 出ている: ' + btns.join(','));
   const close = doc.querySelector('#b-lv-back');
   ok(close, '窓の「閉じる」が 無い');
@@ -413,13 +413,13 @@ await TA('印の紙の下見＝長さが 同じで 中身の 違う 紙も 描�
   }
 });
 await TA('帯で 開いて 閉じた 後、一覧の「確認」では ファイルの ボタンが 出直す', async () => {
-  ok(mieru($('b-pdf')) === false || !$('lv-ov').classList.contains('open'), '前置き');
+  ok(mieru($('b-pdfopen')) === false || !$('lv-ov').classList.contains('open'), '前置き');
   $('b-save').click();
   await sleep(SETTLE);
   ok(!$('kami-obi').disabled, '前置き：帯が 押せない');
   $('kami-obi').click();
   await sleep(50);
-  ok(!mieru($('b-pdf')), '前置き：帯の 窓に PDF の ボタンが 出ている');
+  ok(!mieru($('b-pdfopen')), '前置き：帯の 窓に PDF の ボタンが 出ている');
   doc.querySelector('#b-lv-back').click();
   await sleep(30);
   doc.querySelector('.bn[data-scr="scr-list"]').click();
@@ -429,7 +429,7 @@ await TA('帯で 開いて 閉じた 後、一覧の「確認」では ファイ
   b.click();
   await sleep(60);
   ok($('lv-ov').classList.contains('open'), '確認の 窓が 開かない');
-  const miss = ['b-pdf', 'b-pdfopen', 'b-print', 'b-delivery', 'b-xlsx'].filter((id) => !mieru($(id)));
+  const miss = ['b-pdfopen', 'b-delivery', 'b-xlsx'].filter((id) => !mieru($(id)));
   ok(miss.length === 0, '一覧の 確認で ファイルの ボタンが 隠れたまま: ' + miss.join(','));
   doc.querySelector('#b-lv-back').click();
   await sleep(30);
