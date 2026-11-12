@@ -1940,7 +1940,7 @@
       var el = $('e-partner'); if (!el) return;
       if (global.document.activeElement === el) { aiteBlurMachi = true; return; }
       aiteSelectWoKaku();
-    } catch (e) { console.error('★相手の 選びを 描き直せませんでした★', e); }
+    } catch (e) { console.error('★相手の 選びの 描き直しに 失敗しました★', e); }
   }
 
   function fillEdit() {
