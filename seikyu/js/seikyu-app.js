@@ -2102,13 +2102,20 @@
          中の紙(794px)は 131pxで切られ、それをさらに0.165倍＝★紙の左上21pxぶんしか出ていなかった★。
        ⇒ ★縮めるのは 紙そのもの（.sheet）★／★縮尺は 幅と高さの小さい方＝全部 入る方★
          （代行請求が canvas に object-fit: contain でやっているのと 同じ意味）。 */
+    /* ★大きさが 変わったら 測り直す★（2026-11-13 375幅の 絵で 実測）
+       畳んだ 中（設定▸テンプレートの「変える」など）で 描くと 読み込みの 時は 幅0＝縮めずに 抜け、
+       開いた 後も ★縮まない まま★（紙の 左上の 字だけが 大きく 写っていた）。
+       ⇒ 読み込みの 時に 1回＋窓の 大きさが 変わる たびに もう一度（開くと iframe の 中で resize が 出る）。 */
     var js = '<script>(function(){'
+      + 'function fit(){'
       + 'var s=document.querySelector(".sheet")||document.body;'
-      + 'var w=s.scrollWidth,h=s.scrollHeight; if(!w||!h) return;'
+      + 'var w=s.scrollWidth,h=s.scrollHeight; if(!w||!h||!window.innerWidth||!window.innerHeight) return;'
       + 'var k=Math.min(window.innerWidth/w, window.innerHeight/h);'
       + 's.style.transformOrigin="0 0"; s.style.transform="scale("+k+")";'
       + 'document.documentElement.style.overflow="hidden";'
       + 'document.body.style.margin="0"; document.body.style.overflow="hidden";'
+      + '}'
+      + 'fit(); window.addEventListener("resize",fit);'
       + '})();<' + '/script>';
     var i = html.lastIndexOf('</body>');
     return (i < 0) ? (html + js) : (html.slice(0, i) + js + html.slice(i));
