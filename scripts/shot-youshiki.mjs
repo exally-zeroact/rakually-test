@@ -37,9 +37,9 @@ const n = await pg.evaluate(() => {
   const c = document.getElementById('s-tpl-card');
   if (c) c.scrollIntoView({ block: 'start' });
   const r = c && c.getBoundingClientRect();
-  return { mai: document.querySelectorAll('.tpl-shot iframe').length,
+  return { mai: document.querySelectorAll('#s-tpl .tpl-shot iframe').length,
     haba: r ? Math.round(r.width) : 0, takasa: r ? Math.round(r.height) : 0,
-    na: [...document.querySelectorAll('.tpl-pick .tpl-nm')].map((e) => e.textContent.trim()) };
+    na: [...document.querySelectorAll('#s-tpl .tpl-pick .tpl-nm')].map((e) => e.textContent.trim()) };
 });
 await pg.waitForTimeout(600);
 
@@ -66,7 +66,7 @@ await pg.waitForTimeout(400);
    srcdoc は 見本が 実際に 表示している HTML そのもの＝作り直していない。
    中の 縮尺の script は 窓の 大きさで 決まるので、窓を A4に すると 1倍に なる。 */
 const shots = await pg.evaluate(() =>
-  [...document.querySelectorAll('.tpl-shot iframe')].map((f) => f.getAttribute('srcdoc')));
+  [...document.querySelectorAll('#s-tpl .tpl-shot iframe')].map((f) => f.getAttribute('srcdoc')));
 const pg2 = await b.newPage({ viewport: { width: 794, height: 1123 }, deviceScaleFactor: 2 });
 const fs2 = [];
 for (let i = 0; i < shots.length; i++) {

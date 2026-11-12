@@ -904,6 +904,7 @@
   }
   /** ★読み直した 後、請求/集計を 開いていたら 描き直す★（同じ 中身なら 紙は 作り直さない） */
   function billRedraw() {
+    ptPicsRedraw();   /* ★設定の 取引先の 絵も★ 読めた・読めない で 描き直す（2026-11-13 件2・中で 転んでも 外へ 投げない） */
     var sb = $('scr-bill');
     if (!sb || !sb.classList.contains('active')) return;
     try { renderBill(); renderReport(); } catch (e) { box('bk-err', '請求書の画面が 描けませんでした（' + (e && e.message) + '）。'); }
@@ -4819,9 +4820,12 @@
   /** ★様式は 絵で選ぶ★（司さん 2026-08-31「テンプレ選ぶ所も分かりにくい」
    *  ＝字だけの札では ★何が違うか 分からない★。入力の見本と ★同じ物★を 設定にも出す。
    *  ★見本は 本物の紙★（作り物の絵を置かない）。 */
-  function renderTplPicks(host, current, onPick) {
+  /* opts.items（並べる札・既定 TPL.list()）・opts.htmlOf（絵の 中身・既定 tplSampleHtml）＝取引先の 絵（ptPicsDraw・2026-11-13 件2）が 使い回す */
+  function renderTplPicks(host, current, onPick, opts) {
+    var o = opts || {};
+    var htmlOf = o.htmlOf || tplSampleHtml;
     host.innerHTML = '';
-    TPL.list().forEach(function (t) {
+    (o.items || TPL.list()).forEach(function (t) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'tpl-pick' + (t.id === current ? ' on' : '');
@@ -4833,7 +4837,7 @@
       f.setAttribute('title', t.label + ' の見本');
       f.setAttribute('tabindex', '-1');
       f.style.width = '100%'; f.style.height = '100%';
-      f.srcdoc = tplSampleHtml(t.id);
+      f.srcdoc = htmlOf(t.id);
       shot.appendChild(f);
       var nm = document.createElement('div'); nm.className = 'tpl-nm'; nm.textContent = t.label;
       var no = document.createElement('div'); no.className = 'tpl-note'; no.textContent = t.note || '';
@@ -6576,6 +6580,7 @@
           + (moto.length ? '。「' + TPL.getOrDefault(moto[0]).label + '」に 戻すと また 使います' : '') + '）。'));
     renderPartnerBanks(p);
     drawPtTplNow(p);
+    ptPicsDraw(p);   /* ★様式を 絵でも 選べる★（2026-11-13 案 v8 件2） */
   }
   /** ★この取引先に 今 出る紙を 1行で★（「ぜんぶ見る」を 開かなくても 見える所に 出す）
    *  （2026-10-23 司さん「会社ごとに 請求書の様式の変えも ちゃんとできるか 分かりにくい」）
@@ -6621,6 +6626,106 @@
     }
     fillPartnerPaper(p);
     renderColEditor();
+  }
+
+  /* ══ ★この相手だけの紙の 様式を 絵で 選ぶ★（2026-11-13 案 v8 件2・コンサル an.md v4/v5/v6）══════════
+     ・select（s-ptpl）は 残す。絵は その ★下★（ptTplHiraku の focus で 絵が 画面の 外に 出ない）。
+     ・押して ★今と 同じ 値なら 何もしない★（select は 同じ物の 選び直しで change が 来ない＝同じ 形）。
+       違う 時だけ s-ptpl に 入れて change を 出す＝今の run（bindPartnerPaper）が そのまま 走る。保存は 今どおり b-pt-save。
+     ・中身は この相手の ★一番新しい 発行済みの 請求書★（請求書の 棚＝billSrc・billIssued と 同じ 絞り）。
+       描く 間は ★毎回 S.cur を 入れ替える★（無い 時は null）＝入力で 開いている 別の 相手の 1通を 見本と 言って 出さない（taiketsu 止1）。
+       字は ★実際に 描いた 中身★で 決める（1通が 在っても 紙に できない 時は 見本と 言う）。
+     ・★中で 転んでも 外へ 投げない★（loadList の then で 投げると 一覧が「読めていません」・fillEdit で 投げると 鍵が かからない＝taiketsu 止2）。
+     ・同じ 札の 並びなら 札は 作り直さず、★中身（srcdoc）が 違う 時だけ★ 差し替える（行数・件名を 変えても 古い 絵を 残さない＝止3・押した 札の focus も 残る）。
+     ・描くのは ★設定の 画面に 居る 時だけ★（入力の 画面で 7枚の 紙を 作らない）。 */
+  function ptPicsShown() {
+    var sc = $('scr-set');
+    return !!(sc && sc.classList.contains('active'));
+  }
+  function ptNewestInv(pid) {
+    var best = null;
+    billSrc().list.forEach(function (v) {
+      if (!v || v.status !== 'issued' || (v.doc_type || 'invoice') !== 'invoice') return;   /* 発行済みの 請求書 だけ（billIssued と 同じ 絞り） */
+      if (String(v.partner_id || '') !== String(pid)) return;
+      var a = String(v.issue_ymd || ''), b = best ? String(best.issue_ymd || '') : '';
+      if (!best || a > b || (a === b && String(v.updated_at || '') > String(best.updated_at || ''))) best = v;
+    });
+    return best;
+  }
+  function ptPicsPick(id) {
+    var sel = $('s-ptpl');
+    if (!sel || sel.disabled) return;
+    if ((sel.value || '') === (id || '')) return;
+    sel.value = id || '';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function ptPicsDraw(p) {
+    var host = $('s-ptpl-e'), why = $('s-ptpl-e-why'), sel = $('s-ptpl');
+    if (!host || !sel) return;
+    if (!p || !ptPicsShown()) {
+      host.innerHTML = ''; host.removeAttribute('data-sig');
+      show(host, false); setText('s-ptpl-e-why', ''); show(why, false);
+      return;
+    }
+    var src = billSrc();
+    /* ★まだ 1回も 読みに 行っていない 時だけ 読む★（落ちた 時に 呼び直さない＝落ち続ける 時の 輪を 作らない） */
+    if (src.ok !== true && S.billOk === undefined && S.listReadOk !== null) loadBillInv();
+    src = billSrc();
+    var v = (src.ok === true) ? ptNewestInv(p.id) : null;
+    var defId = settings().template;
+    var items = [{ id: '', label: '会社の既定のまま（' + (TPL.getOrDefault(defId).label || defId) + '）', note: '何も選ばない時の紙です。' }]
+      .concat(TPL.list());
+    var htmls = {}, real = false, err = null;
+    var keep = S.cur, keepDirty = S.dirty;
+    try {
+      var c = null;
+      if (v) {
+        c = JSON.parse(JSON.stringify(v));
+        if (!c.data) c.data = {};
+        if (!Array.isArray(c.lines) || !c.lines.length) c.lines = [blankLine()];
+      }
+      S.cur = c;   /* ★無い 時も 入れ替える★（入力の 1通を 見本の 中身に しない＝止1） */
+      if (c) { var pi = null; try { pi = paperInput(); } catch (e0) { pi = null; } real = naiyouAru(pi); }
+      items.forEach(function (t) { htmls[t.id] = tplSampleHtml(t.id || defId); });
+    } catch (e) { err = e; } finally { S.cur = keep; S.dirty = keepDirty; }
+    /* paperInput は 入力の 画面の 合計も 塗る＝入力で 開いている 1通で 塗り直して 戻す（billPaperInputs と 同じ） */
+    if (S.cur && S.cur === S.gamen) { try { recalc(); } catch (e2) { /* 戻せなくても 絵は 出す */ } }
+    show(host, !err); show(why, true);
+    if (err) {
+      console.error('★取引先の 様式の 絵を 描けませんでした★', err);
+      host.innerHTML = ''; host.removeAttribute('data-sig');
+      setText('s-ptpl-e-why', '紙の 絵を 描けませんでした。上の「様式」の 欄からは 選べます。');
+      return;
+    }
+    var cur = sel.value || '';
+    var sig = items.map(function (t) { return t.id + ':' + t.label; }).join('|');
+    if (host.getAttribute('data-sig') !== sig) {
+      renderTplPicks(host, cur, ptPicsPick, { items: items, htmlOf: function (id) { return htmls[id]; } });
+      host.setAttribute('data-sig', sig);
+    } else {
+      Array.prototype.forEach.call(host.querySelectorAll('[data-tpl]'), function (b) {
+        var id = b.getAttribute('data-tpl') || '';
+        b.classList.toggle('on', id === cur);
+        var f = b.querySelector('iframe'), h = htmls[id];
+        if (f && f.getAttribute('srcdoc') !== h) f.srcdoc = h;
+      });
+    }
+    Array.prototype.forEach.call(host.querySelectorAll('[data-tpl]'), function (b) { b.disabled = !!sel.disabled; });
+    var w;
+    if (real) w = 'この相手の 一番新しい 請求書（' + (v.no || '未採番') + '・' + (v.issue_ymd || '') + '）を それぞれの 紙で 見せています。';
+    else if (src.ok === null) w = 'この相手の 請求書を 読み込んでいます…（今は 見本の 中身で 見せています）。';
+    else if (src.ok === false) w = 'この相手の 請求書を 読めていません（見本の 中身で 見せています）。一覧の「もう一度読み込む」で 読み直せます。';
+    else if (v) w = 'この相手の 一番新しい 請求書（' + (v.no || '未採番') + '）は 中身が 整っていないので、見本の 中身で 見せています。';
+    else w = 'この相手には まだ 発行した 請求書が ありません（見本の 中身で 見せています）。';
+    setText('s-ptpl-e-why', w + ' 押すと 上の 様式に 入ります（残すのは 下の「この取引先を保存」）。');
+  }
+  /** 読めた・読めない の 後に 描き直す（billRedraw から）。★外へ 投げない★ */
+  function ptPicsRedraw() {
+    try {
+      if (!ptPicsShown()) return;
+      var p = partnerById($('s-partner') && $('s-partner').value);
+      if (p) ptPicsDraw(p);
+    } catch (e) { console.error('★取引先の 様式の 絵の 描き直しに 失敗しました★', e); }
   }
 
   /** ★取引先の「様式」の 欄を 開いて 見せる★（「ぜんぶ見る」の 畳みを 開ける） */

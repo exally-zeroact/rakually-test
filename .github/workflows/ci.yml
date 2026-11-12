@@ -667,6 +667,11 @@ jobs:
         run: node seikyu/tests/fit-frame.mjs
       - name: ★見本の絵の縮み (壊すと狙いの試験が赤になるかの自己確認)
         run: node seikyu/tests/fit-frame.mjs --self-test
+      # ★設定 ▸ 取引先 の 様式を 絵で 選ぶ★（2026-11-13 案 v8 件2）
+      - name: ★取引先の様式を絵で選ぶ (select の下・同じ値なら change を出さない・中身はその相手の一番新しい発行済み・別の相手の下書きを出さない・転んでも外へ投げない・入力では描かない)
+        run: node seikyu/tests/ptpl-e.mjs
+      - name: ★取引先の様式の絵 (壊すと狙いの試験が赤になるかの自己確認)
+        run: node seikyu/tests/ptpl-e.mjs --self-test
       # ★選んだ様式の列が その紙に出る★（司さん 2026-10-23「控除の様式を選んだのに 備考が入っている」）
       - name: ★請求書 選んだ様式の列が紙に出る (全様式×会社の設定/取引先ごと/前回別の様式の相手・出した紙は写しのまま・お金は同じ)
         run: node seikyu/tests/tpl-kiku-ui.mjs

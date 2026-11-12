@@ -66,7 +66,9 @@ const WARI = {
   torihiki: ['s-partner', 'pt-ask-set', 'pt-all', 's-phonor', 's-pperson', 's-paddr', 's-pzip', 's-ptel', 's-pcode',
     's-pterm', 's-pinvoice', 's-pgensen', 's-ptpl', 's-prows', 's-pbanks', 's-psubject', 'b-pcols-own', 'b-pt-save', 'pt-ok', 'pt-err',
     /* ★この取引先の紙（1行）★＝開いた 札の 中（⑧ 2026-10-23 で 足された 物） */
-    's-pt-tpl-row', 'b-pt-tpl-open', 's-pt-tpl-why'],
+    's-pt-tpl-row', 'b-pt-tpl-open', 's-pt-tpl-why',
+    /* ★様式を 絵でも 選ぶ★（2026-11-13 件2）＝開いた 札の 中 */
+    's-ptpl-e', 's-ptpl-e-why'],
   jisha: ['org-view', 's-bank-list', 'b-bank-add', 's-bank', 'b-book-pick', 'book-file', 'b-book-use',
     'seal-pv', 'seal-mm', 'b-seal-pick', 'seal-pos-box', 'seal-paper', 'b-seal-save', 'b-seal-clear'],
   tpl: ['s-tpl-card', 's-tpl', 'b-tpl-open', 'paper-ask-card', 'set-more', 's-rows', 's-dedrows', 'col-list', 'b-col-add',

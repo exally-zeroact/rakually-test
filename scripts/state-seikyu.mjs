@@ -127,7 +127,7 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
   const setTab = doc.querySelector('.bn[data-scr="scr-set"]');
   if (setTab) { setTab.click(); await new Promise((r) => setTimeout(r, 700)); }
   /* ★見本も一緒に見せるか★（司さん 2026-08-24）＝見本の絵が何枚 描けているか（空は数えない） */
-  const shots = [...doc.querySelectorAll('.tpl-shot iframe')]
+  const shots = [...doc.querySelectorAll('#s-tpl .tpl-shot iframe')]
     .map((f) => f.getAttribute('srcdoc') || '').filter((x) => x.length > 500);
   N.見本の絵 = shots.length;
   /* ★2枚 決め打ちをやめる★＝様式が3つになったら 3枚とも別の絵か を見る（2026-08-27）
@@ -136,7 +136,7 @@ const NM = require_(path.join(ROOT, 'seikyu/lib/seikyu-name.js'));
   if (N.見本が別の絵 === 0 && shots.length >= 2) {
     const mi = {};
     const onaji = [];
-    const nm = [...doc.querySelectorAll('.tpl-pick .tpl-nm')].map((e) => e.textContent.trim());
+    const nm = [...doc.querySelectorAll('#s-tpl .tpl-pick .tpl-nm')].map((e) => e.textContent.trim());
     shots.forEach((h, i) => { if (mi[h] !== undefined) onaji.push((nm[mi[h]] || mi[h]) + ' ＝ ' + (nm[i] || i)); else mi[h] = i; });
     console.log('   ★同じ絵★ ' + (onaji.join(' ／ ') || '（見つからない）'));
     console.log('   絵の 長さ … ' + shots.map((h, i) => (nm[i] || i) + ':' + h.length).join(' / '));

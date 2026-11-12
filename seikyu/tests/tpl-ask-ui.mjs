@@ -205,7 +205,7 @@ async function run(label, appSrc) {
     ok((doc.getElementById('tpl-strip-v').textContent || '').length > 2, '紙の名前が 出ていない');
     const why = (doc.getElementById('tpl-strip-why').textContent || '');
     ok(/設定/.test(why), '★どこで 決まったのかを 言っていない★: ' + why.slice(0, 60));
-    ok(/設定で変える/.test(doc.getElementById('b-tpl-change').textContent || ''),
+    ok(/会社の既定の紙を変える（設定）/.test(doc.getElementById('b-tpl-change').textContent || ''),
       '★どこへ 行けば 変えられるか ボタンが 言っていない★');
   });
 
