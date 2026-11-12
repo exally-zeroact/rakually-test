@@ -1501,6 +1501,7 @@
       renderList();
       drawYomenai();
       if ($('b-issue')) drawIssueButton();
+      aiteYomiNoAto();   /* ★まだの 相手の 組を 今の 一覧で 描く★（2026-11-09 v8 件1） */
     }).catch(function (e) {
       if (my !== _listNo) return;
       console.error('★一覧を 取って来られませんでした★', e);   /* ★生の 文は 画面に 出さず ここに 残す★ */
@@ -1510,6 +1511,7 @@
       billRedraw();
       drawYomenai();
       if ($('b-issue')) drawIssueButton();
+      aiteYomiNoAto();   /* ★読めない 時は 古い 組を 消す★（組は 一覧が 読めた 時だけ） */
     });
   }
   /* ★読めて いない 物の 知らせ★（自社・取引先・一覧）＝1つの 箱に まとめて 言う／★生の 文は 出さない★
@@ -1881,6 +1883,66 @@
     return true;
   }
 
+  /* ═══ ★相手の 選び（e-partner）だけを 描く★ 2026-11-09 請求書 UI/UX 案 v8 件1 ═══
+     ・先頭に「◯月ぶん まだ」＝毎月の 相手で 今月 まだの 取引先（見つけ方は seikyu-recurring の dueList が 唯一の 正）。
+       同じ 相手は 2回 並べない（下は 組が ある 時だけ「ほかの相手」で 包む）。選んだ 後は 今の 道（change→aiteWoKaeta）。
+     ・★欄の ほかの 所・S.lookMae・S.gamen・入金の 欄には 触らない★（fillEdit は lookMae を 消し 入金の 欄を 空に 戻す＝
+       読み直しから fillEdit を 呼ぶと 打ちかけが 消えた・v7 の 叩き 3回）。中身の 元は S.cur だけ（欄から 読まない）。
+     ・innerHTML と value の 代入だけ＝change は 出ない（fillSelect と 同じ）。
+     ・組を 出すのは 一覧と 取引先が 読めて、一覧も 今の 1通も 請求書の 時だけ＝読めない 時に「まだ」と 言い切らない。 */
+  function aiteMadaGumi(v) {
+    var RC = global.SeikyuRecurring;
+    if (!RC || S.listReadOk !== true || S.partnersReadOk !== true || S.listKind !== 'invoice') return null;
+    if ((v.doc_type || S.docType || 'invoice') !== 'invoice') return null;
+    var ym = RC.ymOf(todayYmd());
+    var due = RC.dueList({ invoices: S.invoices || [], partners: S.partners || [], ym: ym })
+      /* ★消した 取引先は 出さない★（一覧の 箱 renderRecurring と 同じ＝発行で 止まる 下書きを 作らせない） */
+      .filter(function (d) { return !!ptLive(d.partnerId); });
+    if (!due.length) return null;
+    return { label: Number(ym.slice(5, 7)) + '月ぶん まだ', ids: due.map(function (d) { return d.partnerId; }) };
+  }
+  function aiteSelectWoKaku() {
+    var v = S.cur, el = $('e-partner'); if (!v || !el) return;
+    var opt = function (id, t) { return '<option value="' + esc(id) + '">' + esc(t) + '</option>'; };
+    var nameOf = function (p) { return (p.data && p.data.name) || '(名称未設定)'; };
+    var gone = ptGoneOpt(v);
+    var atama = opt('', '（選んでください）');
+    var shita = (gone ? opt(gone.v, gone.t) : '')
+      /* 「＋ 新しい相手を作る」を いつでも一番下に置く（組の 外） */
+      + (locked() ? '' : opt('__new__', '＋ 新しい相手を作る'));
+    var naka = null;
+    try {
+      var g = aiteMadaGumi(v);
+      if (g) {
+        var hoka = S.partners.filter(function (p) { return g.ids.indexOf(p.id) < 0; });
+        naka = '<optgroup label="' + esc(g.label) + '">'
+          + g.ids.map(function (id) { return opt(id, nameOf(ptLive(id))); }).join('') + '</optgroup>'
+          + (hoka.length ? '<optgroup label="ほかの相手">' + hoka.map(function (p) { return opt(p.id, nameOf(p)); }).join('') + '</optgroup>' : '');
+      }
+    } catch (e) {
+      /* ★組が 作れない・転んだ 時は 今の 並び★（ここで 投げると 読みの then が catch に 落ちて 一覧が「読めない」に なる） */
+      console.error('★まだの 相手の 組を 作れませんでした★', e);
+      naka = null;
+    }
+    if (naka === null) naka = S.partners.map(function (p) { return opt(p.id, nameOf(p)); }).join('');
+    el.innerHTML = atama + naka + shita;
+    el.value = v.partner_id || '';
+  }
+  /* ★読み直しの 後に 組を 描く★（loadList の then・catch の 終わり）
+     ・入力の 欄に 今 出ている 1通の 時だけ（確認の 窓の 途中・別の 1通を 見ている 時は 描かない＝次の fillEdit で 描かれる）
+     ・取引先が 読めていない 時は 描かない（S.partners=[] で 描くと 今の 相手が「（選んでください）」に 見える）
+     ・選びを 開いている 最中（focus）は 描かない＝閉じる 端末が ある。blur で 1回 描く（その時 門を もう一度 見る） */
+  var aiteBlurMachi = false;
+  function aiteYomiNoAto() {
+    try {
+      if (!(S.cur && S.cur === S.gamen && !S.lookMae)) return;
+      if (S.partnersReadOk !== true) return;
+      var el = $('e-partner'); if (!el) return;
+      if (global.document.activeElement === el) { aiteBlurMachi = true; return; }
+      aiteSelectWoKaku();
+    } catch (e) { console.error('★相手の 選びを 描き直せませんでした★', e); }
+  }
+
   function fillEdit() {
     var v = S.cur; if (!v) return;
     S.gamen = v;                      // ★入力の 欄に 今 出ている 1通★（collect は この 1通にしか 読まない・2026-10-14）
@@ -1900,21 +1962,11 @@
     /* ★いつでも新しい相手を作れる★（2026-08-18 DB-testの1周で判明）
        前は「その場で作る」を ★0社の時だけ★出していたので、1社でも在ると
        2社目からは ★外のアプリへ行くしかなかった★＝司さんの決定と食い違う。 */
-    fillSelect($('e-partner'), [{ v: '', t: '（選んでください）' }].concat(S.partners.map(function (p) {
-      return { v: p.id, t: (p.data && p.data.name) || '(名称未設定)' };
-    })).concat(ptGoneOpt(v) ? [ptGoneOpt(v)] : []), v.partner_id || '');
     /* ★注意書きは「今 困っている時」だけ出す（いつも出ていると読まれない）
        ★外のアプリへ行かせない★（司さん 2026-08-17）
          前は「Exally のハブで追加してください」＝★1通も出さないうちに 外へ出していた★。
          ＝★その場で作れる口を出す★（会社名だけ答えたら 相手が出来て そのまま選ばれる）。 */
-    /* 「＋ 新しい相手を作る」を いつでも一番下に置く */
-    var selEl = $('e-partner');
-    if (selEl && !locked()) {
-      var o = document.createElement('option');
-      o.value = '__new__';
-      o.textContent = '＋ 新しい相手を作る';
-      selEl.appendChild(o);
-    }
+    aiteSelectWoKaku();
     var noPartner = !S.partners.length;
     show($('e-partner-hint'), noPartner);
     if (noPartner) setText('e-partner-hint', '取引先がまだ1社もありません。下に会社名を入れると、その相手を作ってそのまま使えます。');
@@ -7327,6 +7379,12 @@
         return;
       }
       return aiteWoKaeta($('e-partner').value);
+    };
+    /* ★選びを 開いている 間に 来た 読み直しの 組は 閉じた 時に 描く★（1本＝onblur の 代入・2026-11-09 v8 件1） */
+    $('e-partner').onblur = function () {
+      if (!aiteBlurMachi) return;
+      aiteBlurMachi = false;
+      aiteYomiNoAto();
     };
     $('e-issue').onchange = function () {
       S.cur.issue_ymd = $('e-issue').value;

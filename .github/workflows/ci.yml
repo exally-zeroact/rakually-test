@@ -551,6 +551,11 @@ jobs:
         run: node seikyu/tests/mae-no-aite.mjs
       - name: ★前の取引先の中身が残らない (外すのをやめる/覚えるのをやめる/印を戻さない 等を本当に壊すと赤かの自己確認)
         run: node seikyu/tests/mae-no-aite.mjs --self-test
+      # ★「だれに」の 選びの 先頭に「◯月ぶん まだ」★（2026-11-09 請求書 UI/UX 案 v8 件1）
+      - name: ★相手の選びの先頭に今月まだの組 (読めない/見積/消した相手は出さない・読み直しで描く・打ちかけを消さない・開いている間は描かない)
+        run: node seikyu/tests/aite-mada.mjs
+      - name: ★相手の選びの先頭に今月まだの組 (組を出さない/門を外す/fillEditを呼ぶ 等を本当に壊すと赤かの自己確認)
+        run: node seikyu/tests/aite-mada.mjs --self-test
 
   test-2:
     # ★CI を 60分から 20分以下へ 割った 1本★（2026-10-30・段の 中身と 順は 変えず 続きの 段を 4つの job に 分けた）
