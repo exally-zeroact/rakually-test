@@ -454,6 +454,8 @@
        ★322 の 既定名★は ★x に name が 無い時だけ 残る★＝mergeEmp の 道＝新しい 幻は 作らない。 */
     employees:[], open:{},
     inputMode:'monthly', printMode:'monthly', empFilter:'active', bonus:{ payYm:'', payDay:'', byEmp:{} }, confirmed:{}, nencho:{}, onboardDone:false, onboardOutput:false, payPatterns:[], dailySlipLayout:'1col', inputView:'card' };
+  /* ★起動 時の 中身（誰の 物でも ない 既定）★＝前に 入った 人の 写しを 棚へ 移した 時に ここへ 戻す（2026-11-14） */
+  var _STATE_SHOKI=JSON.stringify(state);
 
   function carCommuteNonTax(km){ return PM().carCommuteNonTax(km); }
   function commuteLimit(e){ return PM().commuteLimit(e); }
@@ -7203,6 +7205,12 @@
      ⇒ 写しに 書いた タブの 印（_tab）を 入れ、★印が この タブと 同じ 時だけ★ 自分の 書きを 信じる（違えば 倉庫を 採る＝前の 動き）。
      ★印を 引き継ぐのは 開き直し（reload）の 時だけ★＝タブの 複製・閉じた タブを 戻す 時は sessionStorage が 写るので 新しい 印に する。 */
   var TABKEY='rk_tab_v1', _tabId=null, _utsushiTab=null;
+  /* ★★写しの 持ち主（2026-11-14・前に 入った 人の 写しを 別の 人に 出さない・書かない）★★
+     写し（PKEY）は 端末に 1つ。ログアウトは 写しを 残す＝次に 入った 別の 人に A の 人・会社が 出て、新規なら B の 倉庫へ 書かれた（試験 maeno-hito-utsushi ①）。
+     _stateKuchi＝今の state の 持ち主：口（uid）／'?'（ログインして 使ったが 口の 印が 無い 古い 写し）／null（ログイン前の 手元の 写し＝初回アップ してよい）。
+     倉庫の 答えが 来たら _kuchiAwase が 今の 口と 合わせ、違えば 写し 一式を 脇の 棚（TANA_KEY@持ち主）へ 移して state を 既定に 戻す（消さない＝移すだけ）。
+     決まるまで store は 書かない（Store.kuchiKanri の 閉じた 門）。 */
+  var _stateKuchi=null, _utsushiTomeru=false, TANA_KEY='payslip_tana_v1';
   /* ★写しの 名簿（案a・2026-10-25）★＝{u:口, t:[ms…]}＝この 写しの 中身を 書いた 者が 送った 会社の 時刻。store.js の setMaeKakiFn の 覚書を 見る。
      開き直しで 写しから 読み、送る たびに store の 名簿と 合わせて 書く（新しい タブの 送り直しが 会社の 書きの 前に 殺されても 前の 時刻を 落とさない・taiketsu 任意-1） */
   var _okuttaUtsushi=null, OKUTTA_UTSUSHI_UE=8;
@@ -7237,7 +7245,8 @@
   var _syncMeta={ dirty:false, baseCoUA:null };
   var _loadLocalKept=0;   /* ★診断＝ロードで「ローカルが新しいので保持した」回数（読み取り専用・判じに使わない）★ */
   var _drainKai=0;        /* ★診断＝online/可視で 未送信を 送り直した回数（Phase3・読み取り専用）★ */
-  function _loadSyncMeta(){ try{ var m=JSON.parse(localStorage.getItem(SMKEY)||'null'); if(m&&typeof m==='object'){ _syncMeta.dirty=!!m.dirty; _syncMeta.baseCoUA=(m.baseCoUA==null?null:String(m.baseCoUA)); } }catch(e){} }
+  var _metaKuchi=null;   /* ★同期の 印を 書いた 持ち主（口）★＝写し 本体が 無い 時に 持ち主を 決める（2026-11-14） */
+  function _loadSyncMeta(){ _metaKuchi=null; try{ var m=JSON.parse(localStorage.getItem(SMKEY)||'null'); if(m&&typeof m==='object'){ if(typeof m.kuchi==='string' && m.kuchi) _metaKuchi=m.kuchi; _syncMeta.dirty=!!m.dirty; _syncMeta.baseCoUA=(m.baseCoUA==null?null:String(m.baseCoUA)); } }catch(e){} }
   /* ★書けたかを 返す★（2026-10-11）＝前は catch が空。未送信の 印（dirty=true）だけ 書けずに 閉じると、次に 開いた時 dirty=false で 読まれ クラウドが 手元の 編集を 上書きする 道が 在る */
   /* ★印が 書けない 旗★（2026-10-11 taiketsu）＝立っている 間は「保存できた」でも 帯を 消さない（中身の 控えが 書けても 印が 無ければ 次の 読み込みで 負ける）。
      降ろすのは ★クラウドに 届いた 時★と ★次の 編集で 印が 書けた 時★だけ。 */
@@ -7252,16 +7261,22 @@
      ⇒ 写しと 基準を ★1回の setItem で★ 書く＝どちらも 同じ 時の 物。開き直しは 写しの 中の 基準を 使う（persistLoad）。
      ★_syncBase は 写しにだけ 足す★（snapshot＝クラウドへ 送る 中身には 混ぜない）。 */
   function _utsushiKaku(s, base){
+    if(_utsushiTomeru) return false;   /* ★前の 人の 写しを 棚へ 移せなかった ページ★＝写しを 上書きしない（前の 人の 中身を 消さない・taiketsu S4） */
     var o=Object.assign({}, s); o._syncBase=(base===undefined)?_syncMeta.baseCoUA:base; o._tab=_tabId;
+    if(_stateKuchi && _stateKuchi!=='?') o._kuchi=_stateKuchi;   /* ★写しの 持ち主（口）★＝次に 開いた 時、違う 口なら 棚へ 移す */
     if(_okuttaUtsushi){ o._okutta=_okuttaUtsushi; }   /* ★名簿も 同じ 1回の setItem で（案a）★ */
     try{ localStorage.setItem(PKEY, JSON.stringify(o)); _utsushiTab=_tabId; return true; }catch(e){ return false; }   /* ★書けたら 写しは この タブの 物★（同じ 画面の 中の 2回目の 読み直しでも 自分の 書きを 信じる・taiketsu 任意1） */
   }
   var IN_KAKENAI_JI='⚠ この端末に 保存できません（このブラウザの空き容量）＝クラウドに 保存できるまで 閉じないでください';
-  function _saveSyncMeta(){ try{ localStorage.setItem(SMKEY, JSON.stringify(_syncMeta)); return true; }catch(e){ console.error('★未送信の 印を この端末に 書けません★', e); return false; } }
+  function _saveSyncMeta(){
+    if(_utsushiTomeru) return false;   /* ★前の 人の 写しを 棚へ 移せなかった ページ★＝前の 人の 印も 上書きしない */
+    try{ var _m={ dirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA }; if(_stateKuchi && _stateKuchi!=='?') _m.kuchi=_stateKuchi;
+      localStorage.setItem(SMKEY, JSON.stringify(_m)); return true; }catch(e){ console.error('★未送信の 印を この端末に 書けません★', e); return false; } }
   if(typeof window!=='undefined') window.PayslipSyncMeta=function(){ return { dirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, loadLocalKept:_loadLocalKept, drainKai:_drainKai }; };   /* 診断用（window代入＝投げない＝try不要） */
   // 保存時はcomputeが書く一時フィールド(_prorate/_wari/_shahoExemptThisMonth等)を除外→DB/LS汚染防止(in-memoryは描画用に保持)
   function stripTransient(e){ var o={}; for(var k in e){ if(Object.prototype.hasOwnProperty.call(e,k)&&k.charAt(0)!=='_') o[k]=e[k]; } return o; }
-  function snapshot(){ return { v:1, company:state.company, employees:(state.employees||[]).map(stripTransient), month:state.month, theme:state.theme, prefer:state.prefer, depts:state.depts, roles:state.roles, showRetired:state.showRetired, bonus:state.bonus, confirmed:state.confirmed, nencho:state.nencho, onboardDone:state.onboardDone, onboardOutput:state.onboardOutput, payPatterns:state.payPatterns }; }
+  function snapshot(){ var _o=_snapshotNakami(); try{ Object.defineProperty(_o, '_kuchi', { value:_stateKuchi, enumerable:false }); }catch(_eK){ console.error('★写しに 持ち主の 印を 付けられません★', _eK); } return _o; }   /* ★持ち主の 印は 数えない 形で＝倉庫の 設定には 混ざらない・store の realSave が 今の 口と 比べる★ */
+  function _snapshotNakami(){ return { v:1, company:state.company, employees:(state.employees||[]).map(stripTransient), month:state.month, theme:state.theme, prefer:state.prefer, depts:state.depts, roles:state.roles, showRetired:state.showRetired, bonus:state.bonus, confirmed:state.confirmed, nencho:state.nencho, onboardDone:state.onboardDone, onboardOutput:state.onboardOutput, payPatterns:state.payPatterns }; }
   var _saveT=null;
   /* ★★保存できなかった時の 帯（#save-alert）を 出し入れする 1か所★★（2026-10-02）
      ★なぜ★ … 失敗の 字は #save-status（入力画面の 帯の 中）にしか 書かれず、
@@ -7288,6 +7303,9 @@
   }
   // ★保留した保存を 出す時に「その時点の 新しい中身」を 渡す★(store.js の saveHold が呼ぶ)。
   //  これが無いと、読み込み前の 古い一覧で 倉庫を 上書きしてしまう(2026-09-03 P0)。
+  /* ★書く 口は この 画面が 決める★と store に 届け出る（決まるまで 書かない 閉じた 門）。付かないと 前の 人の 写しを 書く 道が 開く＝黙らない */
+  try{ if(window.Store&&Store.kuchiKanri) Store.kuchiKanri(); else if(window.Store&&Store.cloudSaveState) console.error('★書く 口の 門を 届け出る 口が ありません★'); }
+  catch(e){ console.error('★書く 口の 門を 届け出られません★', e); }
   try{ if(window.Store&&Store.setSnapshotFn) Store.setSnapshotFn(function(){ return snapshot(); }); }
   catch(e){ /* ★黙らない★＝この口が 付かないと 保留した保存が 古い一覧を 出す恐れがある */
     console.error('★保存の 保留に「新しい中身」を 渡す口が 付きませんでした★', e);
@@ -7376,6 +7394,8 @@
            ★知らない 理由は 失敗として 出す★（出す 側に 倒す） */
         /* ★読み込みが 落ちた ままなので 書かなかった★（2026-10-14・store.js realSave）＝中の 言葉（load-failed）を 出さない */
         else if(r&&r.ok===false&&r.reason==='load-failed'){ setS('⚠ クラウドを 読み込めていないので、クラウドには まだ 保存していません（明細も）。「もう一度 読み込む」を 押してください', 'ng'); }
+        /* ★口が まだ 決まって いないので 書かなかった★（2026-11-14 taiketsu 止め-2）＝★「自動保存済」と 言わない★（倉庫へは 届いて いない） */
+        else if(r&&r.ok===false&&r.reason==='kuchi-mada'){ setS('⚠ ログインの 確かめが 済んでいないので、クラウドには まだ 保存していません。画面を 開き直してください', 'ng');   /* ★「もう一度 読み込む」は 読み込みが 落ちた 時しか 出ない＝言わない（taiketsu 任意1）★ */ }
         else if(r&&r.ok===false&&r.reason!=='no-user'&&r.reason!=='held-skipped'&&r.reason!=='held-skipped-maboroshi'){ setS('⚠ クラウド未保存（'+(r.reason||'通信エラー')+'）', 'ng'); }
         else if(lsOk){ state._savedAt=hhmm; setS('自動保存済 '+hhmm, 'ok'); }
         /* ★自分の 保存が 会社を 書けたら 基準の 時刻を 進める★（2026-10-12）＝前は 読み込みでしか 進まず、1回でも 届いた 後に 閉じると
@@ -7414,7 +7434,19 @@
   // 旧テンプレ名→新テンプレ名(実体準拠)への移行。保存済みstate.preferを吸収
   var PREFER_MIGRATE={cols:'col2_1',cols2:'col2_2',cols3:'col2_3',vstack:'col1_1',vstack2:'col1_2',strips:'col1_3'};
   function migPrefer(p){ return PREFER_MIGRATE[p]||p||'col2_1'; }
-  function persistLoad(){
+  function persistLoad(){ _utsushiYomu(); reloadCloud(); }
+  /* ★写しの 持ち主を 決める★（写しと 同期の 印だけを 見る） */
+  function _utsushiKuchi(s){
+    if(s && typeof s==='object'){
+      if(typeof s._kuchi==='string' && s._kuchi) return s._kuchi;
+      var ok=_okuttaKatachi(s._okutta); if(ok) return ok.u;   /* ★印の 無い 前の 写し★＝名簿の 口 */
+    }
+    if(_metaKuchi) return _metaKuchi;   /* ★写しは 無いが 同期の 印を 書いた 口★（倉庫を 採って 何も 押さずに 閉じた 人） */
+    if(_syncMeta.baseCoUA!=null || _syncMeta.dirty) return '?';   /* ★ログインして 使った 跡は 在るが 口が 分からない★ */
+    return null;
+  }
+  /* ★端末の 写しを state へ 読む★（起動と、棚から 戻す 時の 同じ 順＝taiketsu N3） */
+  function _utsushiYomu(){
     _loadSyncMeta();   /* ★手元の同期メタ(dirty/baseCoUA)を先に読む＝ロード側 newer-wins の材料（棚d）★ */
     var s=null; try{ s=JSON.parse(localStorage.getItem(PKEY)||'null'); }catch(e){}
     /* ★基準の 時刻は 写しの 中の 物を 使う★（写しと 同じ 時に 書いた 基準＝古い タブや 書けなかった 写しと 食い違わない・2026-10-12）。無い 写し（前の 形）は 印の 物のまま */
@@ -7434,8 +7466,75 @@
     /* ★確定の 取り消しの 控えを 読む★（写しの 名簿を 読んだ 後＝写しに 人が 居れば 片付けて よい・開き直しても 黙らない） */
     if(s&&s.employees&&s.employees.length) _hazushiMeiboOk=true;
     _hazushiYomu(); try{ if(_hazushiOchiN()>0) _hazushiObi(); }catch(e){ console.error('★確定の 取り消しの 帯を 出せません★', e); }
-    // クラウド(Supabase)が有効なら後から読み込んで上書き＋再描画
-    reloadCloud();
+    _stateKuchi=_utsushiKuchi(s);
+  }
+  /* ★★今の 口と 写しの 持ち主を 合わせる★★（倉庫の 答えの 後・applyCloudState の 前）
+     uid＝その 読み込み 自身の 口（無い＝ログイン前・口が 確かめられない＝何も しない＝門は 閉じた まま）。
+     '?'＝読めた 時だけ 決める：写しが 0人か 倉庫の 人と 1人でも 重なれば その 口（A 本人の 未送信を 残す・taiketsu S3）、重ならなければ 違う 口。読めない 時は 決めない。 */
+  function _kuchiAwase(uid, cs, yometa){
+    try{
+      if(!uid) return;
+      var mochi=_stateKuchi;
+      if(mochi==='?'){
+        if(!yometa) return;
+        var cIds={}; ((cs&&cs.employees)||[]).forEach(function(e){ if(e&&e.id) cIds[e.id]=1; });
+        var mine=state.employees||[];
+        /* ★0人の 写しは 会社も 読まれない★（_utsushiYomu は 人が 居る 写しだけ state へ 入れる）＝0人なら state は 既定＝この 口と 決めても 前の 人の 会社は 渡らない（11-14 ⑬ で 測った） */
+        if(!mine.length || mine.some(function(e){ return e&&cIds[e.id]; })) mochi=uid;
+      }
+      if(mochi!=null && mochi!==uid){
+        var utsuseta=_tanaNiUtsusu(mochi);
+        _stateShokiNi();
+        if(utsuseta) _tanaKaraModosu(uid);
+      } else if(mochi==null && _utsushiKara()){
+        _tanaKaraModosu(uid);   /* ★写しが 空（前の 人が 棚へ 移して 何も 書かずに 閉じた）＝この 口の 棚が 在れば 戻す★（A→B→A） */
+      }
+      _stateKuchi=uid;
+      if(window.Store&&Store.setKakuKuchi) Store.setKakuKuchi(uid);
+    }catch(e){ console.error('★口の 合わせが 落ちました＝この ページは クラウドに 書きません★', e); }
+  }
+  /* ★写し 一式（中身・同期の 印・確定の 取り消しの 控え）を 持ち主の 棚へ 移す★＝★棚に 書けた 時だけ 元を 消す★（taiketsu S4） */
+  function _tanaNiUtsusu(mochi){
+    var pk=null, sm=null, hz=null;
+    try{ pk=localStorage.getItem(PKEY); sm=localStorage.getItem(SMKEY); hz=localStorage.getItem(HAZUSHI_KEY); }catch(e){ console.error('★写しを 読めません★', e); }
+    if(pk==null && sm==null && hz==null) return true;
+    var key=TANA_KEY+'@'+(mochi==='?' ? ('?'+Date.now()) : mochi);   /* ★口の 分からない 写しは 上書きしない★（taiketsu S3） */
+    try{ localStorage.setItem(key, JSON.stringify({ v:1, kuchi:mochi, t:Date.now(), state:pk, meta:sm, hazushi:hz })); }
+    catch(e){
+      _utsushiTomeru=true;
+      console.error('★前に 入った 人の 写しを 棚へ 移せません（このブラウザの空き容量）＝写しは そのまま 残し、この ページは 端末に 書きません★', e);
+      hozonFuda('ng', IN_KAKENAI_JI);
+      return false;
+    }
+    try{ localStorage.removeItem(PKEY); localStorage.removeItem(SMKEY); localStorage.removeItem(HAZUSHI_KEY); }
+    catch(e){ console.error('★写しを 棚へ 移した 後に 元を 消せません★', e); }
+    console.error('★前に 入った 人の 写しを 棚へ 移しました（'+key+'）＝この 口には 出しません・書きません★');
+    return true;
+  }
+  function _utsushiKara(){ try{ return localStorage.getItem(PKEY)==null && localStorage.getItem(SMKEY)==null && localStorage.getItem(HAZUSHI_KEY)==null; }catch(e){ return false; } }
+  /* ★state を 誰の 物でも ない 既定に 戻す★（会社 既定・人 0・確定/年調/賞与/型 空・同期の 印 clean・名簿 null・取り消しの 控え 空） */
+  function _stateShokiNi(){
+    var sh=JSON.parse(_STATE_SHOKI), souko=state._souko;
+    Object.keys(state).forEach(function(k){ delete state[k]; });
+    Object.assign(state, sh); state.company=Object.assign(defCompany(), sh.company||{}); state._souko=souko;
+    if(_saveT){ clearTimeout(_saveT); _saveT=null; }   /* ★前の 人の 待ちの 保存は 出さない★ */
+    _syncMeta.dirty=false; _syncMeta.baseCoUA=null;
+    _okuttaUtsushi=null; _utsushiTab=null;
+    for(var k in _hazushi){ delete _hazushi[k]; } _hazushiMeiboOk=false;
+    for(var k2 in _zgIchu){ delete _zgIchu[k2]; } for(var k3 in _zgYasumi){ delete _zgYasumi[k3]; }
+  }
+  /* ★今の 口の 棚が 在れば 写しへ 戻して 読み直す★（A→B→A で A の 未送信の 直しを newer-wins で 拾う＝消さない）。全部 書けたら 棚を 消す */
+  function _tanaKaraModosu(uid){
+    var key=TANA_KEY+'@'+uid, o=null;
+    try{ o=JSON.parse(localStorage.getItem(key)||'null'); }catch(e){ console.error('★棚を 読めません★', e); return; }
+    if(!o || typeof o!=='object') return;
+    try{
+      if(o.state!=null) localStorage.setItem(PKEY, o.state);
+      if(o.meta!=null) localStorage.setItem(SMKEY, o.meta);
+      if(o.hazushi!=null) localStorage.setItem(HAZUSHI_KEY, o.hazushi);
+      localStorage.removeItem(key);
+    }catch(e){ console.error('★棚から 写しへ 戻せません（棚は 残します）★', e); }
+    _utsushiYomu();
   }
   function applyCloudState(cs){ if(!(cs&&cs.employees&&cs.employees.length)) return false;
     /* ★★ロード側 newer-wins（2026-10-07 棚(d)・司さん方針）★★
@@ -7513,12 +7612,15 @@
   function reloadCloud(){
     if(!(window.Store&&Store.cloudLoadState)){ state._souko='ok'; return Promise.resolve(false); }
     state._souko='machi';
-    return Store.cloudLoadState().then(function(cs){
+    var _yondaUid=null;
+    return Store.cloudLoadState(function(u){ _yondaUid=u; }).then(function(cs){
+      _kuchiAwase(_yondaUid, cs, true);   /* ★applyCloudState の 前★＝前の 人の 写しを この 口に 混ぜない */
       var r=applyCloudState(cs);
       state._souko='ok';
       if(!r) soukoRedraw();                 /* 写しのままでも ★読み込み中を 解く★ */
       return r;
     }).catch(function(){
+      _kuchiAwase(_yondaUid, null, false);  /* ★読めなくても 口が 分かれば 前の 人の 写しは 移す★ */
       state._souko='ng';                    /* ★黙って 空にしない＝失敗と 言う★ */
       soukoRedraw();
       return false;

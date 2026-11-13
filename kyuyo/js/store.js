@@ -174,6 +174,19 @@
      ★純関数・口は hasSupa の 外★＝supabase 無しでも 定義される（app の 登録が 黙って 飛ばない・taiketsu 10-25 止める-2）。
      試験＝kyuyo/tests/atarashii-tab-hiraki.test.mjs（本物の app.js＋store.js を 偽の supabase で）。 */
   var _maeKakiFn = null;
+  /* ★★書く 口は 画面が 決めた 口だけ★★（2026-11-14・前に 入った 人の 写しを 別の 人の 倉庫へ 書かない）
+     端末の 写しは 1つで、前に 入った 人の 中身が 残る。画面（app.js）が「この 中身の 持ち主＝今の 口」と 決めるまで、倉庫へ 書かない。
+     ★門は 閉じた 形★＝決まって いない（null）間も 書かない（ログイン画面の 上で 押した 保存が 後から 入った 人の 口で 走る 道・taiketsu S1）。
+     ★画面が 届け出た 時だけ 効く★（kuchiKanri）＝store.js だけを 読む 試験（cloud-sync.mjs）は 前の 動き。本番の index.html は app.js を 必ず 一緒に 読む。
+     ★入れるのは 画面だけ★＝store は 口を 決めない（読み込みが 来た だけでは 中身の 持ち主は 分からない）。 */
+  var _kuchiKanri = false, _kakuKuchi = null;
+  Store.kuchiKanri = function(){ _kuchiKanri = true; };
+  Store.setKakuKuchi = function(u){ _kakuKuchi = (typeof u === 'string' && u) ? u : null; };
+  Store.kakuKuchi = function(){ return _kakuKuchi; };
+  function _kuchiChigau(uid){ return _kuchiKanri && (!_kakuKuchi || _kakuKuchi !== uid); }
+  var _kuchiMadaKai = { kaisha:0, meisai:0, hazushi:0 };   /* ★診断＝門で 止めた 回数（読むだけ・判じに 使わない）★ */
+  Store.kuchiMadaKai = function(){ return { kaisha:_kuchiMadaKai.kaisha, meisai:_kuchiMadaKai.meisai, hazushi:_kuchiMadaKai.hazushi }; };
+  function _kuchiMadaErr(nani){ _kuchiMadaKai[nani === '明細' ? 'meisai' : 'hazushi']++; var e = new Error('口が まだ 決まって いません（' + nani + 'を クラウドに 書きません）'); e.noUser = true; e.kuchiMada = true; return e; }
   Store.setMaeKakiFn = function(fn){ _maeKakiFn = (typeof fn === 'function') ? fn : null; };
   /* ★名簿 o＝{u:口, t:[ms…]}★。口が 同じ かつ ua の ms が 名簿に 在る 時だけ true（NaN・形の 壊れは false） */
   Store.okuttaNiAruKa = function(o, uid, ua){
@@ -603,10 +616,13 @@
        ★㉕-2（覆い）の 因は ★まだ 未説明★です★ */
     function realSave(state){
       return curUid().then(function(uid){ if(!uid) return { ok:false, reason:'no-user' };
+        /* ★書く 口は 画面が 決めた 口だけ★＋★写しを 取った 時の 持ち主（_kuchi・数えない 印）が 今の 口と 違えば 書かない★（取った 後に 口が 替わった 隙） */
+        /* ★読み込みが 落ちた 時は 先に 言う★（taiketsu 止め-2＝門より 後だと kuchi-mada に 隠れて 帯が 出なかった） */
+        if(_yomiOchitaUid && (_yomiOchitaUid === '*' || _yomiOchitaUid === uid)) return { ok:false, reason:'load-failed' };
+        if(_kuchiChigau(uid) || (state && state._kuchi != null && state._kuchi !== uid)){ _kuchiMadaKai.kaisha++; return { ok:false, reason:'kuchi-mada' }; }
         /* ★読み込みが 落ちた ままの 間は 書かない★（2026-10-14）＝端末の 写しは 古い かも しれない（別の 端末で 消した 人・足した 人を 知らない）。
            前は「保存は するが 消しは しない」で、古い 写しの 丸ごと upsert が 消した 人を 戻せた。読み直して 読めたら 書ける。
            ★黙らない★＝ok:false で 返す（帯が 出る）。 */
-        if(_yomiOchitaUid && (_yomiOchitaUid === '*' || _yomiOchitaUid === uid)) return { ok:false, reason:'load-failed' };
         var now=new Date().toISOString();
         // ★employees以外の全スナップショット項目を保存(確定印/年末調整/賞与/カスタム給テンプレ/onboard等も載せる=端末替えで消えない)
         var settings={}; for(var k in state){ if(Object.prototype.hasOwnProperty.call(state,k) && k!=='employees') settings[k]=state[k]; }
@@ -828,7 +844,7 @@
        ＝保存側の _jibunGaOkuttaKa(会社専用・字形は Date.parse 正規化・uidごと・上限8)をそのまま読む。判じは変えない。 */
     Store.isOwnCompanyUA = function(ua){ try{ return _jibunGaOkuttaKa(ua); }catch(e){ return false; } };
 
-    Store.cloudLoadState = function(){
+    Store.cloudLoadState = function(onUid){   /* onUid＝★この 読み込み 自身の 口★を 受ける（読み込みが 落ちても 呼ぶ・taiketsu N2） */
       /* ★口（getUser）が 通信で 落ちた 時も「読めなかった」★（2026-10-14 taiketsu）
          前は curUid() が null を 返し「ログインして いない＝読む物が 無い」に 倒れ、古い 写しが 帯なしで 出た。
          ★本当に ログインして いない（error 無し／AuthSessionMissingError）だけ null★＝doSavePayslip と 同じ 見分け。
@@ -847,6 +863,7 @@
         lastLoadErr = String((e && e.message) || '口が 確かめられない');
         throw e;
       }).then(function(uid){ if(!uid) return null;
+        if(typeof onUid === 'function'){ try{ onUid(uid); }catch(_eU){ console.error('★読み込みの 口を 渡せません★', _eU); } }
         _okuttaKuchi(uid);   /* ★端末の 控えが 別の 口の 物なら ここで 捨てる★（開き直しの 判じより 前） */
         return Promise.all([
           sb.from('pay_companies').select('data,updated_at').eq('account_id',uid).maybeSingle(),
@@ -999,6 +1016,7 @@
           _ne.noUser = !_ae || _ae.name === 'AuthSessionMissingError';
           throw _ne;
         }
+        if(_kuchiChigau(uid)) throw _kuchiMadaErr('明細');   /* ★画面が 決めた 口だけ★（受け手 saveFailed は noUser で 黙る） */
         return sb.from('pay_payslips').upsert({ id:id, account_id:uid, ym:ym, employee_id:employeeId, data:d, updated_at:new Date().toISOString() }).then(function(res){
           if(res && res.error) throw new Error((res.error.message)||'明細を クラウドに 保存できません');
           return res;
@@ -1060,6 +1078,8 @@
       var _mae = saveHold ? saveHold.then(function(){ return null; }, function(){ return null; }) : Promise.resolve(null);
       return _mae.then(function(){ var _ym = _yomenaiNara('明細の 確定の 外し'); if(_ym) throw _ym; return sb.auth.getUser(); }).then(function(r){ var uid=r.data&&r.data.user&&r.data.user.id;
         if(!uid){ var _ae=r&&r.error; var _ne=new Error(_ae ? 'つながりません（明細の 確定を 外せません）' : 'ログインしていません（明細の 確定を 外しません）'); _ne.noUser = !_ae || _ae.name==='AuthSessionMissingError'; throw _ne; }
+        /* ★画面が 決めた 口だけ★（taiketsu S2＝前の 人の 取り消しの 控えを 別の 口へ 送ると、0行で ok に なり 控えが 黙って 消えた）＝noUser で 投げる＝控えは 残る */
+        if(_kuchiChigau(uid)) throw _kuchiMadaErr('明細の 確定の 外し');
         return sb.from('pay_payslips').select('id,data,updated_at').eq('id', id).maybeSingle().then(function(g){
           if(g && g.error) throw new Error((g.error.message)||'明細を 読めません');
           var row = g && g.data; if(!row) return { ok:true, n:0 };

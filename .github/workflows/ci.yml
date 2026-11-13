@@ -823,6 +823,30 @@ jobs:
         run: node kyuyo/tests/gamen-ikiki-modoranai.test.mjs && node kyuyo/tests/gamen-ikiki-modoranai.test.mjs --waza && node kyuyo/tests/gamen-ikiki-modoranai.test.mjs --waza=tsuki
       - name: ★押して すぐ 閉じる・アプリを 払う→新しい タブで 開いても 消した 人が 戻らない（写しの 名簿・本物の app＋store を 偽の supabase で・壊し5つ）
         run: node kyuyo/tests/atarashii-tab-hiraki.test.mjs && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=1 && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=2 && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=3 && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=4 && node kyuyo/tests/atarashii-tab-hiraki.test.mjs --waza=5
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝本体（--bu=1）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=1
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 1／11（--bu=2）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=2
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 2／11（--bu=3）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=3
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 3／11（--bu=4）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=4
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 4／11（--bu=5）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=5
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 5／11（--bu=6）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=6
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 6／11（--bu=7）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=7
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 7／11（--bu=8）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=8
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 8／11（--bu=9）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=9
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 9／11（--bu=10）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=10
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 10／11（--bu=11）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=11
+      - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 11／11（--bu=12）
+        run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=12
       - name: ★読めるまで消さない・読めるまで保存しない（2026-09-03 P0＝開いただけで従業員が消えた 6/10）
         run: node kyuyo/tests/load-before-delete.test.mjs && node kyuyo/tests/load-before-delete.test.mjs --self-test
       - name: ★ログインする試験は「本番のrepoでは測らない」門を必ず持つ（09-16＝本番のWebKitが毎回赤だった）
