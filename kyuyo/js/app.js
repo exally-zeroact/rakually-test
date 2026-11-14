@@ -2240,6 +2240,8 @@
   var _saigoZgP = null;   /* ★在籍外の 人の 確定を 外す 約束（最後の 束）★ */
   /* ★名簿を 読む 前は「名簿に 居ない」で 片付けない★＝開いた 直後は 名簿が まだ 無い（片付けると 控えを 全部 消す・試験㉝で 踏んだ） */
   var _hazushiMeiboOk = false;
+  /* ★この ページで 倉庫の 会社を もう 採ったか★（2026-11-14 会社設定の 上書き）＝1回目は 倉庫の 会社を 採る・2回目からは 手元の 直しを reconcile に 任せる。口が 替われば _stateShokiNi で 戻す */
+  var _kaishaYonda = false;
   /* ★持ち主の 居ない 控えを 片付ける★（taiketsu 10-12）＝人を 消した／もう一度 確定に 戻った 人の 控えは 二度と 送られず、帯が 消えなく なる */
   function _hazushiSoji(){ for(var k in _hazushi){ var p=k.split('|'), ym=p[0], id=p.slice(1).join('|');
     var iru=!_hazushiMeiboOk || (state.employees||[]).some(function(e){ return e && e.id===id; });
@@ -7520,7 +7522,7 @@
     if(_saveT){ clearTimeout(_saveT); _saveT=null; }   /* ★前の 人の 待ちの 保存は 出さない★ */
     _syncMeta.dirty=false; _syncMeta.baseCoUA=null;
     _okuttaUtsushi=null; _utsushiTab=null;
-    for(var k in _hazushi){ delete _hazushi[k]; } _hazushiMeiboOk=false;
+    for(var k in _hazushi){ delete _hazushi[k]; } _hazushiMeiboOk=false; _kaishaYonda=false;
     for(var k2 in _zgIchu){ delete _zgIchu[k2]; } for(var k3 in _zgYasumi){ delete _zgYasumi[k3]; }
   }
   /* ★今の 口の 棚が 在れば 写しへ 戻して 読み直す★（A→B→A で A の 未送信の 直しを newer-wins で 拾う＝消さない）。全部 書けたら 棚を 消す */
@@ -7536,13 +7538,31 @@
     }catch(e){ console.error('★棚から 写しへ 戻せません（棚は 残します）★', e); }
     _utsushiYomu();
   }
-  function applyCloudState(cs){ if(!(cs&&cs.employees&&cs.employees.length)) return false;
+  function applyCloudState(cs){
+    var _hitoCs=!!(cs&&cs.employees&&cs.employees.length), _hitoTe=!!(state.employees&&state.employees.length);
+    /* ★倉庫に 会社の 行が 在り 人が 0人＋手元も 0人（2026-11-14 会社設定の 上書き）★
+       前は 0人で false を 返し、auth.js の 初回アップが 端末の 既定の 会社（振込元 空）で 倉庫の 会社を 上書きしていた。
+       ・このページで 1回目（_kaishaHatsu）＝倉庫の 会社を 採る。読み込みの 途中に 入れた 会社の 直しは 入らないので、
+         倉庫と も 既定と も 違う 時だけ 窓で 1回 言う（帯は 次の 保存で 消える＝taiketsu 止め1）。
+       ・2回目から（_kaishaNido）＝手元の 直しは 読んだ 後の 物＝reconcile に 任せ、下の「手元 0人なら 倉庫」倒しは 外す。 */
+    var _kaishaAri=!_hitoCs && !_hitoTe && !!(cs&&cs.company);
+    var _kaishaHatsu=_kaishaAri && !_kaishaYonda, _kaishaNido=_kaishaAri && _kaishaYonda;
+    if(!_hitoCs && !_kaishaAri) return false;
+    var _kaishaKieru=false;
+    if(_kaishaHatsu){ try{
+      /* ★鍵の 順を 揃えて 比べる★（倉庫の jsonb は 入れ子の 鍵の 順が 変わる＝順だけの 違いで 窓を 出さない・taiketsu 任意B） */
+      var _jun=function(v){ if(Array.isArray(v)) return v.map(_jun); if(v&&typeof v==='object'){ var o={}; Object.keys(v).sort().forEach(function(k){ o[k]=_jun(v[k]); }); return o; } return v; };
+      var _jJ=function(c){ return JSON.stringify(_jun(Object.assign(defCompany(), c||{}))); };
+      var _teJ=_jJ(state.company);
+      _kaishaKieru=(_teJ!==_jJ(null)) && (_teJ!==_jJ(cs.company));
+    }catch(e){ _kaishaKieru=false; } }
     /* ★★ロード側 newer-wins（2026-10-07 棚(d)・司さん方針）★★
        前は ★updated_at を見ず クラウドで 無条件上書き★＝離脱で クラウド保存を 取りこぼすと
        次回ロードで ★古いクラウドが 新しいローカル編集を 消していた★（remote-always-wins 退化）。
        判じは store.js の 純関数 Store.reconcileOnLoad（app と 試験が 同じ本物を 呼ぶ）。 */
     var dec=null;
-    try{ if(window.Store&&Store.reconcileOnLoad){ dec=Store.reconcileOnLoad({
+    if(_kaishaHatsu) dec={ apply:'cloud', push:false, conflict:false, protect:'cloud' };
+    else try{ if(window.Store&&Store.reconcileOnLoad){ dec=Store.reconcileOnLoad({
       localDirty:_syncMeta.dirty, baseCoUA:_syncMeta.baseCoUA, cloudCoUA:cs._coUA,
       /* ★写しを 最後に 書いたのが この タブの 時だけ 自分の 書きを 信じる★（別の タブが 上書きした 写しで この タブの 控えを 使わない） */
       /* ★もう 1つ＝写しの 中の 名簿（案a）★＝中身と 一緒に 動くので タブの 門は 要らない（新しい タブ・アプリを 払った 後でも 効く）。口（uid）が 同じ 時だけ */
@@ -7553,7 +7573,7 @@
     }); } }catch(e){ console.error('★reconcileOnLoad が 呼べません（これまでの道で クラウド適用に 倒す）★', e); dec=null; }
     /* ★手元が 0人なら 手元を 採らない★（taiketsu 10-25 止める-1）＝写しが 0人だと 開き直しで 写しを 読まず 会社も 既定の まま（振込元が 空）。
        それを 送ると 倉庫の 会社の 設定を 既定値で 上書きし、人は 0人なので 差分削除も 走らず 消した 人も 消えない。⇒ 倉庫を 採る（消した 人は 戻る＝前の 動き） */
-    if(dec && dec.apply==='local' && !(state.employees && state.employees.length)){
+    if(dec && dec.apply==='local' && !_hitoTe && !_kaishaNido){
       console.error('★手元が 0人なので クラウドを 採ります（会社の 設定を 既定値で 上書きしない）★');
       dec={ apply:'cloud', push:false, conflict:true, protect:'cloud' };
     }
@@ -7585,7 +7605,7 @@
       if(dec.push) persistSaveDebounced();   /* 据置＝安全に 送り直し（presence削除も クラウド未進行で 安全） */
       $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); warmLedger();
       var actL=$('.screen.active'); if(actL)showScreen(actL.id);
-      _hazushiMeiboOk=true;
+      _hazushiMeiboOk=true; _kaishaYonda=true;
       return true;
     }
     /* apply==='cloud'（未送信編集なし=replace／未同期・競合=union・向きは protect）＝クラウドで 置換。保護は _mamoru が 向きどおり。 */
@@ -7597,7 +7617,9 @@
     _syncMeta.baseCoUA=(cs._coUA==null?null:String(cs._coUA)); _syncMeta.dirty=false; _saveSyncMeta();   /* ★クラウドを採った＝基準を更新・cleanに（棚d）★ */
     _okuttaUtsushi=null;   /* ★中身が 倉庫の 物に 替わった＝写しの 名簿は もう この 中身の 物では ない（案a）★ */
     state._prevYm=null; state._bonusPrevYm=null; state._bonusYtdYm=null; // クラウド復元で前月比キャッシュを無効化(stale防止)
-    $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); warmLedger(); var act=$('.screen.active'); if(act)showScreen(act.id); _hazushiMeiboOk=true; return true; }
+    $$('.scr-month').forEach(function(m){ m.value=state.month; }); fillCompany(); warmLedger(); var act=$('.screen.active'); if(act)showScreen(act.id); _hazushiMeiboOk=true; _kaishaYonda=true;
+    if(_kaishaKieru) uiAlert('読み込みの途中に入れた会社の設定は入っていません。もう一度入れてください。', '会社の設定');
+    return true; }
   /* ★倉庫の 答えが 来るまで 人の 一覧を 描かない★（2026-09-05 指示役の裁定・案D）
      ★なぜ★＝前は ★端末の 写しで 先に 描き、あとから 倉庫の 本物で 丸ごと 差し替えて★いた。
        ★実測★（候補を 1つずつ 4秒 遅らせて 確定ボタンの 上端を 測った）

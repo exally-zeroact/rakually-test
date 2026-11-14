@@ -46,7 +46,7 @@ function kowasu(base, src) {
     if (src.indexOf(ato) < 0) { console.log('✗ ★--waza=5 の 移し先が store.js に 無い★'); process.exit(1); }
     return src.split(gyo + '\n').join('').replace(ato, ato + '\n' + gyo);
   }
-  if (WAZA === 4 && base === 'app.js') return swap("dec.apply==='local' && !(state.employees && state.employees.length)", "false && dec.apply==='local'");
+  if (WAZA === 4 && base === 'app.js') return swap("dec.apply==='local' && !_hitoTe && !_kaishaNido", "false && dec.apply==='local'");
   return src;
 }
 const SRCS = [];

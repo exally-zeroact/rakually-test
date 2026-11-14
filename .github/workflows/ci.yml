@@ -847,6 +847,8 @@ jobs:
         run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=11
       - name: ★前に 入った 人の 写しを 別の 人の 倉庫へ 書かない・画面に 出さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し11）＝⑫ の 11／11（--bu=12）
         run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=12
+      - name: ★倉庫に 会社の 行が 在り 人 0人の 口で 開いても 会社の 設定（振込元）を 既定で 上書きしない・読み込み中の 直しが 入らない 時は 窓で 言う・読んだ 後の 直しは 戻さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し3）
+        run: node kyuyo/tests/kaisha-uwagaki.test.mjs
       - name: ★読めるまで消さない・読めるまで保存しない（2026-09-03 P0＝開いただけで従業員が消えた 6/10）
         run: node kyuyo/tests/load-before-delete.test.mjs && node kyuyo/tests/load-before-delete.test.mjs --self-test
       - name: ★ログインする試験は「本番のrepoでは測らない」門を必ず持つ（09-16＝本番のWebKitが毎回赤だった）
