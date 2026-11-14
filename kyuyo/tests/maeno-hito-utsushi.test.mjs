@@ -12,7 +12,7 @@
  *   ④ B の 倉庫が 読めない 時も B の 倉庫に 書かない（store.js:609 の 門）
  *   ⑤ 同じ 人（A）が 入り直した 時は 手元の 写しを 使える（前の 動きを 壊さない）
  *   ⑥ ログインせずに 使った 写し（口の 印 無し）を 新規の 口へ 上げる「初回アップ」は 前の まま
- * 使い方: node kyuyo/tests/maeno-hito-utsushi.test.mjs [--bu=1〜5]（CI と 押す前の 網は 5段に 割って 回す）
+ * 使い方: node kyuyo/tests/maeno-hito-utsushi.test.mjs [--bu=1〜12]（CI と 押す前の 網は 12段に 割って 回す・--bu 無し＝全部 約12分）
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -128,7 +128,7 @@ const lsDake = (win) => { const o = {}; const S = win.localStorage; for (let i =
 
 let pass = 0, fail = 0;
 const T = (n, c, m) => { if (c) { pass++; console.log('  ✓ ' + n); } else { fail++; console.log('  ✗ ' + n + (m ? ' — ' + m : '')); } };
-/* ★段を 12に 分ける（--bu=1〜12）★＝全部で 1回 約6分超（本体 約104秒＋⑫ 壊し1つ 約56秒×11）＝押す前の 網の 1段の 上限 180秒を 越えた（11-14 網が 180秒で 切った・3つずつでも 170秒）。
+/* ★段を 12に 分ける（--bu=1〜12）★＝全部で 1回 約12分（本体 約104秒＋⑫ 壊し1つ 約56秒×11）＝押す前の 網の 1段の 上限 180秒を 越えた（11-14 網が 180秒で 切った・3つずつでも 170秒）。
    --bu=1＝本体の 場面だけ（⑫ 無し）／--bu=2〜12＝⑫ の 壊しを 1つずつ（KOWASU の 順・本体は 走らせない）／--bu 無し＝全部。中身は 1つも 変えない。打ち間違いや 壊しの 数との ずれは 止める。 */
 const buA = process.argv.filter((x) => x.indexOf('--bu') === 0);
 if (buA.length > 1 || (buA.length === 1 && !/^--bu=([1-9]|1[0-2])$/.test(buA[0]))) {
@@ -494,4 +494,5 @@ for (const [na, f, kara, he] of KOWASU_KONO) {   /* MAENO_SUGU=1＝⑫ を 飛�
 }
 
 console.log('\n' + (fail ? '✗' : '✓') + ' maeno-hito-utsushi: ' + pass + ' ✓ / ' + fail + ' ✗');
+console.log('KEKKA {"passed":' + pass + ',"failed":' + fail + ',"mimiso":0}');   /* ★約束の行（tools/_bunrui.mjs 用）★ */
 process.exit(fail ? 1 : 0);
