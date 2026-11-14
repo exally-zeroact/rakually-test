@@ -41,7 +41,9 @@ export const FURUI = ['exally_entitlements', 'exally_admins', 'is_exally_admin']
    ⇒ それは ★行数★ で、この 門が 数える ★件数★では ない（1行に 2つ 在る 所が 在る）。
    ⇒ ★「何を 何で 数えたか」を 揃えて いなかった★＝今日 何度も 出た 形。
    ⇒ ★この 門が 出した 数（60）を 決め打ちに する★＝★同じ 物差しで 数える★ */
-const HONSU = 71;
+/* ★11-15 71→73★＝tests/suite-data.test.js に「利用権を 読めない 時」の 試験 2本を 足した。
+   偽の 倉庫で 1回だけ 落とす 呼び（_failNext）は 表の 名前を 渡すしか ない＝2件 増えた（字は 割らない）。 */
+const HONSU = 73;
 const KAMI_HONSU = 12;
 /* ★★この 門 自身も 数に 入って います（11件）★★（2026-09-19 実測で 踏んだ）
    commit する 前は `git ls-files` に 無く ★60件／11枚★。

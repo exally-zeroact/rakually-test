@@ -363,6 +363,21 @@ test('監査: 利用権の作成に失敗したら成功を返さない', async 
   assert.ok(r.error, 'エラーが返っていない');
 });
 
+test('監査: 利用権を読めない時は「行が無い（null）」にせず投げる（gate の catch＝開く方針のまま）', async () => {
+  const { sb, sd } = setup();
+  sb._failNext('exally_entitlements', 'select');
+  await assert.rejects(() => sd.entitlements.get('suite'), /fake-failure/);
+});
+
+test('監査: 利用権を読めない時は ensure が作りに行かない・error を返す', async () => {
+  const { sb, sd } = setup();
+  sb._failNext('exally_entitlements', 'select');
+  const r = await sd.entitlements.ensure('suite');
+  assert.strictEqual(r.plan, null);
+  assert.ok(r.error, 'エラーが返っていない');
+  assert.strictEqual(await sd.entitlements.get('suite'), null, '読めないのに行を作った');
+});
+
 /* ═══ 利用権 ═══ */
 
 test('利用権: 行が無ければ trial を1行だけ作る(2回目は作らない)', async () => {

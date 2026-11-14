@@ -311,7 +311,11 @@
           return uid().then(function (u) {
             if (!u) return null;
             return Promise.resolve(sb.from('exally_entitlements').select('plan,expires_at').eq('account_id', u).eq('app', app).maybeSingle())
-              .then(function (r) { return (r && r.data) || null; });
+              .then(function (r) {
+                /* ★読めない（error）を「行が無い（null）」にしない★（2026-11-15）＝投げる→gateCheck の catch（締めない方針のまま） */
+                if (r && r.error) throw new Error(err(r.error));
+                return (r && r.data) || null;
+              });
           });
         },
         // 行が無ければ trial を1行だけ作る。★既存の plan は絶対に書き換えない(有料客を無料に落とさない)★
@@ -320,6 +324,7 @@
             if (!user) return null;
             return Promise.resolve(sb.from('exally_entitlements').select('plan').eq('account_id', user.id).eq('app', app).maybeSingle())
               .then(function (r) {
+                if (r && r.error) return { plan: null, existed: false, error: err(r.error) };   // ★読めない時は作りに行かない（2026-11-15）
                 if (r && r.data) return { plan: r.data.plan, existed: true };
                 return Promise.resolve(sb.from('exally_entitlements').insert({ account_id: user.id, app: app, plan: 'trial', email: user.email || null }))
                   .then(function (w) {

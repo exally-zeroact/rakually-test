@@ -32,7 +32,9 @@ function nisemono(state) {
         state.log.push(op);
         let r;
         if (state.error) r = { data: null, error: { message: state.error } };
-        else if (op.kind === 'select') r = { data: op.single ? null : [], error: null, count: 0 };
+        else if (state.insError && op.kind === 'insert') r = { data: null, error: { message: state.insError } };
+        else if (state.selError && op.kind === 'select') r = { data: null, error: { message: state.selError } };
+        else if (op.kind === 'select') r = { data: op.single ? (state.selRow || null) : [], error: null, count: 0 };
         else if (op.sel) r = { data: state.rows.slice(), error: null, status: 200 };
         else r = { data: null, error: null, status: 204 };
         return Promise.resolve(r).then(res, rej);
@@ -112,6 +114,38 @@ async function mawasu(src) {
     st2.rows = [{ id: 'b1' }]; const r2 = await Store.remove('b1'); ok(r2 === true, 'r2=' + r2);
   });
 
+  /* ── 利用権（getAccount／ensureAccount）＝読めない／作れない時に「無い」「作った」と言わない（2026-11-15） ── */
+  const ins = () => st2.log.filter((x) => x.kind === 'insert').length;   // ★この 2つの 呼びで insert するのは 利用権の 行だけ（表の 名前は 書かない＝furui-namae の 数を 増やさない）
+  await T('⑦ getAccount：倉庫の error は「行が無い（null）」にせず 投げる（gate の catch＝開く方針のまま）', async () => {
+    st2.rows = []; st2.error = null; st2.selError = 'JWT expired'; st2.selRow = null; st2.log.length = 0;
+    let nage = null; try { await Store.getAccount(); } catch (e) { nage = e; }
+    st2.selError = null;
+    ok(nage && /JWT expired/.test(String(nage.message)), '投げていない（error を 行が無いと 同じに している）');
+  });
+  await T('⑦ ensureAccount：読めない時は 作りに 行かない・error を 返す', async () => {
+    st2.selError = 'JWT expired'; st2.log.length = 0;
+    const r = await Store.ensureAccount(); st2.selError = null;
+    ok(ins() === 0, 'insert ' + ins() + '回');
+    ok(r && r.plan === null && /JWT expired/.test(String(r.error)), 'r=' + JSON.stringify(r));
+  });
+  await T('⑦ ensureAccount：作るのに 失敗したら「作った（trial）」と 言わない', async () => {
+    st2.insError = 'duplicate key value'; st2.log.length = 0;   // ★読めて 行が無く、作る所だけ 落ちる
+    const r = await Store.ensureAccount(); st2.insError = null;
+    ok(ins() === 1, '作りに 行っていない（insert ' + ins() + '回）');
+    ok(r && r.plan === null && /duplicate key/.test(String(r.error)), 'r=' + JSON.stringify(r));
+  });
+  await T('⑦ ensureAccount：行が 在れば 本当の plan を 返す（有料を trial と 言わない）・作らない', async () => {
+    st2.selRow = { account_id: 'u1', plan: 'paid' }; st2.log.length = 0;
+    const r = await Store.ensureAccount(); st2.selRow = null;
+    ok(ins() === 0, 'insert ' + ins() + '回');
+    ok(r && r.plan === 'paid' && r.existed === true, 'r=' + JSON.stringify(r));
+  });
+  await T('⑦ ensureAccount：行が 無く 作れたら trial', async () => {
+    st2.log.length = 0;
+    const r = await Store.ensureAccount();
+    ok(ins() === 1 && r && r.plan === 'trial' && r.existed === false, 'r=' + JSON.stringify(r) + ' insert ' + ins());
+  });
+
   /* ── 使う側（字の門＝画面ごと 立てるのは 重い） ── */
   await T('⑤ 給与の画面：再発行は r.ok を 見てから「再発行しました」と言う', async () => {
     const i = src.app.indexOf('Store.reissueMeisaiInit(tok)'); ok(i >= 0, '呼びが 無い');
@@ -146,6 +180,10 @@ if (process.argv.includes('--self-test')) {
     ['束の消しの 0行の判じを外す', 'store', "return !!(r&&!r.error&&r.data&&r.data.length);", 'return true;'],
     ['画面の r.ok を外す', 'app', "if(!r||!r.ok){ toast('初回コードを再発行できませんでした", "if(false){ toast('初回コードを再発行できませんでした"],
     ['管理画面の 0行の判じを外す', 'admin', "if (!(r.data && r.data.length))", 'if (false)'],
+    ['getAccount の error を外す', 'store', "if(r.error) throw new Error(", "if(false) throw new Error("],
+    ['ensureAccount の 読めない を外す', 'store', "if(rr.error) return { plan:null", "if(false) return { plan:null"],
+    ['ensureAccount の 作れない を外す', 'store', "if(w&&w.error) return { plan:null", "if(false) return { plan:null"],
+    ['ensureAccount の 本当の plan を外す', 'store', "if(rr.data) return { plan:rr.data.plan, existed:true };", "if(rr.data) return { plan:'trial', existed:true };"],
   ];
   let aka = 0, ng = 0;
   for (const [nm, k, from, to] of KOWASHI) {

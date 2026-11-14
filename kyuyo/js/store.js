@@ -933,16 +933,24 @@
     Store.getAccount = function(){
       return curUid().then(function(uid){ if(!uid) return null;
         return sb.from('exally_entitlements').select('plan,expires_at').eq('account_id',uid).eq('app',APP).maybeSingle()
-          .then(function(r){ return r.data || null; });
+          .then(function(r){
+            /* ★読めない（error）を「行が無い（null）」と同じにしない★（2026-11-15）＝null だと 初回扱いで 作りに 行った。
+               投げる → gateCheck の catch＝{ok:true, reason:'error'}（取れない時は締めない方針は そのまま） */
+            if(r.error) throw new Error('利用権を読めませんでした（' + (r.error.message||'error') + '）');
+            return r.data || null; });
       });
     };
     // 初回ログインで(このアプリの)行が無ければ trial 行を自動作成(insertポリシーで plan='trial' 固定)。
     // 管理画面で「誰か」を表示するため email も入れる(自分の行のみ)。
     Store.ensureAccount = function(){
       return sb.auth.getUser().then(function(r){ var u=r.data&&r.data.user; var uid=u&&u.id; if(!uid) return null; var email=u.email||null;
-        return sb.from('exally_entitlements').select('account_id').eq('account_id',uid).eq('app',APP).maybeSingle().then(function(rr){
-          if(rr.data) return { plan:'trial', existed:true };
-          return sb.from('exally_entitlements').insert({ account_id:uid, app:APP, plan:'trial', email:email }).then(function(){ return { plan:'trial', existed:false }; });
+        /* ★読めない時は 作りに 行かない・作れなかったら「作った」と 言わない・在る行は 本当の plan を 返す★（2026-11-15・js/suite-data.js の ensure と 同じ形） */
+        return sb.from('exally_entitlements').select('account_id,plan').eq('account_id',uid).eq('app',APP).maybeSingle().then(function(rr){
+          if(rr.error) return { plan:null, existed:false, error:(rr.error.message||'error') };
+          if(rr.data) return { plan:rr.data.plan, existed:true };
+          return sb.from('exally_entitlements').insert({ account_id:uid, app:APP, plan:'trial', email:email }).then(function(w){
+            if(w&&w.error) return { plan:null, existed:false, error:(w.error.message||'error') };
+            return { plan:'trial', existed:false }; });
         });
       });
     };
