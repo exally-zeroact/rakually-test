@@ -122,8 +122,10 @@
 
   function setPlan(account_id, app, plan) {
     sb.from('exally_entitlements').update({ plan: plan, updated_at: new Date().toISOString() })
-      .eq('account_id', account_id).eq('app', app).then(function (r) {
+      .eq('account_id', account_id).eq('app', app).select('account_id').then(function (r) {
         if (r.error) { toast('変更できませんでした: ' + r.error.message); return; }
+        /* ★書けた 行を 数える★（2026-11-14）＝0行（ログイン切れ・行が もう無い）でも error は 無く「変更しました」と 出ていた（kagikire-0gyo） */
+        if (!(r.data && r.data.length)) { toast('変更できませんでした（倉庫に書けませんでした。ログインし直すか、一覧を読み直してください）'); return; }
         // ローカル反映(再取得せず即時)
         rows.forEach(function (x) { if (x.account_id === account_id && x.app === app) x.plan = plan; });
         var lbl = (PLANS.filter(function (p) { return p.key === plan; })[0] || {}).label || plan;

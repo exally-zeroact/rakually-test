@@ -84,7 +84,7 @@
     },
 
     remove: function(id){
-      if(hasSupa){ return sb.from('payslip_batches').delete().eq('id',id).then(function(){ return true; }); }
+      if(hasSupa){ return sb.from('payslip_batches').delete().eq('id',id).select('id').then(function(r){ return !!(r&&!r.error&&r.data&&r.data.length); }); }   /* ★0行（ログイン切れ・もう無い）は false★（2026-11-14・kagikire-0gyo） */
       lsWrite(lsAll().filter(function(b){ return b.id!==id; })); return Promise.resolve(true);
     }
   };
@@ -1461,8 +1461,11 @@
   // 会社: 初回コード再発行(＝旧パスワード/記憶を無効化・本人が再設定)。返り={ok,initCode}
   Store.reissueMeisaiInit = function(token){
     if(hasSupa){ var code=rndCode(); // 会社側=RLSで自分の行のみ。旧PW/端末記憶/同意/ロックを全リセット(別人が再設定→前任者の同意を引き継がない=電子交付要件)
-      return sb.from('pay_meisai_pub').update({ init_code:code, pw_hash:null, device_tokens:[], consent_at:null, fail_count:0, locked_until:null }).eq('token', token).then(function(r){
-        return { ok:!r.error, initCode:code };
+      return sb.from('pay_meisai_pub').update({ init_code:code, pw_hash:null, device_tokens:[], consent_at:null, fail_count:0, locked_until:null }).eq('token', token).select('token').then(function(r){
+        /* ★書けた 行を 数える★（2026-11-14）＝0行（ログイン切れ・もう無い リンク）でも error は 無い＝使えない コードを「再発行しました」と 渡していた（kagikire-0gyo） */
+        if(r.error) return { ok:false, reason:(r.error.message||'つながりません') };
+        if(!(r.data&&r.data.length)) return { ok:false, reason:'倉庫に書けませんでした（ログインが切れたか、このリンクがもう在りません）。開き直してください' };
+        return { ok:true, initCode:code };
       });
     }
     var f=findPub(token); if(!f.p) return Promise.resolve({ ok:false });

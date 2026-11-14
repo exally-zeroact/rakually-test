@@ -849,6 +849,8 @@ jobs:
         run: node kyuyo/tests/maeno-hito-utsushi.test.mjs --bu=12
       - name: ★倉庫に 会社の 行が 在り 人 0人の 口で 開いても 会社の 設定（振込元）を 既定で 上書きしない・読み込み中の 直しが 入らない 時は 窓で 言う・読んだ 後の 直しは 戻さない（2026-11-14・本物の app＋store＋auth を 偽の supabase で・壊し3）
         run: node kyuyo/tests/kaisha-uwagaki.test.mjs
+      - name: ★倉庫が 0行の 書き（ログイン切れ・もう無い）を「できました」と 言わない＝請求の 取り消し・下書き消し・送った印・入金の取り消し・初回コードの再発行・管理画面のプラン（2026-11-14・偽の supabase・壊し6）
+        run: node kyuyo/tests/kagikire-0gyo.test.mjs && node kyuyo/tests/kagikire-0gyo.test.mjs --self-test
       - name: ★読めるまで消さない・読めるまで保存しない（2026-09-03 P0＝開いただけで従業員が消えた 6/10）
         run: node kyuyo/tests/load-before-delete.test.mjs && node kyuyo/tests/load-before-delete.test.mjs --self-test
       - name: ★ログインする試験は「本番のrepoでは測らない」門を必ず持つ（09-16＝本番のWebKitが毎回赤だった）

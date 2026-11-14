@@ -21,6 +21,19 @@
   var MAX_BUMP = 20;   // 同時発行のぶつかりで番号を進める上限（これを超えたら人に返す）
 
   function err(e) { return (e && (e.message || e.reason)) || 'error'; }
+  /* ★書けた 行を 数える★（2026-11-14）＝前は error が 無ければ {ok:true}。
+     ログインが 切れた（anon）・別の 端末で 先に 消えた／発行された 時、倉庫の RLS で 0行に なっても
+     PostgREST は 204・error null を 返す（テスト倉庫で 実測）＝「取り消しました」と 出て 倉庫は 変わらなかった。
+     ⇒ 呼びに .select('id') を 付け、返った 行が 0 なら ok:false。見本＝js/suite-data.js の kesetaKa。
+     試験＝kyuyo/tests/kagikire-0gyo.test.mjs */
+  var KAKENAI = '倉庫に書けませんでした（ログインが切れたか、この1通がもう在りません）。開き直してから、もう一度 お試しください';
+  /* 下書きの 消しは「別の 端末で 発行された」でも 0行（.eq('status','draft')）＝その字も 言う（taiketsu 11-14 任1） */
+  var KESENAI = '倉庫に書けませんでした（ログインが切れたか、別の端末で消された／発行された1通です）。開き直してから、もう一度 お試しください';
+  function kakitaKa(w, ji) {
+    if (w && w.error) return { ok: false, reason: err(w.error) };
+    var n = (w && Array.isArray(w.data)) ? w.data.length : 0;
+    return n > 0 ? { ok: true } : { ok: false, reason: (typeof ji === 'string' ? ji : KAKENAI) };
+  }
   /* 一意制約に弾かれたか（番号の重複）。PostgREST は 23505 を返す */
   function isDup(e) {
     var s = String((e && (e.code || e.message)) || '');
@@ -181,21 +194,21 @@
         /* 取り消し（★消さない・番号を欠番にしない★） */
         voidIt: function (id, at) {
           var stamp = at || nowIso();
-          return Promise.resolve(sb.from('pay_invoices').update({ status: 'void', voided_at: stamp, updated_at: stamp }).eq('id', id))
-            .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true }; })
+          return Promise.resolve(sb.from('pay_invoices').update({ status: 'void', voided_at: stamp, updated_at: stamp }).eq('id', id).select('id'))
+            .then(kakitaKa)
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         },
         /* 下書きだけ消せる（発行済みは倉庫が2枚で止める） */
         removeDraft: function (id) {
-          return Promise.resolve(sb.from('pay_invoices').delete().eq('id', id).eq('status', 'draft'))
-            .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true }; })
+          return Promise.resolve(sb.from('pay_invoices').delete().eq('id', id).eq('status', 'draft').select('id'))
+            .then(function (w) { return kakitaKa(w, KESENAI); })
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         },
         /* 「送った」記録（発行後も入れられる＝固まる列に入っていない） */
         markSent: function (id, at) {
           var stamp = at || nowIso();
-          return Promise.resolve(sb.from('pay_invoices').update({ sent_at: stamp, updated_at: stamp }).eq('id', id))
-            .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true }; })
+          return Promise.resolve(sb.from('pay_invoices').update({ sent_at: stamp, updated_at: stamp }).eq('id', id).select('id'))
+            .then(kakitaKa)
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         },
       },
@@ -250,8 +263,8 @@
            物理削除すると「いつ何を消したか」が残らない＝入金の履歴が信用できなくなる。 */
         remove: function (id, at) {
           var stamp = at || nowIso();
-          return Promise.resolve(sb.from('pay_receipts').update({ deleted_at: stamp, updated_at: stamp }).eq('id', id))
-            .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true }; })
+          return Promise.resolve(sb.from('pay_receipts').update({ deleted_at: stamp, updated_at: stamp }).eq('id', id).select('id'))
+            .then(kakitaKa)
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         },
       },

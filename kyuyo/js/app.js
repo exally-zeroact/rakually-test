@@ -6830,7 +6830,7 @@
           printQRCards((list||[]).map(function(p){ var code=(!p.hasPassword?p.initCode:''); return { name:p.name, url:origin+p.link+(code?('&c='+encodeURIComponent(code)):''), initCode:code }; })); }); // QRに初回コードを埋め込む=スキャンで自動入力
         return; }
       var ri=e.target.closest('.wm-reissue'); if(ri){ var tok=ri.dataset.token; uiConfirm('初回コードを再発行しますか？\n現在のパスワードと端末の記憶は無効になり、従業員は新しい初回コードで再設定します。').then(function(ok){ if(!ok)return;
-        Store.reissueMeisaiInit(tok).catch(function(e){ toast('初回コードを再発行できませんでした（' + ((e&&e.message)||'つながりません') + '）。'); throw e; }).then(function(){ renderWebMeisai(); toast('初回コードを再発行しました'); }); }); return; }
+        Store.reissueMeisaiInit(tok).catch(function(e){ toast('初回コードを再発行できませんでした（' + ((e&&e.message)||'つながりません') + '）。'); throw e; }).then(function(r){ if(!r||!r.ok){ toast('初回コードを再発行できませんでした（' + ((r&&r.reason)||'つながりません') + '）。'); return; } renderWebMeisai(); toast('初回コードを再発行しました'); }); }); return; }   /* ★r.ok を 見てから 言う★（2026-11-14・前は error でも「再発行しました」・kagikire-0gyo） */
     });
     window.addEventListener('resize',function(){ if($('#scr-print').classList.contains('active'))doPreview(); });
   }

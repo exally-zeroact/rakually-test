@@ -121,10 +121,11 @@ async function tateru() {
       usedNos: () => Promise.resolve(kura.map((x) => x.no)),
       saveDraft: (v) => okuruKura('save', v),
       issue: (row, at) => okuruKura('issue', Object.assign({}, row, { status: 'issued', issued_at: at })),
-      /* ★本物と 同じく id と 下書きで 消す・0行でも ok（seikyu-store.js removeDraft）・遅い★ */
+      /* ★本物と 同じく id と 下書きで 消す・0行は ok:false（seikyu-store.js removeDraft・2026-11-14 から 書けた 行を 数える）・遅い★ */
       removeDraft: (id) => new Promise((res) => {
-        setTimeout(() => { const i = kura.findIndex((x) => x.id === id && x.status === 'draft'); LOG.push('remove ' + id + ' ' + (i >= 0 ? '1行' : '0行')); if (i >= 0) kura.splice(i, 1); }, kuraOsoi.v / 2);
-        setTimeout(() => res({ ok: true }), kuraOsoi.v);
+        let n = 0;
+        setTimeout(() => { const i = kura.findIndex((x) => x.id === id && x.status === 'draft'); LOG.push('remove ' + id + ' ' + (i >= 0 ? '1行' : '0行')); if (i >= 0) { kura.splice(i, 1); n = 1; } }, kuraOsoi.v / 2);
+        setTimeout(() => res(n ? { ok: true } : { ok: false, reason: '倉庫に書けませんでした（ログインが切れたか、別の端末で消された／発行された1通です）。開き直してから、もう一度 お試しください' }), kuraOsoi.v);
       }),
       markSent: () => Promise.resolve({ ok: true }),
     },
