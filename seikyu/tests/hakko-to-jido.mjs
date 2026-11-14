@@ -125,7 +125,7 @@ async function tateru() {
       removeDraft: (id) => new Promise((res) => {
         let n = 0;
         setTimeout(() => { const i = kura.findIndex((x) => x.id === id && x.status === 'draft'); LOG.push('remove ' + id + ' ' + (i >= 0 ? '1行' : '0行')); if (i >= 0) { kura.splice(i, 1); n = 1; } }, kuraOsoi.v / 2);
-        setTimeout(() => res(n ? { ok: true } : { ok: false, reason: '倉庫に書けませんでした（ログインが切れたか、別の端末で消された／発行された1通です）。開き直してから、もう一度 お試しください' }), kuraOsoi.v);
+        setTimeout(() => res(n ? { ok: true } : { ok: false, reason: 'ログインが切れたか、別の端末で消された／発行された1通です。開き直してから、もう一度 お試しください' }), kuraOsoi.v);
       }),
       markSent: () => Promise.resolve({ ok: true }),
     },

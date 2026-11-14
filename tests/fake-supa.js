@@ -140,6 +140,8 @@ function createFakeSupa(opts) {
     }
     if (this._op === 'delete') {
       match.forEach(function (r) { var k = rows.indexOf(r); if (k >= 0) rows.splice(k, 1); });
+      // ★本物の supabase-js v2 と同じく .select() を付けた消しは 消した行を返す（付けなければ data:null）＝0行を ok:false にする呼び（kagikire-0gyo）が 偽の倉庫で 自分の行も 消せないと 言わない（2026-11-15）
+      if (self._selected) return { data: match.map(clone), error: null };
       return { data: null, error: null };
     }
 

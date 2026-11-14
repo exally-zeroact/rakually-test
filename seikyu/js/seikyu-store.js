@@ -26,9 +26,9 @@
      PostgREST は 204・error null を 返す（テスト倉庫で 実測）＝「取り消しました」と 出て 倉庫は 変わらなかった。
      ⇒ 呼びに .select('id') を 付け、返った 行が 0 なら ok:false。見本＝js/suite-data.js の kesetaKa。
      試験＝kyuyo/tests/kagikire-0gyo.test.mjs */
-  var KAKENAI = '倉庫に書けませんでした（ログインが切れたか、この1通がもう在りません）。開き直してから、もう一度 お試しください';
+  var KAKENAI = 'ログインが切れたか、この1通がもう在りません。開き直してから、もう一度 お試しください';
   /* 下書きの 消しは「別の 端末で 発行された」でも 0行（.eq('status','draft')）＝その字も 言う（taiketsu 11-14 任1） */
-  var KESENAI = '倉庫に書けませんでした（ログインが切れたか、別の端末で消された／発行された1通です）。開き直してから、もう一度 お試しください';
+  var KESENAI = 'ログインが切れたか、別の端末で消された／発行された1通です。開き直してから、もう一度 お試しください';
   function kakitaKa(w, ji) {
     if (w && w.error) return { ok: false, reason: err(w.error) };
     var n = (w && Array.isArray(w.data)) ? w.data.length : 0;

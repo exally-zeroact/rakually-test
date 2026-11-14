@@ -1464,7 +1464,7 @@
       return sb.from('pay_meisai_pub').update({ init_code:code, pw_hash:null, device_tokens:[], consent_at:null, fail_count:0, locked_until:null }).eq('token', token).select('token').then(function(r){
         /* ★書けた 行を 数える★（2026-11-14）＝0行（ログイン切れ・もう無い リンク）でも error は 無い＝使えない コードを「再発行しました」と 渡していた（kagikire-0gyo） */
         if(r.error) return { ok:false, reason:(r.error.message||'つながりません') };
-        if(!(r.data&&r.data.length)) return { ok:false, reason:'倉庫に書けませんでした（ログインが切れたか、このリンクがもう在りません）。開き直してください' };
+        if(!(r.data&&r.data.length)) return { ok:false, reason:'ログインが切れたか、このリンクがもう在りません。開き直してください' };
         return { ok:true, initCode:code };
       });
     }

@@ -74,7 +74,7 @@ async function mawasu(src) {
       st.rows = []; st.error = null; st.log.length = 0;
       const r = await f();
       ok(r && r.ok === false, 'ok=' + (r && r.ok));
-      ok(/倉庫に書けませんでした/.test(String(r.reason || '')), 'reason=' + (r && r.reason));
+      ok(/ログインが切れたか/.test(String(r.reason || '')), 'reason=' + (r && r.reason));
       const o = st.log[st.log.length - 1]; ok(o && o.sel, '.select を 付けていない（行を 数えられない）');
     });
     await T('② ' + nm + '：1行 書けたら ok', async () => {
@@ -126,7 +126,7 @@ async function mawasu(src) {
     const mae = kiri.slice(0, a);
     ok(/\.select\(/.test(mae), '.select を 付けていない');
     /* ★0行の 判じ そのものを 見る★（taiketsu 11-14 任3＝近くの 関係ない .length でも 通っていた） */
-    ok(/if \(!\(r\.data && r\.data\.length\)\) \{ toast\('変更できませんでした（倉庫に書けませんでした/.test(mae), '0行の時に 止めていない');
+    ok(/if \(!\(r\.data && r\.data\.length\)\) \{ toast\('変更できませんでした（ログインが切れたか/.test(mae), '0行の時に 止めていない');
   });
   return { pass, fail, kekka };
 }
