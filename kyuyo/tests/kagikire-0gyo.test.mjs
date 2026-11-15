@@ -90,6 +90,15 @@ async function mawasu(src) {
     });
   }
 
+  /* ★字の言い分け★（taiketsu 11-15）入金の消しは「この入金」・請求書の取り消し／送った印は「1通」のまま */
+  await T('④ 0行の字＝入金の消しは「この入金」・請求書の2本は「1通」のまま', async () => {
+    st.rows = []; st.error = null;
+    const rc = await S.receipts.remove('rc1'); ok(rc && rc.ok === false && /この入金がもう在りません/.test(rc.reason) && !/1通/.test(rc.reason), 'receipts.remove reason=' + (rc && rc.reason));
+    for (const [nm, f] of [['voidIt', () => S.invoices.voidIt('iv1')], ['markSent', () => S.invoices.markSent('iv1')]]) {
+      const r = await f(); ok(r && r.ok === false && /この1通がもう在りません/.test(r.reason) && !/入金/.test(r.reason), nm + ' reason=' + (r && r.reason));
+    }
+  });
+
   /* ── 給与の 倉庫（kyuyo/js/store.js）＝初回コードの 再発行 ── */
   const d2 = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously', url: 'http://localhost/' });
   const w2 = d2.window; w2.console.log = () => {}; w2.console.warn = () => {};
@@ -180,6 +189,7 @@ if (process.argv.includes('--self-test')) {
     ['束の消しの 0行の判じを外す', 'store', "return !!(r&&!r.error&&r.data&&r.data.length);", 'return true;'],
     ['画面の r.ok を外す', 'app', "if(!r||!r.ok){ toast('初回コードを再発行できませんでした", "if(false){ toast('初回コードを再発行できませんでした"],
     ['管理画面の 0行の判じを外す', 'admin', "if (!(r.data && r.data.length))", 'if (false)'],
+    ['入金の消しの字を「1通」に戻す', 'seikyu', "kakitaKa(w, NYUKIN_KESENAI)", "kakitaKa(w)"],
     ['getAccount の error を外す', 'store', "if(r.error) throw new Error(", "if(false) throw new Error("],
     ['ensureAccount の 読めない を外す', 'store', "if(rr.error) return { plan:null", "if(false) return { plan:null"],
     ['ensureAccount の 作れない を外す', 'store', "if(w&&w.error) return { plan:null", "if(false) return { plan:null"],

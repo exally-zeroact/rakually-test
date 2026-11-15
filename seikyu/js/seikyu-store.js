@@ -29,6 +29,8 @@
   var KAKENAI = 'ログインが切れたか、この1通がもう在りません。開き直してから、もう一度 お試しください';
   /* 下書きの 消しは「別の 端末で 発行された」でも 0行（.eq('status','draft')）＝その字も 言う（taiketsu 11-14 任1） */
   var KESENAI = 'ログインが切れたか、別の端末で消された／発行された1通です。開き直してから、もう一度 お試しください';
+  /* 入金の 取り消しの 0行（ログイン切れ・もう無い）は「この入金」と 言う（「1通」は 請求書の 言い方・taiketsu 11-15） */
+  var NYUKIN_KESENAI = 'ログインが切れたか、この入金がもう在りません。開き直してから、もう一度 お試しください';
   function kakitaKa(w, ji) {
     if (w && w.error) return { ok: false, reason: err(w.error) };
     var n = (w && Array.isArray(w.data)) ? w.data.length : 0;
@@ -264,7 +266,7 @@
         remove: function (id, at) {
           var stamp = at || nowIso();
           return Promise.resolve(sb.from('pay_receipts').update({ deleted_at: stamp, updated_at: stamp }).eq('id', id).select('id'))
-            .then(kakitaKa)
+            .then(function (w) { return kakitaKa(w, NYUKIN_KESENAI); })
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         },
       },
