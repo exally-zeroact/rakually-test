@@ -3788,6 +3788,19 @@ await TA('7b. ★番号が 重なる 下書きは 自動で 発行しない（�
   eq(db.pay_invoices.filter((x) => x.no === used).length, 1, '同じ 番号が 2通 に なった');
 });
 
+await TA('7b. ★確認の 窓の 後ろで 別の 1通が 打ちかけなら 自動で 発行しない（打ちかけを 消さない）', async () => {
+  await jidoNyuryoku();
+  const st = win.SeikyuApp._state;
+  const n0 = db.pay_invoices.filter((x) => x.status === 'issued').length;
+  st.lookMae = { cur: st.cur, dirty: true, st: 'draft', id: null };
+  const modosu = jidoPdfNise();
+  $('b-pdfopen').click();
+  await sleep(1500);
+  modosu();
+  st.lookMae = null;
+  eq(db.pay_invoices.filter((x) => x.status === 'issued').length, n0, '★打ちかけの 別の 1通が あるのに 発行された★');
+});
+
 /* ═══ 8. まとめ ═══ */
 T('8. ★最後まで JS が1つも落ちていない', () => {
   eq(errs.length, 0, errs.join(' | '));

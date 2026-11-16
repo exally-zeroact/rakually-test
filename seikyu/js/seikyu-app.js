@@ -4280,9 +4280,10 @@
     /* ★紙が 出たら 自動で 発行★（2026-11-16 司さん「送るか印刷で 発行」・taiketsu 止6＝納品書(docKind)・見積・取り消しは 外す）
        ＝請求書の 下書きで、今の 発行と 同じ 検査（issueBlockReason）を 通る 時だけ。通らない 時は 今まで通り 見るだけ（発行しない）。
        「出た」＝共有で 送れた・窓が 開いた・保存した（やめた・作れなかった は 発行しない）。帯で 待つ 時は 送れた 時。 */
+    /* ★確認の 窓の 後ろで 別の 1通を 打ちかけの 時は 発行しない★（発行の 描き直しで 打ちかけが 消える・taiketsu-naoshi 止1） */
     var held = S.cur;
     var jido = how === 'open' && !docKind && !!held && (held.doc_type || 'invoice') === 'invoice'
-      && DOC.statusOf(held) === 'draft' && !issueBlockReason();
+      && DOC.statusOf(held) === 'draft' && !issueBlockReason() && !(S.lookMae && S.lookMae.dirty);
     if (jido) {
       /* 紙を 作った 時の 中身（止4b〜f）＝発行の 直前に 同じか 見る。違えば 送った 紙と 発行後が ずれるので 発行しない */
       var katami = jidoKata(held);
