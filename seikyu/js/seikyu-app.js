@@ -3245,7 +3245,10 @@
     if (!global.confirm('この入金の記録を消しますか？\n（合計と残りは その場で数え直します）')) return Promise.resolve();
     box('pay-err', ''); box('pay-ok', '');
     return S.store.receipts.remove(id, new Date().toISOString()).then(function (r) {
-      if (!r.ok) { box('pay-err', '消せませんでした（' + r.reason + '）'); return; }
+      /* ★消せなかった時も 入金を 読み直す★（別の端末で 先に 消えた行が 画面に 残らない）。読み直しが 失敗しても 字は 出す */
+      if (!r.ok) {
+        return reloadReceipts().then(function () { renderPay(); }, function () {}).then(function () { box('pay-err', '消せませんでした（' + r.reason + '）'); });
+      }
       return reloadReceipts().then(function () {
         renderPay();
         box('pay-ok', '入金の記録を1件 消しました。');

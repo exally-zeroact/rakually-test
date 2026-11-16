@@ -265,7 +265,7 @@
            物理削除すると「いつ何を消したか」が残らない＝入金の履歴が信用できなくなる。 */
         remove: function (id, at) {
           var stamp = at || nowIso();
-          return Promise.resolve(sb.from('pay_receipts').update({ deleted_at: stamp, updated_at: stamp }).eq('id', id).select('id'))
+          return Promise.resolve(sb.from('pay_receipts').update({ deleted_at: stamp, updated_at: stamp }).eq('id', id).is('deleted_at', null).select('id'))
             .then(function (w) { return kakitaKa(w, NYUKIN_KESENAI); })
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         },

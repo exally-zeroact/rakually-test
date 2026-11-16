@@ -2637,6 +2637,23 @@ await TA('11-g. ★入れ間違いを消すと数え直す。ただし行は残�
   ok(!/過入金/.test($('pay-sum').textContent), '消したのに過入金のまま');
 });
 
+await TA('11-g2. ★別の端末で先に消された入金を、古い画面から消しても「消しました」と言わない・最初の消した時刻を上書きしない・画面から消す★', async () => {
+  const live = db.pay_receipts.filter((r) => r.invoice_id === sep.id && !r.deleted_at);
+  eq(live.length, 2, '前提：生きた入金が2行');
+  const mae = $('pay-list').querySelectorAll('.pay-row').length;
+  eq(mae, 2, '前提：画面に2行');
+  const target = live[0]; const STAMP = '2026-01-01T00:00:00.000Z';
+  target.deleted_at = STAMP;                  // 別の端末が先に消した（この画面はまだ知らない）
+  const dels = $('pay-list').querySelectorAll('[data-rc]');
+  dels[0].click(); await sleep(80);
+  eq(target.deleted_at, STAMP, '★最初の消した時刻が上書きされた★');
+  ok(/この入金がもう在りません/.test($('pay-err').textContent), '消せなかったと言っていない: ' + $('pay-err').textContent);
+  ok(!/消しました/.test($('pay-ok').textContent), '★嘘の「消しました」が出ている★: ' + $('pay-ok').textContent);
+  eq($('pay-list').querySelectorAll('.pay-row').length, 1, '消えていた行が画面に残っている（読み直していない）');
+  target.deleted_at = null;                   // 後の試験のために戻す
+  $('b-reload').click(); await sleep(80);
+});
+
 await TA('11-h. ★入金が読めない時は「未確認」。0円と書き分ける', async () => {
   sb._failNext('pay_receipts', 'select');
   $('b-reload').click(); await sleep(80);

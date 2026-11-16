@@ -25,7 +25,7 @@ function nisemono(state) {
       insert(v) { op.kind = 'insert'; op.v = v; return b; },
       upsert(v) { op.kind = 'upsert'; op.v = v; return b; },
       select() { if (op.kind !== 'select') op.sel = true; return b; },
-      eq(k, v) { op.eq.push([k, v]); return b; }, is() { return b; }, in() { return b; },
+      eq(k, v) { op.eq.push([k, v]); return b; }, is(k, v) { (op.is = op.is || []).push([k, v]); return b; }, in() { return b; },
       order() { return b; }, range() { return b; }, limit() { return b; },
       maybeSingle() { op.single = true; return b; }, single() { op.single = true; return b; },
       then(res, rej) {
@@ -97,6 +97,15 @@ async function mawasu(src) {
     for (const [nm, f] of [['voidIt', () => S.invoices.voidIt('iv1')], ['markSent', () => S.invoices.markSent('iv1')]]) {
       const r = await f(); ok(r && r.ok === false && /この1通がもう在りません/.test(r.reason) && !/入金/.test(r.reason), nm + ' reason=' + (r && r.reason));
     }
+  });
+
+  /* ★先に消えた入金を もう一度 消して 消した時刻を 上書きしない★（taiketsu 11-16） */
+  await T('④b 入金の消しは is(deleted_at, null) を付けて 呼ぶ（先に消えた行は 0行）', async () => {
+    st.rows = [{ id: 'x' }]; st.error = null; st.log.length = 0;
+    await S.receipts.remove('rc1');
+    const o = st.log[st.log.length - 1];
+    ok(o && o.table === 'pay_receipts' && o.kind === 'update', '呼びが 見つからない');
+    ok(o.is && o.is.some(([k, v]) => k === 'deleted_at' && v === null), "is('deleted_at', null) が 付いていない");
   });
 
   /* ── 給与の 倉庫（kyuyo/js/store.js）＝初回コードの 再発行 ── */
@@ -190,6 +199,7 @@ if (process.argv.includes('--self-test')) {
     ['画面の r.ok を外す', 'app', "if(!r||!r.ok){ toast('初回コードを再発行できませんでした", "if(false){ toast('初回コードを再発行できませんでした"],
     ['管理画面の 0行の判じを外す', 'admin', "if (!(r.data && r.data.length))", 'if (false)'],
     ['入金の消しの字を「1通」に戻す', 'seikyu', "kakitaKa(w, NYUKIN_KESENAI)", "kakitaKa(w)"],
+    ['入金の消しの is(deleted_at) を外す', 'seikyu', ".eq('id', id).is('deleted_at', null).select('id'))", ".eq('id', id).select('id'))"],
     ['getAccount の error を外す', 'store', "if(r.error) throw new Error(", "if(false) throw new Error("],
     ['ensureAccount の 読めない を外す', 'store', "if(rr.error) return { plan:null", "if(false) return { plan:null"],
     ['ensureAccount の 作れない を外す', 'store', "if(w&&w.error) return { plan:null", "if(false) return { plan:null"],
