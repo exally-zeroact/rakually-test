@@ -3834,6 +3834,60 @@ await TA('7b. ★確認の 窓を 閉じた 後に 発行が 断られたら 一
   }
 });
 
+/* ★確認の窓から開いた1通の「印刷 / 送る」（lookPaper の道）で、自動で発行してはいけない所（本番前 taiketsu 11-17）★
+   共有をやめた・検査に通らない・取り消し・見積。どれも「紙は出ても 台帳は 変わらない」を 道ごとに 押さえる */
+const jidoLookOshite = async (id, over, kind, stub) => {
+  await jidoNyuryoku();
+  const st = win.SeikyuApp._state;
+  const J = Object.assign({ id, account_id: 'u1', doc_type: 'invoice', no: 'JL-' + id, status: 'draft', partner_id: 'pt_b',
+    issue_ymd: '2026-12-31', due_ymd: '2027-01-31', tax_mode: 'exclusive', rounding: 'floor',
+    lines: [{ name: 'JL の品', qty: '1', price: '2000', amount: '2000', rate: '10' }], totals: { grandTotal: 2200 },
+    data: { subject: 'JL の件名' }, snapshot: {}, template_id: 'std1', quote_from: '', deleted_at: null, updated_at: '2026-10-14T00:00:00Z' }, over || {});
+  db.pay_invoices.push(J);
+  const outMae = win.SeikyuOut.pdfOpen;
+  try {
+    doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(20);
+    doc.querySelector('#kind-seg [data-kind="' + (kind || 'invoice') + '"]').click(); await sleep(120);
+    await win.SeikyuApp._loadList(); await sleep(20);
+    for (const k of ['l-month', 'l-partner']) { const e = doc.getElementById(k); if (e) e.value = ''; }
+    st.fil = 'all'; win.SeikyuApp._renderListForTest();
+    const b = doc.querySelector('[data-look="' + id + '"]'); if (!b) throw new Error('前提：一覧に「確認」が 無い ' + id);
+    st.dirty = false;
+    b.click(); await sleep(400);
+    ok($('lv-ov').classList.contains('open'), '前提：確認の 窓が 開いていない');
+    st.listReadOk = true;
+    const tome = String(win.SeikyuApp._issueBlockReasonForTest());
+    if (stub) win.SeikyuOut.pdfOpen = stub;
+    const modosu = jidoPdfNise();
+    $('b-pdfopen').click(); await sleep(1500);
+    modosu();
+    return { row: db.pay_invoices.find((x) => x.id === id), tome };
+  } finally {
+    win.SeikyuOut.pdfOpen = outMae;
+    try { $('b-lv-back').click(); } catch (e) { /* 窓が 無くても 良い */ }
+    for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === id) db.pay_invoices.splice(i, 1);
+    doc.querySelector('#kind-seg [data-kind="invoice"]').click(); await sleep(60);
+    await win.SeikyuApp._loadList(); await sleep(10);
+  }
+};
+await TA('7c. ★確認の 窓の 道＝共有を やめたら 発行しない（送っていない 紙を 台帳に 出さない）', async () => {
+  const r = await jidoLookOshite('iv_JL_yame', {}, 'invoice', () => Promise.resolve({ cancelled: true, how: 'share' }));
+  eq(r.row.status, 'draft', '★共有を やめたのに 発行された★ 訳=' + r.tome);
+});
+await TA('7c. ★確認の 窓の 道＝発行の 検査に 通らない 1通は 自動で 発行しない（取引先が マスタに 無い）', async () => {
+  const r = await jidoLookOshite('iv_JL_kensa', { partner_id: 'pt_nashi_JL' }, 'invoice');
+  ok(r.tome !== '' && r.tome !== 'undefined' && r.tome !== 'null' && r.tome !== 'false', '前提：検査に 通る 1通に なっている（検査が 止める 例に なっていない）: ' + r.tome);
+  eq(r.row.status, 'draft', '★検査に 通らないのに 発行された★ 訳=' + r.tome);
+});
+await TA('7c. ★確認の 窓の 道＝取り消した 1通は 発行に 戻さない', async () => {
+  const r = await jidoLookOshite('iv_JL_void', { status: 'void', voided_at: '2026-10-15T00:00:00Z' }, 'invoice');
+  eq(r.row.status, 'void', '★取り消した 1通が 発行に 戻った★');
+});
+await TA('7c. ★確認の 窓の 道＝見積は 発行しない', async () => {
+  const r = await jidoLookOshite('iv_JL_mitsumori', { doc_type: 'quote', no: 'Q-JL-1' }, 'quote');
+  ok(r.row.status !== 'issued', '★見積が 発行された★ status=' + r.row.status);
+});
+
 /* ═══ 8. まとめ ═══ */
 T('8. ★最後まで JS が1つも落ちていない', () => {
   eq(errs.length, 0, errs.join(' | '));
