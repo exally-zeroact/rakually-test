@@ -236,6 +236,36 @@ test('§5 ledger.remove: 他の口の行・無い行は ok にしない', async 
   assert.strictEqual(r2.ok, false, '無い行なのに ok');
 });
 
+/* ★再削除は「最初の1回の時刻」を 残す★（2026-11-17）＝別の端末で 先に 消した 行を 古い 画面から もう一度 消しても
+   deleted_at を 上書きしない（台帳は お金の記録）。二度目も ok（already）・画面の「削除しました」は 変わらない。 */
+test('§4 partners.remove: 先に消えた行を もう一度消しても 最初の deleted_at を 残す（二度目も ok・already）', async () => {
+  const { sd, tables } = setup();
+  await sd.partners.upsert({ id: 'pt_x', sort: 1, data: { name: 'X社' } });
+  const r1 = await sd.partners.remove('pt_x');
+  assert.strictEqual(r1.ok, true);
+  assert.ok(!r1.already, '最初の1回が already になった');
+  const t1 = tables.pay_partners.find(p => p.id === 'pt_x').deleted_at;
+  assert.ok(t1, '最初の削除で deleted_at が入っていない');
+  await new Promise(function (ok) { setTimeout(ok, 15); });   // 時刻が 変われば 上書きが 見える
+  const r2 = await sd.partners.remove('pt_x');
+  assert.strictEqual(r2.ok, true, '再削除が ok でない＝' + JSON.stringify(r2));
+  assert.strictEqual(r2.already, true, '再削除が already でない');
+  assert.strictEqual(tables.pay_partners.find(p => p.id === 'pt_x').deleted_at, t1, '再削除で deleted_at が 上書きされた');
+});
+test('§5 ledger.remove: 先に消えた行を もう一度消しても 最初の deleted_at を 残す（二度目も ok・already）', async () => {
+  const { sd, tables } = setup();
+  const up = await sd.ledger.upsert({ employeeId: 'e1', ymd: '2026-07-01', data: { uriage: 100 } });
+  const r1 = await sd.ledger.remove(up.id);
+  assert.strictEqual(r1.ok, true);
+  const t1 = tables.pay_ledger.find(p => p.id === up.id).deleted_at;
+  assert.ok(t1, '最初の削除で deleted_at が入っていない');
+  await new Promise(function (ok) { setTimeout(ok, 15); });
+  const r2 = await sd.ledger.remove(up.id);
+  assert.strictEqual(r2.ok, true, '再削除が ok でない＝' + JSON.stringify(r2));
+  assert.strictEqual(r2.already, true);
+  assert.strictEqual(tables.pay_ledger.find(p => p.id === up.id).deleted_at, t1, '再削除で deleted_at が 上書きされた');
+});
+
 /* ═══ §5 日次台帳 ═══ */
 
 test('§5 ledger: 同じ人・同じ日に複数行を入れられる(1日に何本も=代行の実態)', async () => {

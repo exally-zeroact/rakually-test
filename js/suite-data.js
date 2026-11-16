@@ -83,6 +83,24 @@
     return n > 0 ? { ok: true } : { ok: false, reason: 'not-found' };
   }
 
+  // ★ソフト削除は「最初の1回の時刻」を 残す★（2026-11-17）＝前は 先に 消えた 行を 古い 画面から もう一度 消すと
+  //   deleted_at が 後の 時刻に 上書きされた（お金の記録＝台帳の 削除時刻が 動く）。
+  //   ⇒ update に .is('deleted_at', null)＝生きている 行だけ 書く。0行なら 引き直し、
+  //      もう 消えて いれば {ok:true, already:true}（冪等＝二度目も「削除しました」・時刻は そのまま）、
+  //      行が 無い・他の口で 見えない 時だけ not-found。
+  function sofutoKesu(sb, nowIso, table, id) {
+    return Promise.resolve(sb.from(table).update({ deleted_at: nowIso(), updated_at: nowIso() }).eq('id', id).is('deleted_at', null).select('id'))
+      .then(function (w) {
+        var r = kesetaKa(w);
+        if (r.ok || r.reason !== 'not-found') return r;
+        return Promise.resolve(sb.from(table).select('id,deleted_at').eq('id', id).maybeSingle()).then(function (q) {
+          if (q && q.error) return { ok: false, reason: err(q.error) };
+          return (q && q.data && q.data.deleted_at) ? { ok: true, already: true } : { ok: false, reason: 'not-found' };
+        });
+      })
+      .catch(function (e) { return { ok: false, reason: err(e) }; });
+  }
+
   function create(opts) {
     opts = opts || {};
     var sb = opts.client;
@@ -251,9 +269,7 @@
         },
         // ソフト削除(物理削除しない)
         remove: function (id) {
-          return Promise.resolve(sb.from('pay_partners').update({ deleted_at: nowIso(), updated_at: nowIso() }).eq('id', id).select('id'))
-            .then(kesetaKa)
-            .catch(function (e) { return { ok: false, reason: err(e) }; });
+          return sofutoKesu(sb, nowIso, 'pay_partners', id);
         }
       },
 
@@ -299,9 +315,7 @@
         },
         // ソフト削除(お金の記録は物理削除しない)
         remove: function (id) {
-          return Promise.resolve(sb.from('pay_ledger').update({ deleted_at: nowIso(), updated_at: nowIso() }).eq('id', id).select('id'))
-            .then(kesetaKa)
-            .catch(function (e) { return { ok: false, reason: err(e) }; });
+          return sofutoKesu(sb, nowIso, 'pay_ledger', id);
         }
       },
 
