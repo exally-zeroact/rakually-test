@@ -3801,6 +3801,39 @@ await TA('7b. ★確認の 窓の 後ろで 別の 1通が 打ちかけなら �
   eq(db.pay_invoices.filter((x) => x.status === 'issued').length, n0, '★打ちかけの 別の 1通が あるのに 発行された★');
 });
 
+await TA('7b. ★確認の 窓を 閉じた 後に 発行が 断られたら 一覧に 知らせが 見える（taiketsu 11-17 止2＝紙は 出たのに 台帳は 下書きの まま・知らせは 入力の 箱で 誰も 読めない）', async () => {
+  await jidoNyuryoku();
+  const st = win.SeikyuApp._state;
+  const J = { id: 'iv_J_betsu', account_id: 'u1', doc_type: 'invoice', no: 'J-001', status: 'draft', partner_id: 'pt_b',
+    issue_ymd: '2026-12-31', due_ymd: '2027-01-31', tax_mode: 'exclusive', rounding: 'floor',
+    lines: [{ name: 'J の品', qty: '1', price: '2000', amount: '2000', rate: '10' }], totals: { grandTotal: 2200 },
+    data: { subject: 'J の件名' }, snapshot: {}, template_id: 'std1', quote_from: '', deleted_at: null, updated_at: '2026-10-14T00:00:00Z' };
+  db.pay_invoices.push(J);
+  try {
+    await win.SeikyuApp._loadList(); await sleep(20);
+    doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(30);
+    for (const k of ['l-month', 'l-partner']) { const e = doc.getElementById(k); if (e) e.value = ''; }
+    st.fil = 'all'; win.SeikyuApp._renderListForTest();
+    const bJ = doc.querySelector('[data-look="iv_J_betsu"]'); if (!bJ) throw new Error('前提：一覧に J の「確認」が 無い');
+    st.dirty = false;     /* ★後ろの 入力は 打ちかけで ない（打ちかけなら 発行しない 歯止めが 先に 効く＝別の 試験）★ */
+    bJ.click(); await sleep(400);
+    ok($('lv-ov').classList.contains('open'), '前提：確認の 窓が 開いていない');
+    st.listKind = 'invoice'; st.listReadOk = true;
+    const issueTxt = String(win.SeikyuApp._issueBlockReasonForTest());
+    const modosu = jidoPdfNise();
+    $('b-pdfopen').click();      /* ★PDF を 作る 間に 窓を 閉じる（帯・戻るの 道）★ */
+    $('b-lv-back').click();
+    await sleep(1500);
+    modosu();
+    const row = db.pay_invoices.find((x) => x.id === 'iv_J_betsu');
+    eq(row.status, 'draft', '前提：発行された（断られる 道に ならなかった）');
+    ok(/発行していません/.test($('list-err').textContent || ''), '★知らせが 入力の 箱だけで 一覧に 出ない（客は 一覧に いる）★ list-err=' + $('list-err').textContent.slice(0, 60) + ' edit-err=' + $('edit-err').textContent.slice(0, 60) + ' lv-err=' + $('lv-err').textContent.slice(0, 60) + ' edit-ok=' + $('edit-ok').textContent.slice(0, 50) + ' cur=' + (st.cur && st.cur.id) + ' open=' + $('lv-ov').classList.contains('open') + ' nIssued=' + db.pay_invoices.filter((x) => x.status === 'issued').length + ' b-issue=' + issueTxt);
+  } finally {
+    for (let i = db.pay_invoices.length - 1; i >= 0; i--) if (db.pay_invoices[i].id === 'iv_J_betsu') db.pay_invoices.splice(i, 1);
+    await win.SeikyuApp._loadList(); await sleep(10);
+  }
+});
+
 /* ═══ 8. まとめ ═══ */
 T('8. ★最後まで JS が1つも落ちていない', () => {
   eq(errs.length, 0, errs.join(' | '));

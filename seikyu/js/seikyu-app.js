@@ -72,6 +72,13 @@
     }
     show(e, !!t);
   }
+  /* ★自動の 発行が 断られた 時の 知らせ★（taiketsu 11-17 止2）
+     紙は 出たのに 台帳は 下書きの まま＝客が 必ず 読める 所へ。確認の 窓が 開いている 間は box が 窓の 箱へ 回す。
+     窓を 閉じた 後は 客は 一覧に いる＝入力の 箱だけでは 見えない ので 一覧の 箱にも 出す。 */
+  function jidoShirase(text) {
+    box('edit-err', text);
+    if (!lookOpened()) box('list-err', text);
+  }
 
   /* ★画面の金額は「1,100 円」（桁区切り＋円）★
      紙は「¥1,100」（¥ 記号）。画面で ¥ と 円 を両方付けると二重になる。
@@ -4290,11 +4297,11 @@
       var sumi0 = sumi;
       sumi = function () {
         if (jidoKata(held) !== katami) {
-          box('edit-err', '紙を 出した 後に 中身が 変わったので 発行していません。送り直す 時は 入力の 画面で「発行する」を 押してから「印刷 / 送る」を 押してください。');
+          jidoShirase('紙を 出した 後に 中身が 変わったので 発行していません。送り直す 時は 入力の 画面で「発行する」を 押してから「印刷 / 送る」を 押してください。');
           return;
         }
         return issue({ auto: true, held: held }).catch(function (e) {
-          box('edit-err', '発行できませんでした（' + ((e && e.message) || '理由不明') + '）。入力の 画面で「発行する」を 押してください。');
+          jidoShirase('発行できませんでした（' + ((e && e.message) || '理由不明') + '）。入力の 画面で「発行する」を 押してください。');
         }).then(function () {
           /* ★「送った」印は 発行できた 後★（止7＝下書きの 間は 何も 付かない） */
           if (held.status === 'issued' && typeof sumi0 === 'function') sumi0();
@@ -4712,7 +4719,7 @@
   function issue(opt) {
     var auto = !!(opt && opt.auto === true);
     if (auto && (!opt.held || S.cur !== opt.held || DOC.statusOf(S.cur) !== 'draft')) {
-      box('edit-err', '紙は 出しましたが、開いている 1通が 変わったので 発行していません。発行する 時は 入力の 画面で「発行する」を 押してください。');
+      jidoShirase('紙は 出しましたが、開いている 1通が 変わったので 発行していません。発行する 時は 入力の 画面で「発行する」を 押してください。');
       return Promise.resolve();
     }
     atoKesu();
@@ -7999,6 +8006,7 @@
     _bookExcelForTest: function (name) { return bookExcel(name); },   // テスト用: 控除の在る 1通で 自社 Excel が 止まるか
     _bookValsForTest: function () { var pi = paperInput(); return pi ? bookVals(pi) : null; },   // テスト用: 自社 Excel に 入れる 値（番号を 出さない 時に 空か）                    // テスト用: ボタンの 灰色を 通らずに 発行の 歯止めを 見る           // テスト用: 一覧だけ 読ませる（読めない 時の 知らせを 見る）
     _recalcForTest: function () { return recalc(); },
+    _issueBlockReasonForTest: function () { return issueBlockReason(); },   // テスト用: 今の1通が 発行できない 訳（自動発行の 道に 入れない 時の 切り分け）
     _suggestNameForTest: function (ext, kind) { return suggestName(ext, kind); },   // テスト用: 落とす前に 出す 名前
     _colsForTest: function () { return S.cur ? COLS.normalizeSpec(colsOf(S.cur)) : null; },   // テスト用: 今の1通の 紙の列          // テスト用: 数え直しだけ走らせる
     _fillEdit: fillEdit,          // テスト用: 入力の画面を描き直す（★見られない物は 見張れない★）
