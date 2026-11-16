@@ -1862,6 +1862,18 @@
   /* ★今の 1通は 保存か 発行を 終えて、その後 何も 打っていないか★（2026-10-23）
      ＝下の「入力」を 押した時に 白紙で 開く 条件。打ちかけ・しまえなかった 1通は 続きを 出す（失わない） */
   /* ★人が 打つ 中身★（番号・状態は 倉庫の 返事で 変わるので 入れない） */
+  /* ★紙を 作った 時と 発行の 時で 紙の 中身が 同じか★の 型（2026-11-16 taiketsu 止4）＝nakamiKata に 加えて 番号・様式・
+     会社・相手・まだ 保存していない 角印・繰越・入力欄の 打ちかけ。違えば 自動の 発行は しない（送った 紙と 台帳が ずれる） */
+  function jidoKata(v) {
+    if (!v || v !== S.cur) return 'chigau-1tsu';
+    var op = {};
+    try { op = orgPartnerOf(v); } catch (e) { op = {}; }
+    var cr = null;
+    try { cr = currentCarry(); } catch (e) { cr = null; }
+    var ran = [];
+    if (v === S.gamen) ['e-no', 'e-issue', 'e-due', 'e-subject', 'e-memo'].forEach(function (id) { var el = $(id); ran.push(el ? el.value : null); });
+    return JSON.stringify([nakamiKata(v), v.no, v.template_id, v.data && v.data.tplErabi, v.data && v.data.cols, op, cr, ran, sealPending ? 1 : 0]);
+  }
   function nakamiKata(v) {
     return JSON.stringify([v.partner_id, v.issue_ymd, v.due_ymd, v.tax_mode, v.rounding,
       cleanLines(v.lines || []), ['subject', 'memo', 'term', 'gensen', 'deductions', 'lead'].map(function (k) {
@@ -4265,7 +4277,29 @@
     /* ★未発行（下書き）の 1通は 送らず 見るだけ★（2026-11-06 コンサル談＝ダイコメの「確認」と 揃える）
        ＝「PDFを開く（送る）」「印刷」「納品書」でも 共有に 渡さず 今まで通り 開く。発行した 1通だけ 共有（LINE・メール・プリント）へ */
     /* ★「発行した」と 分かる 時だけ 送る★（下書き・取り消し・分からない 状態は 見るだけ＝止まる 側へ・taiketsu 11-06 任2） */
-    if (how === 'open' && DOC.statusOf(S.cur) !== 'issued') how = 'view';
+    /* ★紙が 出たら 自動で 発行★（2026-11-16 司さん「送るか印刷で 発行」・taiketsu 止6＝納品書(docKind)・見積・取り消しは 外す）
+       ＝請求書の 下書きで、今の 発行と 同じ 検査（issueBlockReason）を 通る 時だけ。通らない 時は 今まで通り 見るだけ（発行しない）。
+       「出た」＝共有で 送れた・窓が 開いた・保存した（やめた・作れなかった は 発行しない）。帯で 待つ 時は 送れた 時。 */
+    var held = S.cur;
+    var jido = how === 'open' && !docKind && !!held && (held.doc_type || 'invoice') === 'invoice'
+      && DOC.statusOf(held) === 'draft' && !issueBlockReason();
+    if (jido) {
+      /* 紙を 作った 時の 中身（止4b〜f）＝発行の 直前に 同じか 見る。違えば 送った 紙と 発行後が ずれるので 発行しない */
+      var katami = jidoKata(held);
+      var sumi0 = sumi;
+      sumi = function () {
+        if (jidoKata(held) !== katami) {
+          box('edit-err', '紙を 出した 後に 中身が 変わったので 発行していません。送り直す 時は 入力の 画面で「発行する」を 押してから「印刷 / 送る」を 押してください。');
+          return;
+        }
+        return issue({ auto: true, held: held }).catch(function (e) {
+          box('edit-err', '発行できませんでした（' + ((e && e.message) || '理由不明') + '）。入力の 画面で「発行する」を 押してください。');
+        }).then(function () {
+          /* ★「送った」印は 発行できた 後★（止7＝下書きの 間は 何も 付かない） */
+          if (held.status === 'issued' && typeof sumi0 === 'function') sumi0();
+        });
+      };
+    } else if (how === 'open' && DOC.statusOf(S.cur) !== 'issued') how = 'view';
     var miruJi = (DOC.statusOf(S.cur) === 'void') ? '取り消した 見るだけの 紙' : 'まだ 発行していない 見るだけの 紙';
     pdfDase(built.html, name, how, yobi || (docKind === 'delivery' ? '納品書' : 'PDF'),
       'edit-ok', 'edit-err', shareTextFor(pi, docKind === 'delivery' ? '納品書' : null), sumi, miruJi, DOC.statusOf(S.cur) === 'void');
@@ -4670,14 +4704,23 @@
     drawAfterIssue();          /* ★発行した後は「紙を見る」が 出る★ */
   }
 
-  function issue() {
+  /* opt.auto＝「印刷 / 送る」で 紙が 出た 後の 自動の 発行（2026-11-16 司さん「送るか印刷で 発行にしろ」）。
+     ・opt.held＝押した 時の 1通（確認の 写しでも 良い）＝今の S.cur と 同じ 物の 時だけ 発行（別の 1通を 発行しない・taiketsu 11-16 止2）
+     ・確認の 窓から 開いた 別の 1通（S.cur≠S.gamen）は 欄を 読まず その 写しを そのまま 発行（止1）
+     ・状態が 下書きの 時だけ（止3）・番号は 進めない（止4a＝送った 紙の 番号と 変わるため） */
+  function issue(opt) {
+    var auto = !!(opt && opt.auto === true);
+    if (auto && (!opt.held || S.cur !== opt.held || DOC.statusOf(S.cur) !== 'draft')) {
+      box('edit-err', '紙は 出しましたが、開いている 1通が 変わったので 発行していません。発行する 時は 入力の 画面で「発行する」を 押してください。');
+      return Promise.resolve();
+    }
     atoKesu();
     /* ★押せない時は何もしない（歯止め。見た目＝灰色だけで守らない）★
        ここで断る時の言葉は ★下の元の検査がそのまま出す★。
        ボタンの中の短い理由と、押した後の長い説明を ★別々に書かない★
        （同じ状態を2か所で別々に判定すると、必ずどこかで食い違う）。 */
     if (issueBlockReason()) { /* 下の検査が理由を出す */ }
-    var v = collect();
+    var v = (auto && S.cur !== S.gamen) ? S.cur : collect();
     if (!v) { box('edit-err', '入力の画面と 中身が 合っていないので 発行しませんでした。一覧の「修正」から 開き直してください。'); return Promise.resolve(); }
     var t = recalc();
     if (!t || !t.ok) { box('edit-err', '計算が通らないので発行できません。上の赤い印を直してください。'); return Promise.resolve(); }
@@ -4761,11 +4804,12 @@
     };
     return Promise.resolve(S.hozonChu).then(function () { return null; }, function () { return null; }).then(function () {
       if (!row.id && hakko.id) row.id = hakko.id;   /* ★しまいが 付けた id★＝その 下書きを 発行済みに する（2通に しない） */
-      return S.store.invoices.issue(row, at);
+      return S.store.invoices.issue(row, at, auto ? { noBump: true } : undefined);
     }).then(function (r) {
       owari();
       if (!r || !r.ok) {
-        box('edit-err', '発行できませんでした（' + ((r && r.reason) || '理由不明') + '）');
+        box('edit-err', '発行できませんでした（' + ((r && r.reason) || '理由不明') + '）'
+          + (auto ? '。紙は もう 出しています＝送った 紙の 番号は そのままです。入力の 画面で 番号を 直して「発行する」を 押してください。' : ''));
         nokosu('発行できなかったため', false);   /* 待つ 間に 打った 字は 下書きと して しまう */
         return;
       }
@@ -4781,7 +4825,7 @@
         if (S.cur === hakko) S.dirty = false;
       } else if (S.cur === hakko) { S.dirty = true; jidoYoyaku(); }
       if (S.cur !== hakko) nokosu('発行の 返事を 待つ 間に 直したため', true);
-      box('edit-ok', '請求書 ' + r.no + ' を発行しました。'
+      box('edit-ok', (auto ? '紙を 出したので ' : '') + '請求書 ' + r.no + ' を発行しました。'
         + (r.bumped ? '（同じ番号が先に使われていたので ' + r.bumped + ' つ進めました）' : '')
         /* ★固まるのは 番号だけ★（中身は あとからでも 直せる） */
         + ' 中身は あとからでも 直せます。');
@@ -7981,6 +8025,7 @@
     /* テスト用: 最後に PDF に した 紙（2026-09-10 ブラウザの印刷を やめたので
        「開いた窓の中身」では もう 見られない＝ここで 見る） */
     _lastPaperHtmlForTest: function () { return lastPaperHtml; },
+    _pdfChuOwariForTest: function () { return pdfChuOwari(); },   // テスト用: jsdom で 終わらない PDF 作りの「作成中」を 解く
     _pickBookForTest: function (bytes, nm) {                 // テスト用: 読む所だけ 走らせる
       var B = bookLib(); if (!B) return Promise.resolve(null);
       return Promise.resolve(B.inspect(bytes)).then(function (info) {

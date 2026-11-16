@@ -155,7 +155,8 @@
         },
         /* ★発行★ 番号・合計・写しを決めて固める。
            倉庫が番号の重複で弾いたら bumpNo で1つ進めて出し直す（最後の砦は倉庫）。 */
-        issue: function (inv, at) {
+        /* opts.noBump＝「送った 紙」の 番号を 勝手に 進めない（自動の 発行・2026-11-16）＝重なったら 発行せず 止める */
+        issue: function (inv, at, opts) {
           var stamp = at || nowIso();
           return uid().then(function (u) {
             if (!u) return { ok: false, reason: 'ログインしていません' };
@@ -181,6 +182,7 @@
               return Promise.resolve(sb.from('pay_invoices').upsert(base))
                 .then(function (w) {
                   if (!(w && w.error)) return { ok: true, id: id, no: n, bumped: tries };
+                  if (isDup(w.error) && opts && opts.noBump) return { ok: false, reason: 'この番号は既に使われています（' + n + '）', dup: true };
                   if (isDup(w.error) && tries < MAX_BUMP) {
                     var next = DOC.bumpNo(n);
                     // ★数で終わらない番号は自動で進めない（人が決めた番号を勝手にいじらない）

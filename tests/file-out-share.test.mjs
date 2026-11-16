@@ -33,8 +33,18 @@ const SELF = process.argv.includes('--self-test');
 /* ★壊し方★（taiketsu 11-06 任5＝url の 1つだけでは ⑪⑫⑬ が 縛れているか 分からない） */
 const BREAKS = {
   url: ['js/file-out.js', 'return global.navigator.share({ files: [file], text: text });', "return global.navigator.share({ files: [file], url: 'blob:https://x/1', text: 'x' });"],
-  'draft-if0': ['seikyu/js/seikyu-app.js', "    if (how === 'open' && DOC.statusOf(S.cur) !== 'issued') how = 'view';", "    if (0) { if (how === 'open' && DOC.statusOf(S.cur) !== 'issued') how = 'view'; }"],
-  'draft-only': ['seikyu/js/seikyu-app.js', "DOC.statusOf(S.cur) !== 'issued') how = 'view';", "DOC.statusOf(S.cur) === 'draft') how = 'view';"],
+  'draft-if0': ['seikyu/js/seikyu-app.js', "    } else if (how === 'open' && DOC.statusOf(S.cur) !== 'issued') how = 'view';", "    } else if (0) { how = 'view'; }"],
+  'draft-only': ['seikyu/js/seikyu-app.js', "} else if (how === 'open' && DOC.statusOf(S.cur) !== 'issued') how = 'view';", "} else if (how === 'open' && DOC.statusOf(S.cur) === 'draft') how = 'view';"],
+  /* ★2026-11-16 紙が 出たら 自動で 発行（送るか 印刷）・taiketsu 止1〜7★ */
+  'jido-docKind': ['seikyu/js/seikyu-app.js', "var jido = how === 'open' && !docKind &&", "var jido = how === 'open' &&"],
+  'jido-status': ['seikyu/js/seikyu-app.js', "&& DOC.statusOf(held) === 'draft' && !issueBlockReason();", "&& !issueBlockReason();"],
+  'jido-kensa': ['seikyu/js/seikyu-app.js', "&& DOC.statusOf(held) === 'draft' && !issueBlockReason();", "&& DOC.statusOf(held) === 'draft';"],
+  'jido-kata': ['seikyu/js/seikyu-app.js', 'if (jidoKata(held) !== katami) {', 'if (false) {'],
+  'jido-held': ['seikyu/js/seikyu-app.js', "if (auto && (!opt.held || S.cur !== opt.held || DOC.statusOf(S.cur) !== 'draft')) {", 'if (false) {'],
+  'jido-gamen': ['seikyu/js/seikyu-app.js', 'var v = (auto && S.cur !== S.gamen) ? S.cur : collect();', 'var v = collect();'],
+  'jido-bump': ['seikyu/js/seikyu-app.js', 'auto ? { noBump: true } : undefined', 'undefined'],
+  'jido-sumi-mae': ['seikyu/js/seikyu-app.js', "if (held.status === 'issued' && typeof sumi0 === 'function') sumi0();", "if (typeof sumi0 === 'function') sumi0();"],
+  'jido-store-bump': ['seikyu/js/seikyu-store.js', "if (isDup(w.error) && opts && opts.noBump) return", "if (0) return"],
   'sumi-cancel': ['seikyu/js/seikyu-app.js', "typeof sumi === 'function' && !(r && (r.cancelled || r.how === 'need-tap'))) sumi();", "typeof sumi === 'function' && !(r && (r.how === 'need-tap'))) sumi();"],
   'bill-needtap': ['seikyu/js/seikyu-app.js', "if (shirushi && !(o && (o.cancelled || o.how === 'need-tap'))) billOkutta(made);", "if (shirushi && !(o && o.cancelled)) billOkutta(made);"],
   'oshita-shunkan': ['seikyu/js/seikyu-app.js', 'doOkuru(n, te);', 'doOkuru(n); okutta();'],
@@ -226,7 +236,17 @@ const JI = '請求書 2026年10月分 見本工業株式会社 御中';
   const dp = app.slice(app.indexOf('function doPdf('), app.indexOf('pdfDase(built.html', app.indexOf('function doPdf(')));
   const dpCode = dp.replace(/\/\*[\s\S]*?\*\//g, '');
   T('⑪ 1通の PDF（doPdf）は 発行済みの 時だけ 送る（下書き・取り消し・分からない は 見るだけ）',
-    /\n    if \(how === 'open' && DOC\.statusOf\(S\.cur\) !== 'issued'\) how = 'view';\n/.test(dpCode) && !/if \((0|false)\)/.test(dpCode), '分けが 無い か 包まれている');
+    /\n    \} else if \(how === 'open' && DOC\.statusOf\(S\.cur\) !== 'issued'\) how = 'view';\n/.test(dpCode) && !/if \((0|false)\)/.test(dpCode), '分けが 無い か 包まれている');
+  /* ⑱ 紙が 出たら 自動で 発行（2026-11-16 司さん「送るか印刷」・taiketsu 止1〜7） */
+  T('⑱ 自動の 発行は 請求書の 下書きだけ（納品書・見積・取り消し・発行済みは 対象外）・今の 発行と 同じ 検査（issueBlockReason）を 通る 時だけ',
+    /var jido = how === 'open' && !docKind && !!held && \(held\.doc_type \|\| 'invoice'\) === 'invoice'\s*&& DOC\.statusOf\(held\) === 'draft' && !issueBlockReason\(\);/.test(dpCode), '条件が 違う');
+  T('⑱ 発行の 前に 紙を 作った 時の 中身（jidoKata）と 同じか 見る・違えば 発行しない', /var katami = jidoKata\(held\);/.test(dpCode) && /if \(jidoKata\(held\) !== katami\) \{/.test(dpCode), '見ていない');
+  T('⑱ 「送った」印は 発行できた 後（下書きの 間は 付けない）', /if \(held\.status === 'issued' && typeof sumi0 === 'function'\) sumi0\(\);/.test(dpCode), '順が 違う');
+  const iss = app.slice(app.indexOf('function issue(opt)'), app.indexOf('function issue(opt)') + 14000);
+  T('⑱ issue(opt)は 押した 1通（opt.held）と 今の 1通が 同じ・下書きの 時だけ 自動で 発行する', /if \(auto && \(!opt\.held \|\| S\.cur !== opt\.held \|\| DOC\.statusOf\(S\.cur\) !== 'draft'\)\) \{/.test(iss), '歯止めが 無い');
+  T('⑱ 確認の 窓から 開いた 別の 1通は 欄を 読まず その 写しを 発行（collect に 通さない）', /var v = \(auto && S\.cur !== S\.gamen\) \? S\.cur : collect\(\);/.test(iss), 'collect を 通している');
+  T('⑱ 自動の 発行は 番号を 進めない（noBump）・倉庫は 重なったら 止める', /auto \? \{ noBump: true \} : undefined/.test(iss) && rd('seikyu/js/seikyu-store.js').indexOf("if (isDup(w.error) && opts && opts.noBump) return { ok: false") > 0, 'noBump が 無い');
+  T('⑱ 納品書(b-delivery)は 自動の 発行に 入れない（docKind を 渡す）', app.indexOf("doPdf(n, 'open', 'delivery')") > 0, 'delivery の 呼びが 変わった');
   T('⑪ pdfDase は 取り消しの view を pdfView へ・下書きの view を pdfDraft（共有・字1行つき）へ・open を pdfOpen へ',
     app.indexOf("how === 'view' ? (toriKeshi ? OUT.pdfView(bytes, name) : OUT.pdfDraft(bytes, name, okuriJi)) : open ? OUT.pdfOpen(bytes, name, okuriJi, tabiSumi)") > 0, '振り分けが 違う');
   T('⑰ doPdf は 取り消し（void）かを pdfDase に 渡す', /miruJi, DOC\.statusOf\(S\.cur\) === 'void'\);/.test(app), '渡していない');

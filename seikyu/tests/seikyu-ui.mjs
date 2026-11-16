@@ -3742,6 +3742,52 @@ T('15-j. ★字の右にも余白（右端に貼り付かない）＝1か所で�
   ok(!/\.hint\s*\{[^}]*width:\s*100vw/.test(CSS), 'hint に画面幅を直に入れている');
 });
 
+/* ═══ 7b. 紙が 出たら 自動で 発行（2026-11-16 司さん「送るか印刷で 発行」・taiketsu 止1〜7）═══ */
+/* ★jsdom では 字を 紙に 埋める PDF.build が 終わらない＝本物の 代わりに 4 byte を 返す 偽物を 一時だけ 差す（発行の 引き金は PDF が 出来た 後）★ */
+const jidoPdfNise = () => { const mae = win.SeikyuPdf; win.SeikyuPdf = { build: () => Promise.resolve(new Uint8Array([0x25, 0x50, 0x44, 0x46])), lastMissing: () => [], lastBadImages: () => [] }; return () => { win.SeikyuPdf = mae; }; };
+const jidoNyuryoku = async (no) => {
+  win.SeikyuApp._pdfChuOwariForTest();   /* ★前の 試験の 本物の PDF 作りは jsdom では 終わらず「作成中」の まま★ */
+  doc.querySelector('.bn[data-scr="scr-list"]').click(); await sleep(20);
+  doc.querySelector('#kind-seg [data-kind="invoice"]').click(); await sleep(120);   /* ★一覧が 請求書で ないと 繰越を 数えられず 発行も 送るも 止まる★ */
+  win.SeikyuApp._state.listKind = 'invoice'; win.SeikyuApp._state.listReadOk = true;
+  $('b-new').click(); await sleep(20);
+  setVal('e-partner', 'pt_a'); setVal('e-issue', '2026-10-30'); await sleep(20);
+  if (no) { $('b-no-edit').click(); await sleep(10); setVal('e-no', no); }
+  const tr = $('lines-body').querySelector('tr');
+  tr.querySelector('[data-f="name"]').value = '自動発行の試験';
+  tr.querySelector('[data-f="name"]').dispatchEvent(new win.Event('input'));
+  tr.querySelector('[data-f="amount"]').value = '1000';
+  tr.querySelector('[data-f="amount"]').dispatchEvent(new win.Event('input'));
+  win.SeikyuApp._state.listKind = 'invoice'; win.SeikyuApp._state.listReadOk = true; win.SeikyuApp._recalcForTest();
+  await sleep(40);
+};
+await TA('7b. ★「印刷 / 送る」で 紙が 出たら 下書きは 自動で 発行になる（番号は そのまま・1通だけ）', async () => {
+  await jidoNyuryoku();
+  const noMae = $('e-no').value;
+  const n0 = db.pay_invoices.length;
+  const modosu = jidoPdfNise();
+  $('b-pdfopen').click();
+  await sleep(1500);
+  modosu();
+  const mine = db.pay_invoices.filter((x) => x.no === noMae);
+  eq(db.pay_invoices.length, n0 + 1, '★1通も 増えない／2通 増えた★');
+  eq(mine.length, 1, '番号が そのままの 1通が 無い（番号を 進めた）: ' + noMae);
+  eq(mine[0].status, 'issued', '★紙を 出したのに 下書きの まま★ ok=' + $('edit-ok').textContent.slice(0, 60) + ' err=' + $('edit-err').textContent);
+  ok(mine[0].issued_at, '発行の 時刻が 入っていない');
+});
+await TA('7b. ★番号が 重なる 下書きは 自動で 発行しない（番号を 進めて 送った 紙と ずらさない）', async () => {
+  const used = db.pay_invoices.find((x) => x.status === 'issued').no;
+  await jidoNyuryoku(used);
+  const n0 = db.pay_invoices.length;
+  const issued0 = db.pay_invoices.filter((x) => x.status === 'issued').length;
+  const modosu = jidoPdfNise();
+  $('b-pdfopen').click();
+  await sleep(1500);
+  modosu();
+  eq(db.pay_invoices.filter((x) => x.status === 'issued').length, issued0, '★番号が 重なるのに 発行された（番号が 進んだ）★');
+  eq(db.pay_invoices.filter((x) => x.no === used).length, 1, '同じ 番号が 2通 に なった');
+});
+
 /* ═══ 8. まとめ ═══ */
 T('8. ★最後まで JS が1つも落ちていない', () => {
   eq(errs.length, 0, errs.join(' | '));
