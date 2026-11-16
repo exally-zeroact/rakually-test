@@ -4789,7 +4789,20 @@
     if (!DOC.canVoid(v)) return Promise.resolve();
     if (!global.confirm('請求書 ' + (v.no || '') + ' を取り消しますか？\n（中身は残ります。番号は他で使えません）')) return Promise.resolve();
     return S.store.invoices.voidIt(v.id, new Date().toISOString()).then(function (r) {
-      if (!r.ok) { box('edit-err', '取り消せませんでした（' + r.reason + '）'); return; }
+      if (!r.ok) {
+        var msg = '取り消せませんでした（' + r.reason + '）';
+        box('edit-err', msg);
+        /* ★取り消せなかった時は 読み直して 見える 所に 字を 出す★（taiketsu 11-16 止3）＝一覧から 押した 時は edit-err が 見えない／
+           別の 端末で 先に 取り消された 1通なら 一覧の 行も「取消済」に 揃える（入力画面の 古い「発行済」を 残すと 次の 保存が 倉庫に 弾かれる） */
+        return loadList().then(function () {
+          var fresh = null;
+          for (var i = 0; i < S.invoices.length; i++) if (S.invoices[i].id === v.id) fresh = S.invoices[i];
+          if (fresh && fresh.status === 'void') v.status = 'void';
+          var ido = (S.cur === v && S.gamen === v);
+          if (ido && v.status === 'void') fillEdit();
+          if (!ido) box('list-err', msg);
+        });
+      }
       v.status = 'void';               // ★送った 1通に 付ける★（返事の 前に 別の 1通を 開いても その 1通を「取り消し済」に しない・taiketsu 10-23）
       /* ★どの 1通を 取り消したかを 言う★（一覧から 別の 1通を 取り消すと、入力に 出ている 別の 1通の 上に「取り消しました。」だけが 残り、その 1通を 取り消したと 読めた・taiketsu 10-23） */
       box('edit-ok', DOC.docLabel(v.doc_type || 'invoice') + ' ' + (v.no || '（未採番）') + ' を取り消しました。');

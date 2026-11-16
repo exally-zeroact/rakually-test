@@ -31,6 +31,8 @@
   var KESENAI = 'ログインが切れたか、別の端末で消された／発行された1通です。開き直してから、もう一度 お試しください';
   /* 入金の 取り消しの 0行（ログイン切れ・もう無い）は「この入金」と 言う（「1通」は 請求書の 言い方・taiketsu 11-15） */
   var NYUKIN_KESENAI = 'ログインが切れたか、この入金がもう在りません。開き直してから、もう一度 お試しください';
+  /* 請求書の 取り消しの 0行は「別の 端末で 先に 取り消された（発行済みでなくなった）」も 言う（taiketsu 11-16 止2＝ログイン切れと 同じ 0行） */
+  var TORIKESENAI = 'ログインが切れたか、別の端末で取り消された1通です。開き直してから、もう一度 お試しください';
   function kakitaKa(w, ji) {
     if (w && w.error) return { ok: false, reason: err(w.error) };
     var n = (w && Array.isArray(w.data)) ? w.data.length : 0;
@@ -196,8 +198,10 @@
         /* 取り消し（★消さない・番号を欠番にしない★） */
         voidIt: function (id, at) {
           var stamp = at || nowIso();
-          return Promise.resolve(sb.from('pay_invoices').update({ status: 'void', voided_at: stamp, updated_at: stamp }).eq('id', id).select('id'))
-            .then(kakitaKa)
+          /* ★発行済みの 行だけ 取り消す★（.eq('status','issued')）＝先に 取り消された 行は 0行で 最初の 取り消し時刻を 上書きしない。
+             DOC.canVoid（issued だけ）・倉庫の トリガー（issued→void だけ許す）と 同じ（taiketsu 11-16 止1） */
+          return Promise.resolve(sb.from('pay_invoices').update({ status: 'void', voided_at: stamp, updated_at: stamp }).eq('id', id).eq('status', 'issued').select('id'))
+            .then(function (w) { return kakitaKa(w, TORIKESENAI); })
             .catch(function (e) { return { ok: false, reason: err(e) }; });
         },
         /* 下書きだけ消せる（発行済みは倉庫が2枚で止める） */

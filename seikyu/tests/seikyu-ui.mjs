@@ -1462,6 +1462,28 @@ await TA('4. ★取り消しても番号は空かない（同じ番号は二度�
   ok(used.indexOf(voidedNo) >= 0, '取り消した番号が「使用済み」から外れている');
 });
 
+/* ★別の端末で先に取り消した1通を 古い一覧から もう一度 取り消す★（taiketsu 11-16 止1・止3）
+   ＝最初の取り消し時刻を上書きしない／断りは 一覧で見える箱に出る／一覧の行は「取消済」に揃う */
+await TA('4-b. ★取り消し済みの1通を 古い一覧から 取り消しても 取り消し時刻は 変わらず 断りが 一覧に出る', async () => {
+  const st = win.SeikyuApp._state;
+  const at0 = db.pay_invoices[1].voided_at;
+  doc.querySelector('.bn[data-scr="scr-list"]').click();
+  await sleep(20);
+  const gyo = st.invoices.find((v) => v.id === secondId);
+  ok(gyo, '前提：一覧に 取り消した1通が 無い');
+  gyo.status = 'issued';        // ★古い一覧＝まだ「発行済」と 思っている
+  for (const k of ['l-month', 'l-partner']) { const e = doc.getElementById(k); if (e) e.value = ''; }
+  st.fil = 'all'; win.SeikyuApp._renderListForTest();
+  const b = doc.querySelector('[data-kesu="' + secondId + '"]');
+  ok(b, '前提：一覧に 取り消しの ボタンが 無い');
+  b.click();
+  await sleep(120);
+  eq(db.pay_invoices[1].voided_at, at0, '★最初の 取り消し時刻を 上書きした★');
+  const le = $('list-err');
+  ok(/取り消せませんでした/.test(le.textContent) && le.style.display !== 'none', '★断りが 一覧の 箱に 出ていない★ ' + JSON.stringify(le.textContent));
+  eq((st.invoices.find((v) => v.id === secondId) || {}).status, 'void', '★一覧の 行が「取消済」に 揃っていない★');
+});
+
 /* ═══ 5. 一覧 ═══ */
 await TA('5. 一覧に2通出る・絞り込みが効く', async () => {
   doc.querySelector('.bn[data-scr="scr-list"]').click();

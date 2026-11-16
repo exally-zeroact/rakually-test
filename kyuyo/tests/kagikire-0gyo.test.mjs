@@ -94,9 +94,19 @@ async function mawasu(src) {
   await T('④ 0行の字＝入金の消しは「この入金」・請求書の2本は「1通」のまま', async () => {
     st.rows = []; st.error = null;
     const rc = await S.receipts.remove('rc1'); ok(rc && rc.ok === false && /この入金がもう在りません/.test(rc.reason) && !/1通/.test(rc.reason), 'receipts.remove reason=' + (rc && rc.reason));
-    for (const [nm, f] of [['voidIt', () => S.invoices.voidIt('iv1')], ['markSent', () => S.invoices.markSent('iv1')]]) {
-      const r = await f(); ok(r && r.ok === false && /この1通がもう在りません/.test(r.reason) && !/入金/.test(r.reason), nm + ' reason=' + (r && r.reason));
-    }
+    const rm = await S.invoices.markSent('iv1'); ok(rm && rm.ok === false && /この1通がもう在りません/.test(rm.reason) && !/入金/.test(rm.reason), 'markSent reason=' + (rm && rm.reason));
+    /* 請求書の取り消しは 別の端末で先に取り消された事も言う（ログイン切れと同じ0行・taiketsu 11-16 止2） */
+    const rv = await S.invoices.voidIt('iv1'); ok(rv && rv.ok === false && /ログインが切れたか/.test(rv.reason) && /別の端末で取り消された1通/.test(rv.reason) && !/入金/.test(rv.reason), 'voidIt reason=' + (rv && rv.reason));
+  });
+
+  /* ★先に取り消された請求書を もう一度 取り消して 取り消し時刻を 上書きしない★（taiketsu 11-16）＝発行済みの行だけ更新する */
+  await T('④c 請求書の取り消しは eq(status, issued) を付けて 呼ぶ（取り消し済みは 0行）', async () => {
+    st.rows = [{ id: 'x' }]; st.error = null; st.log.length = 0;
+    await S.invoices.voidIt('iv1');
+    const o = st.log[st.log.length - 1];
+    ok(o && o.table === 'pay_invoices' && o.kind === 'update', '呼びが 見つからない');
+    ok(o.eq.some(([k, v]) => k === 'status' && v === 'issued'), "eq('status','issued') が 付いていない");
+    ok(o.eq.some(([k, v]) => k === 'id' && v === 'iv1'), "eq('id') が 無い");
   });
 
   /* ★先に消えた入金を もう一度 消して 消した時刻を 上書きしない★（taiketsu 11-16） */
@@ -193,7 +203,9 @@ if (process.argv.includes('--self-test')) {
   /* ★直しを 1つずつ 外す★（外すと 赤に なる＝門が 本当に 守る）。置き換え先が 無ければ それ自体が 赤 */
   const KOWASHI = [
     ['seikyu の 0行の判じを外す', 'seikyu', /function kakitaKa\(w, ji\) \{[\s\S]*?\n  \}/, 'function kakitaKa(w, ji) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true }; }'],
-    ['voidIt の .select を外す', 'seikyu', ".eq('id', id).select('id'))\n            .then(kakitaKa)", ".eq('id', id))\n            .then(kakitaKa)"],
+    ['voidIt の .select を外す', 'seikyu', ".eq('id', id).eq('status', 'issued').select('id'))", ".eq('id', id).eq('status', 'issued'))"],
+    ['voidIt の eq(status, issued) を外す', 'seikyu', ".eq('id', id).eq('status', 'issued').select('id'))", ".eq('id', id).select('id'))"],
+    ['voidIt の字を「1通がもう在りません」に戻す', 'seikyu', "kakitaKa(w, TORIKESENAI)", "kakitaKa(w)"],
     ['再発行の 0行の判じを外す', 'store', "if(!(r.data&&r.data.length)) return { ok:false", "if(false) return { ok:false"],
     ['束の消しの 0行の判じを外す', 'store', "return !!(r&&!r.error&&r.data&&r.data.length);", 'return true;'],
     ['画面の r.ok を外す', 'app', "if(!r||!r.ok){ toast('初回コードを再発行できませんでした", "if(false){ toast('初回コードを再発行できませんでした"],
