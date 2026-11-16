@@ -84,7 +84,20 @@
   function pdfView(bytes, filename) {
     return global.FileOut.openInViewer(bytes, filename);
   }
+  /* ★2026-11-16 司さん「まだなんでLINEで送ったらURLが出てきとんどぼけ」★
+     下書き（未発行）の 紙を iPhone・iPad で 見る 時に Safari の PDF 画面へ 行くと、そこの 共有から LINE に
+     送ると Safari が 頁の blob URL を 一緒に 渡す。＝下書きも 共有の 画面に 渡す（files と text だけ・url 無し）。
+     パソコン・Android は FileOut.sharePdf が 今まで通り 開く／保存（pdfView と 同じ）。
+     ★取り消した 紙は ここを 通さず pdfView（見るだけ）のまま★（本物と 見分けの つかない 紙を 1押しで LINE に 出さない・taiketsu 11-16 止1）。 */
+  function pdfDraft(bytes, filename, text) {
+    return global.FileOut.sharePdf(bytes, filename, { text: text });
+  }
+  /* ★領収書の「領収書PDF」（落とす）★＝iPhone・iPad は Safari の PDF 画面へ 行かず 共有の 画面（「ファイルに保存」「プリント」も 並ぶ）。
+     パソコン・Android は 今まで通り 落とす（deliver）。 */
+  function pdfSave(bytes, filename, text) {
+    return global.FileOut.sharePdf(bytes, filename, { text: text, open: function () { return global.FileOut.deliver(bytes, filename); } });
+  }
 
   global.SeikyuOut = { preview: preview, excel: excel, openPaper: openPaper,
-    pdf: pdf, pdfOpen: pdfOpen, pdfView: pdfView };
+    pdf: pdf, pdfOpen: pdfOpen, pdfView: pdfView, pdfDraft: pdfDraft, pdfSave: pdfSave };
 })(typeof window !== 'undefined' ? window : globalThis);
