@@ -328,7 +328,7 @@ async function run(label, o) {
       const q = from0.call(this, t);
       /* 0行の 返りは .select 有りでも 無しでも 同じ（2026-10-25 共有層 cd82bce が update().eq().select('id') に なった） */
       const zero = () => { const p = Promise.resolve({ data: [], error: null }); p.select = () => Promise.resolve({ data: [], error: null }); return p; };
-      if (t === 'pay_partners') q.update = () => ({ eq: zero });
+      if (t === 'pay_partners') q.update = () => ({ eq: () => ({ is: zero }) });
       return q;
     };
     await kesuA(r);
@@ -347,7 +347,7 @@ async function run(label, o) {
     r.sb.from = function (t) {
       const q = from0.call(this, t);
       const one = () => { const p = Promise.resolve({ data: [{ id: 'pt_a' }], error: null }); p.select = () => Promise.resolve({ data: [{ id: 'pt_a' }], error: null }); return p; };
-      if (t === 'pay_partners') q.update = () => ({ eq: one });     // 「1行 書けた」と 返すが 倉庫は 変えない
+      if (t === 'pay_partners') q.update = () => ({ eq: () => ({ is: one }) });     // 「1行 書けた」と 返すが 倉庫は 変えない
       return q;
     };
     await kesuA(r);
