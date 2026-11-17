@@ -4718,6 +4718,8 @@
      ・状態が 下書きの 時だけ（止3）・番号は 進めない（止4a＝送った 紙の 番号と 変わるため） */
   function issue(opt) {
     var auto = !!(opt && opt.auto === true);
+    /* ★断りの知らせ★＝自動の 発行の 時は 窓を 閉じた 後の 客にも 見える よう 一覧の 箱にも 出す（taiketsu 11-17 止2 の 残り） */
+    function say(text) { if (auto) jidoShirase(text); else box('edit-err', text); }
     if (auto && (!opt.held || S.cur !== opt.held || DOC.statusOf(S.cur) !== 'draft')) {
       jidoShirase('紙は 出しましたが、開いている 1通が 変わったので 発行していません。発行する 時は 入力の 画面で「発行する」を 押してください。');
       return Promise.resolve();
@@ -4729,19 +4731,19 @@
        （同じ状態を2か所で別々に判定すると、必ずどこかで食い違う）。 */
     if (issueBlockReason()) { /* 下の検査が理由を出す */ }
     var v = (auto && S.cur !== S.gamen) ? S.cur : collect();
-    if (!v) { box('edit-err', '入力の画面と 中身が 合っていないので 発行しませんでした。一覧の「修正」から 開き直してください。'); return Promise.resolve(); }
+    if (!v) { say('入力の画面と 中身が 合っていないので 発行しませんでした。一覧の「修正」から 開き直してください。'); return Promise.resolve(); }
     var t = recalc();
-    if (!t || !t.ok) { box('edit-err', '計算が通らないので発行できません。上の赤い印を直してください。'); return Promise.resolve(); }
+    if (!t || !t.ok) { say('計算が通らないので発行できません。上の赤い印を直してください。'); return Promise.resolve(); }
     // ★自社情報が読めていないまま発行しない（写しに空の自社が固まる＝直せない紙になる）
     if (S.orgReadOk === false) {
-      box('edit-err', '会社の情報が読めていないので発行できません。一覧の「もう一度読み込む」を押してから、もう一度お試しください。');
+      say('会社の情報が読めていないので発行できません。一覧の「もう一度読み込む」を押してから、もう一度お試しください。');
       return Promise.resolve();
     }
     /* ★一覧が 読めて いない まま 発行しない★＝前回の 請求が 見えず ★繰越が 黙って 消えた 紙★ が 写しに 固まる（10-13 taiketsu：60000 が 10000） */
     var lw2 = listWhy(v);
     if (lw2) {
       var kl2 = DOC.docLabel(v.doc_type || 'invoice');
-      box('edit-err', lw2 === 'shurui'
+      say(lw2 === 'shurui'
         ? ('一覧が ' + DOC.docLabel(S.listKind) + ' になっているので発行できません（この' + kl2 + 'の前回の繰越を数えられないため）。一覧で ' + kl2 + ' に戻してから、もう一度お試しください。')
         : lw2 === 'yomikomi'
           ? (kl2 + 'の一覧を読み込み中なので、まだ発行できません（前回の請求からの繰越を数えるため）。読み込めてから、もう一度お試しください。')
@@ -4751,11 +4753,11 @@
     /* ★止めて 警告★（司さん 10-25）＝取り消した 紙の 入金と 返金が 両方 ある 取引先は、繰越を 数えられないので 発行しない */
     /* ★入金が 読めていない 時も 止める★（2026-11-04）＝判じは carryBlock 1本（ボタンの 灰色と 同じ） */
     var cb = carryBlock();
-    if (cb) { box('edit-err', cb.long); return Promise.resolve(); }
+    if (cb) { say(cb.long); return Promise.resolve(); }
     /* ★発行は 生きている 相手だけ★（taiketsu 10-23 止1・上の issueBlockReason と 同じ 判じ） */
     var p = ptLive(v.partner_id);
     var chk = DOC.validateInvoice({ inv: Object.assign({}, v, { lines: cleanLines(v.lines) }), rawLines: v.lines, partner: p, org: { data: S.org || {} } });
-    if (!chk.ok) { box('edit-err', chk.errors.join('\n')); box('edit-warn', ''); return Promise.resolve(); }
+    if (!chk.ok) { say(chk.errors.join('\n')); box('edit-warn', ''); return Promise.resolve(); }
     box('edit-warn', chk.warnings.join('\n'));
     box('edit-err', '');
 
@@ -4789,7 +4791,7 @@
        ③最初の しまいの 返事待ちに 発行＝下書きと 発行済みの ★2通★（番号が 1つ 進む）＝後で 下書きを 発行すると 二重の 請求
        ⇒ 予約を 消す・発行の 返事まで この 1通の 自動の しまいを 止める・しまいの 返事を 待って、返った id で 発行する。
        ★2度 押しも 通さない★（返事の 前の 2度目は id が 無く、番号を 進めて 2通 発行した） */
-    if (S.hakkoChu) { box('edit-err', '発行の 返事を 待っています。少し 待ってから、もう一度 お試しください。'); return Promise.resolve(); }
+    if (S.hakkoChu) { say('発行の 返事を 待っています。少し 待ってから、もう一度 お試しください。'); return Promise.resolve(); }
     if (jidoTimer) { clearTimeout(jidoTimer); jidoTimer = null; }
     S.hakkoChu = hakko;
     S.hakkoNo = row.no;
@@ -4816,7 +4818,7 @@
     }).then(function (r) {
       owari();
       if (!r || !r.ok) {
-        box('edit-err', '発行できませんでした（' + ((r && r.reason) || '理由不明') + '）'
+        say('発行できませんでした（' + ((r && r.reason) || '理由不明') + '）'
           + (auto ? '。紙は もう 出しています＝送った 紙の 番号は そのままです。入力の 画面で 番号を 直して「発行する」を 押してください。' : ''));
         nokosu('発行できなかったため', false);   /* 待つ 間に 打った 字は 下書きと して しまう */
         return;
@@ -4842,7 +4844,7 @@
       return loadList({ ato: DOC.docLabel(v.doc_type || 'invoice') + ' ' + r.no + ' の 発行は できています（一覧に 出るのは 読み込めてから です）。' }).then(function () { if (S.cur === hakko) fillEdit(); });
     }, function (e) {
       owari();
-      box('edit-err', '発行できませんでした（' + ((e && e.message) || '理由不明') + '）');
+      say('発行できませんでした（' + ((e && e.message) || '理由不明') + '）');
       nokosu('発行できなかったため', false);
     });
   }

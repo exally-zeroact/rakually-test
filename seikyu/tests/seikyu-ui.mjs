@@ -3834,6 +3834,16 @@ await TA('7b. ★確認の 窓を 閉じた 後に 発行が 断られたら 一
   }
 });
 
+await TA('7b. ★番号が 重なって 発行が 断られたら 知らせが 一覧の 箱にも 見える（断りの 口が 全部 jidoShirase へ・taiketsu 11-17 止2 の 残り）', async () => {
+  const used = db.pay_invoices.find((x) => x.status === 'issued').no;
+  await jidoNyuryoku(used);
+  const modosu = jidoPdfNise();
+  $('b-pdfopen').click();
+  await sleep(1500);
+  modosu();
+  ok(/発行できませんでした/.test($('list-err').textContent || ''), '★重複番号の 断りが 一覧の 箱に 出ない（入力の 箱だけ）★ list-err=' + $('list-err').textContent.slice(0, 60) + ' edit-err=' + $('edit-err').textContent.slice(0, 60));
+});
+
 /* ★確認の窓から開いた1通の「印刷 / 送る」（lookPaper の道）で、自動で発行してはいけない所（本番前 taiketsu 11-17）★
    共有をやめた・検査に通らない・取り消し・見積。どれも「紙は出ても 台帳は 変わらない」を 道ごとに 押さえる */
 const jidoLookOshite = async (id, over, kind, stub) => {
