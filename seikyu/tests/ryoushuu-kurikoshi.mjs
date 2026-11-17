@@ -617,7 +617,7 @@ if (!SELF) {
     { na: '⑨止2 引ける 紙の 無い 赤伝を 過入金に しない', pairs: [["    if (st.remain < 0) st.state = 'over';\n", '']] },
     { na: '⑨別件 見積にも 繰越を 乗せる', pairs: [["    if ((v.doc_type || 'invoice') !== 'invoice') return null;\n", '']] },
     { na: '⑦止B 状態を 入金＋貸しの 和で 決める', pairs: [["      st.state = st.remain < 0 ? 'over' : st.remain === 0 ? 'paid' : (st.paid === 0 ? 'unpaid' : 'partial');\n    }\n    /* ★引ける", "      st.state = (st.paid + c.credit) === 0 ? 'unpaid' : st.remain > 0 ? 'partial' : st.remain === 0 ? 'paid' : 'over';\n    }\n    /* ★引ける"], ["    if (st.remain < 0) st.state = 'over';\n", '']] },
-    { na: '⑧ 充てない＋返金 でも 発行を 止めない', pairs: [["    if (cb) { box('edit-err', cb.long); return Promise.resolve(); }", '']] },
+    { na: '⑧ 充てない＋返金 でも 発行を 止めない', pairs: [["    if (cb) { say(cb.long); return Promise.resolve(); }", '']] },
     { na: '⑧ 充てない＋返金 で 入力の 画面に 直し方を 出さない', pairs: [["        setText(tid, cbk.long);\n        return;", "        el.style.display = 'none';\n        return;"]] },
     { na: '⑧ 充てない＋返金 でも ボタンを 灰色に しない', pairs: [["    if (cb) return cb.short;", "    if (cb && cb.kind !== 'void') return cb.short;"]] },
     { na: '⑧ 充てない＋返金 で 止めずに 数える', pairs: [['      p.voidWarn = Object.keys(vn)', '      p.voidWarn = false && Object.keys(vn)']] },

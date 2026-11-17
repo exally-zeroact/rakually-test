@@ -475,7 +475,7 @@ if (!SELF) {
     ['発行の 返事待ちでも 自動の しまいを 送る', '    if (hakkoMachi(S.cur)) return;\n', '', '⑤'],
     ['しまいの 返事を 待たずに 発行する', '    return Promise.resolve(S.hozonChu).then(', '    return Promise.resolve(null).then(', '③'],
     ['しまいが 付けた id で 発行しない', '      if (!row.id && hakko.id) row.id = hakko.id;', '', '③'],
-    ['2度 押しを 通す', "    if (S.hakkoChu) { box('edit-err', '発行の 返事を 待っています。", "    if (false) { box('edit-err', '発行の 返事を 待っています。", '④'],
+    ['2度 押しを 通す', "    if (S.hakkoChu) { say('発行の 返事を 待っています。", "    if (false) { say('発行の 返事を 待っています。", '④'],
     ['断られた 後に 待つ間の 字を しまわない', '      if (S.cur === hakko) { if (S.dirty) jidoYoyaku(); return; }', '      if (S.cur === hakko) { return; }', '⑥'],
     ['別の 1通へ 移ったら 打った 値を 残さない（止1）', "      if (S.cur !== hakko) nokosu('発行の 返事を 待つ 間に 直したため', true);", '', '⑦'],
     ['断られて 別の 1通へ 移ったら 打った 値を 残さない（止1）', "        nokosu('発行できなかったため', false);   /* 待つ 間に", "        if (S.cur === hakko && S.dirty) jidoYoyaku();   /* 待つ 間に", '⑧'],
