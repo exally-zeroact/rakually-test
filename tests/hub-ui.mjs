@@ -296,6 +296,11 @@ await (async () => {
     ok(doc.querySelectorAll('#pt-rows .row').length === 2, '一覧が更新されていない');
     ok(doc.getElementById('pt-edit').style.display === 'none', 'フォームが閉じていない');
   });
+  T('4. 保存は merge:true で渡し 敬称は honor にも同じ値を書く（請求書の紙は honor を先に読む）', () => {
+    const c = calls.filter(x => x[0] === 'pt.upsert').pop();
+    ok(c && c[1].merge === true, 'merge:true が渡っていない＝請求書アプリの欄が消える');
+    ok(c && c[1].data.honor === c[1].data.keisho && !!c[1].data.honor, 'honor が keisho と同じでない');
+  });
   doc.querySelector('#pt-rows [data-pt="pt_a"]').click(); await sleep(10);
   T('4. 既存をタップすると値が入り、削除ボタンが出る', () => {
     ok(doc.getElementById('pt-name').value === '○○建設株式会社');

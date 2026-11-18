@@ -313,7 +313,7 @@
     state.editPtId = id || null;
     $('pt-edit-t').textContent = id ? '取引先を直す' : '取引先を追加';
     $('pt-name').value = d.name || '';
-    $('pt-keisho').value = d.keisho || '御中';
+    $('pt-keisho').value = d.honor || d.keisho || '御中';
     $('pt-addr').value = d.addr || '';
     $('pt-invoice').value = d.invoiceNo || '';
     torokuNote('pt-invoice', 'pt-invoice-note', PT_NOTE);
@@ -326,11 +326,11 @@
     if (!SD) { msg('pt-edit-msg', 'ログインしてください', true); return Promise.resolve(); }
     var name = $('pt-name').value.trim();
     if (!name) { msg('pt-edit-msg', '名称を入れてください', true); return Promise.resolve(); }
-    var data = { name: name, keisho: $('pt-keisho').value, addr: $('pt-addr').value.trim(), invoiceNo: TOROKU.check($('pt-invoice').value).no };
+    var data = { name: name, keisho: $('pt-keisho').value, honor: $('pt-keisho').value, addr: $('pt-addr').value.trim(), invoiceNo: TOROKU.check($('pt-invoice').value).no };
     var chk = torokuNote('pt-invoice', 'pt-invoice-note', PT_NOTE);
     if (!chk.ok) { msg('pt-edit-msg', chk.msg, true); return Promise.resolve(); }
     msg('pt-edit-msg', '保存中...');
-    return SD.partners.upsert({ id: state.editPtId || undefined, data: data }).then(function (r) {
+    return SD.partners.upsert({ id: state.editPtId || undefined, data: data, merge: true }).then(function (r) {
       if (r && r.ok) { closePt(); toast('保存しました'); return loadPartners(); }
       msg('pt-edit-msg', jpFail(r && r.reason), true);
     }).catch(function (e) { msg('pt-edit-msg', jpFail(e && e.message), true); });

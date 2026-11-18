@@ -306,6 +306,26 @@ test('§4 partners.upsert: 生きている行は 今まで通り 直せる・pay
   assert.strictEqual(tables.pay_partners.find(p => p.id === 'pt_l').data.name, 'L社(改名)');
 });
 
+/* ★merge:true は 既存の data に 重ねる★（2026-11-18）＝ハブの保存が 請求書アプリの person・payTerm 等を 消さない。 */
+test('§4 partners.upsert merge:true: 渡さなかった欄は 残り・渡した欄は（空でも）上書き', async () => {
+  const { sd, tables } = setup();
+  await sd.partners.upsert({ id: 'pt_m', sort: 1, data: { name: 'M社', honor: '御中', keisho: '御中', addr: '旧住所', person: '山田', payTerm: '月末' } });
+  const r = await sd.partners.upsert({ id: 'pt_m', data: { name: 'M社', honor: '様', keisho: '様', addr: '', invoiceNo: '' }, merge: true });
+  assert.strictEqual(r.ok, true, JSON.stringify(r));
+  const d = tables.pay_partners.find(p => p.id === 'pt_m').data;
+  assert.strictEqual(d.person, '山田', 'person が 消えた');
+  assert.strictEqual(d.payTerm, '月末', 'payTerm が 消えた');
+  assert.strictEqual(d.addr, '', '空にした 住所が 上書きされていない');
+  assert.strictEqual(d.honor, '様');
+  assert.strictEqual(d.keisho, '様');
+});
+test('§4 partners.upsert: merge を 渡さなければ 今まで通り 丸ごと置換', async () => {
+  const { sd, tables } = setup();
+  await sd.partners.upsert({ id: 'pt_n', sort: 1, data: { name: 'N社', person: '山田' } });
+  await sd.partners.upsert({ id: 'pt_n', data: { name: 'N社' } });
+  assert.ok(!('person' in tables.pay_partners.find(p => p.id === 'pt_n').data), 'merge 無しなのに 重なった');
+});
+
 /* ═══ §5 日次台帳 ═══ */
 
 test('§5 ledger: 同じ人・同じ日に複数行を入れられる(1日に何本も=代行の実態)', async () => {

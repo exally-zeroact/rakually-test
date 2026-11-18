@@ -262,12 +262,14 @@
             //   ⇒ 既存 id を 直す時は deleted_at も 読み、消えていて p.revive が 無ければ {ok:false, reason:'deleted'}。
             //      deleted_at:null を 書くのは p.revive の時だけ（seikyu-store.js revive が 渡す）＝読んでから
             //      書くまでの間に 別の端末が 消しても、欠けた列は 既存行で 残る（postgrest 既定 merge-duplicates）。
-            var pre = p.id ? Promise.resolve(sb.from('pay_partners').select('sort,deleted_at').eq('id', id).maybeSingle()) : Promise.resolve({ data: null });
+            var pre = p.id ? Promise.resolve(sb.from('pay_partners').select('sort,deleted_at,data').eq('id', id).maybeSingle()) : Promise.resolve({ data: null });
             return pre.then(function (r) {
               if (r && r.error) return { ok: false, reason: err(r.error) };
               if (r && r.data && r.data.deleted_at && !p.revive) return { ok: false, reason: 'deleted' };
               var sort = (p.sort != null) ? p.sort : ((r && r.data && r.data.sort) || 0);
-              var row = { id: id, account_id: u, sort: sort, data: p.data, updated_at: nowIso() };
+              // ★merge:true の時だけ 既存の data に 重ねる★（2026-11-18）＝ハブは 4欄しか 持たないので 丸ごと置換すると 請求書アプリが 入れた person・zip・tel 等が 消えた。
+              var data = (p.merge === true) ? Object.assign({}, (r && r.data && r.data.data) || {}, p.data) : p.data;
+              var row = { id: id, account_id: u, sort: sort, data: data, updated_at: nowIso() };
               if (p.revive) row.deleted_at = null;
               return Promise.resolve(sb.from('pay_partners').upsert(row))
                 .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true, id: id }; });
