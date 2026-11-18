@@ -3009,6 +3009,9 @@
     if (!PDF) { box('pay-err', 'PDFを作る部品が読めていません。画面を開き直してください。'); return; }
     var built = PAPER.build(Object.assign({}, pi, { title: name }));
     var open = (how === 'open');
+    /* ★作っている間の 2度押しで 2枚 作らない★（2026-11-19）＝請求書PDF（pdfDase）と 同じ 鍵を 使う。
+       鍵は PAPER.build の 後で 取る（前だと PAPER.build が 投げた時に 鍵が 残り、全部の PDF が 断られる・taiketsu 止1） */
+    if (!pdfChuHajime()) { box('pay-ok', 'PDFを作っています…（出来るまで 少し 待ってください）'); return; }
     box('pay-ok', '領収書のPDFを作っています…（字を紙に埋め込むので 少し待ちます）');
     PDF.build(built.html, { base: '../' }).then(function (bytes) {
       var miss = PDF.lastMissing ? PDF.lastMissing() : [];
@@ -3023,7 +3026,7 @@
     }).catch(function (e) {
       box('pay-err', '領収書のPDFが作れませんでした（' + (e && e.message) + '）。'
         + '「領収書」なら 印刷から 出せます。');
-    });
+    }).then(pdfChuOwari, pdfChuOwari);
   }
 
   function receiptFileName(rcId) {

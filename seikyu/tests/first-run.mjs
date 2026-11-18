@@ -235,6 +235,61 @@ await T('★⑫ 入金を付けると「領収書PDF」が 出て、押すと PD
   console.log('     領収書を送る → ' + txt('pay-ok').slice(0, 46));
 });
 
+/* ★領収書PDFを 作っている間に もう一度 押しても 2枚 作らない★（2026-11-19・請求書PDF と 同じ 鍵）
+   ★紙を 組む所（PAPER.build）が 投げても 鍵を 残さない★（taiketsu 止1＝残ると 全部の PDF が 断られる） */
+await T('★⑫-b 領収書PDFの 2度押しで 2枚 作らない・失敗の 後も また 作れる', async () => {
+  A._pdfChuOwariForTest();
+  A._renderPayForTest();
+  let built = 0, hold = null;
+  win.SeikyuPdf = { build: () => { built++; return new Promise((r) => { hold = r; }); },
+    lastMissing: () => [], lastPlaced: () => [], lastBadImages: () => [] };
+  win.FileOut = Object.assign({}, win.FileOut, { deliver: () => Promise.resolve({ ok: true }) });
+  const oshu = async () => {
+    doc.querySelector('[data-rcpdf]').click();
+    await new Promise((r) => setTimeout(r, 60));
+    $('fn-ok').click();
+    await new Promise((r) => setTimeout(r, 60));
+  };
+  await oshu();
+  eq(built, 1, '1回目で PDF を 作りに 行っていない');
+  await oshu();
+  eq(built, 1, '★作っている 最中の 2度押しで 2枚目を 作った★');
+  ok(/作っています/.test(txt('pay-ok')), '★断った 訳を 言っていない★：' + txt('pay-ok'));
+  hold(new Uint8Array([1, 2, 3]));
+  await new Promise((r) => setTimeout(r, 120));
+  await oshu();
+  eq(built, 2, '★出来た 後も 鍵が 残り 次を 作れない★');
+  /* 作るのが 失敗しても 鍵は 解ける */
+  win.SeikyuPdf.build = () => { built++; return Promise.reject(new Error('わざと')); };
+  hold = null;
+  await new Promise((r) => setTimeout(r, 60));
+  /* 前の 2回目は まだ 作っている＝解いてから */
+  A._pdfChuOwariForTest();
+  await oshu();
+  eq(built, 3, '失敗の 試しで 作りに 行っていない');
+  await new Promise((r) => setTimeout(r, 60));
+  ok(/作れませんでした/.test(txt('pay-err')), '★失敗を 言っていない★：' + txt('pay-err'));
+  win.SeikyuPdf.build = () => { built++; return Promise.resolve(new Uint8Array([1, 2, 3])); };
+  await oshu();
+  eq(built, 4, '★失敗の 後に 鍵が 残り 次を 作れない★');
+  await new Promise((r) => setTimeout(r, 120));
+  /* ★紙を 組む所が 投げた 時★＝鍵を 取る前に 落ちるので 次も 作れる */
+  const P = win.SeikyuPaper, motoBuild = P.build;
+  let nageta = 0;
+  P.build = function () { nageta++; P.build = motoBuild; throw new Error('紙を組めない（わざと）'); };
+  const errMae = errs.length;
+  await oshu();
+  P.build = motoBuild;
+  eq(nageta, 1, '紙を組む所が 投げる 試しに 届いていない');
+  /* わざと 投げた 1件だけを 落ちの 数から 外す（⑭ は 本物の 落ちだけを 数える） */
+  const wazato = errs.slice(errMae).filter((x) => /紙を組めない（わざと）/.test(x)).length;
+  eq(wazato, 1, 'わざと 投げた 落ちが 1件で ない');
+  errs.splice(errMae, errs.length - errMae, ...errs.slice(errMae).filter((x) => !/紙を組めない（わざと）/.test(x)));
+  await oshu();
+  eq(built, 5, '★紙を 組む所が 投げた 後に 鍵が 残り PDF を 作れない★');
+  await new Promise((r) => setTimeout(r, 120));
+});
+
 /* ★送る道★（司さん 2026-08-30「代行では 赤丸のところから メールなど選べる」）
    ＝うちも ★PDFを その場で開く★口を付けた。開けば iPhone自身のビューアが出て、
      その共有ボタンから メール/メッセージ/AirDrop に乗る。
