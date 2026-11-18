@@ -255,8 +255,9 @@
           return uid().then(function (u) {
             if (!u) return { ok: false, reason: 'no-user' };
             var id = p.id || newId('pt');
-            // ★upsert は行を丸ごと置換する(欠けた列は既定値に戻る)。既存を直す時は
-            //   sort を渡さないと並び順が黙って0に戻るので、既存行から引き継ぐ。
+            // ★upsert は 渡した列だけを 書く（payload に 無い列は 既存行のまま＝postgrest 既定 merge-duplicates）。
+            //   sort は 行に 必ず 入れるので、既存を直す時に sort を渡さないと 並び順が 0 で 上書きされる＝既存行から 引き継ぐ。
+            //   data は 列ごと 置換（中の欄は 重ならない）＝重ねたい時は p.merge:true（下）。
             // ★消した行を 生き返らせない★（2026-11-18）＝前は 常に deleted_at:null を 書いたので、別の端末で
             //   消された 取引先を 古い 画面から 保存すると 変更ごと 生き返った。
             //   ⇒ 既存 id を 直す時は deleted_at も 読み、消えていて p.revive が 無ければ {ok:false, reason:'deleted'}。

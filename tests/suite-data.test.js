@@ -326,6 +326,32 @@ test('§4 partners.upsert: merge を 渡さなければ 今まで通り 丸ご�
   assert.ok(!('person' in tables.pay_partners.find(p => p.id === 'pt_n').data), 'merge 無しなのに 重なった');
 });
 
+/* ★事前読みが 失敗したら 書かない★（2026-11-19）＝sort・deleted_at・data を 読めないまま 書くと
+   並びが 0 に 戻る・消えた行が 生き返る・merge で 重ねる元が 無く 欄が 消える。 */
+test('§4 partners.upsert: 既存行の 事前読みが 失敗したら ok にせず 書かない（行は そのまま）', async () => {
+  const { sb, sd, tables } = setup();
+  await sd.partners.upsert({ id: 'pt_e', sort: 5, data: { name: 'E社', person: '山田' } });
+  sb._reset();
+  sb._failNext('pay_partners', 'select');
+  const r = await sd.partners.upsert({ id: 'pt_e', data: { name: 'E社(改名)' } });
+  assert.strictEqual(r.ok, false, '読めないのに ok＝' + JSON.stringify(r));
+  assert.ok(r.reason, '理由が 空');
+  assert.strictEqual(sb._calls.filter(c => c.table === 'pay_partners' && c.op === 'upsert').length, 0, '読めないまま 書いた');
+  const row = tables.pay_partners.find(p => p.id === 'pt_e');
+  assert.strictEqual(row.sort, 5);
+  assert.deepStrictEqual(row.data, { name: 'E社', person: '山田' });
+});
+test('§4 partners.upsert merge:true: 事前読みが 失敗したら 重ねずに 書く事も しない（person 等を 消さない）', async () => {
+  const { sb, sd, tables } = setup();
+  await sd.partners.upsert({ id: 'pt_f', sort: 1, data: { name: 'F社', person: '佐藤', payTerm: '翌月末' } });
+  sb._reset();
+  sb._failNext('pay_partners', 'select');
+  const r = await sd.partners.upsert({ id: 'pt_f', data: { name: 'F社', addr: '新住所' }, merge: true });
+  assert.strictEqual(r.ok, false, JSON.stringify(r));
+  assert.strictEqual(sb._calls.filter(c => c.table === 'pay_partners' && c.op === 'upsert').length, 0, '読めないまま 書いた');
+  assert.deepStrictEqual(tables.pay_partners.find(p => p.id === 'pt_f').data, { name: 'F社', person: '佐藤', payTerm: '翌月末' });
+});
+
 /* ═══ §5 日次台帳 ═══ */
 
 test('§5 ledger: 同じ人・同じ日に複数行を入れられる(1日に何本も=代行の実態)', async () => {
