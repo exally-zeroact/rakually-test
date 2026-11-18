@@ -257,11 +257,19 @@
             var id = p.id || newId('pt');
             // ★upsert は行を丸ごと置換する(欠けた列は既定値に戻る)。既存を直す時は
             //   sort を渡さないと並び順が黙って0に戻るので、既存行から引き継ぐ。
-            var pre = p.id ? Promise.resolve(sb.from('pay_partners').select('sort').eq('id', id).maybeSingle()) : Promise.resolve({ data: null });
+            // ★消した行を 生き返らせない★（2026-11-18）＝前は 常に deleted_at:null を 書いたので、別の端末で
+            //   消された 取引先を 古い 画面から 保存すると 変更ごと 生き返った。
+            //   ⇒ 既存 id を 直す時は deleted_at も 読み、消えていて p.revive が 無ければ {ok:false, reason:'deleted'}。
+            //      deleted_at:null を 書くのは p.revive の時だけ（seikyu-store.js revive が 渡す）＝読んでから
+            //      書くまでの間に 別の端末が 消しても、欠けた列は 既存行で 残る（postgrest 既定 merge-duplicates）。
+            var pre = p.id ? Promise.resolve(sb.from('pay_partners').select('sort,deleted_at').eq('id', id).maybeSingle()) : Promise.resolve({ data: null });
             return pre.then(function (r) {
               if (r && r.error) return { ok: false, reason: err(r.error) };
+              if (r && r.data && r.data.deleted_at && !p.revive) return { ok: false, reason: 'deleted' };
               var sort = (p.sort != null) ? p.sort : ((r && r.data && r.data.sort) || 0);
-              return Promise.resolve(sb.from('pay_partners').upsert({ id: id, account_id: u, sort: sort, data: p.data, deleted_at: null, updated_at: nowIso() }))
+              var row = { id: id, account_id: u, sort: sort, data: p.data, updated_at: nowIso() };
+              if (p.revive) row.deleted_at = null;
+              return Promise.resolve(sb.from('pay_partners').upsert(row))
                 .then(function (w) { return (w && w.error) ? { ok: false, reason: err(w.error) } : { ok: true, id: id }; });
             }).catch(function (e) { return { ok: false, reason: err(e) }; });
           });

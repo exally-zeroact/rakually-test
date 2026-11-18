@@ -266,6 +266,46 @@ test('§5 ledger.remove: 先に消えた行を もう一度消しても 最初�
   assert.strictEqual(tables.pay_ledger.find(p => p.id === up.id).deleted_at, t1, '再削除で deleted_at が 上書きされた');
 });
 
+/* ★消した取引先を upsert で 生き返らせない★（2026-11-18）＝別の端末で 消された 取引先を 古い 画面から 保存しても
+   変更ごと 生き返らない。戻す時だけ revive:true（seikyu-store の revive）。 */
+test('§4 partners.upsert: 消えた行を 保存しても 生き返らない（deleted・行は そのまま）', async () => {
+  const { sd, tables } = setup();
+  await sd.partners.upsert({ id: 'pt_d', sort: 3, data: { name: 'D社' } });
+  await sd.partners.remove('pt_d');
+  const t1 = tables.pay_partners.find(p => p.id === 'pt_d').deleted_at;
+  assert.ok(t1);
+  const r = await sd.partners.upsert({ id: 'pt_d', data: { name: 'D社(古い画面の直し)' } });
+  assert.strictEqual(r.ok, false, '消えた行の保存が ok＝' + JSON.stringify(r));
+  assert.strictEqual(r.reason, 'deleted');
+  const row = tables.pay_partners.find(p => p.id === 'pt_d');
+  assert.strictEqual(row.deleted_at, t1, 'deleted_at が 動いた（生き返った）');
+  assert.strictEqual(row.data.name, 'D社', '消えた行の 中身が 書き換わった');
+  assert.strictEqual((await sd.partners.list()).length, 0, '一覧に 戻ってきた');
+});
+test('§4 partners.upsert: revive:true の時だけ 戻る（中身は 渡した物・sort は 引き継ぐ）', async () => {
+  const { sd, tables } = setup();
+  await sd.partners.upsert({ id: 'pt_r', sort: 4, data: { name: 'R社' } });
+  await sd.partners.remove('pt_r');
+  const r = await sd.partners.upsert({ id: 'pt_r', data: { name: 'R社' }, revive: true });
+  assert.strictEqual(r.ok, true, JSON.stringify(r));
+  const row = tables.pay_partners.find(p => p.id === 'pt_r');
+  assert.strictEqual(row.deleted_at, null, 'revive で 戻っていない');
+  assert.strictEqual(row.sort, 4);
+  assert.strictEqual((await sd.partners.list()).length, 1);
+});
+test('§4 partners.upsert: 生きている行は 今まで通り 直せる・payload に deleted_at を 入れない（読んで書く間の 別端末の削除を 戻さない）', async () => {
+  const { sb, sd, tables } = setup();
+  await sd.partners.upsert({ id: 'pt_l', sort: 2, data: { name: 'L社' } });
+  sb._reset();
+  const r = await sd.partners.upsert({ id: 'pt_l', data: { name: 'L社(改名)' } });
+  assert.strictEqual(r.ok, true, JSON.stringify(r));
+  const w = sb._calls.filter(c => c.table === 'pay_partners' && c.op === 'upsert');
+  assert.strictEqual(w.length, 1, 'upsert の数');
+  const pl = Array.isArray(w[0].payload) ? w[0].payload[0] : w[0].payload;
+  assert.ok(!('deleted_at' in pl), 'payload に deleted_at が 入っている＝読んでから書くまでに 別端末が 消した行を 戻す＝' + JSON.stringify(pl));
+  assert.strictEqual(tables.pay_partners.find(p => p.id === 'pt_l').data.name, 'L社(改名)');
+});
+
 /* ═══ §5 日次台帳 ═══ */
 
 test('§5 ledger: 同じ人・同じ日に複数行を入れられる(1日に何本も=代行の実態)', async () => {

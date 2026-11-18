@@ -52,6 +52,7 @@
     var s = String(reason || '');
     if (/no-user/.test(s)) return 'ログインし直してください';
     if (/not-found/.test(s)) return '対象が見つかりませんでした（画面を更新してください）';
+    if (/^deleted$/.test(s)) return 'この取引先は他の端末で削除されています（画面を更新してください）';
     if (/Failed to fetch|NetworkError|network/i.test(s)) return 'ネットに繋がりませんでした';
     return s || '保存できませんでした';
   }

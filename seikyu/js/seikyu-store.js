@@ -317,7 +317,10 @@
             var cur = list.filter(function (x) { return x.id === id; })[0];
             if (!cur) return { ok: false, reason: 'この取引先が見つかりません' };
             var data = Object.assign({}, cur.data || {}, add || {});
-            return suite.partners.upsert({ id: id, sort: cur.sort, data: data });
+            /* ★読んでから書くまでに 別の端末で 消された時は 共有層が {reason:'deleted'} を返す（生き返らせない）＝画面の字にする */
+            return Promise.resolve(suite.partners.upsert({ id: id, sort: cur.sort, data: data })).then(function (w) {
+              return (w && w.ok === false && w.reason === 'deleted') ? { ok: false, reason: 'この取引先は他の端末で消されています' } : w;
+            });
           });
         },
         /* ★取引先を 消す★（司さん 2026-10-23 ⑤「取引先を削除できるようにしろ」）
@@ -348,7 +351,7 @@
             if (q && q.error) return { ok: false, reason: err(q.error) };
             var row = q && q.data;
             if (!row) return { ok: false, reason: 'この取引先が見つかりません' };
-            return Promise.resolve(suite.partners.upsert({ id: id, sort: row.sort, data: row.data || {} })).then(function (w) {
+            return Promise.resolve(suite.partners.upsert({ id: id, sort: row.sort, data: row.data || {}, revive: true })).then(function (w) {
               return (w && w.ok) ? { ok: true, id: id } : { ok: false, reason: (w && w.reason) || '保存できませんでした' };
             });
           }).catch(function (e) { return { ok: false, reason: err(e) }; });
