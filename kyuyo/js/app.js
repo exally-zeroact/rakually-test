@@ -2669,7 +2669,7 @@
     var holStr=hols.length?hols.map(function(x){return x.day+'日 '+x.name;}).join('・'):'なし';
     var calHTML = sche==null ? '' :
       '<div class="cal-box" style="background:#F0FAF4;border:1px solid #C8ECD8;border-radius:12px;padding:10px 12px;margin-bottom:12px">'
-      +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">'
+      +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 8px">'
         +'<b style="color:#333333;font-size:13px">当月の所定労働日数 '+sche+'日</b>'
         +'<span style="font-size:10.5px;color:#555555">（休みの曜日・祝日・会社休を除く）</span>'
         /* ★★色を その場に 直書きするのを やめた（2026-09-25 司さん「色とか 使い方は ルール違反やないか？」）★★
@@ -2756,7 +2756,7 @@
     /* ★★「今月を確定」も 下に 貼り付く★★（2026-09-25 司さんの 条件・上の 帯と 同じ 訳）
        ★背景を 必ず 持たせる★＝持たせないと ★下の 札が 透けて 字が 重なる★
        ★`bottom:0`★＝窓の 一番 下／`z-index` は 上の 帯と 同じ 30 */
-    var confirmBtn='<div style="position:sticky;bottom:calc(var(--bn-h,0px) + var(--sa-h,0px));z-index:29;background:#F0FAF4;border-top:1px solid #C8ECD8;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 0;padding:10px 0 8px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru||yomeN)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':(yomeN?'金額が読めない'+yomeN+'名':'台帳・年調に反映')))+'）</button>'
+    var confirmBtn='<div style="position:sticky;bottom:calc(var(--bn-h,0px) + var(--sa-h,0px));z-index:29;background:#F0FAF4;border-top:1px solid #C8ECD8;display:flex;flex-wrap:wrap;align-items:center;gap:14px 10px;margin:14px 0 0;padding:10px 0 8px"><button class="btn-primary" data-confirm-month'+((prefMiss.missingCount||soukoTomeru||yomeN)?' disabled':'')+' style="flex:0 0 auto;padding:11px 18px;font-size:14px">今月を確定（'+(soukoTomeru?soukoTomeru:(prefMiss.missingCount?'県が未選択'+prefMiss.missingCount+'名':(yomeN?'金額が読めない'+yomeN+'名':'台帳・年調に反映')))+'）</button>'
       +(cnt.need>0?'<span style="font-size:11px;color:#92500A;font-weight:700;white-space:nowrap">未確認 '+cnt.need+'名</span>':'<span style="font-size:11px;color:#333333;font-weight:700;white-space:nowrap">✓ 確認済</span>')
       /* ★この月の確定を 取り消す★（2026-09-07 司さん「やって」）
          ★確定済みの 月にだけ 出す★＝押せない物を 並べない。

@@ -158,7 +158,7 @@ textarea.finput { min-height: 76px; line-height: 1.7; resize: vertical; }
 .num { text-align: right; font-family: 'DM Mono', ui-monospace, monospace; }
 
 /* ── ボタン（★行は必ず折り返す＝横にはみ出させない★）──────── */
-.btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 14px 8px; margin-top: 10px; }
 .btn-row > * { flex: 0 1 auto; }
 .btn-primary, .btn-ghost, .bdel, .btn-add {
   font-family: inherit; font-size: 14px; font-weight: 700;

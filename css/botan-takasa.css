@@ -1,0 +1,37 @@
+/* botan-takasa.css — ★押す物の 見える高さを 字に 合わせる★（司さん 2026-11-19「どのアプリでも 何回も ゆうてる」）
+   決まり＝見える高さ÷字＝2.5〜2.8（12px→32・13px→36・14px→36・16px→44＝コンサル 11-19 の揃えた数）。押せる所 44px は 見えない ::after で守る。
+   ★小さい字に min-height:44px を 付けない★（前は 14px の字で 44〜47px＝比 3.1〜3.4・11px の字で 44px＝比 4）。
+   ・5画面の ★最後に 読む★＝ここ 1か所で 揃える（画面ごとの CSS に 44 を 書き戻さない）
+   ・!important＝画面ごとの 強い指定と 行の中の style（JS が 描く 42か所）に 勝つため
+   ・★強さ 0★＝全部 :where の 中＝既に position を 持つ物（帯 #kami-obi の fixed 等）は そのまま
+   ・★見える箱を 縮めると 押せる所 44 が 隣と 重なる★＝縦に 並ぶ 押す物の 間は「45 − 低い方の 高さ」以上 空ける（44 ちょうどだと 端数で 隣に 当たる・11-20 実測）
+     （折り返す 段の row-gap＝チップ 14・.btn-row 14・紙の 帯の .mini 18・給与の 確定の 段 14・所定で埋める 段 10／全銀の下の 畳み 12・ログインの下の 忘れた 12＝各 CSS・試験が 段ごとに 数える）
+   ・試験＝tests/botan-takasa.test.mjs（本当に ログインした 5画面・WebKit・375/390・上下±21px を 突く） */
+
+/* B＝押す物（ボタン・押す札）／X＝外す物（下の帯・中身を持つ 行や札・払うと出る 行の高さいっぱいの 消す口 .swipe-del・画面の 幅いっぱいの 帯 #kami-obi（下のタブと 同じ 帯の 高さ 44）・字の中の 小さい印） */
+:where(button, [role=button], a[class*="btn"], .chip, .imode, .ivw, .pmode, .emp-dtgl, .ri-hd, .ic-detail, .ynb):where(:not(.bn, .bn-i, .tile, .row, .pask-d, .ob-step, .acc-h, .pt-co-hd, .swipe-del, #kami-obi, .help-i, .hd-out, .mw-fix)) {
+  box-sizing: border-box !important;
+  height: auto !important;
+  line-height: 1.2 !important;
+  /* 詰め .5em＝中身 2.2em＋枠（最大 1.5px×2）で 決めた 高さを 越えない（.6em だと 14px 字で 36.6px＝越えた・11-19 実測） */
+  padding-top: .5em !important;
+  padding-bottom: .5em !important;
+  /* 10.5px 26.3／11px 28／12px 32／13px 36／14px 36／15px 40／16px 44／20px 56（比 2.5〜2.8）
+     ＝12・13px は 4em−16px（上限 36px）／14px から上は 4em−20px／下限 2.5em・上限 2.8em */
+  min-height: max(2.5em, min(2.8em, max(min(calc(4em - 16px), 36px), calc(4em - 20px)))) !important;
+  position: relative;
+}
+/* ★押せる所 44px★＝見えない 広げ（上下に はみ出す・横は 箱の 幅） */
+:where(button, [role=button], a[class*="btn"], .chip, .imode, .ivw, .pmode, .emp-dtgl, .ri-hd, .ic-detail, .ynb):where(:not(.bn, .bn-i, .tile, .row, .pask-d, .ob-step, .acc-h, .pt-co-hd, .swipe-del, #kami-obi, .help-i, .hd-out, .mw-fix))::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%;
+  height: max(100%, 44px); transform: translateY(-50%);
+}
+/* ★打つ欄★＝::after が 描かれない＝見える高さで 守る。16px（iOS が 拡大しない 字）で 44px ちょうど */
+:where(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=hidden]), select) {
+  box-sizing: border-box !important;
+  height: 2.75em !important;
+  min-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.2 !important;
+}

@@ -1074,6 +1074,12 @@ jobs:
         run: node tests/scroll-muda.mjs
       - name: ★同 判定そのものが空振りしていないか（自己確認）
         run: node tests/scroll-muda.mjs --self-test
+      - name: ★押す物の見える高さは字に合わせる（12px→32・13/14px→36・16px→44）／押せる所44は見えない広げ（段1＝iPhone SE 375×667・ログイン前と入った後の6画面）
+        run: node tests/botan-takasa.test.mjs --bu=1
+      - name: ★同（段2＝iPhone 13 390×844）
+        run: node tests/botan-takasa.test.mjs --bu=2
+      - name: ★同 わざと崩して赤になるか（min-height44を戻す／::afterを外す／親overflow:hidden／詰めが負ける／折り返す段の縦の隙間0）
+        run: node tests/botan-takasa.test.mjs --self-test
       - name: ★他人のデータが見えない・書けない（渡す前のいちばん大事な所／本番repoでは測れないと言って抜ける）
         run: node kyuyo/tests/rls-tanin.mjs
       - name: ★同 判定そのものが空振りしていないか（自己確認）

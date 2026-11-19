@@ -49,7 +49,7 @@
     ".login-btn:disabled{opacity:.55;}",
     /* ★パスワードを忘れた人の逃げ道★（これが無いと、その人は二度と自分のデータに入れない）
        押せる物なので色を付ける。見た目は Rakunally の緑のまま＝他アプリから持ってこない。 */
-    ".login-forgot{background:none;border:0;padding:8px 4px 0;font-family:inherit;",
+    ".login-forgot{background:none;border:0;padding:8px 4px 0;margin-top:12px;font-family:inherit;",
     "font-size:12px;color:#2f8f5b;text-decoration:underline;cursor:pointer;}",
     ".login-forgot:disabled{opacity:.55;}",
   ].join("");

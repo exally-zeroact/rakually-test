@@ -26,6 +26,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { TAP_JS, takasaNG } from '../../tests/_takasa.mjs';
 import { createRequire } from 'node:module';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -102,13 +103,13 @@ async function measureShape(doc) {
     if (/^https?:/.test(href)) { l.remove(); return; }
     l.setAttribute('href', pathToFileURL(path.resolve(path.dirname(FILE), href)).href);
   });
-  const PROBE = `
+  const PROBE = TAP_JS + `
     var seg = document.getElementById('set-seg');
     var sr = seg ? seg.getBoundingClientRect() : null;
     var bs = [].map.call(document.querySelectorAll('#set-seg .set-seg-b'), function (b) {
       var r = b.getBoundingClientRect();
-      return { t: b.textContent.trim(), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height),
-        sw: b.scrollWidth, cw: b.clientWidth };
+      return tapLater({ t: b.textContent.trim(), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height),
+        sw: b.scrollWidth, cw: b.clientWidth, fs: fsOf(b) }, b);
     });
     var panels = [].map.call(document.querySelectorAll('#scr-set .set-panel'), function (p) {
       return { k: p.getAttribute('data-setseg'), h: Math.round(p.getBoundingClientRect().height) };
@@ -116,6 +117,7 @@ async function measureShape(doc) {
     var cards = [].map.call(document.querySelectorAll('#pt-cards .pt-co-hd'), function (h) {
       var r = h.getBoundingClientRect(); return { h: Math.round(r.height), w: Math.round(r.width) };
     });
+    tapRun();
     return { seg: sr ? { x: Math.round(sr.left), w: Math.round(sr.width), h: Math.round(sr.height) } : null,
       bs: bs, panels: panels, cards: cards, vw: window.innerWidth, dw: document.documentElement.scrollWidth };
   `;
@@ -405,7 +407,8 @@ async function run(label, o) {
     ok(sum >= j.seg.w - 20, '★横いっぱいでない★ 札の 幅の 合計 ' + sum + ' / 帯 ' + j.seg.w);
     const w = j.bs.map((b) => b.w);
     ok(Math.max(...w) - Math.min(...w) <= 4, '★幅が 揃っていない★ ' + w.join(','));
-    ok(j.bs.every((b) => b.h >= 44), '★指で 押せる 高さ(44px)が 無い★ ' + j.bs.map((b) => b.h).join(','));
+    /* ★見える 高さは 字に 合わせる・押せる所 44 は ::after★（11-20 botan-takasa＝前は 見える 高さに 44 を 求めていた） */
+    j.bs.forEach((b) => { const ng = takasaNG(b.h, b.fs, b.hit); ok(!ng, '★切り替え「' + b.t + '」★ ' + ng); });
     ok(j.bs.every((b) => b.sw <= b.cw + 1), '★字が 切れている★ ' + JSON.stringify(j.bs));
     ok(j.dw <= j.vw, '★横に はみ出す★ ' + j.dw + ' > ' + j.vw);
     const shown = j.panels.filter((p) => p.h > 0).map((p) => p.k);

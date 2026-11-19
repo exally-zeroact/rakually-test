@@ -36,6 +36,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { TAP_JS, takasaNG } from '../../tests/_takasa.mjs';
 import { createRequire } from 'node:module';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -165,7 +166,7 @@ async function measure(doc, width) {
     if (/^https?:/.test(href)) { l.remove(); return; }
     l.setAttribute('href', pathToFileURL(path.resolve(path.dirname(FILE), href)).href);
   });
-  const PROBE = `
+  const PROBE = TAP_JS + `
     function R(e) { if (!e) return null; var r = e.getBoundingClientRect();
       return { l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom),
         w: Math.round(r.width), h: Math.round(r.height) }; }
@@ -176,12 +177,13 @@ async function measure(doc, width) {
         amtLines: am ? Math.round(am.getBoundingClientRect().height / (parseFloat(getComputedStyle(am).lineHeight) || 20)) : 0,
         amtText: am ? am.textContent : '',
         btns: [].map.call(c.querySelectorAll('.iv-btns button'), function (b) {
-          return { t: b.textContent, r: R(b), color: getComputedStyle(b).color }; }) };
+          return tapLater({ t: b.textContent, r: R(b), color: getComputedStyle(b).color, fs: fsOf(b) }, b); }) };
     });
     var fb = list.querySelector('.filterbar');
     var sels = fb ? [].map.call(fb.querySelectorAll('select'), R) : [];
     var sum = document.getElementById('list-sum');
     var sp = sum ? [].map.call(sum.children, R) : [];
+    tapRun();
     return { vw: window.innerWidth, sw: document.documentElement.scrollWidth,
       cards: cards, sels: sels, fb: R(fb), sum: R(sum), sumKids: sp };
   `;
@@ -430,7 +432,7 @@ for (const W of [390, 320]) {
       /* ⑩ ボタン */
       ok(c.btns.length >= 2, '★' + (i + 1) + '枚目に 確認・修正が 無い★');
       c.btns.forEach((b) => {
-        ok(b.r.h >= 40, '★「' + b.t + '」が 指で 押せない 高さ★ ' + b.r.h + 'px');
+        { const ng = takasaNG(b.r.h, b.fs, b.hit); ok(!ng, '★「' + b.t + '」★ ' + ng); }  /* 11-20 botan-takasa＝見える 高さは 字に・押せる所 44 は ::after */
         ok(b.r.r <= c.card.r && b.r.l >= c.card.l, '★「' + b.t + '」が カードから はみ出している★');
       });
       ok(Math.max(...c.btns.map((b) => b.r.t)) - Math.min(...c.btns.map((b) => b.r.t)) <= 2,

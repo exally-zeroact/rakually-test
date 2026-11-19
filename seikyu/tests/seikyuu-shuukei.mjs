@@ -30,6 +30,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { TAP_JS, takasaNG } from '../../tests/_takasa.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 let JSDOM; try { ({ JSDOM } = await import('jsdom')); }
@@ -89,15 +90,16 @@ async function measureShape(doc, W = 390) {
   if (!CHROME) throw new Error('★ブラウザが 見つかりません＝形を 測れません（0と言わない）★');
   const { execFileSync } = await import('node:child_process');
   const { OUT, d, FIT } = await pageForChrome(doc, 'm' + W);
-  const PROBE = FIT + 'fitAll();'
+  const PROBE = FIT + TAP_JS + 'fitAll();'
     + 'var vw=window.innerWidth,over=[];'
     + '[].forEach.call(document.querySelectorAll("#scr-bill *"),function(e){var r=e.getBoundingClientRect();'
     + 'if(r.width>0&&(r.right>vw+0.5||r.left<-0.5))over.push((e.id||e.className||e.tagName)+" "+Math.round(r.left)+"-"+Math.round(r.right));});'
     + 'var sc=document.getElementById("scr-bill").getBoundingClientRect();'
     + 'var papers=[].map.call(document.querySelectorAll("#bk-papers .pv-wrap"),function(w){var r=w.getBoundingClientRect();return [Math.round(r.width),Math.round(r.height)];});'
-    + 'var acts=[].map.call(document.querySelectorAll(".bk-acts button"),function(b){var r=b.getBoundingClientRect();return [Math.round(r.width),Math.round(r.height),Math.round(r.top),b.scrollWidth-b.clientWidth,b.scrollHeight-b.clientHeight,Math.round(r.right)];});'
+    + 'var acts=[].map.call(document.querySelectorAll(".bk-acts button"),function(b){var r=b.getBoundingClientRect();return [Math.round(r.width),Math.round(r.height),Math.round(r.top),b.scrollWidth-b.clientWidth,(function(){var cs=getComputedStyle(b),rg=document.createRange();rg.selectNodeContents(b);var q=rg.getBoundingClientRect();var t=r.top+parseFloat(cs.paddingTop)+parseFloat(cs.borderTopWidth),u=r.bottom-parseFloat(cs.paddingBottom)-parseFloat(cs.borderBottomWidth);return Math.max(0,Math.round(Math.max(t-q.top,q.bottom-u)));})(),Math.round(r.right),fsOf(b),b];});'
     + 'var clip=[];[].forEach.call(document.querySelectorAll("#scr-bill .bk-sum-v, #scr-bill .bk-tbl td, #scr-bill .bk-acts button"),function(e){var r=e.getBoundingClientRect();if(!(r.width>0))return;var o1=e.style.overflow,o2=e.style.textOverflow;e.style.overflow="visible";e.style.textOverflow="clip";var rg=document.createRange();rg.selectNodeContents(e);var rr=rg.getBoundingClientRect();var cs=getComputedStyle(e);var inR=r.right-parseFloat(cs.paddingRight)-parseFloat(cs.borderRightWidth);var inL=r.left+parseFloat(cs.paddingLeft)+parseFloat(cs.borderLeftWidth);e.style.overflow=o1;e.style.textOverflow=o2;if(rr.right>inR+0.5||rr.left<inL-0.5||e.scrollWidth>e.clientWidth+0.5||r.right>vw+0.5)clip.push((e.className||e.tagName)+" "+e.textContent.trim().slice(0,14)+" 字"+Math.round(rr.width)+"/枠"+Math.round(inR-inL));});'
     + 'var sums=[].map.call(document.querySelectorAll("#scr-bill .bk-sum-v"),function(e){var rg=document.createRange();rg.selectNodeContents(e);return e.textContent.trim()+" [字"+Math.round(rg.getBoundingClientRect().width)+"/枠"+e.clientWidth+" "+getComputedStyle(e).whiteSpace+" "+getComputedStyle(e).fontFamily.slice(0,20)+"]";});'
+    + 'acts=acts.map(function(a){var o={a:a};tapLater(o,a[7]);return o;});tapRun();acts=acts.map(function(o){o.a[7]=o.hit;return o.a;});'
     + 'return {vw:vw,sw:document.documentElement.scrollWidth,over:over.slice(0,8),scrW:Math.round(sc.width),papers:papers,acts:acts,clip:clip,sums:sums};';
   const tail = '<script>window.addEventListener("load",function(){setTimeout(function(){var r;try{r=JSON.stringify((function(){'
     + PROBE + '})());}catch(e){r=JSON.stringify({error:String(e)});}parent.postMessage(r,"*");},300);});</scr' + 'ipt>';
@@ -540,7 +542,8 @@ async function run(label, appSrc) {
     ok(j.scrW >= W - 32 - 1, '★画面が 出ていない★ 幅 ' + j.scrW);
     eq(j.papers.length, 4, '★紙が 4枚 出ていない★');
     j.papers.forEach((p, i) => ok(p[0] > W - 80 && p[1] > 300, '★' + (i + 1) + '枚目の 紙の 大きさ★ ' + p.join('×')));
-    j.acts.forEach((a, i) => ok(a[1] >= 44 && a[1] < 80, '★' + (i + 1) + '個目の ボタンの 高さ★ ' + a.slice(0, 2).join('×')));
+    /* ★見える 高さは 字に 合わせる・押せる所 44 は ::after★（11-20 botan-takasa＝前は 44〜80 を 求めていた）。縦の 切れは 字の 箱で 数える（scrollHeight は ::after の はみ出しを 数える） */
+    j.acts.forEach((a, i) => { const ng = takasaNG(a[1], a[6], a[7]); ok(!ng, '★' + (i + 1) + '個目の ボタン★ ' + ng); });
     ok(j.sw <= W, '★横に はみ出した★ 幅 ' + j.sw);   /* ★決め打ちの 390 では 320px の はみ出しを 見逃す★ */
     ok(!j.over.length, '★はみ出した 物★ ' + j.over.join(' / '));
     console.log('     幅 ' + j.sw + 'px ／ 紙 ' + j.papers.map((p) => p.join('×')).join(' ') + ' ／ ボタン ' + j.acts.map((a) => a.slice(0, 2).join('×')).join(' '));

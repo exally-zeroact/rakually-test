@@ -79,7 +79,7 @@ select.finput{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://w
 .mco.open .mco-cv{transform:rotate(180deg);}
 .mco-body{display:none;padding:12px;border-top:1px solid #d4eae0;}
 .mco.open .mco-body{display:block;}
-.emp-dtgl{display:flex;align-items:center;font-size:12px;font-weight:700;color:#2E7D54;cursor:pointer;padding:10px 2px 8px;margin-top:8px;border-top:1px dashed #d4eae0;}
+.emp-dtgl{display:flex;align-items:center;font-size:12px;font-weight:700;color:#2E7D54;cursor:pointer;padding:10px 2px 8px;margin-top:12px;border-top:1px dashed #d4eae0;}/* 上 12＝上の ボタンと 押せる所が 重ならない（11-19） */
 .emp-dtgl .mco-cv{color:#6E6E6E;transition:transform .2s;}
 .emp-detail{padding-top:4px;}
 .emp-sub{border:1px solid #E3F0E8;border-radius:10px;margin-bottom:8px;overflow:hidden;}
@@ -93,7 +93,7 @@ select.finput{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://w
 .emp-filter .ef-b .ef-n{display:inline-block;margin-left:4px;font-size:11px;color:#6E6E6E;font-family:'DM Mono',monospace;}
 .emp-filter .ef-b.on .ef-n{color:#3D9E72;}
 .sec-lb{font-size:11px;font-weight:700;color:#333333;margin:14px 0 6px;padding-top:10px;border-top:1px dashed #d4eae0;}
-.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.chip-row{display:flex;flex-wrap:wrap;gap:14px 6px;margin-bottom:8px;}/* 縦 14＝32px の チップの 押せる所 44 が 次の行と 重ならない（11-19 botan-takasa） */
 .chip.on{border-color:#52B788;background:#F0FAF4;color:#2E7D54;font-weight:700;}
 .addcustom{display:flex;gap:6px;margin-top:4px;}
 /* ★flex の子は min-width:auto で 縮まない＝隣のボタンを 画面の外へ 押し出す★（2026-09-08） */
@@ -306,7 +306,7 @@ input[type="date"].finput:not(.finput-sm),input[type="month"].finput:not(.finput
 .hint{font-size:11px;color:#333333;line-height:1.7;margin-top:6px;}
 
 /* ---- buttons / chips ---- */
-.btn-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}/* ★収まらない時は折り返す（横に隠れて押せない物を作らない・2026-08-10 実測して追加）★ */
+.btn-row{display:flex;flex-wrap:wrap;gap:14px 10px;margin-top:6px;}/* ★収まらない時は折り返す（横に隠れて押せない物を作らない・2026-08-10 実測して追加）★ */
 /* ★スマホで詰める: ラベルと枠の間・列の間を狭くする（「重なって見える」の元） */
 @media (max-width:400px){
   .frow2{gap:8px;}
@@ -362,6 +362,8 @@ button:disabled,.btn-row button:disabled{background:#FFF8E1;color:#92500A;border
 .diffb.dn{color:#C0392B;background:#FDF1F0;}
 .diffb.sm{color:#555555;background:#F0FAF4;}
 .acc-cv{font-size:14px;color:#555555;transition:transform .2s;}
+/* ★詳細の ▾ は 行を 押し上げない★（14px の 印が 12px の ボタンを 34px に していた・11-19 botan-takasa）*/
+.ic-detail .acc-cv{line-height:1;}
 .acc.open .acc-cv{transform:rotate(180deg);}
 .acc-body{display:none;padding:0 14px 14px;border-top:1px solid #EEF6F1;}
 .acc.open .acc-body{display:block;}
