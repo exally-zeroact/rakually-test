@@ -35,3 +35,8 @@
   padding-bottom: 0 !important;
   line-height: 1.2 !important;
 }
+/* ★押す物の 中の 押す物★（給与 .ri-hd の 中の 💡 .help-i 等）＝親の 見えない 広げ ::after が 上に 被さって 押せなくなる（11-20 oseru-ka 実測）＝中の 押す物を 広げより 上に。強さ 0＝既に position を 持つ物は そのまま */
+:where(button, [role=button], a[class*="btn"], .chip, .imode, .ivw, .pmode, .emp-dtgl, .ri-hd, .ic-detail, .ynb) :where(button, [role=button], a, input, select, .help-i) {
+  position: relative;
+  z-index: 1;
+}
