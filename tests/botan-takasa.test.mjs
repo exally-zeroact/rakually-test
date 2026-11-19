@@ -194,7 +194,10 @@ function matome(res) {
 
 if (SELF) {
   console.log('\n[botan-takasa --self-test] ★わざと 崩して 赤に なるか★（請求書・幅390）');
-  const g = GAMEN.filter((x) => x.na === '請求書' || x.na === 'ログイン前');
+  /* ★見本★（11-20 本番前 taiketsu 止め1）＝本番の repo は 鍵が 無く 請求書を 測れない→ログイン前だけでは ③⑤ が 赤を 出せず exit 1 だった。
+     ログインの 要らない 見本（本物の css＋折り返す 押す物の 段）を 必ず 入れる */
+  const MIHON = { na: '見本', url: '/tests/fixtures/botan-takasa-mihon.html', mae: '#mihon-row', tabs: [] };
+  const g = [MIHON, ...GAMEN.filter((x) => x.na === '請求書' || x.na === 'ログイン前')];
   /* 判定そのもの */
   let bad = 0;
   const say = (ok, s) => { console.log((ok ? '  ✓ ' : '  ✗ ') + s); if (!ok) bad++; };
@@ -215,6 +218,11 @@ if (SELF) {
     ['⑤ 折り返す 段の 縦の 隙間を 0 に', '*{row-gap:0!important}'],
     ['④ 決まりの CSS が 負ける（!important を 外した のと 同じ＝行の中の style が 勝つ）', 'button{padding-top:14px!important;padding-bottom:14px!important}'],
   ];
+  {
+    const { res, mitei } = await hakaru(390, [MIHON], null);
+    const { aka } = matome(res);
+    say(res.length > 0 && aka.size === 0 && res.some((x) => x.kind === 'gap'), '見本（崩す前） … 測った ' + res.length + '個・折り返す段 ' + res.filter((x) => x.kind === 'gap').length + '・赤 ' + aka.size + (mitei.length ? '（' + mitei.join('、') + '）' : ''));
+  }
   for (const [na, css] of KOWASU) {
     const { res, mitei } = await hakaru(390, g, css);
     if (!res.length) { console.log('  🟡 ' + na + ' … 未測定（' + mitei.join('、') + '）'); bad++; continue; }

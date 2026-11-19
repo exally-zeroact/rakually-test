@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>botan-takasa 自己確認の見本</title>
+<!-- ★tests/botan-takasa.test.mjs --self-test だけが 読む 見本（配信しない＝.vercelignore が tests/ を 外す）★
+     本番の repo は 試験の 鍵が 無く ログインの 要る 画面を 測れない＝ログイン前の 画面には 折り返す 段が 無く
+     「段の 隙間を 0」「親に overflow:hidden」の 崩しが 赤を 出せなかった（11-20 本番前 taiketsu 止め1・本番の 木で exit=1 を 測った）。
+     本物の css を 読み、折り返す 押す物の 段を 1つ 置く。 -->
+<link rel="stylesheet" href="/css/rakunally-ui.css">
+<link rel="stylesheet" href="/css/botan-takasa.css">
+</head>
+<body>
+<main style="padding:16px">
+  <div class="btn-row" id="mihon-row">
+    <button type="button" class="btn-primary">保存する</button>
+    <button type="button" class="btn-ghost">取り消す</button>
+    <button type="button" class="btn-ghost">前の月へ</button>
+  </div>
+</main>
+</body>
+</html>
