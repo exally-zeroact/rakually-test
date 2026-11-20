@@ -11,7 +11,9 @@
     // ★detectSessionInUrl=true: メール確認リンク(確認ON時)で戻ると URL に access/refresh トークンが載る→
     //   これを解析してセッションを成立させる為に必要。通常のメール+パスワードのみの利用では URL にトークンが
     //   無いので副作用なし(=既定値true・回帰なし)。確認OFFのままでも安全。
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    // ★どのアプリから 直したかを 倉庫の 直しの 記録（kyuyo.pay_rireki.app）に 残す 頭＝自己申告の 参考値（判定には 使わない・2026-11-20）
+    global: { headers: { 'x-rk-app': 'kyuyo' } }
   }) : null;
 
   // ── 全件ページング(PostgREST既定 max_rows=1000 で"黙って"切れるのを根治) ──

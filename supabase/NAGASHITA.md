@@ -13,3 +13,5 @@ md5 は 関数の 本体（prosrc）。性質＝持ち主/definer/search_path �
 | 2026-10-29T15:40:13.619Z | test | 流す | kyuyo.pay_invoices_freeze | fb3e567157ede478ace0030f5f3c0be7 | 1dd05a5792ce3cd28460ea2919144644 | 1→1 | 同じ | 3e117cef413ec73f182bb4af50f186f0 | 0960fe605af2 | OK |
 | 2026-10-29T21:59:51.155Z | honban | 流す（試み） | kyuyo.pay_invoices_freeze | fb3e567157ede478ace0030f5f3c0be7 | — | 1→? | oid=20674;owner=postgres;secdef=false;config=;vol=v;acl=;ret=trigger;lang=plpgsql;nargs=0 | 3e117cef413ec73f182bb4af50f186f0 | 0960fe605af2 | 試み |
 | 2026-10-29T21:59:52.815Z | honban | 流す | kyuyo.pay_invoices_freeze | fb3e567157ede478ace0030f5f3c0be7 | 1dd05a5792ce3cd28460ea2919144644 | 1→1 | 同じ | 3e117cef413ec73f182bb4af50f186f0 | 0960fe605af2 | OK |
+| 2026-11-20T04:08:11.264Z | test | 流す（試み） | kyuyo.pay_rireki 一式 | 無し | — | 0→? | 表0・引き金0/0・policy0/0 | 866cd8aa4f8f5ae423f72338060834e6 | 4aed77ab360b | 試み |
+| 2026-11-20T04:08:12.837Z | test | 流す | kyuyo.pay_rireki 一式 | 無し | 49daa4b89ab28108135c8deea7f91c19 | 0→6 | 表1・引き金6/6・policy1/1 | 866cd8aa4f8f5ae423f72338060834e6 | 4aed77ab360b | OK |

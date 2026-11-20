@@ -94,7 +94,8 @@ async function toi(sql) {
       headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json', 'User-Agent': 'rakunally-souko-kazoeru' },
       body: JSON.stringify({ query: sql }), signal: AbortSignal.timeout(25000),
     });
-    if (!r.ok) return { ok: false, naze: '倉庫が ' + r.status + ' を 返した' };
+    /* ★訳の 字（42501 等）を 後ろに 付ける★＝「拒まれる」試験が 権限で 落ちたか 文の 誤りかを 見分ける（2026-11-20 rireki-live）。前の 字は 変えない（kankyoKa 等は 前で 見る） */
+    if (!r.ok) { let m = ''; try { const b = await r.text(); try { m = String(JSON.parse(b).message || b); } catch (_) { m = b; } } catch (_) { /* 読めなくても 訳は 出す */ } return { ok: false, naze: '倉庫が ' + r.status + ' を 返した' + (m ? '：' + m.replace(/\s+/g, ' ').slice(0, 200) : '') }; }
     return { ok: true, gyo: await r.json() };
   } catch (e) { return { ok: false, naze: String(e && e.message || e).slice(0, 90) }; }
 }

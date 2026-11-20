@@ -63,7 +63,8 @@
     return;
   }
 
-  var sb = global.supabase.createClient(global.SUPA.url, global.SUPA.key);
+  // ★どのアプリから 直したかを 倉庫の 直しの 記録（kyuyo.pay_rireki.app）に 残す 頭＝自己申告の 参考値（判定には 使わない・2026-11-20）
+  var sb = global.supabase.createClient(global.SUPA.url, global.SUPA.key, { global: { headers: { 'x-rk-app': 'hub' } } });
   mountLogin(sb);
   var APP = 'suite';
   var curEmail = '';

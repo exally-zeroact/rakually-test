@@ -44,6 +44,8 @@
 
   var sb = global.supabase.createClient(global.SUPA.url, global.SUPA.key, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    // ★どのアプリから 直したかを 倉庫の 直しの 記録（kyuyo.pay_rireki.app）に 残す 頭＝自己申告の 参考値（判定には 使わない・2026-11-20）
+    global: { headers: { 'x-rk-app': 'seikyu' } },
   });
   mountLogin(sb);
   var curEmail = '';

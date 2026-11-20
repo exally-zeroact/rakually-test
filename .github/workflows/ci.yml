@@ -254,6 +254,8 @@ jobs:
         run: node seikyu/tests/sql-guard.test.mjs
       - name: ★倉庫に当てる前の門番 (わざと危ない物を食わせて止まるかの自己確認)
         run: node seikyu/tests/sql-guard.test.mjs --self-test
+      - name: ★給与の直しの記録の門番（流す sql に消す系・給与の表への grant/policy・知らない引き金を入れたら止める／わざと外すと赤）
+        run: node tests/rireki-sql-guard.test.mjs && node tests/rireki-sql-guard.test.mjs --self-test
       - name: ★設計図(SQL)と lib のズレ (固まる列・一意制約のwhere・窓口のsecurity_invoker)
         run: node seikyu/tests/schema-contract.test.mjs
       - name: ★設計図(SQL)と lib のズレ (わざとズラして赤になるかの自己確認)
@@ -869,6 +871,8 @@ jobs:
         run: node kyuyo/tests/rousai-fuda.test.mjs && node kyuyo/tests/rousai-fuda.test.mjs --self-test
       - name: ★倉庫の権限と「消すと道連れになる親」を実物に聞く（09-18＝鍵を消したらお金の記録が13枚CASCADEで消えた／CIに鍵が無ければ未測定と出して抜ける）
         run: node kyuyo/tests/souko-kengen.test.mjs
+      - name: ★給与の直しの記録が6本の表で残り・他社と anon からは読めず・書けないかを試験の倉庫で rollback して数える（2026-11-20／CIに鍵が無ければ未測定と出して抜ける）
+        run: node kyuyo/tests/rireki-live.mjs
       - name: ★県が無い時の代用を1つに揃える（2026-09-03＝同じ状態で3つの違う額が出ていた）
         run: node kyuyo/tests/pref-daiyo.test.mjs && node kyuyo/tests/pref-daiyo.test.mjs --self-test
       - name: ★直したら警告もついてくる（2026-09-03 穴②＝県を直しても警告が出たままだった）
